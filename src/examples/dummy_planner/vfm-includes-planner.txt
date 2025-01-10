@@ -1,0 +1,11 @@
+// All files containing input that needs to be parsed have to be listed here.
+// The ordering follows the ordering in C++. 
+
+// Global options.
+./vfm-options-planner.txt$
+
+// Interfaces (.h/.hpp files; no need to include function declarations if the definition is included from the .cpp).
+// None in this simple example so far.
+
+// Here come the implementations (.cpp files).
+./planner.cpp
