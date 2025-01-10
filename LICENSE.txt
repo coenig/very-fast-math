@@ -1,0 +1,31 @@
+This software is provided under the terms of the MIT license (https://opensource.org/license/mit) with the below stated exceptions.
+
+MIT License
+===========
+Copyright 2025 Robert Bosch GmbH
+Copyright 2025 Lukas Koenig
+Copyright 2025 Alexander Georgescu
+Copyright 2025 Christian Heinzemann
+Copyright 2025 Christian Schildwaechter
+Copyright 2025 Michaela Klauck
+Copyright 2025 Henning Koch
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+Exceptions
+==========
+1. The external libraries which are used as part of the code are provided under their own (similar) licenses:
+   * ASMJIT (src/asmjit): https://github.com/asmjit/asmjit/blob/master/LICENSE.md
+   * FLTK (src/fltk): https://www.fltk.org/COPYING.php
+   * Gif writer (include/geometry/gif_writer.h): https://github.com/charlietangora/gif-h/blob/master/LICENSE
+   * nlohmann-json (include/json_parsing/json.hpp): https://json.nlohmann.me/home/license/
+   * LibHaru (src/haru; include/geometry/haru): https://github.com/libharu/libharu/blob/master/LICENSE
+   * STB image write (include/geometry/stb_image_write.h): https://github.com/nothings/stb/blob/master/LICENSE
+
+2. The code in "include/model_checking/cex_processing" is free for non-commercial use only. It is provided under the terms of the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode.en). See "include/model_checking/cex_processing/LICENSE.txt" for details. If you want to use this part of the software commercially, please approach us: lukas.koenig@de.bosch.com.
+
+3. The executables in "external" are copyright by Fondazione Bruno Kessler. They are available only for non-commercial or academic purposes (https://nuxmv.fbk.eu/license.html). See "external/LICENSE.txt" for details. Please direct inquiries about other usages to nuxmv@fbk.eu.

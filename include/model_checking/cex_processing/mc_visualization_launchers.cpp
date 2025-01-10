@@ -1,0 +1,492 @@
+//============================================================================================================
+// C O P Y R I G H T
+//------------------------------------------------------------------------------------------------------------
+/// \copyright (C) 2024 Robert Bosch GmbH. All rights reserved.
+//============================================================================================================
+/// @file
+
+#include "model_checking/cex_processing/mc_visualization_launchers.h"
+#include <thread>
+
+
+using namespace vfm;
+using namespace mc;
+using namespace trajectory_generator;
+
+std::string VisualizationLaunchers::writeProseSingleStep(
+   const CarParsVec& others_past_vec,
+   const CarParsVec& others_current_vec,
+   const CarParsVec& others_future_vec,
+   const CarPars& past_ego,
+   const CarPars& ego,
+   const int seconds)
+{
+   const auto LANE_CHANGE{ [](const float past_lane, const float current_lane) {
+      if (past_lane > current_lane) {
+         if (StaticHelper::isFloatInteger(past_lane)) {
+            return " starts a lane change to the left";
+         }
+         else {
+            return " finshes its lane change to the left";
+         }
+      }
+      else if (past_lane < current_lane) {
+         if (StaticHelper::isFloatInteger(past_lane)) {
+            return +" starts a lane change to the right";
+         }
+         else {
+            return +" finshes its lane change to the right";
+         }
+      }
+   } };
+
+   const auto LANE_INFO{ [](const float other_lane, const float ego_lane) -> std::string {
+      if (ego_lane - other_lane > 0) {
+         return StaticHelper::floatToStringNoTrailingZeros(truncf((ego_lane - other_lane) * 10) / 10) + " lane" + ((int)(ego_lane - other_lane) != 1 ? "s" : "") + " right of EGO";
+      }
+      else if (ego_lane - other_lane < 0) {
+         return StaticHelper::floatToStringNoTrailingZeros(truncf((other_lane - ego_lane) * 10) / 10) + " lane" + ((int)(other_lane - ego_lane) != 1 ? "s" : "") + " left of EGO";
+      }
+      else {
+         return " on EGO's lane";
+      }
+   } };
+
+   const auto LONG_INFO{ [](const float other_rel_pos, const float ego_lane, const float other_lane) -> std::string {
+      if (std::abs(ego_lane - other_lane) <= 0.5 && std::abs(other_rel_pos) <= 5) { // TODO: Get car length in a good way.
+         std::string side{ std::abs(ego_lane - other_lane) == 0 ? "" : (std::abs(ego_lane - other_lane) > 0 ? "/left side" : "/right side")};
+         return "collides with EGO's " + std::string(other_rel_pos < 0 ? "rear" : "front") + side;
+      }
+
+      std::string addon{};
+      if (std::abs(other_rel_pos) > 65) {
+         addon = "way ";
+      }
+      else if (std::abs(other_rel_pos) > 0 && std::abs(other_rel_pos) < 10) {
+         addon = "close ";
+      }
+
+      if (other_rel_pos == 0) {
+         return "next to EGO";
+      }
+      else if (other_rel_pos < 0) {
+         return addon + "behind EGO";
+      }
+      else {
+         return addon + "in front of EGO";
+      }
+   } };
+
+   const bool first{ others_past_vec.empty() };
+   const bool last{ others_future_vec.empty() };
+   std::vector<std::string> vec{};
+   std::string ego_str{};
+
+   if (first || last) {
+      ego_str = "EGO is on lane " + StaticHelper::floatToStringNoTrailingZeros(truncf((ego.car_lane_) * 10) / 10) + " and drives with " + std::to_string(ego.car_velocity_) + "m/s";
+   }
+   else {
+      if (past_ego.car_velocity_ - 5 > ego.car_velocity_) {
+         ego_str += std::string(ego_str.empty() ? "EGO" : " and") + " brakes hard";
+      }
+      //else if (past_ego.car_velocity_ > ego.car_velocity_) {
+      //   ego_str += std::string(ego_str.empty() ? "EGO" : " and") + " brakes";
+      //}
+      //else if (past_ego.car_velocity_ < ego.car_velocity_) {
+      //   ego_str += std::string(vec[i].empty() ? "EGO" : " and") + " accelerates";
+      //}
+      if (past_ego.car_lane_ != ego.car_lane_) {
+         ego_str += std::string(ego_str.empty() ? "EGO" : " and") + LANE_CHANGE(past_ego.car_lane_, ego.car_lane_);
+      }
+   }
+
+   for (int i = 0; i < others_current_vec.size(); i++) {
+      vec.insert(vec.begin() + i, "");
+
+      if (first || last) {
+         vec[i] += "car" + std::to_string(i) + " is " + LANE_INFO(ego.car_lane_, others_current_vec[i].car_lane_) + " and " + LONG_INFO(others_current_vec[i].car_rel_pos_, ego.car_lane_, others_current_vec[i].car_lane_);
+      }
+      else {
+         if (others_past_vec.at(i).car_rel_pos_ <= others_current_vec[i].car_rel_pos_ && others_current_vec[i].car_rel_pos_ > others_future_vec.at(i).car_rel_pos_) {
+            vec[i] += std::string(vec[i].empty() ? "car" + std::to_string(i) : " and") + " starts to brake";
+         }
+         else if (others_past_vec.at(i).car_rel_pos_ >= others_current_vec[i].car_rel_pos_ && others_current_vec[i].car_rel_pos_ < others_future_vec.at(i).car_rel_pos_) {
+            vec[i] += std::string(vec[i].empty() ? "car" + std::to_string(i) : " and") + " starts to accelerate";
+         }
+         if (others_past_vec.at(i).car_lane_ != others_current_vec[i].car_lane_) {
+            vec[i] += std::string(vec[i].empty() ? "car" + std::to_string(i) : " and") + LANE_CHANGE(others_past_vec.at(i).car_lane_, others_current_vec[i].car_lane_);
+         }
+
+         if (others_current_vec[i].car_rel_pos_ <= 0
+            && others_future_vec.at(i).car_rel_pos_ > 0) {
+            vec[i] += std::string(vec[i].empty() ? "car" + std::to_string(i) : " and") + " overtakes EGO";
+         }
+         else if (others_current_vec[i].car_rel_pos_ > 0
+            && others_future_vec.at(i).car_rel_pos_ <= 0) {
+            vec[i] += std::string(vec[i].empty() ? "car" + std::to_string(i) : " and") + " is overtaken by EGO";
+         }
+
+         for (int j = 0; j < others_current_vec.size(); j++) {
+            if (j != i) {
+               if (others_current_vec[i].car_rel_pos_ <= others_current_vec[j].car_rel_pos_
+                  && others_future_vec.at(i).car_rel_pos_ > others_future_vec.at(j).car_rel_pos_) {
+                  vec[i] += std::string(vec[i].empty() ? "car" + std::to_string(i) : " and") + " overtakes car" + std::to_string(j);
+               }
+            }
+         }
+      }
+   }
+
+   bool empty{ ego_str.empty() };
+
+   for (const auto& s : vec) {
+      if (!s.empty()) empty = false;
+   }
+
+   if (!empty) {
+      std::string res{ ego_str };
+
+      for (const auto& s : vec) {
+         res += (res.empty() ? "" : (s.empty() ? "" : ", ")) + s;
+      }
+
+      if (first) {
+         res = "In the beginning, " + res + ". ";
+      }
+      else if (last) {
+         res = "In the end, " + res + ". ";
+      }
+      else {
+         res = "After " + std::to_string(seconds) + " second" + (seconds > 1 ? "s" : "") + ", " + res + ". ";
+      }
+
+      return res;
+   }
+
+   return "";
+}
+
+inline std::pair<std::vector<CarPars>, std::vector<CarParsVec>> createOthersVecs(const DataPackTrace data_trace, const StraightRoadSection lane_structure)
+{
+   const float LANE_CONSTANT{ ((float)lane_structure.getNumLanes() - 1) * 2 };
+   int num_cars{};
+   std::vector<CarPars> ego_values{};
+   std::vector<CarParsVec> others_values{};
+
+   for (; data_trace.at(0)->isDeclared("veh___6" + std::to_string(num_cars) + "9___.rel_pos"); num_cars++);
+
+   for (const auto& data : data_trace) {
+      CarPars ego{};
+      CarParsVec others{};
+
+      ego.car_lane_ = (LANE_CONSTANT - data->getSingleVal("ego.on_lane")) / 2;
+      ego.car_rel_pos_ = data->getSingleVal("ego.abs_pos");
+      ego.car_velocity_ = data->getSingleVal("ego.v");
+
+      for (int i{ 0 }; i < num_cars; i++) {
+         CarPars other{};
+
+         other.car_lane_ = (LANE_CONSTANT - data->getSingleVal("veh___6" + std::to_string(i) + "9___.on_lane")) / 2;
+         other.car_rel_pos_ = data->getSingleVal("veh___6" + std::to_string(i) + "9___.rel_pos");
+         other.car_velocity_ = data->getSingleVal("veh___6" + std::to_string(i) + "9___.v");
+
+         others.push_back(other);
+      }
+
+      others_values.push_back(others);
+      ego_values.push_back(ego);
+   }
+
+   return { ego_values, others_values };
+}
+
+std::string VisualizationLaunchers::writeProseTrafficScene(const MCTrace trace)
+{
+   const auto lane_structure{ getLaneStructureFrom(trace) };
+   const auto config = InterpretationConfiguration::getLaneChangeConfiguration();
+   const MCinterpretedTrace interpreted_trace(trace, config);
+   const auto data_vec{ interpreted_trace.getDataTrace() };
+   const auto pair{ createOthersVecs(data_vec, lane_structure) };
+   const auto ego_vec{ pair.first };
+   const auto others_vec{ pair.second };
+   std::string res{};
+
+   for (int i = 0; i < data_vec.size(); i++) {
+      CarParsVec past_vec{ i - 1 >= 0 ? others_vec.at(i - 1) : CarParsVec{} };
+      CarPars past_ego{ i - 1 >= 0 ? ego_vec.at(i - 1) : CarPars{} };
+      CarParsVec current_vec{ others_vec.at(i) };
+      CarPars current_ego{ ego_vec.at(i) };
+      CarParsVec future_vec{ i + 1 < others_vec.size() ? others_vec.at(i + 1) : CarParsVec{} };
+      res += writeProseSingleStep(past_vec, current_vec, future_vec, past_ego, current_ego, i);
+   }
+
+   return res;
+}
+
+bool VisualizationLaunchers::quickGenerateGIFs(
+   const std::string& path_cropped,
+   const std::string& file_name_without_txt_extension,
+   const CexType& cex_type,
+   const bool include_smooth,
+   const bool with_smooth_arrows,
+   const std::set<int>& agents_to_draw_arrows_for,
+   const bool only_preview
+) 
+{
+   if (cex_type != CexTypeEnum::smv && cex_type != CexTypeEnum::kratos && cex_type != CexTypeEnum::msatic) {
+      Failable::getSingleton()->addError("Cex type '" + cex_type.getEnumAsString() + "' not allowed. CEX generation aborted.");
+      return false;
+   }
+
+   const std::string path{ path_cropped + "/" };
+
+   auto trace{ cex_type == CexTypeEnum::msatic
+      ? StaticHelper::extractMCTraceFromMSATICFile(path + file_name_without_txt_extension + ".txt")
+      : (cex_type == CexTypeEnum::smv
+         ? StaticHelper::extractMCTraceFromNusmvFile(path + file_name_without_txt_extension + ".txt")
+         : (StaticHelper::extractMCTraceFromKratosFile(path + file_name_without_txt_extension + ".txt"))) };
+
+   if (trace.empty()) {
+      Failable::getSingleton()->addNote("Received empty CEX in file '" + path + file_name_without_txt_extension + ".txt" + "'. Nothing to do.");
+      return false;
+   }
+
+   StaticHelper::writeTextToFile(writeProseTrafficScene(trace), path + "prose_scenario_description.txt");
+   StaticHelper::writeTextToFile(StaticHelper::serializeMCTraceNusmvStyle(trace), path + file_name_without_txt_extension + "_unscaled.smv");
+
+   Failable::getSingleton()->addNote("Applying scaling.");
+   ScaleDescription::createTimescalingFile(path);
+   auto ts_description{ ScaleDescription(StaticHelper::readFile(path + TIMESCALING_FILENAME)) };
+   StaticHelper::applyTimescaling(trace, ts_description);
+
+   StaticHelper::writeTextToFile(StaticHelper::serializeMCTraceNusmvStyle(trace), path + file_name_without_txt_extension + ".smv");
+
+   std::string trial_name{ file_name_without_txt_extension };
+   std::string comments_file{ path_cropped + "/" + "Comments.csv" };
+   StaticHelper::writeTextToFile(path + trial_name + ";\n", comments_file, true);
+
+   VisualizationScales gen_config_non_smooth{};
+   gen_config_non_smooth.x_scaling = 1;
+   gen_config_non_smooth.duration_scale = 1;
+   gen_config_non_smooth.frames_per_second_gif = 0;
+   gen_config_non_smooth.frames_per_second_osc = 0;
+   gen_config_non_smooth.gif_duration_scale = 1 / ts_description.getTimeScalingFactor();
+
+   // Smoothing by adding interpolated frames
+   auto gen_config_smooth = VisualizationScales{ gen_config_non_smooth };
+   gen_config_smooth.frames_per_second_gif = 40;
+   gen_config_smooth.frames_per_second_osc = 40;
+
+   VisualizationLaunchers::interpretAndGenerate(
+      trace,
+      path,
+      "preview",
+      SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
+      agents_to_draw_arrows_for,
+      gen_config_smooth, "preview", true, true);
+
+   VisualizationLaunchers::interpretAndGenerate(
+      trace,
+      path,
+      "preview2",
+      SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
+      agents_to_draw_arrows_for,
+      gen_config_non_smooth, "preview 2", true, true);
+
+   if (!only_preview) {
+      VisualizationLaunchers::interpretAndGenerate(
+         trace,
+         path,
+         "cex-full",
+         SIM_TYPE_REGULAR,
+         agents_to_draw_arrows_for,
+         gen_config_non_smooth, "full (1/7)", true, true);
+
+      VisualizationLaunchers::interpretAndGenerate(
+         trace,
+         path,
+         "cex-birdseye",
+         SIM_TYPE_REGULAR_BIRDSEYE_ONLY,
+         agents_to_draw_arrows_for,
+         gen_config_non_smooth, "birdseye (2/7)", true, true);
+
+      VisualizationLaunchers::interpretAndGenerate(
+         trace,
+         path,
+         "cex-cockpit-only",
+         static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation | LiveSimGenerator::LiveSimType::cockpit | LiveSimGenerator::LiveSimType::incremental_image_output),
+         agents_to_draw_arrows_for,
+         gen_config_non_smooth, "cockpit (3/7)", true, true);
+
+      if (include_smooth) {
+         VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            path,
+            "cex-smooth-full",
+            SIM_TYPE_SMOOTH,
+            agents_to_draw_arrows_for,
+            gen_config_smooth, "full-smooth (4/7)", true, true);
+
+         VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            path,
+            "cex-smooth-birdseye",
+            SIM_TYPE_SMOOTH_BIRDSEYE_ONLY,
+            agents_to_draw_arrows_for,
+            gen_config_smooth, "birdseye-smooth (5/7)", true, true);
+
+         if (with_smooth_arrows) {
+            VisualizationLaunchers::interpretAndGenerate(
+               trace,
+               path,
+               "cex-smooth-with-arrows-full",
+               SIM_TYPE_SMOOTH_WITH_ARROWS,
+               agents_to_draw_arrows_for,
+               gen_config_smooth, "smooth-with-arrows (6/7)", true, true);
+
+            VisualizationLaunchers::interpretAndGenerate(
+               trace,
+               path,
+               "cex-smooth-with-arrows-birdseye",
+               SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
+               agents_to_draw_arrows_for,
+               gen_config_smooth, "smooth-with-arrows-birdseye (7/7)", true, true);
+         }
+      }
+   }
+
+   return true;
+}
+
+StraightRoadSection vfm::mc::trajectory_generator::VisualizationLaunchers::getLaneStructureFrom(const MCTrace& trace)
+{
+   if (trace.empty()) Failable::getSingleton()->addError("Received empty trace for 'getLaneStructureFrom'.");
+
+   StraightRoadSection lane_structure{};
+   lane_structure.setNumLanes(std::stoi(trace.at(0).second.at("num_lanes")));
+
+   for (int i = 0; ; i++) {
+      std::string segment_begin_name{ "segment_" + std::to_string(i) + "_pos_begin" };
+      std::string segment_min_lane_name{ "segment_" + std::to_string(i) + "_min_lane" };
+      std::string segment_max_lane_name{ "segment_" + std::to_string(i) + "_max_lane" };
+
+      auto first_state{ trace.at(0).second };
+
+      if (first_state.count(segment_begin_name) && first_state.count(segment_min_lane_name) && first_state.count(segment_max_lane_name)) {
+         lane_structure.addLaneSegment({
+            std::stof(first_state.at(segment_begin_name)),
+            (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_max_lane_name))) * 2, // Remove "* 2"...
+            (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_min_lane_name))) * 2, // ...to activate hard shoulders.
+            }
+         );
+      }
+      else {
+         break;
+      }
+   }
+
+   return lane_structure;
+}
+
+bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
+   const MCTrace& trace, 
+   const std::string& out_pathname_raw, 
+   const std::string& out_filename_raw, 
+   const LiveSimGenerator::LiveSimType sim_type,
+   const std::set<int>& agents_to_draw_arrows_for,
+   const VisualizationScales& settings,
+   const std::string& stage_name,
+   const bool generate_osc,
+   const bool generate_gif)
+{
+   const std::string full_path = out_pathname_raw + "/" + out_filename_raw;
+   std::filesystem::create_directories(full_path);
+   std::string final_name = out_filename_raw;
+   if (settings.duration_scale != 1.0)
+      final_name += "_duration_scale_" + toLimStr(settings.duration_scale);
+   if (settings.x_scaling != 1.0)
+      final_name += "_x_scale_" + toLimStr(settings.x_scaling);
+
+   std::string out_path = full_path + "/" + final_name;
+
+   const auto config = InterpretationConfiguration::getLaneChangeConfiguration();
+   MCinterpretedTrace interpreted_trace(trace, config);
+
+   assert(interpreted_trace.getEgoTrajectory().size() == interpreted_trace.getDataTrace().size());
+
+   interpreted_trace.applyScaling(settings.x_scaling, 1.0, settings.duration_scale);
+   interpreted_trace.printDebug("FINAL");
+
+   if (generate_osc)
+   {
+      // Add X offset of the axis distance to the non-ego vehicles due to different axis coordinate system in SIM (this should be fixed on SIM side at some point)
+      MCinterpretedTrace interpreted_trace_osc = interpreted_trace.clone();
+      interpreted_trace_osc.applyInterpolation(settings.duration_scale * config.m_default_step_time * settings.frames_per_second_osc);
+      interpreted_trace_osc.applyOffset(3.128, 0, false, true);
+
+      std::string header =
+         "# Imports config file and scenario file"
+         "\nimport \"StraightThreeLaneHighwayRQ36.osm\""
+         "\nimport \"../../../vehicle/system_cuts.osc\"";
+
+      std::string osc_without_ego = OSCgenerator(interpreted_trace_osc).generate(final_name, false, header);
+      std::string osc_with_ego = OSCgenerator(interpreted_trace_osc).generate(final_name, true, header);
+      std::string csv_with_ego = OSCgenerator(interpreted_trace_osc).generate_as_csv();
+
+      std::cout << "OSC WITH EGO: \n" << osc_with_ego << std::endl;
+
+      std::ofstream file_without_ego(out_path + "_free_ego.osc");
+      file_without_ego << osc_without_ego;
+      file_without_ego.close();
+
+      std::ofstream file_with_ego(out_path + ".osc");
+      file_with_ego << osc_with_ego;
+      file_with_ego.close();
+
+      std::ofstream csv_file_with_ego(out_path + ".csv");
+      csv_file_with_ego << csv_with_ego;
+      csv_file_with_ego.close();
+   }
+   if (generate_gif)
+   {
+      interpreted_trace.applyInterpolation(settings.duration_scale * config.m_default_step_time * settings.frames_per_second_gif * settings.gif_duration_scale);
+
+      assert(interpreted_trace.getEgoTrajectory().size() == interpreted_trace.getDataTrace().size());
+
+      interpreted_trace.applyScaling(1.0, -1.0, 1.0); // flip y
+
+      auto lane_structure{ getLaneStructureFrom(trace) };
+
+      LiveSimGenerator(interpreted_trace).generate(out_path,
+         agents_to_draw_arrows_for,
+         lane_structure,
+         stage_name,
+         sim_type,
+         { OutputType::png, OutputType::pdf },
+         settings.x_scaling,
+         settings.gif_duration_scale,
+         0);
+   }
+
+   return true;
+}
+
+extern "C"
+bool processCEX(
+   const char* path_cropped,
+   const char* cex_type,
+   const bool include_smooth,
+   const bool with_smooth_arrows)
+{
+   bool success{ vfm::mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFsSimple(
+      std::string(path_cropped),
+      CexType(std::string(cex_type)),
+      include_smooth,
+      with_smooth_arrows) };
+
+   if (!success) {
+      Failable::getSingleton()->addError("CEX generation failed.");
+   }
+
+   return success;
+}

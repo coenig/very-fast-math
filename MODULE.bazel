@@ -1,0 +1,12 @@
+# ============================================================================================================
+# C O P Y R I G H T
+# ------------------------------------------------------------------------------------------------------------
+# \copyright (C) 2025 Robert Bosch GmbH. All rights reserved.
+# ============================================================================================================
+
+###############################################################################
+# Bazel now uses Bzlmod by default to manage external dependencies.
+# Please consider migrating your external dependencies from WORKSPACE to MODULE.bazel.
+#
+# For more details, please check https://github.com/bazelbuild/bazel/issues/18958
+###############################################################################
