@@ -48,6 +48,7 @@
       "ShowLOG": true,
       "TIMESCALING": "#{1000}#",
       "_CACHED_PATH": "../examples/tmp",
-      "_GENERATED_PATH": "../examples/gp"
+      "_GENERATED_PATH": "../examples/gp",
+      "_BP_INCLUDES_FILE_PATH": "../src/examples/bp/prototype/motion_planning/rule_based_planning/vfm-includes-viper.txt"
    }
 }

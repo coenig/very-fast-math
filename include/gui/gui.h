@@ -93,6 +93,7 @@ public:
 
    std::string getTemplateDir() const;
    std::string getCachedDir() const;
+   std::string getBPIncludesFileDir() const;
    std::string getGeneratedDir() const;
    std::string getGeneratedParentDir() const;
    int getActualJSONWidth() const;
@@ -193,6 +194,7 @@ private:
 
    mutable std::string generated_dir_{};
    mutable std::string cached_dir_{};
+   mutable std::string includes_file_dir_{};
    std::shared_ptr<OptionsGlobal> runtime_global_options_{};
 
    nlohmann::json instanceFromTemplate(
