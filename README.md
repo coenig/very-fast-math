@@ -19,6 +19,8 @@ It can be used to parse C++ code and translate it into a model for the nuXmv mod
 Optionally, an environment model can be integrated into the model, providing a discrete traffic simulation for the model checker.
 
 More info to come...
+# Examples
+![Image of a counterexample generated through model checking](examples/cex.png?raw=true "Title")
 
 # Authors
 Lukas Koenig,
