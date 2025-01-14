@@ -20,7 +20,7 @@ Optionally, an environment model can be integrated into the model, providing a d
 
 More info to come...
 # Examples
-![Image of a counterexample generated through model checking](examples/cex.png?raw=true "Title")
+![Image from a counterexample sequence generated through model checking](examples/cex.png?raw=true "Image from a counterexample sequence generated through model checking")
 
 # Authors
 Lukas Koenig,
