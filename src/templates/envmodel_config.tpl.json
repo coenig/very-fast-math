@@ -47,6 +47,7 @@
       "SPEC": "#{ G(!(GapLeftMinMax(0, 5, 0, 5) && env.ego_lane_single && F(env.ego_lane_crossing))) }#",
       "ShowLOG": true,
       "TIMESCALING": "#{1000}#",
+      "_BP_INCLUDES_FILE_PATH": "../src/examples/stripped-bp/prototype/motion_planning/rule_based_planning/vfm-includes-viper_sdp.txt",
       "_CACHED_PATH": "../examples/tmp",
       "_GENERATED_PATH": "../examples/gp"
    }

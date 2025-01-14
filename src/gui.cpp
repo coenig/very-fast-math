@@ -374,6 +374,15 @@ std::string MCScene::getCachedDir() const
    return cached_dir_;
 }
 
+std::string MCScene::getBPIncludesFileDir() const
+{
+   if (includes_file_dir_.empty()) {
+      includes_file_dir_ = getValueForJSONKeyAsString("_BP_INCLUDES_FILE_PATH", JSON_TEMPLATE_DENOTER);
+   }
+
+   return includes_file_dir_;
+}
+
 std::string MCScene::getGeneratedDir() const
 {
    if (cached_dir_.empty()) {
@@ -2067,9 +2076,9 @@ void MCScene::doAllEnvModelGenerations(MCScene* mc_scene)
    std::string path{ mc_scene->getTemplateDir() };
    std::string generated_dir{ mc_scene->getGeneratedDir() };
    std::string cached_dir{ mc_scene->getCachedDir() };
+   std::string path_planner{ mc_scene->getBPIncludesFileDir() };
    std::string path_json{ path + "/" + FILE_NAME_JSON };
    std::string path_envmodel{ path + "/EnvModel.tpl" };
-   std::string path_planner{ path + "/../../src/examples/bp/prototype/motion_planning/rule_based_planning/vfm-includes-viper.txt" };
    std::string template_dir{ mc_scene->getTemplateDir() };
 
    mc_scene->saveJsonText();
