@@ -13,6 +13,11 @@
 
 namespace vfm {
 
+/// <summary>
+/// Represents one straight road segment with a minimum lane id and a maximum lane id.
+/// It is embedded into a StraightRoadSection which defines the number of lanes available.
+/// Also, the begin_ member implicitly defines a length when within a sequence of LaneSegment's.
+/// </summary>
 class LaneSegment {
 public:
    LaneSegment(const float begin, const int min_lane, const int max_lane);
@@ -40,6 +45,9 @@ private:
 
 static constexpr int MIN_DISTANCE_BETWEEN_SEGMENTS{ 20 };
 
+/// <summary>
+/// Sequence of LaneSegment's.
+/// </summary>
 class StraightRoadSection : public Failable {
 public:
    StraightRoadSection(); // Constructs an invalid lane structure.
@@ -59,6 +67,9 @@ private:
    mutable int num_lanes_{ -1 }; // We have lane ids: 0 .. (num_lanes_ - 1) * 2
 };
 
+/// <summary>
+/// Graph of StraightRoadSection's.
+/// </summary>
 class RoadGraph : public Failable {
    RoadGraph();
 
