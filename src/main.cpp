@@ -23,6 +23,22 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
+   std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain2DTranslator>() };
+   LaneSegment segment1{ 0, 0, 6 };
+   LaneSegment segment2{ 20, 2, 4 };
+   StraightRoadSection section1{ 4 };
+   section1.addLaneSegment(segment1);
+   section1.addLaneSegment(segment2);
+   HighwayImage image{ 1500, 200, trans, 4 };
+   CarPars ego{ 1, 10, 13 };
+   CarParsVec others{ { 3, -10, 3 }, { 1, 50, 11 } };
+   image.paintHighwayScene(section1, ego, others, {});
+   image.store("test");
+
+   RoadGraph r{ 0 };
+   r.setMyRoad(section1);
+   termnate();
+
    //vfm::test::runTests();
    //termnate();
 

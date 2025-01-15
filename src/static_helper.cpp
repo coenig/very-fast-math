@@ -2988,9 +2988,12 @@ std::string vfm::StaticHelper::safeString(const std::string& arbitrary_string)
    return res;
 }
 
+const std::string SAFE_CHAR_SET{ "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" };
+
 std::string vfm::StaticHelper::fromSafeString(const std::string& safe_string)
 {
    assert(safe_string.size() % 2 == 0);
+
    if (SAFE_CHARACTERS_ASCII_LIKE.empty()) fillSafeCharVecs();
 
    std::string res;
@@ -3005,6 +3008,8 @@ std::string vfm::StaticHelper::fromSafeString(const std::string& safe_string)
 
 void vfm::StaticHelper::fillSafeCharVecs()
 {
+   if (!SAFE_CHARACTERS_ASCII_LIKE.empty()) return;
+
    SAFE_CHARACTERS_ASCII_LIKE.resize(256);
 
    for (size_t j = 0; j < SAFE_CHAR_SET.size(); j++) {

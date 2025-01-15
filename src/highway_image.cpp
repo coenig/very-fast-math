@@ -19,7 +19,8 @@ vfm::HighwayImage::HighwayImage(const int width, const int height, const std::sh
    setupVPointFor3DPerspective(num_lanes);
 }
 
-vfm::HighwayImage::HighwayImage(const std::shared_ptr<HighwayTranslator> translator, const int num_lanes) : HighwayImage(0, 0, translator, num_lanes)
+vfm::HighwayImage::HighwayImage(const std::shared_ptr<HighwayTranslator> translator, const int num_lanes) 
+   : HighwayImage(0, 0, translator, num_lanes)
 {}
 
 // 3D-specific stuff (mainly for setting the v_point_). TODO: Get rid of such things that should go into the translator.
@@ -191,43 +192,6 @@ void vfm::Image::fillBlinker(const Vec2Df& pos, const double side)
       BLACK);
 }
 
-void vfm::HighwayImage::paintHighwaySceneFromData(StraightRoadSection& lane_structure, const DataPack& data, const std::shared_ptr<DataPack> future_data)
-{
-   float ego_lane = 2 - data.getSingleVal("ego.on_lane") / 2;
-   float ego_v = data.getSingleVal("ego.v");
-   float veh0_lane = 2 - data.getSingleVal("veh___609___.on_lane") / 2;
-   float veh1_lane = 2 - data.getSingleVal("veh___619___.on_lane") / 2;
-   float veh0_rel_pos = data.getSingleVal("veh___609___.rel_pos") / 4;
-   float veh1_rel_pos = data.getSingleVal("veh___619___.rel_pos") / 4;
-   float future_veh0_lane = future_data ? 2 - future_data->getSingleVal("veh___609___.on_lane") / 2 : -1;
-   float future_veh1_lane = future_data ? 2 - future_data->getSingleVal("veh___619___.on_lane") / 2 : -1;
-   float future_veh0_rel_pos = future_data ? future_data->getSingleVal("veh___609___.rel_pos") / 4 : -1;
-   float future_veh1_rel_pos = future_data ? future_data->getSingleVal("veh___619___.rel_pos") / 4 : -1;
-   float veh0_v = data.getSingleVal("veh___609___.v");
-   float veh1_v = data.getSingleVal("veh___619___.v");
-
-   ExtraVehicleArgs var_vals;
-
-   for (int i = 0; i < 10; i++) {
-      std::string varname = "veh___6" + std::to_string(i) + "9___.turn_signals";
-      if (data.isDeclared(varname)) {
-         var_vals.insert({ varname, data.getSingleValAsEnumName(varname) });
-      }
-   }
-
-   lane_structure.setNumLanes(3);
-
-   paintHighwayScene(
-      lane_structure,
-      { ego_lane, 0, (int) ego_v },
-      { { veh0_lane, veh0_rel_pos, (int) veh0_v },
-        { veh1_lane, veh1_rel_pos, (int) veh1_v } },
-      future_data ? std::map<int, std::pair<float, float>>
-   { { 0, { future_veh0_rel_pos, future_veh0_lane } },
-      { 1, { future_veh1_rel_pos, future_veh1_lane } } } : std::map<int, std::pair<float, float>>{},
-      0, var_vals, true);
-}
-
 void createArrows(const float pos_x, const float future_pos_x, const float pos_y, const float future_pos_y, std::vector<Pol2Df>& arrow_polygons)
 {
    static const float EPSILON = 0.3; // 0.5 is the distance of a straight lane change without relative movement in long direction.
@@ -328,18 +292,6 @@ void HighwayImage::plotCar3D(const Vec2Df& pos_car, const Color& fill_color, con
    drawPolygon(right, BLACK);
    drawPolygon(top, BLACK);
    drawPolygon(back, BLACK);
-}
-
-void vfm::HighwayImage::paintHighwayScene(
-   const CarPars& ego,
-   const CarParsVec& others,
-   const std::map<int, std::pair<float, float>>& future_positions_of_others,
-   const float ego_offset_x,
-   const std::map<std::string, std::string>& var_vals,
-   const bool print_agent_ids)
-{
-   StraightRoadSection dummy{};
-   paintHighwayScene(dummy, ego, others, future_positions_of_others, ego_offset_x, var_vals, print_agent_ids);
 }
 
 static constexpr float ARC_LENGTH = MIN_DISTANCE_BETWEEN_SEGMENTS / 2;
@@ -571,6 +523,55 @@ void vfm::HighwayImage::setPerspective(
    //else {
    //   cnt_ += 0.4;
    //}
+}
+
+void vfm::HighwayImage::paintHighwaySceneFromData(StraightRoadSection& lane_structure, const DataPack& data, const std::shared_ptr<DataPack> future_data)
+{
+   float ego_lane = 2 - data.getSingleVal("ego.on_lane") / 2;
+   float ego_v = data.getSingleVal("ego.v");
+   float veh0_lane = 2 - data.getSingleVal("veh___609___.on_lane") / 2;
+   float veh1_lane = 2 - data.getSingleVal("veh___619___.on_lane") / 2;
+   float veh0_rel_pos = data.getSingleVal("veh___609___.rel_pos") / 4;
+   float veh1_rel_pos = data.getSingleVal("veh___619___.rel_pos") / 4;
+   float future_veh0_lane = future_data ? 2 - future_data->getSingleVal("veh___609___.on_lane") / 2 : -1;
+   float future_veh1_lane = future_data ? 2 - future_data->getSingleVal("veh___619___.on_lane") / 2 : -1;
+   float future_veh0_rel_pos = future_data ? future_data->getSingleVal("veh___609___.rel_pos") / 4 : -1;
+   float future_veh1_rel_pos = future_data ? future_data->getSingleVal("veh___619___.rel_pos") / 4 : -1;
+   float veh0_v = data.getSingleVal("veh___609___.v");
+   float veh1_v = data.getSingleVal("veh___619___.v");
+
+   ExtraVehicleArgs var_vals;
+
+   for (int i = 0; i < 10; i++) {
+      std::string varname = "veh___6" + std::to_string(i) + "9___.turn_signals";
+      if (data.isDeclared(varname)) {
+         var_vals.insert({ varname, data.getSingleValAsEnumName(varname) });
+      }
+   }
+
+   lane_structure.setNumLanes(3);
+
+   paintHighwayScene(
+      lane_structure,
+      { ego_lane, 0, (int)ego_v },
+      { { veh0_lane, veh0_rel_pos, (int)veh0_v },
+        { veh1_lane, veh1_rel_pos, (int)veh1_v } },
+      future_data ? std::map<int, std::pair<float, float>>
+   { { 0, { future_veh0_rel_pos, future_veh0_lane } },
+      { 1, { future_veh1_rel_pos, future_veh1_lane } } } : std::map<int, std::pair<float, float>>{},
+      0, var_vals, true);
+}
+
+void vfm::HighwayImage::paintHighwayScene(
+   const CarPars& ego,
+   const CarParsVec& others,
+   const std::map<int, std::pair<float, float>>& future_positions_of_others,
+   const float ego_offset_x,
+   const std::map<std::string, std::string>& var_vals,
+   const bool print_agent_ids)
+{
+   StraightRoadSection dummy{};
+   paintHighwayScene(dummy, ego, others, future_positions_of_others, ego_offset_x, var_vals, print_agent_ids);
 }
 
 void vfm::HighwayImage::paintHighwayScene(
