@@ -147,3 +147,90 @@ std::map<float, LaneSegment> StraightRoadSection::getSegments() const
 {
    return segments_;
 }
+
+void vfm::StraightRoadSection::setEgo(const std::shared_ptr<CarPars> ego)
+{
+   ego_ = ego;
+}
+
+void vfm::StraightRoadSection::setOthers(const CarParsVec& others)
+{
+   others_ = others;
+}
+
+void vfm::StraightRoadSection::setFuturePositionsOfOthers(const std::map<int, std::pair<float, float>>& future_positions_of_others)
+{
+   future_positions_of_others_ = future_positions_of_others;
+}
+
+vfm::RoadGraph::RoadGraph(const int id) : Failable("RoadGraph"), id_{id}
+{}
+
+std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithID(const int id)
+{
+   std::set<std::shared_ptr<RoadGraph>> visited{};
+   return findSectionWithID(id, visited);
+}
+
+std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithID(const int id, std::set<std::shared_ptr<RoadGraph>>& visited)
+{
+   if (id_ == id) return shared_from_this();
+   if (!visited.insert(shared_from_this()).second) return nullptr;
+
+   for (const auto& succ_ptr : successors_) {
+      std::shared_ptr<RoadGraph> ptr{ succ_ptr->findSectionWithID(id, visited) };
+      if (ptr) return ptr;
+   }
+
+   for (const auto& pred_ptr : predecessors_) {
+      std::shared_ptr<RoadGraph> ptr{ pred_ptr->findSectionWithID(id, visited) };
+      if (ptr) return ptr;
+   }
+
+   return nullptr;
+}
+
+StraightRoadSection vfm::RoadGraph::getMyRoad() const
+{
+   return my_road_;
+}
+
+Vec2Df vfm::RoadGraph::getOriginPoint() const
+{
+   return origin_point_;
+}
+
+float vfm::RoadGraph::getAngle() const
+{
+   return angle_;
+}
+
+int vfm::RoadGraph::getID() const
+{
+   return id_;
+}
+
+void vfm::RoadGraph::setMyRoad(const StraightRoadSection& section)
+{
+   my_road_ = section;
+}
+
+void vfm::RoadGraph::setOriginPoint(const Vec2D& point)
+{
+   origin_point_ = point;
+}
+
+void vfm::RoadGraph::setAngle(const float angle)
+{
+   angle_ = angle;
+}
+
+void vfm::RoadGraph::addSuccessor(const std::shared_ptr<RoadGraph> subgraph)
+{
+   successors_.insert(subgraph);
+}
+
+void vfm::RoadGraph::addPredecessor(const std::shared_ptr<RoadGraph> subgraph)
+{
+   predecessors_.insert(subgraph);
+}

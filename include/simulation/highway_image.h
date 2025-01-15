@@ -12,28 +12,6 @@
 
 namespace vfm {
 
-struct CarPars {
-   float car_lane_{};
-   float car_rel_pos_{};
-   int car_velocity_{};
-   
-   inline bool operator<(const CarPars& other) const
-   {
-      std::cout << "Something strange was requested. Look into CarPars struct. (Probably you put CarPars into a map, but after refactoring there is no default < operation anymore. Please fix, future Lukas!)" << std::endl;
-      std::exit(1);
-      return false;
-   }
-   
-   inline bool operator==(const CarPars& other) const
-   {
-      return car_lane_ == other.car_lane_
-         && car_rel_pos_ == other.car_rel_pos_
-         && car_velocity_ == other.car_velocity_;
-   }
-};
-
-using CarParsVec = std::vector<CarPars>;
- 
 class HighwayImage : public Image, public Failable
 {
 public:
@@ -44,8 +22,6 @@ public:
    void paintEarthAndSky();                               // 3D-Specific - TODO: Needs to go away.
 
    void setTranslator(const std::shared_ptr<VisTranslator> function) override;
-
-   void paintHighwaySceneFromData(StraightRoadSection& lane_structure, const DataPack& data, const std::shared_ptr<DataPack> future_data);
 
    void plotCar2D(const float thick, const Vec2Df& pos_ego, const Color& fill_color, const Color& car_frame_color);
    void plotCar3D(const Vec2Df& pos_ego, const Color& fill_color, const Color& car_frame_color);
@@ -75,6 +51,8 @@ public:
       const float street_top,
       const float ego_car_lane);
 
+   void paintHighwaySceneFromData(StraightRoadSection& lane_structure, const DataPack& data, const std::shared_ptr<DataPack> future_data);
+
    void paintHighwayScene(
       const CarPars& ego,
       const CarParsVec& others,
@@ -83,6 +61,7 @@ public:
       const std::map<std::string, std::string>& var_vals = {},
       const bool print_agent_ids = false);
 
+   /// Core function for painting a straight road section.
    void paintHighwayScene(
       StraightRoadSection& lane_structure,
       const CarPars& ego,
