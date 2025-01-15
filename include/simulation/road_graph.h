@@ -13,6 +13,12 @@
 
 namespace vfm {
 struct CarPars {
+   inline CarPars() : CarPars(0.0f, 0.0f, 0) {}
+
+   inline CarPars(const float car_lane, const float car_rel_pos, const int car_velocity) 
+      : car_lane_{ car_lane }, car_rel_pos_{ car_rel_pos }, car_velocity_{ car_velocity }
+   {}
+
    float car_lane_{};
    float car_rel_pos_{};
    int car_velocity_{};
@@ -86,6 +92,9 @@ public:
    void setEgo(const std::shared_ptr<CarPars> ego);
    void setOthers(const CarParsVec& others);
    void setFuturePositionsOfOthers(const std::map<int, std::pair<float, float>>& future_positions_of_others);
+   std::shared_ptr<CarPars> getEgo() const;
+   CarParsVec getOthers() const;
+   std::map<int, std::pair<float, float>> getFuturePositionsOfOthers() const;
 
 private:
    std::map<float, LaneSegment> segments_{};
