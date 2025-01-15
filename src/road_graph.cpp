@@ -163,6 +163,19 @@ void vfm::StraightRoadSection::setFuturePositionsOfOthers(const std::map<int, st
    future_positions_of_others_ = future_positions_of_others;
 }
 
+std::shared_ptr<CarPars> vfm::StraightRoadSection::getEgo() const
+{
+   return ego_;
+}
+CarParsVec StraightRoadSection::getOthers() const
+{
+   return others_;
+}
+std::map<int, std::pair<float, float>> StraightRoadSection::getFuturePositionsOfOthers() const
+{
+   return future_positions_of_others_;
+}
+
 vfm::RoadGraph::RoadGraph(const int id) : Failable("RoadGraph"), id_{id}
 {}
 

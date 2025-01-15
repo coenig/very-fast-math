@@ -120,11 +120,12 @@ public:
       //env.agents_pos_x_[vehicle_index] = traj_pos.second.at(PossibleParameter::pos_x) - ego_x;
       //env.agents_pos_y_[vehicle_index] = 2 + traj_pos.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
       
+      lane_structure.setEgo(std::make_shared<CarPars>(ego_pos_y_, ego_pos_x_, (int)(ego_vx_)));
+      lane_structure.setOthers(others_current_vec);
+      lane_structure.setFuturePositionsOfOthers(others_future_vec);
+
       outside_view_->paintHighwayScene(
          lane_structure,
-         { ego_pos_y_, ego_pos_x_, (int)(ego_vx_) },
-         others_current_vec,
-         others_future_vec,
          0,
          additional_var_vals,
          true);
@@ -172,20 +173,18 @@ public:
       cockpit_view_mirror_->paintEarthAndSky();
       cockpit_view_mirror_->setTranslator(trans_cpvm);
 
+      lane_structure.setEgo(std::make_shared<CarPars>(ego_pos_y_, ego_pos_x_, (int)(ego_vx_)));
+      lane_structure.setOthers(others_vec);
+      lane_structure.setFuturePositionsOfOthers(others_future_vec);
+
       cockpit_view_->paintHighwayScene(
          lane_structure,
-         { ego_pos_y_, ego_pos_x_, (int)(ego_vx_) },
-         others_vec,
-         others_future_vec,
          0,
          additional_var_vals,
          true);
 
       cockpit_view_mirror_->paintHighwayScene(
          lane_structure,
-         { ego_pos_y_, ego_pos_x_, (int)(ego_vx_) },
-         others_vec,
-         others_future_vec,
          0,
          additional_var_vals,
          true);

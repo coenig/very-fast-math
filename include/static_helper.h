@@ -747,12 +747,12 @@ public:
 
    static void applyTimescaling(MCTrace& trace, const ScaleDescription& ts_description);
 
+   static std::vector<std::string> getSafeCharactersAsciiLike();
+   static std::map<std::string, int> getSafeCharactersAsciiLikeReverse();
+
    StaticHelper() = delete;
 
 private:
-   static std::vector<std::string> SAFE_CHARACTERS_ASCII_LIKE;
-   static std::map<std::string, int> SAFE_CHARACTERS_ASCII_LIKE_REVERSE;
-
    /// Does the actual work for {@link #extractSubstringsLevelwise(std::string, std::string, std::string, LinkedList, LinkedList, int)}.
    /// 
    /// @param string               The string to process.

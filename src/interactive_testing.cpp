@@ -792,7 +792,11 @@ void vfm::test::cameraRotationTester()
    for (float i = 0; i > -300; i += 1) {
       HighwayImage img_new{ 1000, 1000, trans, 3 };
       img_new.startOrKeepUpPDF();
-      img_new.paintHighwayScene(lanes, ego, others, {});
+      lanes.setEgo(std::make_shared<CarPars>(ego.car_lane_, ego.car_rel_pos_, ego.car_velocity_));
+      lanes.setOthers(others);
+      lanes.setFuturePositionsOfOthers({});
+
+      img_new.paintHighwayScene(lanes);
       img_new.store("test_new.png");
       img_new.store("test_new.pdf", OutputType::pdf);
 

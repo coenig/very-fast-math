@@ -364,10 +364,11 @@ void vfm::HighwayImage::doShoulder(
 
 void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
    const StraightRoadSection& lane_structure,
-   const CarPars& ego,
+   const std::shared_ptr<CarPars> ego_raw,
    const Vec2D& tl_orig,
    const Vec2D& br_orig)
 {
+   auto ego = ego_raw ? *ego_raw : CarPars{};
    const float ego_abs_pos{ ego.car_rel_pos_ };
 
    std::map<int, std::vector<std::pair<float, float>>> shoulders;
@@ -550,16 +551,13 @@ void vfm::HighwayImage::paintHighwaySceneFromData(StraightRoadSection& lane_stru
    }
 
    lane_structure.setNumLanes(3);
-
-   paintHighwayScene(
-      lane_structure,
-      { ego_lane, 0, (int)ego_v },
-      { { veh0_lane, veh0_rel_pos, (int)veh0_v },
-        { veh1_lane, veh1_rel_pos, (int)veh1_v } },
-      future_data ? std::map<int, std::pair<float, float>>
+   lane_structure.setEgo(std::make_shared<CarPars>(ego_lane, 0, (int)ego_v));
+   lane_structure.setOthers({ { veh0_lane, veh0_rel_pos, (int)veh0_v }, { veh1_lane, veh1_rel_pos, (int)veh1_v } });
+   lane_structure.setFuturePositionsOfOthers(future_data ? std::map<int, std::pair<float, float>>
    { { 0, { future_veh0_rel_pos, future_veh0_lane } },
-      { 1, { future_veh1_rel_pos, future_veh1_lane } } } : std::map<int, std::pair<float, float>>{},
-      0, var_vals, true);
+      { 1, { future_veh1_rel_pos, future_veh1_lane } } } : std::map<int, std::pair<float, float>>{});
+
+   paintHighwayScene(lane_structure, 0, var_vals, true);
 }
 
 void vfm::HighwayImage::paintHighwayScene(
@@ -571,14 +569,16 @@ void vfm::HighwayImage::paintHighwayScene(
    const bool print_agent_ids)
 {
    StraightRoadSection dummy{};
-   paintHighwayScene(dummy, ego, others, future_positions_of_others, ego_offset_x, var_vals, print_agent_ids);
+
+   dummy.setEgo(std::make_shared<CarPars>(ego.car_lane_, ego.car_rel_pos_, ego.car_velocity_));
+   dummy.setOthers(others);
+   dummy.setFuturePositionsOfOthers(future_positions_of_others);
+
+   paintHighwayScene(dummy, ego_offset_x, var_vals, print_agent_ids);
 }
 
 void vfm::HighwayImage::paintHighwayScene(
    StraightRoadSection& lane_structure,
-   const CarPars& ego,
-   const CarParsVec& others,
-   const std::map<int, std::pair<float, float>>& future_positions_of_others,
    const float ego_offset_x,
    const ExtraVehicleArgs& var_vals,
    const bool print_agent_ids)
@@ -594,6 +594,13 @@ void vfm::HighwayImage::paintHighwayScene(
    const float street_top = (getHeight() - street_height) / 2;
    float num_lanes;
 
+   auto ego = lane_structure.getEgo();
+   auto ego_lane = ego ? ego->car_lane_ : 0;
+   const auto ego_rel_pos = ego ? ego->car_rel_pos_ : 0;
+   const auto ego_velocity = ego ? ego->car_velocity_ : 0;
+   const auto others = lane_structure.getOthers();
+   const auto future_positions_of_others = lane_structure.getFuturePositionsOfOthers();
+
    int min_lane = lane_structure.isValid() ? 0 : -1;
    int max_lane = lane_structure.isValid() ? lane_structure.getNumLanes() - 1 : -1;
 
@@ -602,7 +609,8 @@ void vfm::HighwayImage::paintHighwayScene(
          findMinMax(pair, min_lane, max_lane);
       }
 
-      findMinMax(ego, min_lane, max_lane);
+      if (ego)
+         findMinMax(*lane_structure.getEgo(), min_lane, max_lane);
    }
 
    if (min_lane < 0) min_lane = 0;
@@ -615,13 +623,13 @@ void vfm::HighwayImage::paintHighwayScene(
    lane_structure.setNumLanes(num_lanes);
    lane_structure.cleanUp();
 
-   setPerspective(street_height, num_lanes, ego_offset_x, min_lane, max_lane, street_top, ego.car_lane_);
+   setPerspective(street_height, num_lanes, ego_offset_x, min_lane, max_lane, street_top, ego_lane);
    const Vec2Df pos_ego{ 0, 0 };  // Convention: Ego is at 0/0 position.
    float y = street_top;
 
    auto tl_orig{ plain_2d_translator_.reverseTranslate({ 0, 0 }).projectToXY() };
    auto br_orig{ plain_2d_translator_.reverseTranslate({ (float)getWidth() - 1, (float)getHeight() - 1}).projectToXY() };
-   const float street_left_border{ min_lane - 0.5f - ego.car_lane_ };
+   const float street_left_border{ min_lane - 0.5f - ego_lane };
    const float street_width{ (float)((max_lane - min_lane) + 1) };
    const float street_right_border{ street_left_border + street_width };
 
@@ -637,7 +645,7 @@ void vfm::HighwayImage::paintHighwayScene(
       dashed_line(tl_orig.x + offset_dashed_lines_on_highway_, y, br_orig.x, y, LANE_MARKER_THICKNESS, LANE_MARKER_COLOR, DASH_WIDTH);
    }
 
-   offset_dashed_lines_on_highway_ = -ego.car_rel_pos_;
+   offset_dashed_lines_on_highway_ = -ego_rel_pos;
 
    while (offset_dashed_lines_on_highway_ >= br_orig.x) {
       offset_dashed_lines_on_highway_ -= br_orig.x;
@@ -652,8 +660,8 @@ void vfm::HighwayImage::paintHighwayScene(
    std::map<int, float> cars_by_distance{};
 
    for (int i = 0; i < others.size(); i++) {
-      Vec2Df pos{ others[i].car_rel_pos_, others[i].car_lane_ - ego.car_lane_ };
-      cars_by_distance[i] = Vec2Df({ pos.x, std::abs(ego.car_lane_ - pos.y) * LANE_WIDTH }).length();
+      Vec2Df pos{ others[i].car_rel_pos_, others[i].car_lane_ - ego_lane };
+      cars_by_distance[i] = Vec2Df({ pos.x, std::abs(ego_lane - pos.y) * LANE_WIDTH }).length();
    }
 
    std::vector<int> cars_sorted_by_distance{};
@@ -679,7 +687,7 @@ void vfm::HighwayImage::paintHighwayScene(
       auto car_id{ cars_sorted_by_distance[i] };
       const auto pair{ others[car_id] };
 
-      Vec2Df pos{ pair.car_rel_pos_, pair.car_lane_ - ego.car_lane_ };
+      Vec2Df pos{ pair.car_rel_pos_, pair.car_lane_ - ego_lane };
 
       float text_pos_x{ (std::max)(tl_orig.x + 2, (std::min)((float)br_orig.x - 2, pos.x)) };
       Color car_frame_color{ CAR_FRAME_COLOR };
@@ -697,7 +705,7 @@ void vfm::HighwayImage::paintHighwayScene(
 
       if (future_positions_of_others.count(car_id)) {
          float future_pos_x{ pos_ego.x + future_positions_of_others.at(car_id).first };
-         float future_pos_y{ pos_ego.y + (future_positions_of_others.at(car_id).second - ego.car_lane_) };
+         float future_pos_y{ pos_ego.y + (future_positions_of_others.at(car_id).second - ego_lane) };
          createArrows(pos.x, future_pos_x, pos.y, future_pos_y, arrow_polygons);
       }
 
@@ -733,7 +741,7 @@ void vfm::HighwayImage::paintHighwayScene(
    //// Ego speed number
    if (future_positions_of_others.count(-1)) {
       float future_pos_x = pos_ego.x + future_positions_of_others.at(-1).first;
-      float future_pos_y = pos_ego.y + (future_positions_of_others.at(-1).second - ego.car_lane_);
+      float future_pos_y = pos_ego.y + (future_positions_of_others.at(-1).second - ego_lane);
       createArrows(pos_ego.x, future_pos_x, pos_ego.y, future_pos_y, arrow_polygons);
    }
 
@@ -744,16 +752,16 @@ void vfm::HighwayImage::paintHighwayScene(
 
    for (int i = 0; i < cars_sorted_by_distance.size(); i++) {
       const auto pair = others[cars_sorted_by_distance[i]];
-      Vec2Df pos{ pair.car_rel_pos_, pair.car_lane_ - ego.car_lane_ };
+      Vec2Df pos{ pair.car_rel_pos_, pair.car_lane_ - ego_lane };
       if (getHighwayTranslator()->is3D()) plotCar3D(pos, CAR_COLOR, CAR_FRAME_COLOR);
    }
 
    if (getHighwayTranslator()->is3D()) plotCar3D(pos_ego, RED, CAR_FRAME_COLOR);
 
-   writeAsciiText(pos_ego.x, pos_ego.y, std::to_string(ego.car_velocity_), CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
+   writeAsciiText(pos_ego.x, pos_ego.y, std::to_string(ego_velocity), CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
 
    auto text_pos_y{ plain_2d_translator_.reverseTranslate({ 0, 13 }).y };
-   writeAsciiText(-CAR_LENGTH / 2, text_pos_y, std::to_string((int)ego.car_rel_pos_) + "m", CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
+   writeAsciiText(-CAR_LENGTH / 2, text_pos_y, std::to_string((int)ego_rel_pos) + "m", CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
 
    float tl_orig_one_below_y{ plain_2d_translator_.reverseTranslate({0, 0}).y };
    rectangle(tl_orig.x, tl_orig_one_below_y, br_orig.x - tl_orig.x, br_orig.y - tl_orig.y, BLACK, false);

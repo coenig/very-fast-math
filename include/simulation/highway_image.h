@@ -38,7 +38,7 @@ public:
 
    void removeNonExistentLanesAndMarkShoulders(
       const StraightRoadSection& lane_structure,
-      const CarPars& ego,
+      const std::shared_ptr<CarPars> ego,
       const Vec2D& tl_orig,
       const Vec2D& br_orig);
 
@@ -64,9 +64,6 @@ public:
    /// Core function for painting a straight road section.
    void paintHighwayScene(
       StraightRoadSection& lane_structure,
-      const CarPars& ego,
-      const CarParsVec& others,
-      const std::map<int, std::pair<float, float>>& future_positions_of_others,
       const float ego_offset_x = 0,
       const std::map<std::string, std::string>& var_vals = {},
       const bool print_agent_ids = false);
