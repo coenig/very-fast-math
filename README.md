@@ -18,7 +18,7 @@ Thank you for using
 ![Image from a counterexample sequence generated through model checking](examples/cex.png?raw=true "Image from a counterexample sequence generated through model checking")
 
 ## How to build
-`vfm` is implemented in `C++` and can be built with CMake (stable) or Bazel (experimental). With Cmake, proceed as follows:
+`vfm` is implemented in `C++` and can be built with CMake (stable) or Bazel (experimental). With CMake, proceed as follows:
 * On Windows, open the top-level `CMakeLists.txt` with Visual Studio and build the `vfm` target.
 * On Linux, run the `build.bash` script.
 
