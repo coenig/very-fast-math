@@ -15,6 +15,8 @@ namespace vfm {
 class HighwayImage : public Image, public Failable
 {
 public:
+   constexpr static int EGO_MOCK_ID{ -100 };
+
    HighwayImage(const int width, const int height, const std::shared_ptr<HighwayTranslator> translator, const int num_lanes);
    HighwayImage(const std::shared_ptr<HighwayTranslator> translator, const int num_lanes);
 
@@ -51,9 +53,9 @@ public:
       const float street_top,
       const float ego_car_lane);
 
-   void paintHighwaySceneFromData(StraightRoadSection& lane_structure, const DataPack& data, const std::shared_ptr<DataPack> future_data);
+   void paintStraightRoadSceneFromData(StraightRoadSection& lane_structure, const DataPack& data, const std::shared_ptr<DataPack> future_data);
 
-   void paintHighwayScene(
+   void paintStraightRoadSceneSimple(
       const CarPars& ego,
       const CarParsVec& others,
       const std::map<int, std::pair<float, float>>& future_positions_of_others,
@@ -62,8 +64,13 @@ public:
       const bool print_agent_ids = false);
 
    /// Core function for painting a straight road section.
-   void paintHighwayScene(
+   void paintStraightRoadScene(
       StraightRoadSection& lane_structure,
+      const float ego_offset_x = 0,
+      const std::map<std::string, std::string>& var_vals = {},
+      const bool print_agent_ids = false);
+
+   void paintRoadGraph(const std::shared_ptr<RoadGraph> r,
       const float ego_offset_x = 0,
       const std::map<std::string, std::string>& var_vals = {},
       const bool print_agent_ids = false);
@@ -71,10 +78,10 @@ public:
    std::shared_ptr<HighwayTranslator> getHighwayTranslator() const;
 
 private:
-   float offset_dashed_lines_on_highway_ = 0;
    std::shared_ptr<HighwayTranslator> highway_translator_{};
    Plain2DTranslator plain_2d_translator_{};
    float cnt_{ -150 };
    float step_{ 0.05 };
+   int num_lanes_{}; // TODO: Needed only for setting up 3D perspective, which should go into the 3D part.
 };
 } // vfm

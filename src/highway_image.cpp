@@ -526,7 +526,7 @@ void vfm::HighwayImage::setPerspective(
    //}
 }
 
-void vfm::HighwayImage::paintHighwaySceneFromData(StraightRoadSection& lane_structure, const DataPack& data, const std::shared_ptr<DataPack> future_data)
+void vfm::HighwayImage::paintStraightRoadSceneFromData(StraightRoadSection& lane_structure, const DataPack& data, const std::shared_ptr<DataPack> future_data)
 {
    float ego_lane = 2 - data.getSingleVal("ego.on_lane") / 2;
    float ego_v = data.getSingleVal("ego.v");
@@ -551,16 +551,16 @@ void vfm::HighwayImage::paintHighwaySceneFromData(StraightRoadSection& lane_stru
    }
 
    lane_structure.setNumLanes(3);
-   lane_structure.setEgo(std::make_shared<CarPars>(ego_lane, 0, (int)ego_v));
-   lane_structure.setOthers({ { veh0_lane, veh0_rel_pos, (int)veh0_v }, { veh1_lane, veh1_rel_pos, (int)veh1_v } });
+   lane_structure.setEgo(std::make_shared<CarPars>(ego_lane, 0, (int)ego_v, EGO_MOCK_ID));
+   lane_structure.setOthers({ { veh0_lane, veh0_rel_pos, (int)veh0_v, 0 }, { veh1_lane, veh1_rel_pos, (int)veh1_v, 1 } });
    lane_structure.setFuturePositionsOfOthers(future_data ? std::map<int, std::pair<float, float>>
    { { 0, { future_veh0_rel_pos, future_veh0_lane } },
       { 1, { future_veh1_rel_pos, future_veh1_lane } } } : std::map<int, std::pair<float, float>>{});
 
-   paintHighwayScene(lane_structure, 0, var_vals, true);
+   paintStraightRoadScene(lane_structure, 0, var_vals, true);
 }
 
-void vfm::HighwayImage::paintHighwayScene(
+void vfm::HighwayImage::paintStraightRoadSceneSimple(
    const CarPars& ego,
    const CarParsVec& others,
    const std::map<int, std::pair<float, float>>& future_positions_of_others,
@@ -570,14 +570,14 @@ void vfm::HighwayImage::paintHighwayScene(
 {
    StraightRoadSection dummy{};
 
-   dummy.setEgo(std::make_shared<CarPars>(ego.car_lane_, ego.car_rel_pos_, ego.car_velocity_));
+   dummy.setEgo(std::make_shared<CarPars>(ego.car_lane_, ego.car_rel_pos_, ego.car_velocity_, EGO_MOCK_ID));
    dummy.setOthers(others);
    dummy.setFuturePositionsOfOthers(future_positions_of_others);
 
-   paintHighwayScene(dummy, ego_offset_x, var_vals, print_agent_ids);
+   paintStraightRoadScene(dummy, ego_offset_x, var_vals, print_agent_ids);
 }
 
-void vfm::HighwayImage::paintHighwayScene(
+void vfm::HighwayImage::paintStraightRoadScene(
    StraightRoadSection& lane_structure,
    const float ego_offset_x,
    const ExtraVehicleArgs& var_vals,
@@ -600,6 +600,7 @@ void vfm::HighwayImage::paintHighwayScene(
    const auto ego_velocity = ego ? ego->car_velocity_ : 0;
    const auto others = lane_structure.getOthers();
    const auto future_positions_of_others = lane_structure.getFuturePositionsOfOthers();
+   const auto road_length = lane_structure.getLength();
 
    int min_lane = lane_structure.isValid() ? 0 : -1;
    int max_lane = lane_structure.isValid() ? lane_structure.getNumLanes() - 1 : -1;
@@ -633,22 +634,19 @@ void vfm::HighwayImage::paintHighwayScene(
    const float street_width{ (float)((max_lane - min_lane) + 1) };
    const float street_right_border{ street_left_border + street_width };
 
-   constexpr static float METERS_TO_LOOK_AHEAD{ 130 };
+   constexpr static float METERS_TO_LOOK_BEHIND{ 130 };
+   constexpr static float METERS_TO_LOOK_AHEAD{ METERS_TO_LOOK_BEHIND };
 
-   tl_orig.x = -METERS_TO_LOOK_AHEAD;
+   tl_orig.x = -METERS_TO_LOOK_BEHIND;
    br_orig.x = METERS_TO_LOOK_AHEAD;
 
    fillRectangle(tl_orig.x, street_left_border, br_orig.x - tl_orig.x, street_width, PAVEMENT_COLOR, false);
 
+   std::cout << road_length << std::endl;
+
    for (int i = min_lane + 1; i <= max_lane; i++) {
       y = street_left_border + i - min_lane;
-      dashed_line(tl_orig.x + offset_dashed_lines_on_highway_, y, br_orig.x, y, LANE_MARKER_THICKNESS, LANE_MARKER_COLOR, DASH_WIDTH);
-   }
-
-   offset_dashed_lines_on_highway_ = -ego_rel_pos;
-
-   while (offset_dashed_lines_on_highway_ >= br_orig.x) {
-      offset_dashed_lines_on_highway_ -= br_orig.x;
+      dashed_line(0 - ego_rel_pos, y, road_length - ego_rel_pos, y, LANE_MARKER_THICKNESS, LANE_MARKER_COLOR, DASH_WIDTH);
    }
 
    removeNonExistentLanesAndMarkShoulders(lane_structure, ego, tl_orig, br_orig);
@@ -763,6 +761,18 @@ void vfm::HighwayImage::paintHighwayScene(
    auto text_pos_y{ plain_2d_translator_.reverseTranslate({ 0, 13 }).y };
    writeAsciiText(-CAR_LENGTH / 2, text_pos_y, std::to_string((int)ego_rel_pos) + "m", CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
 
-   float tl_orig_one_below_y{ plain_2d_translator_.reverseTranslate({0, 0}).y };
+   const auto reverse_origin_2D{ plain_2d_translator_.reverseTranslate({0, 0}) };
+   float tl_orig_one_below_y{ reverse_origin_2D.y };
    rectangle(tl_orig.x, tl_orig_one_below_y, br_orig.x - tl_orig.x, br_orig.y - tl_orig.y, BLACK, false);
+}
+
+void vfm::HighwayImage::paintRoadGraph(const std::shared_ptr<RoadGraph> r_raw,
+   const float ego_offset_x,
+   const std::map<std::string, std::string>& var_vals,
+   const bool print_agent_ids)
+{
+   auto r = r_raw->findSectionWithEgo();
+   HighwayImage sub_image{ getWidth(), getHeight(), getHighwayTranslator(), num_lanes_ };
+   sub_image.paintStraightRoadScene(r->getMyRoad(), 0, var_vals, print_agent_ids);
+   insertImage(0, 0, sub_image, false);
 }
