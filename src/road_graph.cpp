@@ -176,31 +176,62 @@ std::map<int, std::pair<float, float>> StraightRoadSection::getFuturePositionsOf
    return future_positions_of_others_;
 }
 
+float vfm::StraightRoadSection::getLength() const
+{
+   return segments_.rbegin()->second.getBegin();
+}
+
 vfm::RoadGraph::RoadGraph(const int id) : Failable("RoadGraph"), id_{id}
 {}
 
-std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithID(const int id)
+std::shared_ptr<RoadGraph> vfm::RoadGraph::findFirstSectionWithProperty(
+   const std::function<bool(const std::shared_ptr<RoadGraph>)> property,
+   std::set<std::shared_ptr<RoadGraph>>& visited)
 {
-   std::set<std::shared_ptr<RoadGraph>> visited{};
-   return findSectionWithID(id, visited);
-}
-
-std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithID(const int id, std::set<std::shared_ptr<RoadGraph>>& visited)
-{
-   if (id_ == id) return shared_from_this();
+   if (property(shared_from_this())) return shared_from_this();
    if (!visited.insert(shared_from_this()).second) return nullptr;
 
    for (const auto& succ_ptr : successors_) {
-      std::shared_ptr<RoadGraph> ptr{ succ_ptr->findSectionWithID(id, visited) };
+      std::shared_ptr<RoadGraph> ptr{ succ_ptr->findFirstSectionWithProperty(property, visited) };
       if (ptr) return ptr;
    }
 
    for (const auto& pred_ptr : predecessors_) {
-      std::shared_ptr<RoadGraph> ptr{ pred_ptr->findSectionWithID(id, visited) };
+      std::shared_ptr<RoadGraph> ptr{ pred_ptr->findFirstSectionWithProperty(property, visited) };
       if (ptr) return ptr;
    }
 
    return nullptr;
+}
+
+std::shared_ptr<RoadGraph> vfm::RoadGraph::findFirstSectionWithProperty(const std::function<bool(std::shared_ptr<RoadGraph>)> property)
+{
+   std::set<std::shared_ptr<RoadGraph>> visited{};
+   return findFirstSectionWithProperty(property, visited);
+}
+
+std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithID(const int id)
+{
+   return findFirstSectionWithProperty([id](const std::shared_ptr<RoadGraph> r) -> bool { return id == r->getID(); });
+}
+
+std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithCar(const int car_id)
+{
+   return findFirstSectionWithProperty([car_id](const std::shared_ptr<RoadGraph> r) -> bool
+   { 
+      for (const auto& other : r->getMyRoad().getOthers()) {
+         if (other.car_id_ == car_id) {
+            return true;
+         }
+      }
+
+      return false;
+   });
+}
+
+std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithEgo()
+{
+   return findFirstSectionWithProperty([](const std::shared_ptr<RoadGraph> r) -> bool { return (bool) r->getMyRoad().getEgo(); });
 }
 
 StraightRoadSection vfm::RoadGraph::getMyRoad() const

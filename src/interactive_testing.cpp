@@ -770,8 +770,8 @@ void vfm::test::cameraRotationTester()
    auto perspective{ trans->getPerspective() };
    constexpr float PI{ 3.14159265359 };
    StraightRoadSection lanes{ 3, {} };
-   CarPars ego{ 1, 0, 0 };
-   CarParsVec others{ { 2, 100, 100 }, { 0, 150, 150 }, { 1, 130, 130 } };
+   CarPars ego{ 1, 0, 0, HighwayImage::EGO_MOCK_ID };
+   CarParsVec others{ { 2, 100, 100, 0 }, { 0, 150, 150, 1 }, { 1, 130, 130, 2 } };
    lanes.addLaneSegment(LaneSegment(-50, 0, 4));
    lanes.addLaneSegment(LaneSegment(0, 2, 2));
    lanes.addLaneSegment(LaneSegment(50, 0, 4));
@@ -792,11 +792,11 @@ void vfm::test::cameraRotationTester()
    for (float i = 0; i > -300; i += 1) {
       HighwayImage img_new{ 1000, 1000, trans, 3 };
       img_new.startOrKeepUpPDF();
-      lanes.setEgo(std::make_shared<CarPars>(ego.car_lane_, ego.car_rel_pos_, ego.car_velocity_));
+      lanes.setEgo(std::make_shared<CarPars>(ego.car_lane_, ego.car_rel_pos_, ego.car_velocity_, HighwayImage::EGO_MOCK_ID));
       lanes.setOthers(others);
       lanes.setFuturePositionsOfOthers({});
 
-      img_new.paintHighwayScene(lanes);
+      img_new.paintStraightRoadScene(lanes);
       img_new.store("test_new.png");
       img_new.store("test_new.pdf", OutputType::pdf);
 

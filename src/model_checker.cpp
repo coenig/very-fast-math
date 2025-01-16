@@ -11,7 +11,7 @@
 using namespace vfm;
 
 const ModelConfiguration MC::CONFIG_HELLO_WORLD = {
-   { { { 0, 0, 0 }, { {0, 9, 0 } } } },
+   { { { 0, 0, 0, 0 }, { {0, 9, 0, 1 } } } },
    [](const SystemState& state) {
       std::vector<SystemState> vec;
       SystemState s = state;
@@ -155,13 +155,13 @@ void doEgoBehaviorOvertake(SystemState& s)
 }
 
 const ModelConfiguration MC::CONFIG_OVERTAKE = {
-   { { CarPars{ 1, 0, lane_speed_min(1) },
-    { {0, -DISTANCE_STEP_OVERTAKE * 14, lane_speed_min(0) },
-      {0, DISTANCE_STEP_OVERTAKE, lane_speed_max(0) },
-      {1, -DISTANCE_MAX_OVERTAKE, lane_speed_min(1) },
-      {1, DISTANCE_STEP_OVERTAKE * 14, lane_speed_min(1) },
-      {2, -DISTANCE_MAX_OVERTAKE, lane_speed_min(2) },
-      {2, DISTANCE_STEP_OVERTAKE * 7, lane_speed_min(2) } } } },
+   { { CarPars{ 1, 0, lane_speed_min(1), HighwayImage::EGO_MOCK_ID },
+    { {0, -DISTANCE_STEP_OVERTAKE * 14, lane_speed_min(0), 0 },
+      {0, DISTANCE_STEP_OVERTAKE, lane_speed_max(0), 1 },
+      {1, -DISTANCE_MAX_OVERTAKE, lane_speed_min(1), 2 },
+      {1, DISTANCE_STEP_OVERTAKE * 14, lane_speed_min(1), 3 },
+      {2, -DISTANCE_MAX_OVERTAKE, lane_speed_min(2), 4 },
+      {2, DISTANCE_STEP_OVERTAKE * 7, lane_speed_min(2), 5 } } } },
    [](const SystemState& state) {
       SystemState st = state;
       float ego_speed = getEgoSpeed(st);
@@ -367,7 +367,7 @@ SystemStateVec vfm::MC::generateFullSystemSeedACC()
 
    for (;;) {
       if (vals[2] != DISTANCE_MAX_ACC || vals[1] == 0) {
-         SystemState state = { { 0, 0, (int) vals[0] }, { { 0, vals[2], (int) vals[1] } } };
+         SystemState state = { { 0, 0, (int) vals[0], 0 }, { { 0, vals[2], (int) vals[1], 1 } } };
          vec.push_back(state);
       }
 
@@ -407,7 +407,7 @@ void vfm::MC::addPainting(const int state_num, const SystemState& state)
 {
    if (!model_.hasStateImage(state_num)) {
       std::shared_ptr<HighwayImage> small = std::make_shared<HighwayImage>(img_width_, img_height_, std::make_shared<Plain2DTranslator>(), 3); // TODO: magic lane number.
-      small->paintHighwayScene(state.first, state.second, {}, ego_offset_x_);
+      small->paintStraightRoadSceneSimple(state.first, state.second, {}, ego_offset_x_);
       model_.addImageToState(state_num, small);
    }
 }

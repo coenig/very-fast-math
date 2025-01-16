@@ -13,15 +13,16 @@
 
 namespace vfm {
 struct CarPars {
-   inline CarPars() : CarPars(0.0f, 0.0f, 0) {}
+   inline CarPars() : CarPars(0.0f, 0.0f, 0, -1) {}
 
-   inline CarPars(const float car_lane, const float car_rel_pos, const int car_velocity) 
-      : car_lane_{ car_lane }, car_rel_pos_{ car_rel_pos }, car_velocity_{ car_velocity }
+   inline CarPars(const float car_lane, const float car_rel_pos, const int car_velocity, const int car_id)
+      : car_lane_{ car_lane }, car_rel_pos_{ car_rel_pos }, car_velocity_{ car_velocity }, car_id_{ car_id }
    {}
 
    float car_lane_{};
    float car_rel_pos_{};
    int car_velocity_{};
+   int car_id_{};
 
    inline bool operator<(const CarPars& other) const
    {
@@ -95,6 +96,7 @@ public:
    std::shared_ptr<CarPars> getEgo() const;
    CarParsVec getOthers() const;
    std::map<int, std::pair<float, float>> getFuturePositionsOfOthers() const;
+   float getLength() const;
 
 private:
    std::map<float, LaneSegment> segments_{};
@@ -110,7 +112,11 @@ private:
 class RoadGraph : public Failable, public std::enable_shared_from_this<RoadGraph>{
 public:
    RoadGraph(const int id);
+
+   std::shared_ptr<RoadGraph> findFirstSectionWithProperty(const std::function<bool(const std::shared_ptr<RoadGraph>)> property);
    std::shared_ptr<RoadGraph> findSectionWithID(const int id);
+   std::shared_ptr<RoadGraph> findSectionWithCar(const int car_id);
+   std::shared_ptr<RoadGraph> findSectionWithEgo();
 
    StraightRoadSection getMyRoad() const;
    Vec2D getOriginPoint() const;
@@ -133,7 +139,9 @@ private:
    std::set<std::shared_ptr<RoadGraph>> successors_{};
    std::set<std::shared_ptr<RoadGraph>> predecessors_{};
 
-   std::shared_ptr<RoadGraph> findSectionWithID(const int id, std::set<std::shared_ptr<RoadGraph>>& visited);
+   std::shared_ptr<RoadGraph> findFirstSectionWithProperty(
+      const std::function<bool(std::shared_ptr<RoadGraph>)> property,
+      std::set<std::shared_ptr<RoadGraph>>& visited);
 };
 
 } // vfm
