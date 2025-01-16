@@ -738,14 +738,14 @@ void vfm::HighwayImage::paintHighwayScene(
       }
    }
 
-   //// Ego speed number
    if (future_positions_of_others.count(-1)) {
       float future_pos_x = pos_ego.x + future_positions_of_others.at(-1).first;
       float future_pos_y = pos_ego.y + (future_positions_of_others.at(-1).second - ego_lane);
       createArrows(pos_ego.x, future_pos_x, pos_ego.y, future_pos_y, arrow_polygons);
    }
 
-   plotCar2D(3, pos_ego, RED, CAR_FRAME_COLOR);
+   if (ego) plotCar2D(3, pos_ego, RED, CAR_FRAME_COLOR);
+
    for (const auto& pol : arrow_polygons) {
       fillPolygon(pol, DARK_GREY);
    }
@@ -756,9 +756,9 @@ void vfm::HighwayImage::paintHighwayScene(
       if (getHighwayTranslator()->is3D()) plotCar3D(pos, CAR_COLOR, CAR_FRAME_COLOR);
    }
 
-   if (getHighwayTranslator()->is3D()) plotCar3D(pos_ego, RED, CAR_FRAME_COLOR);
+   if (ego) if (getHighwayTranslator()->is3D()) plotCar3D(pos_ego, RED, CAR_FRAME_COLOR); // EGO 3D
 
-   writeAsciiText(pos_ego.x, pos_ego.y, std::to_string(ego_velocity), CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
+   if (ego) writeAsciiText(pos_ego.x, pos_ego.y, std::to_string(ego_velocity), CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
 
    auto text_pos_y{ plain_2d_translator_.reverseTranslate({ 0, 13 }).y };
    writeAsciiText(-CAR_LENGTH / 2, text_pos_y, std::to_string((int)ego_rel_pos) + "m", CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);

@@ -23,25 +23,25 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   //std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain2DTranslator>() };
-   //LaneSegment segment1{ 0, 0, 6 };
-   //LaneSegment segment2{ 20, 2, 4 };
-   //StraightRoadSection section1{ 4 };
-   //section1.addLaneSegment(segment1);
-   //section1.addLaneSegment(segment2);
-   //HighwayImage image{ 1500, 200, trans, 4 };
-   //std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(1, 10, 13);
-   //CarParsVec others{ { 3, -10, 3 }, { 1, 50, 11 } };
-   //std::map<int, std::pair<float, float>> future_positions_of_others{};
-   //section1.setEgo(ego);
-   //section1.setOthers(others);
-   //section1.setFuturePositionsOfOthers(future_positions_of_others);
-   //image.paintHighwayScene(section1);
-   //image.store("test");
+   std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain2DTranslator>() };
+   LaneSegment segment1{ 0, 0, 6 };
+   LaneSegment segment2{ 20, 2, 4 };
+   StraightRoadSection section1{ 4 };
+   section1.addLaneSegment(segment1);
+   section1.addLaneSegment(segment2);
+   HighwayImage image{ 1500, 200, trans, 4 };
+   std::shared_ptr<CarPars> ego = /*std::make_shared<CarPars>(1, 0, 13)*/ nullptr;
+   CarParsVec others{ { 3, -10, 3 }, { 1, 50, 11 } };
+   std::map<int, std::pair<float, float>> future_positions_of_others{};
+   section1.setEgo(ego);
+   section1.setOthers(others);
+   section1.setFuturePositionsOfOthers(future_positions_of_others);
+   image.paintHighwayScene(section1);
+   image.store("test");
 
-   //RoadGraph r{ 0 };
-   //r.setMyRoad(section1);
-   //termnate();
+   RoadGraph r{ 0 };
+   r.setMyRoad(section1);
+   termnate();
 
    //vfm::test::runTests();
    //termnate();
