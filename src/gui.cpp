@@ -1011,7 +1011,7 @@ void MCScene::refreshRarely(void* data)
 
    std::string path_preview_target{ std::string(mc_scene->getGeneratedDir()) + "/preview/preview.gif" };
 
-   if (StaticHelper::existsFileSafe(mc_scene->getGeneratedDir()) && StaticHelper::existsFileSafe(path_preview_target)) {
+   if (!mc_scene->mc_running_internal_ && StaticHelper::existsFileSafe(mc_scene->getGeneratedDir()) && StaticHelper::existsFileSafe(path_preview_target)) {
       auto currentWriteTime = StaticHelper::lastWritetimeOfFileSafe(path_preview_target);
 
       // Compare the current write time with the previous write time
@@ -1576,6 +1576,7 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
       }
    }
 
+   mc_scene->mc_running_internal_ = false;
    mc_scene->activateMCButtons(true);
 }
 
@@ -2062,6 +2063,7 @@ void MCScene::buttonRunMCAndPreview(Fl_Widget* widget, void* data) {
    auto mc_scene{ static_cast<MCScene*>(data) };
    mc_scene->showAllBBGroups(false);
    mc_scene->activateMCButtons(false);
+   mc_scene->mc_running_internal_ = true;
 
    //generatePreviews(mc_scene);
    std::thread t{ runMCJobs, mc_scene };
