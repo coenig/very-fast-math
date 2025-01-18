@@ -137,7 +137,8 @@ inline float Vector2D<NumType>::dotProduct(const Vector2D<NumType>& other) const
 template<class NumType>
 inline float Vector2D<NumType>::angle(const Vector2D<NumType>& other) const
 {
-   return std::acos(prod(other) / (length() * other.length()));
+   return std::atan2(other.y - y, other.x - x);
+   //return std::acos(dotProduct(other) / (length() * other.length())); // Old implementation - does something else, but might be needed.
 }
 
 template<class NumType>

@@ -1,103 +1,93 @@
-﻿//============================================================================================================
-// C O P Y R I G H T
-//------------------------------------------------------------------------------------------------------------
-/// \copyright (C) 2022 Robert Bosch GmbH. All rights reserved.
-//============================================================================================================
-/// @file
+﻿#include <iostream>
+#include <cmath>
+#include <vector>
+#include <geometry/images.h>
+#include <geometry/vector_2d.h>
+#include <geometry/polygon_2d.h>
 
-#include "testing/test_functions.h"
-#include "testing/interactive_testing.h"
-#include "simplification/simplification_function.h"
-#include "model_checking/cex_processing/mc_visualization_launchers.h"
-#include "cpp_parsing/cpp_parser.h"
-#include "cpp_parsing/options.h"
-#include "model_checking/counterexample_replay.h"
-#include "vfmacro/script.h"
-#include "gui/gui.h"
-// #include "examples/fct_enumdefinitions.h" // TODO: This does not work on Linux (needed for replayCounterExample).
+// Constants
+const double PI = 3.141592653589793;
 
-using namespace vfm;
-using namespace test;
-using namespace mc::trajectory_generator;
+// Function to compute Fresnel integrals using numerical integration 
+void computeFresnel(float s, float a, float&C, float&S, int steps = 1000) {
+C = 0.0;
+S = 0.0;
+float ds = s / steps;
+for (int i = 0; i <= steps; ++i) {
+   float u = i * ds;
+   float k = a * u * u;
+   C += cos(k) * ds;
+   S += sin(k) * ds;
+}
+}
 
+// Function to generate clothoid coordinates 
+vfm::Pol2D generateClothoid(float s_max, float R, int points) {
+   vfm::Pol2D curve;
+   float a = 1.0 / (2 * R * R); // Curvature constant
+   float step = s_max / points;
 
-int main(int argc, char* argv[])
-{
-   //std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain2DTranslator>() };
-   //LaneSegment segment1{ 0, 0, 6 };
-   //LaneSegment segment2{ 20, 2, 4 };
-   //StraightRoadSection section1{ 4 };
-   //section1.addLaneSegment(segment1);
-   //section1.addLaneSegment(segment2);
-   //HighwayImage image{ 1500, 200, trans, 4 };
-   //std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 0, 13, HighwayImage::EGO_MOCK_ID);
-   //CarParsVec others{ { 3, -10, 3, 0 }, { 1, 50, 11, 1 } };
-   //std::map<int, std::pair<float, float>> future_positions_of_others{};
-   //section1.setEgo(ego);
-   //section1.setOthers(others);
-   //section1.setFuturePositionsOfOthers(future_positions_of_others);
+   for (int i = 0; i <= points; ++i) {
+      float s = i * step;
+      float C, S;
+      computeFresnel(s, a, C, S);
+      curve.add({ C, S });
+   }
 
-   //auto r = std::make_shared<RoadGraph>(0);
-   //r->setMyRoad(section1);
-   //image.paintRoadGraph(r);
-   //image.store("test");
-   //termnate();
+   return curve;
+}
 
-   //vfm::test::runTests();
-   //termnate();
+double computeAngleAtC(const vfm::Vec2D& A, const vfm::Vec2D& C, const vfm::Vec2D& B) {
+   float dx1 = C.x - A.x, dy1 = C.y - A.y;
+   float dx2 = B.x - C.x, dy2 = B.y - C.y;
+   float dot = dx1 * dx2 + dy1 * dy2;
+   float mag1 = sqrt(dx1 * dx1 + dy1 * dy1);
+   float mag2 = sqrt(dx2 * dx2 + dy2 * dy2);
+   return acos(dot / (mag1 * mag2)); // Angle in radians
+}
 
-   //runInterpreter();
-   //termnate();
+int main() {
+   vfm::Vec2D A{ 100, 100 };
+   vfm::Vec2D C{ 300, 300 };
+   vfm::Vec2D B{ 300, 400 };
 
-   MCScene mc_scene{ argc, argv };
-   return mc_scene.getFlRunInfo();
-   termnate();
+   double dAC = A.distance(C);
+   double dCB = C.distance(B);
+   double angleAtC = computeAngleAtC(A, C, B);
 
-   aca4_1Run();
-   termnate();
+   // Parameters
+   double R = (dAC + dCB) / 2.0 / sin(angleAtC / 2.0); // Radius
+   double s_max = R * angleAtC;                       // Arc length
+   int points = 10;      // Number of points on the curve
 
-   //return artifactRun(argc, argv);
-   //termnate();
+   // Generate the clothoid curve
+   auto clothoid = generateClothoid(s_max, R, points);
 
-   //convenienceArtifactRunHardcoded(MCExecutionType::all);
-   //termnate();
+   float angleAC = A.angle(C);
+   float angleCB = C.angle(B);
 
-   //vfm::test::runMCExperiments(MCExecutionType::all);
-   //termnate();
+   // Rotate and translate the curve (example: rotate by 45° and translate by (5, 5))
+   clothoid.rotate(angleAC, { 0, 0 });
+   clothoid.translate(A);
 
-   //runInterpreter();
-   //termnate();
+   vfm::Vec2D lastPoint = clothoid.points_.back();
+   vfm::Vec2D translation = B;
+   translation.sub(lastPoint);
+   clothoid.translate(translation);
 
-   //loopKratos();
-   //termnate();
+   //clothoid.points_.insert(clothoid.points_.begin(), A);
+   clothoid.add(B);
 
-   //quickGenerateEnvModels();
-   //termnate();
+   vfm::Image img{ 1000, 1000 };
+   vfm::Pol2D arrow{};
+   arrow.createArrow(clothoid, 50);
 
-   //processCEX("../examples/env_model_devel/generator/2024_01_09_Artificial2", CexType(CexTypeEnum::smv).getEnumAsString().c_str(), true, true);
-   //termnate();
+   img.circle(A.x, A.y, 20, vfm::ORANGE);
+   img.circle(C.x, C.y, 20, vfm::RED);
+   img.circle(B.x, B.y, 20, vfm::ORANGE);
+   img.drawPolygon(clothoid, vfm::YELLOW, false, true);
+   img.drawPolygon(arrow, vfm::WHITE, true, true);
+   img.store("test");
 
-   //simplification::CodeGenerator::deleteAndWriteSimplificationRulesToFile(simplification::CodeGenerationMode::positive, "../include/simplification/simplification_pos.h");     // Normal mode.
-   //simplification::CodeGenerator::deleteAndWriteSimplificationRulesToFile(simplification::CodeGenerationMode::negative, "../include/simplification/simplification.h"); // Normal mode (negative).
-   //simplification::CodeGenerator::deleteAndWriteSimplificationRulesToFile(simplification::CodeGenerationMode::negative, "../include/model_checking/simplification.h", nullptr, true); // MC mode (negative).
-   //termnate();
-
-   //std::string dir{"../examples/mc/G1-demo_FSM/"};
-   //vfm::replayCounterExample(
-   //   dir + "FCT_ConditionsOK_counterexample_demo.txt",
-   //   dir + "FCT_FSM_init.vfm",
-   //   dir + "FCT_FSM.vfm",
-   //   dir + "golf_steering_wheel.ppm",
-   //   dir + "G1-demo-FSM-state-viz.png",
-   //   dir + "G1-demo-FSM.dot",
-   //   dir + "G1-demo-FSM_data.dot",
-   //   Fct::associateVariables,
-   //   vfm::defaultPaintFunction,
-   //   Fct::my_vars_for_painter,
-   //   Fct::my_buttons,
-   //   "pdf",
-   //   true);
-   //termnate();
-
-   //return 0;
+   return 0;
 }
