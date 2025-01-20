@@ -26,7 +26,11 @@ static constexpr float SPEED_DIVISOR_FOR_STEP_SMOOTHNESS = 1; //18;
 constexpr static float OPTIMIZE_FOR_LANE_NUMBER = 3;
 constexpr static float MAX_NUM_LANES_SIMPLE = 5;
 
-static StraightRoadSection TEST_LANES{ (int)MAX_NUM_LANES_SIMPLE, { {-55, 0, 4}, {-30, 0, 7}, {10, 0, 7}, {40, 1, 8}, {70, 1, 8}, {90, 2, 8}, {150, 2, 7}, {210, 2, 6}, {250, 2, 5}, {300, 2, 4} } }; // TODO: Delete eventually.
+static StraightRoadSection TEST_LANES{ 
+   (int)MAX_NUM_LANES_SIMPLE,
+   400,
+   { {-55, 0, 4}, {-30, 0, 7}, {10, 0, 7}, {40, 1, 8}, {70, 1, 8}, {90, 2, 8}, {150, 2, 7}, {210, 2, 6}, {250, 2, 5}, {300, 2, 4} } 
+}; // TODO: Delete eventually.
 
 class Env2D : public Failable {
 public:
@@ -123,6 +127,7 @@ public:
       lane_structure.setEgo(std::make_shared<CarPars>(ego_pos_y_, ego_pos_x_, (int)(ego_vx_), HighwayImage::EGO_MOCK_ID));
       lane_structure.setOthers(others_current_vec);
       lane_structure.setFuturePositionsOfOthers(others_future_vec);
+      lane_structure.setSectionEnd(100);
 
       auto r = std::make_shared<RoadGraph>(0);
       r->setMyRoad(lane_structure);

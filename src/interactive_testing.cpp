@@ -796,7 +796,7 @@ void vfm::test::cameraRotationTester()
       lanes.setOthers(others);
       lanes.setFuturePositionsOfOthers({});
 
-      img_new.paintStraightRoadScene(lanes);
+      img_new.paintStraightRoadScene(lanes, true);
       img_new.store("test_new.png");
       img_new.store("test_new.pdf", OutputType::pdf);
 
