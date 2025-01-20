@@ -557,7 +557,7 @@ void vfm::HighwayImage::paintStraightRoadSceneFromData(StraightRoadSection& lane
    { { 0, { future_veh0_rel_pos, future_veh0_lane } },
       { 1, { future_veh1_rel_pos, future_veh1_lane } } } : std::map<int, std::pair<float, float>>{});
 
-   paintStraightRoadScene(lane_structure, 0, var_vals, true);
+   paintStraightRoadScene(lane_structure, true, 0, var_vals, true);
 }
 
 void vfm::HighwayImage::paintStraightRoadSceneSimple(
@@ -574,11 +574,12 @@ void vfm::HighwayImage::paintStraightRoadSceneSimple(
    dummy.setOthers(others);
    dummy.setFuturePositionsOfOthers(future_positions_of_others);
 
-   paintStraightRoadScene(dummy, ego_offset_x, var_vals, print_agent_ids);
+   paintStraightRoadScene(dummy, true, ego_offset_x, var_vals, print_agent_ids);
 }
 
 void vfm::HighwayImage::paintStraightRoadScene(
    StraightRoadSection& lane_structure,
+   const bool infinite_road,
    const float ego_offset_x,
    const ExtraVehicleArgs& var_vals,
    const bool print_agent_ids)
@@ -600,7 +601,8 @@ void vfm::HighwayImage::paintStraightRoadScene(
    const auto ego_velocity = ego ? ego->car_velocity_ : 0;
    const auto others = lane_structure.getOthers();
    const auto future_positions_of_others = lane_structure.getFuturePositionsOfOthers();
-   const auto road_length = lane_structure.getLength();
+   const auto road_length = infinite_road ? 1000 : lane_structure.getLength();
+   const auto road_begin = infinite_road ? -1000 : 0;
 
    int min_lane = lane_structure.isValid() ? 0 : -1;
    int max_lane = lane_structure.isValid() ? lane_structure.getNumLanes() - 1 : -1;
@@ -646,7 +648,7 @@ void vfm::HighwayImage::paintStraightRoadScene(
 
    for (int i = min_lane + 1; i <= max_lane; i++) {
       y = street_left_border + i - min_lane;
-      dashed_line(0 - ego_rel_pos, y, road_length - ego_rel_pos, y, LANE_MARKER_THICKNESS, LANE_MARKER_COLOR, DASH_WIDTH);
+      dashed_line(road_begin - ego_rel_pos, y, road_length - ego_rel_pos, y, LANE_MARKER_THICKNESS, LANE_MARKER_COLOR, DASH_WIDTH);
    }
 
    removeNonExistentLanesAndMarkShoulders(lane_structure, ego, tl_orig, br_orig);
@@ -772,7 +774,8 @@ void vfm::HighwayImage::paintRoadGraph(const std::shared_ptr<RoadGraph> r_raw,
    const bool print_agent_ids)
 {
    auto r = r_raw->findSectionWithEgo();
+   auto num_nodes = r->getNumberOfNodes();
    HighwayImage sub_image{ getWidth(), getHeight(), getHighwayTranslator(), num_lanes_ };
-   sub_image.paintStraightRoadScene(r->getMyRoad(), 0, var_vals, print_agent_ids);
+   sub_image.paintStraightRoadScene(r->getMyRoad(), num_nodes == 1, 0, var_vals, print_agent_ids);
    insertImage(0, 0, sub_image, false);
 }

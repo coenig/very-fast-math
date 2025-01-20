@@ -66,6 +66,7 @@ public:
    /// Core function for painting a straight road section.
    void paintStraightRoadScene(
       StraightRoadSection& lane_structure,
+      const bool infinite_road,
       const float ego_offset_x = 0,
       const std::map<std::string, std::string>& var_vals = {},
       const bool print_agent_ids = false);

@@ -79,8 +79,8 @@ static constexpr int MIN_DISTANCE_BETWEEN_SEGMENTS{ 20 };
 class StraightRoadSection : public Failable {
 public:
    StraightRoadSection(); // Constructs an invalid lane structure.
-   StraightRoadSection(const int lane_num);
-   StraightRoadSection(const int lane_num, const std::vector<LaneSegment>& segments);
+   StraightRoadSection(const int lane_num, const float section_end);
+   StraightRoadSection(const int lane_num, const float section_end, const std::vector<LaneSegment>& segments);
 
    void addLaneSegment(const LaneSegment& segment);
    void cleanUp();
@@ -93,6 +93,7 @@ public:
    void setEgo(const std::shared_ptr<CarPars> ego);
    void setOthers(const CarParsVec& others);
    void setFuturePositionsOfOthers(const std::map<int, std::pair<float, float>>& future_positions_of_others);
+   void setSectionEnd(const float end);
    std::shared_ptr<CarPars> getEgo() const;
    CarParsVec getOthers() const;
    std::map<int, std::pair<float, float>> getFuturePositionsOfOthers() const;
@@ -104,6 +105,7 @@ private:
    std::shared_ptr<CarPars> ego_{}; // Ego may or may not (nullptr) be within this road section.
    CarParsVec others_{};
    std::map<int, std::pair<float, float>> future_positions_of_others_{};
+   float section_end_{ -1 };
 };
 
 /// <summary>
@@ -122,6 +124,7 @@ public:
    Vec2D getOriginPoint() const;
    float getAngle() const;
    int getID() const;
+   int getNumberOfNodes() const;
 
    void setMyRoad(const StraightRoadSection& section);
    void setOriginPoint(const Vec2D& point);

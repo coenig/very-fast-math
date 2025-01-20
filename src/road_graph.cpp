@@ -34,10 +34,13 @@ std::string LaneSegment::toString() const
    return "<" + std::to_string(getBegin()) + ", [" + std::to_string(getMinLane()) + " -- " + std::to_string(getMaxLane()) + "]>";
 }
 
-StraightRoadSection::StraightRoadSection() : StraightRoadSection(-1) {} // Constructs an invalid lane structure.
-StraightRoadSection::StraightRoadSection(const int lane_num) : StraightRoadSection(lane_num, std::vector<LaneSegment>{}) {}
+StraightRoadSection::StraightRoadSection() : StraightRoadSection(-1, -1) {} // Constructs an invalid lane structure.
 
-StraightRoadSection::StraightRoadSection(const int lane_num, const std::vector<LaneSegment>& segments) : num_lanes_(lane_num), Failable("StraightRoadSection") {
+StraightRoadSection::StraightRoadSection(const int lane_num, const float section_end) 
+   : StraightRoadSection(lane_num, section_end, std::vector<LaneSegment>{}) {}
+
+StraightRoadSection::StraightRoadSection(const int lane_num, const float section_end, const std::vector<LaneSegment>& segments) 
+   : num_lanes_(lane_num), section_end_(section_end), Failable("StraightRoadSection") {
    for (const auto& segment : segments) {
       addLaneSegment(segment);
    }
@@ -163,6 +166,11 @@ void vfm::StraightRoadSection::setFuturePositionsOfOthers(const std::map<int, st
    future_positions_of_others_ = future_positions_of_others;
 }
 
+void vfm::StraightRoadSection::setSectionEnd(const float end)
+{
+   section_end_ = end;
+}
+
 std::shared_ptr<CarPars> vfm::StraightRoadSection::getEgo() const
 {
    return ego_;
@@ -178,7 +186,7 @@ std::map<int, std::pair<float, float>> StraightRoadSection::getFuturePositionsOf
 
 float vfm::StraightRoadSection::getLength() const
 {
-   return segments_.rbegin()->second.getBegin();
+   return section_end_;
 }
 
 vfm::RoadGraph::RoadGraph(const int id) : Failable("RoadGraph"), id_{id}
@@ -252,6 +260,18 @@ float vfm::RoadGraph::getAngle() const
 int vfm::RoadGraph::getID() const
 {
    return id_;
+}
+
+int vfm::RoadGraph::getNumberOfNodes() const
+{
+   int cnt{ 0 };
+
+   const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([&cnt](const std::shared_ptr<RoadGraph>) -> bool {
+      cnt++;
+      return false;
+   });
+
+   return cnt;
 }
 
 void vfm::RoadGraph::setMyRoad(const StraightRoadSection& section)

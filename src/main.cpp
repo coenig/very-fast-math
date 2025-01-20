@@ -23,17 +23,10 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   Image img{ 1000, 1000 };
-   img.restartPDF();
-   img.fillRectangle({ 0, 0 }, { 999, 999 }, DARK_DARK_GREEN, false);
-   img.paintSimpleCurvedRoadSegment({ 100, 100 }, { 750, 400 }, { 200, 900 }, 120);
-   img.store("test", OutputType::pdf);
-   termnate();
-
    //std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain2DTranslator>() };
    //LaneSegment segment1{ 0, 0, 6 };
    //LaneSegment segment2{ 20, 2, 4 };
-   //StraightRoadSection section1{ 4 };
+   //StraightRoadSection section1{ 4, 50 };
    //section1.addLaneSegment(segment1);
    //section1.addLaneSegment(segment2);
    //HighwayImage image{ 1500, 200, trans, 4 };
