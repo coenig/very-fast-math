@@ -729,10 +729,10 @@ inline Polygon2D<NumType> Polygon2D<NumType>::multiBezier(const Polygon2D<NumTyp
    for (size_t i = 0; i < p.points_.size() - 1; ++i) {
       Vector2D<NumType> dir = p.points_[i + 1];
       dir.sub(p.points_[i]);
-      dir.normalize();
+      //dir.normalize();
       directions.add(dir);
 
-      if (i) k.push_back(100);
+      if (i) k.push_back(1);
    }
 
    if (!directions.points_.empty()) {

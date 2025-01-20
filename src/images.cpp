@@ -113,14 +113,14 @@ void vfm::Image::fillPolygonPDF(const Pol2Df& pol, const Color& fill_col)
    fillAndDrawPolygonPDF(pol, 0, fill_col, fill_col, true);
 }
 
-void vfm::Image::drawPolygonPDF(const Pol2Df& pol, const float line_width, const Color& line_col)
+void vfm::Image::drawPolygonPDF(const Pol2Df& pol, const float line_width, const Color& line_col, const bool close)
 {
-   fillAndDrawPolygonPDF(pol, line_width, BLACK, line_col, false);
+   fillAndDrawPolygonPDF(pol, line_width, BLACK, line_col, false, close);
 }
 
 int counter{0};
 
-void vfm::Image::fillAndDrawPolygonPDF(const Pol2Df& pol, const float line_width, const Color& fill_col, const Color& line_col, const bool fill)
+void vfm::Image::fillAndDrawPolygonPDF(const Pol2Df& pol, const float line_width, const Color& fill_col, const Color& line_col, const bool fill, const bool close_raw)
 {
    if (pdf_document_) {
       if (pol.points_.empty()) {
@@ -157,8 +157,11 @@ void vfm::Image::fillAndDrawPolygonPDF(const Pol2Df& pol, const float line_width
       if (fill) {
          HPDF_Page_ClosePathFillStroke(pdf_page_);
       }
-      else {
+      else if (close_raw) {
          HPDF_Page_ClosePathStroke(pdf_page_);
+      }
+      else {
+         HPDF_Page_Stroke(pdf_page_);
       }
 
       polygons_for_pdf_.push_back({ { { pol, fill ? fill_col : line_col }, fill }, line_width });
@@ -768,7 +771,7 @@ void vfm::Image::drawPolygon(const Polygon3D<float>& pol, const Color& col, cons
       }
    }
 
-   drawPolygonPDF(translated_pol, 0.3, col);
+   drawPolygonPDF(translated_pol, 0.3, col, close_polygon);
 }
 
 void vfm::Image::fillPolygon(const Polygon3D<float>& pol, const Color& col)
