@@ -22,7 +22,7 @@ public:
    Vector3D();
    Vector3D(const NumType x_coord, const NumType y_coord, const NumType z_coord);
    Vector3D(const Vector3D<NumType>& other);
-   Vector3D(const Vector2D<NumType>& other);
+   Vector3D(const Vector2D<NumType>& other); // Intentionally NOT explicit since it's really nice to pass 2D vec to 3D function.
    Vector3D(std::initializer_list<NumType>& coords);
 
    std::string serialize() const;

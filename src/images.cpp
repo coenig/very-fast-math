@@ -802,6 +802,27 @@ void vfm::Image::fillPolygon(const Polygon3D<float>& pol, const Color& col)
    fillPolygonPDF(translated_pol, col);
 }
 
+void vfm::Image::drawPolygons(const std::vector<Polygon2D<float>>& pols)
+{
+   return drawPolygons(pols, { { std::make_shared<Color>(WHITE), nullptr } });
+}
+
+void vfm::Image::drawPolygons(
+   const std::vector<Polygon2D<float>>& pols,
+   const std::vector<std::pair<std::shared_ptr<Color>, std::shared_ptr<Color>>>& frame_and_fill)
+{
+   int i{ 0 };
+   const int num{ (int) frame_and_fill.size() };
+
+   for (const auto& pol : pols) {
+      auto color_fill = frame_and_fill.at(i % num).second;
+      auto color_frame = frame_and_fill.at(i % num).first;
+      if (color_fill) fillPolygon(pol, *color_fill);
+      if (color_frame) drawPolygon(pol, *color_frame, true);
+      i++;
+   }
+}
+
 Image vfm::Image::scale(const Vec2Df factor)
 {
    // TODO: Not supported in PDF, yet.
