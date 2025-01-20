@@ -115,7 +115,9 @@ public:
    /// \brief Adds a bezier curve through the points (p1, p2, p3, p4). Point distance is controlled via step in [0, 1].
    Polygon2D<NumType> bezier(const Vector2D<NumType>& p0, const Vector2D<NumType>& p1, const Vector2D<NumType>& p2, const Vector2D<NumType>& p3, const float step = 0.01);
 
-   /// \brief Adds a bezier curve through arbitrary many points with associated direction vectors. Point distance is controlled via step in [0, 1].
+   /// \brief Adds a bezier curve through arbitrary many points with associated direction vectors. 
+   /// Point distance is controlled via step in [0, 1].
+   Polygon2D<NumType> multiBezier(const Polygon2D<NumType>& p, const float step = 0.05);
    Polygon2D<NumType> multiBezier(const Polygon2D<NumType>& p, const Polygon2D<NumType>& v, const std::vector<float>& k, const float step = 0.05);
 
    /// \brief Adds an arrow shape to the polygon that goes through the given base points.
@@ -716,6 +718,28 @@ inline Polygon2D<NumType> Polygon2D<NumType>::bezier(const Vector2D<NumType>& p0
    }
 
    return *this;
+}
+
+template<class NumType>
+inline Polygon2D<NumType> Polygon2D<NumType>::multiBezier(const Polygon2D<NumType>& p, const float step)
+{
+   Polygon2D<NumType> directions{};
+   std::vector<float> k{};
+
+   for (size_t i = 0; i < p.points_.size() - 1; ++i) {
+      Vector2D<NumType> dir = p.points_[i + 1];
+      dir.sub(p.points_[i]);
+      dir.normalize();
+      directions.add(dir);
+
+      if (i) k.push_back(100);
+   }
+
+   if (!directions.points_.empty()) {
+      directions.add(directions.points_.back());
+   }
+
+   return multiBezier(p, directions, k, step);
 }
 
 template<class NumType>
