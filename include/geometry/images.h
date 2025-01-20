@@ -512,6 +512,12 @@ public:
 
    virtual void setTranslator(const std::shared_ptr<VisTranslator> function);
 
+   void paintSimpleCurvedRoadSegment(
+      const vfm::Vec2D A,
+      const vfm::Vec2D C,
+      const vfm::Vec2D B,
+      const float thick = 100);
+
    static constexpr float DEFAULT_FONT_SIZE{ 20 };
 
    int startOrKeepUpPDF(const float font_size = DEFAULT_FONT_SIZE);

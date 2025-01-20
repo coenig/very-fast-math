@@ -1113,6 +1113,32 @@ void vfm::Image::setTranslator(const std::shared_ptr<VisTranslator> function)
    translator_ = function;
 }
 
+void vfm::Image::paintSimpleCurvedRoadSegment(
+   const vfm::Vec2D A, 
+   const vfm::Vec2D C, 
+   const vfm::Vec2D B,
+   const float thick)
+{
+   const int num_lanes{ 2 };
+
+   Pol2D clothoid{};
+   clothoid = clothoid.bezier(A, C, C, B, 0.001);
+   clothoid = clothoid.normalize();
+   vfm::Pol2D arrow{};
+   vfm::Pol2D arrow2{};
+   arrow.createArrow(clothoid, thick);
+   fillPolygon(arrow, vfm::GREY);
+
+   for (int i = 0; i < num_lanes - 1; i++) {
+      auto segments = Pol2D::gestrichelterPfeil(clothoid, 3, 3);
+      drawPolygons(segments, { { nullptr, std::make_shared<Color>(WHITE)}, {nullptr, nullptr} });
+   }
+
+   circle(A.x, A.y, 20, vfm::ORANGE);
+   circle(C.x, C.y, 20, vfm::RED);
+   circle(B.x, B.y, 20, vfm::ORANGE);
+}
+
 // PDF stuff
 jmp_buf env;
 
