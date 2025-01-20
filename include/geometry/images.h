@@ -524,9 +524,9 @@ public:
    int restartPDF(const float font_size = DEFAULT_FONT_SIZE);
    void flushAndStopPDF();
 
-   void fillAndDrawPolygonPDF(const Pol2Df& pol, const float line_width, const Color& fill_col, const Color& line_col, const bool fill = true);
+   void fillAndDrawPolygonPDF(const Pol2Df& pol, const float line_width, const Color& fill_col, const Color& line_col, const bool fill = true, const bool close = false);
    void fillPolygonPDF(const Pol2Df& pol, const Color& fill_col);
-   void drawPolygonPDF(const Pol2Df& pol, const float line_width, const Color& line_col);
+   void drawPolygonPDF(const Pol2Df& pol, const float line_width, const Color& line_col, const bool close = false);
    void drawTextPDF(const std::string& text, const float x, const float y, const Color& color);
    void drawTextPDF(const std::string& text, const TextRectangle& rectangle, const Color& color);
 
