@@ -475,15 +475,16 @@ public:
    // Also, in future specific 2D functions could be included which work
    // faster! Constructing the new polygon alone is a considerable, avoidable effort.
 
-   void drawPolygon(const Polygon3D<float>& pol, const Color& col = WHITE, const bool close_polygon = true, const bool paint_nodes = false, const bool print_coordinates = false);
+   void drawPolygon(const Polygon3D<float>& pol, const Color& col = WHITE, const bool close_polygon = true, const bool paint_nodes = false, const bool print_coordinates = false); // Accepts 2D polygon, as well.
 
    Image scale(const Vec2Df factor);
 
-   /// TODO: This method is slow and not quite accurate. There's got to be a better way...
-   /// => Scan line algorithm (however would require triangulation first):
-   /// https://www.techfak.uni-bielefeld.de/ags/wbski/lehre/digiSA/WS0607/3DVRCG/Vorlesung/13.RT3DCGVR-vertex-2-fragment.pdf
-   /// Only use this when fillTriangle and fillQuad do not suffice.
-   void fillPolygon(const Polygon3D<float>& pol, const Color& col = WHITE);
+   void fillPolygon(const Polygon3D<float>& pol, const Color& col = WHITE); // Accepts 2D polygon, as well.
+
+   void drawPolygons(const std::vector<Polygon2D<float>>& pols);
+   void drawPolygons(
+      const std::vector<Polygon2D<float>>& pols,
+      const std::vector<std::pair<std::shared_ptr<Color>, std::shared_ptr<Color>>>& frame_and_fill);
 
    /// Efficiently fill a polygon by providing it in the form of a so called "triangle strip".
    /// That means for every vertice (starting with #2), a triangle is formed with the previous two vertices.
