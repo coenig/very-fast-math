@@ -39,6 +39,7 @@ int main(int argc, char* argv[])
 
    //auto r = std::make_shared<RoadGraph>(0);
    //r->setMyRoad(section1);
+   //r->addSuccessor(std::make_shared<RoadGraph>(1));
    //image.paintRoadGraph(r);
    //image.store("test");
    //termnate();
