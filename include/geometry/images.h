@@ -359,11 +359,12 @@ public:
       return perspective_;
    }
 
-private:
-   std::shared_ptr<VisPerspective> perspective_{ std::make_shared<VisPerspective>() };
-
+   // TODO: Make these functions protected.
    virtual Vec2D translateCore(const Vec3D& point) = 0;
    virtual Vec3D reverseTranslateCore(const Vec2Df& point) = 0;
+
+private:
+   std::shared_ptr<VisPerspective> perspective_{ std::make_shared<VisPerspective>() };
 
    inline virtual Pol2D translatePolygonCore(const Pol3D& pol)
    {
