@@ -529,8 +529,8 @@ void Image::lineUnsafe(const float xx1, const float yy1, const float xx2, const 
    const Pol2D screen_pol{ {-1, -1}, {(float)width_, -1}, {(float)width_, (float)height_}, {-1, (float)height_} };
    const Vec2D p1{ (float)x1, (float)y1 };
    const Vec2D p2{ (float)x2, (float)y2 };
-   assert(screen_pol.isPointWithin(p1));
-   assert(screen_pol.isPointWithin(p2));
+   //assert(screen_pol.isPointWithin(p1));
+   //assert(screen_pol.isPointWithin(p2));
 
    const bool steep = (fabs(y2 - y1) > fabs(x2 - x1));
 

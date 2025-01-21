@@ -774,17 +774,22 @@ void vfm::HighwayImage::paintRoadGraph(const std::shared_ptr<RoadGraph> r_raw,
    auto r = r_raw->findSectionWithEgo();
    auto num_nodes = r->getNumberOfNodes();
    auto old_trans = getHighwayTranslator();
+   auto& plain_2d_trans = plain_2d_translator_;
    auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
       old_trans, 
-      [](const Vec3D& v) -> Vec3D { 
-         Vec2D v2{ v.x, v.y }; 
-         v2.rotate(3.1415 / 2);
-         return { v2.x, v2.y, 0 };
+      [&plain_2d_trans](const Vec3D& v_raw) -> Vec3D {
+         Vec3D v{ plain_2d_trans.translate(v_raw) };
+         Vec2D v2{ v.x, v.y - 100 }; 
+         v2.rotate(0.1);
+         auto res = plain_2d_trans.reverseTranslate(v2);
+         return res;
       },
-      [](const Vec3D& v) -> Vec3D { 
-         Vec2D v2{ v.x, v.y }; 
-         v2.rotate(-3.1415 / 2);
-         return { v2.x, v2.y, 0 };
+      [&plain_2d_trans](const Vec3D& v_raw) -> Vec3D {
+         Vec3D v{ plain_2d_trans.reverseTranslate(v_raw.projectToXY()) };
+         Vec2D v2{ v.x, v.y + 100 };
+         v2.rotate(-0.1);
+         auto res = plain_2d_trans.translate(v2);
+         return res;
       });
 
    setTranslator(wrapper_trans);
