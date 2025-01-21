@@ -23,26 +23,27 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain2DTranslator>() };
-   LaneSegment segment1{ 0, 0, 6 };
-   LaneSegment segment2{ 20, 2, 4 };
-   StraightRoadSection section1{ 4, 50 };
-   section1.addLaneSegment(segment1);
-   section1.addLaneSegment(segment2);
-   HighwayImage image{ 1500, 200, trans, 4 };
-   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 0, 13, HighwayImage::EGO_MOCK_ID);
-   CarParsVec others{ { 3, -10, 3, 0 }, { 1, 50, 11, 1 } };
-   std::map<int, std::pair<float, float>> future_positions_of_others{};
-   section1.setEgo(ego);
-   section1.setOthers(others);
-   section1.setFuturePositionsOfOthers(future_positions_of_others);
+   //std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain2DTranslator>() };
+   //LaneSegment segment1{ 0, 0, 6 };
+   //LaneSegment segment2{ 20, 2, 4 };
+   //StraightRoadSection section1{ 4, 50 };
+   //section1.addLaneSegment(segment1);
+   //section1.addLaneSegment(segment2);
+   //HighwayImage image{ 1500, 200, trans, 4 };
+   //image.restartPDF();
+   //std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 0, 13, HighwayImage::EGO_MOCK_ID);
+   //CarParsVec others{ { 3, -10, 3, 0 }, { 1, 50, 11, 1 } };
+   //std::map<int, std::pair<float, float>> future_positions_of_others{};
+   //section1.setEgo(ego);
+   //section1.setOthers(others);
+   //section1.setFuturePositionsOfOthers(future_positions_of_others);
 
-   auto r = std::make_shared<RoadGraph>(0);
-   r->setMyRoad(section1);
-   r->addSuccessor(std::make_shared<RoadGraph>(1));
-   image.paintRoadGraph(r);
-   image.store("test");
-   termnate();
+   //auto r = std::make_shared<RoadGraph>(0);
+   //r->setMyRoad(section1);
+   //r->addSuccessor(std::make_shared<RoadGraph>(1));
+   //image.paintRoadGraph(r);
+   //image.store("test", OutputType::pdf);
+   //termnate();
 
    //vfm::test::runTests();
    //termnate();
