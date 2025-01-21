@@ -352,6 +352,7 @@ public:
    virtual inline void setPerspective(const std::shared_ptr<VisPerspective> perspective)
    {
       perspective_ = perspective;
+      perspective_->changedDisplay();
    }
 
    inline std::shared_ptr<VisPerspective> getPerspective() const
@@ -362,9 +363,6 @@ public:
    // TODO: Make these functions protected.
    virtual Vec2D translateCore(const Vec3D& point) = 0;
    virtual Vec3D reverseTranslateCore(const Vec2Df& point) = 0;
-
-private:
-   std::shared_ptr<VisPerspective> perspective_{ std::make_shared<VisPerspective>() };
 
    inline virtual Pol2D translatePolygonCore(const Pol3D& pol)
    {
@@ -380,6 +378,9 @@ private:
 
       return result;
    }
+
+private:
+   std::shared_ptr<VisPerspective> perspective_{ std::make_shared<VisPerspective>() };
 };
 
 class DefaultTranslator : public VisTranslator

@@ -411,6 +411,11 @@ public:
       return res_wrapped;
    }
 
+   inline Pol2D translatePolygonCore(const Pol3D& pol) override
+   {
+      return base_translator_->translatePolygonCore(pol);
+   }
+
    bool is3D() const override
    {
       return base_translator_->is3D();
@@ -452,7 +457,6 @@ public:
          ego_lane,
          v_point);
    }
-
 
    inline void setPerspective(const std::shared_ptr<VisPerspective> perspective) override
    {
