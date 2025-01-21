@@ -776,11 +776,18 @@ void vfm::HighwayImage::paintRoadGraph(const std::shared_ptr<RoadGraph> r_raw,
    auto old_trans = getHighwayTranslator();
    auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
       old_trans, 
-      [](const Vec3D& v) -> Vec3D { return v; },
-      [](const Vec3D& v) -> Vec3D { return v; });
+      [](const Vec3D& v) -> Vec3D { 
+         Vec2D v2{ v.x, v.y }; 
+         v2.rotate(3.1415 / 2);
+         return { v2.x, v2.y, 0 };
+      },
+      [](const Vec3D& v) -> Vec3D { 
+         Vec2D v2{ v.x, v.y }; 
+         v2.rotate(-3.1415 / 2);
+         return { v2.x, v2.y, 0 };
+      });
 
    setTranslator(wrapper_trans);
    paintStraightRoadScene(r->getMyRoad(), num_nodes == 1, 0, var_vals, print_agent_ids);
    setTranslator(old_trans);
-   wrapper_trans = nullptr;
 }
