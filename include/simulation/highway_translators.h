@@ -411,8 +411,14 @@ public:
       return res_wrapped;
    }
 
-   inline Pol2D translatePolygonCore(const Pol3D& pol) override
+   inline Pol2D translatePolygonCore(const Pol3D& pol_raw) override
    {
+      Pol3D pol{};
+
+      for (const auto& p : pol_raw.points_) {
+         pol.add(wrapper_function_(p));
+      }
+
       return base_translator_->translatePolygonCore(pol);
    }
 
