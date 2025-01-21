@@ -644,8 +644,6 @@ void vfm::HighwayImage::paintStraightRoadScene(
 
    fillRectangle(tl_orig.x, street_left_border, br_orig.x - tl_orig.x, street_width, PAVEMENT_COLOR, false);
 
-   std::cout << road_length << std::endl;
-
    for (int i = min_lane + 1; i <= max_lane; i++) {
       y = street_left_border + i - min_lane;
       dashed_line(road_begin - ego_rel_pos, y, road_length - ego_rel_pos, y, LANE_MARKER_THICKNESS, LANE_MARKER_COLOR, DASH_WIDTH);
@@ -775,12 +773,14 @@ void vfm::HighwayImage::paintRoadGraph(const std::shared_ptr<RoadGraph> r_raw,
 {
    auto r = r_raw->findSectionWithEgo();
    auto num_nodes = r->getNumberOfNodes();
-
+   auto old_trans = getHighwayTranslator();
    auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
-      getHighwayTranslator(), 
+      old_trans, 
       [](const Vec3D& v) -> Vec3D { return v; },
       [](const Vec3D& v) -> Vec3D { return v; });
 
    setTranslator(wrapper_trans);
    paintStraightRoadScene(r->getMyRoad(), num_nodes == 1, 0, var_vals, print_agent_ids);
+   setTranslator(old_trans);
+   wrapper_trans = nullptr;
 }
