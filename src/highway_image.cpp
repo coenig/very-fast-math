@@ -775,9 +775,12 @@ void vfm::HighwayImage::paintRoadGraph(const std::shared_ptr<RoadGraph> r_raw,
 {
    auto r = r_raw->findSectionWithEgo();
    auto num_nodes = r->getNumberOfNodes();
-   HighwayImage sub_image{ getWidth(), getHeight(), getHighwayTranslator(), num_lanes_ };
-   sub_image.restartPDF();
-   sub_image.paintEarthAndSky();
-   sub_image.paintStraightRoadScene(r->getMyRoad(), num_nodes == 1, 0, var_vals, print_agent_ids);
-   insertImage(0, 0, sub_image, false);
+
+   auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
+      getHighwayTranslator(), 
+      [](const Vec3D& v) -> Vec3D { return v; },
+      [](const Vec3D& v) -> Vec3D { return v; });
+
+   setTranslator(wrapper_trans);
+   paintStraightRoadScene(r->getMyRoad(), num_nodes == 1, 0, var_vals, print_agent_ids);
 }

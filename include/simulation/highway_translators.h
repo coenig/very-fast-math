@@ -29,7 +29,7 @@ public:
       return mirrored_;
    }
 
-   inline void setHighwayData(
+   virtual inline void setHighwayData(
       const float factor,
       const float real_width,
       const float real_height,
@@ -367,4 +367,84 @@ private:
       return result;
    }
 };
+
+/// <summary>
+/// Takes another translator trans as base, but processes each point with a custom wrapper_function
+/// before passing it to trans.
+/// </summary>
+class HighwayTranslatorWrapper : public HighwayTranslator {
+public:
+   inline HighwayTranslatorWrapper(
+      const std::shared_ptr<HighwayTranslator> trans,
+      const std::function<Vec3D(const Vec3D&)> wrapper_function,
+      const std::function<Vec3D(const Vec3D&)> wrapper_function_reverse) : 
+      base_translator_(trans),
+      wrapper_function_(wrapper_function),
+      wrapper_function_reverse_(wrapper_function_reverse),
+      HighwayTranslator(trans->isMirrored())
+   {}
+
+   Vec2D translateCore(const Vec3D& point) override
+   {
+      auto res = wrapper_function_(point);
+      std::cout << "PLAIN        : " << point.serialize() << "  -W->  " << res.serialize() << std::endl;
+      return base_translator_->translateCore(res);
+   }
+
+   Vec3D reverseTranslateCore(const Vec2Df& point) override
+   {
+      auto res = base_translator_->reverseTranslateCore(point);
+      auto res_wrapped = wrapper_function_reverse_(res);
+      std::cout << "REVERSE_TRANS: " << res.serialize() << "  -W->  " << res_wrapped.serialize() << std::endl;
+      return res_wrapped;
+   }
+
+   bool is3D() const override
+   {
+      return base_translator_->is3D();
+   }
+
+   inline void setHighwayData(
+      const float factor,
+      const float real_width,
+      const float real_height,
+      const float ego_offset_x,
+      const float street_top,
+      const int   min_lane,
+      const int   max_lane,
+      const float lw,
+      const float ego_lane,
+      const Vec2D& v_point) override
+   {
+      HighwayTranslator::setHighwayData(
+         factor,
+         real_width,
+         real_height,
+         ego_offset_x,
+         street_top,
+         min_lane,
+         max_lane,
+         lw,
+         ego_lane,
+         v_point);
+
+      base_translator_->setHighwayData(
+         factor,
+         real_width,
+         real_height,
+         ego_offset_x,
+         street_top,
+         min_lane,
+         max_lane,
+         lw,
+         ego_lane,
+         v_point);
+   }
+
+private:
+   std::shared_ptr<HighwayTranslator> base_translator_{};
+   std::function<Vec3D(const Vec3D&)> wrapper_function_{};
+   std::function<Vec3D(const Vec3D&)> wrapper_function_reverse_{};
+};
+
 } // vfm
