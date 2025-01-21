@@ -775,19 +775,21 @@ void vfm::HighwayImage::paintRoadGraph(const std::shared_ptr<RoadGraph> r_raw,
    auto num_nodes = r->getNumberOfNodes();
    auto old_trans = getHighwayTranslator();
    auto& plain_2d_trans = plain_2d_translator_;
+   float mirrored{ getHighwayTranslator()->isMirrored() ? -1.0f : 1.0f };
    auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
       old_trans, 
-      [&plain_2d_trans](const Vec3D& v_raw) -> Vec3D {
+      [&plain_2d_trans, mirrored](const Vec3D& v_raw) -> Vec3D {
+
          Vec3D v{ plain_2d_trans.translate(v_raw) };
-         Vec2D v2{ v.x, v.y - 230 }; 
-         v2.rotate(0.3);
+         Vec2D v2{ v.x, v.y - 230 * mirrored }; 
+         v2.rotate(0.3 * mirrored);
          auto res = plain_2d_trans.reverseTranslate(v2);
          return { res.x, res.y, v_raw.z };
       },
-      [&plain_2d_trans](const Vec3D& v_raw) -> Vec3D {
+      [&plain_2d_trans, mirrored](const Vec3D& v_raw) -> Vec3D {
          Vec3D v{ plain_2d_trans.reverseTranslate(v_raw.projectToXY()) };
-         Vec2D v2{ v.x, v.y + 230 };
-         v2.rotate(-0.3);
+         Vec2D v2{ v.x, v.y + 230 * mirrored };
+         v2.rotate(-0.3 * mirrored);
          auto res = plain_2d_trans.translate(v2);
          return { res.x, res.y, v_raw.z };
       });
