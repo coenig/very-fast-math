@@ -53,7 +53,7 @@ public:
       v_point_ = v_point;
    }
 
-protected:
+public: // TODO: Make protected again (or private!).
    float factor_{};
    float real_width_{};
    float real_height_{};
@@ -382,20 +382,32 @@ public:
       wrapper_function_(wrapper_function),
       wrapper_function_reverse_(wrapper_function_reverse),
       HighwayTranslator(trans->isMirrored())
-   {}
+   {
+      setPerspective(base_translator_->getPerspective());
+      setHighwayData(
+         base_translator_->factor_,
+         base_translator_->real_width_,
+         base_translator_->real_height_,
+         base_translator_->ego_offset_x_,
+         base_translator_->street_top_,
+         base_translator_->min_lane_,
+         base_translator_->max_lane_,
+         base_translator_->lw_,
+         base_translator_->ego_lane_,
+         base_translator_->v_point_);
+   }
 
    Vec2D translateCore(const Vec3D& point) override
    {
-      auto res = wrapper_function_(point);
-      std::cout << "PLAIN        : " << point.serialize() << "  -W->  " << res.serialize() << std::endl;
-      return base_translator_->translateCore(res);
+      auto wrapped = wrapper_function_(point);
+      auto wrapped_res = base_translator_->translateCore(wrapped);
+      return wrapped_res;
    }
 
    Vec3D reverseTranslateCore(const Vec2Df& point) override
    {
       auto res = base_translator_->reverseTranslateCore(point);
       auto res_wrapped = wrapper_function_reverse_(res);
-      std::cout << "REVERSE_TRANS: " << res.serialize() << "  -W->  " << res_wrapped.serialize() << std::endl;
       return res_wrapped;
    }
 
@@ -439,6 +451,13 @@ public:
          lw,
          ego_lane,
          v_point);
+   }
+
+
+   inline void setPerspective(const std::shared_ptr<VisPerspective> perspective) override
+   {
+      HighwayTranslator::setPerspective(perspective);
+      base_translator_->setPerspective(perspective);
    }
 
 private:

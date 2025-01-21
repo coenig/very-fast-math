@@ -601,8 +601,8 @@ void vfm::HighwayImage::paintStraightRoadScene(
    const auto ego_velocity = ego ? ego->car_velocity_ : 0;
    const auto others = lane_structure.getOthers();
    const auto future_positions_of_others = lane_structure.getFuturePositionsOfOthers();
-   const auto road_length = infinite_road ? 1000 : lane_structure.getLength();
-   const auto road_begin = infinite_road ? -1000 : 0;
+   const auto road_length = infinite_road ? 300 : lane_structure.getLength();
+   const auto road_begin = infinite_road ? -300 : 0;
 
    int min_lane = lane_structure.isValid() ? 0 : -1;
    int max_lane = lane_structure.isValid() ? lane_structure.getNumLanes() - 1 : -1;
