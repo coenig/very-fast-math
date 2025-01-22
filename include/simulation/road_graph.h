@@ -136,6 +136,8 @@ public:
    void addSuccessor(const std::shared_ptr<RoadGraph> subgraph);
    void addPredecessor(const std::shared_ptr<RoadGraph> subgraph);
 
+   std::set<std::shared_ptr<RoadGraph>> getAllNodes() const;
+
 private:
    StraightRoadSection my_road_{};
    Vec2D origin_point_{ 0.0F, 0.0F };
