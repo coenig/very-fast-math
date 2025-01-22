@@ -134,6 +134,7 @@ public:
 
       outside_view_->paintRoadGraph(
          r,
+         { (float)outside_view_->getWidth(), (float)outside_view_->getHeight() },
          0,
          additional_var_vals,
          true);
@@ -174,11 +175,11 @@ public:
 
       auto no_trans{std::make_shared<DefaultHighwayTranslator>()};
       cockpit_view_->setTranslator(no_trans);
-      cockpit_view_->paintEarthAndSky();
+      cockpit_view_->paintEarthAndSky({ (float)width, (float)height });
       cockpit_view_->setTranslator(trans_cpv);
 
       cockpit_view_mirror_->setTranslator(no_trans);
-      cockpit_view_mirror_->paintEarthAndSky();
+      cockpit_view_mirror_->paintEarthAndSky({ (float)mirror_width, (float)mirror_height });
       cockpit_view_mirror_->setTranslator(trans_cpvm);
 
       lane_structure.setEgo(std::make_shared<CarPars>(ego_pos_y_, ego_pos_x_, (int)(ego_vx_), HighwayImage::EGO_MOCK_ID));
@@ -190,12 +191,14 @@ public:
 
       cockpit_view_->paintRoadGraph(
          r,
+         { (float)cockpit_view_->getWidth(), (float)cockpit_view_->getHeight() },
          0,
          additional_var_vals,
          true);
 
       cockpit_view_mirror_->paintRoadGraph(
          r,
+         { (float)cockpit_view_mirror_->getWidth(), (float)cockpit_view_mirror_->getHeight() },
          0,
          additional_var_vals,
          true);

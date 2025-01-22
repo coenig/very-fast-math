@@ -20,8 +20,8 @@ public:
    HighwayImage(const int width, const int height, const std::shared_ptr<HighwayTranslator> translator, const int num_lanes);
    HighwayImage(const std::shared_ptr<HighwayTranslator> translator, const int num_lanes);
 
-   void setupVPointFor3DPerspective(const int num_lanes); // 3D-Specific - TODO: Needs to go away.
-   void paintEarthAndSky();                               // 3D-Specific - TODO: Needs to go away.
+   void setupVPointFor3DPerspective(const int num_lanes, const Vec2D& dim); // 3D-Specific - TODO: Needs to go away.
+   void paintEarthAndSky(const Vec2D& dim);                                 // 3D-Specific - TODO: Needs to go away.
 
    void setTranslator(const std::shared_ptr<VisTranslator> function) override;
 
@@ -42,7 +42,9 @@ public:
       const StraightRoadSection& lane_structure,
       const std::shared_ptr<CarPars> ego,
       const Vec2D& tl_orig,
-      const Vec2D& br_orig);
+      const Vec2D& br_orig,
+      const bool infinite_road, 
+      const Vec2D& dim);
 
    void setPerspective(
       const float street_height,
@@ -51,9 +53,13 @@ public:
       const int min_lane,
       const int max_lane,
       const float street_top,
-      const float ego_car_lane);
+      const float ego_car_lane, 
+      const Vec2D& dim);
 
-   void paintStraightRoadSceneFromData(StraightRoadSection& lane_structure, const DataPack& data, const std::shared_ptr<DataPack> future_data);
+   void paintStraightRoadSceneFromData(
+      StraightRoadSection& lane_structure, 
+      const DataPack& data, 
+      const std::shared_ptr<DataPack> future_data);
 
    void paintStraightRoadSceneSimple(
       const CarPars& ego,
@@ -61,7 +67,7 @@ public:
       const std::map<int, std::pair<float, float>>& future_positions_of_others,
       const float ego_offset_x = 0,
       const std::map<std::string, std::string>& var_vals = {},
-      const bool print_agent_ids = false);
+      const bool print_agent_ids = true);
 
    /// Core function for painting a straight road section.
    void paintStraightRoadScene(
@@ -69,12 +75,15 @@ public:
       const bool infinite_road,
       const float ego_offset_x = 0,
       const std::map<std::string, std::string>& var_vals = {},
-      const bool print_agent_ids = false);
+      const bool print_agent_ids = true,
+      const Vec2D& dim = { 500, 100 });
 
-   void paintRoadGraph(const std::shared_ptr<RoadGraph> r,
+   void paintRoadGraph(
+      const std::shared_ptr<RoadGraph> r,
+      const Vec2D& dim,
       const float ego_offset_x = 0,
       const std::map<std::string, std::string>& var_vals = {},
-      const bool print_agent_ids = false);
+      const bool print_agent_ids = true);
 
    std::shared_ptr<HighwayTranslator> getHighwayTranslator() const;
 
