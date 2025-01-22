@@ -783,25 +783,32 @@ void vfm::HighwayImage::paintRoadGraph(
    auto old_trans = getHighwayTranslator();
    auto& plain_2d_trans = plain_2d_translator_;
    float mirrored{ getHighwayTranslator()->isMirrored() ? -1.0f : 1.0f };
+
+   
    auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
       old_trans, 
-      [&plain_2d_trans, mirrored](const Vec3D& v_raw) -> Vec3D {
-
+      [&plain_2d_trans, mirrored, r](const Vec3D& v_raw) -> Vec3D {
          Vec3D v{ plain_2d_trans.translate(v_raw) };
-         Vec2D v2{ v.x, v.y }; 
-         v2.rotate(0.0 * mirrored);
+         Vec2D v2{ v.x + r->getOriginPoint().y, v.y + r->getOriginPoint().x };
+         v2.rotate(r->getAngle() * mirrored);
          auto res = plain_2d_trans.reverseTranslate(v2);
          return { res.x, res.y, v_raw.z };
       },
-      [&plain_2d_trans, mirrored](const Vec3D& v_raw) -> Vec3D {
+      [&plain_2d_trans, mirrored, r](const Vec3D& v_raw) -> Vec3D {
          Vec3D v{ plain_2d_trans.reverseTranslate(v_raw.projectToXY()) };
-         Vec2D v2{ v.x, v.y };
-         v2.rotate(-0.0 * mirrored);
+         Vec2D v2{ v.x - r->getOriginPoint().y, v.y - r->getOriginPoint().x };
+         v2.rotate(-r->getAngle() * mirrored);
          auto res = plain_2d_trans.translate(v2);
          return { res.x, res.y, v_raw.z };
       });
 
    setTranslator(wrapper_trans);
-   paintStraightRoadScene(r->getMyRoad(), num_nodes == 1, 0, var_vals, print_agent_ids, dim);
+   paintStraightRoadScene(
+      r->getMyRoad(), 
+      num_nodes == 1 && r->isRootedInZeroAndUnturned(), 
+      0, 
+      var_vals, 
+      print_agent_ids, 
+      dim);
    setTranslator(old_trans);
 }

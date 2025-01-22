@@ -257,6 +257,23 @@ float vfm::RoadGraph::getAngle() const
    return angle_;
 }
 
+bool vfm::RoadGraph::isRootedInZeroAndUnturned() const
+{
+   return isOriginAtZero() && isAngleZero();
+}
+
+constexpr float EPS{ 0.01 };
+bool vfm::RoadGraph::isOriginAtZero() const
+{
+
+   return std::abs(origin_point_.x) < EPS && std::abs(origin_point_.y) < EPS;
+}
+
+bool vfm::RoadGraph::isAngleZero() const
+{
+   return std::abs(angle_) < EPS;
+}
+
 int vfm::RoadGraph::getID() const
 {
    return id_;

@@ -123,6 +123,9 @@ public:
    StraightRoadSection getMyRoad() const;
    Vec2D getOriginPoint() const;
    float getAngle() const;
+
+   bool isRootedInZeroAndUnturned() const;
+
    int getID() const;
    int getNumberOfNodes() const;
 
@@ -145,6 +148,9 @@ private:
    std::shared_ptr<RoadGraph> findFirstSectionWithProperty(
       const std::function<bool(std::shared_ptr<RoadGraph>)> property,
       std::set<std::shared_ptr<RoadGraph>>& visited);
+
+   bool isOriginAtZero() const;
+   bool isAngleZero() const;
 };
 
 } // vfm
