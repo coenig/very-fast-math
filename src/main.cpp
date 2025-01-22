@@ -23,7 +23,8 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain2DTranslator>() };
+   //std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain2DTranslator>() };
+   std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain3DTranslator>(false) };
    LaneSegment segment11{ 0, 0, 6 };
    LaneSegment segment12{ 20, 2, 4 };
    LaneSegment segment21{ 0, 2, 4 };
@@ -68,10 +69,10 @@ int main(int argc, char* argv[])
    r1->setOriginPoint({ 0, 0 });
    r1->setAngle(0);
    r2->setMyRoad(section2);
-   r2->setOriginPoint({ 1483, -550 });
+   r2->setOriginPoint({ 50, 0 });
    r2->setAngle(3.1415 / 2);
    r3->setMyRoad(section3);
-   r3->setOriginPoint({ 3300, 200 });
+   r3->setOriginPoint({ 60, 0 });
    r3->setAngle(-3.1415);
    r1->addSuccessor(r2);
    r1->addSuccessor(r3);
