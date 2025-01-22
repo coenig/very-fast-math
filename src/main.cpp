@@ -23,30 +23,51 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   //std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain2DTranslator>() };
-   //LaneSegment segment1{ 0, 0, 6 };
-   //LaneSegment segment2{ 20, 2, 4 };
-   //StraightRoadSection section1{ 4, 50 };
-   //section1.addLaneSegment(segment1);
-   //section1.addLaneSegment(segment2);
-   //HighwayImage image{ 1500, 200, trans, 4 };
-   //image.restartPDF();
-   //std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 0, 13, HighwayImage::EGO_MOCK_ID);
-   //CarParsVec others{ { 3, -10, 3, 0 }, { 1, 50, 11, 1 } };
-   //std::map<int, std::pair<float, float>> future_positions_of_others{};
-   //section1.setEgo(ego);
-   //section1.setOthers(others);
-   //section1.setFuturePositionsOfOthers(future_positions_of_others);
+   std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain2DTranslator>() };
+   LaneSegment segment11{ 0, 0, 6 };
+   LaneSegment segment12{ 20, 2, 4 };
+   LaneSegment segment21{ 0, 2, 4 };
+   LaneSegment segment22{ 30, 0, 6 };
+   StraightRoadSection section1{ 4, 50 };
+   StraightRoadSection section2{ 4, 60 };
+   section1.addLaneSegment(segment11);
+   section1.addLaneSegment(segment12);
+   section2.addLaneSegment(segment21);
+   section2.addLaneSegment(segment22);
+   HighwayImage image{ 1500, 200, trans, 4 };
+   image.restartPDF();
+   image.fillImg({ 0, 0, 0, 255 });
+   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 0, 13, HighwayImage::EGO_MOCK_ID);
+   CarParsVec others1{ { 3, 2, 3, 0 }, { 1, 50, 11, 1 } };
+   std::map<int, std::pair<float, float>> future_positions_of_others1{};
+   std::map<int, std::pair<float, float>> future_positions_of_others2{};
+   section1.setEgo(ego);
+   section1.setOthers(others1);
+   section1.setFuturePositionsOfOthers(future_positions_of_others1);
 
-   //auto r = std::make_shared<RoadGraph>(0);
-   //r->setMyRoad(section1);
-   //r->addSuccessor(std::make_shared<RoadGraph>(1));
-   //image.paintRoadGraph(r);
-   //image.store("test", OutputType::pdf);
-   //termnate();
+   CarParsVec others2{ { 3, 4, 3, 0 }, { 1, 22, 11, 1 } };
+   section2.setEgo(nullptr);
+   section2.setOthers(others2);
+   section2.setFuturePositionsOfOthers(future_positions_of_others2);
 
-   //vfm::test::runTests();
-   //termnate();
+   auto r1 = std::make_shared<RoadGraph>(1);
+   auto r2 = std::make_shared<RoadGraph>(2);
+   r1->setMyRoad(section1);
+   r2->setMyRoad(section2);
+   r1->addSuccessor(r2);
+   image.paintRoadGraph(r1, { 1500, 200 });
+   image.store("test", OutputType::pdf);
+   image.store("test", OutputType::png);
+   ego->car_rel_pos_ = 10;
+   
+   image.fillImg({ 0, 0, 0, 255 });
+   image.paintRoadGraph(r1, { 1500, 200 });
+   image.store("test2", OutputType::pdf);
+   image.store("test2", OutputType::png);
+   termnate();
+
+   vfm::test::runTests();
+   termnate();
 
    //runInterpreter();
    //termnate();
