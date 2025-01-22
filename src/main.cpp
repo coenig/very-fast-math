@@ -34,7 +34,7 @@ int main(int argc, char* argv[])
    section1.addLaneSegment(segment12);
    section2.addLaneSegment(segment21);
    section2.addLaneSegment(segment22);
-   HighwayImage image{ 1500, 200, trans, 4 };
+   HighwayImage image{ 1500, 2000, trans, 4 };
    image.restartPDF();
    image.fillImg({ 0, 0, 0, 255 });
    std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 0, 13, HighwayImage::EGO_MOCK_ID);
@@ -54,16 +54,14 @@ int main(int argc, char* argv[])
    auto r2 = std::make_shared<RoadGraph>(2);
    r1->setMyRoad(section1);
    r2->setMyRoad(section2);
+   r1->setOriginPoint({0, 0});
+   r1->setAngle(0);
+   r2->setOriginPoint({100, 1000});
+   r2->setAngle(0.5);
    r1->addSuccessor(r2);
    image.paintRoadGraph(r1, { 1500, 200 });
    image.store("test", OutputType::pdf);
    image.store("test", OutputType::png);
-   ego->car_rel_pos_ = 10;
-   
-   image.fillImg({ 0, 0, 0, 255 });
-   image.paintRoadGraph(r1, { 1500, 200 });
-   image.store("test2", OutputType::pdf);
-   image.store("test2", OutputType::png);
    termnate();
 
    vfm::test::runTests();
