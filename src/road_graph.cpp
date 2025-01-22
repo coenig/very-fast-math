@@ -315,3 +315,15 @@ void vfm::RoadGraph::addPredecessor(const std::shared_ptr<RoadGraph> subgraph)
 {
    predecessors_.insert(subgraph);
 }
+
+std::set<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getAllNodes() const
+{
+   std::set<std::shared_ptr<RoadGraph>> res{};
+
+   const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([&res](const std::shared_ptr<RoadGraph> r) -> bool {
+      res.insert(r);
+      return false;
+   });
+
+   return res;
+}

@@ -661,10 +661,12 @@ void vfm::HighwayImage::paintStraightRoadScene(
    std::vector<Pol2Df> arrow_polygons{};
 
    std::map<int, float> cars_by_distance{};
+   std::map<int, int> id_to_others_vec{};
 
    for (int i = 0; i < others.size(); i++) {
       Vec2Df pos{ others[i].car_rel_pos_, others[i].car_lane_ - ego_lane };
-      cars_by_distance[i] = Vec2Df({ pos.x, std::abs(ego_lane - pos.y) * LANE_WIDTH }).length();
+      cars_by_distance[others[i].car_id_] = Vec2Df({pos.x, std::abs(ego_lane - pos.y) * LANE_WIDTH}).length();
+      id_to_others_vec[others[i].car_id_] = i;
    }
 
    std::vector<int> cars_sorted_by_distance{};
@@ -688,7 +690,7 @@ void vfm::HighwayImage::paintStraightRoadScene(
 
    for (int i = 0; i < cars_sorted_by_distance.size(); i++) {
       auto car_id{ cars_sorted_by_distance[i] };
-      const auto pair{ others[car_id] };
+      const auto pair{ others[id_to_others_vec[car_id]] };
 
       Vec2Df pos{ pair.car_rel_pos_, pair.car_lane_ - ego_lane };
 
@@ -754,7 +756,7 @@ void vfm::HighwayImage::paintStraightRoadScene(
    }
 
    for (int i = 0; i < cars_sorted_by_distance.size(); i++) {
-      const auto pair = others[cars_sorted_by_distance[i]];
+      const auto pair = others[id_to_others_vec[cars_sorted_by_distance[i]]];
       Vec2Df pos{ pair.car_rel_pos_, pair.car_lane_ - ego_lane };
       if (getHighwayTranslator()->is3D()) plotCar3D(pos, CAR_COLOR, CAR_FRAME_COLOR);
    }
@@ -768,47 +770,51 @@ void vfm::HighwayImage::paintStraightRoadScene(
 
    const auto reverse_origin_2D{ plain_2d_translator_.reverseTranslate({0, 0}) };
    float tl_orig_one_below_y{ reverse_origin_2D.y };
-   rectangle(tl_orig.x, tl_orig_one_below_y, br_orig.x - tl_orig.x, br_orig.y - tl_orig.y, BLACK, false);
+   rectangle(road_begin - ego_rel_pos, tl_orig_one_below_y, road_length, br_orig.y - tl_orig.y, BLACK, false);
 }
 
 void vfm::HighwayImage::paintRoadGraph(
-   const std::shared_ptr<RoadGraph> r_raw,
+   const std::shared_ptr<RoadGraph> r,
    const Vec2D& dim,
    const float ego_offset_x,
    const std::map<std::string, std::string>& var_vals,
    const bool print_agent_ids)
 {
-   auto r = r_raw->findSectionWithEgo();
+   //auto r = r_raw->findSectionWithEgo();
    auto num_nodes = r->getNumberOfNodes();
    auto old_trans = getHighwayTranslator();
    auto& plain_2d_trans = plain_2d_translator_;
    float mirrored{ getHighwayTranslator()->isMirrored() ? -1.0f : 1.0f };
 
-   
-   auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
-      old_trans, 
-      [&plain_2d_trans, mirrored, r](const Vec3D& v_raw) -> Vec3D {
-         Vec3D v{ plain_2d_trans.translate(v_raw) };
-         Vec2D v2{ v.x + r->getOriginPoint().y, v.y + r->getOriginPoint().x };
-         v2.rotate(r->getAngle() * mirrored);
-         auto res = plain_2d_trans.reverseTranslate(v2);
-         return { res.x, res.y, v_raw.z };
-      },
-      [&plain_2d_trans, mirrored, r](const Vec3D& v_raw) -> Vec3D {
-         Vec3D v{ plain_2d_trans.reverseTranslate(v_raw.projectToXY()) };
-         Vec2D v2{ v.x - r->getOriginPoint().y, v.y - r->getOriginPoint().x };
-         v2.rotate(-r->getAngle() * mirrored);
-         auto res = plain_2d_trans.translate(v2);
-         return { res.x, res.y, v_raw.z };
-      });
+   for (const auto& r_sub : r->getAllNodes()) {
+      auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
+         old_trans,
+         [&plain_2d_trans, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
+            Vec3D v{ plain_2d_trans.translate(v_raw) };
+            Vec2D v2{ v.x, v.y };
+            v2.rotate(r_sub->getAngle() * mirrored);
+            v2.add({ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y });
+            auto res = plain_2d_trans.reverseTranslate(v2);
+            return { res.x, res.y, v_raw.z };
+         },
+         [&plain_2d_trans, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
+            Vec3D v{ plain_2d_trans.reverseTranslate(v_raw.projectToXY()) };
+            Vec2D v2{ v.x, v.y };
+            v2.rotate(-r_sub->getAngle() * mirrored);
+            v2.sub({ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y });
+            auto res = plain_2d_trans.translate(v2);
+            return { res.x, res.y, v_raw.z };
+         });
 
-   setTranslator(wrapper_trans);
-   paintStraightRoadScene(
-      r->getMyRoad(), 
-      num_nodes == 1 && r->isRootedInZeroAndUnturned(), 
-      0, 
-      var_vals, 
-      print_agent_ids, 
-      dim);
+      setTranslator(wrapper_trans);
+      paintStraightRoadScene(
+         r_sub->getMyRoad(),
+         num_nodes == 1 && r_sub->isRootedInZeroAndUnturned(), // Only a single section, at root position and unturned, will be painted as infinite.
+         0,
+         var_vals,
+         print_agent_ids,
+         dim);
+   }
+
    setTranslator(old_trans);
 }
