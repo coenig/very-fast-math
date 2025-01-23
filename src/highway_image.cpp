@@ -780,22 +780,23 @@ void vfm::HighwayImage::paintRoadGraph(
    const std::map<std::string, std::string>& var_vals,
    const bool print_agent_ids)
 {
-   //auto r = r_raw->findSectionWithEgo();
+   auto r_ego = r->findSectionWithEgo();
    auto num_nodes = r->getNumberOfNodes();
    auto old_trans = getHighwayTranslator();
    auto& plain_2d_trans = plain_2d_translator_;
    float mirrored{ getHighwayTranslator()->isMirrored() ? -1.0f : 1.0f };
+   auto ego_pos = r_ego->getMyRoad().getEgo()->car_rel_pos_;
 
    for (const auto& r_sub : r->getAllNodes()) {
       auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
          old_trans,
-         [&plain_2d_trans, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
+         [&plain_2d_trans, mirrored, r_sub, ego_pos, r_ego](const Vec3D& v_raw) -> Vec3D {
             Vec2D vv{ v_raw.x, v_raw.y };
-            vv.add({ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y });
+            float origin_x{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos) };
+            vv.add({ origin_x, r_sub->getOriginPoint().y});
             Vec3D v{ plain_2d_trans.translate(vv) };
             Vec2D v2{ v.x, v.y };
-            //v2.add({ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y });
-            auto middle = plain_2d_trans.translate({ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y });
+            auto middle = plain_2d_trans.translate({ origin_x, r_sub->getOriginPoint().y });
             v2.rotate(
                r_sub->getAngle() * mirrored, 
                { middle.x, middle.y });
@@ -806,7 +807,6 @@ void vfm::HighwayImage::paintRoadGraph(
             Vec3D v{ plain_2d_trans.reverseTranslate(v_raw.projectToXY()) };
             Vec2D v2{ v.x, v.y };
             auto res = plain_2d_trans.translate(v2);
-            //v2.rotate(-r_sub->getAngle() * mirrored);
             res.sub({ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y });
             return { res.x, res.y, v_raw.z };
          });

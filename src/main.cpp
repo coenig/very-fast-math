@@ -23,8 +23,8 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   //std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain2DTranslator>() };
-   std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain3DTranslator>(false) };
+   std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain2DTranslator>() };
+   //std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain3DTranslator>(false) };
    LaneSegment segment11{ 0, 0, 6 };
    LaneSegment segment12{ 20, 2, 4 };
    LaneSegment segment21{ 0, 2, 4 };
@@ -42,12 +42,12 @@ int main(int argc, char* argv[])
    section3.addLaneSegment(segment32);
    HighwayImage image{ 3000, 2000, trans, 4 };
    image.restartPDF();
-   image.fillImg({ 0, 0, 0, 255 });
-   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 0, 13, HighwayImage::EGO_MOCK_ID);
+   image.paintEarthAndSky({ 1500, 200 });
+   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(0, 50, 13, HighwayImage::EGO_MOCK_ID);
    std::map<int, std::pair<float, float>> future_positions_of_others1{};
    std::map<int, std::pair<float, float>> future_positions_of_others2{};
    std::map<int, std::pair<float, float>> future_positions_of_others3{};
-   CarParsVec others1{ { 3, 2, 3, 0 }, { 1, 50, 11, 1 } };
+   CarParsVec others1{ /*{ 3, 2, 3, 0 },*/ { 1, 50, 11, 1 } };
    CarParsVec others2{ { 2, 4, 3, 2 }, { 1, 22, 11, 3 } };
    CarParsVec others3{ { 2, 40, 3, 4 }, { 1, 22, 11, 5 } };
    section1.setEgo(ego);
@@ -69,10 +69,10 @@ int main(int argc, char* argv[])
    r1->setOriginPoint({ 0, 0 });
    r1->setAngle(0);
    r2->setMyRoad(section2);
-   r2->setOriginPoint({ 50, 0 });
-   r2->setAngle(3.1415 / 2);
+   r2->setOriginPoint({ 65, 4 });
+   r2->setAngle(3.1415 / 3);
    r3->setMyRoad(section3);
-   r3->setOriginPoint({ 60, 0 });
+   r3->setOriginPoint({ r3->getMyRoad().getLength() + 65 + vfm::LANE_WIDTH, 3 * vfm::LANE_WIDTH / vfm::LANE_WIDTH });
    r3->setAngle(-3.1415);
    r1->addSuccessor(r2);
    r1->addSuccessor(r3);
