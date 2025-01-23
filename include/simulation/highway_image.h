@@ -70,7 +70,7 @@ public:
       const bool print_agent_ids = true);
 
    /// Core function for painting a straight road section.
-   void paintStraightRoadScene(
+   std::vector<ConnectorPolygonEnding> paintStraightRoadScene(
       StraightRoadSection& lane_structure,
       const bool infinite_road,
       const float ego_offset_x = 0,

@@ -580,7 +580,7 @@ void vfm::HighwayImage::paintStraightRoadSceneSimple(
    paintStraightRoadScene(dummy, true, ego_offset_x, var_vals, print_agent_ids, { (float) getWidth(), (float) getHeight() });
 }
 
-void vfm::HighwayImage::paintStraightRoadScene(
+std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    StraightRoadSection& lane_structure,
    const bool infinite_road,
    const float ego_offset_x,
@@ -588,6 +588,8 @@ void vfm::HighwayImage::paintStraightRoadScene(
    const bool print_agent_ids, 
    const Vec2D& dim)
 {
+   std::vector<ConnectorPolygonEnding> res{};
+
    const int gap_0_front = var_vals.count("ego.gaps___609___.i_agent_front") ? std::stoi(var_vals.at("ego.gaps___609___.i_agent_front")) : -1;
    const int gap_1_front = var_vals.count("ego.gaps___619___.i_agent_front") ? std::stoi(var_vals.at("ego.gaps___619___.i_agent_front")) : -1;
    const int gap_2_front = var_vals.count("ego.gaps___629___.i_agent_front") ? std::stoi(var_vals.at("ego.gaps___629___.i_agent_front")) : -1;
@@ -773,6 +775,38 @@ void vfm::HighwayImage::paintStraightRoadScene(
    const auto reverse_origin_2D{ plain_2d_translator_.reverseTranslate({0, 0}) };
    float tl_orig_one_below_y{ reverse_origin_2D.y };
    rectangle(road_begin - ego_rel_pos, tl_orig_one_below_y, road_length, br_orig.y - tl_orig.y, BLACK, false);
+
+   // Drains and sources.
+   auto bottom = tl_orig_one_below_y + br_orig.y - tl_orig.y;
+   auto left = road_begin - ego_rel_pos;
+   auto bottom_right_corner = getTranslator()->translate(Vec2D{ left + road_length, bottom });
+   auto bottom_left_corner = getTranslator()->translate(Vec2D{ left, bottom });
+   auto dir1 = bottom_right_corner;
+   auto dir2 = bottom_left_corner;
+   auto bottom_right_grass_border = bottom_right_corner;
+   auto bottom_left_grass_border = bottom_left_corner;
+   bottom_right_grass_border.sub({ 0, 1 });
+   bottom_left_grass_border.sub({ 0, 1 });
+   dir1.sub(bottom_right_corner);
+   dir1.setLength(30);
+   dir2.sub(bottom_left_corner);
+   dir2.setLength(30);
+
+   res.push_back( ConnectorPolygonEnding{ 
+      ConnectorPolygonEnding::Side::drain,
+      Lin2D{ bottom_right_corner, dir1 },
+      Lin2D{ bottom_right_grass_border, dir1 },
+      std::make_shared<Color>(GRASS_COLOR),
+      0 } );
+
+   res.push_back( ConnectorPolygonEnding{ 
+      ConnectorPolygonEnding::Side::drain,
+      Lin2D{ bottom_left_grass_border, dir2 },
+      Lin2D{ bottom_left_corner, dir2 },
+      std::make_shared<Color>(GRASS_COLOR),
+      0 } );
+
+   return res;
 }
 
 void vfm::HighwayImage::paintRoadGraph(
@@ -790,7 +824,7 @@ void vfm::HighwayImage::paintRoadGraph(
    auto ego_pos = r_ego->getMyRoad().getEgo()->car_rel_pos_;
    auto ego_lane = r_ego->getMyRoad().getEgo()->car_lane_;
 
-   for (const auto& r_sub : r->getAllNodes()) {
+   for (const auto r_sub : r->getAllNodes()) {
       auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
          old_trans,
          [&plain_2d_trans, mirrored, r_sub, ego_pos, ego_lane, r_ego, old_trans](const Vec3D& v_raw) -> Vec3D {
@@ -817,7 +851,7 @@ void vfm::HighwayImage::paintRoadGraph(
          });
 
       setTranslator(wrapper_trans);
-      paintStraightRoadScene(
+      r_sub->connectors_ = paintStraightRoadScene(
          r_sub->getMyRoad(),
          num_nodes == 1 && r_sub->isRootedInZeroAndUnturned(), // Only a single section, at root position and unturned, will be painted as infinite.
          0,

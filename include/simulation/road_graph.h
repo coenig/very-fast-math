@@ -12,6 +12,43 @@
 #include <string>
 
 namespace vfm {
+
+struct Color;
+
+/// <summary>
+/// Provides information on how to visually connect roads coming together at a junction.
+/// 
+///       __________|     |__________
+///            
+///  source -> drain   ?   drain <- source
+///       __________       __________
+///                 |     |
+/// 
+/// Idea: On two connected sections A, B with a junction in between, draw for each matching id_ a polygon colored col_, consisting of:
+///    * a bezier line from A.outgoing_.base_point_ in A.outgoing_.direction 
+///                      to B.incoming_.base_point_ in B.incoming_.direction,
+///    * a line from B.incoming_.base_point_ to B.outgoing_.base_point_,
+///    * a bezier line from B.outgoing_.base_point_ in B.outgoing_.direction 
+///                      to A.incoming_.base_point_ in A.incoming_.direction, and
+///    * a line from A.incoming_.base_point_ to A.outgoing_.base_point_.
+/// 
+/// For example, the lane marker lines, ending at the border of the section, could be continued
+/// to connect smoothly with the respective markers on the other side.
+/// 
+/// For this, HighwayImage::paintStraightRoadScene needs to provide a ConnectorPolygonEnding
+/// for each side of the road section painted.
+/// </summary>
+struct ConnectorPolygonEnding
+{
+   enum class Side { source, drain, invalid };
+
+   Side side_{ Side::invalid };
+   vfm::Lin2D outgoing_{ {0, 0}, {0, 0} };
+   vfm::Lin2D incoming_{ {0, 0}, {0, 0} };
+   std::shared_ptr<Color> col_{ nullptr };
+   int id_{ -1 };
+};
+
 struct CarPars {
    inline CarPars() : CarPars(0.0f, 0.0f, 0, -1) {}
 
@@ -137,6 +174,8 @@ public:
    void addPredecessor(const std::shared_ptr<RoadGraph> subgraph);
 
    std::set<std::shared_ptr<RoadGraph>> getAllNodes() const;
+
+   std::vector<ConnectorPolygonEnding> connectors_{};
 
 private:
    StraightRoadSection my_road_{};

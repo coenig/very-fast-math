@@ -23,8 +23,8 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   //std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain2DTranslator>() };
-   std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain3DTranslator>(false) };
+   std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain2DTranslator>() };
+   //std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain3DTranslator>(false) };
    LaneSegment segment11{ 0, 0, 6 };
    LaneSegment segment12{ 20, 0, 4 };
    LaneSegment segment21{ 0, 2, 4 };
@@ -42,6 +42,7 @@ int main(int argc, char* argv[])
    section3.addLaneSegment(segment32);
    HighwayImage image{ 3000, 2000, trans, 4 };
    image.restartPDF();
+   image.fillImg(BLACK);
    image.paintEarthAndSky({ 1500, 200 });
    std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 50, 13, HighwayImage::EGO_MOCK_ID);
    std::map<int, std::pair<float, float>> future_positions_of_others1{};
