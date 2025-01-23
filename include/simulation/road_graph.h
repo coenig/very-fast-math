@@ -156,6 +156,7 @@ public:
    std::shared_ptr<RoadGraph> findSectionWithID(const int id);
    std::shared_ptr<RoadGraph> findSectionWithCar(const int car_id);
    std::shared_ptr<RoadGraph> findSectionWithEgo();
+   void applyToMeAndAllMySuccessorsAndPredecessors(const std::function<void(const std::shared_ptr<RoadGraph>)> action);
 
    StraightRoadSection getMyRoad() const;
    Vec2D getOriginPoint() const;
@@ -172,6 +173,9 @@ public:
 
    void addSuccessor(const std::shared_ptr<RoadGraph> subgraph);
    void addPredecessor(const std::shared_ptr<RoadGraph> subgraph);
+
+   std::set<std::shared_ptr<RoadGraph>> getSuccessors() const;
+   std::set<std::shared_ptr<RoadGraph>> getPredecessors() const;
 
    std::set<std::shared_ptr<RoadGraph>> getAllNodes() const;
 

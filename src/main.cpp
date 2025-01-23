@@ -23,14 +23,14 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain2DTranslator>() };
-   //std::shared_ptr<HighwayTranslator> trans{ std::make_shared<Plain3DTranslator>(false) };
+   std::shared_ptr<HighwayTranslator> trans2{ std::make_shared<Plain2DTranslator>() };
+   std::shared_ptr<HighwayTranslator> trans3{ std::make_shared<Plain3DTranslator>(false) };
    LaneSegment segment11{ 0, 0, 6 };
    LaneSegment segment12{ 20, 0, 4 };
-   LaneSegment segment21{ 0, 2, 4 };
+   LaneSegment segment21{ 0, 0, 4 };
    LaneSegment segment22{ 30, 0, 6 };
-   LaneSegment segment31{ 0, 0, 4 };
-   LaneSegment segment32{ 25, 0, 6 };
+   LaneSegment segment31{ 0, 2, 6 };
+   LaneSegment segment32{ 25, 0, 4 };
    StraightRoadSection section1{ 4, 50 };
    StraightRoadSection section2{ 4, 60 };
    StraightRoadSection section3{ 4, 100 };
@@ -40,11 +40,14 @@ int main(int argc, char* argv[])
    section2.addLaneSegment(segment22);
    section3.addLaneSegment(segment31);
    section3.addLaneSegment(segment32);
-   HighwayImage image{ 3000, 2000, trans, 4 };
-   image.restartPDF();
-   image.fillImg(BLACK);
-   image.paintEarthAndSky({ 1500, 200 });
-   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 50, 13, HighwayImage::EGO_MOCK_ID);
+   HighwayImage image2{ 3000, 2000, trans2, 4 };
+   image2.restartPDF();
+   image2.fillImg(BLACK);
+   HighwayImage image3{ 3000, 2000, trans3, 4 };
+   image3.restartPDF();
+   image3.fillImg(BLACK);
+   image3.paintEarthAndSky({ 1500, 200 });
+   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 45, 13, HighwayImage::EGO_MOCK_ID);
    std::map<int, std::pair<float, float>> future_positions_of_others1{};
    std::map<int, std::pair<float, float>> future_positions_of_others2{};
    std::map<int, std::pair<float, float>> future_positions_of_others3{};
@@ -76,10 +79,11 @@ int main(int argc, char* argv[])
    r3->setOriginPoint({ r3->getMyRoad().getLength() + 65 + vfm::LANE_WIDTH, 3 * vfm::LANE_WIDTH / vfm::LANE_WIDTH });
    r3->setAngle(-3.1415);
    r1->addSuccessor(r2);
-   r1->addSuccessor(r3);
-   image.paintRoadGraph(r1, { 1500, 200 });
-   image.store("test", OutputType::pdf);
-   image.store("test", OutputType::png);
+   r3->addSuccessor(r2);
+   image2.paintRoadGraph(r1, { 1500, 200 });
+   image3.paintRoadGraph(r1, { 1500, 200 });
+   image2.store("test2D", OutputType::pdf);
+   image3.store("test3D", OutputType::pdf);
    termnate();
 
    vfm::test::runTests();

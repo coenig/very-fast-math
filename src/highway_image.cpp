@@ -777,32 +777,32 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    rectangle(road_begin - ego_rel_pos, tl_orig_one_below_y, road_length, br_orig.y - tl_orig.y, BLACK, false);
 
    // Drains and sources.
-   auto bottom = tl_orig_one_below_y + br_orig.y - tl_orig.y;
+   auto bottom = tl_orig.y + br_orig.y - tl_orig.y;
+   auto top = tl_orig.y;
    auto left = road_begin - ego_rel_pos;
-   auto bottom_right_corner = getTranslator()->translate(Vec2D{ left + road_length, bottom });
+   auto right = left + road_length;
+   auto bottom_right_corner = getTranslator()->translate(Vec2D{ right, bottom });
    auto bottom_left_corner = getTranslator()->translate(Vec2D{ left, bottom });
+   auto top_right_corner = getTranslator()->translate(Vec2D{ right, top });
+   auto top_left_corner = getTranslator()->translate(Vec2D{ left, top });
    auto dir1 = bottom_right_corner;
    auto dir2 = bottom_left_corner;
-   auto bottom_right_grass_border = bottom_right_corner;
-   auto bottom_left_grass_border = bottom_left_corner;
-   bottom_right_grass_border.sub({ 0, 1 });
-   bottom_left_grass_border.sub({ 0, 1 });
-   dir1.sub(bottom_right_corner);
-   dir1.setLength(30);
-   dir2.sub(bottom_left_corner);
-   dir2.setLength(30);
+   dir1.sub(bottom_left_corner);
+   dir1.normalize();
+   dir2.sub(bottom_right_corner);
+   dir2.normalize();
 
    res.push_back( ConnectorPolygonEnding{ 
       ConnectorPolygonEnding::Side::drain,
+      Lin2D{ top_right_corner, dir1 },
       Lin2D{ bottom_right_corner, dir1 },
-      Lin2D{ bottom_right_grass_border, dir1 },
       std::make_shared<Color>(GRASS_COLOR),
       0 } );
 
    res.push_back( ConnectorPolygonEnding{ 
-      ConnectorPolygonEnding::Side::drain,
-      Lin2D{ bottom_left_grass_border, dir2 },
+      ConnectorPolygonEnding::Side::source,
       Lin2D{ bottom_left_corner, dir2 },
+      Lin2D{ top_left_corner, dir2 },
       std::make_shared<Color>(GRASS_COLOR),
       0 } );
 
@@ -859,6 +859,48 @@ void vfm::HighwayImage::paintRoadGraph(
          print_agent_ids,
          dim);
    }
+
+   setTranslator(std::make_shared<DefaultHighwayTranslator>()); // No translation at all.
+
+   r->applyToMeAndAllMySuccessorsAndPredecessors([this](const std::shared_ptr<RoadGraph> r) -> void
+   {
+      for (const auto& r_succ : r->getSuccessors()) {
+         for (const auto& A : r->connectors_) {
+            for (const auto& B : r_succ->connectors_) {
+               if (A.id_ == B.id_ && A.side_ == ConnectorPolygonEnding::Side::drain && B.side_ == ConnectorPolygonEnding::Side::source) {
+                  assert(*A.col_ == *B.col_);
+
+                  Pol2D p{};
+                  Vec2D between1 = A.outgoing_.base_point_;
+                  Vec2D between1_dir = A.outgoing_.direction_;
+                  between1_dir.setLength(A.outgoing_.base_point_.distance(B.incoming_.base_point_) / 3);
+                  between1.add(between1_dir);
+                  Vec2D between2 = B.incoming_.base_point_;
+                  Vec2D between2_dir = B.incoming_.direction_;
+                  between2_dir.setLength(A.outgoing_.base_point_.distance(B.incoming_.base_point_) / 3);
+                  between2.add(between2_dir);
+                  Vec2D between3 = B.outgoing_.base_point_;
+                  Vec2D between3_dir = B.outgoing_.direction_;
+                  between3_dir.setLength(B.outgoing_.base_point_.distance(A.incoming_.base_point_) / 3);
+                  between3.add(between3_dir);
+                  Vec2D between4 = A.incoming_.base_point_;
+                  Vec2D between4_dir = A.incoming_.direction_;
+                  between4_dir.setLength(B.outgoing_.base_point_.distance(A.incoming_.base_point_) / 3);
+                  between4.add(between4_dir);
+
+                  p.add( A.outgoing_.base_point_ );
+                  p.bezier(A.outgoing_.base_point_, between1, between2, B.incoming_.base_point_);
+                  p.add( B.incoming_.base_point_ );
+                  p.add( B.outgoing_.base_point_ );
+                  p.bezier(B.outgoing_.base_point_, between3, between4, A.incoming_.base_point_);
+                  p.add( A.incoming_.base_point_ );
+                  fillPolygon(p, *A.col_);
+                  //drawPolygon(p, *A.col_, true);
+               }
+            }
+         }
+      }
+   });
 
    setTranslator(old_trans);
 }

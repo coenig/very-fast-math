@@ -242,6 +242,14 @@ std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithEgo()
    return findFirstSectionWithProperty([](const std::shared_ptr<RoadGraph> r) -> bool { return (bool) r->getMyRoad().getEgo(); });
 }
 
+void vfm::RoadGraph::applyToMeAndAllMySuccessorsAndPredecessors(const std::function<void(const std::shared_ptr<RoadGraph>)> action)
+{
+   findFirstSectionWithProperty([&action](const std::shared_ptr<RoadGraph> r) -> bool {
+      action(r);
+      return false;
+   });
+}
+
 StraightRoadSection vfm::RoadGraph::getMyRoad() const
 {
    return my_road_;
@@ -309,11 +317,23 @@ void vfm::RoadGraph::setAngle(const float angle)
 void vfm::RoadGraph::addSuccessor(const std::shared_ptr<RoadGraph> subgraph)
 {
    successors_.insert(subgraph);
+   subgraph->predecessors_.insert(shared_from_this());
 }
 
 void vfm::RoadGraph::addPredecessor(const std::shared_ptr<RoadGraph> subgraph)
 {
    predecessors_.insert(subgraph);
+   subgraph->successors_.insert(shared_from_this());
+}
+
+std::set<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getSuccessors() const
+{
+   return successors_;
+}
+
+std::set<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getPredecessors() const
+{
+   return predecessors_;
 }
 
 std::set<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getAllNodes() const
