@@ -73,7 +73,7 @@ int main(int argc, char* argv[])
    r1->setOriginPoint({ 0, 0 });
    r1->setAngle(0);
    r2->setMyRoad(section2);
-   r2->setOriginPoint({ 65, 4 });
+   r2->setOriginPoint({ 65, 5 });
    r2->setAngle(3.1415 / 3);
    r3->setMyRoad(section3);
    r3->setOriginPoint({ r3->getMyRoad().getLength() + 65 + vfm::LANE_WIDTH, 3 * vfm::LANE_WIDTH / vfm::LANE_WIDTH });
