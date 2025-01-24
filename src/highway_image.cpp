@@ -450,51 +450,54 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
 
       // Drains and sources.
       // Assuming we do "min_lane = true" first.
+      auto el = ego_raw ? ego.car_lane_ : 0;
       if (min_lane) { // TOP
-         auto top_right_corner = getTranslator()->translate(*overpaint.points_.rbegin());
-         auto top_left_corner  = getTranslator()->translate(*overpaint.points_.begin());
-         auto top_right_second = getTranslator()->translate(*(overpaint.points_.rbegin() + 1));
-         auto top_left_second = getTranslator()->translate(*(overpaint.points_.begin() + 1));
-         auto dir1 = top_right_corner;
-         auto dir2 = top_left_corner;
-         dir1.sub(top_right_second);
-         dir1.normalize();
-         dir2.sub(top_left_second);
-         dir2.normalize();
+         auto top_right_corner = (*overpaint.points_.rbegin());
+         auto top_left_corner  = (*overpaint.points_.begin());
+         auto top_right_second = (*(overpaint.points_.rbegin() + 1));
+         auto top_left_second  = (*(overpaint.points_.begin() + 1));
+         if (!getHighwayTranslator()->is3D()) {
+            top_right_corner.add({ 0, +el });
+            //top_left_corner.add({ 0, +ego_lane });
+            top_right_second.add({ 0, +el });
+            //top_left_second.add({ 0, +ego_lane });
+         }
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{
             ConnectorPolygonEnding::Side::drain,
-            Lin2D{ top_right_corner, dir1 }, // outgoing
+            Lin2D{ top_right_corner, top_right_second }, // outgoing
             Lin2D{ { 0, 0 }, { 0, 0 } },     // incoming
             std::make_shared<Color>(PAVEMENT_COLOR),
-            1 });
+            1,
+            getHighwayTranslator() });
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{
             ConnectorPolygonEnding::Side::source,
             Lin2D{ { 0, 0 }, { 0, 0 } },     // outgoing
-            Lin2D{ top_left_corner, dir2 },  // incoming
+            Lin2D{ top_left_corner, top_left_second },  // incoming
             std::make_shared<Color>(PAVEMENT_COLOR),
-            1 });
+            1,
+            getHighwayTranslator() });
       }
       else { // BOTTOM
-         auto bottom_right_corner = getTranslator()->translate(*overpaint.points_.rbegin());
-         auto bottom_left_corner = getTranslator()->translate(*overpaint.points_.begin());
-         auto bottom_right_second = getTranslator()->translate(*(overpaint.points_.rbegin() + 1));
-         auto bottom_left_second = getTranslator()->translate(*(overpaint.points_.begin() + 1));
-         auto dir1 = bottom_right_corner;
-         auto dir2 = bottom_left_corner;
-         dir1.sub(bottom_right_second);
-         dir1.normalize();
-         dir2.sub(bottom_left_second);
-         dir2.normalize();
+         auto bottom_right_corner = (*overpaint.points_.rbegin());
+         auto bottom_left_corner  = (*overpaint.points_.begin());
+         auto bottom_right_second = (*(overpaint.points_.rbegin() + 1));
+         auto bottom_left_second  = (*(overpaint.points_.begin() + 1));
+         if (!getHighwayTranslator()->is3D()) {
+            bottom_right_corner.add({ 0, +el });
+            //bottom_left_corner.add({ 0, +ego_lane });
+            bottom_right_second.add({ 0, +el });
+            //bottom_left_second.add({ 0, +ego_lane });
+         }
 
          for (auto& connection : connections) {
             if (connection.id_ == 1) {
                if (connection.side_ == ConnectorPolygonEnding::Side::drain) {
-                  connection.incoming_ = { bottom_right_corner, dir1 };
+                  connection.incoming_ = { bottom_right_corner, bottom_right_second };
                }
                else {
-                  connection.outgoing_ = { bottom_left_corner, dir2 };
+                  connection.outgoing_ = { bottom_left_corner, bottom_left_second };
                }
             }
          }
@@ -831,34 +834,30 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    rectangle(road_begin - ego_rel_pos, tl_orig_one_below_y, road_length, br_orig.y - tl_orig.y, BLACK, false);
 
    // Drains and sources.
-   auto bottom = tl_orig.y + br_orig.y - tl_orig.y;
-   auto top = tl_orig.y;
+   auto bottom = tl_orig.y + br_orig.y - tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
+   auto top = tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
    auto left = road_begin - ego_rel_pos;
    auto right = left + road_length;
-   auto bottom_right_corner = getTranslator()->translate(Vec2D{ right, bottom });
-   auto bottom_left_corner = getTranslator()->translate(Vec2D{ left, bottom });
-   auto top_right_corner = getTranslator()->translate(Vec2D{ right, top });
-   auto top_left_corner = getTranslator()->translate(Vec2D{ left, top });
-   auto dir1 = bottom_right_corner;
-   auto dir2 = bottom_left_corner;
-   dir1.sub(bottom_left_corner);
-   dir1.normalize();
-   dir2.sub(bottom_right_corner);
-   dir2.normalize();
+   auto bottom_right_corner = Vec2D{ right, bottom };
+   auto bottom_left_corner  = Vec2D{ left, bottom };
+   auto top_right_corner    = Vec2D{ right, top };
+   auto top_left_corner     = Vec2D{ left, top };
 
    res.insert(res.begin(), ConnectorPolygonEnding{
       ConnectorPolygonEnding::Side::drain,
-      Lin2D{ top_right_corner, dir1 },
-      Lin2D{ bottom_right_corner, dir1 },
+      Lin2D{ top_right_corner, top_left_corner },
+      Lin2D{ bottom_right_corner, bottom_left_corner },
       std::make_shared<Color>(GRASS_COLOR),
-      0 });
+      0,
+      getHighwayTranslator() });
 
    res.insert(res.begin(), ConnectorPolygonEnding{
       ConnectorPolygonEnding::Side::source,
-      Lin2D{ bottom_left_corner, dir2 },
-      Lin2D{ top_left_corner, dir2 },
+      Lin2D{ bottom_left_corner, bottom_right_corner },
+      Lin2D{ top_left_corner, top_right_corner },
       std::make_shared<Color>(GRASS_COLOR),
-      0 } );
+      0,
+      getHighwayTranslator() } );
 
    return res;
 }
@@ -914,48 +913,63 @@ void vfm::HighwayImage::paintRoadGraph(
          dim);
    }
 
-   setTranslator(std::make_shared<DefaultHighwayTranslator>()); // No translation at all.
+   setTranslator(std::make_shared<DefaultHighwayTranslator>());
 
    for (int i = 0; i < 2; i++) {
-      r->applyToMeAndAllMySuccessorsAndPredecessors([this, i](const std::shared_ptr<RoadGraph> r) -> void
-         {
-            for (const auto& r_succ : r->getSuccessors()) {
-               for (const auto& A : r->connectors_) {
-                  for (const auto& B : r_succ->connectors_) {
-                     if (A.id_ == i && A.id_ == B.id_ && A.side_ == ConnectorPolygonEnding::Side::drain && B.side_ == ConnectorPolygonEnding::Side::source) {
-                        assert(*A.col_ == *B.col_);
+      r->applyToMeAndAllMySuccessorsAndPredecessors([this, i, old_trans](const std::shared_ptr<RoadGraph> r) -> void
+      {
+         for (const auto& r_succ : r->getSuccessors()) {
+            for (const auto& A : r->connectors_) {
+               for (const auto& B : r_succ->connectors_) {
+                  if (A.id_ == i && A.id_ == B.id_ && A.side_ == ConnectorPolygonEnding::Side::drain && B.side_ == ConnectorPolygonEnding::Side::source) {
+                     auto trans_a = A.my_trans_;
+                     auto trans_b = B.my_trans_;
 
-                        Pol2D p{};
-                        Vec2D between1 = A.outgoing_.base_point_;
-                        Vec2D between1_dir = A.outgoing_.direction_;
-                        between1_dir.setLength(A.outgoing_.base_point_.distance(B.incoming_.base_point_) / 3);
-                        between1.add(between1_dir);
-                        Vec2D between2 = B.incoming_.base_point_;
-                        Vec2D between2_dir = B.incoming_.direction_;
-                        between2_dir.setLength(A.outgoing_.base_point_.distance(B.incoming_.base_point_) / 3);
-                        between2.add(between2_dir);
-                        Vec2D between3 = B.outgoing_.base_point_;
-                        Vec2D between3_dir = B.outgoing_.direction_;
-                        between3_dir.setLength(B.outgoing_.base_point_.distance(A.incoming_.base_point_) / 3);
-                        between3.add(between3_dir);
-                        Vec2D between4 = A.incoming_.base_point_;
-                        Vec2D between4_dir = A.incoming_.direction_;
-                        between4_dir.setLength(B.outgoing_.base_point_.distance(A.incoming_.base_point_) / 3);
-                        between4.add(between4_dir);
+                     assert(*A.col_ == *B.col_);
 
-                        p.add(A.outgoing_.base_point_);
-                        p.bezier(A.outgoing_.base_point_, between1, between2, B.incoming_.base_point_);
-                        p.add(B.incoming_.base_point_);
-                        p.add(B.outgoing_.base_point_);
-                        p.bezier(B.outgoing_.base_point_, between3, between4, A.incoming_.base_point_);
-                        p.add(A.incoming_.base_point_);
-                        fillPolygon(p, *A.col_);
-                        //drawPolygon(p, BLACK, true);
-                     }
+                     Pol2D p{};
+                     auto a_outgoing_basepoint_translated = trans_a->translate(A.outgoing_.base_point_);
+                     auto a_outgoing_direction_translated = trans_a->translate(A.outgoing_.direction_);
+                     auto a_incoming_basepoint_translated = trans_a->translate(A.incoming_.base_point_);
+                     auto a_incoming_direction_translated = trans_a->translate(A.incoming_.direction_);
+                     auto b_outgoing_basepoint_translated = trans_b->translate(B.outgoing_.base_point_);
+                     auto b_outgoing_direction_translated = trans_b->translate(B.outgoing_.direction_);
+                     auto b_incoming_basepoint_translated = trans_b->translate(B.incoming_.base_point_);
+                     auto b_incoming_direction_translated = trans_b->translate(B.incoming_.direction_);
+                     Vec2D between1 = a_outgoing_basepoint_translated;
+                     Vec2D between1_dir = a_outgoing_basepoint_translated;
+                     between1_dir.sub(a_outgoing_direction_translated);
+                     between1_dir.setLength(a_outgoing_basepoint_translated.distance(b_incoming_basepoint_translated) / 3);
+                     between1.add(between1_dir);
+                     Vec2D between2 = b_incoming_basepoint_translated;
+                     Vec2D between2_dir = b_incoming_basepoint_translated;
+                     between2_dir.sub(b_incoming_direction_translated);
+                     between2_dir.setLength(a_outgoing_basepoint_translated.distance(b_incoming_basepoint_translated) / 3);
+                     between2.add(between2_dir);
+                     Vec2D between3 = b_outgoing_basepoint_translated;
+                     Vec2D between3_dir = b_outgoing_basepoint_translated;
+                     between3_dir.sub(b_outgoing_direction_translated);
+                     between3_dir.setLength(b_outgoing_basepoint_translated.distance(a_incoming_basepoint_translated) / 3);
+                     between3.add(between3_dir);
+                     Vec2D between4 = a_incoming_basepoint_translated;
+                     Vec2D between4_dir = a_incoming_basepoint_translated;
+                     between4_dir.sub(a_incoming_direction_translated);
+                     between4_dir.setLength(b_outgoing_basepoint_translated.distance(a_incoming_basepoint_translated) / 3);
+                     between4.add(between4_dir);
+
+                     p.add(a_outgoing_basepoint_translated);
+                     p.bezier(a_outgoing_basepoint_translated, between1, between2, b_incoming_basepoint_translated);
+                     p.add(b_incoming_basepoint_translated);
+                     p.add(b_outgoing_basepoint_translated);
+                     p.bezier(b_outgoing_basepoint_translated, between3, between4, a_incoming_basepoint_translated);
+                     p.add(a_incoming_basepoint_translated);
+                     fillPolygon(p, *A.col_);
+                     //drawPolygon(p, BLACK, true);
                   }
                }
             }
-         });
+         }
+      });
    }
 
    setTranslator(old_trans);

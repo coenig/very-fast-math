@@ -14,6 +14,7 @@
 namespace vfm {
 
 struct Color;
+struct HighwayTranslator;
 
 /// <summary>
 /// Provides information on how to visually connect roads coming together at a junction.
@@ -47,6 +48,7 @@ struct ConnectorPolygonEnding
    vfm::Lin2D incoming_{ {0, 0}, {0, 0} };
    std::shared_ptr<Color> col_{ nullptr };
    int id_{ -1 };
+   std::shared_ptr<HighwayTranslator> my_trans_{};
 };
 
 struct CarPars {
