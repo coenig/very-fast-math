@@ -450,32 +450,66 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
 
       // Drains and sources.
       // Assuming we do "min_lane = true" first.
-      auto el = ego_raw ? ego.car_lane_ : 0;
+      constexpr static float MAGIC_NUMBER{ 0.066 };
       if (min_lane) { // TOP
          auto top_right_corner = (*overpaint.points_.rbegin());
          auto top_left_corner  = (*overpaint.points_.begin());
          auto top_right_second = (*(overpaint.points_.rbegin() + 1));
          auto top_left_second  = (*(overpaint.points_.begin() + 1));
+         const Vec2D thin1{ plain_2d_translator_.reverseTranslate({ 0, 0}).projectToXY()};
+         const Vec2D thin2{ plain_2d_translator_.reverseTranslate({ THICK / 2000 * dim.x, 0}).projectToXY()};
+         const float thin{ thin1.distance(thin2) };
+         top_right_corner.add({ 0, MAGIC_NUMBER });
+         top_left_corner.add({ 0,  MAGIC_NUMBER });
+         top_right_second.add({ 0, MAGIC_NUMBER });
+         top_left_second.add({ 0,  MAGIC_NUMBER });
+
          if (!getHighwayTranslator()->is3D()) {
-            top_right_corner.add({ 0, +el });
-            //top_left_corner.add({ 0, +ego_lane });
-            top_right_second.add({ 0, +el });
-            //top_left_second.add({ 0, +ego_lane });
+            top_right_corner.add({ 0, ego.car_lane_ });
+            top_right_second.add({ 0, ego.car_lane_ });
          }
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{
             ConnectorPolygonEnding::Side::drain,
             Lin2D{ top_right_corner, top_right_second }, // outgoing
-            Lin2D{ { 0, 0 }, { 0, 0 } },     // incoming
+            Lin2D{ { 0, 0 }, { 0, 0 } },                 // incoming
             std::make_shared<Color>(PAVEMENT_COLOR),
-            1,
+            3,
             getHighwayTranslator() });
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{
             ConnectorPolygonEnding::Side::source,
-            Lin2D{ { 0, 0 }, { 0, 0 } },     // outgoing
-            Lin2D{ top_left_corner, top_left_second },  // incoming
+            Lin2D{ { 0, 0 }, { 0, 0 } },               // outgoing
+            Lin2D{ top_left_corner, top_left_second }, // incoming
             std::make_shared<Color>(PAVEMENT_COLOR),
+            3,
+            getHighwayTranslator() });
+
+         auto top_left_corner_1 = top_left_corner;
+         auto top_left_corner_2 = top_left_corner;
+         auto top_left_second_1 = top_left_second;
+         auto top_left_second_2 = top_left_second;
+         auto top_right_corner_1 = top_right_corner;
+         auto top_right_corner_2 = top_right_corner;
+         auto top_right_second_1 = top_right_second;
+         auto top_right_second_2 = top_right_second;
+         top_right_corner_1.sub({ 0, MAGIC_NUMBER * 2 });
+         top_right_second_1.sub({ 0, MAGIC_NUMBER * 2 });
+         top_left_corner_1.sub({ 0, MAGIC_NUMBER * 2 });
+         top_left_second_1.sub({ 0, MAGIC_NUMBER * 2 });
+         connections.insert(connections.begin(), ConnectorPolygonEnding{
+            ConnectorPolygonEnding::Side::source,
+            Lin2D{ top_left_corner_1, top_left_second_1 }, // outgoing
+            Lin2D{ top_left_corner_2, top_left_second_2 }, // incoming
+            std::make_shared<Color>(LANE_MARKER_COLOR),
+            1,
+            getHighwayTranslator() });
+
+         connections.insert(connections.begin(), ConnectorPolygonEnding{
+            ConnectorPolygonEnding::Side::drain,
+            Lin2D{ top_right_corner_2, top_right_second_2 }, // outgoing
+            Lin2D{ top_right_corner_1, top_right_second_1 }, // incoming
+            std::make_shared<Color>(LANE_MARKER_COLOR),
             1,
             getHighwayTranslator() });
       }
@@ -484,15 +518,50 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          auto bottom_left_corner  = (*overpaint.points_.begin());
          auto bottom_right_second = (*(overpaint.points_.rbegin() + 1));
          auto bottom_left_second  = (*(overpaint.points_.begin() + 1));
+         bottom_right_corner.sub({ 0, MAGIC_NUMBER });
+         bottom_left_corner.sub({ 0,  MAGIC_NUMBER });
+         bottom_right_second.sub({ 0, MAGIC_NUMBER });
+         bottom_left_second.sub({ 0,  MAGIC_NUMBER });
+
          if (!getHighwayTranslator()->is3D()) {
-            bottom_right_corner.add({ 0, +el });
-            //bottom_left_corner.add({ 0, +ego_lane });
-            bottom_right_second.add({ 0, +el });
-            //bottom_left_second.add({ 0, +ego_lane });
+            bottom_right_corner.add({ 0, ego.car_lane_ });
+            bottom_right_second.add({ 0, ego.car_lane_ });
          }
 
+         auto bottom_left_corner_1 = bottom_left_corner;
+         auto bottom_left_corner_2 = bottom_left_corner;
+         auto bottom_left_second_1 = bottom_left_second;
+         auto bottom_left_second_2 = bottom_left_second;
+         auto bottom_right_corner_1 = bottom_right_corner;
+         auto bottom_right_corner_2 = bottom_right_corner;
+         auto bottom_right_second_1 = bottom_right_second;
+         auto bottom_right_second_2 = bottom_right_second;
+         bottom_right_corner_1.sub({ 0, -MAGIC_NUMBER * 2 });
+         bottom_right_second_1.sub({ 0, -MAGIC_NUMBER * 2 });
+         bottom_right_corner_2.add({ 0, 0 });
+         bottom_right_second_2.add({ 0, 0 });
+         bottom_left_corner_1.sub({ 0, -MAGIC_NUMBER * 2 });
+         bottom_left_second_1.sub({ 0, -MAGIC_NUMBER * 2 });
+         bottom_left_corner_2.add({ 0, 0 });
+         bottom_left_second_2.add({ 0, 0 });
+         connections.insert(connections.begin(), ConnectorPolygonEnding{
+            ConnectorPolygonEnding::Side::source,
+            Lin2D{ bottom_left_corner_1, bottom_left_second_1 }, // outgoing
+            Lin2D{ bottom_left_corner_2, bottom_left_second_2 }, // incoming
+            std::make_shared<Color>(LANE_MARKER_COLOR),
+            2,
+            getHighwayTranslator() });
+
+         connections.insert(connections.begin(), ConnectorPolygonEnding{
+            ConnectorPolygonEnding::Side::drain,
+            Lin2D{ bottom_right_corner_2, bottom_right_second_2 }, // outgoing
+            Lin2D{ bottom_right_corner_1, bottom_right_second_1 }, // incoming
+            std::make_shared<Color>(LANE_MARKER_COLOR),
+            2,
+            getHighwayTranslator() });
+
          for (auto& connection : connections) {
-            if (connection.id_ == 1) {
+            if (connection.id_ == 3) {
                if (connection.side_ == ConnectorPolygonEnding::Side::drain) {
                   connection.incoming_ = { bottom_right_corner, bottom_right_second };
                }
@@ -870,34 +939,40 @@ void vfm::HighwayImage::paintRoadGraph(
    const bool print_agent_ids)
 {
    auto r_ego = r->findSectionWithEgo();
-   auto num_nodes = r->getNumberOfNodes();
    auto old_trans = getHighwayTranslator();
-   auto& plain_2d_trans = plain_2d_translator_;
    float mirrored{ getHighwayTranslator()->isMirrored() ? -1.0f : 1.0f };
    auto ego_pos = r_ego->getMyRoad().getEgo()->car_rel_pos_;
    auto ego_lane = r_ego->getMyRoad().getEgo()->car_lane_;
+   auto all_nodes = r->getAllNodes();
+   std::vector<std::shared_ptr<RoadGraph>> all_nodes_ego_in_front{};
 
-   for (const auto r_sub : r->getAllNodes()) {
+   all_nodes_ego_in_front.push_back(r_ego);
+
+   for (const auto r_sub : all_nodes) {
+      if (r_sub != r_ego) all_nodes_ego_in_front.push_back(r_sub);
+   }
+
+   for (const auto r_sub : all_nodes_ego_in_front) {
       auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
          old_trans,
-         [&plain_2d_trans, mirrored, r_sub, ego_pos, ego_lane, r_ego, old_trans](const Vec3D& v_raw) -> Vec3D {
+         [this, mirrored, r_sub, ego_pos, ego_lane, r_ego, old_trans](const Vec3D& v_raw) -> Vec3D {
             Vec2D vv{ v_raw.x, v_raw.y };
             float origin_x{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos) };
             float origin_y{ r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0)};
             vv.add({ origin_x, origin_y });
-            Vec3D v{ plain_2d_trans.translate(vv) };
+            Vec3D v{ plain_2d_translator_.translate(vv) };
             Vec2D v2{ v.x, v.y };
-            auto middle = plain_2d_trans.translate({ origin_x, origin_y });
+            auto middle = plain_2d_translator_.translate({ origin_x, origin_y });
             v2.rotate(
                r_sub->getAngle() * mirrored, 
                { middle.x, middle.y });
-            auto res = plain_2d_trans.reverseTranslate(v2);
+            auto res = plain_2d_translator_.reverseTranslate(v2);
             return { res.x, res.y, v_raw.z };
          },
-         [&plain_2d_trans, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
-            Vec3D v{ plain_2d_trans.reverseTranslate(v_raw.projectToXY()) };
+         [this, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
+            Vec3D v{ plain_2d_translator_.reverseTranslate(v_raw.projectToXY()) };
             Vec2D v2{ v.x, v.y };
-            auto res = plain_2d_trans.translate(v2);
+            auto res = plain_2d_translator_.translate(v2);
             res.sub({ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y });
             Failable::getSingleton()->addFatalError("Reverse translation for wrapper translator not yet adjusted to current regular version.");
             return { res.x, res.y, v_raw.z };
@@ -906,7 +981,7 @@ void vfm::HighwayImage::paintRoadGraph(
       setTranslator(wrapper_trans);
       r_sub->connectors_ = paintStraightRoadScene(
          r_sub->getMyRoad(),
-         num_nodes == 1 && r_sub->isRootedInZeroAndUnturned(), // Only a single section, at root position and unturned, will be painted as infinite.
+         all_nodes.size() == 1 && r_sub->isRootedInZeroAndUnturned(), // Only a single section, at root position and unturned, will be painted as infinite.
          0,
          var_vals,
          print_agent_ids,
@@ -915,8 +990,8 @@ void vfm::HighwayImage::paintRoadGraph(
 
    setTranslator(std::make_shared<DefaultHighwayTranslator>());
 
-   for (int i = 0; i < 2; i++) {
-      r->applyToMeAndAllMySuccessorsAndPredecessors([this, i, old_trans](const std::shared_ptr<RoadGraph> r) -> void
+   for (int i = 0; i <= 30; i++) {
+      r->applyToMeAndAllMySuccessorsAndPredecessors([this, i](const std::shared_ptr<RoadGraph> r) -> void
       {
          for (const auto& r_succ : r->getSuccessors()) {
             for (const auto& A : r->connectors_) {

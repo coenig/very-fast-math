@@ -47,7 +47,7 @@ int main(int argc, char* argv[])
    image3.restartPDF();
    image3.fillImg(BLACK);
    image3.paintEarthAndSky({ 1500, 200 });
-   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(1, 45, 13, HighwayImage::EGO_MOCK_ID);
+   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 45, 13, HighwayImage::EGO_MOCK_ID);
    std::map<int, std::pair<float, float>> future_positions_of_others1{};
    std::map<int, std::pair<float, float>> future_positions_of_others2{};
    std::map<int, std::pair<float, float>> future_positions_of_others3{};
