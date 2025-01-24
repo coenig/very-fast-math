@@ -31,15 +31,20 @@ int main(int argc, char* argv[])
    LaneSegment segment22{ 30, 0, 6 };
    LaneSegment segment31{ 0, 2, 6 };
    LaneSegment segment32{ 25, 0, 4 };
+   LaneSegment segment41{ 0, 1, 6 };
+   LaneSegment segment42{ 35, 0, 4 };
    StraightRoadSection section1{ 4, 50 };
    StraightRoadSection section2{ 4, 60 };
    StraightRoadSection section3{ 4, 100 };
+   StraightRoadSection section4{ 4, 55 };
    section1.addLaneSegment(segment11);
    section1.addLaneSegment(segment12);
    section2.addLaneSegment(segment21);
    section2.addLaneSegment(segment22);
    section3.addLaneSegment(segment31);
    section3.addLaneSegment(segment32);
+   section4.addLaneSegment(segment41);
+   section4.addLaneSegment(segment42);
    HighwayImage image2{ 3000, 2000, trans2, 4 };
    image2.restartPDF();
    image2.fillImg(BLACK);
@@ -51,9 +56,11 @@ int main(int argc, char* argv[])
    std::map<int, std::pair<float, float>> future_positions_of_others1{};
    std::map<int, std::pair<float, float>> future_positions_of_others2{};
    std::map<int, std::pair<float, float>> future_positions_of_others3{};
+   std::map<int, std::pair<float, float>> future_positions_of_others4{};
    CarParsVec others1{ { 1, -20, 1, 0 }, { 2, -50, 11, 1 } };
    CarParsVec others2{ { 2, 4, 3, 2 }, { 1, 22, 11, 3 } };
    CarParsVec others3{ { 2, 40, 3, 4 }, { 1, 22, 11, 5 } };
+   CarParsVec others4{ { 1, 50, 3, 6 }, { 1, 22, 11, 6 } };
    section1.setEgo(ego);
    section1.setOthers(others1);
    section1.setFuturePositionsOfOthers(future_positions_of_others1);
@@ -66,9 +73,14 @@ int main(int argc, char* argv[])
    section3.setOthers(others3);
    section3.setFuturePositionsOfOthers(future_positions_of_others3);
 
+   section4.setEgo(nullptr);
+   section4.setOthers(others4);
+   section4.setFuturePositionsOfOthers(future_positions_of_others4);
+
    auto r1 = std::make_shared<RoadGraph>(1);
    auto r2 = std::make_shared<RoadGraph>(2);
    auto r3 = std::make_shared<RoadGraph>(3);
+   auto r4 = std::make_shared<RoadGraph>(4);
    r1->setMyRoad(section1);
    r1->setOriginPoint({ 0, 0 });
    r1->setAngle(0);
@@ -78,12 +90,19 @@ int main(int argc, char* argv[])
    r3->setMyRoad(section3);
    r3->setOriginPoint({ r3->getMyRoad().getLength() + 65 + vfm::LANE_WIDTH, 3 * vfm::LANE_WIDTH / vfm::LANE_WIDTH });
    r3->setAngle(-3.1415);
+   r4->setMyRoad(section4);
+   r4->setOriginPoint({ 55, -3 });
+   r4->setAngle(-3.1415 / 3 * 2);
    r1->addSuccessor(r2);
    r3->addSuccessor(r2);
+   r1->addSuccessor(r4);
+   r3->addSuccessor(r4);
    image2.paintRoadGraph(r1, { 1500, 200 });
    image3.paintRoadGraph(r1, { 1500, 200 });
    image2.store("test2D", OutputType::pdf);
    image3.store("test3D", OutputType::pdf);
+   image2.store("test2D", OutputType::png);
+   image3.store("test3D", OutputType::png);
    termnate();
 
    vfm::test::runTests();
