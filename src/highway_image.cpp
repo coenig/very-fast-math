@@ -368,7 +368,8 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
    const Vec2D& tl_orig,
    const Vec2D& br_orig,
    const bool infinite_road, 
-   const Vec2D& dim)
+   const Vec2D& dim,
+   std::vector<ConnectorPolygonEnding>& connections)
 {
    auto ego = ego_raw ? *ego_raw : CarPars{};
    const float ego_abs_pos{ ego.car_rel_pos_ };
@@ -379,7 +380,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
       shoulders[i] = {};
    }
 
-   for (const bool min_lane : {true, false}) { // We have to remove lanes from the left (min_lane) and right (!min_lane).
+   for (const bool min_lane : { true, false }) { // We have to remove lanes from the left (min_lane) and right (!min_lane).
       const float ego_lane{ min_lane ? ego.car_lane_ + 0.5f : ego.car_lane_ - 0.5f };
 
       Pol2D overpaint{};
@@ -446,6 +447,59 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
       }
 
       overpaint.add({ temp_x2, (float)(min_lane ? last_point.getActualDrivableMinLane() : last_point.getActualDrivableMaxLane()) - ego_lane });
+
+      // Drains and sources.
+      // Assuming we do "min_lane = true" first.
+      if (min_lane) { // TOP
+         auto top_right_corner = getTranslator()->translate(*overpaint.points_.rbegin());
+         auto top_left_corner  = getTranslator()->translate(*overpaint.points_.begin());
+         auto top_right_second = getTranslator()->translate(*(overpaint.points_.rbegin() + 1));
+         auto top_left_second = getTranslator()->translate(*(overpaint.points_.begin() + 1));
+         auto dir1 = top_right_corner;
+         auto dir2 = top_left_corner;
+         dir1.sub(top_right_second);
+         dir1.normalize();
+         dir2.sub(top_left_second);
+         dir2.normalize();
+
+         connections.insert(connections.begin(), ConnectorPolygonEnding{
+            ConnectorPolygonEnding::Side::drain,
+            Lin2D{ top_right_corner, dir1 }, // outgoing
+            Lin2D{ { 0, 0 }, { 0, 0 } },     // incoming
+            std::make_shared<Color>(PAVEMENT_COLOR),
+            1 });
+
+         connections.insert(connections.begin(), ConnectorPolygonEnding{
+            ConnectorPolygonEnding::Side::source,
+            Lin2D{ { 0, 0 }, { 0, 0 } },     // outgoing
+            Lin2D{ top_left_corner, dir2 },  // incoming
+            std::make_shared<Color>(PAVEMENT_COLOR),
+            1 });
+      }
+      else { // BOTTOM
+         auto bottom_right_corner = getTranslator()->translate(*overpaint.points_.rbegin());
+         auto bottom_left_corner = getTranslator()->translate(*overpaint.points_.begin());
+         auto bottom_right_second = getTranslator()->translate(*(overpaint.points_.rbegin() + 1));
+         auto bottom_left_second = getTranslator()->translate(*(overpaint.points_.begin() + 1));
+         auto dir1 = bottom_right_corner;
+         auto dir2 = bottom_left_corner;
+         dir1.sub(bottom_right_second);
+         dir1.normalize();
+         dir2.sub(bottom_left_second);
+         dir2.normalize();
+
+         for (auto& connection : connections) {
+            if (connection.id_ == 1) {
+               if (connection.side_ == ConnectorPolygonEnding::Side::drain) {
+                  connection.incoming_ = { bottom_right_corner, dir1 };
+               }
+               else {
+                  connection.outgoing_ = { bottom_left_corner, dir2 };
+               }
+            }
+         }
+      }
+      // EO Drains and sources.
 
       arrow.createArrow(plain_2d_translator_.translatePolygon(overpaint), THICK / 2000 * dim.x);
 
@@ -656,7 +710,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    }
 
    removeNonExistentLanesAndMarkShoulders(
-      lane_structure, ego, { road_begin - ego_rel_pos, tl_orig.y }, { road_length - ego_rel_pos, br_orig.y }, infinite_road, dim);
+      lane_structure, ego, { road_begin - ego_rel_pos, tl_orig.y }, { road_length - ego_rel_pos, br_orig.y }, infinite_road, dim, res);
 
    // Plot other vehicles
    const Color CAR_FRAME_COLOR{ DARK_GREY };
@@ -792,14 +846,14 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    dir2.sub(bottom_right_corner);
    dir2.normalize();
 
-   res.push_back( ConnectorPolygonEnding{ 
+   res.insert(res.begin(), ConnectorPolygonEnding{
       ConnectorPolygonEnding::Side::drain,
       Lin2D{ top_right_corner, dir1 },
       Lin2D{ bottom_right_corner, dir1 },
       std::make_shared<Color>(GRASS_COLOR),
-      0 } );
+      0 });
 
-   res.push_back( ConnectorPolygonEnding{ 
+   res.insert(res.begin(), ConnectorPolygonEnding{
       ConnectorPolygonEnding::Side::source,
       Lin2D{ bottom_left_corner, dir2 },
       Lin2D{ top_left_corner, dir2 },
@@ -862,45 +916,47 @@ void vfm::HighwayImage::paintRoadGraph(
 
    setTranslator(std::make_shared<DefaultHighwayTranslator>()); // No translation at all.
 
-   r->applyToMeAndAllMySuccessorsAndPredecessors([this](const std::shared_ptr<RoadGraph> r) -> void
-   {
-      for (const auto& r_succ : r->getSuccessors()) {
-         for (const auto& A : r->connectors_) {
-            for (const auto& B : r_succ->connectors_) {
-               if (A.id_ == B.id_ && A.side_ == ConnectorPolygonEnding::Side::drain && B.side_ == ConnectorPolygonEnding::Side::source) {
-                  assert(*A.col_ == *B.col_);
+   for (int i = 0; i < 2; i++) {
+      r->applyToMeAndAllMySuccessorsAndPredecessors([this, i](const std::shared_ptr<RoadGraph> r) -> void
+         {
+            for (const auto& r_succ : r->getSuccessors()) {
+               for (const auto& A : r->connectors_) {
+                  for (const auto& B : r_succ->connectors_) {
+                     if (A.id_ == i && A.id_ == B.id_ && A.side_ == ConnectorPolygonEnding::Side::drain && B.side_ == ConnectorPolygonEnding::Side::source) {
+                        assert(*A.col_ == *B.col_);
 
-                  Pol2D p{};
-                  Vec2D between1 = A.outgoing_.base_point_;
-                  Vec2D between1_dir = A.outgoing_.direction_;
-                  between1_dir.setLength(A.outgoing_.base_point_.distance(B.incoming_.base_point_) / 3);
-                  between1.add(between1_dir);
-                  Vec2D between2 = B.incoming_.base_point_;
-                  Vec2D between2_dir = B.incoming_.direction_;
-                  between2_dir.setLength(A.outgoing_.base_point_.distance(B.incoming_.base_point_) / 3);
-                  between2.add(between2_dir);
-                  Vec2D between3 = B.outgoing_.base_point_;
-                  Vec2D between3_dir = B.outgoing_.direction_;
-                  between3_dir.setLength(B.outgoing_.base_point_.distance(A.incoming_.base_point_) / 3);
-                  between3.add(between3_dir);
-                  Vec2D between4 = A.incoming_.base_point_;
-                  Vec2D between4_dir = A.incoming_.direction_;
-                  between4_dir.setLength(B.outgoing_.base_point_.distance(A.incoming_.base_point_) / 3);
-                  between4.add(between4_dir);
+                        Pol2D p{};
+                        Vec2D between1 = A.outgoing_.base_point_;
+                        Vec2D between1_dir = A.outgoing_.direction_;
+                        between1_dir.setLength(A.outgoing_.base_point_.distance(B.incoming_.base_point_) / 3);
+                        between1.add(between1_dir);
+                        Vec2D between2 = B.incoming_.base_point_;
+                        Vec2D between2_dir = B.incoming_.direction_;
+                        between2_dir.setLength(A.outgoing_.base_point_.distance(B.incoming_.base_point_) / 3);
+                        between2.add(between2_dir);
+                        Vec2D between3 = B.outgoing_.base_point_;
+                        Vec2D between3_dir = B.outgoing_.direction_;
+                        between3_dir.setLength(B.outgoing_.base_point_.distance(A.incoming_.base_point_) / 3);
+                        between3.add(between3_dir);
+                        Vec2D between4 = A.incoming_.base_point_;
+                        Vec2D between4_dir = A.incoming_.direction_;
+                        between4_dir.setLength(B.outgoing_.base_point_.distance(A.incoming_.base_point_) / 3);
+                        between4.add(between4_dir);
 
-                  p.add( A.outgoing_.base_point_ );
-                  p.bezier(A.outgoing_.base_point_, between1, between2, B.incoming_.base_point_);
-                  p.add( B.incoming_.base_point_ );
-                  p.add( B.outgoing_.base_point_ );
-                  p.bezier(B.outgoing_.base_point_, between3, between4, A.incoming_.base_point_);
-                  p.add( A.incoming_.base_point_ );
-                  fillPolygon(p, *A.col_);
-                  //drawPolygon(p, *A.col_, true);
+                        p.add(A.outgoing_.base_point_);
+                        p.bezier(A.outgoing_.base_point_, between1, between2, B.incoming_.base_point_);
+                        p.add(B.incoming_.base_point_);
+                        p.add(B.outgoing_.base_point_);
+                        p.bezier(B.outgoing_.base_point_, between3, between4, A.incoming_.base_point_);
+                        p.add(A.incoming_.base_point_);
+                        fillPolygon(p, *A.col_);
+                        //drawPolygon(p, BLACK, true);
+                     }
+                  }
                }
             }
-         }
-      }
-   });
+         });
+   }
 
    setTranslator(old_trans);
 }
