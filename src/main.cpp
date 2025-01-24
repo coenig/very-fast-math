@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
    LaneSegment segment22{ 30, 0, 6 };
    LaneSegment segment31{ 0, 2, 6 };
    LaneSegment segment32{ 25, 0, 4 };
-   LaneSegment segment41{ 0, 1, 6 };
+   LaneSegment segment41{ 0, 2, 6 };
    LaneSegment segment42{ 35, 0, 4 };
    StraightRoadSection section1{ 4, 50 };
    StraightRoadSection section2{ 4, 60 };
