@@ -340,8 +340,8 @@ private:
 
       for (int i = first; i != first || firstit; i = (i + 1) % pol.points_.size()) {
          current_point_in_camera_coordinates = getPointInCameraCoordinates(pol.points_.at(i));
-         current_behind_camera = current_point_in_camera_coordinates.z < 0;
-         last_behind_camera = last_point_in_camera_coordinates.z < 0;
+         current_behind_camera = current_point_in_camera_coordinates.z <= 0;
+         last_behind_camera = last_point_in_camera_coordinates.z <= 0;
 
          if (current_behind_camera) {
             if (!last_behind_camera) { // Current point behind the camera, but the last was still fine.
