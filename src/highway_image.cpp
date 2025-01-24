@@ -900,7 +900,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 
    const auto reverse_origin_2D{ plain_2d_translator_.reverseTranslate({0, 0}) };
    float tl_orig_one_below_y{ reverse_origin_2D.y };
-   rectangle(road_begin - ego_rel_pos, tl_orig_one_below_y, road_length, br_orig.y - tl_orig.y, BLACK, false);
+   //rectangle(road_begin - ego_rel_pos, tl_orig_one_below_y, road_length, br_orig.y - tl_orig.y, BLACK, false);
 
    // Drains and sources.
    auto bottom = tl_orig.y + br_orig.y - tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
@@ -967,7 +967,7 @@ void vfm::HighwayImage::paintRoadGraph(
                r_sub->getAngle() * mirrored, 
                { middle.x, middle.y });
             auto res = plain_2d_translator_.reverseTranslate(v2);
-            return { res.x, res.y, v_raw.z };
+            return { res.x, res.y + 20, v_raw.z };
          },
          [this, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
             Vec3D v{ plain_2d_translator_.reverseTranslate(v_raw.projectToXY()) };
