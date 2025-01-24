@@ -44,7 +44,8 @@ public:
       const Vec2D& tl_orig,
       const Vec2D& br_orig,
       const bool infinite_road, 
-      const Vec2D& dim);
+      const Vec2D& dim,
+      std::vector<ConnectorPolygonEnding>& connections);
 
    void setPerspective(
       const float street_height,
