@@ -766,8 +766,8 @@ void vfm::Image::drawPolygon(const Polygon3D<float>& pol, const Color& col, cons
       }
 
       if (print_coordinates) {
-         writeAsciiText(current_point.x, current_point.y, current_point.serializeRoundedDown(), CoordTrans::dont_do_it, false, FUNC_IGNORE_BLACK_CONVERT_TO_YELLOW);
-         writeAsciiText(next_point.x, next_point.y, next_point.serializeRoundedDown(), CoordTrans::dont_do_it, false, FUNC_IGNORE_BLACK_CONVERT_TO_YELLOW);
+         writeAsciiText(current_point.x, current_point.y, std::to_string(i), CoordTrans::dont_do_it, false, FUNC_IGNORE_BLACK_CONVERT_TO_YELLOW);
+         //writeAsciiText(next_point.x, next_point.y, std::to_string(i + 1), CoordTrans::dont_do_it, false, FUNC_IGNORE_BLACK_CONVERT_TO_YELLOW);
       }
    }
 

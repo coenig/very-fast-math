@@ -44,8 +44,8 @@ struct ConnectorPolygonEnding
    enum class Side { source, drain, invalid };
 
    Side side_{ Side::invalid };
-   vfm::Lin2D outgoing_{ {0, 0}, {0, 0} };
-   vfm::Lin2D incoming_{ {0, 0}, {0, 0} };
+   vfm::Lin2D connector_{ {0, 0}, {0, 0} };
+   float thick_{};
    std::shared_ptr<Color> col_{ nullptr };
    int id_{ -1 };
    std::shared_ptr<HighwayTranslator> my_trans_{};
