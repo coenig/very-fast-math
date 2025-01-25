@@ -943,7 +943,7 @@ void vfm::HighwayImage::paintRoadGraph(
                r_sub->getAngle() * mirrored, 
                { middle.x, middle.y });
             auto res = plain_2d_translator_.reverseTranslate(v2);
-            return { res.x, res.y + (old_trans->is3D() ? 0 : 20), v_raw.z };
+            return { res.x + (old_trans->is3D() ? 0 : 200), res.y + (old_trans->is3D() ? 0 : 20), v_raw.z };
          },
          [this, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
             Vec3D v{ plain_2d_translator_.reverseTranslate(v_raw.projectToXY()) };
@@ -967,7 +967,7 @@ void vfm::HighwayImage::paintRoadGraph(
    setTranslator(std::make_shared<DefaultHighwayTranslator>());
 
    for (int i = 0; i <= 30; i++) {
-      r->applyToMeAndAllMySuccessorsAndPredecessors([this, i](const std::shared_ptr<RoadGraph> r) -> void
+      r->applyToMeAndAllMySuccessorsAndPredecessors([this, i, &dim](const std::shared_ptr<RoadGraph> r) -> void
       {
          for (const auto& r_succ : r->getSuccessors()) {
             for (const auto& A : r->connectors_) {
@@ -1014,7 +1014,7 @@ void vfm::HighwayImage::paintRoadGraph(
                      between2_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
                      between2.add(between2_dir);
 
-                     p.bezier(a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated, 0.01);
+                     p.bezier(a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated, 0.001);
                      Pol2D arrow{};
                      arrow.createArrow(p, [p, thick_a, thick_b](const Vec2D& point_position, const int point_num) -> float 
                      {
@@ -1030,7 +1030,7 @@ void vfm::HighwayImage::paintRoadGraph(
                      if (*A.col_ == Color{0, 0, 0, 0}) {
                         Pol2D arrow_square{};
                         arrow.add(*arrow.points_.begin());
-                        arrow_square.createArrow(arrow, 11);
+                        arrow_square.createArrow(arrow, 11.0f / 1500.0f * dim.x);
                         fillPolygon(arrow_square, LANE_MARKER_COLOR);
                      }
                      else {
