@@ -92,7 +92,7 @@ int main(int argc, char* argv[])
    r3->setAngle(-3.1415);
    r4->setMyRoad(section4);
    r4->setOriginPoint({ 57, -2.5 });
-   r4->setAngle(-3.1415 / 1.5);
+   r4->setAngle(-3.1415 / 1.9);
    r1->addSuccessor(r2);
    r3->addSuccessor(r2);
    r1->addSuccessor(r4);

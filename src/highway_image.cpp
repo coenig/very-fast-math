@@ -469,7 +469,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             top_right_second.add({ 0, ego.car_lane_ });
          }
 
-         connections.insert(connections.begin(), ConnectorPolygonEnding{
+         connections.insert(connections.begin(), ConnectorPolygonEnding{ // Special encoding for the frame in LANE_MARKER_COLOR
             ConnectorPolygonEnding::Side::drain,
             Lin2D{ top_right_corner, top_right_second }, // outgoing (temp; will be adjusted when bottom part becomes available)
             0, // temp thickness; will be calculated when bottom part becomes available
@@ -477,7 +477,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             3,
             getHighwayTranslator() });
 
-         connections.insert(connections.begin(), ConnectorPolygonEnding{
+         connections.insert(connections.begin(), ConnectorPolygonEnding{ // Special encoding for the frame in LANE_MARKER_COLOR
             ConnectorPolygonEnding::Side::source,
             Lin2D{ top_left_corner, top_left_second }, // incoming (temp; will be adjusted when bottom part becomes available)
             0, // temp thickness; will be calculated when bottom part becomes available
@@ -485,7 +485,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             3,
             getHighwayTranslator() });
 
-         connections.insert(connections.begin(), ConnectorPolygonEnding{
+         connections.insert(connections.begin(), ConnectorPolygonEnding{ // Actual pavement
             ConnectorPolygonEnding::Side::drain,
             Lin2D{ top_right_corner, top_right_second }, // outgoing (temp; will be adjusted when bottom part becomes available)
             0, // temp thickness; will be calculated when bottom part becomes available
@@ -493,54 +493,13 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             4,
             getHighwayTranslator() });
 
-         connections.insert(connections.begin(), ConnectorPolygonEnding{
+         connections.insert(connections.begin(), ConnectorPolygonEnding{ // Actual pavement
             ConnectorPolygonEnding::Side::source,
             Lin2D{ top_left_corner, top_left_second }, // incoming (temp; will be adjusted when bottom part becomes available)
             0, // temp thickness; will be calculated when bottom part becomes available
             std::make_shared<Color>(PAVEMENT_COLOR),
             4,
             getHighwayTranslator() });
-
-         auto top_left_corner_1 = top_left_corner;
-         auto top_left_corner_2 = top_left_corner;
-         auto top_left_second_1 = top_left_second;
-         auto top_left_second_2 = top_left_second;
-         auto top_right_corner_1 = top_right_corner;
-         auto top_right_corner_2 = top_right_corner;
-         auto top_right_second_1 = top_right_second;
-         auto top_right_second_2 = top_right_second;
-         top_right_corner_1.sub({ 0, MAGIC_NUMBER * 2 });
-         top_right_second_1.sub({ 0, MAGIC_NUMBER * 2 });
-         top_left_corner_1.sub({ 0, MAGIC_NUMBER * 2 });
-         top_left_second_1.sub({ 0, MAGIC_NUMBER * 2 });
-         auto middle_top_left = top_left_corner_1;
-         middle_top_left.add(top_left_corner_2);
-         middle_top_left.div(2);
-         auto middle_top_left_second = top_left_second_1;
-         middle_top_left_second.add(top_left_second_2);
-         middle_top_left_second.div(2);
-         auto middle_top_right = top_right_corner_1;
-         middle_top_right.add(top_right_corner_2);
-         middle_top_right.div(2);
-         auto middle_top_right_second = top_right_second_1;
-         middle_top_right_second.add(top_right_second_2);
-         middle_top_right_second.div(2);
-
-         //connections.insert(connections.begin(), ConnectorPolygonEnding{
-         //   ConnectorPolygonEnding::Side::source,
-         //   Lin2D{ middle_top_left, middle_top_left_second }, // incoming
-         //   MAGIC_NUMBER * 7.5,
-         //   std::make_shared<Color>(LANE_MARKER_COLOR),
-         //   1,
-         //   getHighwayTranslator() });
-
-         //connections.insert(connections.begin(), ConnectorPolygonEnding{
-         //   ConnectorPolygonEnding::Side::drain,
-         //   Lin2D{ middle_top_right, middle_top_right_second }, // outgoing
-         //   MAGIC_NUMBER * 7.5,
-         //   std::make_shared<Color>(LANE_MARKER_COLOR),
-         //   1,
-         //   getHighwayTranslator() });
       }
       else { // BOTTOM
          auto bottom_right_corner = (*overpaint.points_.rbegin());
@@ -556,51 +515,6 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             bottom_right_corner.add({ 0, ego.car_lane_ });
             bottom_right_second.add({ 0, ego.car_lane_ });
          }
-
-         auto bottom_left_corner_1 = bottom_left_corner;
-         auto bottom_left_corner_2 = bottom_left_corner;
-         auto bottom_left_second_1 = bottom_left_second;
-         auto bottom_left_second_2 = bottom_left_second;
-         auto bottom_right_corner_1 = bottom_right_corner;
-         auto bottom_right_corner_2 = bottom_right_corner;
-         auto bottom_right_second_1 = bottom_right_second;
-         auto bottom_right_second_2 = bottom_right_second;
-         bottom_right_corner_1.sub({ 0, -MAGIC_NUMBER * 2 });
-         bottom_right_second_1.sub({ 0, -MAGIC_NUMBER * 2 });
-         bottom_right_corner_2.add({ 0, 0 });
-         bottom_right_second_2.add({ 0, 0 });
-         bottom_left_corner_1.sub({ 0, -MAGIC_NUMBER * 2 });
-         bottom_left_second_1.sub({ 0, -MAGIC_NUMBER * 2 });
-         bottom_left_corner_2.add({ 0, 0 });
-         bottom_left_second_2.add({ 0, 0 });
-         auto middle_bottom_left = bottom_left_corner_1;
-         middle_bottom_left.add(bottom_left_corner_2);
-         middle_bottom_left.div(2);
-         auto middle_bottom_left_second = bottom_left_second_1;
-         middle_bottom_left_second.add(bottom_left_second_2);
-         middle_bottom_left_second.div(2);
-         auto middle_bottom_right = bottom_right_corner_1;
-         middle_bottom_right.add(bottom_right_corner_2);
-         middle_bottom_right.div(2);
-         auto middle_bottom_right_second = bottom_right_second_1;
-         middle_bottom_right_second.add(bottom_right_second_2);
-         middle_bottom_right_second.div(2);
-
-         //connections.insert(connections.begin(), ConnectorPolygonEnding{
-         //   ConnectorPolygonEnding::Side::source,
-         //   Lin2D{ middle_bottom_left, middle_bottom_left_second }, // incoming
-         //   MAGIC_NUMBER * 7.5,
-         //   std::make_shared<Color>(LANE_MARKER_COLOR),
-         //   2,
-         //   getHighwayTranslator() });
-
-         //connections.insert(connections.begin(), ConnectorPolygonEnding{
-         //   ConnectorPolygonEnding::Side::drain,
-         //   Lin2D{ middle_bottom_right, middle_bottom_right_second }, // outgoing
-         //   MAGIC_NUMBER * 7.5,
-         //   std::make_shared<Color>(LANE_MARKER_COLOR),
-         //   2,
-         //   getHighwayTranslator() });
 
          for (auto& connection : connections) {
             if (connection.id_ == 3 || connection.id_ == 4) {
