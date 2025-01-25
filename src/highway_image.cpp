@@ -935,6 +935,7 @@ void vfm::HighwayImage::paintRoadGraph(
             Vec2D vv{ v_raw.x, v_raw.y };
             float origin_x{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos) };
             float origin_y{ r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0)};
+            origin_y /= LANE_WIDTH;
             vv.add({ origin_x, origin_y });
             Vec3D v{ plain_2d_translator_.translate(vv) };
             Vec2D v2{ v.x, v.y };
@@ -943,7 +944,7 @@ void vfm::HighwayImage::paintRoadGraph(
                r_sub->getAngle() * mirrored, 
                { middle.x, middle.y });
             auto res = plain_2d_translator_.reverseTranslate(v2);
-            return { res.x + (old_trans->is3D() ? 0 : 200), res.y + (old_trans->is3D() ? 0 : 20), v_raw.z };
+            return { res.x + (old_trans->is3D() ? 0 : 200), res.y + (old_trans->is3D() ? 0 : 20), v_raw.z }; // TODO
          },
          [this, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
             Vec3D v{ plain_2d_translator_.reverseTranslate(v_raw.projectToXY()) };
