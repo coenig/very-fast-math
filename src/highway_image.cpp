@@ -473,7 +473,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             ConnectorPolygonEnding::Side::drain,
             Lin2D{ top_right_corner, top_right_second }, // outgoing (temp; will be adjusted when bottom part becomes available)
             0, // temp thickness; will be calculated when bottom part becomes available
-            std::make_shared<Color>(PAVEMENT_COLOR),
+            std::make_shared<Color>(0, 0, 0, 0),
             3,
             getHighwayTranslator() });
 
@@ -481,8 +481,24 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             ConnectorPolygonEnding::Side::source,
             Lin2D{ top_left_corner, top_left_second }, // incoming (temp; will be adjusted when bottom part becomes available)
             0, // temp thickness; will be calculated when bottom part becomes available
-            std::make_shared<Color>(PAVEMENT_COLOR),
+            std::make_shared<Color>(0, 0, 0, 0),
             3,
+            getHighwayTranslator() });
+
+         connections.insert(connections.begin(), ConnectorPolygonEnding{
+            ConnectorPolygonEnding::Side::drain,
+            Lin2D{ top_right_corner, top_right_second }, // outgoing (temp; will be adjusted when bottom part becomes available)
+            0, // temp thickness; will be calculated when bottom part becomes available
+            std::make_shared<Color>(PAVEMENT_COLOR),
+            4,
+            getHighwayTranslator() });
+
+         connections.insert(connections.begin(), ConnectorPolygonEnding{
+            ConnectorPolygonEnding::Side::source,
+            Lin2D{ top_left_corner, top_left_second }, // incoming (temp; will be adjusted when bottom part becomes available)
+            0, // temp thickness; will be calculated when bottom part becomes available
+            std::make_shared<Color>(PAVEMENT_COLOR),
+            4,
             getHighwayTranslator() });
 
          auto top_left_corner_1 = top_left_corner;
@@ -587,7 +603,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          //   getHighwayTranslator() });
 
          for (auto& connection : connections) {
-            if (connection.id_ == 3) {
+            if (connection.id_ == 3 || connection.id_ == 4) {
                Vec2D middle_basepoint{ connection.connector_.base_point_ };
                Vec2D middle_second{ connection.connector_.direction_ };
 
@@ -1090,19 +1106,22 @@ void vfm::HighwayImage::paintRoadGraph(
                      {
                         const float step{ (thick_b - thick_a) / p.points_.size() };
                         return thick_a + point_num * step;
-                        }, { dock_point_a1, dock_point_a2 }, { dock_point_b1, dock_point_b2 });
+                        }, { /*dock_point_a1, dock_point_a2*/ }, { /*dock_point_b1, dock_point_b2*/ });
 
                      //p.add(a_outgoing_basepoint_translated);
                      //p.add(b_incoming_basepoint_translated);
                      //p.add(b_outgoing_basepoint_translated);
                      //p.bezier(b_outgoing_basepoint_translated, between3, between4, a_incoming_basepoint_translated);
                      //p.add(a_incoming_basepoint_translated);
-                     if (*A.col_ == PAVEMENT_COLOR) {
+                     if (*A.col_ == Color{0, 0, 0, 0}) {
                         Pol2D arrow_square{};
-                        arrow_square.createArrow(arrow, 10);
+                        arrow.add(*arrow.points_.begin());
+                        arrow_square.createArrow(arrow, 11);
                         fillPolygon(arrow_square, LANE_MARKER_COLOR);
                      }
-                     fillPolygon(arrow, *A.col_);
+                     else {
+                        fillPolygon(arrow, *A.col_);
+                     }
                      //drawPolygon(arrow, BLACK, true, true, true);
                   }
                }
