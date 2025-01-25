@@ -129,7 +129,9 @@ public:
    /// \param[in] end_factor - Multiplier for end size.
    void createArrow(
       const Polygon2D<NumType>& base_points,
-      const std::function<float(const Vector2D<NumType>& point_position, const int point_num)>& thickness = [](const Vector2D<NumType>& point_position, const int point_num){return 10.0;},
+      const std::function<float(const Vector2D<NumType>& point_position, const int point_num)>& thickness = [](const Vector2D<NumType>& point_position, const int point_num) {return 10.0; },
+      const Polygon2D<NumType> dock_at_begin = {},
+      const Polygon2D<NumType> dock_at_end = {},
       const Polygon2D<NumType>& arrow_head = {},
       const Polygon2D<NumType>& arrow_end = {},
       const Vector2D<NumType>& head_factor = {1, 1},
@@ -138,6 +140,8 @@ public:
    void createArrow(
       const Polygon2D<NumType>& base_points, 
       const float thickness,
+      const Polygon2D<NumType> dock_at_begin = {},
+      const Polygon2D<NumType> dock_at_end = {},
       const Polygon2D<NumType>& arrow_head = {},
       const Polygon2D<NumType>& arrow_end = {},
       const Vector2D<NumType>& head_factor = {1, 1},
@@ -777,6 +781,8 @@ template<class NumType>
 inline void Polygon2D<NumType>::createArrow(
    const Polygon2D<NumType>& base_points, 
    const std::function<float(const Vector2D<NumType>& point_position, const int point_num)>& thickness, 
+   const Polygon2D<NumType> dock_at_begin,
+   const Polygon2D<NumType> dock_at_end,
    const Polygon2D<NumType>& arrow_head,
    const Polygon2D<NumType>& arrow_end, 
    const Vector2D<NumType>& head_factor, 
@@ -788,6 +794,7 @@ inline void Polygon2D<NumType>::createArrow(
    float thickness_first = thickness(base_points.points_[0], 0);
 
    // Arrow head.
+   addAll(dock_at_begin);
    createArrowEnd(base_points, arrow_head, head_factor, thickness_first, pointList2, true);
 
    Vector2D<NumType> c1(base_points.points_[1]);
@@ -814,7 +821,7 @@ inline void Polygon2D<NumType>::createArrow(
       pointList2.add(tempPoints.points_[1]);
       
       if (p.intersect(q)) {
-         std::cout << "Segment could not be placed without an intersection at point: " << base_points.points_[i].serialize() << std::endl;
+         Failable::getSingleton()->addDebug("Segment could not be placed without an intersection at point: " + base_points.points_[i].serialize());
       }
    }
 
@@ -835,6 +842,7 @@ inline void Polygon2D<NumType>::createArrow(
    pointList2.add(p12);
 
    // Arrow end.
+   addAll(dock_at_end);
    createArrowEnd(base_points, arrow_end, end_factor, thickness_last, *this, false);
 
    for (int i = pointList2.points_.size() - 1; i >= 0; i--) {
@@ -846,17 +854,21 @@ template<class NumType>
 inline void Polygon2D<NumType>::createArrow(
    const Polygon2D<NumType>& base_points, 
    const float thickness,
+   const Polygon2D<NumType> dock_at_begin,
+   const Polygon2D<NumType> dock_at_end,
    const Polygon2D<NumType>& arrow_head,
    const Polygon2D<NumType>& arrow_end, 
    const Vector2D<NumType>& head_factor, 
    const Vector2D<NumType>& end_factor)
 {
    createArrow(base_points,
-   [thickness](const Vector2D<NumType>& point_position, const int point_num){return thickness;},
-   arrow_head,
-   arrow_end,
-   head_factor,
-   end_factor);
+      [thickness](const Vector2D<NumType>& point_position, const int point_num){return thickness;},
+      dock_at_begin,
+      dock_at_end,
+      arrow_head,
+      arrow_end,
+      head_factor,
+      end_factor);
 }
 
 template<class NumType>
@@ -1126,6 +1138,8 @@ inline std::vector<Polygon2D<NumType>> Polygon2D<NumType>::erzeugePfeilsegmente(
       aktPol.createArrow(
          aktPunkte,
          thickness,
+         {},
+         {},
          pfeilAnfang[i],
          pfeilEnde[i],
          faktorAnfang[i],

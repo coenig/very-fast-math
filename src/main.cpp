@@ -85,13 +85,13 @@ int main(int argc, char* argv[])
    r1->setOriginPoint({ 0, 0 });
    r1->setAngle(0);
    r2->setMyRoad(section2);
-   r2->setOriginPoint({ 70, 5 });
-   r2->setAngle(3.1415 / 2.5);
+   r2->setOriginPoint({ 75, 5 });
+   r2->setAngle(3.1415 / 2.1);
    r3->setMyRoad(section3);
-   r3->setOriginPoint({ r3->getMyRoad().getLength() + 70 + vfm::LANE_WIDTH, 3 * vfm::LANE_WIDTH / vfm::LANE_WIDTH });
+   r3->setOriginPoint({ r3->getMyRoad().getLength() + 80 + vfm::LANE_WIDTH, 3 * vfm::LANE_WIDTH / vfm::LANE_WIDTH });
    r3->setAngle(-3.1415);
    r4->setMyRoad(section4);
-   r4->setOriginPoint({ 52, -2.5 });
+   r4->setOriginPoint({ 57, -2.5 });
    r4->setAngle(-3.1415 / 1.5);
    r1->addSuccessor(r2);
    r3->addSuccessor(r2);
