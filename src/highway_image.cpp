@@ -217,7 +217,7 @@ void createArrows(const float pos_x, const float future_pos_x, const float pos_y
          return (3 + ((float)point_num) * 7 / 100) / THICKNESS_REDUCTION;
       };
 
-      pol.createArrow(bez, thickness_func, ARROW_END_PLAIN_LINE, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 0.50, 1.0f / ARROW_HEAD_REDUCTION });
+      pol.createArrow(bez, thickness_func, {}, {}, ARROW_END_PLAIN_LINE, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 0.50, 1.0f / ARROW_HEAD_REDUCTION });
       arrow_polygons.push_back(pol);
       //arrow_polygons.push_back({ {pos_x - 2, pos_y - 2}, {future_pos_x - 2, future_pos_y - 2}, {future_pos_x + 2, future_pos_y + 2}, {pos_x + 2, pos_y + 2} });
    }
@@ -497,18 +497,31 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          top_right_second_1.sub({ 0, MAGIC_NUMBER * 2 });
          top_left_corner_1.sub({ 0, MAGIC_NUMBER * 2 });
          top_left_second_1.sub({ 0, MAGIC_NUMBER * 2 });
+         auto middle_top_left = top_left_corner_1;
+         middle_top_left.add(top_left_corner_2);
+         middle_top_left.div(2);
+         auto middle_top_left_second = top_left_second_1;
+         middle_top_left_second.add(top_left_second_2);
+         middle_top_left_second.div(2);
+         auto middle_top_right = top_right_corner_1;
+         middle_top_right.add(top_right_corner_2);
+         middle_top_right.div(2);
+         auto middle_top_right_second = top_right_second_1;
+         middle_top_right_second.add(top_right_second_2);
+         middle_top_right_second.div(2);
+
          //connections.insert(connections.begin(), ConnectorPolygonEnding{
          //   ConnectorPolygonEnding::Side::source,
-         //   Lin2D{ top_left_corner_1, top_left_second_1 }, // outgoing
-         //   Lin2D{ top_left_corner_2, top_left_second_2 }, // incoming
+         //   Lin2D{ middle_top_left, middle_top_left_second }, // incoming
+         //   MAGIC_NUMBER * 7.5,
          //   std::make_shared<Color>(LANE_MARKER_COLOR),
          //   1,
          //   getHighwayTranslator() });
 
          //connections.insert(connections.begin(), ConnectorPolygonEnding{
          //   ConnectorPolygonEnding::Side::drain,
-         //   Lin2D{ top_right_corner_2, top_right_second_2 }, // outgoing
-         //   Lin2D{ top_right_corner_1, top_right_second_1 }, // incoming
+         //   Lin2D{ middle_top_right, middle_top_right_second }, // outgoing
+         //   MAGIC_NUMBER * 7.5,
          //   std::make_shared<Color>(LANE_MARKER_COLOR),
          //   1,
          //   getHighwayTranslator() });
@@ -544,18 +557,31 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          bottom_left_second_1.sub({ 0, -MAGIC_NUMBER * 2 });
          bottom_left_corner_2.add({ 0, 0 });
          bottom_left_second_2.add({ 0, 0 });
+         auto middle_bottom_left = bottom_left_corner_1;
+         middle_bottom_left.add(bottom_left_corner_2);
+         middle_bottom_left.div(2);
+         auto middle_bottom_left_second = bottom_left_second_1;
+         middle_bottom_left_second.add(bottom_left_second_2);
+         middle_bottom_left_second.div(2);
+         auto middle_bottom_right = bottom_right_corner_1;
+         middle_bottom_right.add(bottom_right_corner_2);
+         middle_bottom_right.div(2);
+         auto middle_bottom_right_second = bottom_right_second_1;
+         middle_bottom_right_second.add(bottom_right_second_2);
+         middle_bottom_right_second.div(2);
+
          //connections.insert(connections.begin(), ConnectorPolygonEnding{
          //   ConnectorPolygonEnding::Side::source,
-         //   Lin2D{ bottom_left_corner_1, bottom_left_second_1 }, // outgoing
-         //   Lin2D{ bottom_left_corner_2, bottom_left_second_2 }, // incoming
+         //   Lin2D{ middle_bottom_left, middle_bottom_left_second }, // incoming
+         //   MAGIC_NUMBER * 7.5,
          //   std::make_shared<Color>(LANE_MARKER_COLOR),
          //   2,
          //   getHighwayTranslator() });
 
          //connections.insert(connections.begin(), ConnectorPolygonEnding{
          //   ConnectorPolygonEnding::Side::drain,
-         //   Lin2D{ bottom_right_corner_2, bottom_right_second_2 }, // outgoing
-         //   Lin2D{ bottom_right_corner_1, bottom_right_second_1 }, // incoming
+         //   Lin2D{ middle_bottom_right, middle_bottom_right_second }, // outgoing
+         //   MAGIC_NUMBER * 7.5,
          //   std::make_shared<Color>(LANE_MARKER_COLOR),
          //   2,
          //   getHighwayTranslator() });
@@ -566,12 +592,12 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
                Vec2D middle_second{ connection.connector_.direction_ };
 
                if (connection.side_ == ConnectorPolygonEnding::Side::drain) {
-                  connection.thick_ = middle_basepoint.distance(bottom_right_corner) * 4 - MAGIC_NUMBER * 12;
+                  connection.thick_ = middle_basepoint.distance(bottom_right_corner) * 4 - MAGIC_NUMBER * 11;
                   middle_basepoint.add(bottom_right_corner);
                   middle_second.add(bottom_right_second);
                }
                else if (connection.side_ == ConnectorPolygonEnding::Side::source) {
-                  connection.thick_ = middle_basepoint.distance(bottom_left_corner) * 4 - MAGIC_NUMBER * 12;
+                  connection.thick_ = middle_basepoint.distance(bottom_left_corner) * 4 - MAGIC_NUMBER * 11;
                   middle_basepoint.add(bottom_left_corner);
                   middle_second.add(bottom_left_second);
                }
@@ -917,30 +943,36 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    //rectangle(road_begin - ego_rel_pos, tl_orig_one_below_y, road_length, br_orig.y - tl_orig.y, BLACK, false);
 
    // Drains and sources.
-   auto bottom = tl_orig.y + br_orig.y - tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
-   auto top = tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
-   auto left = road_begin - ego_rel_pos;
-   auto right = left + road_length;
-   auto bottom_right_corner = Vec2D{ right, bottom };
-   auto bottom_left_corner  = Vec2D{ left, bottom };
-   auto top_right_corner    = Vec2D{ right, top };
-   auto top_left_corner     = Vec2D{ left, top };
+   const auto bottom = tl_orig.y + br_orig.y - tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
+   const auto top = tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
+   const auto left = road_begin - ego_rel_pos;
+   const auto right = left + road_length;
+   const auto bottom_right_corner = Vec2D{ right, bottom };
+   const auto bottom_left_corner  = Vec2D{ left, bottom };
+   const auto top_right_corner    = Vec2D{ right, top };
+   const auto top_left_corner     = Vec2D{ left, top };
+   auto middle_left = bottom_left_corner;
+   middle_left.add(top_left_corner);
+   middle_left.div(2);
+   auto middle_right = bottom_right_corner;
+   middle_right.add(top_right_corner);
+   middle_right.div(2);
 
-   //res.insert(res.begin(), ConnectorPolygonEnding{
-   //   ConnectorPolygonEnding::Side::drain,
-   //   Lin2D{ top_right_corner, top_left_corner },
-   //   Lin2D{ bottom_right_corner, bottom_left_corner },
-   //   std::make_shared<Color>(GRASS_COLOR),
-   //   0,
-   //   getHighwayTranslator() });
+   res.insert(res.begin(), ConnectorPolygonEnding{
+      ConnectorPolygonEnding::Side::drain,
+      Lin2D{ middle_right, middle_left }, // Outgoing
+      bottom_left_corner.distance(top_left_corner) * 3.75f,
+      std::make_shared<Color>(GRASS_COLOR),
+      0,
+      getHighwayTranslator() });
 
-   //res.insert(res.begin(), ConnectorPolygonEnding{
-   //   ConnectorPolygonEnding::Side::source,
-   //   Lin2D{ bottom_left_corner, bottom_right_corner },
-   //   Lin2D{ top_left_corner, top_right_corner },
-   //   std::make_shared<Color>(GRASS_COLOR),
-   //   0,
-   //   getHighwayTranslator() } );
+   res.insert(res.begin(), ConnectorPolygonEnding{
+      ConnectorPolygonEnding::Side::source,
+      Lin2D{ middle_left, middle_right }, // Incoming
+      bottom_left_corner.distance(top_left_corner) * 3.75f,
+      std::make_shared<Color>(GRASS_COLOR),
+      0,
+      getHighwayTranslator() } );
 
    return res;
 }
@@ -1025,32 +1057,53 @@ void vfm::HighwayImage::paintRoadGraph(
                      const auto b_connector_direction_translated = trans_b->translate(B.connector_.direction_);
                      const auto thick_a = A.thick_ * norm_length_a;
                      const auto thick_b = B.thick_ * norm_length_b;
+                     auto  dock_point_a1 = a_connector_basepoint_translated;
+                     auto  dock_point_a2 = a_connector_basepoint_translated;
+                     auto  dock_point_b1 = b_connector_basepoint_translated;
+                     auto  dock_point_b2 = b_connector_basepoint_translated;
                      Vec2D between1 = a_connector_basepoint_translated;
                      Vec2D between1_dir = a_connector_basepoint_translated;
                      between1_dir.sub(a_connector_direction_translated);
+                     Vec2D between1_dir_ortho{ between1_dir };
+                     between1_dir_ortho.ortho();
+                     between1_dir_ortho.setLength(thick_a / 2);
+                     dock_point_a1.add(between1_dir_ortho);
+                     dock_point_a2.sub(between1_dir_ortho);
+
                      between1_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
                      between1.add(between1_dir);
                      Vec2D between2 = b_connector_basepoint_translated;
                      Vec2D between2_dir = b_connector_basepoint_translated;
                      between2_dir.sub(b_connector_direction_translated);
+                     Vec2D between2_dir_ortho{ between2_dir };
+                     between2_dir_ortho.ortho();
+                     between2_dir_ortho.setLength(thick_b / 2);
+                     dock_point_b1.add(between2_dir_ortho);
+                     dock_point_b2.sub(between2_dir_ortho);
+
                      between2_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
                      between2.add(between2_dir);
 
-                     p.bezier(a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated, 0.4);
+                     p.bezier(a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated, 0.01);
                      Pol2D arrow{};
                      arrow.createArrow(p, [p, thick_a, thick_b](const Vec2D& point_position, const int point_num) -> float 
                      {
                         const float step{ (thick_b - thick_a) / p.points_.size() };
                         return thick_a + point_num * step;
-                     });
+                        }, { dock_point_a1, dock_point_a2 }, { dock_point_b1, dock_point_b2 });
 
                      //p.add(a_outgoing_basepoint_translated);
                      //p.add(b_incoming_basepoint_translated);
                      //p.add(b_outgoing_basepoint_translated);
                      //p.bezier(b_outgoing_basepoint_translated, between3, between4, a_incoming_basepoint_translated);
                      //p.add(a_incoming_basepoint_translated);
+                     if (*A.col_ == PAVEMENT_COLOR) {
+                        Pol2D arrow_square{};
+                        arrow_square.createArrow(arrow, 10);
+                        fillPolygon(arrow_square, LANE_MARKER_COLOR);
+                     }
                      fillPolygon(arrow, *A.col_);
-                     drawPolygon(arrow, BLACK, true, true, true);
+                     //drawPolygon(arrow, BLACK, true, true, true);
                   }
                }
             }
