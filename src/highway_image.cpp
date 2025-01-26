@@ -967,8 +967,10 @@ void vfm::HighwayImage::paintRoadGraph(
 
    setTranslator(std::make_shared<DefaultHighwayTranslator>());
 
+   std::vector<Pol2D> additional_arrows{};
+
    for (int i = 0; i <= 30; i++) {
-      r->applyToMeAndAllMySuccessorsAndPredecessors([this, i, &dim](const std::shared_ptr<RoadGraph> r) -> void
+      r->applyToMeAndAllMySuccessorsAndPredecessors([this, i, &dim, &additional_arrows](const std::shared_ptr<RoadGraph> r) -> void
       {
          for (const auto& r_succ : r->getSuccessors()) {
             for (const auto& A : r->connectors_) {
@@ -1021,7 +1023,7 @@ void vfm::HighwayImage::paintRoadGraph(
                      {
                         const float step{ (thick_b - thick_a) / p.points_.size() };
                         return thick_a + point_num * step;
-                        }, { /*dock_point_a1, dock_point_a2*/ }, { /*dock_point_b1, dock_point_b2*/ });
+                     }, { /*dock_point_a1, dock_point_a2*/ }, { /*dock_point_b1, dock_point_b2*/ });
 
                      //p.add(a_outgoing_basepoint_translated);
                      //p.add(b_incoming_basepoint_translated);
@@ -1033,6 +1035,17 @@ void vfm::HighwayImage::paintRoadGraph(
                         arrow.add(*arrow.points_.begin());
                         arrow_square.createArrow(arrow, 11.0f / 1500.0f * dim.x);
                         fillPolygon(arrow_square, LANE_MARKER_COLOR);
+                        Pol2D arrow_on_floor{};
+                        Pol2D p2{};
+                        float begin = p.points_.size() / 3.0f;
+                        float end = p.points_.size() - p.points_.size() / 3.0f;
+
+                        for (int i = begin; i <= end; i++) {
+                           p2.add(p.points_[i]);
+                        }
+
+                        arrow_on_floor.createArrow(p2, 1, {}, {}, ARROW_END_PPT_STYLE_1);
+                        additional_arrows.push_back(arrow_on_floor);
                      }
                      else {
                         fillPolygon(arrow, *A.col_);
@@ -1043,6 +1056,10 @@ void vfm::HighwayImage::paintRoadGraph(
             }
          }
       });
+   }
+
+   for (const auto& a : additional_arrows) {
+      fillPolygon(a, LANE_MARKER_COLOR);
    }
 
    setTranslator(old_trans);
