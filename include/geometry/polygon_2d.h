@@ -156,31 +156,31 @@ public:
                               const Vector2D<NumType>& end_factor, const float thick,
                               Polygon2D<NumType>& pointList, const bool head);
 
-   static std::vector<Polygon2D<NumType>> gestrichelterPfeil(
-      const Polygon2D<NumType>& punkte,
-      const float strichLenFaktor,
+   static std::vector<Polygon2D<NumType>> dashedArrow(
+      const Polygon2D<NumType>& points,
+      const float dashed_segments_factor,
       const std::function<float(const Vector2D<NumType>& point_position, const int point_num)>& thickness = [](const Vector2D<NumType>& point_position, const int point_num) {return 10.0; },
-      const Polygon2D<NumType>& pfeilAnfang = ARROW_END_PLAIN_LINE,
-      const Polygon2D<NumType>& pfeilEnde = ARROW_END_PLAIN_LINE,
-      const Vector2D<NumType>&  anfFaktor = { 1, 1 },
-      const Vector2D<NumType>&  endFaktor = { 1, 1 });
+      const Polygon2D<NumType>& arrow_begin = ARROW_END_PLAIN_LINE,
+      const Polygon2D<NumType>& arrow_end = ARROW_END_PLAIN_LINE,
+      const Vector2D<NumType>&  arrow_begin_factor = { 1, 1 },
+      const Vector2D<NumType>&  arrow_end_factor = { 1, 1 });
 
-   static std::vector<Polygon2D<NumType>> gestrichelterPfeil(
-      const Polygon2D<NumType>& punkte,
-      const float strichLenFaktor,
-      const float thickness,
-      const Polygon2D<NumType>& pfeilAnfang = ARROW_END_PLAIN_LINE,
-      const Polygon2D<NumType>& pfeilEnde = ARROW_END_PLAIN_LINE,
-      const Vector2D<NumType>& anfFaktor = { 1, 1 },
-      const Vector2D<NumType>& endFaktor = { 1, 1 });
+   static std::vector<Polygon2D<NumType>> dashedArrow(
+      const Polygon2D<NumType>& points,
+      const float dashed_segments_factor,
+      const float thickness = 10,
+      const Polygon2D<NumType>& arrow_begin = ARROW_END_PLAIN_LINE,
+      const Polygon2D<NumType>& arrow_end = ARROW_END_PLAIN_LINE,
+      const Vector2D<NumType>& arrow_begin_factor = { 1, 1 },
+      const Vector2D<NumType>& arrow_end_factor = { 1, 1 });
 
-   static std::vector<Polygon2D<NumType>> erzeugePfeilsegmente(
-      const Polygon2D<NumType>& punkte,
+   static std::vector<Polygon2D<NumType>> createArrowSegments(
+      const Polygon2D<NumType>& points,
       const std::function<float(const Vector2D<NumType>& point_position, const int point_num)>& thickness,
       std::vector<int>& beginn,
       std::vector<int>& ende,
-      std::vector<Polygon2D<NumType>>& pfeilAnfang,
-      std::vector<Polygon2D<NumType>>& pfeilEnde,
+      std::vector<Polygon2D<NumType>>& arrow_begin,
+      std::vector<Polygon2D<NumType>>& arrow_end,
       std::vector<Vector2D<NumType>>& faktorAnfang,
       std::vector<Vector2D<NumType>>& faktorEnde);
 
@@ -985,119 +985,119 @@ inline void Polygon2D<NumType>::extendBoundingBox(const Point& pt) const
 }
 
 template<class NumType>
-inline std::vector<Polygon2D<NumType>> Polygon2D<NumType>::gestrichelterPfeil(
-   const Polygon2D<NumType>& punkte, 
-   const float strichLenFaktor, 
+inline std::vector<Polygon2D<NumType>> Polygon2D<NumType>::dashedArrow(
+   const Polygon2D<NumType>& points, 
+   const float dashed_segments_factor, 
    const float thickness, 
-   const Polygon2D<NumType>& pfeilAnfang, 
-   const Polygon2D<NumType>& pfeilEnde, 
-   const Vector2D<NumType>& anfFaktor, 
-   const Vector2D<NumType>& endFaktor)
+   const Polygon2D<NumType>& arrow_begin, 
+   const Polygon2D<NumType>& arrow_end, 
+   const Vector2D<NumType>& arrow_begin_factor, 
+   const Vector2D<NumType>& arrow_end_factor)
 {
-   return gestrichelterPfeil(
-      punkte, 
-      strichLenFaktor, 
+   return dashedArrow(
+      points, 
+      dashed_segments_factor, 
       [thickness](const Vector2D<NumType>& point_position, const int point_num) { return thickness; },
-      pfeilAnfang,
-      pfeilEnde,
-      anfFaktor,
-      endFaktor);
+      arrow_begin,
+      arrow_end,
+      arrow_begin_factor,
+      arrow_end_factor);
 }
 
 /**
  * Erzeugt einen gestrichelten Pfeil mit verschiedenen Segmenttypen.
  *
- * @param punkte           Die Punkte des Pfeils.
+ * @param points           Die points des Pfeils.
  * @param dicken           Die Dicken des Pfeils.
- * @param pfeilAnfang      Das Pfeilanfangspolygon.
- * @param pfeilEnde        Das Pfeilendepolygon.
- * @param anfFaktor        Der Anfangsfaktor.
- * @param endFaktor        Der Endfaktor.
+ * @param arrow_begin      Das arrow_beginspolygon.
+ * @param arrow_end        Das arrow_endpolygon.
+ * @param arrow_begin_factor        Der Anfangsfaktor.
+ * @param arrow_end_factor        Der arrow_end_factor.
  * @param farben           Eine beliebige Liste sich abwechselnder
  *                         Ausgabemerkmale. Ist hier ein Eintrag
  *                         <code>null</code>, wird kein Ausgabemerkmal
  *                         für die Segmente definiert.
- * @param strichLenFaktor  Multiplikativer Faktor für die Länge eines
+ * @param dashed_segments_factor  Multiplikativer Faktor für die Länge eines
  *                         Segments bezogen auf die durchschnittliche
  *                         Dicke des Pfeils.
  * @param params           Die Parameter.
  * @return  Der gestrichelte Pfeil als Menge von Segmentpolygonen.
  */
 template<class NumType>
-inline std::vector<Polygon2D<NumType>> Polygon2D<NumType>::gestrichelterPfeil(
-   const Polygon2D<NumType>& punkte,
-   const float strichLenFaktor,
+inline std::vector<Polygon2D<NumType>> Polygon2D<NumType>::dashedArrow(
+   const Polygon2D<NumType>& points,
+   const float dashed_segments_factor,
    const std::function<float(const Vector2D<NumType>& point_position, const int point_num)>& thickness,
-   const Polygon2D<NumType>& pfeilAnfang,
-   const Polygon2D<NumType>& pfeilEnde,
-   const Vector2D<NumType>&  anfFaktor,
-   const Vector2D<NumType>&  endFaktor) 
+   const Polygon2D<NumType>& arrow_begin,
+   const Polygon2D<NumType>& arrow_end,
+   const Vector2D<NumType>&  arrow_begin_factor,
+   const Vector2D<NumType>&  arrow_end_factor) 
 {
-   const double konstFakt = 3 * strichLenFaktor;
-   float strLaeng;
-   float durchDick = 0;
-   float durchAbst = 0;
-   float anzPunkte;
-   int j;
-   Polygon2D<NumType> anfang;
-   Polygon2D<NumType> ende;
-   float mehrPunkte;
-   float anzSegmente;
+   const double konstFakt{ 3 * dashed_segments_factor };
+   float strLaeng{};
+   float durchDick{ 0 };
+   float durchAbst{ 0 };
+   float anzpoints{};
+   int j{};
+   Polygon2D<NumType> anfang{};
+   Polygon2D<NumType> ende{};
+   float mehrpoints{};
+   float anzSegmente{};
 
-   for (int i = 0; i < punkte.points_.size(); i++) {
+   for (int i = 0; i < points.points_.size(); i++) {
       durchDick += std::abs(thickness({ 0, 0 }, i));
    }
-   durchDick /= punkte.points_.size();
+   durchDick /= points.points_.size();
 
-   for (int i = 0; i < punkte.points_.size() - 2; i++) {
-      durchAbst += punkte.points_.at(i).distance(punkte.points_.at(i + 1));
+   for (int i = 0; i < points.points_.size() - 2; i++) {
+      durchAbst += points.points_.at(i).distance(points.points_.at(i + 1));
    }
-   durchAbst /= punkte.points_.size() - 1;
+   durchAbst /= points.points_.size() - 1;
    strLaeng = durchDick * konstFakt;
-   anzPunkte = strLaeng / durchAbst;
+   anzpoints = strLaeng / durchAbst;
 
-   if (anzPunkte == 0) {
-      return gestrichelterPfeil(
-         punkte,
-         strichLenFaktor + 1,
+   if (anzpoints == 0) {
+      return dashedArrow(
+         points,
+         dashed_segments_factor + 1,
          thickness,
-         pfeilAnfang,
-         pfeilEnde,
-         anfFaktor,
-         endFaktor);
+         arrow_begin,
+         arrow_end,
+         arrow_begin_factor,
+         arrow_end_factor);
    }
 
    std::vector<int> beginns;
    std::vector<int> endes;
-   std::vector<Polygon2D<NumType>> pfeilAnfangs;
-   std::vector<Polygon2D<NumType>> pfeilEndes;
+   std::vector<Polygon2D<NumType>> arrow_begins;
+   std::vector<Polygon2D<NumType>> arrow_ends;
    std::vector<Vector2D<NumType>> faktorAnfangs;
    std::vector<Vector2D<NumType>> faktorEndes;
 
-   anzSegmente = punkte.points_.size() / anzPunkte;
-   mehrPunkte = fmodf(punkte.points_.size(), anzPunkte);
-   anzPunkte += mehrPunkte / ((int)anzSegmente + 1);
+   anzSegmente = points.points_.size() / anzpoints;
+   mehrpoints = fmodf(points.points_.size(), anzpoints);
+   anzpoints += mehrpoints / ((int)anzSegmente + 1);
 
-   for (float i = 0; i <= punkte.points_.size() - anzPunkte; i += anzPunkte) {
+   for (float i = 0; i <= points.points_.size() - anzpoints; i += anzpoints) {
       anfang = ARROW_END_PLAIN_LINE;
       ende = ARROW_END_PLAIN_LINE;
       if (i == 0) {
-         anfang = pfeilAnfang;
+         anfang = arrow_begin;
       }
-      if (i + anzPunkte > punkte.points_.size() - anzPunkte) {
-         ende = pfeilEnde;
-         anzPunkte = punkte.points_.size() - i - 1;
+      if (i + anzpoints > points.points_.size() - anzpoints) {
+         ende = arrow_end;
+         anzpoints = points.points_.size() - i - 1;
       }
 
       beginns.push_back((int) i);
-      endes.push_back((int)(i + anzPunkte));
-      pfeilAnfangs.push_back(anfang);
-      pfeilEndes.push_back(ende);
-      faktorAnfangs.push_back(anfFaktor);
-      faktorEndes.push_back(endFaktor);
+      endes.push_back((int)(i + anzpoints));
+      arrow_begins.push_back(anfang);
+      arrow_ends.push_back(ende);
+      faktorAnfangs.push_back(arrow_begin_factor);
+      faktorEndes.push_back(arrow_end_factor);
    }
 
-   return erzeugePfeilsegmente(punkte, thickness, beginns, endes, pfeilAnfangs, pfeilEndes, faktorAnfangs, faktorEndes);
+   return createArrowSegments(points, thickness, beginns, endes, arrow_begins, arrow_ends, faktorAnfangs, faktorEndes);
 }
 
 /**
@@ -1105,22 +1105,22 @@ inline std::vector<Polygon2D<NumType>> Polygon2D<NumType>::gestrichelterPfeil(
  * eines Pfeils zurück, wobei die Ausgabemerkmale für jedes zus.
  * Teilsegment einzeln eingestellt werden können.
  *
- * @param punkte       Die Punkte, durch die der Pfeil verlaufen soll.
+ * @param points       Die points, durch die der Pfeil verlaufen soll.
  * @param dicken       Die Dicken des Pfeils an den Stellen der
- *                     Verlaufspunkte.
+ *                     Verlaufspoints.
  * @param segBeschr    Die Beschreibungen einzelner Segmente.
  * @param params       Die Parameter.
  *
  * @return  Die Teilsegmente eines Pfeil aus mehreren Segmenten.
  */
 template<class NumType>
-inline std::vector<Polygon2D<NumType>> Polygon2D<NumType>::erzeugePfeilsegmente(
-   const Polygon2D<NumType>& punkte,
+inline std::vector<Polygon2D<NumType>> Polygon2D<NumType>::createArrowSegments(
+   const Polygon2D<NumType>& points,
    const std::function<float(const Vector2D<NumType>& point_position, const int point_num)>& thickness,
    std::vector<int>& beginn,
    std::vector<int>& ende,
-   std::vector<Polygon2D<NumType>>& pfeilAnfang,
-   std::vector<Polygon2D<NumType>>& pfeilEnde,
+   std::vector<Polygon2D<NumType>>& arrow_begin,
+   std::vector<Polygon2D<NumType>>& arrow_end,
    std::vector<Vector2D<NumType>>& faktorAnfang,
    std::vector<Vector2D<NumType>>& faktorEnde)
 {
@@ -1129,19 +1129,19 @@ inline std::vector<Polygon2D<NumType>> Polygon2D<NumType>::erzeugePfeilsegmente(
 
    for (int i = 0; i < beginn.size(); i++) {
       Polygon2D<NumType> aktPol;
-      Polygon2D<NumType> aktPunkte;
+      Polygon2D<NumType> aktpoints;
 
       for (int j = beginn[i]; j <= ende[i]; j++) {
-         aktPunkte.add(punkte.points_.at(j));
+         aktpoints.add(points.points_.at(j));
       }
 
       aktPol.createArrow(
-         aktPunkte,
+         aktpoints,
          thickness,
          {},
          {},
-         pfeilAnfang[i],
-         pfeilEnde[i],
+         arrow_begin[i],
+         arrow_end[i],
          faktorAnfang[i],
          faktorEnde[i]);
 
