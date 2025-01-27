@@ -1133,7 +1133,7 @@ void vfm::Image::paintSimpleCurvedRoadSegment(
    fillPolygon(arrow, vfm::GREY);
 
    for (int i = 0; i < num_lanes - 1; i++) {
-      auto segments = Pol2D::gestrichelterPfeil(clothoid, 3, 3);
+      auto segments = Pol2D::dashedArrow(clothoid, 3, 3);
       drawPolygons(segments, { { nullptr, std::make_shared<Color>(WHITE)}, {nullptr, nullptr} });
    }
 

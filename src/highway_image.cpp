@@ -944,7 +944,7 @@ void vfm::HighwayImage::paintRoadGraph(
                r_sub->getAngle() * mirrored, 
                { middle.x, middle.y });
             auto res = plain_2d_translator_.reverseTranslate(v2);
-            return { res.x + (old_trans->is3D() ? 0 : 200), res.y + (old_trans->is3D() ? 0 : 20), v_raw.z }; // TODO
+            return { res.x + (old_trans->is3D() ? 0 : 0), res.y + (old_trans->is3D() ? 0 : 20), v_raw.z }; // TODO
          },
          [this, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
             Vec3D v{ plain_2d_translator_.reverseTranslate(v_raw.projectToXY()) };
@@ -1035,17 +1035,18 @@ void vfm::HighwayImage::paintRoadGraph(
                         arrow.add(*arrow.points_.begin());
                         arrow_square.createArrow(arrow, 11.0f / 1500.0f * dim.x);
                         fillPolygon(arrow_square, LANE_MARKER_COLOR);
-                        Pol2D arrow_on_floor{};
                         Pol2D p2{};
-                        float begin = p.points_.size() / 3.0f;
-                        float end = p.points_.size() - p.points_.size() / 3.0f;
+                        float begin = p.points_.size() / 4.0f;
+                        float end = p.points_.size() - p.points_.size() / 4.0f;
 
                         for (int i = begin; i <= end; i++) {
                            p2.add(p.points_[i]);
                         }
 
-                        arrow_on_floor.createArrow(p2, 1, {}, {}, ARROW_END_PPT_STYLE_1);
-                        additional_arrows.push_back(arrow_on_floor);
+                        auto vec = Pol2D::dashedArrow(p2, 1, 0.7, {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 1.5, 1.5 });
+                        for (int i = 0; i < vec.size(); i++) 
+                           if (i % 2 || i == vec.size() - 1)
+                              additional_arrows.push_back(vec[i]);
                      }
                      else {
                         fillPolygon(arrow, *A.col_);
@@ -1059,7 +1060,7 @@ void vfm::HighwayImage::paintRoadGraph(
    }
 
    for (const auto& a : additional_arrows) {
-      fillPolygon(a, LANE_MARKER_COLOR);
+      fillPolygon(a, DARK_GREY);
    }
 
    setTranslator(old_trans);
