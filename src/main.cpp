@@ -106,9 +106,9 @@ int main(int argc, char* argv[])
    ////image3.store("test3D", OutputType::png);
    //termnate();
 
-   LaneSegment segment11{ 0, 0, 0 };
-   StraightRoadSection section1{ 1, 50 };
-   StraightRoadSection section1e{ 1, 50 };
+   LaneSegment segment11{ 0, 0, 4 };
+   StraightRoadSection section1{ 3, 50 };
+   StraightRoadSection section1e{ 4, 50 };
    section1.addLaneSegment(segment11);
    section1e.addLaneSegment(segment11);
    std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(0, 0, 13, HighwayImage::EGO_MOCK_ID);

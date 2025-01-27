@@ -961,7 +961,7 @@ template<class NumType>
 inline void Polygon2D<NumType>::extendBoundingBox(const Point& pt) const
 {
    if (pt.x != pt.x || pt.y != pt.y) {
-      Failable::getSingleton()->addError("NAN occurred in polygon generation.");
+      Failable::getSingleton()->addDebug("NAN occurred in polygon generation.");
       return;
    }
 

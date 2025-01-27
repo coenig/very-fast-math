@@ -68,7 +68,7 @@ void StraightRoadSection::cleanUp()
 
    for (auto& segment : segments_) {
       if (segment.second.getMaxLane() > overall_max_lane || segment.second.getMinLane() < overall_min_lane) {
-         addError("Invalid segment " + segment.second.toString() + " for lane number " + std::to_string(num_lanes_) + ". Skipping this segment.");
+         addFatalError("Invalid segment " + segment.second.toString() + " for lane number " + std::to_string(num_lanes_) + ". Skipping this segment.");
          segment.second.screwUpBegin();
          change_occurred = true;
       }
