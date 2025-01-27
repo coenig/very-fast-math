@@ -929,9 +929,10 @@ void vfm::HighwayImage::paintRoadGraph(
    }
 
    for (const auto r_sub : all_nodes_ego_in_front) {
-      auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
+      const auto section_max_lanes = r_sub->getMyRoad().getNumLanes();
+      const auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
          old_trans,
-         [this, mirrored, r_sub, ego_pos, ego_lane, r_ego, old_trans](const Vec3D& v_raw) -> Vec3D {
+         [this, mirrored, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans](const Vec3D& v_raw) -> Vec3D {
             Vec2D vv{ v_raw.x, v_raw.y };
             float origin_x{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos) };
             float origin_y{ r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0)};
@@ -939,12 +940,12 @@ void vfm::HighwayImage::paintRoadGraph(
             vv.add({ origin_x, origin_y });
             Vec3D v{ plain_2d_translator_.translate(vv) };
             Vec2D v2{ v.x, v.y };
-            auto middle = plain_2d_translator_.translate({ origin_x, origin_y });
+            auto middle = plain_2d_translator_.translate({ origin_x, origin_y + (section_max_lanes / 2.0f) - 0.5f });
             v2.rotate(
                r_sub->getAngle() * mirrored, 
                { middle.x, middle.y });
             auto res = plain_2d_translator_.reverseTranslate(v2);
-            return { res.x + (old_trans->is3D() ? 0 : 0), res.y + (old_trans->is3D() ? 0 : 20), v_raw.z }; // TODO
+            return { res.x + (old_trans->is3D() ? 0 : 0), res.y + (old_trans->is3D() ? 0 : 0), v_raw.z }; // TODO
          },
          [this, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
             Vec3D v{ plain_2d_translator_.reverseTranslate(v_raw.projectToXY()) };
