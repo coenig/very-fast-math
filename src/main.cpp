@@ -139,16 +139,17 @@ int main(int argc, char* argv[])
    r8->setMyRoad(section1e);
    r1->setOriginPoint({ 0, 0 });
    r1->setAngle(0);
-   r2->setOriginPoint({ 62, 2 * 3.75 });
+   r2->setOriginPoint({ 50, 0 });
    r2->setAngle(3.1415 / 3);
-   r3->setOriginPoint({ 87, 18 * 3.75 });
+   r3->setOriginPoint({ 75, 43.3 });
    r3->setAngle(2 * 3.1415 / 3);
-   r4->setOriginPoint({ 50, 31.5 * 3.75 });
+   r4->setOriginPoint({ 50, 86.6 });
    r4->setAngle(3.1415);
-   r5->setOriginPoint({ -11, 29.5 * 3.75 });
+   r5->setOriginPoint({ 0, 86.6 });
    r5->setAngle(4 * 3.1415 / 3);
-   r6->setOriginPoint({ -37, 13.5 * 3.75 });
+   r6->setOriginPoint({ -25, 43.3 });
    r6->setAngle(5 * 3.1415 / 3);
+
    r7->setOriginPoint({ 130, 12.5 * 3.75 });
    r7->setAngle(0);
    r8->setOriginPoint({ 180, 19 * 3.75 });

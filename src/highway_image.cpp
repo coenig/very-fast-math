@@ -965,103 +965,103 @@ void vfm::HighwayImage::paintRoadGraph(
          dim);
    }
 
-   setTranslator(std::make_shared<DefaultHighwayTranslator>());
+   //setTranslator(std::make_shared<DefaultHighwayTranslator>());
 
-   std::vector<Pol2D> additional_arrows{};
+   //std::vector<Pol2D> additional_arrows{};
 
-   for (int i = 0; i <= 30; i++) {
-      r->applyToMeAndAllMySuccessorsAndPredecessors([this, i, &dim, &additional_arrows](const std::shared_ptr<RoadGraph> r) -> void
-      {
-         for (const auto& r_succ : r->getSuccessors()) {
-            for (const auto& A : r->connectors_) {
-               for (const auto& B : r_succ->connectors_) {
-                  if (A.id_ == i && A.id_ == B.id_ && A.side_ == ConnectorPolygonEnding::Side::drain && B.side_ == ConnectorPolygonEnding::Side::source) {
-                     auto trans_a = A.my_trans_;
-                     auto trans_b = B.my_trans_;
+   //for (int i = 0; i <= 30; i++) {
+   //   r->applyToMeAndAllMySuccessorsAndPredecessors([this, i, &dim, &additional_arrows](const std::shared_ptr<RoadGraph> r) -> void
+   //   {
+   //      for (const auto& r_succ : r->getSuccessors()) {
+   //         for (const auto& A : r->connectors_) {
+   //            for (const auto& B : r_succ->connectors_) {
+   //               if (A.id_ == i && A.id_ == B.id_ && A.side_ == ConnectorPolygonEnding::Side::drain && B.side_ == ConnectorPolygonEnding::Side::source) {
+   //                  auto trans_a = A.my_trans_;
+   //                  auto trans_b = B.my_trans_;
 
-                     assert(*A.col_ == *B.col_);
+   //                  assert(*A.col_ == *B.col_);
 
-                     Pol2D p{};
-                     const auto norm_length_a = trans_a->translate({ 0, 0 }).distance(trans_a->translate({ 1, 0 }));
-                     const auto norm_length_b = trans_b->translate({ 0, 0 }).distance(trans_b->translate({ 1, 0 }));
-                     const auto a_connector_basepoint_translated = trans_a->translate(A.connector_.base_point_);
-                     const auto a_connector_direction_translated = trans_a->translate(A.connector_.direction_);
-                     const auto b_connector_basepoint_translated = trans_b->translate(B.connector_.base_point_);
-                     const auto b_connector_direction_translated = trans_b->translate(B.connector_.direction_);
-                     const auto thick_a = A.thick_ * norm_length_a;
-                     const auto thick_b = B.thick_ * norm_length_b;
-                     auto  dock_point_a1 = a_connector_basepoint_translated;
-                     auto  dock_point_a2 = a_connector_basepoint_translated;
-                     auto  dock_point_b1 = b_connector_basepoint_translated;
-                     auto  dock_point_b2 = b_connector_basepoint_translated;
-                     Vec2D between1 = a_connector_basepoint_translated;
-                     Vec2D between1_dir = a_connector_basepoint_translated;
-                     between1_dir.sub(a_connector_direction_translated);
-                     Vec2D between1_dir_ortho{ between1_dir };
-                     between1_dir_ortho.ortho();
-                     between1_dir_ortho.setLength(thick_a / 2);
-                     dock_point_a1.add(between1_dir_ortho);
-                     dock_point_a2.sub(between1_dir_ortho);
+   //                  Pol2D p{};
+   //                  const auto norm_length_a = trans_a->translate({ 0, 0 }).distance(trans_a->translate({ 1, 0 }));
+   //                  const auto norm_length_b = trans_b->translate({ 0, 0 }).distance(trans_b->translate({ 1, 0 }));
+   //                  const auto a_connector_basepoint_translated = trans_a->translate(A.connector_.base_point_);
+   //                  const auto a_connector_direction_translated = trans_a->translate(A.connector_.direction_);
+   //                  const auto b_connector_basepoint_translated = trans_b->translate(B.connector_.base_point_);
+   //                  const auto b_connector_direction_translated = trans_b->translate(B.connector_.direction_);
+   //                  const auto thick_a = A.thick_ * norm_length_a;
+   //                  const auto thick_b = B.thick_ * norm_length_b;
+   //                  auto  dock_point_a1 = a_connector_basepoint_translated;
+   //                  auto  dock_point_a2 = a_connector_basepoint_translated;
+   //                  auto  dock_point_b1 = b_connector_basepoint_translated;
+   //                  auto  dock_point_b2 = b_connector_basepoint_translated;
+   //                  Vec2D between1 = a_connector_basepoint_translated;
+   //                  Vec2D between1_dir = a_connector_basepoint_translated;
+   //                  between1_dir.sub(a_connector_direction_translated);
+   //                  Vec2D between1_dir_ortho{ between1_dir };
+   //                  between1_dir_ortho.ortho();
+   //                  between1_dir_ortho.setLength(thick_a / 2);
+   //                  dock_point_a1.add(between1_dir_ortho);
+   //                  dock_point_a2.sub(between1_dir_ortho);
 
-                     between1_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
-                     between1.add(between1_dir);
-                     Vec2D between2 = b_connector_basepoint_translated;
-                     Vec2D between2_dir = b_connector_basepoint_translated;
-                     between2_dir.sub(b_connector_direction_translated);
-                     Vec2D between2_dir_ortho{ between2_dir };
-                     between2_dir_ortho.ortho();
-                     between2_dir_ortho.setLength(thick_b / 2);
-                     dock_point_b1.add(between2_dir_ortho);
-                     dock_point_b2.sub(between2_dir_ortho);
+   //                  between1_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
+   //                  between1.add(between1_dir);
+   //                  Vec2D between2 = b_connector_basepoint_translated;
+   //                  Vec2D between2_dir = b_connector_basepoint_translated;
+   //                  between2_dir.sub(b_connector_direction_translated);
+   //                  Vec2D between2_dir_ortho{ between2_dir };
+   //                  between2_dir_ortho.ortho();
+   //                  between2_dir_ortho.setLength(thick_b / 2);
+   //                  dock_point_b1.add(between2_dir_ortho);
+   //                  dock_point_b2.sub(between2_dir_ortho);
 
-                     between2_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
-                     between2.add(between2_dir);
+   //                  between2_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
+   //                  between2.add(between2_dir);
 
-                     p.bezier(a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated, 0.001);
-                     Pol2D arrow{};
-                     arrow.createArrow(p, [p, thick_a, thick_b](const Vec2D& point_position, const int point_num) -> float 
-                     {
-                        const float step{ (thick_b - thick_a) / p.points_.size() };
-                        return thick_a + point_num * step;
-                     }, { /*dock_point_a1, dock_point_a2*/ }, { /*dock_point_b1, dock_point_b2*/ });
+   //                  p.bezier(a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated, 0.001);
+   //                  Pol2D arrow{};
+   //                  arrow.createArrow(p, [p, thick_a, thick_b](const Vec2D& point_position, const int point_num) -> float 
+   //                  {
+   //                     const float step{ (thick_b - thick_a) / p.points_.size() };
+   //                     return thick_a + point_num * step;
+   //                  }, { /*dock_point_a1, dock_point_a2*/ }, { /*dock_point_b1, dock_point_b2*/ });
 
-                     //p.add(a_outgoing_basepoint_translated);
-                     //p.add(b_incoming_basepoint_translated);
-                     //p.add(b_outgoing_basepoint_translated);
-                     //p.bezier(b_outgoing_basepoint_translated, between3, between4, a_incoming_basepoint_translated);
-                     //p.add(a_incoming_basepoint_translated);
-                     if (*A.col_ == Color{0, 0, 0, 0}) {
-                        Pol2D arrow_square{};
-                        arrow.add(*arrow.points_.begin());
-                        arrow_square.createArrow(arrow, 11.0f / 1500.0f * dim.x);
-                        fillPolygon(arrow_square, LANE_MARKER_COLOR);
-                        Pol2D p2{};
-                        float begin = p.points_.size() / 4.0f;
-                        float end = p.points_.size() - p.points_.size() / 4.0f;
+   //                  //p.add(a_outgoing_basepoint_translated);
+   //                  //p.add(b_incoming_basepoint_translated);
+   //                  //p.add(b_outgoing_basepoint_translated);
+   //                  //p.bezier(b_outgoing_basepoint_translated, between3, between4, a_incoming_basepoint_translated);
+   //                  //p.add(a_incoming_basepoint_translated);
+   //                  if (*A.col_ == Color{0, 0, 0, 0}) {
+   //                     Pol2D arrow_square{};
+   //                     arrow.add(*arrow.points_.begin());
+   //                     arrow_square.createArrow(arrow, 11.0f / 1500.0f * dim.x);
+   //                     fillPolygon(arrow_square, LANE_MARKER_COLOR);
+   //                     Pol2D p2{};
+   //                     float begin = p.points_.size() / 4.0f;
+   //                     float end = p.points_.size() - p.points_.size() / 4.0f;
 
-                        for (int i = begin; i <= end; i++) {
-                           p2.add(p.points_[i]);
-                        }
+   //                     for (int i = begin; i <= end; i++) {
+   //                        p2.add(p.points_[i]);
+   //                     }
 
-                        auto vec = Pol2D::dashedArrow(p2, 1, 2.0f / 1500.0f * dim.x, {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 1.5, 1.5 });
-                        for (int i = 0; i < vec.size(); i++) 
-                           if (i % 2 || i == vec.size() - 1)
-                              additional_arrows.push_back(vec[i]);
-                     }
-                     else {
-                        fillPolygon(arrow, *A.col_);
-                     }
-                     //drawPolygon(arrow, BLACK, true, true, true);
-                  }
-               }
-            }
-         }
-      });
-   }
+   //                     auto vec = Pol2D::dashedArrow(p2, 1, 2.0f / 1500.0f * dim.x, {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 1.5, 1.5 });
+   //                     for (int i = 0; i < vec.size(); i++) 
+   //                        if (i % 2 || i == vec.size() - 1)
+   //                           additional_arrows.push_back(vec[i]);
+   //                  }
+   //                  else {
+   //                     fillPolygon(arrow, *A.col_);
+   //                  }
+   //                  //drawPolygon(arrow, BLACK, true, true, true);
+   //               }
+   //            }
+   //         }
+   //      }
+   //   });
+   //}
 
-   for (const auto& a : additional_arrows) {
-      fillPolygon(a, DARK_GREY);
-   }
+   //for (const auto& a : additional_arrows) {
+   //   fillPolygon(a, DARK_GREY);
+   //}
 
    setTranslator(old_trans);
 }
