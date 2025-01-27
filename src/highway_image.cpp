@@ -1043,7 +1043,7 @@ void vfm::HighwayImage::paintRoadGraph(
                            p2.add(p.points_[i]);
                         }
 
-                        auto vec = Pol2D::dashedArrow(p2, 1, 0.7, {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 1.5, 1.5 });
+                        auto vec = Pol2D::dashedArrow(p2, 1, 2.0f / 1500.0f * dim.x, {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 1.5, 1.5 });
                         for (int i = 0; i < vec.size(); i++) 
                            if (i % 2 || i == vec.size() - 1)
                               additional_arrows.push_back(vec[i]);
