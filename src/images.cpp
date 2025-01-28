@@ -575,12 +575,15 @@ void vfm::Image::lineUnsafe(const Vec2Df& src, const Vec2Df& dest, const Color& 
 }
 
 void Image::circle(
-   const int x0,
-   const int y0,
+   const int x0_raw,
+   const int y0_raw,
    const int radius,
    const Color& col)
 {
    // TODO: Not supported in PDF, yet.
+   const Vec2D point{ translator_->translate({ (float) x0_raw, (float)y0_raw }) };
+   const float x0{ point.x };
+   const float y0{ point.y };
 
    int f = 1 - radius;
    int ddF_x = 0;

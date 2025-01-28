@@ -128,7 +128,7 @@ int main(int argc, char* argv[])
    auto r5 = std::make_shared<RoadGraph>(5);
    auto r6 = std::make_shared<RoadGraph>(6);
    auto r7 = std::make_shared<RoadGraph>(7);
-   //auto r8 = std::make_shared<RoadGraph>(8);
+   auto r8 = std::make_shared<RoadGraph>(8);
    r1->setMyRoad(section1e);
    r2->setMyRoad(section1);
    r3->setMyRoad(section1);
@@ -136,7 +136,7 @@ int main(int argc, char* argv[])
    r5->setMyRoad(section1);
    r6->setMyRoad(section1);
    r7->setMyRoad(section1);
-   //r8->setMyRoad(section1);
+   r8->setMyRoad(section1);
    constexpr float rad{ 55.0f };
    const Vec2D mid{ 25, rad };
    Vec2D p0{ 0, 0 };
@@ -172,15 +172,15 @@ int main(int argc, char* argv[])
 
    r7->setOriginPoint({ 120, 12.5 * 3.75 });
    r7->setAngle(0);
-   //r8->setOriginPoint({ 140, 19 * 3.75 });
-   //r8->setAngle(-3.1415);
+   r8->setOriginPoint({ 170, 19 * 3.75 });
+   r8->setAngle(-3.1415);
    r1->addSuccessor(r2);
    r2->addSuccessor(r3);
    r3->addSuccessor(r4);
    r4->addSuccessor(r5);
    r5->addSuccessor(r6);
    r6->addSuccessor(r1);
-   //r8->addSuccessor(r3);
+   r8->addSuccessor(r3);
    r2->addSuccessor(r7);
    image2.paintRoadGraph(r1, { 500, 60 });
    image2.store("test2D", OutputType::pdf);
