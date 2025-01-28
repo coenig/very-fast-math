@@ -1035,7 +1035,7 @@ void vfm::HighwayImage::paintRoadGraph(
                      if (*A.col_ == Color{0, 0, 0, 0}) {
                         Pol2D arrow_square{};
                         arrow.add(*arrow.points_.begin());
-                        arrow_square.createArrow(arrow, 11.0f / 1500.0f * dim_raw.x);
+                        arrow_square.createArrow(arrow, 11.0f / 1500.0f * dim_raw.x * 3);
                         fillPolygon(arrow_square, LANE_MARKER_COLOR);
                         Pol2D p2{};
                         float begin = p.points_.size() / 4.0f;
@@ -1045,7 +1045,7 @@ void vfm::HighwayImage::paintRoadGraph(
                            p2.add(p.points_[i]);
                         }
 
-                        auto vec = Pol2D::dashedArrow(p2, 1, 2.0f / 1500.0f * dim_raw.x, {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 1.5, 1.5 });
+                        auto vec = Pol2D::dashedArrow(p2, 1, 2.0f / 1500.0f * dim_raw.x * 3, {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 1.5, 1.5 });
                         for (int i = 0; i < vec.size(); i++) 
                            if (i % 2 || i == vec.size() - 1)
                               additional_arrows.push_back(vec[i]);
