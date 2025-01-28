@@ -107,10 +107,13 @@ int main(int argc, char* argv[])
    //termnate();
 
    LaneSegment segment11{ 0, 0, 4 };
+   LaneSegment segment2{ 0, 0, 6 };
    StraightRoadSection section1{ 3, 50 };
+   StraightRoadSection section1b{ 4, 50 };
    StraightRoadSection section1e{ 3, 50 };
    section1.addLaneSegment(segment11);
    section1e.addLaneSegment(segment11);
+   section1b.addLaneSegment(segment2);
    std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(0, 0, 0, HighwayImage::EGO_MOCK_ID);
    std::map<int, std::pair<float, float>> future_positions_of_others1{};
    CarParsVec others1{};
@@ -120,6 +123,9 @@ int main(int argc, char* argv[])
    section1.setEgo(nullptr);
    section1.setOthers(others1);
    section1.setFuturePositionsOfOthers(future_positions_of_others1);
+   section1b.setEgo(nullptr);
+   section1b.setOthers(others1);
+   section1b.setFuturePositionsOfOthers(future_positions_of_others1);
 
    auto r1 = std::make_shared<RoadGraph>(1);
    auto r2 = std::make_shared<RoadGraph>(2);
@@ -129,14 +135,14 @@ int main(int argc, char* argv[])
    auto r6 = std::make_shared<RoadGraph>(6);
    auto r7 = std::make_shared<RoadGraph>(7);
    auto r8 = std::make_shared<RoadGraph>(8);
-   r1->setMyRoad(section1);
+   r1->setMyRoad(section1e);
    r2->setMyRoad(section1);
    r3->setMyRoad(section1);
    r4->setMyRoad(section1);
    r5->setMyRoad(section1);
    r6->setMyRoad(section1);
    r7->setMyRoad(section1);
-   r8->setMyRoad(section1e);
+   r8->setMyRoad(section1b);
    constexpr float rad{ 55.0f };
    const Vec2D mid{ 25, rad };
    Vec2D p0{ 0, 0 };
