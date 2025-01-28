@@ -107,7 +107,7 @@ int main(int argc, char* argv[])
    //termnate();
 
    LaneSegment segment11{ 0, 0, 4 };
-   LaneSegment segment2{ 0, 0, 6 };
+   LaneSegment segment2{ 0, 0, 4 };
    StraightRoadSection section1{ 3, 50 };
    StraightRoadSection section1b{ 4, 50 };
    StraightRoadSection section1e{ 3, 50 };
@@ -143,7 +143,7 @@ int main(int argc, char* argv[])
    r6->setMyRoad(section1);
    r7->setMyRoad(section1);
    r8->setMyRoad(section1b);
-   constexpr float rad{ 55.0f };
+   constexpr float rad{ 60.0f };
    const Vec2D mid{ 25, rad };
    Vec2D p0{ 0, 0 };
    Vec2D p1{ 0, 0 };

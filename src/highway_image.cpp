@@ -937,11 +937,11 @@ void vfm::HighwayImage::paintRoadGraph(
             Vec2D vv{ v_raw.x, v_raw.y };
             float origin_x{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos) };
             float origin_y{ r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0)};
-            origin_y /= LANE_WIDTH;
+            origin_y = origin_y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f;
             vv.add({ origin_x, origin_y });
             Vec3D v{ plain_2d_translator_.translate(vv) };
             Vec2D v2{ v.x, v.y };
-            auto middle = plain_2d_translator_.translate({ origin_x, origin_y + (section_max_lanes / 2.0f) - 0.5f });
+            auto middle = plain_2d_translator_.translate({ origin_x, origin_y });
             v2.rotate(
                r_sub->getAngle() * mirrored, 
                { middle.x, middle.y });
@@ -992,18 +992,18 @@ void vfm::HighwayImage::paintRoadGraph(
                      const auto b_connector_direction_translated = trans_b->translate(B.connector_.direction_);
                      const auto thick_a = A.thick_ * norm_length_a;
                      const auto thick_b = B.thick_ * norm_length_b;
-                     auto  dock_point_a1 = a_connector_basepoint_translated;
-                     auto  dock_point_a2 = a_connector_basepoint_translated;
-                     auto  dock_point_b1 = b_connector_basepoint_translated;
-                     auto  dock_point_b2 = b_connector_basepoint_translated;
+                     //auto  dock_point_a1 = a_connector_basepoint_translated;
+                     //auto  dock_point_a2 = a_connector_basepoint_translated;
+                     //auto  dock_point_b1 = b_connector_basepoint_translated;
+                     //auto  dock_point_b2 = b_connector_basepoint_translated;
                      Vec2D between1 = a_connector_basepoint_translated;
                      Vec2D between1_dir = a_connector_basepoint_translated;
                      between1_dir.sub(a_connector_direction_translated);
                      Vec2D between1_dir_ortho{ between1_dir };
                      between1_dir_ortho.ortho();
                      between1_dir_ortho.setLength(thick_a / 2);
-                     dock_point_a1.add(between1_dir_ortho);
-                     dock_point_a2.sub(between1_dir_ortho);
+                     //dock_point_a1.add(between1_dir_ortho);
+                     //dock_point_a2.sub(between1_dir_ortho);
 
                      between1_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
                      between1.add(between1_dir);
@@ -1013,8 +1013,8 @@ void vfm::HighwayImage::paintRoadGraph(
                      Vec2D between2_dir_ortho{ between2_dir };
                      between2_dir_ortho.ortho();
                      between2_dir_ortho.setLength(thick_b / 2);
-                     dock_point_b1.add(between2_dir_ortho);
-                     dock_point_b2.sub(between2_dir_ortho);
+                     //dock_point_b1.add(between2_dir_ortho);
+                     //dock_point_b2.sub(between2_dir_ortho);
 
                      between2_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
                      between2.add(between2_dir);
