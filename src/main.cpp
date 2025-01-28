@@ -129,14 +129,14 @@ int main(int argc, char* argv[])
    auto r6 = std::make_shared<RoadGraph>(6);
    auto r7 = std::make_shared<RoadGraph>(7);
    auto r8 = std::make_shared<RoadGraph>(8);
-   r1->setMyRoad(section1e);
+   r1->setMyRoad(section1);
    r2->setMyRoad(section1);
    r3->setMyRoad(section1);
    r4->setMyRoad(section1);
    r5->setMyRoad(section1);
    r6->setMyRoad(section1);
    r7->setMyRoad(section1);
-   r8->setMyRoad(section1);
+   r8->setMyRoad(section1e);
    constexpr float rad{ 55.0f };
    const Vec2D mid{ 25, rad };
    Vec2D p0{ 0, 0 };
