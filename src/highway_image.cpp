@@ -450,7 +450,6 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
 
       // Drains and sources.
       // Assuming we do "min_lane = true" first.
-      const float MAGIC_NUMBER{ 0.034f + (lane_structure.getNumLanes() - 1) * 0.0090f }; // TODO: For roundabout it was 0.0125...
       if (min_lane) { // TOP
          auto top_right_corner = (*overpaint.points_.rbegin());
          auto top_left_corner  = (*overpaint.points_.begin());
@@ -459,10 +458,6 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          const Vec2D thin1{ plain_2d_translator_.reverseTranslate({ 0, 0}).projectToXY()};
          const Vec2D thin2{ plain_2d_translator_.reverseTranslate({ THICK / 2000 * dim.x, 0}).projectToXY()};
          const float thin{ thin1.distance(thin2) };
-         top_right_corner.add({ 0, MAGIC_NUMBER });
-         top_left_corner.add({ 0,  MAGIC_NUMBER });
-         top_right_second.add({ 0, MAGIC_NUMBER });
-         top_left_second.add({ 0,  MAGIC_NUMBER });
 
          if (!getHighwayTranslator()->is3D()) {
             top_right_corner.add({ 0, ego.car_lane_ });
@@ -506,10 +501,6 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          auto bottom_left_corner  = (*overpaint.points_.begin());
          auto bottom_right_second = (*(overpaint.points_.rbegin() + 1));
          auto bottom_left_second  = (*(overpaint.points_.begin() + 1));
-         bottom_right_corner.sub({ 0, MAGIC_NUMBER });
-         bottom_left_corner.sub({ 0,  MAGIC_NUMBER });
-         bottom_right_second.sub({ 0, MAGIC_NUMBER });
-         bottom_left_second.sub({ 0,  MAGIC_NUMBER });
 
          if (!getHighwayTranslator()->is3D()) {
             bottom_right_corner.add({ 0, ego.car_lane_ });
@@ -518,16 +509,17 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
 
          for (auto& connection : connections) {
             if (connection.id_ == 3 || connection.id_ == 4) {
+               const float MAGIC_NUMBER{ (0.034f + (lane_structure.getNumLanes() - 1) * 0.0125f) * 11 }; // TODO: For roundabout it was 0.0125...
                Vec2D middle_basepoint{ connection.connector_.base_point_ };
                Vec2D middle_second{ connection.connector_.direction_ };
 
                if (connection.side_ == ConnectorPolygonEnding::Side::drain) {
-                  connection.thick_ = middle_basepoint.distance(bottom_right_corner) * 4 - MAGIC_NUMBER * 11;
+                  connection.thick_ = middle_basepoint.distance(bottom_right_corner) * 4 / 1.105 /* - MAGIC_NUMBER*/;
                   middle_basepoint.add(bottom_right_corner);
                   middle_second.add(bottom_right_second);
                }
                else if (connection.side_ == ConnectorPolygonEnding::Side::source) {
-                  connection.thick_ = middle_basepoint.distance(bottom_left_corner) * 4 - MAGIC_NUMBER * 11;
+                  connection.thick_ = middle_basepoint.distance(bottom_left_corner) * 4 / 1.105 /* - MAGIC_NUMBER*/;
                   middle_basepoint.add(bottom_left_corner);
                   middle_second.add(bottom_left_second);
                }
@@ -912,11 +904,10 @@ void vfm::HighwayImage::paintRoadGraph(
    const Vec2D& dim_raw,
    const float ego_offset_x,
    const std::map<std::string, std::string>& var_vals,
-   const bool print_agent_ids)
+   const bool print_agent_ids,
+   const float TRANSLATE_X,
+   const float TRANSLATE_Y)
 {
-   float TRANSLATE_X{ 60 };
-   float TRANSLATE_Y{ 60 / LANE_WIDTH };
-
    auto r_ego = r->findSectionWithEgo();
    auto old_trans = getHighwayTranslator();
    float mirrored{ getHighwayTranslator()->isMirrored() ? -1.0f : 1.0f };
@@ -944,7 +935,7 @@ void vfm::HighwayImage::paintRoadGraph(
             auto res = plain_2d_translator_.reverseTranslate(v);
             return { // The magic numbers below reflect the dependence on the number of lanes when calculating the thickness of lane marker lines.
                res.x + (old_trans->is3D() ? 0 : TRANSLATE_X) - dim.x / (2 * 12.8f), // This constant has been calculated.
-               res.y + (old_trans->is3D() ? 0 : TRANSLATE_Y) - dim.y / 480.0f,      // This one is only a guess and can probably be further improved.
+               res.y + (old_trans->is3D() ? 0 : TRANSLATE_Y / LANE_WIDTH) - dim.y / 480.0f,      // This one is only a guess and can probably be further improved.
                v_raw.z };
          },
          [this, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
