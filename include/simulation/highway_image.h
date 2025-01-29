@@ -84,7 +84,9 @@ public:
       const Vec2D& dim,
       const float ego_offset_x = 0,
       const std::map<std::string, std::string>& var_vals = {},
-      const bool print_agent_ids = true);
+      const bool print_agent_ids = true,
+      const float TRANSLATE_X = 60,
+      const float TRANSLATE_Y = 20);
 
    std::shared_ptr<HighwayTranslator> getHighwayTranslator() const;
 
