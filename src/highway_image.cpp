@@ -929,24 +929,22 @@ void vfm::HighwayImage::paintRoadGraph(
    }
 
    for (const auto r_sub : all_nodes_ego_in_front) {
-      const auto section_max_lanes = r_sub->getMyRoad().getNumLanes();
+      const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
       const auto dim = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
       const auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
          old_trans,
          [this, mirrored, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans](const Vec3D& v_raw) -> Vec3D {
-            Vec2D vv{ v_raw.x, v_raw.y };
-            float origin_x{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos) };
-            float origin_y{ r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0)};
-            origin_y = origin_y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f;
-            vv.add({ origin_x, origin_y });
-            Vec3D v{ plain_2d_translator_.translate(vv) };
-            Vec2D v2{ v.x, v.y };
-            auto middle = plain_2d_translator_.translate({ origin_x, origin_y });
-            v2.rotate(
-               r_sub->getAngle() * mirrored, 
-               { middle.x, middle.y });
-            auto res = plain_2d_translator_.reverseTranslate(v2);
-            return { res.x + (old_trans->is3D() ? 0 : 0), res.y + (old_trans->is3D() ? 0 : 0), v_raw.z }; // TODO
+            Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0)};
+            origin.x = origin.x/* - ((section_max_lanes / 2.0f) - 0.5f) * r_sub->getMyRoad().getLength()*/;
+            origin.y = origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f;
+            auto middle = plain_2d_translator_.translate(origin);
+            Vec2D v{ plain_2d_translator_.translate({ v_raw.x + origin.x, v_raw.y + origin.y }) };
+            v.rotate(r_sub->getAngle() * mirrored, { middle.x, middle.y });
+            auto res = plain_2d_translator_.reverseTranslate(v);
+            return { 
+               res.x + (old_trans->is3D() ? 0 : 0), 
+               res.y + (old_trans->is3D() ? 0 : 0), 
+               v_raw.z }; // TODO
          },
          [this, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
             Vec3D v{ plain_2d_translator_.reverseTranslate(v_raw.projectToXY()) };
