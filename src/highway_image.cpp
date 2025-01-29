@@ -933,17 +933,17 @@ void vfm::HighwayImage::paintRoadGraph(
       const auto dim = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
       const auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
          old_trans,
-         [this, mirrored, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans](const Vec3D& v_raw) -> Vec3D {
-            Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0)};
-            origin.x = origin.x/* - ((section_max_lanes / 2.0f) - 0.5f) * r_sub->getMyRoad().getLength()*/;
-            origin.y = origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f;
-            auto middle = plain_2d_translator_.translate(origin);
-            Vec2D v{ plain_2d_translator_.translate({ v_raw.x + origin.x, v_raw.y + origin.y }) };
+         [this, mirrored, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, &dim](const Vec3D& v_raw) -> Vec3D {
+            const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0)};
+            //origin.x = origin.x;
+            //origin.y = origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f;
+            auto middle = plain_2d_translator_.translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
+            Vec2D v{ plain_2d_translator_.translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
             v.rotate(r_sub->getAngle() * mirrored, { middle.x, middle.y });
             auto res = plain_2d_translator_.reverseTranslate(v);
             return { 
-               res.x + (old_trans->is3D() ? 0 : 0), 
-               res.y + (old_trans->is3D() ? 0 : 0), 
+               res.x + (old_trans->is3D() ? 0 : 60) - dim.x / (2 * 12.8f),
+               res.y + (old_trans->is3D() ? 0 : 5) - dim.y / 500.0f,
                v_raw.z }; // TODO
          },
          [this, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
