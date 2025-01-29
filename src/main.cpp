@@ -107,14 +107,14 @@ int main(int argc, char* argv[])
    ////image3.store("../examples/junction", OutputType::png);
    //termnate();
 
-   const int lanes0{ 2 };
-   const int lanes1{ 3 };
-   const int lanes2{ 2 };
-   const int lanes3{ 3 };
-   const int lanes4{ 2 };
-   const int lanes5{ 3 };
-   const int lanes6{ 2 };
-   const int lanes7{ 3 };
+   const int lanes0{ 1 };
+   const int lanes1{ 2 };
+   const int lanes2{ 3 };
+   const int lanes3{ 2 };
+   const int lanes4{ 3 };
+   const int lanes5{ 2 };
+   const int lanes6{ 3 };
+   const int lanes7{ 4 };
 
    LaneSegment segment0{ 0, 0, (lanes0 - 1) * 2 };
    LaneSegment segment1{ 0, 0, (lanes1 - 1) * 2 };
@@ -227,8 +227,8 @@ int main(int argc, char* argv[])
    r3->addSuccessor(r4);
    r4->addSuccessor(r5);
    r5->addSuccessor(r0);
-   //r7->addSuccessor(r2);
-   //r1->addSuccessor(r6);
+   r7->addSuccessor(r2);
+   r1->addSuccessor(r6);
    image2.paintRoadGraph(r1, { 500, 60 });
    image2.store("../examples/roundabout", OutputType::pdf);
    image2.store("../examples/roundabout", OutputType::png);
