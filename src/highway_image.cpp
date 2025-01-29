@@ -450,7 +450,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
 
       // Drains and sources.
       // Assuming we do "min_lane = true" first.
-      constexpr static float MAGIC_NUMBER{ 0.066 };
+      const float MAGIC_NUMBER{ 0.034f + (lane_structure.getNumLanes() - 1) * 0.013f };
       if (min_lane) { // TOP
          auto top_right_corner = (*overpaint.points_.rbegin());
          auto top_left_corner  = (*overpaint.points_.begin());
@@ -914,6 +914,9 @@ void vfm::HighwayImage::paintRoadGraph(
    const std::map<std::string, std::string>& var_vals,
    const bool print_agent_ids)
 {
+   constexpr float TRANSLATE_X{ 60 };
+   constexpr float TRANSLATE_Y{ 18 / LANE_WIDTH };
+
    auto r_ego = r->findSectionWithEgo();
    auto old_trans = getHighwayTranslator();
    float mirrored{ getHighwayTranslator()->isMirrored() ? -1.0f : 1.0f };
@@ -933,18 +936,16 @@ void vfm::HighwayImage::paintRoadGraph(
       const auto dim = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
       const auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
          old_trans,
-         [this, mirrored, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, &dim](const Vec3D& v_raw) -> Vec3D {
+         [this, mirrored, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, &dim, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
             const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0)};
-            //origin.x = origin.x;
-            //origin.y = origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f;
             auto middle = plain_2d_translator_.translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
             Vec2D v{ plain_2d_translator_.translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
             v.rotate(r_sub->getAngle() * mirrored, { middle.x, middle.y });
             auto res = plain_2d_translator_.reverseTranslate(v);
-            return { 
-               res.x + (old_trans->is3D() ? 0 : 60) - dim.x / (2 * 12.8f),
-               res.y + (old_trans->is3D() ? 0 : 5) - dim.y / 480.0f,
-               v_raw.z }; // TODO
+            return { // The magic numbers below reflect the dependence on the number of lanes when calculating the thickness of lane marker lines.
+               res.x + (old_trans->is3D() ? 0 : TRANSLATE_X) - dim.x / (2 * 12.8f), // This constant has been calculated.
+               res.y + (old_trans->is3D() ? 0 : TRANSLATE_Y) - dim.y / 480.0f,      // This one is only a guess and can probably be further improved.
+               v_raw.z };
          },
          [this, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
             Vec3D v{ plain_2d_translator_.reverseTranslate(v_raw.projectToXY()) };
@@ -1033,7 +1034,7 @@ void vfm::HighwayImage::paintRoadGraph(
                      if (*A.col_ == Color{0, 0, 0, 0}) {
                         Pol2D arrow_square{};
                         arrow.add(*arrow.points_.begin());
-                        arrow_square.createArrow(arrow, THICK * 1.5);
+                        arrow_square.createArrow(arrow, THICK * 1.42);
                         fillPolygon(arrow_square, LANE_MARKER_COLOR);
                         Pol2D p2{};
                         float begin = p.points_.size() / 4.0f;
