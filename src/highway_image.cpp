@@ -943,7 +943,7 @@ void vfm::HighwayImage::paintRoadGraph(
             auto res = plain_2d_translator_.reverseTranslate(v);
             return { 
                res.x + (old_trans->is3D() ? 0 : 60) - dim.x / (2 * 12.8f),
-               res.y + (old_trans->is3D() ? 0 : 5) - dim.y / 500.0f,
+               res.y + (old_trans->is3D() ? 0 : 5) - dim.y / 480.0f,
                v_raw.z }; // TODO
          },
          [this, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
