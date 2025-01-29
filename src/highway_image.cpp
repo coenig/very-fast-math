@@ -450,7 +450,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
 
       // Drains and sources.
       // Assuming we do "min_lane = true" first.
-      const float MAGIC_NUMBER{ 0.034f + (lane_structure.getNumLanes() - 1) * 0.013f };
+      const float MAGIC_NUMBER{ 0.034f + (lane_structure.getNumLanes() - 1) * 0.0090f }; // TODO: For roundabout it was 0.0125...
       if (min_lane) { // TOP
          auto top_right_corner = (*overpaint.points_.rbegin());
          auto top_left_corner  = (*overpaint.points_.begin());
@@ -914,8 +914,8 @@ void vfm::HighwayImage::paintRoadGraph(
    const std::map<std::string, std::string>& var_vals,
    const bool print_agent_ids)
 {
-   constexpr float TRANSLATE_X{ 60 };
-   constexpr float TRANSLATE_Y{ 18 / LANE_WIDTH };
+   float TRANSLATE_X{ 60 };
+   float TRANSLATE_Y{ 60 / LANE_WIDTH };
 
    auto r_ego = r->findSectionWithEgo();
    auto old_trans = getHighwayTranslator();
