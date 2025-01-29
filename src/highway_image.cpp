@@ -543,7 +543,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
       }
       // EO Drains and sources.
 
-      arrow.createArrow(plain_2d_translator_.translatePolygon(overpaint), THICK / 2000 * dim.x);
+      arrow.createArrow(plain_2d_translator_.translatePolygon(overpaint), THICK * 0.7);
 
       // TODO: Thicker in z direction.
       //for (int i = 0; i < arrow.points_.size(); i++) {
@@ -1033,7 +1033,7 @@ void vfm::HighwayImage::paintRoadGraph(
                      if (*A.col_ == Color{0, 0, 0, 0}) {
                         Pol2D arrow_square{};
                         arrow.add(*arrow.points_.begin());
-                        arrow_square.createArrow(arrow, 11.0f / 1500.0f * dim_raw.x * 3);
+                        arrow_square.createArrow(arrow, THICK * 1.5);
                         fillPolygon(arrow_square, LANE_MARKER_COLOR);
                         Pol2D p2{};
                         float begin = p.points_.size() / 4.0f;
