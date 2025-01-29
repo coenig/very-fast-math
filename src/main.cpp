@@ -100,11 +100,11 @@ int main(int argc, char* argv[])
    //r1->addSuccessor(r4);
    //r3->addSuccessor(r4);
    //image2.paintRoadGraph(r1, { 1500, 200 });
-   //image2.store("junction", OutputType::pdf);
-   //image2.store("junction", OutputType::png);
+   //image2.store("../examples/junction", OutputType::pdf);
+   //image2.store("../examples/junction", OutputType::png);
    ////image3.paintRoadGraph(r1, { 1500, 200 });
-   ////image3.store("junction", OutputType::pdf);
-   ////image3.store("junction", OutputType::png);
+   ////image3.store("../examples/junction", OutputType::pdf);
+   ////image3.store("../examples/junction", OutputType::png);
    //termnate();
 
    const int lanes0{ 2 };
@@ -230,11 +230,11 @@ int main(int argc, char* argv[])
    //r7->addSuccessor(r2);
    //r1->addSuccessor(r6);
    image2.paintRoadGraph(r1, { 500, 60 });
-   image2.store("roundabout", OutputType::pdf);
-   image2.store("roundabout", OutputType::png);
+   image2.store("../examples/roundabout", OutputType::pdf);
+   image2.store("../examples/roundabout", OutputType::png);
    //image3.paintRoadGraph(r1, { 500, 60 });
-   //image3.store("roundabout", OutputType::pdf);
-   //image3.store("roundabout", OutputType::png);
+   //image3.store("../examples/roundabout", OutputType::pdf);
+   //image3.store("../examples/roundabout", OutputType::png);
    termnate();
 
    vfm::test::runTests();
