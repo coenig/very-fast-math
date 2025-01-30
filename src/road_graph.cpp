@@ -272,6 +272,25 @@ bool vfm::RoadGraph::isRootedInZeroAndUnturned() const
    return isOriginAtZero() && isAngleZero();
 }
 
+void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
+{
+   const Vec2D specialPoint{};
+   const float theta{};
+   const float x_s_prime = specialPoint.x * std::cos(theta) - specialPoint.y * std::sin(theta);
+   const float y_s_prime = specialPoint.x * std::sin(theta) + specialPoint.y * std::cos(theta);
+
+   //for (auto& p : points) {
+   //   // Rotation
+   //   double x_rot = p.x * cos(theta) - p.y * sin(theta);
+   //   double y_rot = p.x * sin(theta) + p.y * cos(theta);
+
+   //   // Translation, um specialPoint auf den Ursprung zu setzen
+   //   p.x = x_rot - x_s_prime;
+   //   p.y = y_rot - y_s_prime;
+   //}
+
+}
+
 constexpr float EPS{ 0.01 };
 bool vfm::RoadGraph::isOriginAtZero() const
 {
