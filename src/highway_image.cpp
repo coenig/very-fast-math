@@ -448,6 +448,10 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
 
       overpaint.add({ temp_x2, (float)(min_lane ? last_point.getActualDrivableMinLane() : last_point.getActualDrivableMaxLane()) - ego_lane });
 
+      const Vec2D tmp_root{ 0, 0 };
+      const Vec2D tmp_away{ 0, LANE_MARKER_THICKNESS };
+      const float LANE_MARKER_THICKNESS_TRANSLATED{ plain_2d_translator_.translate(tmp_root).distance(plain_2d_translator_.translate(tmp_away)) };
+
       // Drains and sources.
       // Assuming we do "min_lane = true" first.
       if (min_lane) { // TOP
@@ -514,12 +518,12 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
                Vec2D middle_second{ connection.connector_.direction_ };
 
                if (connection.side_ == ConnectorPolygonEnding::Side::drain) {
-                  connection.thick_ = middle_basepoint.distance(bottom_right_corner) * 4 / 1.105 /* - MAGIC_NUMBER*/;
+                  connection.thick_ = (float) lane_structure.getSegments().rbegin()->second.getNumLanes() * (LANE_WIDTH - LANE_MARKER_THICKNESS); // TODO: Something is not QUITE exact here
                   middle_basepoint.add(bottom_right_corner);
                   middle_second.add(bottom_right_second);
                }
                else if (connection.side_ == ConnectorPolygonEnding::Side::source) {
-                  connection.thick_ = middle_basepoint.distance(bottom_left_corner) * 4 / 1.105 /* - MAGIC_NUMBER*/;
+                  connection.thick_ = (float)lane_structure.getSegments().begin()->second.getNumLanes() * (LANE_WIDTH - LANE_MARKER_THICKNESS); // TODO: Something is not QUITE exact here
                   middle_basepoint.add(bottom_left_corner);
                   middle_second.add(bottom_left_second);
                }
@@ -535,7 +539,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
       }
       // EO Drains and sources.
 
-      arrow.createArrow(plain_2d_translator_.translatePolygon(overpaint), THICK * 0.7);
+      arrow.createArrow(plain_2d_translator_.translatePolygon(overpaint), LANE_MARKER_THICKNESS_TRANSLATED);
 
       // TODO: Thicker in z direction.
       //for (int i = 0; i < arrow.points_.size(); i++) {
@@ -1025,7 +1029,7 @@ void vfm::HighwayImage::paintRoadGraph(
                      if (*A.col_ == Color{0, 0, 0, 0}) {
                         Pol2D arrow_square{};
                         arrow.add(*arrow.points_.begin());
-                        arrow_square.createArrow(arrow, THICK * 1.42);
+                        arrow_square.createArrow(arrow, THICK * 0.97); // TODO: Remove this magic number
                         fillPolygon(arrow_square, LANE_MARKER_COLOR);
                         Pol2D p2{};
                         float begin = p.points_.size() / 4.0f;

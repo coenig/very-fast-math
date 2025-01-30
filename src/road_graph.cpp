@@ -16,6 +16,8 @@ int LaneSegment::getMaxLane() const { return max_lane_; }
 int LaneSegment::getActualDrivableMinLane() const { return getMinLane() / 2; }
 int LaneSegment::getActualDrivableMaxLane() const { return (getMaxLane() + 1) / 2; }
 
+int LaneSegment::getNumLanes() const { return (getActualDrivableMaxLane() - getActualDrivableMinLane() + 1); }
+
 bool LaneSegment::isMinLaneShoulder() const { return getMinLane() % 2; }
 bool LaneSegment::isMaxLaneShoulder() const { return getMaxLane() % 2; }
 
