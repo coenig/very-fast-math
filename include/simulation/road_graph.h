@@ -95,6 +95,7 @@ public:
 
    int getActualDrivableMinLane() const;
    int getActualDrivableMaxLane() const;
+   int getNumLanes() const;
 
    bool isMinLaneShoulder() const;
    bool isMaxLaneShoulder() const;
