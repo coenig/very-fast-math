@@ -963,6 +963,9 @@ void vfm::HighwayImage::paintRoadGraph(
          dim);
    }
 
+   //setTranslator(old_trans);
+   //return;
+
    setTranslator(std::make_shared<DefaultHighwayTranslator>());
 
    std::vector<Pol2D> additional_arrows{};

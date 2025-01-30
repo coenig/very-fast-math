@@ -30,7 +30,7 @@ int main(int argc, char* argv[])
    HighwayImage image3{ 3000, 2000, trans3, 4 };
    image3.restartPDF();
    image3.fillImg(BLACK);
-   image3.paintEarthAndSky({ 1500, 200 });
+   image3.paintEarthAndSky({ 1500, 500 });
 
    //// Strange junction
    //image2.fillImg(BLACK);
@@ -100,12 +100,13 @@ int main(int argc, char* argv[])
    //image2.store("../examples/junction", OutputType::pdf);
    //image2.store("../examples/junction", OutputType::png);
    ////image3.paintRoadGraph(r1, { 1500, 200 });
-   ////image3.store("../examples/junction", OutputType::pdf);
-   ////image3.store("../examples/junction", OutputType::png);
+   ////image3.store("../examples/junction_3d", OutputType::pdf);
+   ////image3.store("../examples/junction_3d", OutputType::png);
    //termnate();
 
    // Roundabout
    image2.fillImg(BLACK);
+   image3.paintEarthAndSky({ 1500, 200 });
 
    static constexpr int lanes0{ 3 };
    static constexpr int lanes1{ 3 };
@@ -232,9 +233,9 @@ int main(int argc, char* argv[])
    image2.paintRoadGraph(r1, { 500, 60 }, 0, {}, true, 10, 50);
    image2.store("../examples/roundabout", OutputType::pdf);
    image2.store("../examples/roundabout", OutputType::png);
-   //image3.paintRoadGraph(r1, { 500, 60 });
-   //image3.store("../examples/roundabout", OutputType::pdf);
-   //image3.store("../examples/roundabout", OutputType::png);
+   image3.paintRoadGraph(r1, { 500, 300 });
+   image3.store("../examples/roundabout_3d", OutputType::pdf);
+   image3.store("../examples/roundabout_3d", OutputType::png);
    termnate();
 
    vfm::test::runTests();
