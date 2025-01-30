@@ -912,6 +912,8 @@ void vfm::HighwayImage::paintRoadGraph(
    const float TRANSLATE_X,
    const float TRANSLATE_Y)
 {
+   r->normalizeRoadGraphToEgoSection();
+
    auto r_ego = r->findSectionWithEgo();
    auto old_trans = getHighwayTranslator();
    float mirrored{ getHighwayTranslator()->isMirrored() ? -1.0f : 1.0f };

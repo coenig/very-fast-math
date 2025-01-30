@@ -165,7 +165,16 @@ public:
    Vec2D getOriginPoint() const;
    float getAngle() const;
 
+   /// <summary>
+   /// Checks if THIS SECTION is rooted in the origin (0/0) and has a zero angle (s.t. small epsilon).
+   /// </summary>
+   /// <returns></returns>
    bool isRootedInZeroAndUnturned() const;
+   
+   /// <summary>
+   /// Translates and rotates THE WHOLE GRAPH such that the section with ego on it "isRootedInZeroAndUnturned()".
+   /// </summary>
+   void normalizeRoadGraphToEgoSection();
 
    int getID() const;
    int getNumberOfNodes() const;

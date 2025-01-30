@@ -107,14 +107,14 @@ int main(int argc, char* argv[])
    // Roundabout
    image2.fillImg(BLACK);
 
-   const int lanes0{ 1 };
-   const int lanes1{ 2 };
-   const int lanes2{ 3 };
-   const int lanes3{ 4 };
-   const int lanes4{ 3 };
-   const int lanes5{ 2 };
-   const int lanes6{ 3 };
-   const int lanes7{ 3 };
+   static constexpr int lanes0{ 3 };
+   static constexpr int lanes1{ 3 };
+   static constexpr int lanes2{ 3 };
+   static constexpr int lanes3{ 3 };
+   static constexpr int lanes4{ 3 };
+   static constexpr int lanes5{ 3 };
+   static constexpr int lanes6{ 3 };
+   static constexpr int lanes7{ 3 };
 
    LaneSegment segment0{ 0, 0, (lanes0 - 1) * 2 };
    LaneSegment segment1{ 0, 0, (lanes1 - 1) * 2 };
