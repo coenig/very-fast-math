@@ -274,21 +274,23 @@ bool vfm::RoadGraph::isRootedInZeroAndUnturned() const
 
 void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
 {
-   const Vec2D specialPoint{};
-   const float theta{};
+   const auto r_ego = findSectionWithEgo();
+   const Vec2D specialPoint{ r_ego->getOriginPoint() };
+   const float theta{ r_ego->getAngle() };
    const float x_s_prime = specialPoint.x * std::cos(theta) - specialPoint.y * std::sin(theta);
    const float y_s_prime = specialPoint.x * std::sin(theta) + specialPoint.y * std::cos(theta);
 
-   //for (auto& p : points) {
-   //   // Rotation
-   //   double x_rot = p.x * cos(theta) - p.y * sin(theta);
-   //   double y_rot = p.x * sin(theta) + p.y * cos(theta);
+   for (const auto& r : getAllNodes()) {
+      // Rotation
+      const float x_rot = r->getOriginPoint().x * cos(theta) - r->getOriginPoint().y * sin(theta);
+      const float y_rot = r->getOriginPoint().x * sin(theta) + r->getOriginPoint().y * cos(theta);
 
-   //   // Translation, um specialPoint auf den Ursprung zu setzen
-   //   p.x = x_rot - x_s_prime;
-   //   p.y = y_rot - y_s_prime;
-   //}
+      // Translation such that ego section sits at origin.
+      r->setOriginPoint({ x_rot - x_s_prime, y_rot - y_s_prime });
+      r->setAngle(r->getAngle() - theta);
+   }
 
+   assert(r_ego->isRootedInZeroAndUnturned());
 }
 
 constexpr float EPS{ 0.01 };
