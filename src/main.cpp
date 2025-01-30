@@ -143,7 +143,7 @@ int main(int argc, char* argv[])
    std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(0, 0, 0, HighwayImage::EGO_MOCK_ID);
    std::map<int, std::pair<float, float>> future_positions_of_others{};
    CarParsVec others{};
-   section0.setEgo(ego);
+   section0.setEgo(nullptr);
    section0.setOthers(others);
    section0.setFuturePositionsOfOthers(future_positions_of_others);
    section1.setEgo(nullptr);
@@ -164,7 +164,7 @@ int main(int argc, char* argv[])
    section6.setEgo(nullptr);
    section6.setOthers(others);
    section6.setFuturePositionsOfOthers(future_positions_of_others);
-   section7.setEgo(nullptr);
+   section7.setEgo(ego);
    section7.setOthers(others);
    section7.setFuturePositionsOfOthers(future_positions_of_others);
 
@@ -229,7 +229,7 @@ int main(int argc, char* argv[])
    r5->addSuccessor(r0);
    r7->addSuccessor(r2);
    r1->addSuccessor(r6);
-   image2.paintRoadGraph(r1, { 500, 60 }, 0, {}, true, 60, 18);
+   image2.paintRoadGraph(r1, { 500, 60 }, 0, {}, true, 10, 50);
    image2.store("../examples/roundabout", OutputType::pdf);
    image2.store("../examples/roundabout", OutputType::png);
    //image3.paintRoadGraph(r1, { 500, 60 });
