@@ -467,8 +467,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             0, // temp thickness; will be calculated when bottom part becomes available
             std::make_shared<Color>(0, 0, 0, 0),
             3,
-            getHighwayTranslator(),
-            &plain_2d_translator_ });
+            getHighwayTranslator() });
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{ // Special encoding for the frame in LANE_MARKER_COLOR
             ConnectorPolygonEnding::Side::source,
@@ -476,8 +475,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             0, // temp thickness; will be calculated when bottom part becomes available
             std::make_shared<Color>(0, 0, 0, 0),
             3,
-            getHighwayTranslator(),
-            &plain_2d_translator_ });
+            getHighwayTranslator() });
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{ // Actual pavement
             ConnectorPolygonEnding::Side::drain,
@@ -485,8 +483,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             0, // temp thickness; will be calculated when bottom part becomes available
             std::make_shared<Color>(PAVEMENT_COLOR),
             4,
-            getHighwayTranslator(),
-            &plain_2d_translator_ });
+            getHighwayTranslator() });
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{ // Actual pavement
             ConnectorPolygonEnding::Side::source,
@@ -494,8 +491,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             0, // temp thickness; will be calculated when bottom part becomes available
             std::make_shared<Color>(PAVEMENT_COLOR),
             4,
-            getHighwayTranslator(),
-            &plain_2d_translator_ });
+            getHighwayTranslator() });
       }
       else { // BOTTOM
          auto bottom_right_corner = (*overpaint.points_.rbegin());
@@ -890,8 +886,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       bottom_left_corner.distance(top_left_corner) * 3.75f,
       std::make_shared<Color>(GRASS_COLOR),
       0,
-      getHighwayTranslator(),
-      &plain_2d_translator_ });
+      getHighwayTranslator() });
 
    res.insert(res.begin(), ConnectorPolygonEnding{
       ConnectorPolygonEnding::Side::source,
@@ -899,8 +894,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       bottom_left_corner.distance(top_left_corner) * 3.75f,
       std::make_shared<Color>(GRASS_COLOR),
       0,
-      getHighwayTranslator(),
-      &plain_2d_translator_ } );
+      getHighwayTranslator() } );
 
    return res;
 }
@@ -943,8 +937,6 @@ void vfm::HighwayImage::paintRoadGraph(
          v.rotate(r_sub->getAngle(), { middle.x, middle.y });
          auto res = plain_2d_translator_.reverseTranslate(v);
 
-         if (std::isnan(res.x) || std::isnan(res.y)) return v_raw;
-
          return { // The magic numbers below reflect the dependence on the number of lanes when calculating the thickness of lane marker lines iso. paintStraightRoadScene.
             res.x + (old_trans->is3D() ? 0 : TRANSLATE_X - dim.x / MC1), // This constant has been calculated.
             res.y + (old_trans->is3D() ? 0 : TRANSLATE_Y / LANE_WIDTH - dim.y / MC2), // This one is only a guess and can probably be further improved.
@@ -962,17 +954,19 @@ void vfm::HighwayImage::paintRoadGraph(
 
          v = plain_2d_translator_.translate(v);
          v.rotate(-r_sub->getAngle(), { middle.x, middle.y });
-         auto res = plain_2d_translator_.reverseTranslate({ v.x - origin.x, v.y - origin.y * LANE_WIDTH });
+         auto res = plain_2d_translator_.reverseTranslate({ v.x, v.y });
 
-         if (std::isnan(res.x) || std::isnan(res.y)) return v_raw;
-
-         return { res.x, res.y, v_raw.z };
+         return { res.x - origin.x, res.y - origin.y / LANE_WIDTH, v_raw.z };
       };
 
-      const Vec3D test_v{ 0, 0, 0 };
-      const Vec3D test_v_trans{ wrapper_trans_function(test_v) };
-      const Vec3D test_v_rtrans{ wrapper_reverse_trans_function(test_v_trans) };
-      assert(test_v_rtrans == test_v);
+      assert(Vec3D(0, 0, 0).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ 0, 0, 0 }))));
+      assert(Vec3D(0, 0, 0).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ 0, 0, 0 }))));
+      assert(Vec3D(10.3, 11, 5).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ 10.3, 11, 5 }))));
+      assert(Vec3D(10.3, 11, 5).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ 10.3, 11, 5 }))));
+      assert(Vec3D(.3, -11, 3).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ .3, -11, 3 }))));
+      assert(Vec3D(.3, -11, 3).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ .3, -11, 3 }))));
+      assert(Vec3D(-.3, -1.1, 0).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ -.3, -1.1, 0 }))));
+      assert(Vec3D(-.3, -1.1, 0).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ -.3, -1.1, 0 }))));
 
       const auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
          old_trans,
