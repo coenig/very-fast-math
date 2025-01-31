@@ -43,6 +43,9 @@ public:
    void ortho();
    float distance(const Vector3D<NumType>& other) const;
 
+   template <typename T>
+   friend bool operator==(const Vector3D<T>& lhs, const Vector3D<T>& rhs);
+
 private:
    static float tof(const NumType val);
 };
@@ -192,6 +195,11 @@ template<class NumType>
 inline float Vector3D<NumType>::distance(const Vector3D<NumType>& other) const
 {
    return std::sqrt(tof(std::pow(x - other.x, 2) + std::pow(y - other.y, 2) + std::pow(z - other.z, 2)));
+}
+
+template <typename T>
+bool operator==(const Vector3D<T>& lhs, const Vector3D<T>& rhs) {
+   return (lhs.x == rhs.x) && (lhs.y == rhs.y) && (lhs.z == rhs.z);
 }
 
 } // vfm

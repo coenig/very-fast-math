@@ -361,9 +361,9 @@ std::string vfm::test::doParsingRun(
 void vfm::test::termnate() {
    std::cout << std::endl << "<TERMINATED>" << std::endl;
 
-   //#ifdef _WIN32
-   //   std::cin.get(); // Prevent Windows from closing the terminal immediately after termination.
-   //#endif
+   #ifdef _WIN32
+      std::cin.get(); // Prevent Windows from closing the terminal immediately after termination.
+   #endif
 
    std::exit(0);
 }

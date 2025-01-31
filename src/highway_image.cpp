@@ -918,7 +918,6 @@ void vfm::HighwayImage::paintRoadGraph(
 
    auto r_ego = r->findSectionWithEgo();
    auto old_trans = getHighwayTranslator();
-   float mirrored{ getHighwayTranslator()->isMirrored() ? -1.0f : 1.0f };
    auto ego_pos = r_ego->getMyRoad().getEgo()->car_rel_pos_;
    auto ego_lane = r_ego->getMyRoad().getEgo()->car_lane_;
    auto all_nodes = r->getAllNodes();
@@ -930,26 +929,55 @@ void vfm::HighwayImage::paintRoadGraph(
       if (r_sub != r_ego) all_nodes_ego_in_front.push_back(r_sub);
    }
 
+   static constexpr float MC1{ 2.0f * 12.8f };
+   static constexpr float MC2{ 480.0f };
+
    for (const auto r_sub : all_nodes_ego_in_front) {
       const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
       const auto dim = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
+
+      const auto wrapper_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, &dim, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+         const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0) };
+         const auto middle = plain_2d_translator_.translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
+         Vec2D v{ plain_2d_translator_.translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
+         v.rotate(r_sub->getAngle(), { middle.x, middle.y });
+         auto res = plain_2d_translator_.reverseTranslate(v);
+
+         if (std::isnan(res.x) || std::isnan(res.y)) return v_raw;
+
+         return { // The magic numbers below reflect the dependence on the number of lanes when calculating the thickness of lane marker lines iso. paintStraightRoadScene.
+            res.x + (old_trans->is3D() ? 0 : TRANSLATE_X - dim.x / MC1), // This constant has been calculated.
+            res.y + (old_trans->is3D() ? 0 : TRANSLATE_Y / LANE_WIDTH - dim.y / MC2), // This one is only a guess and can probably be further improved.
+            v_raw.z };
+      };
+
+      const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, &dim, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+         const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0) };
+         const auto middle = plain_2d_translator_.translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
+
+         Vec2D v{
+            v_raw.x - (old_trans->is3D() ? 0 : TRANSLATE_X - dim.x / MC1),
+            v_raw.y - (old_trans->is3D() ? 0 : TRANSLATE_Y / LANE_WIDTH - dim.y / MC2),
+         };
+
+         v = plain_2d_translator_.translate(v);
+         v.rotate(-r_sub->getAngle(), { middle.x, middle.y });
+         auto res = plain_2d_translator_.reverseTranslate({ v.x - origin.x, v.y - origin.y * LANE_WIDTH });
+
+         if (std::isnan(res.x) || std::isnan(res.y)) return v_raw;
+
+         return { res.x, res.y, v_raw.z };
+      };
+
+      const Vec3D test_v{ 0, 0, 0 };
+      const Vec3D test_v_trans{ wrapper_trans_function(test_v) };
+      const Vec3D test_v_rtrans{ wrapper_reverse_trans_function(test_v_trans) };
+      assert(test_v_rtrans == test_v);
+
       const auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
          old_trans,
-         [this, mirrored, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, &dim, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
-            const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0)};
-            auto middle = plain_2d_translator_.translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
-            Vec2D v{ plain_2d_translator_.translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
-            v.rotate(r_sub->getAngle() * mirrored, { middle.x, middle.y });
-            auto res = plain_2d_translator_.reverseTranslate(v);
-            return { // The magic numbers below reflect the dependence on the number of lanes when calculating the thickness of lane marker lines.
-               res.x + (old_trans->is3D() ? 0 : TRANSLATE_X - dim.x / (2 * 12.8f)), // This constant has been calculated.
-               res.y + (old_trans->is3D() ? 0 : TRANSLATE_Y / LANE_WIDTH - dim.y / 480.0f), // This one is only a guess and can probably be further improved.
-               v_raw.z };
-         },
-         [](const Vec3D& v_raw) -> Vec3D {
-            Failable::getSingleton()->addFatalError("Reverse translation for wrapper translator not yet adjusted to current regular version.");
-            return { v_raw.x, v_raw.y, v_raw.z };
-         });
+         wrapper_trans_function,
+         wrapper_reverse_trans_function);
 
       setTranslator(wrapper_trans);
       r_sub->connectors_ = paintStraightRoadScene(
