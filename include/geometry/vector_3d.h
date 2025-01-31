@@ -46,6 +46,12 @@ public:
    template <typename T>
    friend bool operator==(const Vector3D<T>& lhs, const Vector3D<T>& rhs);
 
+   /// <summary>
+   /// Iff rhs is up to some epsilon in each dimension equal to this. Will also return true if any of the
+   /// coordinates is NAN.
+   /// </summary>
+   bool isApproxEqual(const Vector3D<NumType>& rhs) const;
+
 private:
    static float tof(const NumType val);
 };
@@ -200,6 +206,16 @@ inline float Vector3D<NumType>::distance(const Vector3D<NumType>& other) const
 template <typename T>
 bool operator==(const Vector3D<T>& lhs, const Vector3D<T>& rhs) {
    return (lhs.x == rhs.x) && (lhs.y == rhs.y) && (lhs.z == rhs.z);
+}
+
+template<class NumType>
+inline bool Vector3D<NumType>::isApproxEqual(const Vector3D<NumType>& rhs) const
+{
+   static constexpr float eps{ 0.001 };
+
+   return ((std::isnan(rhs.x) || std::isnan(x)) || std::abs(rhs.x - x) < eps)
+       && ((std::isnan(rhs.y) || std::isnan(y)) || std::abs(rhs.y - y) < eps)
+       && ((std::isnan(rhs.z) || std::isnan(z)) || std::abs(rhs.z - z) < eps);
 }
 
 } // vfm

@@ -49,7 +49,6 @@ struct ConnectorPolygonEnding
    std::shared_ptr<Color> col_{ nullptr };
    int id_{ -1 };
    std::shared_ptr<HighwayTranslator> my_trans_{};
-   HighwayTranslator* my_plain_2D_trans_;
 };
 
 struct CarPars {
