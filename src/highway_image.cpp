@@ -940,8 +940,8 @@ void vfm::HighwayImage::paintRoadGraph(
             v.rotate(r_sub->getAngle() * mirrored, { middle.x, middle.y });
             auto res = plain_2d_translator_.reverseTranslate(v);
             return { // The magic numbers below reflect the dependence on the number of lanes when calculating the thickness of lane marker lines.
-               res.x + (old_trans->is3D() ? 0 : TRANSLATE_X) - dim.x / (2 * 12.8f), // This constant has been calculated.
-               res.y + (old_trans->is3D() ? 0 : TRANSLATE_Y / LANE_WIDTH) - dim.y / 480.0f,      // This one is only a guess and can probably be further improved.
+               res.x + (old_trans->is3D() ? 0 : TRANSLATE_X - dim.x / (2 * 12.8f)), // This constant has been calculated.
+               res.y + (old_trans->is3D() ? 0 : TRANSLATE_Y / LANE_WIDTH - dim.y / 480.0f), // This one is only a guess and can probably be further improved.
                v_raw.z };
          },
          [this, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
@@ -963,8 +963,8 @@ void vfm::HighwayImage::paintRoadGraph(
          dim);
    }
 
-   //setTranslator(old_trans);
-   //return;
+   setTranslator(old_trans);
+   return;
 
    setTranslator(std::make_shared<DefaultHighwayTranslator>());
 
