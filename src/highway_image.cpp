@@ -448,10 +448,6 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
 
       overpaint.add({ temp_x2, (float)(min_lane ? last_point.getActualDrivableMinLane() : last_point.getActualDrivableMaxLane()) - ego_lane });
 
-      const Vec2D tmp_root{ 0, 0 };
-      const Vec2D tmp_away{ 0, LANE_MARKER_THICKNESS };
-      const float LANE_MARKER_THICKNESS_TRANSLATED{ plain_2d_translator_.translate(tmp_root).distance(plain_2d_translator_.translate(tmp_away)) };
-
       // Drains and sources.
       // Assuming we do "min_lane = true" first.
       if (min_lane) { // TOP
@@ -459,9 +455,6 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          auto top_left_corner  = (*overpaint.points_.begin());
          auto top_right_second = (*(overpaint.points_.rbegin() + 1));
          auto top_left_second  = (*(overpaint.points_.begin() + 1));
-         const Vec2D thin1{ plain_2d_translator_.reverseTranslate({ 0, 0}).projectToXY()};
-         const Vec2D thin2{ plain_2d_translator_.reverseTranslate({ THICK / 2000 * dim.x, 0}).projectToXY()};
-         const float thin{ thin1.distance(thin2) };
 
          if (!getHighwayTranslator()->is3D()) {
             top_right_corner.add({ 0, ego.car_lane_ });
@@ -474,7 +467,8 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             0, // temp thickness; will be calculated when bottom part becomes available
             std::make_shared<Color>(0, 0, 0, 0),
             3,
-            getHighwayTranslator() });
+            getHighwayTranslator(),
+            &plain_2d_translator_ });
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{ // Special encoding for the frame in LANE_MARKER_COLOR
             ConnectorPolygonEnding::Side::source,
@@ -482,7 +476,8 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             0, // temp thickness; will be calculated when bottom part becomes available
             std::make_shared<Color>(0, 0, 0, 0),
             3,
-            getHighwayTranslator() });
+            getHighwayTranslator(),
+            &plain_2d_translator_ });
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{ // Actual pavement
             ConnectorPolygonEnding::Side::drain,
@@ -490,7 +485,8 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             0, // temp thickness; will be calculated when bottom part becomes available
             std::make_shared<Color>(PAVEMENT_COLOR),
             4,
-            getHighwayTranslator() });
+            getHighwayTranslator(),
+            &plain_2d_translator_ });
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{ // Actual pavement
             ConnectorPolygonEnding::Side::source,
@@ -498,7 +494,8 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             0, // temp thickness; will be calculated when bottom part becomes available
             std::make_shared<Color>(PAVEMENT_COLOR),
             4,
-            getHighwayTranslator() });
+            getHighwayTranslator(),
+            &plain_2d_translator_ });
       }
       else { // BOTTOM
          auto bottom_right_corner = (*overpaint.points_.rbegin());
@@ -539,6 +536,9 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
       }
       // EO Drains and sources.
 
+      const Vec2D tmp_root{ 0, 0 };
+      const Vec2D tmp_away{ 0, LANE_MARKER_THICKNESS };
+      const float LANE_MARKER_THICKNESS_TRANSLATED{ plain_2d_translator_.translate(tmp_root).distance(plain_2d_translator_.translate(tmp_away)) };
       arrow.createArrow(plain_2d_translator_.translatePolygon(overpaint), LANE_MARKER_THICKNESS_TRANSLATED);
 
       // TODO: Thicker in z direction.
@@ -890,7 +890,8 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       bottom_left_corner.distance(top_left_corner) * 3.75f,
       std::make_shared<Color>(GRASS_COLOR),
       0,
-      getHighwayTranslator() });
+      getHighwayTranslator(),
+      &plain_2d_translator_ });
 
    res.insert(res.begin(), ConnectorPolygonEnding{
       ConnectorPolygonEnding::Side::source,
@@ -898,7 +899,8 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       bottom_left_corner.distance(top_left_corner) * 3.75f,
       std::make_shared<Color>(GRASS_COLOR),
       0,
-      getHighwayTranslator() } );
+      getHighwayTranslator(),
+      &plain_2d_translator_ } );
 
    return res;
 }
@@ -944,13 +946,9 @@ void vfm::HighwayImage::paintRoadGraph(
                res.y + (old_trans->is3D() ? 0 : TRANSLATE_Y / LANE_WIDTH - dim.y / 480.0f), // This one is only a guess and can probably be further improved.
                v_raw.z };
          },
-         [this, mirrored, r_sub](const Vec3D& v_raw) -> Vec3D {
-            Vec3D v{ plain_2d_translator_.reverseTranslate(v_raw.projectToXY()) };
-            Vec2D v2{ v.x, v.y };
-            auto res = plain_2d_translator_.translate(v2);
-            res.sub({ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y });
+         [](const Vec3D& v_raw) -> Vec3D {
             Failable::getSingleton()->addFatalError("Reverse translation for wrapper translator not yet adjusted to current regular version.");
-            return { res.x, res.y, v_raw.z };
+            return { v_raw.x, v_raw.y, v_raw.z };
          });
 
       setTranslator(wrapper_trans);
@@ -971,14 +969,15 @@ void vfm::HighwayImage::paintRoadGraph(
    std::vector<Pol2D> additional_arrows{};
 
    for (int i = 0; i <= 30; i++) {
+      store("test", OutputType::pdf);
       r->applyToMeAndAllMySuccessorsAndPredecessors([this, i, &dim_raw, &additional_arrows](const std::shared_ptr<RoadGraph> r) -> void
       {
          for (const auto& r_succ : r->getSuccessors()) {
             for (const auto& A : r->connectors_) {
                for (const auto& B : r_succ->connectors_) {
                   if (A.id_ == i && A.id_ == B.id_ && A.side_ == ConnectorPolygonEnding::Side::drain && B.side_ == ConnectorPolygonEnding::Side::source) {
-                     auto trans_a = A.my_trans_;
-                     auto trans_b = B.my_trans_;
+                     auto trans_a = /* A.my_trans_->is3D() ? A.my_plain_2D_trans_ :*/ A.my_trans_;
+                     auto trans_b = /* B.my_trans_->is3D() ? B.my_plain_2D_trans_ :*/ B.my_trans_;
 
                      assert(*A.col_ == *B.col_);
 
@@ -991,18 +990,12 @@ void vfm::HighwayImage::paintRoadGraph(
                      const auto b_connector_direction_translated = trans_b->translate(B.connector_.direction_);
                      const auto thick_a = A.thick_ * norm_length_a;
                      const auto thick_b = B.thick_ * norm_length_b;
-                     //auto  dock_point_a1 = a_connector_basepoint_translated;
-                     //auto  dock_point_a2 = a_connector_basepoint_translated;
-                     //auto  dock_point_b1 = b_connector_basepoint_translated;
-                     //auto  dock_point_b2 = b_connector_basepoint_translated;
                      Vec2D between1 = a_connector_basepoint_translated;
                      Vec2D between1_dir = a_connector_basepoint_translated;
                      between1_dir.sub(a_connector_direction_translated);
                      Vec2D between1_dir_ortho{ between1_dir };
                      between1_dir_ortho.ortho();
                      between1_dir_ortho.setLength(thick_a / 2);
-                     //dock_point_a1.add(between1_dir_ortho);
-                     //dock_point_a2.sub(between1_dir_ortho);
 
                      between1_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
                      between1.add(between1_dir);
@@ -1012,8 +1005,6 @@ void vfm::HighwayImage::paintRoadGraph(
                      Vec2D between2_dir_ortho{ between2_dir };
                      between2_dir_ortho.ortho();
                      between2_dir_ortho.setLength(thick_b / 2);
-                     //dock_point_b1.add(between2_dir_ortho);
-                     //dock_point_b2.sub(between2_dir_ortho);
 
                      between2_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
                      between2.add(between2_dir);
@@ -1024,13 +1015,8 @@ void vfm::HighwayImage::paintRoadGraph(
                      {
                         const float step{ (thick_b - thick_a) / p.points_.size() };
                         return thick_a + point_num * step;
-                     }, { /*dock_point_a1, dock_point_a2*/ }, { /*dock_point_b1, dock_point_b2*/ });
+                     }, {}, {});
 
-                     //p.add(a_outgoing_basepoint_translated);
-                     //p.add(b_incoming_basepoint_translated);
-                     //p.add(b_outgoing_basepoint_translated);
-                     //p.bezier(b_outgoing_basepoint_translated, between3, between4, a_incoming_basepoint_translated);
-                     //p.add(a_incoming_basepoint_translated);
                      if (*A.col_ == Color{0, 0, 0, 0}) {
                         Pol2D arrow_square{};
                         arrow.add(*arrow.points_.begin());

@@ -788,7 +788,7 @@ inline void Polygon2D<NumType>::createArrow(
    const Vector2D<NumType>& head_factor, 
    const Vector2D<NumType>& end_factor)
 {
-   assert(base_points.points_.size() >= 2);
+   if (base_points.points_.size() < 2) return;
 
    Polygon2D<NumType> pointList2;
    float thickness_first = thickness(base_points.points_[0], 0);
@@ -1037,7 +1037,7 @@ inline std::vector<Polygon2D<NumType>> Polygon2D<NumType>::dashedArrow(
    float strLaeng{};
    float durchDick{ 0 };
    float durchAbst{ 0 };
-   float anzpoints{};
+   int anzpoints{};
    int j{};
    Polygon2D<NumType> anfang{};
    Polygon2D<NumType> ende{};
@@ -1078,7 +1078,7 @@ inline std::vector<Polygon2D<NumType>> Polygon2D<NumType>::dashedArrow(
    mehrpoints = fmodf(points.points_.size(), anzpoints);
    anzpoints += mehrpoints / ((int)anzSegmente + 1);
 
-   for (float i = 0; i <= points.points_.size() - anzpoints; i += anzpoints) {
+   for (float i = 0; i <= (int)points.points_.size() - anzpoints && anzpoints > 0; i += anzpoints) {
       anfang = ARROW_END_PLAIN_LINE;
       ende = ARROW_END_PLAIN_LINE;
       if (i == 0) {
