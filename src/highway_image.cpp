@@ -964,7 +964,7 @@ void vfm::HighwayImage::paintRoadGraph(
    }
 
    setTranslator(old_trans);
-   return;
+   //return;
 
    setTranslator(std::make_shared<DefaultHighwayTranslator>());
 
@@ -1018,7 +1018,7 @@ void vfm::HighwayImage::paintRoadGraph(
                      between2_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
                      between2.add(between2_dir);
 
-                     p.bezier(a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated, 0.001);
+                     p.bezier(a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated, 0.01);
                      Pol2D arrow{};
                      arrow.createArrow(p, [p, thick_a, thick_b](const Vec2D& point_position, const int point_num) -> float 
                      {
@@ -1044,7 +1044,7 @@ void vfm::HighwayImage::paintRoadGraph(
                            p2.add(p.points_[i]);
                         }
 
-                        auto vec = Pol2D::dashedArrow(p2, 1, 2.0f / 1500.0f * dim_raw.x * 3, {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 1.5, 1.5 });
+                        auto vec = Pol2D::dashedArrow(p2, 2, 2.0f / 1500.0f * dim_raw.x * 3, {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 1.5, 1.5 });
                         for (int i = 0; i < vec.size(); i++) 
                            if (i % 2 || i == vec.size() - 1)
                               additional_arrows.push_back(vec[i]);
