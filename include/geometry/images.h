@@ -338,6 +338,11 @@ public:
       return translatePolygonCore(pol);
    }
 
+   inline Pol3D reverseTranslatePolygon(const Pol3D& pol)
+   {
+      return reverseTranslatePolygonCore(pol);
+   }
+
    inline Pol2D reverseTranslate(const Pol2D& pol)
    {
       Pol2D result{};
@@ -373,6 +378,21 @@ public:
 
          if (!std::isnan(current_point.x) && !std::isnan(current_point.y)) {
             result.add(current_point);
+         }
+      }
+
+      return result;
+   }
+
+   inline virtual Pol3D reverseTranslatePolygonCore(const Pol3D& pol)
+   {
+      Pol3D result{};
+
+      for (const auto& point : pol.points_) {
+         auto current_point{ reverseTranslate(point.projectToXY()) };
+
+         if (!std::isnan(current_point.x) && !std::isnan(current_point.y)) {
+            result.add(Vec3D{ current_point.x, current_point.y, point.z });
          }
       }
 
