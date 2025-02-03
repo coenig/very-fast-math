@@ -358,7 +358,7 @@ void vfm::HighwayImage::doShoulder(
       }
 
       temp_arrow.createArrow(getTranslator()->translatePolygon(temp_base_points), THIN);
-      fillPolygon(plain_2d_translator_.reverseTranslate(temp_arrow), LANE_MARKER_COLOR);
+      fillPolygon(plain_2d_translator_->reverseTranslate(temp_arrow), LANE_MARKER_COLOR);
    }
 }
 
@@ -534,8 +534,8 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
 
       const Vec2D tmp_root{ 0, 0 };
       const Vec2D tmp_away{ 0, LANE_MARKER_THICKNESS };
-      const float LANE_MARKER_THICKNESS_TRANSLATED{ plain_2d_translator_.translate(tmp_root).distance(plain_2d_translator_.translate(tmp_away)) };
-      arrow.createArrow(plain_2d_translator_.translatePolygon(overpaint), LANE_MARKER_THICKNESS_TRANSLATED);
+      const float LANE_MARKER_THICKNESS_TRANSLATED{ plain_2d_translator_->translate(tmp_root).distance(plain_2d_translator_->translate(tmp_away)) };
+      arrow.createArrow(plain_2d_translator_->translatePolygon(overpaint), LANE_MARKER_THICKNESS_TRANSLATED);
 
       // TODO: Thicker in z direction.
       //for (int i = 0; i < arrow.points_.size(); i++) {
@@ -552,7 +552,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
       overpaint.add(0, min_lane ? Vec2D{ br_orig.x, tl_orig.y } : br_orig);
 
       fillPolygon(overpaint, GRASS_COLOR);
-      fillPolygon(plain_2d_translator_.reverseTranslate(arrow), LANE_MARKER_COLOR);
+      fillPolygon(plain_2d_translator_->reverseTranslate(arrow), LANE_MARKER_COLOR);
 
       //drawPolygon(overpaint, RED, true, true, true);
       //drawPolygon(arrow, BLUE, true, true, true);
@@ -591,7 +591,7 @@ void vfm::HighwayImage::setPerspective(
    const float factor = lw / LANE_WIDTH;
 
    highway_translator_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, ego_car_lane, v_point_);
-   plain_2d_translator_.setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, ego_car_lane, v_point_);
+   plain_2d_translator_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, ego_car_lane, v_point_);
 
    static constexpr float PI{ 3.14159265359 };
 
@@ -724,8 +724,8 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    const Vec2Df pos_ego{ 0, 0 };  // Convention: Ego is at 0/0 position.
    float y = street_top;
 
-   auto tl_orig{ plain_2d_translator_.reverseTranslate({ 0, 0 }).projectToXY() };
-   auto br_orig{ plain_2d_translator_.reverseTranslate({ dim.x - 1, dim.y - 1}).projectToXY() };
+   auto tl_orig{ plain_2d_translator_->reverseTranslate({ 0, 0 }).projectToXY() };
+   auto br_orig{ plain_2d_translator_->reverseTranslate({ dim.x - 1, dim.y - 1}).projectToXY() };
    const float street_left_border{ min_lane - 0.5f - ego_lane };
    const float street_width{ (float)((max_lane - min_lane) + 1) };
    const float street_right_border{ street_left_border + street_width };
@@ -856,11 +856,11 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    if (ego) writeAsciiText(pos_ego.x, pos_ego.y, std::to_string(ego_velocity), CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
 
    if (ego) {
-      auto text_pos_y{ plain_2d_translator_.reverseTranslate({ 0, 13 }).y };
+      auto text_pos_y{ plain_2d_translator_->reverseTranslate({ 0, 13 }).y };
       writeAsciiText(-CAR_LENGTH / 2, text_pos_y, std::to_string((int)ego_rel_pos) + "m", CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
    }
 
-   const auto reverse_origin_2D{ plain_2d_translator_.reverseTranslate({0, 0}) };
+   const auto reverse_origin_2D{ plain_2d_translator_->reverseTranslate({0, 0}) };
    float tl_orig_one_below_y{ reverse_origin_2D.y };
    //rectangle(road_begin - ego_rel_pos, tl_orig_one_below_y, road_length, br_orig.y - tl_orig.y, BLACK, false);
 
@@ -932,10 +932,10 @@ void vfm::HighwayImage::paintRoadGraph(
 
       const auto wrapper_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, &dim, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
          const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0) };
-         const auto middle = plain_2d_translator_.translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
-         Vec2D v{ plain_2d_translator_.translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
+         const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
+         Vec2D v{ plain_2d_translator_->translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
          v.rotate(r_sub->getAngle(), { middle.x, middle.y });
-         auto res = plain_2d_translator_.reverseTranslate(v);
+         auto res = plain_2d_translator_->reverseTranslate(v);
 
          return { // The magic numbers below reflect the dependence on the number of lanes when calculating the thickness of lane marker lines iso. paintStraightRoadScene.
             res.x + (old_trans->is3D() ? 0 : TRANSLATE_X - dim.x / MC1), // This constant has been calculated.
@@ -945,16 +945,16 @@ void vfm::HighwayImage::paintRoadGraph(
 
       const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, &dim, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
          const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0) };
-         const auto middle = plain_2d_translator_.translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
+         const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
 
          Vec2D v{
             v_raw.x - (old_trans->is3D() ? 0 : TRANSLATE_X - dim.x / MC1),
             v_raw.y - (old_trans->is3D() ? 0 : TRANSLATE_Y / LANE_WIDTH - dim.y / MC2),
          };
 
-         v = plain_2d_translator_.translate(v);
+         v = plain_2d_translator_->translate(v);
          v.rotate(-r_sub->getAngle(), { middle.x, middle.y });
-         auto res = plain_2d_translator_.reverseTranslate({ v.x, v.y });
+         auto res = plain_2d_translator_->reverseTranslate({ v.x, v.y });
 
          return { res.x - origin.x, res.y - origin.y / LANE_WIDTH, v_raw.z };
       };
@@ -974,6 +974,14 @@ void vfm::HighwayImage::paintRoadGraph(
          wrapper_reverse_trans_function);
 
       setTranslator(wrapper_trans);
+      //if (getHighwayTranslator()->is3D()) {
+      //   const auto wrapper_trans_2d = std::make_shared<HighwayTranslatorWrapper>(
+      //      plain_2d_translator_,
+      //      wrapper_trans_function,
+      //      wrapper_reverse_trans_function);
+      //   plain_2d_translator_ = wrapper_trans_2d;
+      //}
+
       r_sub->connectors_ = paintStraightRoadScene(
          r_sub->getMyRoad(),
          all_nodes.size() == 1 && r_sub->isRootedInZeroAndUnturned(), // Only a single section, at root position and unturned, will be painted as infinite.
