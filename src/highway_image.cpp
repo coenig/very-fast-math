@@ -467,7 +467,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             0, // temp thickness; will be calculated when bottom part becomes available
             std::make_shared<Color>(0, 0, 0, 0),
             3,
-            getHighwayTranslator() });
+            getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{ // Special encoding for the frame in LANE_MARKER_COLOR
             ConnectorPolygonEnding::Side::source,
@@ -475,7 +475,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             0, // temp thickness; will be calculated when bottom part becomes available
             std::make_shared<Color>(0, 0, 0, 0),
             3,
-            getHighwayTranslator() });
+            getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{ // Actual pavement
             ConnectorPolygonEnding::Side::drain,
@@ -483,7 +483,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             0, // temp thickness; will be calculated when bottom part becomes available
             std::make_shared<Color>(PAVEMENT_COLOR),
             4,
-            getHighwayTranslator() });
+            getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{ // Actual pavement
             ConnectorPolygonEnding::Side::source,
@@ -491,7 +491,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             0, // temp thickness; will be calculated when bottom part becomes available
             std::make_shared<Color>(PAVEMENT_COLOR),
             4,
-            getHighwayTranslator() });
+            getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
       }
       else { // BOTTOM
          auto bottom_right_corner = (*overpaint.points_.rbegin());
@@ -592,6 +592,7 @@ void vfm::HighwayImage::setPerspective(
 
    highway_translator_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, ego_car_lane, v_point_);
    plain_2d_translator_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, ego_car_lane, v_point_);
+   if (plain_2d_translator_wrapped_) plain_2d_translator_wrapped_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, ego_car_lane, v_point_);
 
    static constexpr float PI{ 3.14159265359 };
 
@@ -886,7 +887,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       bottom_left_corner.distance(top_left_corner) * 3.75f,
       std::make_shared<Color>(GRASS_COLOR),
       0,
-      getHighwayTranslator() });
+      getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
 
    res.insert(res.begin(), ConnectorPolygonEnding{
       ConnectorPolygonEnding::Side::source,
@@ -894,7 +895,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       bottom_left_corner.distance(top_left_corner) * 3.75f,
       std::make_shared<Color>(GRASS_COLOR),
       0,
-      getHighwayTranslator() } );
+      getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() } );
 
    return res;
 }
@@ -974,13 +975,14 @@ void vfm::HighwayImage::paintRoadGraph(
          wrapper_reverse_trans_function);
 
       setTranslator(wrapper_trans);
-      //if (getHighwayTranslator()->is3D()) {
-      //   const auto wrapper_trans_2d = std::make_shared<HighwayTranslatorWrapper>(
-      //      plain_2d_translator_,
-      //      wrapper_trans_function,
-      //      wrapper_reverse_trans_function);
-      //   plain_2d_translator_ = wrapper_trans_2d;
-      //}
+
+      if (getHighwayTranslator()->is3D()) {
+         const auto wrapper_trans_2d = std::make_shared<HighwayTranslatorWrapper>(
+            plain_2d_translator_,
+            wrapper_trans_function,
+            wrapper_reverse_trans_function);
+         plain_2d_translator_wrapped_ = wrapper_trans_2d;
+      }
 
       r_sub->connectors_ = paintStraightRoadScene(
          r_sub->getMyRoad(),
@@ -1051,7 +1053,14 @@ void vfm::HighwayImage::paintRoadGraph(
                         Pol2D arrow_square{};
                         arrow.add(*arrow.points_.begin());
                         arrow_square.createArrow(arrow, THICK * 0.97); // TODO: Remove this magic number
-                        fillPolygon(arrow_square, LANE_MARKER_COLOR);
+
+                        if (getHighwayTranslator()->is3D()) {
+                           auto arrow_square_reverse = plain_2d_translator_->reverseTranslatePolygon(arrow_square);
+                           fillPolygon(arrow_square_reverse, LANE_MARKER_COLOR);
+                        }
+                        else {
+                           fillPolygon(arrow_square, LANE_MARKER_COLOR);
+                        }
                         Pol2D p2{};
                         float begin = p.points_.size() / 4.0f;
                         float end = p.points_.size() - p.points_.size() / 4.0f;
