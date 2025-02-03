@@ -92,7 +92,7 @@ public:
 
 private:
    std::shared_ptr<HighwayTranslator> highway_translator_{};
-   Plain2DTranslator plain_2d_translator_{};
+   std::shared_ptr<Plain2DTranslator> plain_2d_translator_{ std::make_shared<Plain2DTranslator>() };
    float cnt_{ -150 };
    float step_{ 0.05 };
    int num_lanes_{}; // TODO: Needed only for setting up 3D perspective, which should go into the 3D part.
