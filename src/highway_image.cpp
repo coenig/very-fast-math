@@ -1057,7 +1057,7 @@ void vfm::HighwayImage::paintRoadGraph(
                      if (*A.col_ == Color{0, 0, 0, 0}) {
                         Pol2D arrow_square{};
                         arrow.add(*arrow.points_.begin());
-                        arrow_square.createArrow(arrow, THICK * (old_trans->is3D() ? 2 : 0.97)); // TODO: Remove these magic numbers
+                        arrow_square.createArrow(arrow, THICK * (old_trans->is3D() ? 2.1 : 0.97)); // TODO: Remove these magic numbers
 
                         if (old_trans->is3D()) {
                            auto arrow_square_reverse = plain_2d_translator_->reverseTranslatePolygon(arrow_square);
@@ -1075,9 +1075,14 @@ void vfm::HighwayImage::paintRoadGraph(
                         }
 
                         auto vec = Pol2D::dashedArrow(p2, 2, 2.0f / 1500.0f * dim_raw.x * 3, {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 1.5, 1.5 });
-                        for (int i = 0; i < vec.size(); i++) 
-                           if (i % 2 || i == vec.size() - 1)
+
+                        for (int i = 0; i < vec.size(); i++) {
+                           if (vec[i].points_.empty()) {
+                              int x{};
+                           }
+                           //if (i % 2 || i == vec.size() - 1)
                               additional_arrows.push_back(vec[i]);
+                        }
                      }
                      else {
                         if (old_trans->is3D()) {
@@ -1097,7 +1102,7 @@ void vfm::HighwayImage::paintRoadGraph(
    }
 
    for (const auto& a : additional_arrows) {
-      if (!a.points_.empty()) {
+      if (true || !a.points_.empty()) {
          if (old_trans->is3D()) {
             auto a_reverse = plain_2d_translator_->reverseTranslatePolygon(a);
             fillPolygon(a_reverse, DARK_GREY);
