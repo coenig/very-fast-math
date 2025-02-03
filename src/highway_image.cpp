@@ -996,13 +996,18 @@ void vfm::HighwayImage::paintRoadGraph(
    setTranslator(old_trans);
    //return;
 
-   setTranslator(std::make_shared<DefaultHighwayTranslator>());
+   if (old_trans->is3D()) {
+      setTranslator(old_trans);
+   }
+   else {
+      setTranslator(std::make_shared<DefaultHighwayTranslator>());
+   }
 
    std::vector<Pol2D> additional_arrows{};
 
    for (int i = 0; i <= 30; i++) {
       store("test", OutputType::pdf);
-      r->applyToMeAndAllMySuccessorsAndPredecessors([this, i, &dim_raw, &additional_arrows](const std::shared_ptr<RoadGraph> r) -> void
+      r->applyToMeAndAllMySuccessorsAndPredecessors([this, i, &dim_raw, &additional_arrows, old_trans](const std::shared_ptr<RoadGraph> r) -> void
       {
          for (const auto& r_succ : r->getSuccessors()) {
             for (const auto& A : r->connectors_) {
@@ -1052,9 +1057,9 @@ void vfm::HighwayImage::paintRoadGraph(
                      if (*A.col_ == Color{0, 0, 0, 0}) {
                         Pol2D arrow_square{};
                         arrow.add(*arrow.points_.begin());
-                        arrow_square.createArrow(arrow, THICK * 0.97); // TODO: Remove this magic number
+                        arrow_square.createArrow(arrow, THICK * (old_trans->is3D() ? 2 : 0.97)); // TODO: Remove these magic numbers
 
-                        if (getHighwayTranslator()->is3D()) {
+                        if (old_trans->is3D()) {
                            auto arrow_square_reverse = plain_2d_translator_->reverseTranslatePolygon(arrow_square);
                            fillPolygon(arrow_square_reverse, LANE_MARKER_COLOR);
                         }
@@ -1075,7 +1080,13 @@ void vfm::HighwayImage::paintRoadGraph(
                               additional_arrows.push_back(vec[i]);
                      }
                      else {
-                        fillPolygon(arrow, *A.col_);
+                        if (old_trans->is3D()) {
+                           auto arrow_reverse = plain_2d_translator_->reverseTranslatePolygon(arrow);
+                           fillPolygon(arrow_reverse, *A.col_);
+                        }
+                        else {
+                           fillPolygon(arrow, *A.col_);
+                        }
                      }
                      //drawPolygon(arrow, BLACK, true, true, true);
                   }
@@ -1086,7 +1097,14 @@ void vfm::HighwayImage::paintRoadGraph(
    }
 
    for (const auto& a : additional_arrows) {
-      fillPolygon(a, DARK_GREY);
+      if (!a.points_.empty()) {
+         if (old_trans->is3D()) {
+            auto a_reverse = plain_2d_translator_->reverseTranslatePolygon(a);
+            fillPolygon(a_reverse, DARK_GREY);
+         } else {
+            fillPolygon(a, DARK_GREY);
+         }
+      }
    }
 
    setTranslator(old_trans);
