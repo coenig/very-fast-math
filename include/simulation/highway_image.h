@@ -85,8 +85,8 @@ public:
       const float ego_offset_x = 0,
       const std::map<std::string, std::string>& var_vals = {},
       const bool print_agent_ids = true,
-      const float TRANSLATE_X = 60,
-      const float TRANSLATE_Y = 20);
+      const float TRANSLATE_X = 0,
+      const float TRANSLATE_Y = 0);
 
    std::shared_ptr<HighwayTranslator> getHighwayTranslator() const;
 
