@@ -135,7 +135,8 @@ public:
       const Polygon2D<NumType>& arrow_head = {},
       const Polygon2D<NumType>& arrow_end = {},
       const Vector2D<NumType>& head_factor = {1, 1},
-      const Vector2D<NumType>& end_factor = {1, 1});
+      const Vector2D<NumType>& end_factor = {1, 1},
+      const bool cut_out_intersecting_points = false);
 
    void createArrow(
       const Polygon2D<NumType>& base_points, 
@@ -145,7 +146,8 @@ public:
       const Polygon2D<NumType>& arrow_head = {},
       const Polygon2D<NumType>& arrow_end = {},
       const Vector2D<NumType>& head_factor = {1, 1},
-      const Vector2D<NumType>& end_factor = {1, 1});
+      const Vector2D<NumType>& end_factor = {1, 1},
+      const bool cut_out_intersecting_points = false);
 
    /// \brief Calculates for the edge of a polyline intersection points around
    ///  the actual point where an embedding polygon would go to emulate line thickness.
@@ -786,7 +788,8 @@ inline void Polygon2D<NumType>::createArrow(
    const Polygon2D<NumType>& arrow_head,
    const Polygon2D<NumType>& arrow_end, 
    const Vector2D<NumType>& head_factor, 
-   const Vector2D<NumType>& end_factor)
+   const Vector2D<NumType>& end_factor,
+   const bool cut_out_intersecting_points)
 {
    if (base_points.points_.size() < 2) return;
 
@@ -816,12 +819,14 @@ inline void Polygon2D<NumType>::createArrow(
       Polygon2D<NumType> tempPoints = lineThicknessIntersectionPoints(base_points.points_[i - 1], base_points.points_[i], base_points.points_[i + 1], thickness(base_points.points_[i], i));
       LineSegment2D<NumType> p(tempPoints.points_[0], tempPoints.points_[1]);
       LineSegment2D<NumType> q(points_[points_.size() - 1], pointList2.points_[pointList2.points_.size() - 1]);
+      const bool intersects{ p.intersect(q) };
 
-      add(tempPoints.points_[0]);
-      pointList2.add(tempPoints.points_[1]);
-      
-      if (p.intersect(q)) {
-         Failable::getSingleton()->addDebug("Segment could not be placed without an intersection at point: " + base_points.points_[i].serialize());
+      if (!cut_out_intersecting_points || !intersects) {
+         add(tempPoints.points_[0]);
+         pointList2.add(tempPoints.points_[1]);
+      }
+      else if (cut_out_intersecting_points && intersects) {
+         Failable::getSingleton()->addWarning("Segment could not be placed without an intersection at point: " + base_points.points_[i].serialize());
       }
    }
 
@@ -859,7 +864,8 @@ inline void Polygon2D<NumType>::createArrow(
    const Polygon2D<NumType>& arrow_head,
    const Polygon2D<NumType>& arrow_end, 
    const Vector2D<NumType>& head_factor, 
-   const Vector2D<NumType>& end_factor)
+   const Vector2D<NumType>& end_factor,
+   const bool cut_out_intersecting_points)
 {
    createArrow(base_points,
       [thickness](const Vector2D<NumType>& point_position, const int point_num){return thickness;},
@@ -868,7 +874,8 @@ inline void Polygon2D<NumType>::createArrow(
       arrow_head,
       arrow_end,
       head_factor,
-      end_factor);
+      end_factor,
+      cut_out_intersecting_points);
 }
 
 template<class NumType>
@@ -1089,7 +1096,7 @@ inline std::vector<Polygon2D<NumType>> Polygon2D<NumType>::dashedArrow(
          anzpoints = points.points_.size() - i - 1;
       }
 
-      beginns.push_back((int) i);
+      beginns.push_back((int) i - (anzpoints ? 0 : 1)); // We need at least two points to paint an arrow. TODO: Not sure if this could ever happen at i = 0.
       endes.push_back((int)(i + anzpoints));
       arrow_begins.push_back(anfang);
       arrow_ends.push_back(ende);
@@ -1144,6 +1151,10 @@ inline std::vector<Polygon2D<NumType>> Polygon2D<NumType>::createArrowSegments(
          arrow_end[i],
          faktorAnfang[i],
          faktorEnde[i]);
+
+      if (aktPol.points_.empty()) {
+         int x{};
+      }
 
       segmente.push_back(aktPol);
    }

@@ -1057,7 +1057,16 @@ void vfm::HighwayImage::paintRoadGraph(
                      if (*A.col_ == Color{0, 0, 0, 0}) {
                         Pol2D arrow_square{};
                         arrow.add(*arrow.points_.begin());
-                        arrow_square.createArrow(arrow, THICK * (old_trans->is3D() ? 2.1 : 0.97)); // TODO: Remove these magic numbers
+                        arrow_square.createArrow(
+                           arrow, 
+                           THICK * (old_trans->is3D() ? 2.1 : 0.97), // TODO: Remove these magic numbers
+                           {},
+                           {},
+                           {},
+                           {},
+                           { 1, 1 },
+                           { 1, 1 },
+                           false);
 
                         if (old_trans->is3D()) {
                            auto arrow_square_reverse = plain_2d_translator_->reverseTranslatePolygon(arrow_square);
