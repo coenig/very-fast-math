@@ -939,8 +939,8 @@ void vfm::HighwayImage::paintRoadGraph(
          auto res = plain_2d_translator_->reverseTranslate(v);
 
          return { // The magic numbers below reflect the dependence on the number of lanes when calculating the thickness of lane marker lines iso. paintStraightRoadScene.
-            res.x + (old_trans->is3D() ? 0 : TRANSLATE_X - dim.x / MC1), // This constant has been calculated.
-            res.y + (old_trans->is3D() ? 0 : TRANSLATE_Y / LANE_WIDTH - dim.y / MC2), // This one is only a guess and can probably be further improved.
+            res.x + (old_trans->is3D() ? TRANSLATE_X : TRANSLATE_X - dim.x / MC1), // This constant has been calculated.
+            res.y + (old_trans->is3D() ? TRANSLATE_Y : TRANSLATE_Y / LANE_WIDTH - dim.y / MC2), // This one is only a guess and can probably be further improved.
             v_raw.z };
       };
 
@@ -949,8 +949,8 @@ void vfm::HighwayImage::paintRoadGraph(
          const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
 
          Vec2D v{
-            v_raw.x - (old_trans->is3D() ? 0 : TRANSLATE_X - dim.x / MC1),
-            v_raw.y - (old_trans->is3D() ? 0 : TRANSLATE_Y / LANE_WIDTH - dim.y / MC2),
+            v_raw.x - (old_trans->is3D() ? TRANSLATE_X : TRANSLATE_X - dim.x / MC1),
+            v_raw.y - (old_trans->is3D() ? TRANSLATE_Y : TRANSLATE_Y / LANE_WIDTH - dim.y / MC2),
          };
 
          v = plain_2d_translator_->translate(v);
