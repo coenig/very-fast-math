@@ -1073,6 +1073,14 @@ void vfm::HighwayImage::paintRoadGraph(
                            fillPolygon(arrow_square_reverse, LANE_MARKER_COLOR);
                         }
                         else {
+                           // TODO: Get rid of this workaround.
+                           for (int i = 1; i < arrow_square.points_.size(); i++) {
+                              if (arrow_square.points_[i].distance(arrow_square.points_[i - 1]) > 10000) {
+                                 arrow_square.points_[i] = arrow_square.points_[i - 1];
+                              }
+                           }
+                           // EO TODO: Get rid of this workaround.
+
                            fillPolygon(arrow_square, LANE_MARKER_COLOR);
                         }
                         Pol2D p2{};
