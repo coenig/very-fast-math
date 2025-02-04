@@ -817,16 +817,23 @@ inline void Polygon2D<NumType>::createArrow(
 
    for (int i = 1; i < base_points.points_.size() - 1; i++) {
       Polygon2D<NumType> tempPoints = lineThicknessIntersectionPoints(base_points.points_[i - 1], base_points.points_[i], base_points.points_[i + 1], thickness(base_points.points_[i], i));
-      LineSegment2D<NumType> p(tempPoints.points_[0], tempPoints.points_[1]);
-      LineSegment2D<NumType> q(points_[points_.size() - 1], pointList2.points_[pointList2.points_.size() - 1]);
-      const bool intersects{ p.intersect(q) };
 
-      if (!cut_out_intersecting_points || !intersects) {
+      if (cut_out_intersecting_points) {
+         LineSegment2D<NumType> p(tempPoints.points_[0], tempPoints.points_[1]);
+         LineSegment2D<NumType> q(points_[points_.size() - 1], pointList2.points_[pointList2.points_.size() - 1]);
+         const bool intersects{ p.intersect(q) };
+
+         if (intersects) {
+            Failable::getSingleton()->addWarning("Segment could not be placed without an intersection at point: " + base_points.points_[i].serialize());
+         }
+         else {
+            add(tempPoints.points_[0]);
+            pointList2.add(tempPoints.points_[1]);
+         }
+      }
+      else {
          add(tempPoints.points_[0]);
          pointList2.add(tempPoints.points_[1]);
-      }
-      else if (cut_out_intersecting_points && intersects) {
-         Failable::getSingleton()->addWarning("Segment could not be placed without an intersection at point: " + base_points.points_[i].serialize());
       }
    }
 
