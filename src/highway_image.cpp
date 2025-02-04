@@ -1074,13 +1074,10 @@ void vfm::HighwayImage::paintRoadGraph(
                            p2.add(p.points_[i]);
                         }
 
-                        auto vec = Pol2D::dashedArrow(p2, 2, 2.0f / 1500.0f * dim_raw.x * 3, {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 1.5, 1.5 });
+                        auto vec = Pol2D::dashedArrow(p2, 2, 2.0f / 1500.0f * dim_raw.x * 3, {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 2.5, 2.5 });
 
                         for (int i = 0; i < vec.size(); i++) {
-                           if (vec[i].points_.empty()) {
-                              int x{};
-                           }
-                           //if (i % 2 || i == vec.size() - 1)
+                           if (i % 2 || i == vec.size() - 1)
                               additional_arrows.push_back(vec[i]);
                         }
                      }
@@ -1102,7 +1099,7 @@ void vfm::HighwayImage::paintRoadGraph(
    }
 
    for (const auto& a : additional_arrows) {
-      if (true || !a.points_.empty()) {
+      if (!a.points_.empty()) {
          if (old_trans->is3D()) {
             auto a_reverse = plain_2d_translator_->reverseTranslatePolygon(a);
             fillPolygon(a_reverse, DARK_GREY);

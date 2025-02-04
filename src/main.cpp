@@ -141,7 +141,7 @@ int main(int argc, char* argv[])
    section5.addLaneSegment(segment5);
    section6.addLaneSegment(segment6);
    section7.addLaneSegment(segment7);
-   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(0, 0, 0, HighwayImage::EGO_MOCK_ID);
+   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 30, 0, HighwayImage::EGO_MOCK_ID);
    std::map<int, std::pair<float, float>> future_positions_of_others{};
    CarParsVec others0{ { 0, 10, 0, 0 } };
    CarParsVec others1{ { 0, 10, 0, 1 } };
