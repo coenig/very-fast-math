@@ -1066,7 +1066,7 @@ void vfm::HighwayImage::paintRoadGraph(
                            {},
                            { 1, 1 },
                            { 1, 1 },
-                           false);
+                           old_trans->is3D());
 
                         if (old_trans->is3D()) {
                            auto arrow_square_reverse = plain_2d_translator_->reverseTranslatePolygon(arrow_square);
