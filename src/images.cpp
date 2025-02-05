@@ -113,14 +113,14 @@ void vfm::Image::fillPolygonPDF(const Pol2Df& pol, const Color& fill_col)
    fillAndDrawPolygonPDF(pol, 0, fill_col, fill_col, true);
 }
 
-void vfm::Image::drawPolygonPDF(const Pol2Df& pol, const float line_width, const Color& line_col)
+void vfm::Image::drawPolygonPDF(const Pol2Df& pol, const float line_width, const Color& line_col, const bool close)
 {
-   fillAndDrawPolygonPDF(pol, line_width, BLACK, line_col, false);
+   fillAndDrawPolygonPDF(pol, line_width, BLACK, line_col, false, close);
 }
 
 int counter{0};
 
-void vfm::Image::fillAndDrawPolygonPDF(const Pol2Df& pol, const float line_width, const Color& fill_col, const Color& line_col, const bool fill)
+void vfm::Image::fillAndDrawPolygonPDF(const Pol2Df& pol, const float line_width, const Color& fill_col, const Color& line_col, const bool fill, const bool close_raw)
 {
    if (pdf_document_) {
       if (pol.points_.empty()) {
@@ -157,8 +157,11 @@ void vfm::Image::fillAndDrawPolygonPDF(const Pol2Df& pol, const float line_width
       if (fill) {
          HPDF_Page_ClosePathFillStroke(pdf_page_);
       }
-      else {
+      else if (close_raw) {
          HPDF_Page_ClosePathStroke(pdf_page_);
+      }
+      else {
+         HPDF_Page_Stroke(pdf_page_);
       }
 
       polygons_for_pdf_.push_back({ { { pol, fill ? fill_col : line_col }, fill }, line_width });
@@ -526,8 +529,8 @@ void Image::lineUnsafe(const float xx1, const float yy1, const float xx2, const 
    const Pol2D screen_pol{ {-1, -1}, {(float)width_, -1}, {(float)width_, (float)height_}, {-1, (float)height_} };
    const Vec2D p1{ (float)x1, (float)y1 };
    const Vec2D p2{ (float)x2, (float)y2 };
-   assert(screen_pol.isPointWithin(p1));
-   assert(screen_pol.isPointWithin(p2));
+   //assert(screen_pol.isPointWithin(p1));
+   //assert(screen_pol.isPointWithin(p2));
 
    const bool steep = (fabs(y2 - y1) > fabs(x2 - x1));
 
@@ -572,12 +575,15 @@ void vfm::Image::lineUnsafe(const Vec2Df& src, const Vec2Df& dest, const Color& 
 }
 
 void Image::circle(
-   const int x0,
-   const int y0,
+   const int x0_raw,
+   const int y0_raw,
    const int radius,
    const Color& col)
 {
    // TODO: Not supported in PDF, yet.
+   const Vec2D point{ translator_->translate({ (float) x0_raw, (float)y0_raw }) };
+   const float x0{ point.x };
+   const float y0{ point.y };
 
    int f = 1 - radius;
    int ddF_x = 0;
@@ -763,12 +769,12 @@ void vfm::Image::drawPolygon(const Polygon3D<float>& pol, const Color& col, cons
       }
 
       if (print_coordinates) {
-         writeAsciiText(current_point.x, current_point.y, current_point.serializeRoundedDown(), CoordTrans::dont_do_it, false, FUNC_IGNORE_BLACK_CONVERT_TO_YELLOW);
-         writeAsciiText(next_point.x, next_point.y, next_point.serializeRoundedDown(), CoordTrans::dont_do_it, false, FUNC_IGNORE_BLACK_CONVERT_TO_YELLOW);
+         writeAsciiText(current_point.x, current_point.y, std::to_string(i), CoordTrans::dont_do_it, false, FUNC_IGNORE_BLACK_CONVERT_TO_YELLOW);
+         //writeAsciiText(next_point.x, next_point.y, std::to_string(i + 1), CoordTrans::dont_do_it, false, FUNC_IGNORE_BLACK_CONVERT_TO_YELLOW);
       }
    }
 
-   drawPolygonPDF(translated_pol, 0.3, col);
+   drawPolygonPDF(translated_pol, 0.3, col, close_polygon);
 }
 
 void vfm::Image::fillPolygon(const Polygon3D<float>& pol, const Color& col)
@@ -800,6 +806,27 @@ void vfm::Image::fillPolygon(const Polygon3D<float>& pol, const Color& col)
    }
 
    fillPolygonPDF(translated_pol, col);
+}
+
+void vfm::Image::drawPolygons(const std::vector<Polygon2D<float>>& pols)
+{
+   return drawPolygons(pols, { { std::make_shared<Color>(WHITE), nullptr } });
+}
+
+void vfm::Image::drawPolygons(
+   const std::vector<Polygon2D<float>>& pols,
+   const std::vector<std::pair<std::shared_ptr<Color>, std::shared_ptr<Color>>>& frame_and_fill)
+{
+   int i{ 0 };
+   const int num{ (int) frame_and_fill.size() };
+
+   for (const auto& pol : pols) {
+      auto color_fill = frame_and_fill.at(i % num).second;
+      auto color_frame = frame_and_fill.at(i % num).first;
+      if (color_fill) fillPolygon(pol, *color_fill);
+      if (color_frame) drawPolygon(pol, *color_frame, true);
+      i++;
+   }
 }
 
 Image vfm::Image::scale(const Vec2Df factor)
@@ -1090,6 +1117,32 @@ void vfm::Image::drawTextPDF(const std::string& text, const TextRectangle& text_
 void vfm::Image::setTranslator(const std::shared_ptr<VisTranslator> function)
 {
    translator_ = function;
+}
+
+void vfm::Image::paintSimpleCurvedRoadSegment(
+   const vfm::Vec2D A, 
+   const vfm::Vec2D C, 
+   const vfm::Vec2D B,
+   const float thick)
+{
+   const int num_lanes{ 2 };
+
+   Pol2D clothoid{};
+   clothoid = clothoid.bezier(A, C, C, B, 0.001);
+   clothoid = clothoid.normalize();
+   vfm::Pol2D arrow{};
+   vfm::Pol2D arrow2{};
+   arrow.createArrow(clothoid, thick);
+   fillPolygon(arrow, vfm::GREY);
+
+   for (int i = 0; i < num_lanes - 1; i++) {
+      auto segments = Pol2D::dashedArrow(clothoid, 3, 3);
+      drawPolygons(segments, { { nullptr, std::make_shared<Color>(WHITE)}, {nullptr, nullptr} });
+   }
+
+   circle(A.x, A.y, 20, vfm::ORANGE);
+   circle(C.x, C.y, 20, vfm::RED);
+   circle(B.x, B.y, 20, vfm::ORANGE);
 }
 
 // PDF stuff

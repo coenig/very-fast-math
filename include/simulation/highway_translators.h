@@ -29,7 +29,7 @@ public:
       return mirrored_;
    }
 
-   inline void setHighwayData(
+   virtual inline void setHighwayData(
       const float factor,
       const float real_width,
       const float real_height,
@@ -53,7 +53,7 @@ public:
       v_point_ = v_point;
    }
 
-protected:
+public: // TODO: Make protected again (or private!).
    float factor_{};
    float real_width_{};
    float real_height_{};
@@ -340,8 +340,8 @@ private:
 
       for (int i = first; i != first || firstit; i = (i + 1) % pol.points_.size()) {
          current_point_in_camera_coordinates = getPointInCameraCoordinates(pol.points_.at(i));
-         current_behind_camera = current_point_in_camera_coordinates.z < 0;
-         last_behind_camera = last_point_in_camera_coordinates.z < 0;
+         current_behind_camera = current_point_in_camera_coordinates.z <= 0;
+         last_behind_camera = last_point_in_camera_coordinates.z <= 0;
 
          if (current_behind_camera) {
             if (!last_behind_camera) { // Current point behind the camera, but the last was still fine.
@@ -367,4 +367,113 @@ private:
       return result;
    }
 };
+
+/// <summary>
+/// Takes another translator trans as base, but processes each point with a custom wrapper_function
+/// before passing it to trans.
+/// </summary>
+class HighwayTranslatorWrapper : public HighwayTranslator {
+public:
+   inline HighwayTranslatorWrapper(
+      const std::shared_ptr<HighwayTranslator> trans,
+      const std::function<Vec3D(const Vec3D&)> wrapper_function,
+      const std::function<Vec3D(const Vec3D&)> wrapper_function_reverse) : 
+      base_translator_(trans),
+      wrapper_function_(wrapper_function),
+      wrapper_function_reverse_(wrapper_function_reverse),
+      HighwayTranslator(trans->isMirrored())
+   {
+      setPerspective(base_translator_->getPerspective());
+      setHighwayData(
+         base_translator_->factor_,
+         base_translator_->real_width_,
+         base_translator_->real_height_,
+         base_translator_->ego_offset_x_,
+         base_translator_->street_top_,
+         base_translator_->min_lane_,
+         base_translator_->max_lane_,
+         base_translator_->lw_,
+         base_translator_->ego_lane_,
+         base_translator_->v_point_);
+   }
+
+   Vec2D translateCore(const Vec3D& point) override
+   {
+      auto wrapped = wrapper_function_(point);
+      auto wrapped_res = base_translator_->translateCore(wrapped);
+      return wrapped_res;
+   }
+
+   Vec3D reverseTranslateCore(const Vec2Df& point) override
+   {
+      auto res = base_translator_->reverseTranslateCore(point);
+      auto res_wrapped = wrapper_function_reverse_(res);
+      return res_wrapped;
+   }
+
+   inline Pol2D translatePolygonCore(const Pol3D& pol_raw) override
+   {
+      Pol3D pol{};
+
+      for (const auto& p : pol_raw.points_) {
+         pol.add(wrapper_function_(p));
+      }
+
+      return base_translator_->translatePolygonCore(pol);
+   }
+
+   bool is3D() const override
+   {
+      return base_translator_->is3D();
+   }
+
+   inline void setHighwayData(
+      const float factor,
+      const float real_width,
+      const float real_height,
+      const float ego_offset_x,
+      const float street_top,
+      const int   min_lane,
+      const int   max_lane,
+      const float lw,
+      const float ego_lane,
+      const Vec2D& v_point) override
+   {
+      HighwayTranslator::setHighwayData(
+         factor,
+         real_width,
+         real_height,
+         ego_offset_x,
+         street_top,
+         min_lane,
+         max_lane,
+         lw,
+         ego_lane,
+         v_point);
+
+      base_translator_->setHighwayData(
+         factor,
+         real_width,
+         real_height,
+         ego_offset_x,
+         street_top,
+         min_lane,
+         max_lane,
+         lw,
+         ego_lane,
+         v_point);
+   }
+
+   inline void setPerspective(const std::shared_ptr<VisPerspective> perspective) override
+   {
+      HighwayTranslator::setPerspective(perspective);
+      base_translator_->setPerspective(perspective);
+   }
+
+private:
+   std::shared_ptr<HighwayTranslator> base_translator_{};
+   std::function<Vec3D(const Vec3D&)> wrapper_function_{};
+   std::function<Vec3D(const Vec3D&)> wrapper_function_reverse_{};
+};
+
 } // vfm

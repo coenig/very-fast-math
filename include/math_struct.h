@@ -550,7 +550,7 @@ const std::vector<std::regex> DEFAULT_REGEX_FOR_TOKENIZER_DOTLESS = { // Same as
 
 constexpr int DEFAULT_IGNORE_CLASS_FOR_TOKENIZER = 1; /// Characters from this class will not be included in tokens.
 
-class MathStruct: public std::enable_shared_from_this<MathStruct>
+class MathStruct : public std::enable_shared_from_this<MathStruct>
 {
 public:
    typedef float(*JITFunc)();

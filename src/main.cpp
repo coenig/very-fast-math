@@ -33,8 +33,11 @@ int main(int argc, char* argv[])
    return mc_scene.getFlRunInfo();
    termnate();
 
-   aca4_1Run();
-   termnate();
+   //vfm::test::paintExampleRoadGraphs();
+   //termnate();
+
+   //aca4_1Run();
+   //termnate();
 
    //return artifactRun(argc, argv);
    //termnate();

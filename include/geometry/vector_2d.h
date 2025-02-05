@@ -71,6 +71,9 @@ public:
    /// \brief Rotates the vector for a given angle in RAD in counterclockwise direction. 
    void rotate(const NumType angle, const Vector2D<NumType>& center_point = { 0, 0 });
 
+   template <typename T>
+   friend bool operator==(const Vector2D<T>& lhs, const Vector2D<T>& rhs);
+
 private:
    static float tof(const NumType val);
 };
@@ -137,7 +140,8 @@ inline float Vector2D<NumType>::dotProduct(const Vector2D<NumType>& other) const
 template<class NumType>
 inline float Vector2D<NumType>::angle(const Vector2D<NumType>& other) const
 {
-   return std::acos(prod(other) / (length() * other.length()));
+   return std::atan2(other.y - y, other.x - x);
+   //return std::acos(dotProduct(other) / (length() * other.length())); // Old implementation - does something else, but might be needed.
 }
 
 template<class NumType>
@@ -282,6 +286,11 @@ inline void Vector2D<NumType>::add(const Vector2D<NumType>& other)
 {
    this->x += other.x;
    this->y += other.y;
+}
+
+template <typename T>
+bool operator==(const Vector2D<T>& lhs, const Vector2D<T>& rhs) {
+   return (lhs.x == rhs.x) && (lhs.y == rhs.y);
 }
 
 } // vfm

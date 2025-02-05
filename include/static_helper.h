@@ -81,7 +81,6 @@ const std::set<std::string> DEFAULT_CPP_ARRAY_TYPE_NAMES = {
    "Array",
 };
 
-const std::string SAFE_CHAR_SET{ "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" };
 const std::string ARRAY_INDEX_DENOTER_OPEN{ "___6" };  // x[i][j] ==> x___6i9___6j9___
 const std::string ARRAY_INDEX_DENOTER_CLOSE{ "9___" }; // x[i[j]] ==> x___6i___6j9___9___
 const std::string FAILABLE_NAME_SANITY_CHECK{ "SanityCheckC++Tokens" };
@@ -748,12 +747,12 @@ public:
 
    static void applyTimescaling(MCTrace& trace, const ScaleDescription& ts_description);
 
+   static std::vector<std::string> getSafeCharactersAsciiLike();
+   static std::map<std::string, int> getSafeCharactersAsciiLikeReverse();
+
    StaticHelper() = delete;
 
 private:
-   static std::vector<std::string> SAFE_CHARACTERS_ASCII_LIKE;
-   static std::map<std::string, int> SAFE_CHARACTERS_ASCII_LIKE_REVERSE;
-
    /// Does the actual work for {@link #extractSubstringsLevelwise(std::string, std::string, std::string, LinkedList, LinkedList, int)}.
    /// 
    /// @param string               The string to process.

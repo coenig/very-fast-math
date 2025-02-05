@@ -28,7 +28,7 @@ public:
    Polygon3D() {}
    Polygon3D(const std::vector<Vector3D<NumType>>& p);
    Polygon3D(const Polygon3D<NumType>& other);
-   Polygon3D(const Polygon2D<NumType>& other);  // Intentionally NOT explicit since it's really nice to pass 2D pol to 3D function.
+   Polygon3D(const Polygon2D<NumType>& other); // Intentionally NOT explicit since it's really nice to pass 2D pol to 3D function.
    Polygon3D(std::initializer_list<Vector3D<NumType>> vecs);
 
    std::string serialize() const;

@@ -95,6 +95,7 @@ std::string doParsingRun(
 
 void extractInitValuesAca4_1();
 void aca4_1Run();
+void paintExampleRoadGraphs();
 
 } // test
 } // vfm

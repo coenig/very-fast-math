@@ -33,8 +33,15 @@ using namespace vfm;
 using namespace simplification;
 
 
-std::vector<std::string> StaticHelper::SAFE_CHARACTERS_ASCII_LIKE;
-std::map<std::string, int> StaticHelper::SAFE_CHARACTERS_ASCII_LIKE_REVERSE;
+static std::vector<std::string>& getSAFE_CHARACTERS_ASCII_LIKE() {
+   static auto SAFE_CHARACTERS_ASCII_LIKE = std::vector<std::string>();
+   return SAFE_CHARACTERS_ASCII_LIKE;
+}
+
+static std::map<std::string, int>& getSAFE_CHARACTERS_ASCII_LIKE_REVERSE() {
+   static auto SAFE_CHARACTERS_ASCII_LIKE_REVERSE = std::map<std::string, int>();
+   return SAFE_CHARACTERS_ASCII_LIKE_REVERSE;
+}
 
 std::string StaticHelper::convertPtrAddressToString(const void* ptr) {
     std::stringstream ss;
@@ -2977,12 +2984,12 @@ void vfm::StaticHelper::listAssemblyStateOfAllTerms(const std::shared_ptr<Formul
 
 std::string vfm::StaticHelper::safeString(const std::string& arbitrary_string)
 {
-   if (SAFE_CHARACTERS_ASCII_LIKE.empty()) fillSafeCharVecs();
+   if (getSAFE_CHARACTERS_ASCII_LIKE().empty()) fillSafeCharVecs();
 
    std::string res;
 
    for (const auto& c : arbitrary_string) {
-      res += SAFE_CHARACTERS_ASCII_LIKE[(uint8_t) c];
+      res += getSAFE_CHARACTERS_ASCII_LIKE()[(uint8_t) c];
    }
 
    return res;
@@ -2991,13 +2998,14 @@ std::string vfm::StaticHelper::safeString(const std::string& arbitrary_string)
 std::string vfm::StaticHelper::fromSafeString(const std::string& safe_string)
 {
    assert(safe_string.size() % 2 == 0);
-   if (SAFE_CHARACTERS_ASCII_LIKE.empty()) fillSafeCharVecs();
+
+   if (getSAFE_CHARACTERS_ASCII_LIKE().empty()) fillSafeCharVecs();
 
    std::string res;
 
    for (size_t i = 0; i + 1 < safe_string.size(); i += 2) {
       std::string pair = makeString(safe_string[i]) + makeString(safe_string[i + 1]);
-      res += SAFE_CHARACTERS_ASCII_LIKE_REVERSE[pair];
+      res += getSAFE_CHARACTERS_ASCII_LIKE_REVERSE()[pair];
    }
 
    return res;
@@ -3005,17 +3013,20 @@ std::string vfm::StaticHelper::fromSafeString(const std::string& safe_string)
 
 void vfm::StaticHelper::fillSafeCharVecs()
 {
-   SAFE_CHARACTERS_ASCII_LIKE.resize(256);
+   const static std::string SAFE_CHAR_SET{ "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ" };
+
+   if (!getSAFE_CHARACTERS_ASCII_LIKE().empty()) return;
+
+   getSAFE_CHARACTERS_ASCII_LIKE().resize(256);
 
    for (size_t j = 0; j < SAFE_CHAR_SET.size(); j++) {
       for (size_t i = j * SAFE_CHAR_SET.size(); i < (j + 1) * SAFE_CHAR_SET.size(); i++) {
-         if (i >= SAFE_CHARACTERS_ASCII_LIKE.size()) {
+         if (i >= getSAFE_CHARACTERS_ASCII_LIKE().size()) {
             return;
          }
 
-         SAFE_CHARACTERS_ASCII_LIKE[i] = makeString(SAFE_CHAR_SET.at(j)) + makeString(SAFE_CHAR_SET.at(i - j * SAFE_CHAR_SET.size()));
-
-         SAFE_CHARACTERS_ASCII_LIKE_REVERSE.insert({ SAFE_CHARACTERS_ASCII_LIKE[i], i });
+         getSAFE_CHARACTERS_ASCII_LIKE()[i] = makeString(SAFE_CHAR_SET.at(j)) + makeString(SAFE_CHAR_SET.at(i - j * SAFE_CHAR_SET.size()));
+         getSAFE_CHARACTERS_ASCII_LIKE_REVERSE().insert({ getSAFE_CHARACTERS_ASCII_LIKE()[i], i });
       }
    }
 }
