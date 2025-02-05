@@ -7,6 +7,7 @@
 
 #include "simulation/highway_image.h"
 #include "static_helper.h"
+#include "testing/interactive_testing.h"
 
 using namespace vfm;
 
@@ -906,7 +907,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 }
 
 void vfm::HighwayImage::paintRoadGraph(
-   const std::shared_ptr<RoadGraph> r,
+   const std::shared_ptr<RoadGraph> r_raw,
    const Vec2D& dim_raw,
    const float ego_offset_x,
    const std::map<std::string, std::string>& var_vals,
@@ -914,6 +915,8 @@ void vfm::HighwayImage::paintRoadGraph(
    const float TRANSLATE_X,
    const float TRANSLATE_Y)
 {
+   auto r = vfm::test::paintExampleRoadGraphRoundabout(false, r_raw);
+
    r->normalizeRoadGraphToEgoSection();
 
    auto r_ego = r->findSectionWithEgo();
@@ -1003,9 +1006,6 @@ void vfm::HighwayImage::paintRoadGraph(
          infinite_road ? dim_raw : dim);
    }
 
-   setTranslator(old_trans);
-   //return;
-
    if (old_trans->is3D()) {
       setTranslator(old_trans);
    }
@@ -1022,8 +1022,8 @@ void vfm::HighwayImage::paintRoadGraph(
             for (const auto& A : r->connectors_) {
                for (const auto& B : r_succ->connectors_) {
                   if (A.id_ == i && A.id_ == B.id_ && A.side_ == ConnectorPolygonEnding::Side::drain && B.side_ == ConnectorPolygonEnding::Side::source) {
-                     auto trans_a = /* A.my_trans_->is3D() ? A.my_plain_2D_trans_ :*/ A.my_trans_;
-                     auto trans_b = /* B.my_trans_->is3D() ? B.my_plain_2D_trans_ :*/ B.my_trans_;
+                     auto trans_a = A.my_trans_;
+                     auto trans_b = B.my_trans_;
 
                      assert(*A.col_ == *B.col_);
 
