@@ -12,40 +12,18 @@
 
 namespace vfm {
 
-struct CarPars {
-   float car_lane_{};
-   float car_rel_pos_{};
-   int car_velocity_{};
-   
-   inline bool operator<(const CarPars& other) const
-   {
-      std::cout << "Something strange was requested. Look into CarPars struct. (Probably you put CarPars into a map, but after refactoring there is no default < operation anymore. Please fix, future Lukas!)" << std::endl;
-      std::exit(1);
-      return false;
-   }
-   
-   inline bool operator==(const CarPars& other) const
-   {
-      return car_lane_ == other.car_lane_
-         && car_rel_pos_ == other.car_rel_pos_
-         && car_velocity_ == other.car_velocity_;
-   }
-};
-
-using CarParsVec = std::vector<CarPars>;
- 
 class HighwayImage : public Image, public Failable
 {
 public:
+   constexpr static int EGO_MOCK_ID{ -100 };
+
    HighwayImage(const int width, const int height, const std::shared_ptr<HighwayTranslator> translator, const int num_lanes);
    HighwayImage(const std::shared_ptr<HighwayTranslator> translator, const int num_lanes);
 
-   void setupVPointFor3DPerspective(const int num_lanes); // 3D-Specific - TODO: Needs to go away.
-   void paintEarthAndSky();                               // 3D-Specific - TODO: Needs to go away.
+   void setupVPointFor3DPerspective(const int num_lanes, const Vec2D& dim); // 3D-Specific - TODO: Needs to go away.
+   void paintEarthAndSky(const Vec2D& dim);                                 // 3D-Specific - TODO: Needs to go away.
 
    void setTranslator(const std::shared_ptr<VisTranslator> function) override;
-
-   void paintHighwaySceneFromData(StraightRoadSection& lane_structure, const DataPack& data, const std::shared_ptr<DataPack> future_data);
 
    void plotCar2D(const float thick, const Vec2Df& pos_ego, const Color& fill_color, const Color& car_frame_color);
    void plotCar3D(const Vec2Df& pos_ego, const Color& fill_color, const Color& car_frame_color);
@@ -62,9 +40,12 @@ public:
 
    void removeNonExistentLanesAndMarkShoulders(
       const StraightRoadSection& lane_structure,
-      const CarPars& ego,
+      const std::shared_ptr<CarPars> ego,
       const Vec2D& tl_orig,
-      const Vec2D& br_orig);
+      const Vec2D& br_orig,
+      const bool infinite_road, 
+      const Vec2D& dim,
+      std::vector<ConnectorPolygonEnding>& connections);
 
    void setPerspective(
       const float street_height,
@@ -73,32 +54,48 @@ public:
       const int min_lane,
       const int max_lane,
       const float street_top,
-      const float ego_car_lane);
+      const float ego_car_lane, 
+      const Vec2D& dim);
 
-   void paintHighwayScene(
+   void paintStraightRoadSceneFromData(
+      StraightRoadSection& lane_structure, 
+      const DataPack& data, 
+      const std::shared_ptr<DataPack> future_data);
+
+   void paintStraightRoadSceneSimple(
       const CarPars& ego,
       const CarParsVec& others,
       const std::map<int, std::pair<float, float>>& future_positions_of_others,
       const float ego_offset_x = 0,
       const std::map<std::string, std::string>& var_vals = {},
-      const bool print_agent_ids = false);
+      const bool print_agent_ids = true);
 
-   void paintHighwayScene(
+   /// Core function for painting a straight road section.
+   std::vector<ConnectorPolygonEnding> paintStraightRoadScene(
       StraightRoadSection& lane_structure,
-      const CarPars& ego,
-      const CarParsVec& others,
-      const std::map<int, std::pair<float, float>>& future_positions_of_others,
+      const bool infinite_road,
       const float ego_offset_x = 0,
       const std::map<std::string, std::string>& var_vals = {},
-      const bool print_agent_ids = false);
+      const bool print_agent_ids = true,
+      const Vec2D& dim = { 500, 100 });
+
+   void paintRoadGraph(
+      const std::shared_ptr<RoadGraph> r,
+      const Vec2D& dim,
+      const float ego_offset_x = 0,
+      const std::map<std::string, std::string>& var_vals = {},
+      const bool print_agent_ids = true,
+      const float TRANSLATE_X = 0,
+      const float TRANSLATE_Y = 0);
 
    std::shared_ptr<HighwayTranslator> getHighwayTranslator() const;
 
 private:
-   float offset_dashed_lines_on_highway_ = 0;
    std::shared_ptr<HighwayTranslator> highway_translator_{};
-   Plain2DTranslator plain_2d_translator_{};
+   std::shared_ptr<Plain2DTranslator> plain_2d_translator_{ std::make_shared<Plain2DTranslator>() };
+   std::shared_ptr<HighwayTranslatorWrapper> plain_2d_translator_wrapped_{};
    float cnt_{ -150 };
    float step_{ 0.05 };
+   int num_lanes_{}; // TODO: Needed only for setting up 3D perspective, which should go into the 3D part.
 };
 } // vfm

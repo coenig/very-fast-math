@@ -1,7 +1,6 @@
 # Model Checking for ADAS
-This is the first version of the open source project first announced in *Towards Safe Autonomous Driving: Model Checking a Behavior Planner during Development* (https://link.springer.com/chapter/10.1007/978-3-031-57249-4_3). 
-We make all the sources of the model checking toolchain public which have so far been published in binary format only (https://zenodo.org/records/10013662).
-TODO: This is a preliminary readme file that will be replaced with a more meaningful one, soon.
+This is the open source project `very fast math`, first announced in [Towards Safe Autonomous Driving: Model Checking a Behavior Planner during Development](https://link.springer.com/chapter/10.1007/978-3-031-57249-4_3). 
+We hereby make all the sources of the toolchain public which have so far been published in binary format only ([on Zenodo](https://zenodo.org/records/10013662)).
 
 Thank you for using
 ~~~
@@ -12,15 +11,20 @@ Thank you for using
    very fast math
 ~~~
 
-# VFM Library
-The `vfm` library provides in its core a C++ representation of arithmetic/logic formulas. 
-The formula structure is Turing-complete, i.e., provides a full programming language.
-It can be used to parse C++ code and translate it into a model for the nuXmv model checker.
-Optionally, an environment model can be integrated into the model, providing a discrete traffic simulation for the model checker.
+## VFM Library
+`vfm` is a formal verification software for [ADAS](https://en.wikipedia.org/wiki/Advanced_driver-assistance_system) with the [nuXmv model checker](https://nuxmv.fbk.eu/) in its core. It can parse C++ code of an automated driving function (or other) and translate it into a transition system for the nuXmv model checker. Optionally, it can be integrated with an environment model, providing a discrete traffic simulation for the driving function to be verified against. The resulting counterexamples can be visualized and converted into the [OSC2 format](https://www.asam.net/static_downloads/public/asam-openscenario/2.0.0/welcome.html).
 
-More info to come...
+## Examples
+![Image from a counterexample sequence generated through model checking](examples/cex.png?raw=true "Image from a counterexample sequence generated through model checking")
 
-# Authors
+## How to build
+`vfm` is implemented in `C++` and can be built with CMake (stable) or Bazel (experimental). With CMake, proceed as follows:
+* On Windows, open the top-level `CMakeLists.txt` with Visual Studio and build the `vfm` target.
+* On Linux, run the `build.bash` script.
+
+There are no additional dependencies, except `gtest` if you want to run the tests.
+
+## Authors
 Lukas Koenig,
 Alexander Georgescu,
 Christian Heinzemann,

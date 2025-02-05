@@ -26,7 +26,11 @@ static constexpr float SPEED_DIVISOR_FOR_STEP_SMOOTHNESS = 1; //18;
 constexpr static float OPTIMIZE_FOR_LANE_NUMBER = 3;
 constexpr static float MAX_NUM_LANES_SIMPLE = 5;
 
-static StraightRoadSection TEST_LANES{ (int)MAX_NUM_LANES_SIMPLE, { {-55, 0, 4}, {-30, 0, 7}, {10, 0, 7}, {40, 1, 8}, {70, 1, 8}, {90, 2, 8}, {150, 2, 7}, {210, 2, 6}, {250, 2, 5}, {300, 2, 4} } }; // TODO: Delete eventually.
+static StraightRoadSection TEST_LANES{ 
+   (int)MAX_NUM_LANES_SIMPLE,
+   400,
+   { {-55, 0, 4}, {-30, 0, 7}, {10, 0, 7}, {40, 1, 8}, {70, 1, 8}, {90, 2, 8}, {150, 2, 7}, {210, 2, 6}, {250, 2, 5}, {300, 2, 4} } 
+}; // TODO: Delete eventually.
 
 class Env2D : public Failable {
 public:
@@ -67,7 +71,7 @@ public:
       const float LANE_CONSTANT{ ((float)lane_structure.getNumLanes() - 1) * 2 };
 
       for (int i{}; i < num_cars_; i++) {
-         others_vec.push_back({ agents_pos_y_[i], agents_pos_x_[i], (int)((agents_vx_rel_[i] + ego_vx_) * SPEED_DIVISOR_FOR_STEP_SMOOTHNESS) });
+         others_vec.push_back({ agents_pos_y_[i], agents_pos_x_[i], (int)((agents_vx_rel_[i] + ego_vx_) * SPEED_DIVISOR_FOR_STEP_SMOOTHNESS), i });
 
          if (future_data && agents_to_draw_arrows_for.count(i)) {
             others_future_vec.insert(
@@ -89,7 +93,7 @@ public:
    }
 
    mutable std::map<int, std::pair<float, float>> others_past_vec_{};
-   mutable CarPars past_ego_{ CarPars{-std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(), -std::numeric_limits<int>::min()} };
+   mutable CarPars past_ego_{ CarPars{ -std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(), -std::numeric_limits<int>::min(), HighwayImage::EGO_MOCK_ID } };
    mutable int count_{ 0 };
 
    inline std::shared_ptr<Image> getBirdseyeView(
@@ -120,11 +124,17 @@ public:
       //env.agents_pos_x_[vehicle_index] = traj_pos.second.at(PossibleParameter::pos_x) - ego_x;
       //env.agents_pos_y_[vehicle_index] = 2 + traj_pos.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
       
-      outside_view_->paintHighwayScene(
-         lane_structure,
-         { ego_pos_y_, ego_pos_x_, (int)(ego_vx_) },
-         others_current_vec,
-         others_future_vec,
+      lane_structure.setEgo(std::make_shared<CarPars>(ego_pos_y_, ego_pos_x_, (int)(ego_vx_), HighwayImage::EGO_MOCK_ID));
+      lane_structure.setOthers(others_current_vec);
+      lane_structure.setFuturePositionsOfOthers(others_future_vec);
+      lane_structure.setSectionEnd(100);
+
+      auto r = std::make_shared<RoadGraph>(0);
+      r->setMyRoad(lane_structure);
+
+      outside_view_->paintRoadGraph(
+         r,
+         { (float)outside_view_->getWidth(), (float)outside_view_->getHeight() },
          0,
          additional_var_vals,
          true);
@@ -165,27 +175,30 @@ public:
 
       auto no_trans{std::make_shared<DefaultHighwayTranslator>()};
       cockpit_view_->setTranslator(no_trans);
-      cockpit_view_->paintEarthAndSky();
+      cockpit_view_->paintEarthAndSky({ (float)width, (float)height });
       cockpit_view_->setTranslator(trans_cpv);
 
       cockpit_view_mirror_->setTranslator(no_trans);
-      cockpit_view_mirror_->paintEarthAndSky();
+      cockpit_view_mirror_->paintEarthAndSky({ (float)mirror_width, (float)mirror_height });
       cockpit_view_mirror_->setTranslator(trans_cpvm);
 
-      cockpit_view_->paintHighwayScene(
-         lane_structure,
-         { ego_pos_y_, ego_pos_x_, (int)(ego_vx_) },
-         others_vec,
-         others_future_vec,
+      lane_structure.setEgo(std::make_shared<CarPars>(ego_pos_y_, ego_pos_x_, (int)(ego_vx_), HighwayImage::EGO_MOCK_ID));
+      lane_structure.setOthers(others_vec);
+      lane_structure.setFuturePositionsOfOthers(others_future_vec);
+
+      auto r = std::make_shared<RoadGraph>(0);
+      r->setMyRoad(lane_structure);
+
+      cockpit_view_->paintRoadGraph(
+         r,
+         { (float)cockpit_view_->getWidth(), (float)cockpit_view_->getHeight() },
          0,
          additional_var_vals,
          true);
 
-      cockpit_view_mirror_->paintHighwayScene(
-         lane_structure,
-         { ego_pos_y_, ego_pos_x_, (int)(ego_vx_) },
-         others_vec,
-         others_future_vec,
+      cockpit_view_mirror_->paintRoadGraph(
+         r,
+         { (float)cockpit_view_mirror_->getWidth(), (float)cockpit_view_mirror_->getHeight() },
          0,
          additional_var_vals,
          true);

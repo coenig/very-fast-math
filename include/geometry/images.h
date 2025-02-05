@@ -338,6 +338,11 @@ public:
       return translatePolygonCore(pol);
    }
 
+   inline Pol3D reverseTranslatePolygon(const Pol3D& pol)
+   {
+      return reverseTranslatePolygonCore(pol);
+   }
+
    inline Pol2D reverseTranslate(const Pol2D& pol)
    {
       Pol2D result{};
@@ -349,9 +354,10 @@ public:
       return result;
    }
 
-   inline void setPerspective(const std::shared_ptr<VisPerspective> perspective)
+   virtual inline void setPerspective(const std::shared_ptr<VisPerspective> perspective)
    {
       perspective_ = perspective;
+      perspective_->changedDisplay();
    }
 
    inline std::shared_ptr<VisPerspective> getPerspective() const
@@ -359,9 +365,7 @@ public:
       return perspective_;
    }
 
-private:
-   std::shared_ptr<VisPerspective> perspective_{ std::make_shared<VisPerspective>() };
-
+   // TODO: Make these functions protected.
    virtual Vec2D translateCore(const Vec3D& point) = 0;
    virtual Vec3D reverseTranslateCore(const Vec2Df& point) = 0;
 
@@ -379,6 +383,24 @@ private:
 
       return result;
    }
+
+   inline virtual Pol3D reverseTranslatePolygonCore(const Pol3D& pol)
+   {
+      Pol3D result{};
+
+      for (const auto& point : pol.points_) {
+         auto current_point{ reverseTranslate(point.projectToXY()) };
+
+         if (!std::isnan(current_point.x) && !std::isnan(current_point.y)) {
+            result.add(Vec3D{ current_point.x, current_point.y, point.z });
+         }
+      }
+
+      return result;
+   }
+
+private:
+   std::shared_ptr<VisPerspective> perspective_{ std::make_shared<VisPerspective>() };
 };
 
 class DefaultTranslator : public VisTranslator
@@ -475,15 +497,16 @@ public:
    // Also, in future specific 2D functions could be included which work
    // faster! Constructing the new polygon alone is a considerable, avoidable effort.
 
-   void drawPolygon(const Polygon3D<float>& pol, const Color& col = WHITE, const bool close_polygon = true, const bool paint_nodes = false, const bool print_coordinates = false);
+   void drawPolygon(const Polygon3D<float>& pol, const Color& col = WHITE, const bool close_polygon = true, const bool paint_nodes = false, const bool print_coordinates = false); // Accepts 2D polygon, as well.
 
    Image scale(const Vec2Df factor);
 
-   /// TODO: This method is slow and not quite accurate. There's got to be a better way...
-   /// => Scan line algorithm (however would require triangulation first):
-   /// https://www.techfak.uni-bielefeld.de/ags/wbski/lehre/digiSA/WS0607/3DVRCG/Vorlesung/13.RT3DCGVR-vertex-2-fragment.pdf
-   /// Only use this when fillTriangle and fillQuad do not suffice.
-   void fillPolygon(const Polygon3D<float>& pol, const Color& col = WHITE);
+   void fillPolygon(const Polygon3D<float>& pol, const Color& col = WHITE); // Accepts 2D polygon, as well.
+
+   void drawPolygons(const std::vector<Polygon2D<float>>& pols);
+   void drawPolygons(
+      const std::vector<Polygon2D<float>>& pols,
+      const std::vector<std::pair<std::shared_ptr<Color>, std::shared_ptr<Color>>>& frame_and_fill);
 
    /// Efficiently fill a polygon by providing it in the form of a so called "triangle strip".
    /// That means for every vertice (starting with #2), a triangle is formed with the previous two vertices.
@@ -511,15 +534,21 @@ public:
 
    virtual void setTranslator(const std::shared_ptr<VisTranslator> function);
 
+   void paintSimpleCurvedRoadSegment(
+      const vfm::Vec2D A,
+      const vfm::Vec2D C,
+      const vfm::Vec2D B,
+      const float thick = 100);
+
    static constexpr float DEFAULT_FONT_SIZE{ 20 };
 
    int startOrKeepUpPDF(const float font_size = DEFAULT_FONT_SIZE);
    int restartPDF(const float font_size = DEFAULT_FONT_SIZE);
    void flushAndStopPDF();
 
-   void fillAndDrawPolygonPDF(const Pol2Df& pol, const float line_width, const Color& fill_col, const Color& line_col, const bool fill = true);
+   void fillAndDrawPolygonPDF(const Pol2Df& pol, const float line_width, const Color& fill_col, const Color& line_col, const bool fill = true, const bool close = true);
    void fillPolygonPDF(const Pol2Df& pol, const Color& fill_col);
-   void drawPolygonPDF(const Pol2Df& pol, const float line_width, const Color& line_col);
+   void drawPolygonPDF(const Pol2Df& pol, const float line_width, const Color& line_col, const bool close = true);
    void drawTextPDF(const std::string& text, const float x, const float y, const Color& color);
    void drawTextPDF(const std::string& text, const TextRectangle& rectangle, const Color& color);
 
