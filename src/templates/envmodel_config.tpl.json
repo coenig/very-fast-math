@@ -42,7 +42,7 @@
       "LTL_MODE": true,
       "NONEGOS": "#{nonegos}#",
       "NUMLANES": "#{lanes}#",
-      "SEGMENTS": 4,
+      "SEGMENTS": 1,
       "SEGMENTSMINLENGTH": 50,
       "SPEC": "#{ G((env.cnt <= 2)) }#",
       "ShowLOG": true,

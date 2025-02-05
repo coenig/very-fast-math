@@ -950,7 +950,9 @@ void vfm::test::aca4_1Run()
 
 static const Vec2D dim3D{ 500, 120 };
 
-std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(const bool write_to_files, const std::shared_ptr<RoadGraph> ego_section)
+std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(
+   const bool write_to_files, 
+   const std::shared_ptr<RoadGraph> ego_section)
 {
    assert(!ego_section || ego_section->isRootedInZeroAndUnturned());
    assert(!ego_section || ego_section->getAllNodes().size() == 1);
@@ -1033,7 +1035,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(const
    ra3->addSuccessor(ra4);
 
    if (write_to_files) {
-      image2.paintRoadGraph(ra1, { 500, 60 }, 0, {}, true, 60, 60);
+      image2.paintRoadGraph(ra1, { 500, 60 }, 0, {}, true);
       image2.store("../examples/junction", OutputType::pdf);
       image2.store("../examples/junction", OutputType::png);
       image3.paintRoadGraph(ra1, dim3D);
@@ -1194,7 +1196,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    r1->addSuccessor(r6);
 
    if (write_to_files) {
-      image2.paintRoadGraph(r1, { 500, 60 }, 0, {}, true, 10, 50);
+      image2.paintRoadGraph(r1, { 500, 60 }, 0, {}, true);
       image2.store("../examples/roundabout", OutputType::pdf);
       image2.store("../examples/roundabout", OutputType::png);
       image3.paintRoadGraph(r1, dim3D, 0, {}, true, 0, 0);
