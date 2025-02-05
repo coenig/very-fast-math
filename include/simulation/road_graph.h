@@ -145,6 +145,8 @@ private:
    std::shared_ptr<CarPars> ego_{}; // Ego may or may not (nullptr) be within this road section.
    CarParsVec others_{};
    std::map<int, std::pair<float, float>> future_positions_of_others_{};
+
+public: // TODO
    float section_end_{ -1 };
 };
 
@@ -193,8 +195,8 @@ public:
 
    std::vector<ConnectorPolygonEnding> connectors_{};
 
+   StraightRoadSection my_road_{}; // TODO: Make private.
 private:
-   StraightRoadSection my_road_{};
    Vec2D origin_point_{ 0.0F, 0.0F };
    float angle_{ 0 };
    int id_{};
