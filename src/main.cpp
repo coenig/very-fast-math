@@ -23,8 +23,8 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   vfm::test::runTests(13);
-   termnate();
+   //vfm::test::runTests();
+   //termnate();
 
    //runInterpreter();
    //termnate();
