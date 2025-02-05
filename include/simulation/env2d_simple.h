@@ -134,7 +134,8 @@ public:
 
       outside_view_->paintRoadGraph(
          r,
-         { (float)outside_view_->getWidth(), (float)outside_view_->getHeight() },
+         //{ (float)outside_view_->getWidth(), (float)outside_view_->getHeight() },
+         { 500, 60 },
          0,
          additional_var_vals,
          true);
@@ -191,7 +192,8 @@ public:
 
       cockpit_view_->paintRoadGraph(
          r,
-         { (float)cockpit_view_->getWidth(), (float)cockpit_view_->getHeight() },
+         //{ (float)cockpit_view_->getWidth(), (float)cockpit_view_->getHeight() },
+         { 500, 120 },
          0,
          additional_var_vals,
          true);

@@ -1016,7 +1016,10 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(
    auto ra4 = std::make_shared<RoadGraph>(4);
    ra1->setMyRoad(sectiona1);
 
-   if (ego_section) ra1 = ego_section;
+   if (ego_section) {
+      ego_section->getMyRoad().setSectionEnd(ra1->getMyRoad().getLength());
+      ra1 = ego_section;
+   }
 
    ra1->setOriginPoint({ 0, 6 });
    ra1->setAngle(0);
@@ -1106,7 +1109,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    CarParsVec others5{};
    CarParsVec others6{};
    CarParsVec others7{};
-   section0.setEgo(nullptr);
+   section0.setEgo(ego);
    section0.setOthers(others0);
    section0.setFuturePositionsOfOthers(future_positions_of_others);
    section1.setEgo(nullptr);
@@ -1127,7 +1130,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    section6.setEgo(nullptr);
    section6.setOthers(others6);
    section6.setFuturePositionsOfOthers(future_positions_of_others);
-   section7.setEgo(ego);
+   section7.setEgo(nullptr);
    section7.setOthers(others7);
    section7.setFuturePositionsOfOthers(future_positions_of_others);
 
@@ -1167,7 +1170,10 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    p4.rotate(a4, mid);
    p5.rotate(a5, mid);
 
-   if (ego_section) r0 = ego_section;
+   if (ego_section) {
+      ego_section->my_road_.section_end_ = r0->getMyRoad().getLength();
+      r0 = ego_section;
+   }
 
    r0->setOriginPoint(p0);
    r0->setAngle(a0);
