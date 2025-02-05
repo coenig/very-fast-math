@@ -737,7 +737,12 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    tl_orig.x = -METERS_TO_LOOK_BEHIND;
    br_orig.x = METERS_TO_LOOK_AHEAD;
 
-   fillRectangle(road_begin - ego_rel_pos, street_left_border, road_length, street_width, PAVEMENT_COLOR, false);
+   if (infinite_road) {
+      fillRectangle(tl_orig.x, street_left_border, br_orig.x - tl_orig.x, street_width, PAVEMENT_COLOR, false);
+   }
+   else {
+      fillRectangle(road_begin - ego_rel_pos, street_left_border, road_length, street_width, PAVEMENT_COLOR, false);
+   }
 
    for (int i = min_lane + 1; i <= max_lane; i++) {
       y = street_left_border + i - min_lane;
@@ -969,28 +974,33 @@ void vfm::HighwayImage::paintRoadGraph(
       assert(Vec3D(-.3, -1.1, 0).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ -.3, -1.1, 0 }))));
       assert(Vec3D(-.3, -1.1, 0).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ -.3, -1.1, 0 }))));
 
-      const auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
-         old_trans,
-         wrapper_trans_function,
-         wrapper_reverse_trans_function);
 
-      setTranslator(wrapper_trans);
+      const bool infinite_road{ all_nodes.size() == 1 && r_sub->isRootedInZeroAndUnturned() }; // Only a single section, at root position and unturned, will be painted as infinite.
 
-      if (getHighwayTranslator()->is3D()) {
-         const auto wrapper_trans_2d = std::make_shared<HighwayTranslatorWrapper>(
-            plain_2d_translator_,
+      if (!infinite_road) {
+         const auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
+            old_trans,
             wrapper_trans_function,
             wrapper_reverse_trans_function);
-         plain_2d_translator_wrapped_ = wrapper_trans_2d;
+
+         setTranslator(wrapper_trans);
+
+         if (getHighwayTranslator()->is3D()) {
+            const auto wrapper_trans_2d = std::make_shared<HighwayTranslatorWrapper>(
+               plain_2d_translator_,
+               wrapper_trans_function,
+               wrapper_reverse_trans_function);
+            plain_2d_translator_wrapped_ = wrapper_trans_2d;
+         }
       }
 
       r_sub->connectors_ = paintStraightRoadScene(
          r_sub->getMyRoad(),
-         all_nodes.size() == 1 && r_sub->isRootedInZeroAndUnturned(), // Only a single section, at root position and unturned, will be painted as infinite.
+         infinite_road,
          0,
          var_vals,
          print_agent_ids,
-         dim);
+         infinite_road ? dim_raw : dim);
    }
 
    setTranslator(old_trans);
@@ -1006,7 +1016,6 @@ void vfm::HighwayImage::paintRoadGraph(
    std::vector<Pol2D> additional_arrows{};
 
    for (int i = 0; i <= 30; i++) {
-      store("test", OutputType::pdf);
       r->applyToMeAndAllMySuccessorsAndPredecessors([this, i, &dim_raw, &additional_arrows, old_trans](const std::shared_ptr<RoadGraph> r) -> void
       {
          for (const auto& r_succ : r->getSuccessors()) {
