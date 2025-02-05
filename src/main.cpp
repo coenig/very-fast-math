@@ -23,8 +23,8 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   //vfm::test::runTests();
-   //termnate();
+   vfm::test::runTests(13);
+   termnate();
 
    //runInterpreter();
    //termnate();
@@ -33,8 +33,11 @@ int main(int argc, char* argv[])
    return mc_scene.getFlRunInfo();
    termnate();
 
-   aca4_1Run();
-   termnate();
+   //vfm::test::paintExampleRoadGraphs();
+   //termnate();
+
+   //aca4_1Run();
+   //termnate();
 
    //return artifactRun(argc, argv);
    //termnate();

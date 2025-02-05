@@ -206,6 +206,8 @@ private:
    std::string last_json_string_{};
    std::map<std::string, std::pair<std::string, std::string>> last_bb_stuff_;
 
+   bool mc_running_internal_{ false };
+
    ProgressDetector progress_detector_{};
 };
 

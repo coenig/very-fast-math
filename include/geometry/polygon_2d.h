@@ -15,6 +15,7 @@
 #include "failable.h"
 #include <initializer_list>
 #include <cmath>
+#include <math.h>
 #include <vector>
 #include <cassert>
 #include <string>
@@ -97,7 +98,7 @@ public:
    /// \brief Inserts the requested number of nodes on any edge of the polygon. Therefore, the number of nodes
    ///  in the polygon gets multiplied by that number. The shape of the polygon stays unchanged. The new nodes
    ///  of any edge are inserted with a constant distance to each other and the two original nodes of the edge.
-   void insertNodesOnExistingEdges(const int nodesToInsert);
+   void insertNodesOnExistingEdges(const int nodesToInsert, const bool close_polygon = true);
 
    /// \brief Returns iff this polygon is convex by checking if all angles are smaller or equal to 180 degrees.
    bool isConvex() const;
@@ -114,7 +115,9 @@ public:
    /// \brief Adds a bezier curve through the points (p1, p2, p3, p4). Point distance is controlled via step in [0, 1].
    Polygon2D<NumType> bezier(const Vector2D<NumType>& p0, const Vector2D<NumType>& p1, const Vector2D<NumType>& p2, const Vector2D<NumType>& p3, const float step = 0.01);
 
-   /// \brief Adds a bezier curve through arbitrary many points with associated direction vectors. Point distance is controlled via step in [0, 1].
+   /// \brief Adds a bezier curve through arbitrary many points with associated direction vectors. 
+   /// Point distance is controlled via step in [0, 1].
+   Polygon2D<NumType> multiBezier(const Polygon2D<NumType>& p, const float step = 0.05);
    Polygon2D<NumType> multiBezier(const Polygon2D<NumType>& p, const Polygon2D<NumType>& v, const std::vector<float>& k, const float step = 0.05);
 
    /// \brief Adds an arrow shape to the polygon that goes through the given base points.
@@ -126,19 +129,25 @@ public:
    /// \param[in] end_factor - Multiplier for end size.
    void createArrow(
       const Polygon2D<NumType>& base_points,
-      const std::function<float(const Vector2D<NumType>& point_position, const int point_num)>& thickness = [](const Vector2D<NumType>& point_position, const int point_num){return 10.0;},
+      const std::function<float(const Vector2D<NumType>& point_position, const int point_num)>& thickness = [](const Vector2D<NumType>& point_position, const int point_num) {return 10.0; },
+      const Polygon2D<NumType> dock_at_begin = {},
+      const Polygon2D<NumType> dock_at_end = {},
       const Polygon2D<NumType>& arrow_head = {},
       const Polygon2D<NumType>& arrow_end = {},
       const Vector2D<NumType>& head_factor = {1, 1},
-      const Vector2D<NumType>& end_factor = {1, 1});
+      const Vector2D<NumType>& end_factor = {1, 1},
+      const bool cut_out_intersecting_points = false);
 
    void createArrow(
       const Polygon2D<NumType>& base_points, 
       const float thickness,
+      const Polygon2D<NumType> dock_at_begin = {},
+      const Polygon2D<NumType> dock_at_end = {},
       const Polygon2D<NumType>& arrow_head = {},
       const Polygon2D<NumType>& arrow_end = {},
       const Vector2D<NumType>& head_factor = {1, 1},
-      const Vector2D<NumType>& end_factor = {1, 1});
+      const Vector2D<NumType>& end_factor = {1, 1},
+      const bool cut_out_intersecting_points = false);
 
    /// \brief Calculates for the edge of a polyline intersection points around
    ///  the actual point where an embedding polygon would go to emulate line thickness.
@@ -148,6 +157,34 @@ public:
    static void createArrowEnd(const Polygon2D<NumType>& base_points, const Polygon2D<NumType>& arrow_end,
                               const Vector2D<NumType>& end_factor, const float thick,
                               Polygon2D<NumType>& pointList, const bool head);
+
+   static std::vector<Polygon2D<NumType>> dashedArrow(
+      const Polygon2D<NumType>& points,
+      const float dashed_segments_factor,
+      const std::function<float(const Vector2D<NumType>& point_position, const int point_num)>& thickness = [](const Vector2D<NumType>& point_position, const int point_num) {return 10.0; },
+      const Polygon2D<NumType>& arrow_begin = ARROW_END_PLAIN_LINE,
+      const Polygon2D<NumType>& arrow_end = ARROW_END_PLAIN_LINE,
+      const Vector2D<NumType>&  arrow_begin_factor = { 1, 1 },
+      const Vector2D<NumType>&  arrow_end_factor = { 1, 1 });
+
+   static std::vector<Polygon2D<NumType>> dashedArrow(
+      const Polygon2D<NumType>& points,
+      const float dashed_segments_factor,
+      const float thickness = 10,
+      const Polygon2D<NumType>& arrow_begin = ARROW_END_PLAIN_LINE,
+      const Polygon2D<NumType>& arrow_end = ARROW_END_PLAIN_LINE,
+      const Vector2D<NumType>& arrow_begin_factor = { 1, 1 },
+      const Vector2D<NumType>& arrow_end_factor = { 1, 1 });
+
+   static std::vector<Polygon2D<NumType>> createArrowSegments(
+      const Polygon2D<NumType>& points,
+      const std::function<float(const Vector2D<NumType>& point_position, const int point_num)>& thickness,
+      std::vector<int>& beginn,
+      std::vector<int>& ende,
+      std::vector<Polygon2D<NumType>>& arrow_begin,
+      std::vector<Polygon2D<NumType>>& arrow_end,
+      std::vector<Vector2D<NumType>>& faktorAnfang,
+      std::vector<Vector2D<NumType>>& faktorEnde);
 
 private:
    static bool isInside(const Vector2D<NumType>& a, const Vector2D<NumType>& b, const Vector2D<NumType>& c);
@@ -553,9 +590,9 @@ inline void Polygon2D<NumType>::insertNodesOnExistingEdge(const int edg1Num, con
 }
 
 template<class NumType>
-inline void Polygon2D<NumType>::insertNodesOnExistingEdges(const int nodesToInsert)
+inline void Polygon2D<NumType>::insertNodesOnExistingEdges(const int nodesToInsert, const bool close_polygon)
 {
-   for (int i = points_.size() - 1; i >= 0; i--) {
+   for (int i = points_.size() - (1 + !close_polygon); i >= 0; i--) {
       insertNodesOnExistingEdge(i, nodesToInsert);
    }
 }
@@ -690,6 +727,28 @@ inline Polygon2D<NumType> Polygon2D<NumType>::bezier(const Vector2D<NumType>& p0
 }
 
 template<class NumType>
+inline Polygon2D<NumType> Polygon2D<NumType>::multiBezier(const Polygon2D<NumType>& p, const float step)
+{
+   Polygon2D<NumType> directions{};
+   std::vector<float> k{};
+
+   for (size_t i = 0; i < p.points_.size() - 1; ++i) {
+      Vector2D<NumType> dir = p.points_[i + 1];
+      dir.sub(p.points_[i]);
+      //dir.normalize();
+      directions.add(dir);
+
+      if (i) k.push_back(1);
+   }
+
+   if (!directions.points_.empty()) {
+      directions.add(directions.points_.back());
+   }
+
+   return multiBezier(p, directions, k, step);
+}
+
+template<class NumType>
 inline Polygon2D<NumType> Polygon2D<NumType>::multiBezier(const Polygon2D<NumType>& p, const Polygon2D<NumType>& v, const std::vector<float>& k, const float step)
 {
    assert((p.points_.size() >= 2 && p.points_.size() == v.points_.size() && v.points_.size() == k.size() + 2));
@@ -724,17 +783,21 @@ template<class NumType>
 inline void Polygon2D<NumType>::createArrow(
    const Polygon2D<NumType>& base_points, 
    const std::function<float(const Vector2D<NumType>& point_position, const int point_num)>& thickness, 
+   const Polygon2D<NumType> dock_at_begin,
+   const Polygon2D<NumType> dock_at_end,
    const Polygon2D<NumType>& arrow_head,
    const Polygon2D<NumType>& arrow_end, 
    const Vector2D<NumType>& head_factor, 
-   const Vector2D<NumType>& end_factor)
+   const Vector2D<NumType>& end_factor,
+   const bool cut_out_intersecting_points)
 {
-   assert(base_points.points_.size() >= 2);
+   if (base_points.points_.size() < 2) return;
 
    Polygon2D<NumType> pointList2;
    float thickness_first = thickness(base_points.points_[0], 0);
 
    // Arrow head.
+   addAll(dock_at_begin);
    createArrowEnd(base_points, arrow_head, head_factor, thickness_first, pointList2, true);
 
    Vector2D<NumType> c1(base_points.points_[1]);
@@ -754,14 +817,23 @@ inline void Polygon2D<NumType>::createArrow(
 
    for (int i = 1; i < base_points.points_.size() - 1; i++) {
       Polygon2D<NumType> tempPoints = lineThicknessIntersectionPoints(base_points.points_[i - 1], base_points.points_[i], base_points.points_[i + 1], thickness(base_points.points_[i], i));
-      LineSegment2D<NumType> p(tempPoints.points_[0], tempPoints.points_[1]);
-      LineSegment2D<NumType> q(points_[points_.size() - 1], pointList2.points_[pointList2.points_.size() - 1]);
 
-      add(tempPoints.points_[0]);
-      pointList2.add(tempPoints.points_[1]);
-      
-      if (p.intersect(q)) {
-         std::cout << "Segment could not be placed without an intersection at point: " << base_points.points_[i].serialize() << std::endl;
+      if (cut_out_intersecting_points) {
+         LineSegment2D<NumType> p(tempPoints.points_[0], tempPoints.points_[1]);
+         LineSegment2D<NumType> q(points_[points_.size() - 1], pointList2.points_[pointList2.points_.size() - 1]);
+         const bool intersects{ p.intersect(q) };
+
+         if (intersects) {
+            Failable::getSingleton()->addWarning("Segment could not be placed without an intersection at point: " + base_points.points_[i].serialize());
+         }
+         else {
+            add(tempPoints.points_[0]);
+            pointList2.add(tempPoints.points_[1]);
+         }
+      }
+      else {
+         add(tempPoints.points_[0]);
+         pointList2.add(tempPoints.points_[1]);
       }
    }
 
@@ -782,6 +854,7 @@ inline void Polygon2D<NumType>::createArrow(
    pointList2.add(p12);
 
    // Arrow end.
+   addAll(dock_at_end);
    createArrowEnd(base_points, arrow_end, end_factor, thickness_last, *this, false);
 
    for (int i = pointList2.points_.size() - 1; i >= 0; i--) {
@@ -793,17 +866,23 @@ template<class NumType>
 inline void Polygon2D<NumType>::createArrow(
    const Polygon2D<NumType>& base_points, 
    const float thickness,
+   const Polygon2D<NumType> dock_at_begin,
+   const Polygon2D<NumType> dock_at_end,
    const Polygon2D<NumType>& arrow_head,
    const Polygon2D<NumType>& arrow_end, 
    const Vector2D<NumType>& head_factor, 
-   const Vector2D<NumType>& end_factor)
+   const Vector2D<NumType>& end_factor,
+   const bool cut_out_intersecting_points)
 {
    createArrow(base_points,
-   [thickness](const Vector2D<NumType>& point_position, const int point_num){return thickness;},
-   arrow_head,
-   arrow_end,
-   head_factor,
-   end_factor);
+      [thickness](const Vector2D<NumType>& point_position, const int point_num){return thickness;},
+      dock_at_begin,
+      dock_at_end,
+      arrow_head,
+      arrow_end,
+      head_factor,
+      end_factor,
+      cut_out_intersecting_points);
 }
 
 template<class NumType>
@@ -896,7 +975,7 @@ template<class NumType>
 inline void Polygon2D<NumType>::extendBoundingBox(const Point& pt) const
 {
    if (pt.x != pt.x || pt.y != pt.y) {
-      Failable::getSingleton()->addError("NAN occurred in polygon generation.");
+      Failable::getSingleton()->addDebug("NAN occurred in polygon generation.");
       return;
    }
 
@@ -919,4 +998,175 @@ inline void Polygon2D<NumType>::extendBoundingBox(const Point& pt) const
    }
 }
 
+template<class NumType>
+inline std::vector<Polygon2D<NumType>> Polygon2D<NumType>::dashedArrow(
+   const Polygon2D<NumType>& points, 
+   const float dashed_segments_factor, 
+   const float thickness, 
+   const Polygon2D<NumType>& arrow_begin, 
+   const Polygon2D<NumType>& arrow_end, 
+   const Vector2D<NumType>& arrow_begin_factor, 
+   const Vector2D<NumType>& arrow_end_factor)
+{
+   return dashedArrow(
+      points, 
+      dashed_segments_factor, 
+      [thickness](const Vector2D<NumType>& point_position, const int point_num) { return thickness; },
+      arrow_begin,
+      arrow_end,
+      arrow_begin_factor,
+      arrow_end_factor);
 }
+
+/**
+ * Erzeugt einen gestrichelten Pfeil mit verschiedenen Segmenttypen.
+ *
+ * @param points           Die points des Pfeils.
+ * @param dicken           Die Dicken des Pfeils.
+ * @param arrow_begin      Das arrow_beginspolygon.
+ * @param arrow_end        Das arrow_endpolygon.
+ * @param arrow_begin_factor        Der Anfangsfaktor.
+ * @param arrow_end_factor        Der arrow_end_factor.
+ * @param farben           Eine beliebige Liste sich abwechselnder
+ *                         Ausgabemerkmale. Ist hier ein Eintrag
+ *                         <code>null</code>, wird kein Ausgabemerkmal
+ *                         für die Segmente definiert.
+ * @param dashed_segments_factor  Multiplikativer Faktor für die Länge eines
+ *                         Segments bezogen auf die durchschnittliche
+ *                         Dicke des Pfeils.
+ * @param params           Die Parameter.
+ * @return  Der gestrichelte Pfeil als Menge von Segmentpolygonen.
+ */
+template<class NumType>
+inline std::vector<Polygon2D<NumType>> Polygon2D<NumType>::dashedArrow(
+   const Polygon2D<NumType>& points,
+   const float dashed_segments_factor,
+   const std::function<float(const Vector2D<NumType>& point_position, const int point_num)>& thickness,
+   const Polygon2D<NumType>& arrow_begin,
+   const Polygon2D<NumType>& arrow_end,
+   const Vector2D<NumType>&  arrow_begin_factor,
+   const Vector2D<NumType>&  arrow_end_factor) 
+{
+   const double konstFakt{ 3 * dashed_segments_factor };
+   float strLaeng{};
+   float durchDick{ 0 };
+   float durchAbst{ 0 };
+   int anzpoints{};
+   int j{};
+   Polygon2D<NumType> anfang{};
+   Polygon2D<NumType> ende{};
+   float mehrpoints{};
+   float anzSegmente{};
+
+   for (int i = 0; i < points.points_.size(); i++) {
+      durchDick += std::abs(thickness({ 0, 0 }, i));
+   }
+   durchDick /= points.points_.size();
+
+   for (int i = 0; i < points.points_.size() - 2; i++) {
+      durchAbst += points.points_.at(i).distance(points.points_.at(i + 1));
+   }
+   durchAbst /= points.points_.size() - 1;
+   strLaeng = durchDick * konstFakt;
+   anzpoints = strLaeng / durchAbst;
+
+   if (anzpoints == 0) {
+      return dashedArrow(
+         points,
+         dashed_segments_factor + 1,
+         thickness,
+         arrow_begin,
+         arrow_end,
+         arrow_begin_factor,
+         arrow_end_factor);
+   }
+
+   std::vector<int> beginns;
+   std::vector<int> endes;
+   std::vector<Polygon2D<NumType>> arrow_begins;
+   std::vector<Polygon2D<NumType>> arrow_ends;
+   std::vector<Vector2D<NumType>> faktorAnfangs;
+   std::vector<Vector2D<NumType>> faktorEndes;
+
+   anzSegmente = points.points_.size() / anzpoints;
+   mehrpoints = fmodf(points.points_.size(), anzpoints);
+   anzpoints += mehrpoints / ((int)anzSegmente + 1);
+
+   for (float i = 0; i <= (int)points.points_.size() - anzpoints && anzpoints > 0; i += anzpoints) {
+      anfang = ARROW_END_PLAIN_LINE;
+      ende = ARROW_END_PLAIN_LINE;
+      if (i == 0) {
+         anfang = arrow_begin;
+      }
+      if (i + anzpoints > points.points_.size() - anzpoints) {
+         ende = arrow_end;
+         anzpoints = points.points_.size() - i - 1;
+      }
+
+      beginns.push_back((int) i - (anzpoints ? 0 : 1)); // We need at least two points to paint an arrow. TODO: Not sure if this could ever happen at i = 0.
+      endes.push_back((int)(i + anzpoints));
+      arrow_begins.push_back(anfang);
+      arrow_ends.push_back(ende);
+      faktorAnfangs.push_back(arrow_begin_factor);
+      faktorEndes.push_back(arrow_end_factor);
+   }
+
+   return createArrowSegments(points, thickness, beginns, endes, arrow_begins, arrow_ends, faktorAnfangs, faktorEndes);
+}
+
+/**
+ * Gibt eine beliebige Menge von beliebig zusammenhängenden Teilsegmenten
+ * eines Pfeils zurück, wobei die Ausgabemerkmale für jedes zus.
+ * Teilsegment einzeln eingestellt werden können.
+ *
+ * @param points       Die points, durch die der Pfeil verlaufen soll.
+ * @param dicken       Die Dicken des Pfeils an den Stellen der
+ *                     Verlaufspoints.
+ * @param segBeschr    Die Beschreibungen einzelner Segmente.
+ * @param params       Die Parameter.
+ *
+ * @return  Die Teilsegmente eines Pfeil aus mehreren Segmenten.
+ */
+template<class NumType>
+inline std::vector<Polygon2D<NumType>> Polygon2D<NumType>::createArrowSegments(
+   const Polygon2D<NumType>& points,
+   const std::function<float(const Vector2D<NumType>& point_position, const int point_num)>& thickness,
+   std::vector<int>& beginn,
+   std::vector<int>& ende,
+   std::vector<Polygon2D<NumType>>& arrow_begin,
+   std::vector<Polygon2D<NumType>>& arrow_end,
+   std::vector<Vector2D<NumType>>& faktorAnfang,
+   std::vector<Vector2D<NumType>>& faktorEnde)
+{
+   std::vector<Polygon2D<NumType>> segmente;
+   Polygon2D<NumType> zeichnen;
+
+   for (int i = 0; i < beginn.size(); i++) {
+      Polygon2D<NumType> aktPol;
+      Polygon2D<NumType> aktpoints;
+
+      for (int j = beginn[i]; j <= ende[i]; j++) {
+         aktpoints.add(points.points_.at(j));
+      }
+
+      aktPol.createArrow(
+         aktpoints,
+         thickness,
+         {},
+         {},
+         arrow_begin[i],
+         arrow_end[i],
+         faktorAnfang[i],
+         faktorEnde[i]);
+
+      if (aktPol.points_.empty()) {
+         int x{};
+      }
+
+      segmente.push_back(aktPol);
+   }
+
+   return segmente;
+}
+
+} // vfm
