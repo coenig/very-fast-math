@@ -908,14 +908,25 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 
 void vfm::HighwayImage::paintRoadGraph(
    const std::shared_ptr<RoadGraph> r_raw,
-   const Vec2D& dim_raw,
+   const Vec2D& dim_raw_raw,
    const float ego_offset_x,
    const std::map<std::string, std::string>& var_vals,
    const bool print_agent_ids,
-   const float TRANSLATE_X,
-   const float TRANSLATE_Y)
+   const float TRANSLATE_X_raw,
+   const float TRANSLATE_Y_raw)
 {
    auto r = vfm::test::paintExampleRoadGraphRoundabout(false, r_raw);
+   const auto all_nodes = r->getAllNodes();
+   const bool infinite_road{ all_nodes.size() == 1 && r->isRootedInZeroAndUnturned() }; // Only a single section, at root position and unturned, will be painted as infinite.
+   float TRANSLATE_X{ TRANSLATE_X_raw };
+   float TRANSLATE_Y{ TRANSLATE_Y_raw };
+   Vec2D dim_raw{ dim_raw_raw };
+
+   if (infinite_road) {
+      TRANSLATE_X = 0;
+      TRANSLATE_Y = 0;
+      dim_raw = { (float) getWidth(), (float) getHeight() };
+   }
 
    r->normalizeRoadGraphToEgoSection();
 
@@ -923,7 +934,6 @@ void vfm::HighwayImage::paintRoadGraph(
    auto old_trans = getHighwayTranslator();
    auto ego_pos = r_ego->getMyRoad().getEgo()->car_rel_pos_;
    auto ego_lane = r_ego->getMyRoad().getEgo()->car_lane_;
-   auto all_nodes = r->getAllNodes();
    std::vector<std::shared_ptr<RoadGraph>> all_nodes_ego_in_front{};
 
    all_nodes_ego_in_front.push_back(r_ego);
@@ -976,9 +986,6 @@ void vfm::HighwayImage::paintRoadGraph(
       assert(Vec3D(.3, -11, 3).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ .3, -11, 3 }))));
       assert(Vec3D(-.3, -1.1, 0).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ -.3, -1.1, 0 }))));
       assert(Vec3D(-.3, -1.1, 0).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ -.3, -1.1, 0 }))));
-
-
-      const bool infinite_road{ all_nodes.size() == 1 && r_sub->isRootedInZeroAndUnturned() }; // Only a single section, at root position and unturned, will be painted as infinite.
 
       if (!infinite_road) {
          const auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
