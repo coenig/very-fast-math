@@ -135,7 +135,6 @@ public:
       outside_view_->paintRoadGraph(
          r,
          { 500, 60 },
-         0,
          additional_var_vals,
          true, 60, (float) lane_structure.getNumLanes() / 2.0f);
 
@@ -192,14 +191,12 @@ public:
       cockpit_view_->paintRoadGraph(
          r,
          { 500, 120 },
-         0,
          additional_var_vals,
          true);
 
       cockpit_view_mirror_->paintRoadGraph(
          r,
          { 500, 120 },
-         0,
          additional_var_vals,
          true);
 

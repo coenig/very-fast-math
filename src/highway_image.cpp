@@ -676,7 +676,8 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    const float ego_offset_x,
    const ExtraVehicleArgs& var_vals,
    const bool print_agent_ids, 
-   const Vec2D& dim)
+   const Vec2D& dim,
+   const RoadDrawingMode mode)
 {
    std::vector<ConnectorPolygonEnding> res{};
 
@@ -738,133 +739,141 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    tl_orig.x = -METERS_TO_LOOK_BEHIND;
    br_orig.x = METERS_TO_LOOK_AHEAD;
 
-   if (infinite_road) {
-      fillRectangle(tl_orig.x, street_left_border, br_orig.x - tl_orig.x, street_width, PAVEMENT_COLOR, false);
-   }
-   else {
-      fillRectangle(road_begin - ego_rel_pos, street_left_border, road_length, street_width, PAVEMENT_COLOR, false);
+   if (mode == RoadDrawingMode::road || mode == RoadDrawingMode::both) {
+      if (infinite_road) {
+         fillRectangle(tl_orig.x, street_left_border, br_orig.x - tl_orig.x, street_width, PAVEMENT_COLOR, false);
+      }
+      else {
+         fillRectangle(road_begin - ego_rel_pos, street_left_border, road_length, street_width, PAVEMENT_COLOR, false);
+      }
    }
 
    for (int i = min_lane + 1; i <= max_lane; i++) {
       y = street_left_border + i - min_lane;
-      dashed_line(road_begin - ego_rel_pos, y, road_length - ego_rel_pos, y, LANE_MARKER_THICKNESS, LANE_MARKER_COLOR, DASH_WIDTH);
+      if (mode == RoadDrawingMode::road || mode == RoadDrawingMode::both) {
+         dashed_line(road_begin - ego_rel_pos, y, road_length - ego_rel_pos, y, LANE_MARKER_THICKNESS, LANE_MARKER_COLOR, DASH_WIDTH);
+      }
    }
 
-   removeNonExistentLanesAndMarkShoulders(
-      lane_structure, ego, { road_begin - ego_rel_pos, tl_orig.y }, { road_length - ego_rel_pos, br_orig.y }, infinite_road, dim, res);
-
-   // Plot other vehicles
-   const Color CAR_FRAME_COLOR{ DARK_GREY };
-   std::vector<Pol2Df> arrow_polygons{};
-
-   std::map<int, float> cars_by_distance{};
-   std::map<int, int> id_to_others_vec{};
-
-   for (int i = 0; i < others.size(); i++) {
-      Vec2Df pos{ others[i].car_rel_pos_, others[i].car_lane_ - ego_lane };
-      cars_by_distance[others[i].car_id_] = Vec2Df({pos.x, std::abs(ego_lane - pos.y) * LANE_WIDTH}).length();
-      id_to_others_vec[others[i].car_id_] = i;
+   if (mode == RoadDrawingMode::road || mode == RoadDrawingMode::both) {
+      removeNonExistentLanesAndMarkShoulders(
+         lane_structure, ego, { road_begin - ego_rel_pos, tl_orig.y }, { road_length - ego_rel_pos, br_orig.y }, infinite_road, dim, res);
    }
 
-   std::vector<int> cars_sorted_by_distance{};
+   if (mode == RoadDrawingMode::cars || mode == RoadDrawingMode::both) {
+      // Plot other vehicles
+      const Color CAR_FRAME_COLOR{ DARK_GREY };
+      std::vector<Pol2Df> arrow_polygons{};
 
-   while (cars_sorted_by_distance.size() < cars_by_distance.size()) { // TODO: This is maybe the most inefficient way of doing the sorting there is...
-      float max = -1;
-      int max_id = -1;
+      std::map<int, float> cars_by_distance{};
+      std::map<int, int> id_to_others_vec{};
 
-      for (auto& el : cars_by_distance) {
-         if (el.second > max) {
-            max_id = el.first;
-            max = el.second;
+      for (int i = 0; i < others.size(); i++) {
+         Vec2Df pos{ others[i].car_rel_pos_, others[i].car_lane_ - ego_lane };
+         cars_by_distance[others[i].car_id_] = Vec2Df({ pos.x, std::abs(ego_lane - pos.y) * LANE_WIDTH }).length();
+         id_to_others_vec[others[i].car_id_] = i;
+      }
+
+      std::vector<int> cars_sorted_by_distance{};
+
+      while (cars_sorted_by_distance.size() < cars_by_distance.size()) { // TODO: This is maybe the most inefficient way of doing the sorting there is...
+         float max = -1;
+         int max_id = -1;
+
+         for (auto& el : cars_by_distance) {
+            if (el.second > max) {
+               max_id = el.first;
+               max = el.second;
+            }
+         }
+
+         if (max_id >= 0) {
+            cars_by_distance.at(max_id) = -1;
+            cars_sorted_by_distance.push_back(max_id);
          }
       }
 
-      if (max_id >= 0) {
-         cars_by_distance.at(max_id) = -1;
-         cars_sorted_by_distance.push_back(max_id);
-      }
-   }
+      for (int i = 0; i < cars_sorted_by_distance.size(); i++) {
+         auto car_id{ cars_sorted_by_distance[i] };
+         const auto pair{ others[id_to_others_vec[car_id]] };
 
-   for (int i = 0; i < cars_sorted_by_distance.size(); i++) {
-      auto car_id{ cars_sorted_by_distance[i] };
-      const auto pair{ others[id_to_others_vec[car_id]] };
+         Vec2Df pos{ pair.car_rel_pos_, pair.car_lane_ - ego_lane };
 
-      Vec2Df pos{ pair.car_rel_pos_, pair.car_lane_ - ego_lane };
+         float text_pos_x{ (std::max)(tl_orig.x + 2, (std::min)((float)br_orig.x - 2, pos.x)) };
+         Color car_frame_color{ CAR_FRAME_COLOR };
+         float thick{ 3 };
 
-      float text_pos_x{ (std::max)(tl_orig.x + 2, (std::min)((float)br_orig.x - 2, pos.x)) };
-      Color car_frame_color{ CAR_FRAME_COLOR };
-      float thick{ 3 };
+         //static const int SLIDE_X{ CAR_LENGTH * 1.2 };
+         //static const int SLIDE_Y{ 0.5 };
 
-      //static const int SLIDE_X{ CAR_LENGTH * 1.2 };
-      //static const int SLIDE_Y{ 0.5 };
+         if (car_id == gap_0_front) { car_frame_color = GAP_0_FRONT_COLOR; thick = 5; /* writeAsciiText(text_pos_x - SLIDE_X, pos.y - SLIDE_Y, "0F"); */ }
+         if (car_id == gap_1_front) { car_frame_color = GAP_1_FRONT_COLOR; thick = 5; /* writeAsciiText(text_pos_x - SLIDE_X, pos.y, "1F");           */ }
+         if (car_id == gap_2_front) { car_frame_color = GAP_2_FRONT_COLOR; thick = 5; /* writeAsciiText(text_pos_x - SLIDE_X, pos.y + SLIDE_Y, "2F"); */ }
+         if (car_id == gap_0_rear) { car_frame_color = GAP_0_REAR_COLOR; thick = 5;   /* writeAsciiText(text_pos_x + SLIDE_X, pos.y - SLIDE_Y, "0R"); */ }
+         if (car_id == gap_1_rear) { car_frame_color = GAP_1_REAR_COLOR; thick = 5;   /* writeAsciiText(text_pos_x + SLIDE_X, pos.y, "1R");           */ }
+         if (car_id == gap_2_rear) { car_frame_color = GAP_2_REAR_COLOR; thick = 5;   /* writeAsciiText(text_pos_x + SLIDE_X, pos.y + SLIDE_Y, "2R"); */ }
 
-      if (car_id == gap_0_front) { car_frame_color = GAP_0_FRONT_COLOR; thick = 5; /* writeAsciiText(text_pos_x - SLIDE_X, pos.y - SLIDE_Y, "0F"); */ }
-      if (car_id == gap_1_front) { car_frame_color = GAP_1_FRONT_COLOR; thick = 5; /* writeAsciiText(text_pos_x - SLIDE_X, pos.y, "1F");           */ }
-      if (car_id == gap_2_front) { car_frame_color = GAP_2_FRONT_COLOR; thick = 5; /* writeAsciiText(text_pos_x - SLIDE_X, pos.y + SLIDE_Y, "2F"); */ }
-      if (car_id == gap_0_rear) { car_frame_color = GAP_0_REAR_COLOR; thick = 5;   /* writeAsciiText(text_pos_x + SLIDE_X, pos.y - SLIDE_Y, "0R"); */ }
-      if (car_id == gap_1_rear) { car_frame_color = GAP_1_REAR_COLOR; thick = 5;   /* writeAsciiText(text_pos_x + SLIDE_X, pos.y, "1R");           */ }
-      if (car_id == gap_2_rear) { car_frame_color = GAP_2_REAR_COLOR; thick = 5;   /* writeAsciiText(text_pos_x + SLIDE_X, pos.y + SLIDE_Y, "2R"); */ }
-
-      if (future_positions_of_others.count(car_id)) {
-         float future_pos_x{ pos_ego.x + future_positions_of_others.at(car_id).first };
-         float future_pos_y{ pos_ego.y + (future_positions_of_others.at(car_id).second - ego_lane) };
-         createArrows(pos.x, future_pos_x, pos.y, future_pos_y, arrow_polygons);
-      }
-
-      std::string varname_turn_signals{ "veh___6" + std::to_string(car_id) + "9___.turn_signals" };
-      if (var_vals.count(varname_turn_signals)) {
-         if (var_vals.at(varname_turn_signals) == "LEFT") {
-            fillBlinker(Vec2Df{ pos.x, pos.y }, -1.0);
+         if (future_positions_of_others.count(car_id)) {
+            float future_pos_x{ pos_ego.x + future_positions_of_others.at(car_id).first };
+            float future_pos_y{ pos_ego.y + (future_positions_of_others.at(car_id).second - ego_lane) };
+            createArrows(pos.x, future_pos_x, pos.y, future_pos_y, arrow_polygons);
          }
-         else if (var_vals.at(varname_turn_signals) == "RIGHT") {
-            fillBlinker(Vec2Df{ pos.x, pos.y }, 1.0);
+
+         std::string varname_turn_signals{ "veh___6" + std::to_string(car_id) + "9___.turn_signals" };
+         if (var_vals.count(varname_turn_signals)) {
+            if (var_vals.at(varname_turn_signals) == "LEFT") {
+               fillBlinker(Vec2Df{ pos.x, pos.y }, -1.0);
+            }
+            else if (var_vals.at(varname_turn_signals) == "RIGHT") {
+               fillBlinker(Vec2Df{ pos.x, pos.y }, 1.0);
+            }
+         }
+
+         // vehicle speed number
+         plotCar2D(thick, pos, CAR_COLOR, car_frame_color);
+         writeAsciiText(text_pos_x, pos.y, std::to_string(pair.car_velocity_), CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
+
+         if (print_agent_ids) {
+            writeAsciiText(text_pos_x, pos.y - 0.5, std::to_string(car_id), CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLUE);
          }
       }
 
-      // vehicle speed number
-      plotCar2D(thick, pos, CAR_COLOR, car_frame_color);
-      writeAsciiText(text_pos_x, pos.y, std::to_string(pair.car_velocity_), CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
-
-      if (print_agent_ids) {
-         writeAsciiText(text_pos_x, pos.y - 0.5, std::to_string(car_id), CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLUE);
+      std::string varname_ego_turn_signals = "ego.turn_signals";
+      if (var_vals.count(varname_ego_turn_signals)) {
+         if (var_vals.at(varname_ego_turn_signals) == "LEFT") {
+            fillBlinker(Vec2Df{ pos_ego.x, pos_ego.y }, -1.0);
+         }
+         else if (var_vals.at(varname_ego_turn_signals) == "RIGHT") {
+            fillBlinker(Vec2Df{ pos_ego.x, pos_ego.y }, 1.0);
+         }
       }
-   }
 
-   std::string varname_ego_turn_signals = "ego.turn_signals";
-   if (var_vals.count(varname_ego_turn_signals)) {
-      if (var_vals.at(varname_ego_turn_signals) == "LEFT") {
-         fillBlinker(Vec2Df{ pos_ego.x, pos_ego.y }, -1.0);
+      if (future_positions_of_others.count(-1)) {
+         float future_pos_x = pos_ego.x + future_positions_of_others.at(-1).first;
+         float future_pos_y = pos_ego.y + (future_positions_of_others.at(-1).second - ego_lane);
+         createArrows(pos_ego.x, future_pos_x, pos_ego.y, future_pos_y, arrow_polygons);
       }
-      else if (var_vals.at(varname_ego_turn_signals) == "RIGHT") {
-         fillBlinker(Vec2Df{ pos_ego.x, pos_ego.y }, 1.0);
+
+      if (ego) plotCar2D(3, pos_ego, RED, CAR_FRAME_COLOR);
+
+      for (const auto& pol : arrow_polygons) {
+         fillPolygon(pol, DARK_GREY);
       }
-   }
 
-   if (future_positions_of_others.count(-1)) {
-      float future_pos_x = pos_ego.x + future_positions_of_others.at(-1).first;
-      float future_pos_y = pos_ego.y + (future_positions_of_others.at(-1).second - ego_lane);
-      createArrows(pos_ego.x, future_pos_x, pos_ego.y, future_pos_y, arrow_polygons);
-   }
+      for (int i = 0; i < cars_sorted_by_distance.size(); i++) {
+         const auto pair = others[id_to_others_vec[cars_sorted_by_distance[i]]];
+         Vec2Df pos{ pair.car_rel_pos_, pair.car_lane_ - ego_lane };
+         if (getHighwayTranslator()->is3D()) plotCar3D(pos, CAR_COLOR, CAR_FRAME_COLOR);
+      }
 
-   if (ego) plotCar2D(3, pos_ego, RED, CAR_FRAME_COLOR);
+      if (ego) if (getHighwayTranslator()->is3D()) plotCar3D(pos_ego, RED, CAR_FRAME_COLOR); // EGO 3D
 
-   for (const auto& pol : arrow_polygons) {
-      fillPolygon(pol, DARK_GREY);
-   }
+      if (ego) writeAsciiText(pos_ego.x, pos_ego.y, std::to_string(ego_velocity), CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
 
-   for (int i = 0; i < cars_sorted_by_distance.size(); i++) {
-      const auto pair = others[id_to_others_vec[cars_sorted_by_distance[i]]];
-      Vec2Df pos{ pair.car_rel_pos_, pair.car_lane_ - ego_lane };
-      if (getHighwayTranslator()->is3D()) plotCar3D(pos, CAR_COLOR, CAR_FRAME_COLOR);
-   }
-
-   if (ego) if (getHighwayTranslator()->is3D()) plotCar3D(pos_ego, RED, CAR_FRAME_COLOR); // EGO 3D
-
-   if (ego) writeAsciiText(pos_ego.x, pos_ego.y, std::to_string(ego_velocity), CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
-
-   if (ego) {
-      auto text_pos_y{ plain_2d_translator_->reverseTranslate({ 0, 13 }).y };
-      writeAsciiText(-CAR_LENGTH / 2, text_pos_y, std::to_string((int)ego_rel_pos) + "m", CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
+      if (ego) {
+         auto text_pos_y{ plain_2d_translator_->reverseTranslate({ 0, 13 }).y };
+         writeAsciiText(-CAR_LENGTH / 2, text_pos_y, std::to_string((int)ego_rel_pos) + "m", CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
+      }
    }
 
    const auto reverse_origin_2D{ plain_2d_translator_->reverseTranslate({0, 0}) };
@@ -909,15 +918,17 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 void vfm::HighwayImage::paintRoadGraph(
    const std::shared_ptr<RoadGraph> r_raw,
    const Vec2D& dim_raw_raw,
-   const float ego_offset_x,
    const std::map<std::string, std::string>& var_vals,
    const bool print_agent_ids,
    const float TRANSLATE_X_raw,
    const float TRANSLATE_Y_raw)
 {
-   auto r = vfm::test::paintExampleRoadGraphRoundabout(false, r_raw);
-   const auto all_nodes = r->getAllNodes();
-   const bool infinite_road{ all_nodes.size() == 1 && r->isRootedInZeroAndUnturned() }; // Only a single section, at root position and unturned, will be painted as infinite.
+   auto my_r = vfm::test::paintExampleRoadGraphRoundabout(false, r_raw);
+   my_r->normalizeRoadGraphToEgoSection();
+   auto old_trans = getHighwayTranslator();
+   const auto all_nodes = my_r->getAllNodes();
+
+   const bool infinite_road{ all_nodes.size() == 1 && my_r->isRootedInZeroAndUnturned() }; // Only a single section, at root position and unturned, will be painted as infinite.
    float TRANSLATE_X{ TRANSLATE_X_raw };
    float TRANSLATE_Y{ TRANSLATE_Y_raw };
    Vec2D dim_raw{ dim_raw_raw };
@@ -925,13 +936,10 @@ void vfm::HighwayImage::paintRoadGraph(
    if (infinite_road) {
       TRANSLATE_X = 0;
       TRANSLATE_Y = 0;
-      dim_raw = { (float) getWidth(), (float) getHeight() };
+      dim_raw = { (float)getWidth(), (float)getHeight() };
    }
 
-   r->normalizeRoadGraphToEgoSection();
-
-   auto r_ego = r->findSectionWithEgo();
-   auto old_trans = getHighwayTranslator();
+   auto r_ego = my_r->findSectionWithEgo();
    auto ego_pos = r_ego->getMyRoad().getEgo()->car_rel_pos_;
    auto ego_lane = r_ego->getMyRoad().getEgo()->car_lane_;
    std::vector<std::shared_ptr<RoadGraph>> all_nodes_ego_in_front{};
@@ -945,73 +953,76 @@ void vfm::HighwayImage::paintRoadGraph(
    static constexpr float MC1{ 2.0f * 12.8f };
    static constexpr float MC2{ 480.0f };
 
-   for (const auto r_sub : all_nodes_ego_in_front) {
-      const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
-      const auto dim = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
+   [&]() {
+      for (const auto r_sub : all_nodes_ego_in_front) {
+         const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
+         const auto dim = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
 
-      const auto wrapper_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, &dim, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
-         const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0) };
-         const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
-         Vec2D v{ plain_2d_translator_->translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
-         v.rotate(r_sub->getAngle(), { middle.x, middle.y });
-         auto res = plain_2d_translator_->reverseTranslate(v);
+         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, &dim, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+            const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0) };
+            const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
+            Vec2D v{ plain_2d_translator_->translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
+            v.rotate(r_sub->getAngle(), { middle.x, middle.y });
+            auto res = plain_2d_translator_->reverseTranslate(v);
 
-         return { // The magic numbers below reflect the dependence on the number of lanes when calculating the thickness of lane marker lines iso. paintStraightRoadScene.
-            res.x + (old_trans->is3D() ? TRANSLATE_X : TRANSLATE_X - dim.x / MC1), // This constant has been calculated.
-            res.y + (old_trans->is3D() ? TRANSLATE_Y : TRANSLATE_Y / LANE_WIDTH - dim.y / MC2), // This one is only a guess and can probably be further improved.
-            v_raw.z };
-      };
+            return { // The magic numbers below reflect the dependence on the number of lanes when calculating the thickness of lane marker lines iso. paintStraightRoadScene.
+               res.x + (old_trans->is3D() ? TRANSLATE_X : TRANSLATE_X - dim.x / MC1), // This constant has been calculated.
+               res.y + (old_trans->is3D() ? TRANSLATE_Y : TRANSLATE_Y / LANE_WIDTH - dim.y / MC2), // This one is only a guess and can probably be further improved.
+               v_raw.z };
+            };
 
-      const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, &dim, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
-         const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0) };
-         const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
+         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, &dim, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+            const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0) };
+            const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
 
-         Vec2D v{
-            v_raw.x - (old_trans->is3D() ? TRANSLATE_X : TRANSLATE_X - dim.x / MC1),
-            v_raw.y - (old_trans->is3D() ? TRANSLATE_Y : TRANSLATE_Y / LANE_WIDTH - dim.y / MC2),
-         };
+            Vec2D v{
+               v_raw.x - (old_trans->is3D() ? TRANSLATE_X : TRANSLATE_X - dim.x / MC1),
+               v_raw.y - (old_trans->is3D() ? TRANSLATE_Y : TRANSLATE_Y / LANE_WIDTH - dim.y / MC2),
+            };
 
-         v = plain_2d_translator_->translate(v);
-         v.rotate(-r_sub->getAngle(), { middle.x, middle.y });
-         auto res = plain_2d_translator_->reverseTranslate({ v.x, v.y });
+            v = plain_2d_translator_->translate(v);
+            v.rotate(-r_sub->getAngle(), { middle.x, middle.y });
+            auto res = plain_2d_translator_->reverseTranslate({ v.x, v.y });
 
-         return { res.x - origin.x, res.y - origin.y / LANE_WIDTH, v_raw.z };
-      };
+            return { res.x - origin.x, res.y - origin.y / LANE_WIDTH, v_raw.z };
+            };
 
-      assert(Vec3D(0, 0, 0).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ 0, 0, 0 }))));
-      assert(Vec3D(0, 0, 0).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ 0, 0, 0 }))));
-      assert(Vec3D(10.3, 11, 5).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ 10.3, 11, 5 }))));
-      assert(Vec3D(10.3, 11, 5).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ 10.3, 11, 5 }))));
-      assert(Vec3D(.3, -11, 3).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ .3, -11, 3 }))));
-      assert(Vec3D(.3, -11, 3).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ .3, -11, 3 }))));
-      assert(Vec3D(-.3, -1.1, 0).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ -.3, -1.1, 0 }))));
-      assert(Vec3D(-.3, -1.1, 0).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ -.3, -1.1, 0 }))));
+         assert(Vec3D(0, 0, 0).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ 0, 0, 0 }))));
+         assert(Vec3D(0, 0, 0).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ 0, 0, 0 }))));
+         assert(Vec3D(10.3, 11, 5).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ 10.3, 11, 5 }))));
+         assert(Vec3D(10.3, 11, 5).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ 10.3, 11, 5 }))));
+         assert(Vec3D(.3, -11, 3).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ .3, -11, 3 }))));
+         assert(Vec3D(.3, -11, 3).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ .3, -11, 3 }))));
+         assert(Vec3D(-.3, -1.1, 0).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ -.3, -1.1, 0 }))));
+         assert(Vec3D(-.3, -1.1, 0).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ -.3, -1.1, 0 }))));
 
-      if (!infinite_road) {
-         const auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
-            old_trans,
-            wrapper_trans_function,
-            wrapper_reverse_trans_function);
-
-         setTranslator(wrapper_trans);
-
-         if (getHighwayTranslator()->is3D()) {
-            const auto wrapper_trans_2d = std::make_shared<HighwayTranslatorWrapper>(
-               plain_2d_translator_,
+         if (!infinite_road) {
+            const auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
+               old_trans,
                wrapper_trans_function,
                wrapper_reverse_trans_function);
-            plain_2d_translator_wrapped_ = wrapper_trans_2d;
-         }
-      }
 
-      r_sub->connectors_ = paintStraightRoadScene(
-         r_sub->getMyRoad(),
-         infinite_road,
-         0,
-         var_vals,
-         print_agent_ids,
-         infinite_road ? dim_raw : dim);
-   }
+            setTranslator(wrapper_trans);
+
+            if (getHighwayTranslator()->is3D()) {
+               const auto wrapper_trans_2d = std::make_shared<HighwayTranslatorWrapper>(
+                  plain_2d_translator_,
+                  wrapper_trans_function,
+                  wrapper_reverse_trans_function);
+               plain_2d_translator_wrapped_ = wrapper_trans_2d;
+            }
+         }
+
+         r_sub->connectors_ = paintStraightRoadScene(
+            r_sub->getMyRoad(),
+            infinite_road,
+            0,
+            var_vals,
+            print_agent_ids,
+            infinite_road ? dim_raw : dim,
+            RoadDrawingMode::road);
+      }
+   }();
 
    if (old_trans->is3D()) {
       setTranslator(old_trans);
@@ -1023,7 +1034,7 @@ void vfm::HighwayImage::paintRoadGraph(
    std::vector<Pol2D> additional_arrows{};
 
    for (int i = 0; i <= 30; i++) {
-      r->applyToMeAndAllMySuccessorsAndPredecessors([this, i, &dim_raw, &additional_arrows, old_trans](const std::shared_ptr<RoadGraph> r) -> void
+      my_r->applyToMeAndAllMySuccessorsAndPredecessors([this, i, &dim_raw, &additional_arrows, old_trans](const std::shared_ptr<RoadGraph> r) -> void
       {
          for (const auto& r_succ : r->getSuccessors()) {
             for (const auto& A : r->connectors_) {
@@ -1070,6 +1081,13 @@ void vfm::HighwayImage::paintRoadGraph(
                         return thick_a + point_num * step;
                      }, {}, {});
 
+                     std::cout 
+                        << trans_a->getPerspective()->serialize() << " (A)"
+                        << std::endl;
+                     std::cout 
+                        << trans_b->getPerspective()->serialize() << " (B)"
+                        << std::endl;
+
                      if (*A.col_ == Color{0, 0, 0, 0}) {
                         Pol2D arrow_square{};
                         arrow.add(*arrow.points_.begin());
@@ -1091,7 +1109,7 @@ void vfm::HighwayImage::paintRoadGraph(
                         else {
                            // TODO: Get rid of this workaround.
                            for (int i = 1; i < arrow_square.points_.size(); i++) {
-                              if (arrow_square.points_[i].distance(arrow_square.points_[i - 1]) > 10000) {
+                              if (arrow_square.points_[i].distance(arrow_square.points_[i - 1]) > 1000) {
                                  arrow_square.points_[i] = arrow_square.points_[i - 1];
                               }
                            }
@@ -1142,5 +1160,6 @@ void vfm::HighwayImage::paintRoadGraph(
       }
    }
 
+   std::cin.get();
    setTranslator(old_trans);
 }

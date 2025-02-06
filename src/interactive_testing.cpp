@@ -1038,7 +1038,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(
    ra3->addSuccessor(ra4);
 
    if (write_to_files) {
-      image2.paintRoadGraph(ra1, { 500, 60 }, 0, {}, true);
+      image2.paintRoadGraph(ra1, { 500, 60 }, {}, true);
       image2.store("../examples/junction", OutputType::pdf);
       image2.store("../examples/junction", OutputType::png);
       image3.paintRoadGraph(ra1, dim3D);
@@ -1202,10 +1202,10 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    r1->addSuccessor(r6);
 
    if (write_to_files) {
-      image2.paintRoadGraph(r1, { 500, 60 }, 0, {}, true);
+      image2.paintRoadGraph(r1, { 500, 60 }, {}, true);
       image2.store("../examples/roundabout", OutputType::pdf);
       image2.store("../examples/roundabout", OutputType::png);
-      image3.paintRoadGraph(r1, dim3D, 0, {}, true, 0, 0);
+      image3.paintRoadGraph(r1, dim3D, {}, true, 0, 0);
       image3.store("../examples/roundabout_3d", OutputType::pdf);
       image3.store("../examples/roundabout_3d", OutputType::png);
    }
