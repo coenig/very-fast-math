@@ -134,11 +134,10 @@ public:
 
       outside_view_->paintRoadGraph(
          r,
-         //{ (float)outside_view_->getWidth(), (float)outside_view_->getHeight() },
          { 500, 60 },
          0,
          additional_var_vals,
-         true);
+         true, 60, (float) lane_structure.getNumLanes() / 2.0f);
 
       return outside_view_;
    }
@@ -192,7 +191,6 @@ public:
 
       cockpit_view_->paintRoadGraph(
          r,
-         //{ (float)cockpit_view_->getWidth(), (float)cockpit_view_->getHeight() },
          { 500, 120 },
          0,
          additional_var_vals,
@@ -200,7 +198,7 @@ public:
 
       cockpit_view_mirror_->paintRoadGraph(
          r,
-         { (float)cockpit_view_mirror_->getWidth(), (float)cockpit_view_mirror_->getHeight() },
+         { 500, 120 },
          0,
          additional_var_vals,
          true);
