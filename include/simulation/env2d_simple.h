@@ -114,7 +114,7 @@ public:
          outside_view_->setCropLeftRightPDF(crop_left, crop_right);
       }
 
-      outside_view_->fillImg(BLACK);
+      outside_view_->fillImg(BROWN);
 
       CarParsVec others_current_vec{};
       std::map<int, std::pair<float, float>> others_future_vec{};

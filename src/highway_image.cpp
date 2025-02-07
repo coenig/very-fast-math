@@ -953,12 +953,12 @@ void vfm::HighwayImage::paintRoadGraph(
    static constexpr float MC1{ 2.0f * 12.8f };
    static constexpr float MC2{ 480.0f };
 
-   [&]() {
+   const auto DRAW_STRAIGHT_ROAD_OR_CARS = [&](const RoadDrawingMode mode) {
       for (const auto r_sub : all_nodes_ego_in_front) {
-         const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
-         const auto dim = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
+         const float section_max_lanes = r_sub->getMyRoad().getNumLanes(); // Note that these variables are used in the below lambdas, which need to be valid even after
+         const auto dim = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes }; // the vars go out of scope. Therefore, dim cannot be captured by reference.
 
-         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, &dim, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, dim, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
             const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0) };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
             Vec2D v{ plain_2d_translator_->translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
@@ -971,7 +971,7 @@ void vfm::HighwayImage::paintRoadGraph(
                v_raw.z };
             };
 
-         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, &dim, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, dim, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
             const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0) };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
 
@@ -1020,9 +1020,11 @@ void vfm::HighwayImage::paintRoadGraph(
             var_vals,
             print_agent_ids,
             infinite_road ? dim_raw : dim,
-            RoadDrawingMode::road);
+            mode);
       }
-   }();
+   };
+   
+   DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::road);
 
    if (old_trans->is3D()) {
       setTranslator(old_trans);
@@ -1054,6 +1056,7 @@ void vfm::HighwayImage::paintRoadGraph(
                      const auto b_connector_direction_translated = trans_b->translate(B.connector_.direction_);
                      const auto thick_a = A.thick_ * norm_length_a;
                      const auto thick_b = B.thick_ * norm_length_b;
+
                      Vec2D between1 = a_connector_basepoint_translated;
                      Vec2D between1_dir = a_connector_basepoint_translated;
                      between1_dir.sub(a_connector_direction_translated);
@@ -1080,13 +1083,6 @@ void vfm::HighwayImage::paintRoadGraph(
                         const float step{ (thick_b - thick_a) / p.points_.size() };
                         return thick_a + point_num * step;
                      }, {}, {});
-
-                     std::cout 
-                        << trans_a->getPerspective()->serialize() << " (A)"
-                        << std::endl;
-                     std::cout 
-                        << trans_b->getPerspective()->serialize() << " (B)"
-                        << std::endl;
 
                      if (*A.col_ == Color{0, 0, 0, 0}) {
                         Pol2D arrow_square{};
@@ -1160,6 +1156,7 @@ void vfm::HighwayImage::paintRoadGraph(
       }
    }
 
-   std::cin.get();
+   setTranslator(old_trans);
+   DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
    setTranslator(old_trans);
 }

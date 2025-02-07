@@ -44,7 +44,7 @@
       "NUMLANES": "#{lanes}#",
       "SEGMENTS": 1,
       "SEGMENTSMINLENGTH": 50,
-      "SPEC": "#{ (env.cnt <= 1) || !(env.ego_lane_2) || (env.ego.v > 15) || (env.ego.v < 10) || (env.veh___609___.v > 10) || (env.veh___619___.v > 10) || (env.veh___629___.v > 10) }#",
+      "SPEC": "#{ (env.cnt <= 5) || !(env.ego_lane_2) || (env.ego.v > 15) || (env.ego.v < 10) || (env.veh___609___.v > 10) || (env.veh___619___.v > 10) || (env.veh___629___.v > 10) }#",
       "ShowLOG": true,
       "TIMESCALING": "#{1000}#",
       "_BP_INCLUDES_FILE_PATH": "../src/examples/stripped-bp/prototype/motion_planning/rule_based_planning/vfm-includes-viper_sdp.txt",
