@@ -1098,9 +1098,29 @@ void vfm::HighwayImage::paintRoadGraph(
                            { 1, 1 },
                            old_trans->is3D());
 
+                        Vec2D point1a{ a_connector_basepoint_translated };
+                        Vec2D point2a{ a_connector_basepoint_translated };
+                        point1a.add(between1_dir_ortho);
+                        point2a.sub(between1_dir_ortho);
+                        Pol2D stop_line_pointsa{ point1a, point2a };
+                        Pol2D stop_linea{};
+                        stop_linea.createArrow(stop_line_pointsa, THICK * 2.1); // TODO: Remove these magic numbers
+
+                        Vec2D point1b{ b_connector_basepoint_translated };
+                        Vec2D point2b{ b_connector_basepoint_translated };
+                        point1b.add(between2_dir_ortho);
+                        point2b.sub(between2_dir_ortho);
+                        Pol2D stop_line_pointsb{ point1b, point2b };
+                        Pol2D stop_lineb{};
+                        stop_lineb.createArrow(stop_line_pointsb, THICK * 2.1); // TODO: Remove these magic numbers
+
                         if (old_trans->is3D()) {
                            auto arrow_square_reverse = plain_2d_translator_->reverseTranslatePolygon(arrow_square);
+                           auto stop_line_reversea = plain_2d_translator_->reverseTranslatePolygon(stop_linea);
+                           auto stop_line_reverseb = plain_2d_translator_->reverseTranslatePolygon(stop_lineb);
                            fillPolygon(arrow_square_reverse, LANE_MARKER_COLOR);
+                           fillPolygon(stop_line_reversea, LANE_MARKER_COLOR);
+                           fillPolygon(stop_line_reverseb, LANE_MARKER_COLOR);
                         }
                         else {
                            // TODO: Get rid of this workaround.
@@ -1113,6 +1133,7 @@ void vfm::HighwayImage::paintRoadGraph(
 
                            fillPolygon(arrow_square, LANE_MARKER_COLOR);
                         }
+
                         Pol2D p2{};
                         float begin = p.points_.size() / 4.0f;
                         float end = p.points_.size() - p.points_.size() / 4.0f;
