@@ -114,7 +114,7 @@ public:
          outside_view_->setCropLeftRightPDF(crop_left, crop_right);
       }
 
-      outside_view_->fillImg(BLACK);
+      outside_view_->fillImg(BROWN);
 
       CarParsVec others_current_vec{};
       std::map<int, std::pair<float, float>> others_future_vec{};
@@ -134,10 +134,9 @@ public:
 
       outside_view_->paintRoadGraph(
          r,
-         { (float)outside_view_->getWidth(), (float)outside_view_->getHeight() },
-         0,
+         { 500, 60 },
          additional_var_vals,
-         true);
+         true, 60, (float) lane_structure.getNumLanes() / 2.0f);
 
       return outside_view_;
    }
@@ -191,15 +190,13 @@ public:
 
       cockpit_view_->paintRoadGraph(
          r,
-         { (float)cockpit_view_->getWidth(), (float)cockpit_view_->getHeight() },
-         0,
+         { 500, 120 },
          additional_var_vals,
          true);
 
       cockpit_view_mirror_->paintRoadGraph(
          r,
-         { (float)cockpit_view_mirror_->getWidth(), (float)cockpit_view_mirror_->getHeight() },
-         0,
+         { 500, 120 },
          additional_var_vals,
          true);
 

@@ -339,32 +339,36 @@ void vfm::RoadGraph::setAngle(const float angle)
 
 void vfm::RoadGraph::addSuccessor(const std::shared_ptr<RoadGraph> subgraph)
 {
-   successors_.insert(subgraph);
-   subgraph->predecessors_.insert(shared_from_this());
+   successors_.push_back(subgraph);
+   subgraph->predecessors_.push_back(shared_from_this());
 }
 
 void vfm::RoadGraph::addPredecessor(const std::shared_ptr<RoadGraph> subgraph)
 {
-   predecessors_.insert(subgraph);
-   subgraph->successors_.insert(shared_from_this());
+   predecessors_.push_back(subgraph);
+   subgraph->successors_.push_back(shared_from_this());
 }
 
-std::set<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getSuccessors() const
+std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getSuccessors() const
 {
    return successors_;
 }
 
-std::set<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getPredecessors() const
+std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getPredecessors() const
 {
    return predecessors_;
 }
 
-std::set<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getAllNodes() const
+std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getAllNodes() const
 {
-   std::set<std::shared_ptr<RoadGraph>> res{};
+   std::vector<std::shared_ptr<RoadGraph>> res{};
 
    const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([&res](const std::shared_ptr<RoadGraph> r) -> bool {
-      res.insert(r);
+      for (const auto& el : res) {
+         if (el->getID() == r->getID()) return false;
+      }
+
+      res.push_back(r);
       return false;
    });
 
