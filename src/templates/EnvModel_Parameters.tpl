@@ -8,10 +8,19 @@
 -- Global options
 @{EM_LESS}@******.defaultValue[false]
 
--- Parametrization for EnvModel generator
-@{NUMLANES}@******.defaultValue[3]
-@{SEGMENTS}@******.defaultValue[4]
-@{SEGMENTSMINLENGTH}@******.defaultValue[50]
+-- Parametrization of road topology features
+@{NUMLANES}@******.defaultValue[3]               -- Maximum number of lanes a road SEGMENT can have
+@{SEGMENTS}@******.defaultValue[4]               -- Number of segments per straight road SECTION with flexible length and NUMLANES
+@{SEGMENTSMINLENGTH}@******.defaultValue[30] 
+@{SECTIONS}@******.defaultValue[50]              -- Number of straight road SECTIONS which form a road network
+@{SECTIONSMAXLENGTH}@******.defaultValue[250]
+@{MAXOUTGOINGCONNECTIONS}@******.defaultValue[3] -- Maximum number of successors a straight road may have
+@{BORDERLEFT}@******.defaultValue[-1000]         -- Left...
+@{BORDERTOP}@******.defaultValue[-1000]          -- Top...
+@{BORDERRIGHT}@******.defaultValue[1000]         -- Right...
+@{BORDERBOTTOM}@******.defaultValue[1000]        -- Bottom border of the coordinate system the straight roads can be placed on
+
+-- Parameters for ego and non-ego vehicles
 @{NONEGOS}@******.defaultValue[5]
 @{LEFTLC}@******.defaultValue[true]
 @{RIGHTLC}@******.defaultValue[false]
