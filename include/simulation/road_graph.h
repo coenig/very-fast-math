@@ -145,6 +145,8 @@ private:
    std::shared_ptr<CarPars> ego_{}; // Ego may or may not (nullptr) be within this road section.
    CarParsVec others_{};
    std::map<int, std::pair<float, float>> future_positions_of_others_{};
+
+public: // TODO
    float section_end_{ -1 };
 };
 
@@ -186,21 +188,21 @@ public:
    void addSuccessor(const std::shared_ptr<RoadGraph> subgraph);
    void addPredecessor(const std::shared_ptr<RoadGraph> subgraph);
 
-   std::set<std::shared_ptr<RoadGraph>> getSuccessors() const;
-   std::set<std::shared_ptr<RoadGraph>> getPredecessors() const;
+   std::vector<std::shared_ptr<RoadGraph>> getSuccessors() const;
+   std::vector<std::shared_ptr<RoadGraph>> getPredecessors() const;
 
-   std::set<std::shared_ptr<RoadGraph>> getAllNodes() const;
+   std::vector<std::shared_ptr<RoadGraph>> getAllNodes() const;
 
    std::vector<ConnectorPolygonEnding> connectors_{};
 
+   StraightRoadSection my_road_{}; // TODO: Make private.
 private:
-   StraightRoadSection my_road_{};
    Vec2D origin_point_{ 0.0F, 0.0F };
    float angle_{ 0 };
    int id_{};
 
-   std::set<std::shared_ptr<RoadGraph>> successors_{};
-   std::set<std::shared_ptr<RoadGraph>> predecessors_{};
+   std::vector<std::shared_ptr<RoadGraph>> successors_{};
+   std::vector<std::shared_ptr<RoadGraph>> predecessors_{};
 
    std::shared_ptr<RoadGraph> findFirstSectionWithProperty(
       const std::function<bool(std::shared_ptr<RoadGraph>)> property,

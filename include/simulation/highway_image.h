@@ -70,6 +70,12 @@ public:
       const std::map<std::string, std::string>& var_vals = {},
       const bool print_agent_ids = true);
 
+   enum class RoadDrawingMode {
+      road,
+      cars,
+      both
+   };
+
    /// Core function for painting a straight road section.
    std::vector<ConnectorPolygonEnding> paintStraightRoadScene(
       StraightRoadSection& lane_structure,
@@ -77,12 +83,12 @@ public:
       const float ego_offset_x = 0,
       const std::map<std::string, std::string>& var_vals = {},
       const bool print_agent_ids = true,
-      const Vec2D& dim = { 500, 100 });
+      const Vec2D& dim = { 500, 100 },
+      const RoadDrawingMode mode = RoadDrawingMode::both);
 
    void paintRoadGraph(
       const std::shared_ptr<RoadGraph> r,
       const Vec2D& dim,
-      const float ego_offset_x = 0,
       const std::map<std::string, std::string>& var_vals = {},
       const bool print_agent_ids = true,
       const float TRANSLATE_X = 0,
