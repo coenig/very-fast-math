@@ -12,7 +12,7 @@
 @{NUMLANES}@******.defaultValue[3]               -- Maximum number of lanes a road SEGMENT can have
 @{SEGMENTS}@******.defaultValue[4]               -- Number of segments per straight road SECTION with flexible length and NUMLANES
 @{SEGMENTSMINLENGTH}@******.defaultValue[30] 
-@{SECTIONS}@******.defaultValue[50]              -- Number of straight road SECTIONS which form a road network
+@{SECTIONS}@******.defaultValue[5]               -- Number of straight road SECTIONS which form a road network
 @{SECTIONSMAXLENGTH}@******.defaultValue[250]
 @{BORDERLEFT}@******.defaultValue[-1000]         -- Left...
 @{BORDERTOP}@******.defaultValue[-1000]          -- Top...
