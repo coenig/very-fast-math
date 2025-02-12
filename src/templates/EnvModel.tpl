@@ -1107,7 +1107,7 @@ TRANS next(veh___6[i]9___.lane_b@{[j]}@.eval[0]) = veh___6[i]9___.lane_b@{[j]}@.
 }@*.for[[j], 0, @{NUMLANES - 1}@.eval]}@**.if[@{KEEPEGOFIXEDTOLANE}@.eval]
 
 @{
-@{EnvModel_Viper.tpl}@.include
+@{EnvModel_DummyBP.tpl}@.include
 }@.if[@{VIPER}@.eval]
 
 @{EnvModel_Debug.tpl}@.include
