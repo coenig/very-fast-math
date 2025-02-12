@@ -111,12 +111,34 @@ VAR
 
     tar_dir : {ActionDir____LEFT, ActionDir____CENTER, ActionDir____RIGHT};
 
+   @{
+      section___6[sec]9___.source.x : integer;
+      section___6[sec]9___.source.y : integer;
+      section___6[sec]9___.drain.x : integer;
+      section___6[sec]9___.drain.y : integer;
+   }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
 ASSIGN
+   @{
+      next(section___6[sec]9___.source.x) := section___6[sec]9___.source.x;
+      next(section___6[sec]9___.source.y) := section___6[sec]9___.source.y;
+      next(section___6[sec]9___.drain.x) := section___6[sec]9___.drain.x;
+      next(section___6[sec]9___.drain.y) := section___6[sec]9___.drain.y;
+   }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
+
    @{
    next(segment_[num]_pos_begin) := segment_[num]_pos_begin;
    next(segment_[num]_min_lane) := segment_[num]_min_lane;
    next(segment_[num]_max_lane) := segment_[num]_max_lane;
    }@.for[[num], 0, @{SEGMENTS - 1}@.eval]
+
+   @{
+      INIT section___6[sec]9___.source.x <= @{BORDERRIGHT}@.eval[0]  & section___6[sec]9___.source.x >= @{BORDERLEFT}@.eval[0];
+      INIT section___6[sec]9___.source.y <= @{BORDERBOTTOM}@.eval[0] & section___6[sec]9___.source.y >= @{BORDERTOP}@.eval[0];
+      INIT section___6[sec]9___.drain.x  <= @{BORDERRIGHT}@.eval[0]  & section___6[sec]9___.drain.x >= @{BORDERLEFT}@.eval[0];
+      INIT section___6[sec]9___.drain.y  <= @{BORDERBOTTOM}@.eval[0] & section___6[sec]9___.drain.y >= @{BORDERTOP}@.eval[0];
+   }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 INVAR tar_dir = ActionDir____LEFT;
 INIT cnt = 0;
