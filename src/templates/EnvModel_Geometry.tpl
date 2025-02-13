@@ -25,7 +25,8 @@ bool doesLineIntersectSegment(Vec2D L1, Vec2D L2, Vec2D M1, Vec2D M2, Image& img
 @{ ((#0#) * (#0#)) }@***.newMethod[syntacticSquare, 0]
 @{ (@{#1#.x-#0#.x}@.syntacticSquare + @{#1#.y-#0#.y}@.syntacticSquare) }@***.newMethod[syntacticSquareOfVecDistance, 1]
 
-@{ ((#0#.x <= max(#1#.begin.x, #1#.end.x) & #0#.x >= min(#1#.begin.x, #1#.end.x) & #0#.y <= max(#1#.begin.y, #1#.end.y) & #0#.y >= min(#1#.begin.y, #1#.end.y))) }@***.newMethod[syntacticIsPointOnSegment, 1]
+@{ ((@{#0#}@.split[;].at[0] <= max(@{#1#}@.split['].at[0].split[;].at[0], @{#1#}@.split['].at[1].split[;].at[0]) & @{#0#}@.split[;].at[0] >= min(@{#1#}@.split['].at[0].split[;].at[0], @{#1#}@.split['].at[1].split[;].at[0]) & @{#0#}@.split[;].at[1] <= max(@{#1#}@.split['].at[0].split[;].at[1], @{#1#}@.split['].at[1].split[;].at[1]) & @{#0#}@.split[;].at[1] >= min(@{#1#}@.split['].at[0].split[;].at[1], @{#1#}@.split['].at[1].split[;].at[1]))) }@***.newMethod[syntacticIsPointOnSegment, 1]
+
 @{ (#0#.end.y - #0#.begin.y) }@***.newMethod[syntacticGFCoeffA, 0]
 @{ (#0#.begin.x - #0#.end.x) }@***.newMethod[syntacticGFCoeffB, 0]
 @{ ((#0#.end.x * #0#.begin.y) - (#0#.begin.x * #0#.end.y)) }@***.newMethod[syntacticGFCoeffC, 0]

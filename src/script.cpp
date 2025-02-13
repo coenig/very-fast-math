@@ -662,6 +662,14 @@ std::string DummyRepresentable::applyMethodString(const std::string& method_name
    else if (method_name == "if" && parameters.size() == 1) return ifChoice(parameters.at(0));
    else if (method_name == "at" && parameters.size() == 1) return element(parameters.at(0));
    else if (method_name == "substr" && parameters.size() == 2) return substring(parameters.at(0), parameters.at(1));
+   else if (method_name == "split" && parameters.size() == 1) {
+      auto spl = StaticHelper::split(getRawScript(), parameters[0]);
+      std::string res{};
+      for (const auto& s : spl) {
+         res += BEGIN_TAG_IN_SEQUENCE + s + END_TAG_IN_SEQUENCE;
+      }
+      return res;
+   }
    else if (method_name == "newMethod" && parameters.size() == 2) return newMethod(parameters.at(0), parameters.at(1));
    else if (method_name == "newMethod" && parameters.size() == 3) return newMethodD(parameters.at(0), parameters.at(1), parameters.at(2));
 

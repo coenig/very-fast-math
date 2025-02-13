@@ -6,7 +6,8 @@
 MODULE EnvModel
 
 
-@{twolines}@.syntacticIntersectionX
+@{3;4}@.syntacticIsPointOnSegment[2;5'7;9]
+@{point.x;point.y}@.syntacticIsPointOnSegment[A.x;A.y'B.x;B.y]
 
 @{
 @( -- EM-less build
