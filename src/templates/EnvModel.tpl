@@ -5,7 +5,8 @@
 
 MODULE EnvModel
 
-@{}@.squareOfDistance[test.x1, test.y1, test.x2, test.y2]
+
+@{twolines}@.syntacticIntersectionX
 
 @{
 @( -- EM-less build
