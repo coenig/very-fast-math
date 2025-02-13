@@ -1,9 +1,11 @@
 @{EnvModel_Header.tpl}@********.include
 @{EnvModel_Timescaling.tpl}@********.include
 @{EnvModel_Parameters.tpl}@********.include
-
+@{EnvModel_Geometry.tpl}@********.include
 
 MODULE EnvModel
+
+@{}@.squareOfDistance[test.x1, test.y1, test.x2, test.y2]
 
 @{
 @( -- EM-less build
@@ -12,11 +14,11 @@ MODULE EnvModel
    @{PLANNER_VARIABLES}@.printHeap
 )@
 @( -- EM-full build
---------------------------------------------------------
+------------------------------------------
 --
--- Begin: Constants and common definitions (generate once)
+-- Begin: Constants and common definitions
 --
---------------------------------------------------------
+------------------------------------------
 
 DEFINE
     ---------------- Begin of lc parameterization -----------------
@@ -133,12 +135,17 @@ ASSIGN
    next(segment_[num]_max_lane) := segment_[num]_max_lane;
    }@.for[[num], 0, @{SEGMENTS - 1}@.eval]
 
+   INIT section___609___.source.x = 0;
+   INIT section___609___.source.y = 0;
+   -- INIT section___609___.drain.x ==> Not specified, so the length of the section is figured out from the length of the segments.
+   INIT section___609___.drain.y = 0;
+
    @{
       INIT section___6[sec]9___.source.x <= @{BORDERRIGHT}@.eval[0]  & section___6[sec]9___.source.x >= @{BORDERLEFT}@.eval[0];
       INIT section___6[sec]9___.source.y <= @{BORDERBOTTOM}@.eval[0] & section___6[sec]9___.source.y >= @{BORDERTOP}@.eval[0];
       INIT section___6[sec]9___.drain.x  <= @{BORDERRIGHT}@.eval[0]  & section___6[sec]9___.drain.x >= @{BORDERLEFT}@.eval[0];
       INIT section___6[sec]9___.drain.y  <= @{BORDERBOTTOM}@.eval[0] & section___6[sec]9___.drain.y >= @{BORDERTOP}@.eval[0];
-   }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
+   }@**.for[[sec], 1, @{SECTIONS - 1}@.eval]
 
 INVAR tar_dir = ActionDir____LEFT;
 INIT cnt = 0;
