@@ -5,25 +5,11 @@
 
 MODULE EnvModel
 
+-- segment l1 and line l2 intersect?
+-- @{@{lines(line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y)); line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y)))}@.syntacticSegmentAndLineIntersect}@.serializeNuXmv
 
-@{vec(3; 4)}@.syntacticIsPointOnSegment[line(vec(5; 6); vec(7; 8))]
-@{line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y))}@.syntacticGFCoeffA
-@{line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y))}@.syntacticGFCoeffB
-@{line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y))}@.syntacticGFCoeffC
-@{line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y))}@.syntacticGFCoeffA
-@{line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y))}@.syntacticGFCoeffB
-@{line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y))}@.syntacticGFCoeffC
-@{lines(line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y)); line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y)))}@.syntacticIntersectionDenominator
-
-DEFINE
-int_x := @{lines(line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y)); line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y)))}@.syntacticLinesIntersectX
-int_y := @{lines(line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y)); line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y)))}@.syntacticLinesIntersectY
-
-segment l1 and line l2 intersect?
-@{lines(line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y)); line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y)))}@.syntacticSegmentAndLineIntersect
-
-segment l2 and line l1 intersect?
-@{lines(line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y)); line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y)))}@.syntacticSegmentAndLineIntersect
+-- segment l2 and line l1 intersect?
+-- @{@{lines(line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y)); line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y)))}@.syntacticSegmentAndLineIntersect}@.serializeNuXmv
 
 
 @{
