@@ -22,6 +22,10 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
+   std::string s{ "@{@f(vec, x, y, 0); @f(line, x, y, 0)}@.eval @{line(vec(3, 4), vec(5, 6))}@.atVfmTupel[1].atVfmTupel[0]" };
+   std::cout << vfm::macro::Script::processScript(s);
+   termnate();
+
    //vfm::test::runTests();
    //termnate();
 

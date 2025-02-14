@@ -451,7 +451,14 @@ protected:
       const bool allowRegularScripts);
 
    std::string simplifyExpression(const std::string& expression);
-   std::string formatExpression(const std::string& expression);
+
+   enum class SyntaxFormat {
+      vfm,
+      nuXmv,
+      kratos2
+   };
+
+   std::string formatExpression(const std::string& expression, const SyntaxFormat format);
    std::string evaluateExpression(const std::string& expression);
    std::string toK2(const std::string& expression);
    std::string evaluateExpression(const std::string& expression, const std::string& decimals);

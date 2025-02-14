@@ -6,8 +6,7 @@
 MODULE EnvModel
 
 
-@{3;4}@.syntacticIsPointOnSegment[2;5'7;9]
-@{point.x;point.y}@.syntacticIsPointOnSegment[A.x;A.y'B.x;B.y]
+@{vec(3; 4)}@.syntacticIsPointOnSegment[line(vec(5; 6); vec(7; 8))]
 
 @{
 @( -- EM-less build
