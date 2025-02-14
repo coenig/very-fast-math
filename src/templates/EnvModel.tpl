@@ -6,10 +6,10 @@
 MODULE EnvModel
 
 -- segment l1 and line l2 intersect?
--- @{@{lines(line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y)); line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y)))}@.syntacticSegmentAndLineIntersect}@.serializeNuXmv
+-- @{@{lines(line(vec(l1.begin.x; l1.begin.y); vec(l1.end.x; l1.end.y)); line(vec(l2.begin.x; l2.begin.z); vec(l2.end.x; l2.end.y)))}@.syntacticSegmentAndLineIntersect}@.serializeNuXmv
 
 -- segment l2 and line l1 intersect?
--- @{@{lines(line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y)); line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y)))}@.syntacticSegmentAndLineIntersect}@.serializeNuXmv
+-- @{@{lines(line(vec(l2.begin.x; l2.begin.z); vec(l2.end.x; l2.end.y)); line(vec(l1.begin.x; l1.begin.y); vec(l1.end.x; l1.end.y)))}@.syntacticSegmentAndLineIntersect}@.serializeNuXmv
 
 
 @{
