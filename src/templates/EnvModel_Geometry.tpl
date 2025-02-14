@@ -33,8 +33,10 @@ bool doesLineIntersectSegment(Vec2D L1, Vec2D L2, Vec2D M1, Vec2D M2, Image&& im
 @{ (@{#0#}@.atVfmTupel[0].atVfmTupel[0] - @{#0#}@.atVfmTupel[1].atVfmTupel[0]) }@***.newMethod[syntacticGFCoeffB, 0]
 @{ ((@{#0#}@.atVfmTupel[1].atVfmTupel[0] * @{#0#}@.atVfmTupel[0].atVfmTupel[1]) - (@{#0#}@.atVfmTupel[0].atVfmTupel[0] * @{#0#}@.atVfmTupel[1].atVfmTupel[1])) }@***.newMethod[syntacticGFCoeffC, 0]
 @{ (@{@{#0#}@.atVfmTupel[0]}@.syntacticGFCoeffA * @{@{#0#}@.atVfmTupel[1]}@.syntacticGFCoeffB - @{@{#0#}@.atVfmTupel[1]}@.syntacticGFCoeffA * @{@{#0#}@.atVfmTupel[0]}@.syntacticGFCoeffB) }@***.newMethod[syntacticIntersectionDenominator, 0]
-@{ -(@{@{#0#}@.atVfmTupel[0]}@.syntacticGFCoeffB * (-@{@{#0#}@.atVfmTupel[1]}@.syntacticGFCoeffC) - @{@{#0#}@.atVfmTupel[1]}@.syntacticGFCoeffB * (-@{@{#0#}@.atVfmTupel[0]}@.syntacticGFCoeffC)) / @{#0#}@.syntacticIntersectionDenominator }@***.newMethod[syntacticIntersectionX, 0]
-@{ -(@{@{#0#}@.atVfmTupel[1]}@.syntacticGFCoeffA * (-@{@{#0#}@.atVfmTupel[0]}@.syntacticGFCoeffC) - @{@{#0#}@.atVfmTupel[0]}@.syntacticGFCoeffA * (-@{@{#0#}@.atVfmTupel[1]}@.syntacticGFCoeffC)) / @{#0#}@.syntacticIntersectionDenominator }@***.newMethod[syntacticIntersectionY, 0]
+@{ -(@{@{#0#}@.atVfmTupel[0]}@.syntacticGFCoeffB * (-@{@{#0#}@.atVfmTupel[1]}@.syntacticGFCoeffC) - @{@{#0#}@.atVfmTupel[1]}@.syntacticGFCoeffB * (-@{@{#0#}@.atVfmTupel[0]}@.syntacticGFCoeffC)) / @{#0#}@.syntacticIntersectionDenominator }@***.newMethod[syntacticLinesIntersectX, 0]
+@{ -(@{@{#0#}@.atVfmTupel[1]}@.syntacticGFCoeffA * (-@{@{#0#}@.atVfmTupel[0]}@.syntacticGFCoeffC) - @{@{#0#}@.atVfmTupel[0]}@.syntacticGFCoeffA * (-@{@{#0#}@.atVfmTupel[1]}@.syntacticGFCoeffC)) / @{#0#}@.syntacticIntersectionDenominator }@***.newMethod[syntacticLinesIntersectY, 0]
+@{ @{vec(@{#0#}@.syntacticLinesIntersectX; @{#0#}@.syntacticLinesIntersectY)}@.syntacticIsPointOnSegment[@{#0#}@.atVfmTupel[0]] }@***.newMethod[syntacticSegmentAndLineIntersect, 0]
+
 
 --------------------
 -- EO MATH functions 

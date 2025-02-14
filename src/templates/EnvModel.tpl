@@ -7,15 +7,23 @@ MODULE EnvModel
 
 
 @{vec(3; 4)}@.syntacticIsPointOnSegment[line(vec(5; 6); vec(7; 8))]
-@{line(vec(l1.begin.x; l1.begin.y); vec(l1.end.x; l1.end.y))}@.syntacticGFCoeffA
-@{line(vec(l1.begin.x; l1.begin.y); vec(l1.end.x; l1.end.y))}@.syntacticGFCoeffB
-@{line(vec(l1.begin.x; l1.begin.y); vec(l1.end.x; l1.end.y))}@.syntacticGFCoeffC
-@{line(vec(l2.begin.x; l2.begin.z); vec(l2.end.x; l2.end.y))}@.syntacticGFCoeffA
-@{line(vec(l2.begin.x; l2.begin.z); vec(l2.end.x; l2.end.y))}@.syntacticGFCoeffB
-@{line(vec(l2.begin.x; l2.begin.z); vec(l2.end.x; l2.end.y))}@.syntacticGFCoeffC
-@{lines(line(vec(l1.begin.x; l1.begin.y); vec(l1.end.x; l1.end.y)), line(vec(l2.begin.x; l2.begin.z); vec(l2.end.x; l2.end.y)))}@.syntacticIntersectionDenominator
-@{lines(line(vec(l1.begin.x; l1.begin.y); vec(l1.end.x; l1.end.y)), line(vec(l2.begin.x; l2.begin.z); vec(l2.end.x; l2.end.y)))}@.syntacticIntersectionX
-@{lines(line(vec(l1.begin.x; l1.begin.y); vec(l1.end.x; l1.end.y)), line(vec(l2.begin.x; l2.begin.z); vec(l2.end.x; l2.end.y)))}@.syntacticIntersectionY
+@{line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y))}@.syntacticGFCoeffA
+@{line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y))}@.syntacticGFCoeffB
+@{line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y))}@.syntacticGFCoeffC
+@{line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y))}@.syntacticGFCoeffA
+@{line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y))}@.syntacticGFCoeffB
+@{line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y))}@.syntacticGFCoeffC
+@{lines(line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y)); line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y)))}@.syntacticIntersectionDenominator
+
+DEFINE
+int_x := @{lines(line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y)); line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y)))}@.syntacticLinesIntersectX
+int_y := @{lines(line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y)); line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y)))}@.syntacticLinesIntersectY
+
+segment l1 and line l2 intersect?
+@{lines(line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y)); line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y)))}@.syntacticSegmentAndLineIntersect
+
+segment l2 and line l1 intersect?
+@{lines(line(vec(l2_begin_x; l2_begin_z); vec(l2_end_x; l2_end_y)); line(vec(l1_begin_x; l1_begin_y); vec(l1_end_x; l1_end_y)))}@.syntacticSegmentAndLineIntersect
 
 
 @{
