@@ -652,12 +652,14 @@ std::string DummyRepresentable::applyMethodString(const std::string& method_name
    else if (method_name == "for" && parameters.size() == 4) return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3));
    else if (method_name == "for" && parameters.size() == 5) return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3), parameters.at(4));
    else if (method_name == "serialize" && parameters.size() == 0) return formatExpression(getRawScript(), SyntaxFormat::vfm);
-   else if (method_name == "serializeNuXmv" && parameters.size() == 0) return formatExpression(getRawScript(), SyntaxFormat::nuXmv);
+   else if (method_name == "serializeNuXmv" && parameters.size() == 0) {
+      return formatExpression(getRawScript(), SyntaxFormat::nuXmv);
+   }
    else if (method_name == "atVfmTupel" && parameters.size() == 1) {
       auto fmla = MathStruct::parseMathStruct(StaticHelper::replaceAll(getRawScript(), ";", ","), getParser(), getData());
       assert(StaticHelper::isParsableAsInt(parameters[0]));
       const int at{ std::stoi(parameters[0]) };
-      return fmla->getTermsJumpIntoCompounds()[at]->serialize();
+      return fmla->getTermsJumpIntoCompounds()[at]->serializePlainOldVFMStyle();
    }
    else if (method_name == "simplify" && parameters.size() == 0) return simplifyExpression(getRawScript());
    else if (method_name == "eval" && parameters.size() == 0) return evaluateExpression(getRawScript());
