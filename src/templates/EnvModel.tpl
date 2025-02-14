@@ -7,6 +7,16 @@ MODULE EnvModel
 
 
 @{vec(3; 4)}@.syntacticIsPointOnSegment[line(vec(5; 6); vec(7; 8))]
+@{line(vec(l1.begin.x; l1.begin.y); vec(l1.end.x; l1.end.y))}@.syntacticGFCoeffA
+@{line(vec(l1.begin.x; l1.begin.y); vec(l1.end.x; l1.end.y))}@.syntacticGFCoeffB
+@{line(vec(l1.begin.x; l1.begin.y); vec(l1.end.x; l1.end.y))}@.syntacticGFCoeffC
+@{line(vec(l2.begin.x; l2.begin.z); vec(l2.end.x; l2.end.y))}@.syntacticGFCoeffA
+@{line(vec(l2.begin.x; l2.begin.z); vec(l2.end.x; l2.end.y))}@.syntacticGFCoeffB
+@{line(vec(l2.begin.x; l2.begin.z); vec(l2.end.x; l2.end.y))}@.syntacticGFCoeffC
+@{lines(line(vec(l1.begin.x; l1.begin.y); vec(l1.end.x; l1.end.y)), line(vec(l2.begin.x; l2.begin.z); vec(l2.end.x; l2.end.y)))}@.syntacticIntersectionDenominator
+@{lines(line(vec(l1.begin.x; l1.begin.y); vec(l1.end.x; l1.end.y)), line(vec(l2.begin.x; l2.begin.z); vec(l2.end.x; l2.end.y)))}@.syntacticIntersectionX
+@{lines(line(vec(l1.begin.x; l1.begin.y); vec(l1.end.x; l1.end.y)), line(vec(l2.begin.x; l2.begin.z); vec(l2.end.x; l2.end.y)))}@.syntacticIntersectionY
+
 
 @{
 @( -- EM-less build
