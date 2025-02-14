@@ -26,7 +26,7 @@
 --    return onSegment(M1, {x, y}, M2);
 -- }
 
-@{@f(vec, x, y, 0); @f(line, x, y, 0); @f(lines, x, y, 0)}@.eval
+@{@{@f(vec, x, y, 0); @f(line, x, y, 0); @f(lines, x, y, 0)}@.eval}@.nil
 
 @{ ((#0#) * (#0#)) }@***.newMethod[syntacticSquare, 0]
 @{ (@{@{#1#}@.atVfmTupel[0]-@{#0#}@.atVfmTupel[0]}@.syntacticSquare + @{@{#1#}@.atVfmTupel[1]-@{#0#}@.atVfmTupel[1]}@.syntacticSquare) }@***.newMethod[syntacticSquareOfVecDistance, 1]
