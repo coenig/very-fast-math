@@ -1146,7 +1146,7 @@ void vfm::HighwayImage::paintRoadGraph(
                            p2.add(p.points_[i]);
                         }
 
-                        auto vec = Pol2D::dashedArrow(p2, 2, 2.0f / 1500.0f * dim_raw.x * 3, {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 2.5, 2.5 });
+                        auto vec = Pol2D::dashedArrow(p2, 2, 2.0f / 1500.0f * dim_raw.x * 3 * (old_trans->is3D() ? 2.1 : 1), {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 2.5, 2.5 });
 
                         for (int i = 0; i < vec.size(); i++) {
                            if (i % 2 || i == vec.size() - 1)
@@ -1181,7 +1181,7 @@ void vfm::HighwayImage::paintRoadGraph(
       }
    }
 
-   store("test");
+   //store("test");
 
    setTranslator(old_trans);
    DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
