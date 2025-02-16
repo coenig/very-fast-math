@@ -410,9 +410,6 @@ INIT
 INIT 
    veh___6[i]9___.rel_pos >= -@{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst & veh___6[i]9___.rel_pos <= @{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst;
 
-INIT 
-   !ego.same_lane_as_veh_[i];
-
 INVAR
     veh___6[i]9___.lane_single | veh___6[i]9___.lane_crossing;
 
