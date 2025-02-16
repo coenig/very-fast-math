@@ -22,7 +22,7 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   test::convenienceArtifactRunHardcoded(test::MCExecutionType::cex, "../examples/gp_config_lanes=4_nonegos=1");
+   test::convenienceArtifactRunHardcoded(test::MCExecutionType::cex, "../examples/gp_config_lanes=3_nonegos=1");
    termnate();
 
    //vfm::test::runTests();

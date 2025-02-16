@@ -460,6 +460,8 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          if (!getHighwayTranslator()->is3D()) {
             top_right_corner.add({ 0, ego.car_lane_ });
             top_right_second.add({ 0, ego.car_lane_ });
+            top_left_corner.add({ 0, ego.car_lane_ });
+            top_left_second.add({ 0, ego.car_lane_ });
          }
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{ // Special encoding for the frame in LANE_MARKER_COLOR
@@ -503,6 +505,8 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          if (!getHighwayTranslator()->is3D()) {
             bottom_right_corner.add({ 0, ego.car_lane_ });
             bottom_right_second.add({ 0, ego.car_lane_ });
+            bottom_left_corner.add({ 0, ego.car_lane_ });
+            bottom_left_second.add({ 0, ego.car_lane_ });
          }
 
          for (auto& connection : connections) {
