@@ -25,6 +25,7 @@
 @{MAXDISTCONNECTIONS}@******.defaultValue[50]    -- Two connection points may not be more than this apart
 
 -- Parameters for ego and non-ego vehicles
+@{EGOLESS}@******.defaultValue[false]
 @{NONEGOS}@******.defaultValue[5]
 @{LEFTLC}@******.defaultValue[true]
 @{RIGHTLC}@******.defaultValue[false]

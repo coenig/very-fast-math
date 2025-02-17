@@ -174,7 +174,9 @@ INIT segment_0_min_lane = 0 & segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -
 TRANS next(cnt) = cnt + 1;
 
 DEFINE
-   segment_@{SEGMENTS}@.eval[0]_pos_begin := segment_@{SEGMENTS - 1}@.eval[0]_pos_begin + max_ego_visibility_range; -- Helper variable to make below loop simpler.
+large_number := 10000;
+
+   segment_@{SEGMENTS}@.eval[0]_pos_begin := segment_@{SEGMENTS - 1}@.eval[0]_pos_begin + large_number; -- Helper variable to make below loop simpler.
 
    @{
    @{lane_[lane]_availability_from_segment_@{SEGMENTS}@**.eval[0]}@*.scalingVariable[distance] := 0;          -- Helper variable to make below loop simpler.
@@ -184,13 +186,13 @@ DEFINE
       TRUE: 0;
    esac;
    }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
-   
+
    @{ego.lane_[lane]_availability}@*.scalingVariable[distance] := case
       @{ego.abs_pos >= segment_[seg]_pos_begin : lane_[lane]_availability_from_segment_[seg] + segment_[seg]_pos_begin - ego.abs_pos;
       }@.for[[seg], @{SEGMENTS - 1}@.eval, 0, -1]TRUE: 0;
    esac;
    }@***.for[[lane], 0, @{NUMLANES - 1}@.eval]
-   
+ 
 @{
    @{veh___6[i]9___.abs_pos}@*.scalingVariable[distance] := veh___6[i]9___.rel_pos + ego.abs_pos;
 }@**.for[[i], 0, @{NONEGOS - 1}@.eval]
