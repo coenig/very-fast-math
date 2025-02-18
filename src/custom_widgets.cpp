@@ -461,21 +461,26 @@ void DragGroup::buttonApplyCallback(Fl_Widget* widget, void* data)
    if (group_name == original_name) { // Apply
       refreshApplyButton(group, false);
 
-      // Test for syntactical correctness.
-      mc_scene->getParser()->resetErrors(ErrorLevelEnum::error);
-      TermPtr fmla{ MathStruct::parseMathStruct(fmla_str, mc_scene->getParser(), mc_scene->getData(), DotTreatment::as_operator)->toTermIfApplicable() };
-
-      if (mc_scene->getParser()->hasErrorOccurred() || StaticHelper::stringContains(fmla->serializePlainOldVFMStyle(MathStruct::SerializationSpecial::enforce_square_array_brackets), PARSING_ERROR_STRING)) {
-         mc_scene->addError("Error while parsing '" + fmla_str + "'. Aborting 'Apply'.");
-         refreshApplyButton(group, true);
-         return;
-      }
 
       if (group_json_name == "SPEC") {
+         // NO test for syntactical correctness. 
+         // ==> We want to be able to write: "@{this is [i]}@.for[[i], 0, 4]"
+
          // Example: "SPEC": "#{ !(LCTowardsEgoAhead()) }#",
          json_entry = "#{ " + fmla_str + " }#";
       }
       else {
+         // Test for syntactical correctness. 
+         // ==> We want to be able to write: "@{this is [i]}@.for[[i], 0, 4]"
+         mc_scene->getParser()->resetErrors(ErrorLevelEnum::error);
+         TermPtr fmla{ MathStruct::parseMathStruct(fmla_str, mc_scene->getParser(), mc_scene->getData(), DotTreatment::as_operator)->toTermIfApplicable() };
+
+         if (mc_scene->getParser()->hasErrorOccurred() || StaticHelper::stringContains(fmla->serializePlainOldVFMStyle(MathStruct::SerializationSpecial::enforce_square_array_brackets), PARSING_ERROR_STRING)) {
+            mc_scene->addError("Error while parsing '" + fmla_str + "'. Aborting 'Apply'.");
+            refreshApplyButton(group, true);
+            return;
+         }
+
          // Example: LaneAvailableLeft(distance_front)
          //    "#21" : "@f(LaneAvailableLeft) { distance_front } { env.ego.gaps___609___.lane_availability > distance_front }",
          json_entry = createJsonEntryForBBSafe(group, mc_scene, fmla_str);

@@ -18,7 +18,6 @@ InterpreterTerminal::InterpreterTerminal(const std::shared_ptr<DataPack> data, c
    buffer(buff);
    textfont(FL_COURIER);
    textsize(12);
-   cmd[0] = 0;
 
    data_->addOrChangeErrorOrOutputStream(output_, true);
    data_->addOrChangeErrorOrOutputStream(output_, false);
@@ -58,35 +57,17 @@ int vfm::InterpreterTerminal::handle(int e)
    switch (e) {
       case FL_KEYUP: {
          if (key == FL_Enter) return(1); // hide Enter from editor
-         if (key == FL_BackSpace && cmd[0] == 0) return(0);
          break;
       }
       case FL_KEYDOWN: {
          if (key == FL_Enter) {
-            runCommand(cmd);
-            cmd[0] = 0;
+            auto lines = StaticHelper::split(std::string(buffer()->text()), "\n");
+            runCommand(lines[lines.size() - 1].c_str());
             append("\n");
             return(1); // hide 'Enter' from text widget
          }
-         if (key == FL_BackSpace) {
-            if (cmd[0]) {
-               cmd[strlen(cmd) - 1] = 0;
-               break;
-            }
-            else {
-               return(0);
-            }
-         }
-         else {
-            strncat(cmd, Fl::event_text(), sizeof(cmd) - 1);
-            cmd[sizeof(cmd) - 1] = 0;
-         }
          break;
       }
-   }
-
-   if (key == FL_Left || key == FL_Right || key == FL_Up || key == FL_Down) {
-      return 1; // Ignore all arrow keys since the command is only filled towards the end.
    }
 
    return(Fl_Text_Editor::handle(e));
