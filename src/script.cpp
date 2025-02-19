@@ -1526,7 +1526,11 @@ std::string Script::removePreprocessors(const std::string& script)
    int indexOf = newScript.find(INSCR_BEG_TAG);
 
    while (indexOf >= 0) {
-      std::string preprocessorScript = *StaticHelper::extractFirstSubstringLevelwise(newScript, INSCR_BEG_TAG, INSCR_END_TAG, indexOf);
+      auto processed = StaticHelper::extractFirstSubstringLevelwise(newScript, INSCR_BEG_TAG, INSCR_END_TAG, indexOf);
+
+      if (!processed) return "#Error in script processing. No matching pair of '" + INSCR_BEG_TAG + "' and '" + INSCR_END_TAG + "'.";
+
+      std::string preprocessorScript = *processed;
 
       int lengthOfPreprocessor = preprocessorScript.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length();
       std::string partBefore = newScript.substr(0, indexOf);

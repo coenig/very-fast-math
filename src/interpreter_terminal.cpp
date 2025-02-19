@@ -43,7 +43,12 @@ void vfm::InterpreterTerminal::runCommand(const char* command)
       buffer()->replace(0, buffer()->length(), "");
    } else {
       output_ << "\n";
-      res += macro::Script::processScript(command_str, data_, parser_);
+      try {
+         res += macro::Script::processScript(command_str, data_, parser_);
+      }
+      catch (const std::exception& e) {
+         res += "#Error '" + std::string(e.what()) + "' occurred during script processing.";
+      }
    }
    
    output_ << res;
