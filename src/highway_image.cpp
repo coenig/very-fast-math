@@ -1182,7 +1182,7 @@ void vfm::HighwayImage::paintRoadGraph(
       }
    }
 
-   store("test");
+   //store("test");
 
    setTranslator(old_trans);
    DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
