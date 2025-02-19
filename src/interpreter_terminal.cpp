@@ -61,8 +61,20 @@ int vfm::InterpreterTerminal::handle(int e)
       }
       case FL_KEYDOWN: {
          if (key == FL_Enter) {
-            auto lines = StaticHelper::split(std::string(buffer()->text()), "\n");
-            runCommand(lines[lines.size() - 1].c_str());
+            const auto lines = StaticHelper::split(std::string(buffer()->text()), "\n");
+            const int position = insert_position();
+            const char* text = buffer()->text();
+            int line_number = 0;
+
+            for (int i = 0; i < position; ++i) {
+               if (text[i] == '\n') {
+                  line_number++;
+               }
+            }
+
+            if (line_number < 0 || line_number >= lines.size()) return(1); // Just a sanity check, should never happen.
+
+            runCommand(lines[line_number].c_str());
             append("\n");
             return(1); // hide 'Enter' from text widget
          }
