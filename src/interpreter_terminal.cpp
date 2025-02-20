@@ -61,11 +61,11 @@ int vfm::InterpreterTerminal::handle(int e)
    
    switch (e) {
       case FL_KEYUP: {
-         if (key == FL_Enter) return(1); // hide Enter from editor
+         if (key == FL_Enter && !Fl::event_state(FL_SHIFT)) return(1); // hide Enter from editor
          break;
       }
       case FL_KEYDOWN: {
-         if (key == FL_Enter) {
+         if (key == FL_Enter && !Fl::event_state(FL_SHIFT)) {
             const auto lines = StaticHelper::split(std::string(buffer()->text()), "\n");
             const int position = insert_position();
             const char* text = buffer()->text();
