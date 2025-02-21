@@ -927,7 +927,11 @@ void vfm::HighwayImage::paintRoadGraph(
    const float TRANSLATE_X_raw,
    const float TRANSLATE_Y_raw)
 {
-   auto my_r = vfm::test::paintExampleRoadGraphRoundabout(false, r_raw);
+   auto my_r = 
+      //vfm::test::paintExampleRoadGraphRoundabout(false, 
+         r_raw
+      //)
+   ;
 
    my_r->normalizeRoadGraphToEgoSection();
    auto old_trans = getHighwayTranslator();
