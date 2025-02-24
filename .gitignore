@@ -53,6 +53,9 @@
 examples/tmp
 examples/*generated*
 examples/gp*
+morty/debug_trace_array.txt
+morty/mc_runtimes.txt
+morty/planner.cpp_combined.k2.smv
 
 !src/examples/aca4/**/*
 

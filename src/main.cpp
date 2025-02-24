@@ -35,11 +35,20 @@ int main(int argc, char* argv[])
      all_args.assign(argv + 1, argv + argc);
    }
 
-   auto data = std::make_shared<DataPack>();
-   auto parser = SingletonFormulaParser::getInstance();
-   auto res = vfm::macro::Script::processScript(all_args[0], data, parser);
+   auto cars = StaticHelper::split(all_args[0], ";");
 
-   std::cout << res;
+   for (const auto& car : cars) {
+      if (!car.empty()) {
+         auto data = StaticHelper::split(car, ",");
+         float x{ std::stof(data[1]) };
+         float y{ std::stof(data[2]) };
+         float vx{ std::stof(data[3]) };
+         float vy{ std::stof(data[4]) };
+      }
+   }
+
+   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
+   std::cin.get();
 
    if (all_args[0] == "0") std::cout << "LANE_LEFT";
    else if (all_args[0] == "5") std::cout << "LANE_RIGHT";
