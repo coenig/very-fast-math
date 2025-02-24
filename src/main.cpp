@@ -35,6 +35,12 @@ int main(int argc, char* argv[])
      all_args.assign(argv + 1, argv + argc);
    }
 
+   auto data = std::make_shared<DataPack>();
+   auto parser = SingletonFormulaParser::getInstance();
+   auto res = vfm::macro::Script::processScript(all_args[0], data, parser);
+
+   std::cout << res;
+
    if (all_args[0] == "0") std::cout << "LANE_LEFT";
    else if (all_args[0] == "5") std::cout << "LANE_RIGHT";
    else std::cout << "IDLE";
