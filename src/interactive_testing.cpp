@@ -1324,7 +1324,7 @@ char* morty(const char* input)
       }
    }
 
-   // test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
+   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
    // std::cin.get();
 
    // if (all_args[0] == "0") std::cout << "LANE_LEFT";
