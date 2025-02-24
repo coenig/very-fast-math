@@ -994,11 +994,11 @@ esac;
 -- check that chosen long acceleration of other vehicle is indeed safe
 
 INVAR -- Non-Ego cars may not collide.
-    veh___619___.same_lane_as_veh_0 -> (abs(veh___609___.rel_pos - veh___619___.rel_pos) > veh_length);
+--    veh___619___.same_lane_as_veh_0 -> (abs(veh___609___.rel_pos - veh___619___.rel_pos) > veh_length);
 
 INVAR -- Non-Ego cars may not "jump" over each other.
-    !(veh___619___.same_lane_as_veh_0 & (veh___609___.prev_rel_pos < veh___619___.prev_rel_pos) & (veh___609___.rel_pos >= veh___619___.rel_pos)) &
-    !(veh___619___.same_lane_as_veh_0 & (veh___619___.prev_rel_pos < veh___609___.prev_rel_pos) & (veh___619___.rel_pos >= veh___609___.rel_pos));
+--    !(veh___619___.same_lane_as_veh_0 & (veh___609___.prev_rel_pos < veh___619___.prev_rel_pos) & (veh___609___.rel_pos >= veh___619___.rel_pos)) &
+--    !(veh___619___.same_lane_as_veh_0 & (veh___619___.prev_rel_pos < veh___609___.prev_rel_pos) & (veh___619___.rel_pos >= veh___609___.rel_pos));
 	
 -- >>> Car 2 <<<
 INIT 
@@ -1098,11 +1098,11 @@ esac;
 -- check that chosen long acceleration of other vehicle is indeed safe
 
 INVAR -- Non-Ego cars may not collide.
-    veh___629___.same_lane_as_veh_0 -> (abs(veh___609___.rel_pos - veh___629___.rel_pos) > veh_length);
+--    veh___629___.same_lane_as_veh_0 -> (abs(veh___609___.rel_pos - veh___629___.rel_pos) > veh_length);
 
 INVAR -- Non-Ego cars may not "jump" over each other.
-    !(veh___629___.same_lane_as_veh_0 & (veh___609___.prev_rel_pos < veh___629___.prev_rel_pos) & (veh___609___.rel_pos >= veh___629___.rel_pos)) &
-    !(veh___629___.same_lane_as_veh_0 & (veh___629___.prev_rel_pos < veh___609___.prev_rel_pos) & (veh___629___.rel_pos >= veh___609___.rel_pos));
+--    !(veh___629___.same_lane_as_veh_0 & (veh___609___.prev_rel_pos < veh___629___.prev_rel_pos) & (veh___609___.rel_pos >= veh___629___.rel_pos)) &
+--    !(veh___629___.same_lane_as_veh_0 & (veh___629___.prev_rel_pos < veh___609___.prev_rel_pos) & (veh___629___.rel_pos >= veh___609___.rel_pos));
 	
 INVAR -- Non-Ego cars may not collide.
     veh___629___.same_lane_as_veh_1 -> (abs(veh___619___.rel_pos - veh___629___.rel_pos) > veh_length);
@@ -1208,11 +1208,11 @@ esac;
 -- check that chosen long acceleration of other vehicle is indeed safe
 
 INVAR -- Non-Ego cars may not collide.
-    veh___639___.same_lane_as_veh_0 -> (abs(veh___609___.rel_pos - veh___639___.rel_pos) > veh_length);
+--    veh___639___.same_lane_as_veh_0 -> (abs(veh___609___.rel_pos - veh___639___.rel_pos) > veh_length);
 
 INVAR -- Non-Ego cars may not "jump" over each other.
-    !(veh___639___.same_lane_as_veh_0 & (veh___609___.prev_rel_pos < veh___639___.prev_rel_pos) & (veh___609___.rel_pos >= veh___639___.rel_pos)) &
-    !(veh___639___.same_lane_as_veh_0 & (veh___639___.prev_rel_pos < veh___609___.prev_rel_pos) & (veh___639___.rel_pos >= veh___609___.rel_pos));
+--    !(veh___639___.same_lane_as_veh_0 & (veh___609___.prev_rel_pos < veh___639___.prev_rel_pos) & (veh___609___.rel_pos >= veh___639___.rel_pos)) &
+--    !(veh___639___.same_lane_as_veh_0 & (veh___639___.prev_rel_pos < veh___609___.prev_rel_pos) & (veh___639___.rel_pos >= veh___609___.rel_pos));
 	
 INVAR -- Non-Ego cars may not collide.
     veh___639___.same_lane_as_veh_1 -> (abs(veh___619___.rel_pos - veh___639___.rel_pos) > veh_length);
@@ -1326,11 +1326,11 @@ esac;
 -- check that chosen long acceleration of other vehicle is indeed safe
 
 INVAR -- Non-Ego cars may not collide.
-    veh___649___.same_lane_as_veh_0 -> (abs(veh___609___.rel_pos - veh___649___.rel_pos) > veh_length);
+--    veh___649___.same_lane_as_veh_0 -> (abs(veh___609___.rel_pos - veh___649___.rel_pos) > veh_length);
 
 INVAR -- Non-Ego cars may not "jump" over each other.
-    !(veh___649___.same_lane_as_veh_0 & (veh___609___.prev_rel_pos < veh___649___.prev_rel_pos) & (veh___609___.rel_pos >= veh___649___.rel_pos)) &
-    !(veh___649___.same_lane_as_veh_0 & (veh___649___.prev_rel_pos < veh___609___.prev_rel_pos) & (veh___649___.rel_pos >= veh___609___.rel_pos));
+--    !(veh___649___.same_lane_as_veh_0 & (veh___609___.prev_rel_pos < veh___649___.prev_rel_pos) & (veh___609___.rel_pos >= veh___649___.rel_pos)) &
+--    !(veh___649___.same_lane_as_veh_0 & (veh___649___.prev_rel_pos < veh___609___.prev_rel_pos) & (veh___649___.rel_pos >= veh___609___.rel_pos));
 	
 INVAR -- Non-Ego cars may not collide.
     veh___649___.same_lane_as_veh_1 -> (abs(veh___619___.rel_pos - veh___649___.rel_pos) > veh_length);
