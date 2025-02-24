@@ -20,10 +20,26 @@ using namespace vfm;
 using namespace test;
 using namespace mc::trajectory_generator;
 
+//0: 'LANE_LEFT',
+//1 : 'IDLE',
+//2 : 'LANE_RIGHT',
+//3 : 'FASTER',
+//4 : 'SLOWER'
+
 int main(int argc, char* argv[])
 {
-   std::cout << "HELLO WORLD" << std::endl;
-   termnate();
+   std::string current_exec_name = argv[0]; // Name of the current exec program
+   std::vector<std::string> all_args;
+ 
+   if (argc > 1) {
+     all_args.assign(argv + 1, argv + argc);
+   }
+
+   if (all_args[0] == "0") std::cout << "LANE_LEFT";
+   else if (all_args[0] == "5") std::cout << "LANE_RIGHT";
+   else std::cout << "IDLE";
+   
+   return 0;
 
    //test::convenienceArtifactRunHardcoded(test::MCExecutionType::cex, "../examples/gp_config_lanes=4_nonegos=1");
    //termnate();
