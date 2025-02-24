@@ -806,8 +806,8 @@ INVAR
 
 
 -- >>> Car 0 <<<
-INIT 
-   veh___609___.lane_single;
+--INIT 
+--   veh___609___.lane_single;
 
 INIT 
    veh___609___.rel_pos >= -200 & veh___609___.rel_pos <= 200;
@@ -902,8 +902,8 @@ esac;
 -- check that chosen long acceleration of other vehicle is indeed safe
 
 -- >>> Car 1 <<<
-INIT 
-   veh___619___.lane_single;
+--INIT 
+--   veh___619___.lane_single;
 
 INIT 
    veh___619___.rel_pos >= -200 & veh___619___.rel_pos <= 200;
@@ -1006,8 +1006,8 @@ esac;
 --    !(veh___619___.same_lane_as_veh_0 & (veh___619___.prev_rel_pos < veh___609___.prev_rel_pos) & (veh___619___.rel_pos >= veh___609___.rel_pos));
 	
 -- >>> Car 2 <<<
-INIT 
-   veh___629___.lane_single;
+--INIT 
+--   veh___629___.lane_single;
 
 INIT 
    veh___629___.rel_pos >= -200 & veh___629___.rel_pos <= 200;
@@ -1117,8 +1117,8 @@ INVAR -- Non-Ego cars may not "jump" over each other.
     !(veh___629___.same_lane_as_veh_1 & (veh___629___.prev_rel_pos < veh___619___.prev_rel_pos) & (veh___629___.rel_pos >= veh___619___.rel_pos));
 	
 -- >>> Car 3 <<<
-INIT 
-   veh___639___.lane_single;
+--INIT 
+--   veh___639___.lane_single;
 
 INIT 
    veh___639___.rel_pos >= -200 & veh___639___.rel_pos <= 200;
@@ -1234,8 +1234,8 @@ INVAR -- Non-Ego cars may not "jump" over each other.
     !(veh___639___.same_lane_as_veh_2 & (veh___639___.prev_rel_pos < veh___629___.prev_rel_pos) & (veh___639___.rel_pos >= veh___629___.rel_pos));
 	
 -- >>> Car 4 <<<
-INIT 
-   veh___649___.lane_single;
+--INIT 
+--   veh___649___.lane_single;
 
 INIT 
    veh___649___.rel_pos >= -200 & veh___649___.rel_pos <= 200;
