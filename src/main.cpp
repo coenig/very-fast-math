@@ -22,6 +22,9 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
+   std::cout << "HELLO WORLD" << std::endl;
+   termnate();
+
    //test::convenienceArtifactRunHardcoded(test::MCExecutionType::cex, "../examples/gp_config_lanes=4_nonegos=1");
    //termnate();
 
