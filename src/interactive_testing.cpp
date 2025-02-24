@@ -724,14 +724,15 @@ int vfm::test::artifactRun(int argc, char* argv[])
 }
 
 // The calls in the strings of this function can be directly used to run the respective functionality 
-// from terminal on win or linux (from bin folder).
+// from terminal on win or linux (from bin folder), here the calls are wrapped for convenience.
 void vfm::test::convenienceArtifactRunHardcoded(
    const MCExecutionType exec,
    const std::string& target_directory,
    const std::string& json_config_path,
    const std::string& env_model_template_path,
    const std::string& vfm_includes_file_path,
-   const std::string& cache_dir)
+   const std::string& cache_dir,
+   const std::string& path_to_external_folder)
 {
    std::vector<std::string> executions{};
 
@@ -741,7 +742,7 @@ void vfm::test::convenienceArtifactRunHardcoded(
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::parser_and_mc || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::mc) {
-      executions.push_back("./vfm.exe --mode mc --targetdir " + target_directory + " --path-to-kratos ../external/win32/kratos.exe --path-to-cpp ../external/win32/cpp.exe --path-to-nuxmv ../external/win32/nuXmv.exe");
+      executions.push_back("./vfm.exe --mode mc --targetdir " + target_directory + " --path-to-kratos " + path_to_external_folder + "/win32/kratos.exe --path-to-cpp " + path_to_external_folder + "/win32/cpp.exe --path-to-nuxmv " + path_to_external_folder + "/win32/nuXmv.exe");
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::cex) {
@@ -753,7 +754,7 @@ void vfm::test::convenienceArtifactRunHardcoded(
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::parser_and_mc || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::mc) {
-      executions.push_back("./vfm --mode mc --targetdir " + target_directory + " --path-to-kratos ../external/linux64/kratos --path-to-nuxmv ../external/linux64/nuXmv");
+      executions.push_back("./vfm --mode mc --targetdir " + target_directory + " --path-to-kratos " + path_to_external_folder + "/linux64/kratos --path-to-nuxmv " + path_to_external_folder + "/linux64/nuXmv");
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::cex) {
