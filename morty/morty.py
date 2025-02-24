@@ -12,7 +12,9 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         "type": "Kinematics",
         "absolute": True,
         "normalize": False 
-    }
+    },
+    "controlled_vehicles": 1,
+    "vehicles_count": 4,
 })
 
 env.reset()

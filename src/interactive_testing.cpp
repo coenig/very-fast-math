@@ -1307,24 +1307,48 @@ char* morty(const char* input)
 {
    std::string input_str(input);
    auto cars = StaticHelper::split(input_str, ";");
+   auto main_file = StaticHelper::readFile("morty/main.tpl") + "\n";
+   int ego_pos = -100000;
 
-   for (const auto& car : cars) {
+   for (int i = 0; i < cars.size(); i++) {
+      auto car = cars[i];
+
       if (!car.empty()) {
          auto data = StaticHelper::split(car, ",");
          
-         std::cout << data[1] << std::endl;
-         std::cout << data[2] << std::endl;
-         std::cout << data[3] << std::endl;
-         std::cout << data[4] << std::endl;
-
+         // std::cout << data[1] << std::endl;
+         std::cout << i << ": " << data[2] << std::endl;
+         // std::cout << data[3] << std::endl;
+         // std::cout << data[4] << std::endl;
+         
          float x{ std::stof(data[1]) };
          float y{ std::stof(data[2]) };
          float vx{ std::stof(data[3]) };
          float vy{ std::stof(data[4]) };
+         
+         x = std::max(std::min(x, 300.0f), -300.0f);
+         vx = std::max(std::min(vx, 70.0f), 0.0f);
+
+         if (ego_pos == -100000) ego_pos = x;
+         main_file += "INIT env.veh___6" + std::to_string(i) + "9___.rel_pos = " + std::to_string((int) (x - ego_pos)) + ";\n";
+         main_file += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int) (vx)) + ";\n";
+
+         std::set<int> lanes{};
+
+         if (y < 4) lanes.insert(3);
+         if (y > 0 && y < 8) lanes.insert(2);
+         if (y > 4 && y < 12) lanes.insert(1);
+         if (y > 8) lanes.insert(0);
+
+         for (int lane = 0; lane <= 3; lane++) {
+            main_file += std::string(lanes.count(lane) ? "" : "!") + "INIT env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
+         }
       }
    }
 
+   StaticHelper::writeTextToFile(main_file, "morty/main.smv");
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
+   std::cin.get();
    MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile("morty/debug_trace_array.txt")};
 
    // std::cin.get();
