@@ -58,6 +58,7 @@ morty/mc_runtimes.txt
 morty/planner.cpp_combined.k2.smv
 morty/main.smv
 morty/mc_runtimes.txt
+morty/scaling_info.txt
 
 !src/examples/aca4/**/*
 
