@@ -26,36 +26,9 @@ using namespace mc::trajectory_generator;
 //3 : 'FASTER',
 //4 : 'SLOWER'
 
+
 int main(int argc, char* argv[])
 {
-   std::string current_exec_name = argv[0]; // Name of the current exec program
-   std::vector<std::string> all_args;
- 
-   if (argc > 1) {
-     all_args.assign(argv + 1, argv + argc);
-   }
-
-   auto cars = StaticHelper::split(all_args[0], ";");
-
-   for (const auto& car : cars) {
-      if (!car.empty()) {
-         auto data = StaticHelper::split(car, ",");
-         float x{ std::stof(data[1]) };
-         float y{ std::stof(data[2]) };
-         float vx{ std::stof(data[3]) };
-         float vy{ std::stof(data[4]) };
-      }
-   }
-
-   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
-   std::cin.get();
-
-   if (all_args[0] == "0") std::cout << "LANE_LEFT";
-   else if (all_args[0] == "5") std::cout << "LANE_RIGHT";
-   else std::cout << "IDLE";
-   
-   return 0;
-
    //test::convenienceArtifactRunHardcoded(test::MCExecutionType::cex, "../examples/gp_config_lanes=4_nonegos=1");
    //termnate();
 

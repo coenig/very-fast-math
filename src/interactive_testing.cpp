@@ -1301,3 +1301,35 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    //   termnate();
 
 // --- EO remaining comments from main.cpp ---
+
+extern "C"
+char* morty(const char* input)
+{
+   std::string input_str(input);
+   auto cars = StaticHelper::split(input_str, ";");
+
+   for (const auto& car : cars) {
+      if (!car.empty()) {
+         auto data = StaticHelper::split(car, ",");
+         
+         std::cout << data[1] << std::endl;
+         std::cout << data[2] << std::endl;
+         std::cout << data[3] << std::endl;
+         std::cout << data[4] << std::endl;
+
+         float x{ std::stof(data[1]) };
+         float y{ std::stof(data[2]) };
+         float vx{ std::stof(data[3]) };
+         float vy{ std::stof(data[4]) };
+      }
+   }
+
+   // test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
+   // std::cin.get();
+
+   // if (all_args[0] == "0") std::cout << "LANE_LEFT";
+   // else if (all_args[0] == "5") std::cout << "LANE_RIGHT";
+   // else std::cout << "IDLE";
+
+   return "IDLE";
+}
