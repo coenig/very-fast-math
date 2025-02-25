@@ -70,7 +70,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY
     "${CMAKE_SOURCE_DIR}/bin"
 )
 
-add_compile_definitions(ASMJIT_ENABLED)
+#add_compile_definitions(ASMJIT_ENABLED)
 set(ASMJIT_DIR
    "${CMAKE_CURRENT_SOURCE_DIR}/src/asmjit"
 )
@@ -78,7 +78,7 @@ include("${ASMJIT_DIR}/CMakeLists.txt")
 set(VFM_MAIN_INCLUDE_DIRS
    ${CMAKE_CURRENT_SOURCE_DIR}/src
    ${CMAKE_CURRENT_SOURCE_DIR}/include
-   ${ASMJIT_DIR}/src/asmjit/
+#   ${ASMJIT_DIR}/src/asmjit/
 )
 
 include_directories(${VFM_MAIN_INCLUDE_DIRS})

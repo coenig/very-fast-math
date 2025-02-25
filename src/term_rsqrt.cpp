@@ -55,7 +55,7 @@ float TermRSQRT::eval(const std::shared_ptr<DataPack>& varVals, const std::share
 
    return func_();
 #else
-   return 1 / sqrtf(this->opnds[0]->eval(varVals, parser, suppress_sideeffects)); // More accurate but may be different from JIT version.
+   return 1 / sqrtf(getTermsJumpIntoCompounds()[0]->eval(varVals, parser, suppress_sideeffects)); // More accurate but may be different from JIT version.
 #endif
 }
 

@@ -1327,7 +1327,7 @@ void MCScene::refreshSometimes(void* data)
                env_model_path /= test::ENVMODEL_TEMPLATE_FILENAME;
 
                if (StaticHelper::readFile(env_model_cached_path.string()) != StaticHelper::readFile(env_model_path.string())) {
-                  mc_scene->addWarning("File '" + test::ENVMODEL_TEMPLATE_FILENAME + "' has changed. Cached entries will be deleted on next click on 'Create EnvModels...'.");
+                  mc_scene->addWarning("File '" + test::ENVMODEL_TEMPLATE_FILENAME + "' has changed. Cached entries will be deleted on next click on 'Create EnvModels...'. <Delete cache with right-click on the button to stop this message.>");
                }
             }
          }

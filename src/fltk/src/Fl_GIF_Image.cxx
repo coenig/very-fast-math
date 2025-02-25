@@ -336,8 +336,8 @@ void Fl_GIF_Image::lzw_decode(Fl_Image_Reader &rdr, uchar *Image,
       *tp++ = (uchar)FinChar;
       i = OldCode;
     } else {
-      Fl::error("Fl_GIF_Image: %s - LZW Barf at offset %ld", rdr.name(), rdr.tell());
-      break;
+      //Fl::error("Fl_GIF_Image: %s - LZW Barf at offset %ld", rdr.name(), rdr.tell());
+      //break;
     }
 
     while (i >= ColorMapSize) {

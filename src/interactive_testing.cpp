@@ -724,14 +724,15 @@ int vfm::test::artifactRun(int argc, char* argv[])
 }
 
 // The calls in the strings of this function can be directly used to run the respective functionality 
-// from terminal on win or linux (from bin folder).
+// from terminal on win or linux (from bin folder), here the calls are wrapped for convenience.
 void vfm::test::convenienceArtifactRunHardcoded(
    const MCExecutionType exec,
    const std::string& target_directory,
    const std::string& json_config_path,
    const std::string& env_model_template_path,
    const std::string& vfm_includes_file_path,
-   const std::string& cache_dir)
+   const std::string& cache_dir,
+   const std::string& path_to_external_folder)
 {
    std::vector<std::string> executions{};
 
@@ -741,7 +742,7 @@ void vfm::test::convenienceArtifactRunHardcoded(
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::parser_and_mc || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::mc) {
-      executions.push_back("./vfm.exe --mode mc --targetdir " + target_directory + " --path-to-kratos ../external/win32/kratos.exe --path-to-cpp ../external/win32/cpp.exe --path-to-nuxmv ../external/win32/nuXmv.exe");
+      executions.push_back("./vfm.exe --mode mc --targetdir " + target_directory + " --path-to-kratos " + path_to_external_folder + "/win32/kratos.exe --path-to-cpp " + path_to_external_folder + "/win32/cpp.exe --path-to-nuxmv " + path_to_external_folder + "/win32/nuXmv.exe");
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::cex) {
@@ -753,7 +754,7 @@ void vfm::test::convenienceArtifactRunHardcoded(
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::parser_and_mc || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::mc) {
-      executions.push_back("./vfm --mode mc --targetdir " + target_directory + " --path-to-kratos ../external/linux64/kratos --path-to-nuxmv ../external/linux64/nuXmv");
+      executions.push_back("./vfm --mode mc --targetdir " + target_directory + " --path-to-kratos " + path_to_external_folder + "/linux64/kratos --path-to-nuxmv " + path_to_external_folder + "/linux64/nuXmv");
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::cex) {
@@ -1300,3 +1301,61 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    //   termnate();
 
 // --- EO remaining comments from main.cpp ---
+
+extern "C"
+char* morty(const char* input)
+{
+   std::string input_str(input);
+   auto cars = StaticHelper::split(input_str, ";");
+   auto main_file = StaticHelper::readFile("morty/main.tpl") + "\n";
+   int ego_pos = -100000;
+
+   for (int i = 0; i < cars.size(); i++) {
+      auto car = cars[i];
+
+      if (!car.empty()) {
+         auto data = StaticHelper::split(car, ",");
+         
+         // std::cout << data[1] << std::endl;
+         std::cout << i << ": " << data[2] << std::endl;
+         // std::cout << data[3] << std::endl;
+         // std::cout << data[4] << std::endl;
+         
+         float x{ std::stof(data[1]) };
+         float y{ std::stof(data[2]) };
+         float vx{ std::stof(data[3]) };
+         float vy{ std::stof(data[4]) };
+         
+         x = std::max(std::min(x, 300.0f), -300.0f);
+         vx = std::max(std::min(vx, 70.0f), 0.0f);
+
+         if (ego_pos == -100000) ego_pos = x;
+         main_file += "INIT env.veh___6" + std::to_string(i) + "9___.rel_pos = " + std::to_string((int) (x - ego_pos)) + ";\n";
+         main_file += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int) (vx)) + ";\n";
+
+         std::set<int> lanes{};
+
+         if (y < 4) lanes.insert(3);
+         if (y > 0 && y < 8) lanes.insert(2);
+         if (y > 4 && y < 12) lanes.insert(1);
+         if (y > 8) lanes.insert(0);
+
+         for (int lane = 0; lane <= 3; lane++) {
+            main_file += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
+         }
+      }
+   }
+
+   StaticHelper::writeTextToFile(main_file, "morty/main.smv");
+   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
+   std::cin.get();
+   MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile("morty/debug_trace_array.txt")};
+
+   // std::cin.get();
+
+   // if (all_args[0] == "0") std::cout << "LANE_LEFT";
+   // else if (all_args[0] == "5") std::cout << "LANE_RIGHT";
+   // else std::cout << "IDLE";
+
+   return "IDLE";
+}

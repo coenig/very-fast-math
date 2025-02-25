@@ -8,10 +8,24 @@
 -- Global options
 @{EM_LESS}@******.defaultValue[false]
 
--- Parametrization for EnvModel generator
-@{NUMLANES}@******.defaultValue[3]
-@{SEGMENTS}@******.defaultValue[4]
-@{SEGMENTSMINLENGTH}@******.defaultValue[50]
+-- Parametrization of road topology features
+@{NUMLANES}@******.defaultValue[3]               -- Maximum number of lanes a road SEGMENT can have
+@{SEGMENTS}@******.defaultValue[4]               -- Number of segments per straight road SECTION with flexible length and NUMLANES
+@{SEGMENTSMINLENGTH}@******.defaultValue[30] 
+@{SECTIONS}@******.defaultValue[5]               -- Number of straight road SECTIONS which form a road network
+@{SECTIONSMAXLENGTH}@******.defaultValue[250]
+@{BORDERLEFT}@******.defaultValue[-1000]         -- Left...
+@{BORDERTOP}@******.defaultValue[-1000]          -- Top...
+@{BORDERRIGHT}@******.defaultValue[1000]         -- Right...
+@{BORDERBOTTOM}@******.defaultValue[1000]        -- Bottom border of the coordinate system the straight roads can be placed on
+@{COORDGRANULARITY}@******.defaultValue[10]      -- Only every n-th coordinate in x and y direction can be used to place connection points on
+@{ANGLEGRANULARITY}@******.defaultValue[30]      -- Only every n-th angle (DEG) can be used between two sections at connection points (zero degrees is straight ahead)
+@{MAXOUTGOINGCONNECTIONS}@******.defaultValue[3] -- Maximum number of successors a straight road may have
+@{MINDISTCONNECTIONS}@******.defaultValue[30]    -- Two connection points have to be at least this far apart
+@{MAXDISTCONNECTIONS}@******.defaultValue[50]    -- Two connection points may not be more than this apart
+
+-- Parameters for ego and non-ego vehicles
+@{EGOLESS}@******.defaultValue[false]
 @{NONEGOS}@******.defaultValue[5]
 @{LEFTLC}@******.defaultValue[true]
 @{RIGHTLC}@******.defaultValue[false]

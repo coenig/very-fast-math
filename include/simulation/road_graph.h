@@ -163,7 +163,7 @@ public:
    std::shared_ptr<RoadGraph> findSectionWithEgo();
    void applyToMeAndAllMySuccessorsAndPredecessors(const std::function<void(const std::shared_ptr<RoadGraph>)> action);
 
-   StraightRoadSection getMyRoad() const;
+   StraightRoadSection& getMyRoad();
    Vec2D getOriginPoint() const;
    float getAngle() const;
 
