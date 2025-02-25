@@ -1,7 +1,6 @@
 import gymnasium
 import highway_env
 from matplotlib import pyplot as plt
-#%matplotlib inline
 from ctypes import *
 
 env = gymnasium.make('highway-v0', render_mode='rgb_array', config={

@@ -1341,7 +1341,7 @@ char* morty(const char* input)
          if (y > 8) lanes.insert(0);
 
          for (int lane = 0; lane <= 3; lane++) {
-            main_file += std::string(lanes.count(lane) ? "" : "!") + "INIT env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
+            main_file += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
          }
       }
    }
