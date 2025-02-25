@@ -53,12 +53,13 @@
 examples/tmp
 examples/*generated*
 examples/gp*
-morty/debug_trace_array.txt
-morty/mc_runtimes.txt
-morty/planner.cpp_combined.k2.smv
-morty/main.smv
-morty/mc_runtimes.txt
-morty/scaling_info.txt
+#morty/debug_trace_array.txt
+#morty/mc_runtimes.txt
+#morty/planner.cpp_combined.k2.smv
+#morty/main.smv
+#morty/mc_runtimes.txt
+#morty/scaling_info.txt
+!morty/**/*
 
 !src/examples/aca4/**/*
 
