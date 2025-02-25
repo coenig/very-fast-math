@@ -460,6 +460,8 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          if (!getHighwayTranslator()->is3D()) {
             top_right_corner.add({ 0, ego.car_lane_ });
             top_right_second.add({ 0, ego.car_lane_ });
+            top_left_corner.add({ 0, ego.car_lane_ });
+            top_left_second.add({ 0, ego.car_lane_ });
          }
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{ // Special encoding for the frame in LANE_MARKER_COLOR
@@ -503,6 +505,8 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          if (!getHighwayTranslator()->is3D()) {
             bottom_right_corner.add({ 0, ego.car_lane_ });
             bottom_right_second.add({ 0, ego.car_lane_ });
+            bottom_left_corner.add({ 0, ego.car_lane_ });
+            bottom_left_second.add({ 0, ego.car_lane_ });
          }
 
          for (auto& connection : connections) {
@@ -923,7 +927,12 @@ void vfm::HighwayImage::paintRoadGraph(
    const float TRANSLATE_X_raw,
    const float TRANSLATE_Y_raw)
 {
-   auto my_r = vfm::test::paintExampleRoadGraphRoundabout(false, r_raw);
+   auto my_r = 
+      //vfm::test::paintExampleRoadGraphRoundabout(false, 
+         r_raw
+      //)
+   ;
+
    my_r->normalizeRoadGraphToEgoSection();
    auto old_trans = getHighwayTranslator();
    const auto all_nodes = my_r->getAllNodes();
@@ -1142,7 +1151,7 @@ void vfm::HighwayImage::paintRoadGraph(
                            p2.add(p.points_[i]);
                         }
 
-                        auto vec = Pol2D::dashedArrow(p2, 2, 2.0f / 1500.0f * dim_raw.x * 3, {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 2.5, 2.5 });
+                        auto vec = Pol2D::dashedArrow(p2, 2, 2.0f / 1500.0f * dim_raw.x * 3 * (old_trans->is3D() ? 2.1 : 1), {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 2.5, 2.5 });
 
                         for (int i = 0; i < vec.size(); i++) {
                            if (i % 2 || i == vec.size() - 1)
@@ -1176,6 +1185,8 @@ void vfm::HighwayImage::paintRoadGraph(
          }
       }
    }
+
+   //store("test");
 
    setTranslator(old_trans);
    DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);

@@ -31,7 +31,6 @@ private:
    std::ostringstream output_{};
 
    Fl_Text_Buffer *buff;
-   char cmd[1024];
 };
 
 } // vfm

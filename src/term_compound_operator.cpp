@@ -56,10 +56,12 @@ std::shared_ptr<TermCompoundOperator> vfm::TermCompoundOperator::toCompoundOpera
    return std::dynamic_pointer_cast<TermCompoundOperator>(shared_from_this());
 }
 
+#if defined(ASMJIT_ENABLED)
 std::shared_ptr<x86::Xmm> vfm::TermCompoundOperator::createSubAssembly(asmjit::x86::Compiler& cc, const std::shared_ptr<DataPack>& d, const std::shared_ptr<FormulaParser>& p)
 {
    return nullptr;
 }
+#endif
 
 std::shared_ptr<Term> vfm::TermCompoundOperator::copy(const std::shared_ptr<std::map<std::shared_ptr<Term>, std::shared_ptr<Term>>> already_copied)
 {

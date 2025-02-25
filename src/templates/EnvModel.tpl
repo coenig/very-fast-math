@@ -1,9 +1,16 @@
 @{EnvModel_Header.tpl}@********.include
 @{EnvModel_Timescaling.tpl}@********.include
 @{EnvModel_Parameters.tpl}@********.include
-
+@{EnvModel_Geometry.tpl}@********.include
 
 MODULE EnvModel
+
+-- segment l1 and line l2 intersect?
+-- @{@{lines(line(vec(l1.begin.x; l1.begin.y); vec(l1.end.x; l1.end.y)); line(vec(l2.begin.x; l2.begin.y); vec(l2.end.x; l2.end.y)))}@.syntacticSegmentAndLineIntersect}@.serializeNuXmv
+
+-- segment l2 and line l1 intersect?
+-- @{@{lines(line(vec(l2.begin.x; l2.begin.y); vec(l2.end.x; l2.end.y)); line(vec(l1.begin.x; l1.begin.y); vec(l1.end.x; l1.end.y)))}@.syntacticSegmentAndLineIntersect}@.serializeNuXmv
+
 
 @{
 @( -- EM-less build
@@ -12,11 +19,11 @@ MODULE EnvModel
    @{PLANNER_VARIABLES}@.printHeap
 )@
 @( -- EM-full build
---------------------------------------------------------
+------------------------------------------
 --
--- Begin: Constants and common definitions (generate once)
+-- Begin: Constants and common definitions
 --
---------------------------------------------------------
+------------------------------------------
 
 DEFINE
     ---------------- Begin of lc parameterization -----------------
@@ -111,12 +118,39 @@ VAR
 
     tar_dir : {ActionDir____LEFT, ActionDir____CENTER, ActionDir____RIGHT};
 
+   @{
+      section___6[sec]9___.source.x : integer;
+      section___6[sec]9___.source.y : integer;
+      section___6[sec]9___.drain.x : integer;
+      section___6[sec]9___.drain.y : integer;
+   }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
 ASSIGN
+   @{
+      next(section___6[sec]9___.source.x) := section___6[sec]9___.source.x;
+      next(section___6[sec]9___.source.y) := section___6[sec]9___.source.y;
+      next(section___6[sec]9___.drain.x) := section___6[sec]9___.drain.x;
+      next(section___6[sec]9___.drain.y) := section___6[sec]9___.drain.y;
+   }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
+
    @{
    next(segment_[num]_pos_begin) := segment_[num]_pos_begin;
    next(segment_[num]_min_lane) := segment_[num]_min_lane;
    next(segment_[num]_max_lane) := segment_[num]_max_lane;
    }@.for[[num], 0, @{SEGMENTS - 1}@.eval]
+
+   INIT section___609___.source.x = 0;
+   INIT section___609___.source.y = 0;
+   -- INIT section___609___.drain.x ==> Not specified, so the length of the section is figured out from the length of the segments.
+   INIT section___609___.drain.y = 0;
+
+   @{
+      INIT section___6[sec]9___.source.x <= @{BORDERRIGHT}@.eval[0]  & section___6[sec]9___.source.x >= @{BORDERLEFT}@.eval[0];
+      INIT section___6[sec]9___.source.y <= @{BORDERBOTTOM}@.eval[0] & section___6[sec]9___.source.y >= @{BORDERTOP}@.eval[0];
+      INIT section___6[sec]9___.drain.x  <= @{BORDERRIGHT}@.eval[0]  & section___6[sec]9___.drain.x >= @{BORDERLEFT}@.eval[0];
+      INIT section___6[sec]9___.drain.y  <= @{BORDERBOTTOM}@.eval[0] & section___6[sec]9___.drain.y >= @{BORDERTOP}@.eval[0];
+   }@**.for[[sec], 1, @{SECTIONS - 1}@.eval]
 
 INVAR tar_dir = ActionDir____LEFT;
 INIT cnt = 0;
@@ -140,7 +174,9 @@ INIT segment_0_min_lane = 0 & segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -
 TRANS next(cnt) = cnt + 1;
 
 DEFINE
-   segment_@{SEGMENTS}@.eval[0]_pos_begin := segment_@{SEGMENTS - 1}@.eval[0]_pos_begin + max_ego_visibility_range; -- Helper variable to make below loop simpler.
+large_number := 10000;
+
+   segment_@{SEGMENTS}@.eval[0]_pos_begin := segment_@{SEGMENTS - 1}@.eval[0]_pos_begin + large_number; -- Helper variable to make below loop simpler.
 
    @{
    @{lane_[lane]_availability_from_segment_@{SEGMENTS}@**.eval[0]}@*.scalingVariable[distance] := 0;          -- Helper variable to make below loop simpler.
@@ -150,13 +186,13 @@ DEFINE
       TRUE: 0;
    esac;
    }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
-   
+
    @{ego.lane_[lane]_availability}@*.scalingVariable[distance] := case
       @{ego.abs_pos >= segment_[seg]_pos_begin : lane_[lane]_availability_from_segment_[seg] + segment_[seg]_pos_begin - ego.abs_pos;
       }@.for[[seg], @{SEGMENTS - 1}@.eval, 0, -1]TRUE: 0;
    esac;
    }@***.for[[lane], 0, @{NUMLANES - 1}@.eval]
-   
+ 
 @{
    @{veh___6[i]9___.abs_pos}@*.scalingVariable[distance] := veh___6[i]9___.rel_pos + ego.abs_pos;
 }@**.for[[i], 0, @{NONEGOS - 1}@.eval]
@@ -375,9 +411,6 @@ INIT
 
 INIT 
    veh___6[i]9___.rel_pos >= -@{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst & veh___6[i]9___.rel_pos <= @{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst;
-
-INIT 
-   !ego.same_lane_as_veh_[i];
 
 INVAR
     veh___6[i]9___.lane_single | veh___6[i]9___.lane_crossing;
@@ -1107,7 +1140,7 @@ TRANS next(veh___6[i]9___.lane_b@{[j]}@.eval[0]) = veh___6[i]9___.lane_b@{[j]}@.
 }@*.for[[j], 0, @{NUMLANES - 1}@.eval]}@**.if[@{KEEPEGOFIXEDTOLANE}@.eval]
 
 @{
-@{EnvModel_Viper.tpl}@.include
+@{EnvModel_DummyBP.tpl}@.include
 }@.if[@{VIPER}@.eval]
 
 @{EnvModel_Debug.tpl}@.include

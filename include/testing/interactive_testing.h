@@ -79,7 +79,8 @@ void convenienceArtifactRunHardcoded(
    const std::string& json_config_path = "../src/templates/envmodel_config.json",
    const std::string& env_model_template_path = "../src/templates/" + ENVMODEL_TEMPLATE_FILENAME,
    const std::string& vfm_includes_file_path = "../src/examples/bp/prototype/motion_planning/rule_based_planning/vfm-includes-viper.txt",
-   const std::string& cache_dir = "./tmp");
+   const std::string& cache_dir = "./tmp",
+   const std::string& path_to_external_folder = "../external/");
 
 std::map<std::string, std::string> retrieveEnvModelDefinitionFromJSON(const std::string json_file, const EnvModelCachedMode cached_mode);
 
@@ -99,5 +100,6 @@ void aca4_1Run();
 std::shared_ptr<RoadGraph> paintExampleRoadGraphStrangeJunction(const bool write_to_files = true, const std::shared_ptr<RoadGraph> ego_section = nullptr);
 std::shared_ptr<RoadGraph> paintExampleRoadGraphRoundabout(const bool write_to_files = true, const std::shared_ptr<RoadGraph> ego_section = nullptr);
 
+extern "C" char* morty(const char* input);
 } // test
 } // vfm

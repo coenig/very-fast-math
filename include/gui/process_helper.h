@@ -33,6 +33,8 @@ public:
    inline bool killByPID(const int pid)
    {
       bool res{ false };
+
+#ifdef _WIN32
       HANDLE hProcess = OpenProcess(PROCESS_TERMINATE, FALSE, pid);
 
       if (hProcess != NULL) {
@@ -50,6 +52,12 @@ public:
       else {
          addError("Failed to open process with ID " + std::to_string(pid) + ".");
       }
+
+#elif __linux__
+std::cerr << "TODO: No unix implementation for killByPID() available." << std::endl;
+#else
+std::cerr << "TODO: No implementation for killByPID() available." << std::endl;
+#endif
 
       return res;
    }

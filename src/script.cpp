@@ -651,17 +651,34 @@ std::string DummyRepresentable::applyMethodString(const std::string& method_name
    else if (method_name == "for" && parameters.size() == 3) return forloop(parameters.at(0), parameters.at(1), parameters.at(2));
    else if (method_name == "for" && parameters.size() == 4) return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3));
    else if (method_name == "for" && parameters.size() == 5) return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3), parameters.at(4));
-   else if (method_name == "format" && parameters.size() == 0) return formatExpression(getRawScript());
+   else if (method_name == "serialize" && parameters.size() == 0) return formatExpression(getRawScript(), SyntaxFormat::vfm);
+   else if (method_name == "serializeK2" && parameters.size() == 0) return toK2(getRawScript());
+   else if (method_name == "serializeNuXmv" && parameters.size() == 0) {
+      return formatExpression(getRawScript(), SyntaxFormat::nuXmv);
+   }
+   else if (method_name == "atVfmTupel" && parameters.size() == 1) {
+      auto fmla = MathStruct::parseMathStruct(StaticHelper::replaceAll(getRawScript(), ";", ","), getParser(), getData());
+      assert(StaticHelper::isParsableAsInt(parameters[0]));
+      const int at{ std::stoi(parameters[0]) };
+      return fmla->getTermsJumpIntoCompounds()[at]->serializePlainOldVFMStyle();
+   }
    else if (method_name == "simplify" && parameters.size() == 0) return simplifyExpression(getRawScript());
    else if (method_name == "eval" && parameters.size() == 0) return evaluateExpression(getRawScript());
    else if (method_name == "eval" && parameters.size() == 1) return evaluateExpression(getRawScript(), parameters.at(0));
-   else if (method_name == "toK2" && parameters.size() == 0) return toK2(getRawScript());
    else if (method_name == "nil" && parameters.size() == 0) return nil();
    else if (method_name == "id" && parameters.size() == 0) return id();
    else if (method_name == "idd" && parameters.size() == 0) return idd();
    else if (method_name == "if" && parameters.size() == 1) return ifChoice(parameters.at(0));
    else if (method_name == "at" && parameters.size() == 1) return element(parameters.at(0));
    else if (method_name == "substr" && parameters.size() == 2) return substring(parameters.at(0), parameters.at(1));
+   else if (method_name == "split" && parameters.size() == 1) {
+      auto spl = StaticHelper::split(getRawScript(), parameters[0]);
+      std::string res{};
+      for (const auto& s : spl) {
+         res += BEGIN_TAG_IN_SEQUENCE + s + END_TAG_IN_SEQUENCE;
+      }
+      return res;
+   }
    else if (method_name == "newMethod" && parameters.size() == 2) return newMethod(parameters.at(0), parameters.at(1));
    else if (method_name == "newMethod" && parameters.size() == 3) return newMethodD(parameters.at(0), parameters.at(1), parameters.at(2));
 
@@ -788,6 +805,10 @@ std::string DummyRepresentable::applyMethodString(const std::string& method_name
    else if (method_name == "printHeap" && parameters.size() == 0) {
       return getData()->printHeap(getRawScript());
    }
+   else if (method_name == "stringToHeap" && parameters.size() == 1) {
+      getData()->addStringToDataPack(getRawScript(), parameters[0]);
+      return parameters[0] + " set to point at '" + getRawScript() + "' in heap.";
+      }
 
    else if (method_name == "listElement" && parameters.size() == 1) {
       if (!list_data_.count(getRawScript())) {
@@ -1505,7 +1526,11 @@ std::string Script::removePreprocessors(const std::string& script)
    int indexOf = newScript.find(INSCR_BEG_TAG);
 
    while (indexOf >= 0) {
-      std::string preprocessorScript = *StaticHelper::extractFirstSubstringLevelwise(newScript, INSCR_BEG_TAG, INSCR_END_TAG, indexOf);
+      auto processed = StaticHelper::extractFirstSubstringLevelwise(newScript, INSCR_BEG_TAG, INSCR_END_TAG, indexOf);
+
+      if (!processed) return "#Error in script processing. No matching pair of '" + INSCR_BEG_TAG + "' and '" + INSCR_END_TAG + "'.";
+
+      std::string preprocessorScript = *processed;
 
       int lengthOfPreprocessor = preprocessorScript.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length();
       std::string partBefore = newScript.substr(0, indexOf);
@@ -2123,9 +2148,22 @@ std::string vfm::macro::Script::evaluateAll(const std::string& string, const std
    return evaluateAll(newString, opening_tag, closing_tag);
 }
 
-std::string Script::formatExpression(const std::string& expression)
+std::string Script::formatExpression(const std::string& expression, const SyntaxFormat format)
 {
-   return MathStruct::parseMathStruct(expression, vfm_parser_, vfm_data_)->serialize();
+   auto fmla = MathStruct::parseMathStruct(expression, vfm_parser_, vfm_data_);
+
+   if (format == SyntaxFormat::vfm) {
+      return fmla->serialize();
+   }
+   else if (format == SyntaxFormat::kratos2) {
+      return fmla->serializeK2();
+   }
+   else if (format == SyntaxFormat::nuXmv) {
+      return fmla->serializeNuSMV(getData(), getParser());
+   }
+   else {
+      addError("Syntax format not supported.");
+   }
 }
 
 std::string Script::simplifyExpression(const std::string& expression)

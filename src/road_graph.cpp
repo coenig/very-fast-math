@@ -252,7 +252,7 @@ void vfm::RoadGraph::applyToMeAndAllMySuccessorsAndPredecessors(const std::funct
    });
 }
 
-StraightRoadSection vfm::RoadGraph::getMyRoad() const
+StraightRoadSection& vfm::RoadGraph::getMyRoad()
 {
    return my_road_;
 }

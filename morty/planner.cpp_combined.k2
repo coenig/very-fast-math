@@ -1,0 +1,47 @@
+;; ============================================================================================================
+;; C O P Y R I G H T
+;; ------------------------------------------------------------------------------------------------------------
+;; copyright (C) 2022 Robert Bosch GmbH. All rights reserved.
+;; ============================================================================================================
+(function assert ((var cond bool)) (return)
+(locals)
+(seq
+(condjump cond (label end))
+(! (label error) :error assert-fail)
+(label end)))
+
+(function rndet ((var lo int) (var hi int)) (return (var ret int)) 
+(locals) 
+(seq (havoc ret) (assume (and (ge ret lo) (le ret hi)))))
+
+(function ndet_int2 ((var first int) (var second int) )
+                       (return (var ret int) )
+                       (locals)
+                       (seq (havoc ret) (assume (or (eq ret first) (eq ret second) ))))
+
+(function ndet_bool2 ((var first bool) (var second bool) )
+                       (return (var ret bool) )
+                       (locals)
+                       (seq (havoc ret) (assume (or (eq ret first) (eq ret second) ))))
+
+(entry checkLCConditionsFastLane)
+(globals (! (var loc bool) :location-var true))
+(function checkLCConditionsFastLane (
+)
+(return 
+(var |abCond.cond26_all_conditions_fulfilled_raw| bool)
+(var |flCond.cond26_all_conditions_fulfilled_raw| bool) ;; EO output vars. Due to debug mode, the internal vars are returned, as well.
+
+)
+(locals
+)
+
+(seq
+
+(seq
+(assign |flCond.cond26_all_conditions_fulfilled_raw| false)
+(assign |abCond.cond26_all_conditions_fulfilled_raw| false)
+))
+)
+
+

@@ -35,12 +35,12 @@ float TermID::eval(const std::shared_ptr<DataPack>& varVals, const std::shared_p
    return getOperands()[0]->eval(varVals, parser, suppress_sideeffects);
 }
 
-//#if defined(ASMJIT_ENABLED)
+#if defined(ASMJIT_ENABLED)
 std::shared_ptr<x86::Xmm> TermID::createSubAssembly(asmjit::x86::Compiler & cc, const std::shared_ptr<DataPack>& d, const std::shared_ptr<FormulaParser>& p)
 {
    return getOperands()[0]->createSubAssembly(cc, d, p);
 }
-//#endif
+#endif
 
 std::shared_ptr<Term> TermID::copy(const std::shared_ptr<std::map<std::shared_ptr<Term>, std::shared_ptr<Term>>> already_copied) {
    return copySimple<TermID>(already_copied);

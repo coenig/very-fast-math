@@ -162,8 +162,8 @@ public:
       const Polygon2D<NumType>& points,
       const float dashed_segments_factor,
       const std::function<float(const Vector2D<NumType>& point_position, const int point_num)>& thickness = [](const Vector2D<NumType>& point_position, const int point_num) {return 10.0; },
-      const Polygon2D<NumType>& arrow_begin = ARROW_END_PLAIN_LINE,
-      const Polygon2D<NumType>& arrow_end = ARROW_END_PLAIN_LINE,
+      const Polygon2D<NumType>& arrow_begin = {},
+      const Polygon2D<NumType>& arrow_end = {},
       const Vector2D<NumType>&  arrow_begin_factor = { 1, 1 },
       const Vector2D<NumType>&  arrow_end_factor = { 1, 1 });
 
@@ -171,8 +171,8 @@ public:
       const Polygon2D<NumType>& points,
       const float dashed_segments_factor,
       const float thickness = 10,
-      const Polygon2D<NumType>& arrow_begin = ARROW_END_PLAIN_LINE,
-      const Polygon2D<NumType>& arrow_end = ARROW_END_PLAIN_LINE,
+      const Polygon2D<NumType>& arrow_begin = {},
+      const Polygon2D<NumType>& arrow_end = {},
       const Vector2D<NumType>& arrow_begin_factor = { 1, 1 },
       const Vector2D<NumType>& arrow_end_factor = { 1, 1 });
 
