@@ -103,5 +103,6 @@ private:
    float cnt_{ -150 };
    float step_{ 0.05 };
    int num_lanes_{}; // TODO: Needed only for setting up 3D perspective, which should go into the 3D part.
+   Vec2D preserved_dimension_{}; // Only for paintRoadGraph, we need this variable to not go out of scope for the lambdas.
 };
 } // vfm

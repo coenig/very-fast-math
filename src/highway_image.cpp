@@ -964,10 +964,10 @@ void vfm::HighwayImage::paintRoadGraph(
 
    const auto DRAW_STRAIGHT_ROAD_OR_CARS = [&](const RoadDrawingMode mode) {
       for (const auto r_sub : all_nodes_ego_in_front) {
-         const float section_max_lanes = r_sub->getMyRoad().getNumLanes(); // Note that these variables are used in the below lambdas, which need to be valid even after
-         const auto dim = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes }; // the vars go out of scope. Therefore, dim cannot be captured by reference.
+         const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
+         preserved_dimension_ = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
 
-         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, dim, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
             const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0) };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
             Vec2D v{ plain_2d_translator_->translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
@@ -975,18 +975,18 @@ void vfm::HighwayImage::paintRoadGraph(
             auto res = plain_2d_translator_->reverseTranslate(v);
 
             return { // The magic numbers below reflect the dependence on the number of lanes when calculating the thickness of lane marker lines iso. paintStraightRoadScene.
-               res.x + (old_trans->is3D() ? TRANSLATE_X : TRANSLATE_X - dim.x / MC1), // This constant has been calculated.
-               res.y + (old_trans->is3D() ? TRANSLATE_Y : TRANSLATE_Y / LANE_WIDTH - dim.y / MC2), // This one is only a guess and can probably be further improved.
+               res.x + (old_trans->is3D() ? TRANSLATE_X : TRANSLATE_X - preserved_dimension_.x / MC1), // This constant has been calculated.
+               res.y + (old_trans->is3D() ? TRANSLATE_Y : TRANSLATE_Y / LANE_WIDTH - preserved_dimension_.y / MC2), // This one is only a guess and can probably be further improved.
                v_raw.z };
             };
 
-         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, dim, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
             const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0) };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
 
             Vec2D v{
-               v_raw.x - (old_trans->is3D() ? TRANSLATE_X : TRANSLATE_X - dim.x / MC1),
-               v_raw.y - (old_trans->is3D() ? TRANSLATE_Y : TRANSLATE_Y / LANE_WIDTH - dim.y / MC2),
+               v_raw.x - (old_trans->is3D() ? TRANSLATE_X : TRANSLATE_X - preserved_dimension_.x / MC1),
+               v_raw.y - (old_trans->is3D() ? TRANSLATE_Y : TRANSLATE_Y / LANE_WIDTH - preserved_dimension_.y / MC2),
             };
 
             v = plain_2d_translator_->translate(v);
@@ -1028,7 +1028,7 @@ void vfm::HighwayImage::paintRoadGraph(
             0,
             var_vals,
             print_agent_ids,
-            infinite_road ? dim_raw : dim,
+            infinite_road ? dim_raw : preserved_dimension_,
             mode);
       }
    };
