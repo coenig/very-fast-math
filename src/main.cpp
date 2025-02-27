@@ -20,18 +20,9 @@ using namespace vfm;
 using namespace test;
 using namespace mc::trajectory_generator;
 
-//0: 'LANE_LEFT',
-//1 : 'IDLE',
-//2 : 'LANE_RIGHT',
-//3 : 'FASTER',
-//4 : 'SLOWER'
-
 
 int main(int argc, char* argv[])
 {
-   test::convenienceArtifactRunHardcoded(test::MCExecutionType::cex, "../examples/gp_config_lanes=4_nonegos=1");
-   termnate();
-
    //vfm::test::runTests();
    //termnate();
 
@@ -41,9 +32,6 @@ int main(int argc, char* argv[])
    MCScene mc_scene{ argc, argv };
    return mc_scene.getFlRunInfo();
    termnate();
-
-   //vfm::test::paintExampleRoadGraphs();
-   //termnate();
 
    //aca4_1Run();
    //termnate();

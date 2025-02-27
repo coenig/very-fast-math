@@ -1186,9 +1186,6 @@ void vfm::HighwayImage::paintRoadGraph(
       }
    }
 
-   store("test");
-   std::cin.get();
-
    setTranslator(old_trans);
    DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
    setTranslator(old_trans);
