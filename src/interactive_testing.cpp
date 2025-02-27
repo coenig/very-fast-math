@@ -1067,11 +1067,11 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    image3.fillImg(BLACK);
    //image3.paintEarthAndSky({ 1500, 500 });
 
-   static constexpr int lanes0{ 3 };
+   static constexpr int lanes0{ 4 };
    static constexpr int lanes1{ 3 };
    static constexpr int lanes2{ 3 };
    static constexpr int lanes3{ 3 };
-   static constexpr int lanes4{ 3 };
+   static constexpr int lanes4{ 4 };
    static constexpr int lanes5{ 3 };
    static constexpr int lanes6{ 3 };
    static constexpr int lanes7{ 3 };
@@ -1100,7 +1100,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    section5.addLaneSegment(segment5);
    section6.addLaneSegment(segment6);
    section7.addLaneSegment(segment7);
-   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 40, 0, HighwayImage::EGO_MOCK_ID);
+   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 0, 0, HighwayImage::EGO_MOCK_ID);
    std::map<int, std::pair<float, float>> future_positions_of_others{};
    CarParsVec others0{ { 0, 10, 0, 0 } };
    CarParsVec others1{ { 0, 40, 0, 1 } };
@@ -1143,7 +1143,15 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    auto r5 = std::make_shared<RoadGraph>(5);
    auto r6 = std::make_shared<RoadGraph>(6);
    auto r7 = std::make_shared<RoadGraph>(7);
-   r0->setMyRoad(section0);
+
+   if (ego_section) {
+      ego_section->my_road_.section_end_ = section0.getLength();
+      r0 = ego_section;
+   }
+   else {
+      r0->setMyRoad(section0);
+   }
+
    r1->setMyRoad(section1);
    r2->setMyRoad(section2);
    r3->setMyRoad(section3);
@@ -1170,11 +1178,6 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    p3.rotate(a3, mid);
    p4.rotate(a4, mid);
    p5.rotate(a5, mid);
-
-   if (ego_section) {
-      ego_section->my_road_.section_end_ = r0->getMyRoad().getLength();
-      r0 = ego_section;
-   }
 
    r0->setOriginPoint(p0);
    r0->setAngle(a0);
@@ -1203,7 +1206,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    r1->addSuccessor(r6);
 
    if (write_to_files) {
-      image2.paintRoadGraph(r1, { 500, 60 }, {}, true);
+      image2.paintRoadGraph(r1, { 500, 60 }, {}, true, 60, (float)r0->getMyRoad().getNumLanes() / 2.0f);
       image2.store("../examples/roundabout", OutputType::pdf);
       image2.store("../examples/roundabout", OutputType::png);
       image3.paintRoadGraph(r1, dim3D, {}, true, 0, 0);
