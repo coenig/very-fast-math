@@ -464,19 +464,19 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             top_left_second.add({ 0, ego.car_lane_ });
          }
 
-         connections.insert(connections.begin(), ConnectorPolygonEnding{ // Special encoding for the frame in LANE_MARKER_COLOR
+         connections.insert(connections.begin(), ConnectorPolygonEnding{ // This is the frame border around the pavement
             ConnectorPolygonEnding::Side::drain,
             Lin2D{ top_right_corner, top_right_second }, // outgoing (temp; will be adjusted when bottom part becomes available)
             0, // temp thickness; will be calculated when bottom part becomes available
-            std::make_shared<Color>(0, 0, 0, 0),
+            std::make_shared<Color>(0, 0, 0, 0),  // Special encoding for frame border in LANE_MARKER_COLOR
             3,
             getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
 
-         connections.insert(connections.begin(), ConnectorPolygonEnding{ // Special encoding for the frame in LANE_MARKER_COLOR
+         connections.insert(connections.begin(), ConnectorPolygonEnding{ // This is the frame border around the pavement
             ConnectorPolygonEnding::Side::source,
             Lin2D{ top_left_corner, top_left_second }, // incoming (temp; will be adjusted when bottom part becomes available)
             0, // temp thickness; will be calculated when bottom part becomes available
-            std::make_shared<Color>(0, 0, 0, 0),
+            std::make_shared<Color>(0, 0, 0, 0), // Special encoding for frame border in LANE_MARKER_COLOR
             3,
             getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
 
@@ -1187,6 +1187,7 @@ void vfm::HighwayImage::paintRoadGraph(
    }
 
    store("test");
+   std::cin.get();
 
    setTranslator(old_trans);
    DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
