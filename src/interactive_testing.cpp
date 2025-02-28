@@ -1067,11 +1067,11 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    image3.fillImg(BLACK);
    //image3.paintEarthAndSky({ 1500, 500 });
 
-   static constexpr int lanes0{ 4 };
+   static constexpr int lanes0{ 3 };
    static constexpr int lanes1{ 3 };
    static constexpr int lanes2{ 3 };
    static constexpr int lanes3{ 3 };
-   static constexpr int lanes4{ 4 };
+   static constexpr int lanes4{ 3 };
    static constexpr int lanes5{ 3 };
    static constexpr int lanes6{ 3 };
    static constexpr int lanes7{ 3 };
