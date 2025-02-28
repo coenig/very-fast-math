@@ -56,7 +56,7 @@ MCinterpretedTrace::MCinterpretedTrace(
 
 	associateEnums(*m_current_data);
 
-	for (const auto& state : trace) // for every state
+	for (const auto& state : trace.getConstTrace()) // for every state
 	{
 		startState(state.first);
 

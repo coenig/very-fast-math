@@ -200,7 +200,7 @@ struct Parser : public Failable {
          TraceStep trace_step{ "1." + std::to_string(num), {} };
          num++;
          parseSingleStep(step_repl, trace_step);
-         parsed_steps.push_back(trace_step);
+         parsed_steps.addTraceStep(trace_step);
       }
 
       return parsed_steps;
