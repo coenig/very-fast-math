@@ -1838,7 +1838,7 @@ inline void FSM<F>::replayCounterExampleForOneStep(const MCTrace& ce, int& i, in
       }
    }
    else {
-      const auto& line = ce[i];
+      const auto& line = ce.at(i);
       
       if (line.first == "LOOP") {
          loop = i;

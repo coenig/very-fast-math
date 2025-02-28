@@ -1336,7 +1336,7 @@ char* morty(const char* input)
          auto data = StaticHelper::split(car, ",");
          
          // std::cout << data[1] << std::endl;
-         std::cout << i << ": " << data[2] << std::endl;
+         // std::cout << i << ": " << data[2] << std::endl;
          // std::cout << data[3] << std::endl;
          // std::cout << data[4] << std::endl;
          
@@ -1369,6 +1369,8 @@ char* morty(const char* input)
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
    std::cin.get();
    MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile("morty/debug_trace_array.txt")};
+
+   VarValsFloat delta{ trace.getDeltaFromTo(0, 1) };
 
    // std::cin.get();
 

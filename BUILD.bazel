@@ -21,6 +21,7 @@ cc_library(
         "src/fsm_resolver_factory.cpp",
         "src/math_struct.cpp",
         "src/meta_rule.cpp",
+        "mc_types.cpp",
         "src/operator_structure.cpp",
         "src/parser.cpp",
         "src/failable.cpp",

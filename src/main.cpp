@@ -23,9 +23,6 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   test::paintExampleRoadGraphRoundabout(true);
-   termnate();
-
    //vfm::test::runTests();
    //termnate();
 
