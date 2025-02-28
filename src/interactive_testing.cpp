@@ -1206,12 +1206,18 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    r1->addSuccessor(r6);
 
    if (write_to_files) {
+      bool old2 = image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_;
+      bool old3 = image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_;
+      image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
+      image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
       image2.paintRoadGraph(r1, { 500, 60 }, {}, true, 60, (float)r0->getMyRoad().getNumLanes() / 2.0f);
       image2.store("../examples/roundabout", OutputType::pdf);
       image2.store("../examples/roundabout", OutputType::png);
       image3.paintRoadGraph(r1, dim3D, {}, true, 0, 0);
       image3.store("../examples/roundabout_3d", OutputType::pdf);
       image3.store("../examples/roundabout_3d", OutputType::png);
+      image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = old2;
+      image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = old3;
    }
 
    return r0;
