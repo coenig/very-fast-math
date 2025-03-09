@@ -19,7 +19,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
 env.reset()
 
 morty_lib = CDLL('./lib/libvfm.so')
-morty_lib.morty.argtypes = [c_char_p]
+morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
 morty_lib.morty.restype = c_char_p
 
 action = env.unwrapped.action_type.actions_indexes["IDLE"]
@@ -33,7 +33,9 @@ for i in range(15):
             input += str(val) + ","
         input += ";"
     
-    res = morty_lib.morty(input.encode('utf-8'))
+    result = create_string_buffer(100)
+    print(input)
+    res = morty_lib.morty(input.encode('utf-8'), result, sizeof(result))
     
     print(res)
     #action = env.unwrapped.action_type.actions_indexes[output.decode()]
