@@ -1407,7 +1407,7 @@ const char* morty(const char* input, char* result, size_t resultMaxLength)
       }
    }
 
-   _snprintf_s(result, resultMaxLength, _TRUNCATE, "%s", res);
+   _snprintf_s(result, resultMaxLength, (size_t)-1, "%s", res);
 
    return result;
 }
