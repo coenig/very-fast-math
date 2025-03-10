@@ -1370,19 +1370,37 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
    MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile("./morty/debug_trace_array.txt")};
 
-   VarValsFloat delta{ trace.getDeltaFromTo(0, 2, 
-   {
-         "veh___609___.on_lane", 
-         "veh___619___.on_lane", 
-         "veh___629___.on_lane", 
-         "veh___639___.on_lane", 
-         "veh___649___.on_lane", 
-         "veh___609___.v", 
-         "veh___619___.v", 
-         "veh___629___.v", 
-         "veh___639___.v", 
-         "veh___649___.v"
-   })};
+   VarValsFloat delta{};
+
+   if (trace.empty()) { // Return IDLE for now when no CEX found.
+      delta = {
+         { "veh___609___.on_lane", 0 },
+         { "veh___619___.on_lane", 0 },
+         { "veh___629___.on_lane", 0 },
+         { "veh___639___.on_lane", 0 },
+         { "veh___649___.on_lane", 0 },
+         { "veh___609___.v", 0 },
+         { "veh___619___.v", 0 },
+         { "veh___629___.v", 0 },
+         { "veh___639___.v", 0 },
+         { "veh___649___.v", 0 },
+      };
+   }
+   else {
+      delta = trace.getDeltaFromTo(0, 2,
+      {
+            "veh___609___.on_lane",
+            "veh___619___.on_lane",
+            "veh___629___.on_lane",
+            "veh___639___.on_lane",
+            "veh___649___.on_lane",
+            "veh___609___.v",
+            "veh___619___.v",
+            "veh___629___.v",
+            "veh___639___.v",
+            "veh___649___.v"
+      });
+   }
 
    std::string res{};
 
