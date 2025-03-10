@@ -1327,7 +1327,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
 {
    std::string input_str(input);
    auto cars = StaticHelper::split(input_str, ";");
-   auto main_file = StaticHelper::readFile("../morty/main.tpl") + "\n";
+   auto main_file = StaticHelper::readFile("./morty/main.tpl") + "\n";
    int ego_pos = -100000;
 
    for (int i = 0; i < cars.size(); i++) {
@@ -1366,9 +1366,9 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
       }
    }
 
-   StaticHelper::writeTextToFile(main_file, "../morty/main.smv");
-   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "../morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "../external");
-   MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile("../morty/debug_trace_array.txt")};
+   StaticHelper::writeTextToFile(main_file, "./morty/main.smv");
+   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
+   MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile("./morty/debug_trace_array.txt")};
 
    VarValsFloat delta{ trace.getDeltaFromTo(0, 2, 
    {
