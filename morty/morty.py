@@ -49,7 +49,7 @@ for i in range(150):
     res = morty_lib.morty(input.encode('utf-8'), result, sizeof(result))
     
     res_str = res.decode()
-    res_str = res_str.replace("LANE_LEFT", "2").replace("IDLE", "1").replace("LANE_RIGHT", "0").replace("FASTER", "3").replace("SLOWER", "4")
+    res_str = res_str.replace("LANE_LEFT", "0").replace("IDLE", "1").replace("LANE_RIGHT", "2").replace("FASTER", "3").replace("SLOWER", "4")
     
     print(res_str)
     # output.decode()
