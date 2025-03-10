@@ -3532,7 +3532,7 @@ inline MCTrace FSM<F>::createTraceFromSimulation(const int steps, const TermPtr 
          }
       }
 
-      trace.push_back({ std::to_string(i), varvals });
+      trace.addTraceStep({ std::to_string(i), varvals });
 
       step();
       variable_controller->eval(data_, parser_);
