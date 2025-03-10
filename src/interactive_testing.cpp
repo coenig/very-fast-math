@@ -1365,12 +1365,15 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          }
       }
    }
+   std::cout << "*";
 
    StaticHelper::writeTextToFile(main_file, "./morty/main.smv");
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
    MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile("./morty/debug_trace_array.txt")};
+   std::cout << "*";
 
    VarValsFloat delta{};
+   std::cout << "*";
 
    if (trace.empty()) { // Return IDLE for now when no CEX found.
       delta = {
@@ -1403,6 +1406,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    }
 
    std::string res{};
+   std::cout << "*";
 
    for (int i = 0; i < 5; i++) {
       auto d_ol = delta.at("veh___6" + std::to_string(i) + "9___.on_lane");
@@ -1425,7 +1429,9 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
       }
    }
 
+   std::cout << "*";
    snprintf(result, resultMaxLength, "%s", res.c_str());
+   std::cout << "*";
 
    return result;
 }
