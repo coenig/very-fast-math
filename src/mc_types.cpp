@@ -6,6 +6,7 @@
 /// @file
 
 #include "model_checking/mc_types.h"
+#include "static_helper.h"
 
 using namespace vfm;
 
@@ -42,17 +43,37 @@ void vfm::MCTrace::addTraceStep(const TraceStep& step)
    trace_.push_back(step);
 }
 
-VarValsFloat vfm::MCTrace::getDeltaFromTo(const int step_a, const int step_b) const
+VarValsFloat vfm::MCTrace::getDeltaFromTo(const int step_a, const int step_b, const std::set<std::string> variables) const
 {
    VarValsFloat res{};
-   VarVals a{ at(step_a).second };
-   VarVals b{ at(step_b).second };
 
-   for (const auto& varvala : a) {
-      if (b.count(varvala.first)) {
-         res.insert({ varvala.first, 0.0f });
+   for (const auto& var : variables) {
+      auto vala = getLastValueOfVariableAtStep(var, step_a);
+      auto valb = getLastValueOfVariableAtStep(var, step_b);
+      float delta{};
+
+      if (StaticHelper::isParsableAsFloat(vala) && StaticHelper::isParsableAsFloat(valb)) {
+         delta = std::stof(valb) - std::stof(vala);
       }
+      else {
+         delta = vala != valb; // For now, we return 0 if the non-float values are equal, and 1 in all other cases.
+      }
+
+      addNote("Calculating delta for variable '" + var + "' between '" + vala + "' and '" + valb + "' ==> '" + std::to_string(delta) + "'.");
+
+      res.insert({ var, delta });
    }
 
    return res;
+}
+
+std::string vfm::MCTrace::getLastValueOfVariableAtStep(const std::string& var, const int step) const
+{
+   for (int i = step; i >= 0; i--) {
+      if (at(i).second.count(var)) return at(i).second.at(var);
+   }
+
+   addError("No value stored for variable '" + var + "' up to step '" + std::to_string(step) + "'.");
+
+   return "#Variable-" + var + "-not-found";
 }

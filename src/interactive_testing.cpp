@@ -7,6 +7,7 @@
 
 #include "testing/interactive_testing.h"
 
+#include <stdio.h>
 #include <string>
 #include <filesystem>
 #include <cstdlib>
@@ -1322,11 +1323,11 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 // --- EO remaining comments from main.cpp ---
 
 extern "C"
-char* morty(const char* input)
+const char* morty(const char* input, char* result, size_t resultMaxLength)
 {
    std::string input_str(input);
    auto cars = StaticHelper::split(input_str, ";");
-   auto main_file = StaticHelper::readFile("morty/main.tpl") + "\n";
+   auto main_file = StaticHelper::readFile("../morty/main.tpl") + "\n";
    int ego_pos = -100000;
 
    for (int i = 0; i < cars.size(); i++) {
@@ -1365,18 +1366,48 @@ char* morty(const char* input)
       }
    }
 
-   StaticHelper::writeTextToFile(main_file, "morty/main.smv");
-   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
-   std::cin.get();
-   MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile("morty/debug_trace_array.txt")};
+   StaticHelper::writeTextToFile(main_file, "../morty/main.smv");
+   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "../morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "../external");
+   MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile("../morty/debug_trace_array.txt")};
 
-   VarValsFloat delta{ trace.getDeltaFromTo(0, 1) };
+   VarValsFloat delta{ trace.getDeltaFromTo(0, 2, 
+   {
+         "veh___609___.on_lane", 
+         "veh___619___.on_lane", 
+         "veh___629___.on_lane", 
+         "veh___639___.on_lane", 
+         "veh___649___.on_lane", 
+         "veh___609___.v", 
+         "veh___619___.v", 
+         "veh___629___.v", 
+         "veh___639___.v", 
+         "veh___649___.v"
+   })};
 
-   // std::cin.get();
+   std::string res{};
 
-   // if (all_args[0] == "0") std::cout << "LANE_LEFT";
-   // else if (all_args[0] == "5") std::cout << "LANE_RIGHT";
-   // else std::cout << "IDLE";
+   for (int i = 0; i < 5; i++) {
+      auto d_ol = delta.at("veh___6" + std::to_string(i) + "9___.on_lane");
+      auto d_ve = delta.at("veh___6" + std::to_string(i) + "9___.v");
 
-   return "IDLE";
+      if (d_ol > 0) {
+         res += "LANE_RIGHT;";
+      }
+      else if (d_ol > 0) {
+         res += "LANE_LEFT;";
+      }
+      else if (d_ve > 0) {
+         res += "FASTER;";
+      }
+      else if (d_ve < 0) {
+         res += "SLOWER;";
+      }
+      else {
+         res += "IDLE;";
+      }
+   }
+
+   _snprintf_s(result, resultMaxLength, _TRUNCATE, "%s", res);
+
+   return result;
 }

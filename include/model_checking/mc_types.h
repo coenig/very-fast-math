@@ -26,7 +26,8 @@ public:
    const std::vector<TraceStep>& getConstTrace() const;
    std::vector<TraceStep>& getTrace();
    void addTraceStep(const TraceStep& step);
-   VarValsFloat getDeltaFromTo(const int step_a, const int step_b) const;
+   VarValsFloat getDeltaFromTo(const int step_a, const int step_b, const std::set<std::string> variables) const;
+   std::string getLastValueOfVariableAtStep(const std::string& var, const int step) const; // Retrieves a value at some step, and looks in earlier steps if the current one doesn't contain it.
 
 private:
    std::vector<TraceStep> trace_{};

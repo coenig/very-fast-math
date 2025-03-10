@@ -23,6 +23,14 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
+   char* result = new char[100];
+   auto res = test::morty(
+      "1.0,207.28487,12.0,25.0,0.0,;1.0,252.10684,4.0,25.0,0.0,;1.0,297.59235,0.0,25.0,0.0,;1.0,339.70764,4.0,25.0,0.0,;1.0,387.27008,8.0,25.0,0.0,;", 
+      result, 
+      100);
+
+   std::cout << std::string(res) << std::endl;
+   termnate();
    //vfm::test::runTests();
    //termnate();
 
