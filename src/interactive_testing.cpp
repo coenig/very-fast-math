@@ -1323,7 +1323,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 // --- EO remaining comments from main.cpp ---
 
 extern "C"
-const char* morty(const char* input, char* result, size_t resultMaxLength)
+char* morty(const char* input, char* result, size_t resultMaxLength)
 {
    std::string input_str(input);
    auto cars = StaticHelper::split(input_str, ";");
