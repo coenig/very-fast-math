@@ -1362,7 +1362,6 @@ ASSIGN
     init(veh___609___.change_lane_now) := 0;
     init(veh___609___.prev_rel_pos) := 0;
     -- init(veh___609___.v) := 35;
-    init(veh___609___.a) := 0;
     init(veh___609___.turn_signals) := ActionDir____CENTER;
     init(veh___609___.lc_leave_src_lane) := FALSE;
 
@@ -1451,7 +1450,6 @@ ASSIGN
     init(veh___619___.change_lane_now) := 0;
     init(veh___619___.prev_rel_pos) := 0;
     -- init(veh___619___.v) := 35;
-    init(veh___619___.a) := 0;
     init(veh___619___.turn_signals) := ActionDir____CENTER;
     init(veh___619___.lc_leave_src_lane) := FALSE;
 
@@ -1540,7 +1538,6 @@ ASSIGN
     init(veh___629___.change_lane_now) := 0;
     init(veh___629___.prev_rel_pos) := 0;
     -- init(veh___629___.v) := 35;
-    init(veh___629___.a) := 0;
     init(veh___629___.turn_signals) := ActionDir____CENTER;
     init(veh___629___.lc_leave_src_lane) := FALSE;
 
@@ -1629,7 +1626,6 @@ ASSIGN
     init(veh___639___.change_lane_now) := 0;
     init(veh___639___.prev_rel_pos) := 0;
     -- init(veh___639___.v) := 35;
-    init(veh___639___.a) := 0;
     init(veh___639___.turn_signals) := ActionDir____CENTER;
     init(veh___639___.lc_leave_src_lane) := FALSE;
 
@@ -1718,7 +1714,6 @@ ASSIGN
     init(veh___649___.change_lane_now) := 0;
     init(veh___649___.prev_rel_pos) := 0;
     -- init(veh___649___.v) := 35;
-    init(veh___649___.a) := 0;
     init(veh___649___.turn_signals) := ActionDir____CENTER;
     init(veh___649___.lc_leave_src_lane) := FALSE;
 
