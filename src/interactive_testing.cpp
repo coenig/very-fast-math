@@ -1392,7 +1392,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
 
    std::string res{};
 
-   for (int i = 0; i < 5; i++) {
+   for (int i = 0; i < cars.size(); i++) {
       auto d_ol = delta.at("veh___6" + std::to_string(i) + "9___.on_lane");
       auto d_ve = delta.at("veh___6" + std::to_string(i) + "9___.v");
 
