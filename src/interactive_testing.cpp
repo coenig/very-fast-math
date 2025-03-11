@@ -1374,33 +1374,20 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    VarValsFloat delta{};
 
    if (trace.empty()) { // Return IDLE for now when no CEX found.
-      delta = {
-         { "veh___609___.on_lane", 0 },
-         { "veh___619___.on_lane", 0 },
-         { "veh___629___.on_lane", 0 },
-         { "veh___639___.on_lane", 0 },
-         { "veh___649___.on_lane", 0 },
-         { "veh___609___.v", 0 },
-         { "veh___619___.v", 0 },
-         { "veh___629___.v", 0 },
-         { "veh___639___.v", 0 },
-         { "veh___649___.v", 0 },
-      };
+      for (int i = 0; i < cars.size(); i++) {
+         delta["veh___6" + std::to_string(i) + "9___.on_lane"] = 0;
+         delta["veh___6" + std::to_string(i) + "9___.v"] = 0;
+      }
    }
    else {
-      delta = trace.getDeltaFromTo(0, 2,
-      {
-            "veh___609___.on_lane",
-            "veh___619___.on_lane",
-            "veh___629___.on_lane",
-            "veh___639___.on_lane",
-            "veh___649___.on_lane",
-            "veh___609___.v",
-            "veh___619___.v",
-            "veh___629___.v",
-            "veh___639___.v",
-            "veh___649___.v"
-      });
+      std::set<std::string> variables{};
+
+      for (int i = 0; i < cars.size(); i++) {
+         variables.insert("veh___6" + std::to_string(i) + "9___.on_lane");
+         variables.insert("veh___6" + std::to_string(i) + "9___.v");
+      }
+
+      delta = trace.getDeltaFromTo(0, 2,  variables);
    }
 
    std::string res{};
