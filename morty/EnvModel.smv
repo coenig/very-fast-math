@@ -809,15 +809,13 @@ INVAR
 --INIT 
 --   veh___609___.lane_single;
 
-INIT 
-   veh___609___.rel_pos >= -200 & veh___609___.rel_pos <= 200;
 
 INVAR
     veh___609___.lane_single | veh___609___.lane_crossing;
 
 INVAR
-    (-300 <= veh___609___.rel_pos & veh___609___.rel_pos <= 300) &
-    (-300 <= veh___609___.prev_rel_pos & veh___609___.prev_rel_pos <= 300) &
+    (-123456 <= veh___609___.rel_pos & veh___609___.rel_pos <= 123456) &
+    (-123456 <= veh___609___.prev_rel_pos & veh___609___.prev_rel_pos <= 123456) &
     (max(-veh___609___.v, a_min) <= veh___609___.a & veh___609___.a <= a_max) &
     (0 <= veh___609___.v & veh___609___.v <= max_vel);
 
@@ -905,15 +903,13 @@ esac;
 --INIT 
 --   veh___619___.lane_single;
 
-INIT 
-   veh___619___.rel_pos >= -200 & veh___619___.rel_pos <= 200;
 
 INVAR
     veh___619___.lane_single | veh___619___.lane_crossing;
 
 INVAR
-    (-300 <= veh___619___.rel_pos & veh___619___.rel_pos <= 300) &
-    (-300 <= veh___619___.prev_rel_pos & veh___619___.prev_rel_pos <= 300) &
+    (-123456 <= veh___619___.rel_pos & veh___619___.rel_pos <= 123456) &
+    (-123456 <= veh___619___.prev_rel_pos & veh___619___.prev_rel_pos <= 123456) &
     (max(-veh___619___.v, a_min) <= veh___619___.a & veh___619___.a <= a_max) &
     (0 <= veh___619___.v & veh___619___.v <= max_vel);
 
@@ -1009,15 +1005,13 @@ esac;
 --INIT 
 --   veh___629___.lane_single;
 
-INIT 
-   veh___629___.rel_pos >= -200 & veh___629___.rel_pos <= 200;
 
 INVAR
     veh___629___.lane_single | veh___629___.lane_crossing;
 
 INVAR
-    (-300 <= veh___629___.rel_pos & veh___629___.rel_pos <= 300) &
-    (-300 <= veh___629___.prev_rel_pos & veh___629___.prev_rel_pos <= 300) &
+    (-123456 <= veh___629___.rel_pos & veh___629___.rel_pos <= 123456) &
+    (-123456 <= veh___629___.prev_rel_pos & veh___629___.prev_rel_pos <= 123456) &
     (max(-veh___629___.v, a_min) <= veh___629___.a & veh___629___.a <= a_max) &
     (0 <= veh___629___.v & veh___629___.v <= max_vel);
 
@@ -1120,15 +1114,13 @@ INVAR -- Non-Ego cars may not "jump" over each other.
 --INIT 
 --   veh___639___.lane_single;
 
-INIT 
-   veh___639___.rel_pos >= -200 & veh___639___.rel_pos <= 200;
 
 INVAR
     veh___639___.lane_single | veh___639___.lane_crossing;
 
 INVAR
-    (-300 <= veh___639___.rel_pos & veh___639___.rel_pos <= 300) &
-    (-300 <= veh___639___.prev_rel_pos & veh___639___.prev_rel_pos <= 300) &
+    (-123456 <= veh___639___.rel_pos & veh___639___.rel_pos <= 123456) &
+    (-123456 <= veh___639___.prev_rel_pos & veh___639___.prev_rel_pos <= 123456) &
     (max(-veh___639___.v, a_min) <= veh___639___.a & veh___639___.a <= a_max) &
     (0 <= veh___639___.v & veh___639___.v <= max_vel);
 
@@ -1237,15 +1229,13 @@ INVAR -- Non-Ego cars may not "jump" over each other.
 --INIT 
 --   veh___649___.lane_single;
 
-INIT 
-   veh___649___.rel_pos >= -200 & veh___649___.rel_pos <= 200;
 
 INVAR
     veh___649___.lane_single | veh___649___.lane_crossing;
 
 INVAR
-    (-300 <= veh___649___.rel_pos & veh___649___.rel_pos <= 300) &
-    (-300 <= veh___649___.prev_rel_pos & veh___649___.prev_rel_pos <= 300) &
+    (-123456 <= veh___649___.rel_pos & veh___649___.rel_pos <= 123456) &
+    (-123456 <= veh___649___.prev_rel_pos & veh___649___.prev_rel_pos <= 123456) &
     (max(-veh___649___.v, a_min) <= veh___649___.a & veh___649___.a <= a_max) &
     (0 <= veh___649___.v & veh___649___.v <= max_vel);
 
@@ -1372,7 +1362,6 @@ ASSIGN
     init(veh___609___.change_lane_now) := 0;
     init(veh___609___.prev_rel_pos) := 0;
     -- init(veh___609___.v) := 35;
-    init(veh___609___.a) := 0;
     init(veh___609___.turn_signals) := ActionDir____CENTER;
     init(veh___609___.lc_leave_src_lane) := FALSE;
 
@@ -1447,7 +1436,7 @@ ASSIGN
 	
     -- update position (directly feed-through new velocity)
     next(veh___609___.prev_rel_pos) := veh___609___.rel_pos;
-    next(veh___609___.rel_pos) := min(max(veh___609___.rel_pos + (next(veh___609___.v) - next(ego.v)), -300), 300);
+    next(veh___609___.rel_pos) := min(max(veh___609___.rel_pos + (next(veh___609___.v) - next(ego.v)), -123456), 123456);
 
     -- update velocity (directly feed-through newly chosen accel)
     next(veh___609___.v) := min(max(veh___609___.v + veh___609___.a, 0), max_vel);
@@ -1461,7 +1450,6 @@ ASSIGN
     init(veh___619___.change_lane_now) := 0;
     init(veh___619___.prev_rel_pos) := 0;
     -- init(veh___619___.v) := 35;
-    init(veh___619___.a) := 0;
     init(veh___619___.turn_signals) := ActionDir____CENTER;
     init(veh___619___.lc_leave_src_lane) := FALSE;
 
@@ -1536,7 +1524,7 @@ ASSIGN
 	
     -- update position (directly feed-through new velocity)
     next(veh___619___.prev_rel_pos) := veh___619___.rel_pos;
-    next(veh___619___.rel_pos) := min(max(veh___619___.rel_pos + (next(veh___619___.v) - next(ego.v)), -300), 300);
+    next(veh___619___.rel_pos) := min(max(veh___619___.rel_pos + (next(veh___619___.v) - next(ego.v)), -123456), 123456);
 
     -- update velocity (directly feed-through newly chosen accel)
     next(veh___619___.v) := min(max(veh___619___.v + veh___619___.a, 0), max_vel);
@@ -1550,7 +1538,6 @@ ASSIGN
     init(veh___629___.change_lane_now) := 0;
     init(veh___629___.prev_rel_pos) := 0;
     -- init(veh___629___.v) := 35;
-    init(veh___629___.a) := 0;
     init(veh___629___.turn_signals) := ActionDir____CENTER;
     init(veh___629___.lc_leave_src_lane) := FALSE;
 
@@ -1625,7 +1612,7 @@ ASSIGN
 	
     -- update position (directly feed-through new velocity)
     next(veh___629___.prev_rel_pos) := veh___629___.rel_pos;
-    next(veh___629___.rel_pos) := min(max(veh___629___.rel_pos + (next(veh___629___.v) - next(ego.v)), -300), 300);
+    next(veh___629___.rel_pos) := min(max(veh___629___.rel_pos + (next(veh___629___.v) - next(ego.v)), -123456), 123456);
 
     -- update velocity (directly feed-through newly chosen accel)
     next(veh___629___.v) := min(max(veh___629___.v + veh___629___.a, 0), max_vel);
@@ -1639,7 +1626,6 @@ ASSIGN
     init(veh___639___.change_lane_now) := 0;
     init(veh___639___.prev_rel_pos) := 0;
     -- init(veh___639___.v) := 35;
-    init(veh___639___.a) := 0;
     init(veh___639___.turn_signals) := ActionDir____CENTER;
     init(veh___639___.lc_leave_src_lane) := FALSE;
 
@@ -1714,7 +1700,7 @@ ASSIGN
 	
     -- update position (directly feed-through new velocity)
     next(veh___639___.prev_rel_pos) := veh___639___.rel_pos;
-    next(veh___639___.rel_pos) := min(max(veh___639___.rel_pos + (next(veh___639___.v) - next(ego.v)), -300), 300);
+    next(veh___639___.rel_pos) := min(max(veh___639___.rel_pos + (next(veh___639___.v) - next(ego.v)), -123456), 123456);
 
     -- update velocity (directly feed-through newly chosen accel)
     next(veh___639___.v) := min(max(veh___639___.v + veh___639___.a, 0), max_vel);
@@ -1728,7 +1714,6 @@ ASSIGN
     init(veh___649___.change_lane_now) := 0;
     init(veh___649___.prev_rel_pos) := 0;
     -- init(veh___649___.v) := 35;
-    init(veh___649___.a) := 0;
     init(veh___649___.turn_signals) := ActionDir____CENTER;
     init(veh___649___.lc_leave_src_lane) := FALSE;
 
@@ -1803,7 +1788,7 @@ ASSIGN
 	
     -- update position (directly feed-through new velocity)
     next(veh___649___.prev_rel_pos) := veh___649___.rel_pos;
-    next(veh___649___.rel_pos) := min(max(veh___649___.rel_pos + (next(veh___649___.v) - next(ego.v)), -300), 300);
+    next(veh___649___.rel_pos) := min(max(veh___649___.rel_pos + (next(veh___649___.v) - next(ego.v)), -123456), 123456);
 
     -- update velocity (directly feed-through newly chosen accel)
     next(veh___649___.v) := min(max(veh___649___.v + veh___649___.a, 0), max_vel);

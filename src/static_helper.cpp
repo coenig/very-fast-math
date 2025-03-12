@@ -7,7 +7,6 @@
 
 #include "static_helper.h"
 #include "parser.h"
-#include "parser.h"
 #include "failable.h"
 #include "meta_rule.h"
 #include "model_checking/msatic_parsing/msatic_trace.h"
@@ -1634,7 +1633,7 @@ void postprocessTrace(MCTrace& trace)
 
    //trace = temp_trace;
 
-   for (auto& state : trace) {
+   for (auto& state : trace.getTrace()) {
       std::vector<std::pair<std::string, std::string>> to_add{};
 
       for (auto& varvals : state.second) {
@@ -1648,7 +1647,7 @@ void postprocessTrace(MCTrace& trace)
       }
    }
 
-   for (auto& state : trace) {
+   for (auto& state : trace.getTrace()) {
       for (auto& varvals : state.second) {
          if (StaticHelper::stringContains(varvals.first, "lane_b")) {
             size_t lane_num = std::stoi(StaticHelper::makeString(varvals.first[varvals.first.size() - 1]));
@@ -1697,7 +1696,7 @@ void postprocessTrace(MCTrace& trace)
 
    int size = trace.size();
    for (int i = 0; i < size; i++) {
-      trace.insert(trace.begin() + 2 * i + 1, { "dummy", { { "Array.CurrentState", "state_TacticalPlanner" } } });
+      trace.getTrace().insert(trace.getTrace().begin() + 2 * i + 1, {"dummy", {{"Array.CurrentState", "state_TacticalPlanner"}}});
    }
 }
 
@@ -1741,12 +1740,12 @@ MCTrace StaticHelper::extractMCTraceFromNusmv(const std::string& cexp_string)
          if ((StaticHelper::stringStartsWith(cline, "->") || StaticHelper::stringStartsWith(cline, "--Loop"))
             && !StaticHelper::stringContains(cline, "->Input:")) { // Jump over "input" state to squash envModel and Planner cycle into one.
             if (!vars.empty()) {
-               ce.push_back({ state, vars });
+               ce.addTraceStep({ state, vars });
                vars.clear();
             }
 
             if (StaticHelper::stringStartsWith(cline, "--Loop")) {
-               ce.push_back({ "LOOP", {} });
+               ce.addTraceStep({ "LOOP", {} });
             }
             else {
                state = StaticHelper::replaceAll(StaticHelper::replaceAll(StaticHelper::replaceAll(cline, "<-", ""), "->Input:", "I"), "->State:", "");
@@ -1781,7 +1780,7 @@ std::string vfm::StaticHelper::serializeMCTraceNusmvStyle(const MCTrace& trace, 
    std::string s = "Trace Description: vfm emulated trace\nTrace Type: vfm emulation\n";
    VarVals currentvals{};
 
-   for (const auto& state : trace) {
+   for (const auto& state : trace.getConstTrace()) {
       s += "  -> State: " + state.first + " <-\n";
 
       for (const auto& varVal : state.second) {
@@ -1804,8 +1803,8 @@ MCTrace vfm::StaticHelper::extractMCTraceFromKratos(const std::string& cexp_stri
    static const std::string RETURN_VARIABLE_NAME = "ret"; // TODO: Should be something more distinct, so it doesn't interfere with some actual variable.
    static constexpr int INDENT_STEP = 2;
 
-   MCTrace trace;
-   std::stack<std::string> return_variables;
+   MCTrace trace{};
+   std::stack<std::string> return_variables{};
    const auto lines = StaticHelper::split(cexp_string, "\n");
    int pc = 1;
    int indent_last = 0;
@@ -1861,14 +1860,14 @@ MCTrace vfm::StaticHelper::extractMCTraceFromKratos(const std::string& cexp_stri
 
          if (var != RETURN_VARIABLE_NAME) {
             full_state.insert({ var, val });
-            trace.push_back({ "pc_" + std::to_string(pc), full_state }); // Introduce individual state for each var change.
+            trace.addTraceStep({ "pc_" + std::to_string(pc), full_state }); // Introduce individual state for each var change.
          }
          else {
             std::cout << "Found return variable '" + RETURN_VARIABLE_NAME + "' in line '" + std::to_string(pc)
                + "'. Setting corresponding upper-level variable '" + return_variables.top() + "' to " + val + ".\n";
 
             full_state.insert({ return_variables.top(), val });
-            trace.push_back({ "pc_" + std::to_string(pc), full_state }); // Introduce individual state for each var change.
+            trace.addTraceStep({ "pc_" + std::to_string(pc), full_state }); // Introduce individual state for each var change.
          }
       }
       else if (StaticHelper::stringStartsWith(line, CALL_PREFIX)) { // We only need to find the return variable name and put it on the stack.
@@ -1967,7 +1966,7 @@ std::string vfm::StaticHelper::extractSeries(const MCTrace& trace, const std::ve
 
    s += "\n";
 
-   for (const auto& trace_point : trace) {
+   for (const auto& trace_point : trace.getConstTrace()) {
       auto& state = trace_point.second;
 
       for (const auto& varval : state) {
@@ -3303,7 +3302,7 @@ void vfm::StaticHelper::writeTextToFile(const std::string& text, const std::stri
 
 void vfm::StaticHelper::applyTimescaling(MCTrace& trace, const ScaleDescription& ts_description)
 {
-   for (auto& state : trace) {
+   for (auto& state : trace.getTrace()) {
       for (auto& var_assignment : state.second) {
          for (const auto& ts : ts_description.getVariables()) {
             if (ts.variable_name_ == var_assignment.first || "env." + ts.variable_name_ == var_assignment.first) {

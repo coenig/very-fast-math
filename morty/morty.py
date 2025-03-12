@@ -5,25 +5,36 @@ from ctypes import *
 
 env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "action": {
-        "type": "DiscreteMetaAction"
-    },
+        "type": "MultiAgentAction",
+        "action_config": {
+            "type": "DiscreteMetaAction",
+            "target_speeds": [0, 5, 10, 15, 20, 25, 30],
+        },
+    "longitudinal": True,
+    "lateral": True,
+},
     "observation": {
         "type": "Kinematics",
         "absolute": True,
         "normalize": False 
     },
-    "controlled_vehicles": 1,
-    "vehicles_count": 4,
+    "simulation_frequency": 15,  # [Hz]
+    "policy_frequency": 1,  # [Hz]
+    "controlled_vehicles": 5,
+    "vehicles_count": 0,
+    "screen_width": 1500,
+    "screen_height": 800,
+    "scaling": 4.5,
+    "show_trajectories": True,
 })
 
-env.reset()
+env.reset(seed=0)
 
 morty_lib = CDLL('./lib/libvfm.so')
-morty_lib.morty.argtypes = [c_char_p]
+morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
 morty_lib.morty.restype = c_char_p
-
-action = env.unwrapped.action_type.actions_indexes["IDLE"]
-for i in range(15):
+action = (2, 2, 2, 2, 2)
+for i in range(150):
     obs, reward, done, truncated, info = env.step(action)
     env.render()
 
@@ -33,10 +44,17 @@ for i in range(15):
             input += str(val) + ","
         input += ";"
     
-    res = morty_lib.morty(input.encode('utf-8'))
+    result = create_string_buffer(100)
+    print(input)
+    res = morty_lib.morty(input.encode('utf-8'), result, sizeof(result))
     
-    print(res)
-    #action = env.unwrapped.action_type.actions_indexes[output.decode()]
+    res_str = res.decode()
+    res_str = res_str.replace("LANE_LEFT", "0").replace("IDLE", "1").replace("LANE_RIGHT", "2").replace("FASTER", "3").replace("SLOWER", "4")
+    
+    print(res_str)
+    # output.decode()
+    action = tuple(res_str.split(';'))
 
-plt.imshow(env.render())
-plt.show()
+#plt.imshow(env.render())
+#plt.show()
+env
