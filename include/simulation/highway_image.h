@@ -96,6 +96,8 @@ public:
 
    std::shared_ptr<HighwayTranslator> getHighwayTranslator() const;
 
+   bool PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = true; // TODO: Remove this whole logic once visualization of road graphs works reliably.
+
 private:
    std::shared_ptr<HighwayTranslator> highway_translator_{};
    std::shared_ptr<Plain2DTranslator> plain_2d_translator_{ std::make_shared<Plain2DTranslator>() };
@@ -103,5 +105,6 @@ private:
    float cnt_{ -150 };
    float step_{ 0.05 };
    int num_lanes_{}; // TODO: Needed only for setting up 3D perspective, which should go into the 3D part.
+   Vec2D preserved_dimension_{}; // Only for paintRoadGraph, we need this variable to not go out of scope for the lambdas.
 };
 } // vfm

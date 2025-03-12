@@ -100,6 +100,6 @@ void aca4_1Run();
 std::shared_ptr<RoadGraph> paintExampleRoadGraphStrangeJunction(const bool write_to_files = true, const std::shared_ptr<RoadGraph> ego_section = nullptr);
 std::shared_ptr<RoadGraph> paintExampleRoadGraphRoundabout(const bool write_to_files = true, const std::shared_ptr<RoadGraph> ego_section = nullptr);
 
-extern "C" char* morty(const char* input);
+extern "C" char* morty(const char* input, char* result, size_t resultMaxLength);
 } // test
 } // vfm

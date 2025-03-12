@@ -7,6 +7,7 @@
 
 #include "testing/interactive_testing.h"
 
+#include <stdio.h>
 #include <string>
 #include <filesystem>
 #include <cstdlib>
@@ -1039,12 +1040,20 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(
    ra3->addSuccessor(ra4);
 
    if (write_to_files) {
+      bool old2 = image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_;
+      bool old3 = image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_;
+      image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
+      image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
+
       image2.paintRoadGraph(ra1, { 500, 60 }, {}, true);
       image2.store("../examples/junction", OutputType::pdf);
       image2.store("../examples/junction", OutputType::png);
       image3.paintRoadGraph(ra1, dim3D);
       image3.store("../examples/junction_3d", OutputType::pdf);
       image3.store("../examples/junction_3d", OutputType::png);
+
+      image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = old2;
+      image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = old3;
    }
 
    return ra1;
@@ -1100,7 +1109,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    section5.addLaneSegment(segment5);
    section6.addLaneSegment(segment6);
    section7.addLaneSegment(segment7);
-   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 40, 0, HighwayImage::EGO_MOCK_ID);
+   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 0, 0, HighwayImage::EGO_MOCK_ID);
    std::map<int, std::pair<float, float>> future_positions_of_others{};
    CarParsVec others0{ { 0, 10, 0, 0 } };
    CarParsVec others1{ { 0, 40, 0, 1 } };
@@ -1143,7 +1152,15 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    auto r5 = std::make_shared<RoadGraph>(5);
    auto r6 = std::make_shared<RoadGraph>(6);
    auto r7 = std::make_shared<RoadGraph>(7);
-   r0->setMyRoad(section0);
+
+   if (ego_section) {
+      ego_section->my_road_.section_end_ = section0.getLength();
+      r0 = ego_section;
+   }
+   else {
+      r0->setMyRoad(section0);
+   }
+
    r1->setMyRoad(section1);
    r2->setMyRoad(section2);
    r3->setMyRoad(section3);
@@ -1170,11 +1187,6 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    p3.rotate(a3, mid);
    p4.rotate(a4, mid);
    p5.rotate(a5, mid);
-
-   if (ego_section) {
-      ego_section->my_road_.section_end_ = r0->getMyRoad().getLength();
-      r0 = ego_section;
-   }
 
    r0->setOriginPoint(p0);
    r0->setAngle(a0);
@@ -1203,12 +1215,20 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    r1->addSuccessor(r6);
 
    if (write_to_files) {
-      image2.paintRoadGraph(r1, { 500, 60 }, {}, true);
+      bool old2 = image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_;
+      bool old3 = image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_;
+      image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
+      image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
+
+      image2.paintRoadGraph(r1, { 500, 60 }, {}, true, 60, (float)r0->getMyRoad().getNumLanes() / 2.0f);
       image2.store("../examples/roundabout", OutputType::pdf);
       image2.store("../examples/roundabout", OutputType::png);
       image3.paintRoadGraph(r1, dim3D, {}, true, 0, 0);
       image3.store("../examples/roundabout_3d", OutputType::pdf);
       image3.store("../examples/roundabout_3d", OutputType::png);
+
+      image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = old2;
+      image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = old3;
    }
 
    return r0;
@@ -1303,12 +1323,14 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 // --- EO remaining comments from main.cpp ---
 
 extern "C"
-char* morty(const char* input)
+char* morty(const char* input, char* result, size_t resultMaxLength)
 {
    std::string input_str(input);
    auto cars = StaticHelper::split(input_str, ";");
-   auto main_file = StaticHelper::readFile("morty/main.tpl") + "\n";
-   int ego_pos = -100000;
+   auto main_file = StaticHelper::readFile("./morty/main.tpl") + "\n";
+   int ego_pos = 0;
+
+   cars.erase(cars.end() - 1);
 
    for (int i = 0; i < cars.size(); i++) {
       auto car = cars[i];
@@ -1317,7 +1339,7 @@ char* morty(const char* input)
          auto data = StaticHelper::split(car, ",");
          
          // std::cout << data[1] << std::endl;
-         std::cout << i << ": " << data[2] << std::endl;
+         // std::cout << i << ": " << data[2] << std::endl;
          // std::cout << data[3] << std::endl;
          // std::cout << data[4] << std::endl;
          
@@ -1326,10 +1348,9 @@ char* morty(const char* input)
          float vx{ std::stof(data[3]) };
          float vy{ std::stof(data[4]) };
          
-         x = std::max(std::min(x, 300.0f), -300.0f);
+         x = std::max(std::min(x, std::numeric_limits<float>::max()), -300.0f);
          vx = std::max(std::min(vx, 70.0f), 0.0f);
 
-         if (ego_pos == -100000) ego_pos = x;
          main_file += "INIT env.veh___6" + std::to_string(i) + "9___.rel_pos = " + std::to_string((int) (x - ego_pos)) + ";\n";
          main_file += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int) (vx)) + ";\n";
 
@@ -1346,16 +1367,59 @@ char* morty(const char* input)
       }
    }
 
-   StaticHelper::writeTextToFile(main_file, "morty/main.smv");
-   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
-   std::cin.get();
-   MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile("morty/debug_trace_array.txt")};
+   StaticHelper::writeTextToFile(main_file, "./morty/main.smv");
+   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
+   MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile("./morty/debug_trace_array.txt")};
 
-   // std::cin.get();
+   VarValsFloat delta_ve{};
+   VarValsFloat delta_ol{};
 
-   // if (all_args[0] == "0") std::cout << "LANE_LEFT";
-   // else if (all_args[0] == "5") std::cout << "LANE_RIGHT";
-   // else std::cout << "IDLE";
+   if (trace.empty()) { // Return IDLE for now when no CEX found.
+      for (int i = 0; i < cars.size(); i++) {
+         delta_ol["veh___6" + std::to_string(i) + "9___.on_lane"] = 0;
+         delta_ve["veh___6" + std::to_string(i) + "9___.v"] = 0;
+      }
+   }
+   else {
+      std::set<std::string> variables_ve{};
+      std::set<std::string> variables_ol{};
 
-   return "IDLE";
+      for (int i = 0; i < cars.size(); i++) {
+         variables_ve.insert("veh___6" + std::to_string(i) + "9___.v");
+      }
+
+      for (int i = 0; i < cars.size(); i++) {
+         variables_ol.insert("veh___6" + std::to_string(i) + "9___.on_lane");
+      }
+
+      delta_ve = trace.getDeltaFromTo(0, 2,  variables_ve);
+      delta_ol = trace.getDeltaFromTo(0, trace.size() - 1, variables_ol);
+   }
+
+   std::string res{};
+
+   for (int i = 0; i < cars.size(); i++) {
+      auto d_ol = delta_ol.at("veh___6" + std::to_string(i) + "9___.on_lane");
+      auto d_ve = delta_ve.at("veh___6" + std::to_string(i) + "9___.v");
+
+      if (d_ol > 0) {
+         res += "LANE_LEFT;";
+      }
+      else if (d_ol > 0) {
+         res += "LANE_RIGHT;";
+      }
+      else if (d_ve > 0) {
+         res += "FASTER;";
+      }
+      else if (d_ve < 0) {
+         res += "SLOWER;";
+      }
+      else {
+         res += "IDLE;";
+      }
+   }
+
+   snprintf(result, resultMaxLength, "%s", res.c_str());
+
+   return result;
 }
