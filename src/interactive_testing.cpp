@@ -1403,10 +1403,10 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
       auto d_ve = delta_ve.at("veh___6" + std::to_string(i) + "9___.v");
 
       if (d_ol > 0) {
-         res += "LANE_RIGHT;";
+         res += "LANE_LEFT;";
       }
       else if (d_ol > 0) {
-         res += "LANE_LEFT;";
+         res += "LANE_RIGHT;";
       }
       else if (d_ve > 0) {
          res += "FASTER;";
