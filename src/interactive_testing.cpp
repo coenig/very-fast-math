@@ -1330,6 +1330,8 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    auto main_file = StaticHelper::readFile("./morty/main.tpl") + "\n";
    int ego_pos = 0;
 
+   cars.erase(cars.end() - 1);
+
    for (int i = 0; i < cars.size(); i++) {
       auto car = cars[i];
 
@@ -1364,36 +1366,41 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          }
       }
    }
-   std::cout << "*";
 
    StaticHelper::writeTextToFile(main_file, "./morty/main.smv");
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
    MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile("./morty/debug_trace_array.txt")};
 
-   VarValsFloat delta{};
+   VarValsFloat delta_ve{};
+   VarValsFloat delta_ol{};
 
    if (trace.empty()) { // Return IDLE for now when no CEX found.
       for (int i = 0; i < cars.size(); i++) {
-         delta["veh___6" + std::to_string(i) + "9___.on_lane"] = 0;
-         delta["veh___6" + std::to_string(i) + "9___.v"] = 0;
+         delta_ol["veh___6" + std::to_string(i) + "9___.on_lane"] = 0;
+         delta_ve["veh___6" + std::to_string(i) + "9___.v"] = 0;
       }
    }
    else {
-      std::set<std::string> variables{};
+      std::set<std::string> variables_ve{};
+      std::set<std::string> variables_ol{};
 
       for (int i = 0; i < cars.size(); i++) {
-         variables.insert("veh___6" + std::to_string(i) + "9___.on_lane");
-         variables.insert("veh___6" + std::to_string(i) + "9___.v");
+         variables_ve.insert("veh___6" + std::to_string(i) + "9___.v");
       }
 
-      delta = trace.getDeltaFromTo(0, 2,  variables);
+      for (int i = 0; i < cars.size(); i++) {
+         variables_ol.insert("veh___6" + std::to_string(i) + "9___.on_lane");
+      }
+
+      delta_ve = trace.getDeltaFromTo(0, 2,  variables_ve);
+      delta_ol = trace.getDeltaFromTo(0, trace.size() - 1, variables_ol);
    }
 
    std::string res{};
 
    for (int i = 0; i < cars.size(); i++) {
-      auto d_ol = delta.at("veh___6" + std::to_string(i) + "9___.on_lane");
-      auto d_ve = delta.at("veh___6" + std::to_string(i) + "9___.v");
+      auto d_ol = delta_ol.at("veh___6" + std::to_string(i) + "9___.on_lane");
+      auto d_ve = delta_ve.at("veh___6" + std::to_string(i) + "9___.v");
 
       if (d_ol > 0) {
          res += "LANE_RIGHT;";
