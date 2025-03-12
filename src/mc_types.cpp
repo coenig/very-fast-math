@@ -69,7 +69,7 @@ VarValsFloat vfm::MCTrace::getDeltaFromTo(const int step_a, const int step_b, co
 
 std::string vfm::MCTrace::getLastValueOfVariableAtStep(const std::string& var, const int step) const
 {
-   for (int i = step; i >= 0; i--) {
+   for (int i = std::min(step, (int) (trace_.size() - 1)); i >= 0; i--) {
       if (at(i).second.count(var)) return at(i).second.at(var);
    }
 
