@@ -28,7 +28,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "show_trajectories": True,
 })
 
-env.reset(seed=0)
+env.reset(seed=14)
 
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
