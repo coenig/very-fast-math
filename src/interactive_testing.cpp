@@ -1393,7 +1393,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
       }
 
       delta_ve = trace.getDeltaFromTo(0, 2, variables_ve);
-      delta_ol = trace.getDeltaFromTo(0, std::min((int) trace.size() - 1, 4), variables_ol);
+      delta_ol = trace.getDeltaFromTo(0, std::min((int) trace.size() - 1, 6), variables_ol);
    }
 
    std::string res{};
