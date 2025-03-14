@@ -1392,8 +1392,8 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          variables_ol.insert("veh___6" + std::to_string(i) + "9___.on_lane");
       }
 
-      delta_ve = trace.getDeltaFromTo(0, 2,  variables_ve);
-      delta_ol = trace.getDeltaFromTo(0, trace.size() - 1, variables_ol);
+      delta_ve = trace.getDeltaFromTo(0, 2, variables_ve);
+      delta_ol = trace.getDeltaFromTo(0, std::min((int) trace.size() - 1, 6), variables_ol);
    }
 
    std::string res{};
@@ -1402,7 +1402,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
       auto d_ol = delta_ol.at("veh___6" + std::to_string(i) + "9___.on_lane");
       auto d_ve = delta_ve.at("veh___6" + std::to_string(i) + "9___.v");
 
-      if (d_ol > 0) {
+      if (d_ol < 0) {
          res += "LANE_LEFT;";
       }
       else if (d_ol > 0) {
