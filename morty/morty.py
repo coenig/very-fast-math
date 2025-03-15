@@ -28,7 +28,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "show_trajectories": True,
 })
 
-env.reset(seed=31) # 16, 21, 23
+env.reset(seed=21) # 16, 21, 23
 
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
@@ -44,17 +44,35 @@ for i in range(150):
             input += str(val) + ","
         input += ";"
     
-    result = create_string_buffer(100)
+    result = create_string_buffer(5000)
     print(input)
     res = morty_lib.morty(input.encode('utf-8'), result, sizeof(result))
     
-    res_str = res.decode()
-    res_str = res_str.replace("LANE_LEFT", "0").replace("IDLE", "1").replace("LANE_RIGHT", "2").replace("FASTER", "3").replace("SLOWER", "4")
+    res_strs = (res.decode()).split(';')
     
-    print(res_str)
-    # output.decode()
-    action = tuple(res_str.split(';'))
+    # res_str = res_str.replace("LANE_LEFT", "0").replace("IDLE", "1").replace("LANE_RIGHT", "2").replace("FASTER", "3").replace("SLOWER", "4")
+    
+    action_vec = []
+    
+    for res_str in res_strs:
+        if res_str:
+            both_str = res_str.split('|')
+            delta_velocities_str = both_str[0]
+            delta_lanes_str = both_str[1]
+            
+            delta_vel = float(delta_velocities_str.split(',')[0])
+            delta_lane = float(delta_lanes_str.split(',')[0])
+        
+            if delta_lane < 0:
+               action_vec.append(0) # LANE_LEFT
+            elif delta_lane > 0:
+               action_vec.append(2) # LANE_RIGHT
+            elif delta_vel > 0:
+               action_vec.append(3) # FASTER
+            elif delta_vel < 0:
+               action_vec.append(4) # SLOWER
+            else:
+               action_vec.append(0) # IDLE
 
-#plt.imshow(env.render())
-#plt.show()
-env
+    print(action_vec)
+    action = tuple(action_vec)
