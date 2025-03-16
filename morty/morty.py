@@ -28,7 +28,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "show_trajectories": True,
 })
 
-env.reset(seed=21) # 16, 21, 23
+env.reset(seed=2) # 16, 21, 23
 
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
@@ -55,13 +55,18 @@ for i in range(150):
     action_vec = []
     
     for res_str in res_strs:
-        if res_str:
+        if res_str.replace('|', "").replace(',', "").replace(';', ""):
             both_str = res_str.split('|')
             delta_velocities_str = both_str[0]
             delta_lanes_str = both_str[1]
             
-            delta_vel = float(delta_velocities_str.split(',')[0])
-            delta_lane = float(delta_lanes_str.split(',')[0])
+            delta_vels = delta_velocities_str.split(',')
+            delta_lanes = delta_lanes_str.split(',')
+            delta_vel = float(delta_vels[0])
+            delta_lane = float(delta_lanes[0])
+        
+            if len(delta_lanes) > 3: # Last index is empty
+                delta_lane = float(delta_lanes[0]) + float(delta_lanes[1]) + float(delta_lanes[2])
         
             if delta_lane < 0:
                action_vec.append(0) # LANE_LEFT
