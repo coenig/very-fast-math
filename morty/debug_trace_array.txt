@@ -29,459 +29,99 @@
 -- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 2
 -- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 3
 -- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 4
--- invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) is false, a counter-example of size 5 exists
--- as demonstrated by the following execution sequence
-Trace Description: MSAT BMC counterexample 
-Trace Type: Counterexample 
-  -> State: 1.1 <-
-    globals."loc" = FALSE
-    env.cnt = 0
-    env.num_lanes = 4
-    env.segment_0_pos_begin = 0
-    env.segment_0_min_lane = 0
-    env.segment_0_max_lane = 3
-    env.segment_1_pos_begin = 31
-    env.segment_1_min_lane = 0
-    env.segment_1_max_lane = 3
-    env.veh___609___.do_lane_change = FALSE
-    env.veh___609___.abort_lc = FALSE
-    env.veh___609___.lc_direction = ActionDir____CENTER
-    env.veh___609___.turn_signals = ActionDir____CENTER
-    env.veh___609___.lc_timer = -1
-    env.veh___609___.time_since_last_lc = 1
-    env.veh___609___.change_lane_now = 0
-    env.veh___609___.rel_pos = 1381
-    env.veh___609___.prev_rel_pos = 0
-    env.veh___609___.a = -5
-    env.veh___609___.v = 10
-    env.veh___609___.lane_b0 = TRUE
-    env.veh___609___.lane_b1 = FALSE
-    env.veh___609___.lane_b2 = FALSE
-    env.veh___609___.lane_b3 = FALSE
-    env.veh___609___.lc_leave_src_lane = FALSE
-    env.veh___619___.do_lane_change = FALSE
-    env.veh___619___.abort_lc = FALSE
-    env.veh___619___.lc_direction = ActionDir____CENTER
-    env.veh___619___.turn_signals = ActionDir____CENTER
-    env.veh___619___.lc_timer = -1
-    env.veh___619___.time_since_last_lc = 1
-    env.veh___619___.change_lane_now = 0
-    env.veh___619___.rel_pos = 1183
-    env.veh___619___.prev_rel_pos = 0
-    env.veh___619___.a = 0
-    env.veh___619___.v = 5
-    env.veh___619___.lane_b0 = FALSE
-    env.veh___619___.lane_b1 = FALSE
-    env.veh___619___.lane_b2 = FALSE
-    env.veh___619___.lane_b3 = TRUE
-    env.veh___619___.lc_leave_src_lane = FALSE
-    env.veh___629___.do_lane_change = FALSE
-    env.veh___629___.abort_lc = FALSE
-    env.veh___629___.lc_direction = ActionDir____CENTER
-    env.veh___629___.turn_signals = ActionDir____CENTER
-    env.veh___629___.lc_timer = -1
-    env.veh___629___.time_since_last_lc = 1
-    env.veh___629___.change_lane_now = 0
-    env.veh___629___.rel_pos = 2348
-    env.veh___629___.prev_rel_pos = 0
-    env.veh___629___.a = -5
-    env.veh___629___.v = 28
-    env.veh___629___.lane_b0 = FALSE
-    env.veh___629___.lane_b1 = FALSE
-    env.veh___629___.lane_b2 = TRUE
-    env.veh___629___.lane_b3 = FALSE
-    env.veh___629___.lc_leave_src_lane = FALSE
-    env.veh___639___.do_lane_change = FALSE
-    env.veh___639___.abort_lc = FALSE
-    env.veh___639___.lc_direction = ActionDir____CENTER
-    env.veh___639___.turn_signals = ActionDir____CENTER
-    env.veh___639___.lc_timer = -1
-    env.veh___639___.time_since_last_lc = 1
-    env.veh___639___.change_lane_now = 0
-    env.veh___639___.rel_pos = 409
-    env.veh___639___.prev_rel_pos = 0
-    env.veh___639___.a = 0
-    env.veh___639___.v = 0
-    env.veh___639___.lane_b0 = FALSE
-    env.veh___639___.lane_b1 = FALSE
-    env.veh___639___.lane_b2 = TRUE
-    env.veh___639___.lane_b3 = TRUE
-    env.veh___639___.lc_leave_src_lane = FALSE
-    env.veh___649___.do_lane_change = FALSE
-    env.veh___649___.abort_lc = FALSE
-    env.veh___649___.lc_direction = ActionDir____CENTER
-    env.veh___649___.turn_signals = ActionDir____CENTER
-    env.veh___649___.lc_timer = -1
-    env.veh___649___.time_since_last_lc = 1
-    env.veh___649___.change_lane_now = 0
-    env.veh___649___.rel_pos = 389
-    env.veh___649___.prev_rel_pos = 0
-    env.veh___649___.a = 2
-    env.veh___649___.v = 0
-    env.veh___649___.lane_b0 = FALSE
-    env.veh___649___.lane_b1 = FALSE
-    env.veh___649___.lane_b2 = FALSE
-    env.veh___649___.lane_b3 = TRUE
-    env.veh___649___.lc_leave_src_lane = FALSE
-    env.tar_dir = ActionDir____LEFT
-    env.section___609___.source.x = 0
-    env.section___609___.source.y = 0
-    env.section___609___.drain.x = 7
-    env.section___609___.drain.y = 0
-    env.section___619___.source.x = 0
-    env.section___619___.source.y = 0
-    env.section___619___.drain.x = 0
-    env.section___619___.drain.y = 0
-    env.section___629___.source.x = 0
-    env.section___629___.source.y = 0
-    env.section___629___.drain.x = 0
-    env.section___629___.drain.y = 0
-    env.section___639___.source.x = 0
-    env.section___639___.source.y = 0
-    env.section___639___.drain.x = 0
-    env.section___639___.drain.y = 0
-    env.section___649___.source.x = 0
-    env.section___649___.source.y = 0
-    env.section___649___.drain.x = 0
-    env.section___649___.drain.y = 0
-    planner."!{abCond.cond26_all_conditions_fulfilled_raw}" = FALSE
-    planner."!{flCond.cond26_all_conditions_fulfilled_raw}" = FALSE
-    lane_changed = FALSE
-    lane_change_aborted = FALSE
-    env.empty_gap_indicator = -1
-    env.max_ego_visibility_range = 250
-    env.ego.min_time_between_lcs = 2
-    env.ego.complete_lane_change_latest_after = 4
-    env.ego.complete_lane_change_earliest_after = 4
-    env.ego.leave_src_lane_latest_after = 4
-    env.ego.leave_src_lane_earliest_after = 3
-    env.params.turn_signal_duration = 2
-    env.max_vel = 70
-    env.veh_length = 5
-    env.min_dist_long = -1
-    env.a_max = 2
-    env.a_min = -5
-    env.min_time_between_lcs = 1
-    env.abort_lane_change_complete_latest_after = 3
-    env.abort_lane_change_complete_earliest_after = 1
-    env.complete_lane_change_latest_after = 7
-    env.complete_lane_change_earliest_after = 1
-    env.leave_src_lane_latest_after = 5
-    env.leave_src_lane_earliest_after = 1
-    env.veh___649___.abs_pos = 389
-    env.veh___639___.abs_pos = 409
-    env.veh___629___.abs_pos = 2348
-    env.veh___619___.abs_pos = 1183
-    env.veh___609___.abs_pos = 1381
-    env.ego.lane_3_availability = 10031
-    env.lane_3_availability_from_segment_1 = 10000
-    env.lane_3_availability_from_segment_0 = 10031
-    env.lane_3_availability_from_segment_2 = 0
-    env.ego.lane_2_availability = 10031
-    env.lane_2_availability_from_segment_1 = 10000
-    env.lane_2_availability_from_segment_0 = 10031
-    env.lane_2_availability_from_segment_2 = 0
-    env.ego.lane_1_availability = 10031
-    env.lane_1_availability_from_segment_1 = 10000
-    env.lane_1_availability_from_segment_0 = 10031
-    env.lane_1_availability_from_segment_2 = 0
-    env.ego.lane_0_availability = 10031
-    env.lane_0_availability_from_segment_1 = 10000
-    env.lane_0_availability_from_segment_0 = 10031
-    env.lane_0_availability_from_segment_2 = 0
-    env.segment_2_pos_begin = 10031
-    env.large_number = 10000
-    env.ego.abs_pos = 0
-    env.veh___649___.on_lane_max = 3
-    env.veh___639___.on_lane_max = 3
-    env.veh___629___.on_lane_max = 2
-    env.veh___619___.on_lane_max = 3
-    env.veh___609___.on_lane_max = 0
-    env.veh___649___.on_lane_min = 3
-    env.veh___639___.on_lane_min = 2
-    env.veh___629___.on_lane_min = 2
-    env.veh___619___.on_lane_min = 3
-    env.veh___609___.on_lane_min = 0
-    env.veh___649___.same_lane_as_veh_3 = TRUE
-    env.veh___649___.same_lane_as_veh_2 = FALSE
-    env.veh___649___.same_lane_as_veh_1 = TRUE
-    env.veh___649___.same_lane_as_veh_0 = FALSE
-    env.veh___649___.lane_crossing = FALSE
-    env.veh___649___.lane_single = TRUE
-    env.veh___649___.lane_max = TRUE
-    env.veh___649___.lane_min = FALSE
-    env.veh___649___.lane_3 = TRUE
-    env.veh___649___.lane_23 = FALSE
-    env.veh___649___.lane_2 = FALSE
-    env.veh___649___.lane_12 = FALSE
-    env.veh___649___.lane_1 = FALSE
-    env.veh___649___.lane_01 = FALSE
-    env.veh___649___.lane_0 = FALSE
-    env.veh___639___.same_lane_as_veh_2 = TRUE
-    env.veh___639___.same_lane_as_veh_1 = TRUE
-    env.veh___639___.same_lane_as_veh_0 = FALSE
-    env.veh___639___.lane_crossing = TRUE
-    env.veh___639___.lane_single = FALSE
-    env.veh___639___.lane_max = FALSE
-    env.veh___639___.lane_min = FALSE
-    env.veh___639___.lane_3 = FALSE
-    env.veh___639___.lane_23 = TRUE
-    env.veh___639___.lane_2 = FALSE
-    env.veh___639___.lane_12 = FALSE
-    env.veh___639___.lane_1 = FALSE
-    env.veh___639___.lane_01 = FALSE
-    env.veh___639___.lane_0 = FALSE
-    env.veh___629___.same_lane_as_veh_1 = FALSE
-    env.veh___629___.same_lane_as_veh_0 = FALSE
-    env.veh___629___.lane_crossing = FALSE
-    env.veh___629___.lane_single = TRUE
-    env.veh___629___.lane_max = FALSE
-    env.veh___629___.lane_min = FALSE
-    env.veh___629___.lane_3 = FALSE
-    env.veh___629___.lane_23 = FALSE
-    env.veh___629___.lane_2 = TRUE
-    env.veh___629___.lane_12 = FALSE
-    env.veh___629___.lane_1 = FALSE
-    env.veh___629___.lane_01 = FALSE
-    env.veh___629___.lane_0 = FALSE
-    env.veh___619___.same_lane_as_veh_0 = FALSE
-    env.veh___619___.lane_crossing = FALSE
-    env.veh___619___.lane_single = TRUE
-    env.veh___619___.lane_max = TRUE
-    env.veh___619___.lane_min = FALSE
-    env.veh___619___.lane_3 = TRUE
-    env.veh___619___.lane_23 = FALSE
-    env.veh___619___.lane_2 = FALSE
-    env.veh___619___.lane_12 = FALSE
-    env.veh___619___.lane_1 = FALSE
-    env.veh___619___.lane_01 = FALSE
-    env.veh___619___.lane_0 = FALSE
-    env.veh___609___.lane_crossing = FALSE
-    env.veh___609___.lane_single = TRUE
-    env.veh___609___.lane_max = FALSE
-    env.veh___609___.lane_min = TRUE
-    env.veh___609___.lane_3 = FALSE
-    env.veh___609___.lane_23 = FALSE
-    env.veh___609___.lane_2 = FALSE
-    env.veh___609___.lane_12 = FALSE
-    env.veh___609___.lane_1 = FALSE
-    env.veh___609___.lane_01 = FALSE
-    env.veh___609___.lane_0 = TRUE
-    env.square_of_veh_v_0 = 100
-    env.square_of_veh_v_1 = 25
-    env.square_of_veh_v_2 = 784
-    env.square_of_veh_v_3 = 0
-    env.square_of_veh_v_4 = 0
-    env.ego.a = 0
-    env.ego.v = 0
-    planner."!{loc}" = FALSE
-    planner."flCond.cond26_all_conditions_fulfilled_raw" = FALSE
-    planner."abCond.cond26_all_conditions_fulfilled_raw" = FALSE
-    env.veh___649___.lane_move_up = TRUE
-    env.veh___649___.lane_move_down = FALSE
-    env.veh___649___.lane_unchanged = TRUE
-    env.veh___639___.lane_move_up = FALSE
-    env.veh___639___.lane_move_down = FALSE
-    env.veh___639___.lane_unchanged = TRUE
-    env.veh___629___.lane_move_up = FALSE
-    env.veh___629___.lane_move_down = FALSE
-    env.veh___629___.lane_unchanged = TRUE
-    env.veh___619___.lane_move_up = TRUE
-    env.veh___619___.lane_move_down = FALSE
-    env.veh___619___.lane_unchanged = TRUE
-    env.veh___609___.lane_move_up = FALSE
-    env.veh___609___.lane_move_down = TRUE
-    env.veh___609___.lane_unchanged = TRUE
-  -> State: 1.2 <-
-    env.cnt = 1
-    env.veh___609___.do_lane_change = TRUE
-    env.veh___609___.lc_direction = ActionDir____LEFT
-    env.veh___609___.turn_signals = ActionDir____LEFT
-    env.veh___609___.lc_timer = 0
-    env.veh___609___.time_since_last_lc = -1
-    env.veh___609___.rel_pos = 1386
-    env.veh___609___.prev_rel_pos = 1381
-    env.veh___609___.a = 0
-    env.veh___609___.v = 5
-    env.veh___619___.do_lane_change = TRUE
-    env.veh___619___.lc_direction = ActionDir____RIGHT
-    env.veh___619___.turn_signals = ActionDir____RIGHT
-    env.veh___619___.lc_timer = 0
-    env.veh___619___.time_since_last_lc = -1
-    env.veh___619___.rel_pos = 1188
-    env.veh___619___.prev_rel_pos = 1183
-    env.veh___629___.do_lane_change = TRUE
-    env.veh___629___.lc_direction = ActionDir____LEFT
-    env.veh___629___.turn_signals = ActionDir____LEFT
-    env.veh___629___.lc_timer = 0
-    env.veh___629___.time_since_last_lc = -1
-    env.veh___629___.rel_pos = 2371
-    env.veh___629___.prev_rel_pos = 2348
-    env.veh___629___.v = 23
-    env.veh___639___.do_lane_change = TRUE
-    env.veh___639___.lc_direction = ActionDir____LEFT
-    env.veh___639___.turn_signals = ActionDir____LEFT
-    env.veh___639___.lc_timer = 0
-    env.veh___639___.time_since_last_lc = -1
-    env.veh___639___.prev_rel_pos = 409
-    env.veh___649___.do_lane_change = TRUE
-    env.veh___649___.lc_direction = ActionDir____RIGHT
-    env.veh___649___.turn_signals = ActionDir____RIGHT
-    env.veh___649___.lc_timer = 0
-    env.veh___649___.time_since_last_lc = -1
-    env.veh___649___.rel_pos = 391
-    env.veh___649___.prev_rel_pos = 389
-    env.veh___649___.v = 2
-    env.veh___649___.abs_pos = 391
-    env.veh___629___.abs_pos = 2371
-    env.veh___619___.abs_pos = 1188
-    env.veh___609___.abs_pos = 1386
-    env.square_of_veh_v_0 = 25
-    env.square_of_veh_v_2 = 529
-    env.square_of_veh_v_4 = 4
-  -> State: 1.3 <-
-    env.cnt = 2
-    env.veh___609___.lc_timer = 1
-    env.veh___609___.rel_pos = 1391
-    env.veh___609___.prev_rel_pos = 1386
-    env.veh___609___.a = 1
-    env.veh___619___.lc_timer = 1
-    env.veh___619___.rel_pos = 1193
-    env.veh___619___.prev_rel_pos = 1188
-    env.veh___629___.lc_timer = 1
-    env.veh___629___.rel_pos = 2389
-    env.veh___629___.prev_rel_pos = 2371
-    env.veh___629___.v = 18
-    env.veh___639___.abort_lc = TRUE
-    env.veh___649___.lc_timer = 1
-    env.veh___649___.rel_pos = 395
-    env.veh___649___.prev_rel_pos = 391
-    env.veh___649___.a = 1
-    env.veh___649___.v = 4
-    env.veh___649___.abs_pos = 395
-    env.veh___629___.abs_pos = 2389
-    env.veh___619___.abs_pos = 1193
-    env.veh___609___.abs_pos = 1391
-    env.square_of_veh_v_2 = 324
-    env.square_of_veh_v_4 = 16
-  -> State: 1.4 <-
-    env.cnt = 3
-    env.veh___609___.abort_lc = TRUE
-    env.veh___609___.turn_signals = ActionDir____CENTER
-    env.veh___609___.lc_timer = 0
-    env.veh___609___.change_lane_now = 1
-    env.veh___609___.rel_pos = 1397
-    env.veh___609___.prev_rel_pos = 1391
-    env.veh___609___.a = 2
-    env.veh___609___.v = 6
-    env.veh___619___.lc_timer = 2
-    env.veh___619___.rel_pos = 1198
-    env.veh___619___.prev_rel_pos = 1193
-    env.veh___629___.abort_lc = TRUE
-    env.veh___629___.turn_signals = ActionDir____CENTER
-    env.veh___629___.lc_timer = 0
-    env.veh___629___.change_lane_now = 1
-    env.veh___629___.rel_pos = 2402
-    env.veh___629___.prev_rel_pos = 2389
-    env.veh___629___.v = 13
-    env.veh___639___.lc_timer = 1
-    env.veh___639___.a = 2
-    env.veh___649___.lc_timer = 2
-    env.veh___649___.rel_pos = 400
-    env.veh___649___.prev_rel_pos = 395
-    env.veh___649___.a = 0
-    env.veh___649___.v = 5
-    env.veh___649___.abs_pos = 400
-    env.veh___629___.abs_pos = 2402
-    env.veh___619___.abs_pos = 1198
-    env.veh___609___.abs_pos = 1397
-    env.square_of_veh_v_0 = 36
-    env.square_of_veh_v_2 = 169
-    env.square_of_veh_v_4 = 25
-  -> State: 1.5 <-
-    env.cnt = 4
-    env.veh___609___.do_lane_change = FALSE
-    env.veh___609___.abort_lc = FALSE
-    env.veh___609___.lc_direction = ActionDir____CENTER
-    env.veh___609___.lc_timer = -1
-    env.veh___609___.time_since_last_lc = 0
-    env.veh___609___.change_lane_now = 0
-    env.veh___609___.rel_pos = 1405
-    env.veh___609___.prev_rel_pos = 1397
-    env.veh___609___.v = 8
-    env.veh___619___.lc_timer = 3
-    env.veh___619___.rel_pos = 1203
-    env.veh___619___.prev_rel_pos = 1198
-    env.veh___619___.a = -5
-    env.veh___629___.do_lane_change = FALSE
-    env.veh___629___.abort_lc = FALSE
-    env.veh___629___.lc_direction = ActionDir____CENTER
-    env.veh___629___.lc_timer = -1
-    env.veh___629___.time_since_last_lc = 0
-    env.veh___629___.change_lane_now = 0
-    env.veh___629___.rel_pos = 2410
-    env.veh___629___.prev_rel_pos = 2402
-    env.veh___629___.v = 8
-    env.veh___639___.lc_timer = 2
-    env.veh___639___.rel_pos = 411
-    env.veh___639___.a = -2
-    env.veh___639___.v = 2
-    env.veh___649___.lc_timer = 3
-    env.veh___649___.rel_pos = 405
-    env.veh___649___.prev_rel_pos = 400
-    env.veh___649___.a = -4
-    env.veh___649___.abs_pos = 405
-    env.veh___639___.abs_pos = 411
-    env.veh___629___.abs_pos = 2410
-    env.veh___619___.abs_pos = 1203
-    env.veh___609___.abs_pos = 1405
-    env.square_of_veh_v_0 = 64
-    env.square_of_veh_v_2 = 64
-    env.square_of_veh_v_3 = 4
-    env.veh___639___.lane_move_down = TRUE
-    env.veh___639___.lane_unchanged = FALSE
-  -> State: 1.6 <-
-    env.cnt = 5
-    env.veh___609___.time_since_last_lc = 1
-    env.veh___609___.rel_pos = 1415
-    env.veh___609___.prev_rel_pos = 1405
-    env.veh___609___.a = 0
-    env.veh___609___.v = 10
-    env.veh___619___.lc_timer = 4
-    env.veh___619___.prev_rel_pos = 1203
-    env.veh___619___.a = 0
-    env.veh___619___.v = 0
-    env.veh___629___.time_since_last_lc = 1
-    env.veh___629___.rel_pos = 2413
-    env.veh___629___.prev_rel_pos = 2410
-    env.veh___629___.a = 0
-    env.veh___629___.v = 3
-    env.veh___639___.do_lane_change = FALSE
-    env.veh___639___.abort_lc = FALSE
-    env.veh___639___.lc_direction = ActionDir____CENTER
-    env.veh___639___.lc_timer = -1
-    env.veh___639___.time_since_last_lc = 0
-    env.veh___639___.prev_rel_pos = 411
-    env.veh___639___.a = 0
-    env.veh___639___.v = 0
-    env.veh___639___.lane_b3 = FALSE
-    env.veh___649___.lc_timer = 4
-    env.veh___649___.rel_pos = 406
-    env.veh___649___.prev_rel_pos = 405
-    env.veh___649___.a = -1
-    env.veh___649___.v = 1
-    env.veh___649___.abs_pos = 406
-    env.veh___629___.abs_pos = 2413
-    env.veh___609___.abs_pos = 1415
-    env.veh___639___.on_lane_max = 2
-    env.veh___649___.same_lane_as_veh_3 = FALSE
-    env.veh___639___.same_lane_as_veh_1 = FALSE
-    env.veh___639___.lane_crossing = FALSE
-    env.veh___639___.lane_single = TRUE
-    env.veh___639___.lane_23 = FALSE
-    env.veh___639___.lane_2 = TRUE
-    env.square_of_veh_v_0 = 100
-    env.square_of_veh_v_1 = 0
-    env.square_of_veh_v_2 = 9
-    env.square_of_veh_v_3 = 0
-    env.square_of_veh_v_4 = 1
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 5
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 6
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 7
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 8
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 9
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 10
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 11
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 12
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 13
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 14
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 15
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 16
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 17
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 18
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 19
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 20
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 21
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 22
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 23
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 24
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 25
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 26
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 27
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 28
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 29
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 30
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 31
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 32
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 33
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 34
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 35
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 36
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 37
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 38
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 39
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 40
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 41
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 42
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 43
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 44
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 45
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 46
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 47
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 48
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 49
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 50
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 51
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 52
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 53
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 54
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 55
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 56
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 57
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 58
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 59
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 60
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 61
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 62
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 63
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 64
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 65
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 66
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 67
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 68
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 69
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 70
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 71
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 72
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 73
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 74
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 75
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 76
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 77
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 78
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 79
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 80
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 81
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 82
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 83
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 84
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 85
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 86
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 87
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 88
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 89
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 90
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 91
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 92
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 93
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 94
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 95
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 96
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 97
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 98
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 99
+-- no counterexample found for invariant (((((env.cnt < 5 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 100
