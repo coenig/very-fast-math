@@ -14,9 +14,11 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "lateral": True,
 },
     "observation": {
-        "type": "Kinematics",
-        "absolute": True,
-        "normalize": False 
+    "type": "Kinematics",
+    "absolute": True,
+    "normalize": False,
+    "clip": False,
+    "see_behind": True
     },
     "simulation_frequency": 15,  # [Hz]
     "policy_frequency": 1,  # [Hz]
@@ -28,7 +30,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "show_trajectories": True,
 })
 
-env.reset(seed=2) # 16, 21, 23
+env.reset(seed=6) # 16, 21, 23
 
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
@@ -64,13 +66,28 @@ for i in range(150):
             delta_lanes = delta_lanes_str.split(',')
             delta_vel = float(delta_vels[0])
             delta_lane = float(delta_lanes[0])
-        
+            print(delta_lanes)
             if len(delta_lanes) > 2: # Last index is empty
                 delta_lane += float(delta_lanes[1])
 
             if len(delta_lanes) > 3: # Last index is empty
                 delta_lane += float(delta_lanes[2])
         
+            if len(delta_lanes) > 4: # Last index is empty
+                delta_lane += float(delta_lanes[3])
+
+            if len(delta_lanes) > 5: # Last index is empty
+                delta_lane += float(delta_lanes[4])
+
+            if len(delta_lanes) > 6: # Last index is empty
+                delta_lane += float(delta_lanes[5])
+        
+            #if len(delta_vels) > 2: # Last index is empty
+            #    delta_vel += float(delta_vels[1])
+
+            #if len(delta_vels) > 3: # Last index is empty
+            #    delta_vel += float(delta_vels[2])
+
             if delta_lane < 0:
                action_vec.append(0) # LANE_LEFT
             elif delta_lane > 0:
@@ -80,7 +97,14 @@ for i in range(150):
             elif delta_vel < 0:
                action_vec.append(4) # SLOWER
             else:
-               action_vec.append(0) # IDLE
-
+               action_vec.append(1) # IDLE
+    
+    if not action_vec:
+        action_vec.append(1)
+        action_vec.append(1)
+        action_vec.append(1)
+        action_vec.append(1)
+        action_vec.append(1)
+        
     print(action_vec)
     action = tuple(action_vec)

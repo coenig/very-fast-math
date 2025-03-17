@@ -24,104 +24,104 @@
 *** Copyright (C) 2009-2019 by University of Trento and others
 *** See http://mathsat.fbk.eu
 
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 0
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 1
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 2
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 3
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 4
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 5
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 6
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 7
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 8
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 9
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 10
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 11
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 12
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 13
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 14
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 15
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 16
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 17
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 18
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 19
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 20
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 21
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 22
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 23
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 24
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 25
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 26
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 27
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 28
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 29
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 30
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 31
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 32
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 33
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 34
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 35
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 36
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 37
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 38
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 39
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 40
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 41
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 42
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 43
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 44
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 45
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 46
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 47
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 48
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 49
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 50
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 51
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 52
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 53
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 54
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 55
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 56
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 57
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 58
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 59
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 60
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 61
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 62
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 63
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 64
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 65
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 66
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 67
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 68
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 69
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 70
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 71
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 72
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 73
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 74
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 75
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 76
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 77
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 78
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 79
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 80
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 81
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 82
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 83
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 84
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 85
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 86
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 87
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 88
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 89
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 90
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 91
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 92
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 93
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 94
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 95
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 96
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 97
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 98
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 99
--- no counterexample found for invariant ((((env.veh___609___.v < 10 | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 100
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 0
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 1
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 2
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 3
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 4
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 5
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 6
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 7
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 8
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 9
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 10
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 11
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 12
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 13
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 14
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 15
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 16
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 17
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 18
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 19
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 20
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 21
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 22
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 23
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 24
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 25
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 26
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 27
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 28
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 29
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 30
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 31
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 32
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 33
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 34
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 35
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 36
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 37
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 38
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 39
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 40
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 41
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 42
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 43
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 44
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 45
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 46
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 47
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 48
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 49
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 50
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 51
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 52
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 53
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 54
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 55
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 56
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 57
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 58
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 59
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 60
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 61
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 62
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 63
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 64
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 65
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 66
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 67
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 68
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 69
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 70
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 71
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 72
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 73
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 74
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 75
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 76
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 77
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 78
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 79
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 80
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 81
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 82
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 83
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 84
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 85
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 86
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 87
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 88
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 89
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 90
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 91
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 92
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 93
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 94
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 95
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 96
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 97
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 98
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 99
+-- no counterexample found for invariant (((((env.cnt < 3 | env.veh___609___.v < 10) | env.veh___619___.v > 5) | env.veh___629___.v > 5) | env.veh___639___.v > 5) | env.veh___649___.v > 5) up to 100
