@@ -65,8 +65,11 @@ for i in range(150):
             delta_vel = float(delta_vels[0])
             delta_lane = float(delta_lanes[0])
         
+            if len(delta_lanes) > 2: # Last index is empty
+                delta_lane += float(delta_lanes[1])
+
             if len(delta_lanes) > 3: # Last index is empty
-                delta_lane = float(delta_lanes[0]) + float(delta_lanes[1]) + float(delta_lanes[2])
+                delta_lane += float(delta_lanes[2])
         
             if delta_lane < 0:
                action_vec.append(0) # LANE_LEFT
