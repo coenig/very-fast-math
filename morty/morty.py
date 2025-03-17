@@ -43,7 +43,7 @@ for i in range(150):
     input = ""
     for el in obs:
         for val in el:
-            input += str(val) + ","
+            input += str(round(val, 2)) + ","
         input += ";"
     
     result = create_string_buffer(5000)
@@ -76,17 +76,23 @@ for i in range(150):
             if len(delta_lanes) > 4: # Last index is empty
                 delta_lane += float(delta_lanes[3])
 
-            if len(delta_lanes) > 5: # Last index is empty
-                delta_lane += float(delta_lanes[4])
+            # if len(delta_lanes) > 5: # Last index is empty
+            #     delta_lane += float(delta_lanes[4])
 
-            if len(delta_lanes) > 6: # Last index is empty
-                delta_lane += float(delta_lanes[5])
+            # if len(delta_lanes) > 6: # Last index is empty
+            #     delta_lane += float(delta_lanes[5])
         
-            #if len(delta_vels) > 2: # Last index is empty
-            #    delta_vel += float(delta_vels[1])
+            if len(delta_vels) > 2: # Last index is empty
+               delta_vel += float(delta_vels[1])
 
-            #if len(delta_vels) > 3: # Last index is empty
-            #    delta_vel += float(delta_vels[2])
+            if len(delta_vels) > 3: # Last index is empty
+               delta_vel += float(delta_vels[2])
+
+            if len(delta_vels) > 4: # Last index is empty
+               delta_vel += float(delta_vels[3])
+
+            if len(delta_vels) > 5: # Last index is empty
+               delta_vel += float(delta_vels[4])
 
             if delta_lane < 0:
                action_vec.append(0) # LANE_LEFT
