@@ -100,6 +100,7 @@ for i in range(150):
                action_vec.append(1) # IDLE
     
     if not action_vec:
+        print("WARNING: No CEX received.")
         action_vec.append(1)
         action_vec.append(1)
         action_vec.append(1)
