@@ -170,6 +170,11 @@ float calculateScaleFactor(int screenNumber)
 
 MCScene::MCScene(int argc, char* argv[]) : Failable(GUI_NAME + "-GUI")
 {
+   std::string current_exec_name{ argv[0] };
+   std::filesystem::path current_exec_path{ current_exec_name };
+   std::filesystem::path current_bin_folder{ current_exec_path.parent_path() };
+   current_bin_folder_str_ = current_bin_folder.generic_string();
+
    for (int screenNumber = 0; screenNumber < Fl::screen_count(); ++screenNumber) {
       Fl::screen_scale(screenNumber, calculateScaleFactor(screenNumber));
    }
@@ -188,7 +193,7 @@ MCScene::MCScene(int argc, char* argv[]) : Failable(GUI_NAME + "-GUI")
    addNote("Terminal initialized.");
 
    window_->resizable(window_);
-   Fl_PNG_Image icon("../src/templates/logo-plain.png");
+   Fl_PNG_Image icon((current_bin_folder_str_ + "/../src/templates/logo-plain.png").c_str());
    window_->icon(&icon);
 
    button_reload_json_->callback(buttonReloadJSON, this);
@@ -362,7 +367,7 @@ void vfm::MCScene::setValueForJSONKeyFromString(const std::string& key_to_find, 
 
 std::string MCScene::getTemplateDir() const
 {
-   return "../src/templates/";
+   return current_bin_folder_str_ + "/../src/templates/";
 }
 
 std::string MCScene::getCachedDir() const
