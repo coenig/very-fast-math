@@ -37,15 +37,17 @@ int main(int argc, char* argv[])
    //runInterpreter();
    //termnate();
 
-   MCScene mc_scene{ argc, argv };
-   return mc_scene.getFlRunInfo();
-   termnate();
+   if (argc == 1) {
+      MCScene mc_scene{ argc, argv };
+      return mc_scene.getFlRunInfo();
+      termnate();
+   }
 
    //aca4_1Run();
    //termnate();
 
-   //return artifactRun(argc, argv);
-   //termnate();
+   return artifactRun(argc, argv);
+   termnate();
 
    //convenienceArtifactRunHardcoded(MCExecutionType::all);
    //termnate();

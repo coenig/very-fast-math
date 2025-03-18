@@ -209,6 +209,8 @@ private:
    bool mc_running_internal_{ false };
 
    ProgressDetector progress_detector_{};
+
+   std::string current_bin_folder_str_{};
 };
 
 } // vfm
