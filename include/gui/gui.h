@@ -210,7 +210,7 @@ private:
 
    ProgressDetector progress_detector_{};
 
-   std::string current_bin_folder_str_{};
+   std::string path_to_template_dir_{};
 };
 
 } // vfm
