@@ -70,6 +70,10 @@ void quickGenerateEnvModels(const std::vector<int>& car_nums = { 0, 1, 2, 3, 4, 
 //);
 int artifactRun(int argc, char* argv[]);
 
+const std::string CMD_TEMPLATE_DIR_PATH{ "--template-dir" };
+
+InputParser createInputParserForMC(int& argc, char** argv);
+
 void cameraRotationTester();
 void runMCExperiments(const MCExecutionType type = MCExecutionType::all);
 
