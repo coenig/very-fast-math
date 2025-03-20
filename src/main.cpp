@@ -37,12 +37,6 @@ int main(int argc, char* argv[])
    //runInterpreter();
    //termnate();
 
-   if (argc == 1) {
-      MCScene mc_scene{ argc, argv };
-      return mc_scene.getFlRunInfo();
-      termnate();
-   }
-
    //aca4_1Run();
    //termnate();
 

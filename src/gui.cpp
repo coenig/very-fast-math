@@ -170,17 +170,14 @@ float calculateScaleFactor(int screenNumber)
 
 MCScene::MCScene(int argc, char* argv[]) : Failable(GUI_NAME + "-GUI")
 {
-   std::cout << "." << std::endl;
    std::string current_exec_name{ argv[0] };
    std::filesystem::path current_exec_path{ current_exec_name };
    std::filesystem::path current_bin_folder{ current_exec_path.parent_path() };
    current_bin_folder_str_ = current_bin_folder.generic_string();
-   std::cout << "." << std::endl;
 
    for (int screenNumber = 0; screenNumber < Fl::screen_count(); ++screenNumber) {
       Fl::screen_scale(screenNumber, calculateScaleFactor(screenNumber));
    }
-   std::cout << "." << std::endl;
 
    window_->color(FL_RED);
    main_group_->end();

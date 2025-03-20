@@ -6,6 +6,7 @@
 /// @file
 
 #include "testing/interactive_testing.h"
+#include "gui/gui.h"
 
 #include <stdio.h>
 #include <string>
@@ -559,6 +560,7 @@ const std::string CMD_MODE{ "--mode" };
 const std::string MODE_PARSER{ "parser" };
 const std::string MODE_MC{ "mc" };
 const std::string MODE_CEX{ "cex" };
+const std::string MODE_GUI{ "gui" };
 
 // Optional inputs (with default values).
 const std::string CMD_DIR_ROOT{ "--rootdir" };
@@ -599,7 +601,7 @@ InputParser createInputParserForMC(int& argc, char** argv)
 #endif
    parser.addFlag(CMD_HELP, "shows parameter values and help");
 
-   parser.addParameter(CMD_MODE, "general run mode, '" + MODE_PARSER + "' or '" + MODE_MC + "' or '" + MODE_CEX + "'");
+   parser.addParameter(CMD_MODE, "general run mode, '" + MODE_PARSER + "' or '" + MODE_MC + "' or '" + MODE_CEX + "' or '" + MODE_GUI + "'");
 
    return parser;
 }
@@ -616,7 +618,12 @@ int vfm::test::artifactRun(int argc, char* argv[])
       inputs.printArgumentsForMC();
       return EXIT_FAILURE;
    }
-   
+
+   if (inputs.getCmdMultiOption(CMD_MODE).count(MODE_GUI)) {
+      MCScene mc_scene{ argc, argv };
+      return mc_scene.getFlRunInfo();
+   }
+
    std::string generated_dir{ inputs.getCmdOption(CMD_DIR_ROOT) + "/" + inputs.getCmdOption(CMD_DIR_TARGET) + "/" };
 
    if (inputs.getCmdMultiOption(CMD_MODE).count(MODE_PARSER)) // *** Parsing and EnvModel generation ***
