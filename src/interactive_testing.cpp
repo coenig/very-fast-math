@@ -571,8 +571,6 @@ const std::string CMD_PLANNER_FILENAME{ "--planner-include-file" };
 const std::string CMD_MAIN_TEMPLATE{ "--main-template-file" };
 const std::string CMD_CACHE_DIR{ "--chache-dir" };
 const std::string CMD_CEX_FILE{ "--cex-file-name" };
-const std::string CMD_NUXMV_EXEC{ "--path-to-nuxmv" };
-const std::string CMD_KRATOS_EXEC{ "--path-to-kratos" };
 
 #ifdef _WIN32
 const std::string CMD_CPP_EXEC{ "--path-to-cpp" };
@@ -621,7 +619,7 @@ int vfm::test::artifactRun(int argc, char* argv[])
    }
 
    if (inputs.getCmdMultiOption(CMD_MODE).count(MODE_GUI)) {
-      MCScene mc_scene{ argc, argv };
+      MCScene mc_scene{ inputs };
       return mc_scene.getFlRunInfo();
    }
 
