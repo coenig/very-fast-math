@@ -6,7 +6,7 @@
       "#05": "@f(range_dist, x, a, b, c) { x = array((b - a) / c + 1 ); @i = get(x); while(i - get(x) < (b - a) / c + 1) { i = a + (i - get(x)) * c; @i = i +1}; i = nan() }",
       "#06": "@f(range_mult, x, start, cnt, mult) { x = array(cnt + 1); @i = get(x); @val = start; while(i < get(x) + cnt) { i = val; @i = i + 1; @val = val * mult }; i = nan() }",
       "#07": "range(@nonegos, 2, 2);",
-      "#08": "range(@lanes, 3,4);",
+      "#08": "range(@lanes, 2,5);",
       "#09": "range_mult(@d, 125, 7, 2);",
       "#10": "range_mult(@t, 500, 3, 2);",
       "#11": "x[0] * y[3]",
