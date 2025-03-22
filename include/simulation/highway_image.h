@@ -96,7 +96,7 @@ public:
 
    std::shared_ptr<HighwayTranslator> getHighwayTranslator() const;
 
-   bool PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = true; // TODO: Remove this whole logic once visualization of road graphs works reliably.
+   bool PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false; // TODO: Remove this whole logic once visualization of road graphs works reliably.
 
 private:
    std::shared_ptr<HighwayTranslator> highway_translator_{};

@@ -6,6 +6,7 @@
 /// @file
 
 #include "testing/interactive_testing.h"
+#include "gui/gui.h"
 
 #include <stdio.h>
 #include <string>
@@ -559,6 +560,7 @@ const std::string CMD_MODE{ "--mode" };
 const std::string MODE_PARSER{ "parser" };
 const std::string MODE_MC{ "mc" };
 const std::string MODE_CEX{ "cex" };
+const std::string MODE_GUI{ "gui" };
 
 // Optional inputs (with default values).
 const std::string CMD_DIR_ROOT{ "--rootdir" };
@@ -569,8 +571,6 @@ const std::string CMD_PLANNER_FILENAME{ "--planner-include-file" };
 const std::string CMD_MAIN_TEMPLATE{ "--main-template-file" };
 const std::string CMD_CACHE_DIR{ "--chache-dir" };
 const std::string CMD_CEX_FILE{ "--cex-file-name" };
-const std::string CMD_NUXMV_EXEC{ "--path-to-nuxmv" };
-const std::string CMD_KRATOS_EXEC{ "--path-to-kratos" };
 
 #ifdef _WIN32
 const std::string CMD_CPP_EXEC{ "--path-to-cpp" };
@@ -578,7 +578,7 @@ const std::string CMD_CPP_EXEC{ "--path-to-cpp" };
 
 const std::string CMD_HELP{ "--help" };
 
-InputParser createInputParserForMC(int& argc, char** argv)
+InputParser vfm::test::createInputParserForMC(int& argc, char** argv)
 {
    InputParser parser{ argc, argv };
 
@@ -587,6 +587,7 @@ InputParser createInputParserForMC(int& argc, char** argv)
    parser.addParameter(CMD_DIR_ROOT, "directory to read input files from", ".");
    parser.addParameter(CMD_DIR_TARGET, "directory for generated files, realtive to '" + CMD_DIR_ROOT + "'", "generated");
    parser.addParameter(CMD_ENV_MODEL_JSON_FILE, "config json for environment model definition, relative to '" + CMD_DIR_ROOT + "'", "envmodel_config.json");
+   parser.addParameter(CMD_TEMPLATE_DIR_PATH, "template dir, relative to '" + CMD_DIR_ROOT + "'", "../src/templates");
    parser.addParameter(CMD_ENV_MODEL_TEMPLATE, "path to the env model template file, relative to '" + CMD_DIR_ROOT + "'", "EnvModel.tpl");
    parser.addParameter(CMD_PLANNER_FILENAME, "path to the planner include file, relative to '" + CMD_DIR_ROOT + "'", "vfm-includes-planner.txt");
    parser.addParameter(CMD_MAIN_TEMPLATE, "path to the main template file, relative to '" + CMD_DIR_ROOT + "'", "main.tpl");
@@ -599,7 +600,7 @@ InputParser createInputParserForMC(int& argc, char** argv)
 #endif
    parser.addFlag(CMD_HELP, "shows parameter values and help");
 
-   parser.addParameter(CMD_MODE, "general run mode, '" + MODE_PARSER + "' or '" + MODE_MC + "' or '" + MODE_CEX + "'");
+   parser.addParameter(CMD_MODE, "general run mode, '" + MODE_PARSER + "' or '" + MODE_MC + "' or '" + MODE_CEX + "' or '" + MODE_GUI + "'");
 
    return parser;
 }
@@ -616,7 +617,12 @@ int vfm::test::artifactRun(int argc, char* argv[])
       inputs.printArgumentsForMC();
       return EXIT_FAILURE;
    }
-   
+
+   if (inputs.getCmdMultiOption(CMD_MODE).count(MODE_GUI)) {
+      MCScene mc_scene{ inputs };
+      return mc_scene.getFlRunInfo();
+   }
+
    std::string generated_dir{ inputs.getCmdOption(CMD_DIR_ROOT) + "/" + inputs.getCmdOption(CMD_DIR_TARGET) + "/" };
 
    if (inputs.getCmdMultiOption(CMD_MODE).count(MODE_PARSER)) // *** Parsing and EnvModel generation ***
@@ -1337,22 +1343,22 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
 
       if (!car.empty()) {
          auto data = StaticHelper::split(car, ",");
-         
+
          // std::cout << data[1] << std::endl;
          // std::cout << i << ": " << data[2] << std::endl;
          // std::cout << data[3] << std::endl;
          // std::cout << data[4] << std::endl;
-         
+
          float x{ std::stof(data[1]) };
          float y{ std::stof(data[2]) };
          float vx{ std::stof(data[3]) };
          float vy{ std::stof(data[4]) };
-         
+
          x = std::max(std::min(x, std::numeric_limits<float>::max()), -300.0f);
          vx = std::max(std::min(vx, 70.0f), 0.0f);
 
-         main_file += "INIT env.veh___6" + std::to_string(i) + "9___.rel_pos = " + std::to_string((int) (x - ego_pos)) + ";\n";
-         main_file += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int) (vx)) + ";\n";
+         main_file += "INIT env.veh___6" + std::to_string(i) + "9___.rel_pos = " + std::to_string((int)(x - ego_pos)) + ";\n";
+         main_file += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx)) + ";\n";
 
          std::set<int> lanes{};
 
@@ -1369,55 +1375,54 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
 
    StaticHelper::writeTextToFile(main_file, "./morty/main.smv");
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
-   MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile("./morty/debug_trace_array.txt")};
+   MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile("./morty/debug_trace_array.txt") };
 
-   VarValsFloat delta_ve{};
-   VarValsFloat delta_ol{};
+   std::vector<VarValsFloat> deltas{};
+   std::set<std::string> variables{};
 
-   if (trace.empty()) { // Return IDLE for now when no CEX found.
-      for (int i = 0; i < cars.size(); i++) {
-         delta_ol["veh___6" + std::to_string(i) + "9___.on_lane"] = 0;
-         delta_ve["veh___6" + std::to_string(i) + "9___.v"] = 0;
-      }
+   for (int i = 0; i < cars.size(); i++) {
+      variables.insert("veh___6" + std::to_string(i) + "9___.v");
+      variables.insert("veh___6" + std::to_string(i) + "9___.on_lane");
    }
-   else {
-      std::set<std::string> variables_ve{};
-      std::set<std::string> variables_ol{};
 
-      for (int i = 0; i < cars.size(); i++) {
-         variables_ve.insert("veh___6" + std::to_string(i) + "9___.v");
-      }
-
-      for (int i = 0; i < cars.size(); i++) {
-         variables_ol.insert("veh___6" + std::to_string(i) + "9___.on_lane");
-      }
-
-      delta_ve = trace.getDeltaFromTo(0, 2, variables_ve);
-      delta_ol = trace.getDeltaFromTo(0, std::min((int) trace.size() - 1, 6), variables_ol);
-   }
+   deltas = trace.getAllDeltas(variables);
 
    std::string res{};
 
    for (int i = 0; i < cars.size(); i++) {
-      auto d_ol = delta_ol.at("veh___6" + std::to_string(i) + "9___.on_lane");
-      auto d_ve = delta_ve.at("veh___6" + std::to_string(i) + "9___.v");
+      for (const auto& delta : deltas) {
+         res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.v")) + ",";
+      }
+      
+      res += "|";
 
-      if (d_ol < 0) {
-         res += "LANE_LEFT;";
+      for (const auto& delta : deltas) {
+         res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.on_lane")) + ",";
       }
-      else if (d_ol > 0) {
-         res += "LANE_RIGHT;";
-      }
-      else if (d_ve > 0) {
-         res += "FASTER;";
-      }
-      else if (d_ve < 0) {
-         res += "SLOWER;";
-      }
-      else {
-         res += "IDLE;";
-      }
+
+      res += ";";
    }
+
+   //for (int i = 0; i < cars.size(); i++) {
+   //   auto d_ol = delta_ol.at("veh___6" + std::to_string(i) + "9___.on_lane");
+   //   auto d_ve = delta_ve.at("veh___6" + std::to_string(i) + "9___.v");
+
+   //   if (d_ol < 0) {
+   //      res += "LANE_LEFT;";
+   //   }
+   //   else if (d_ol > 0) {
+   //      res += "LANE_RIGHT;";
+   //   }
+   //   else if (d_ve > 0) {
+   //      res += "FASTER;";
+   //   }
+   //   else if (d_ve < 0) {
+   //      res += "SLOWER;";
+   //   }
+   //   else {
+   //      res += "IDLE;";
+   //   }
+   //}
 
    snprintf(result, resultMaxLength, "%s", res.c_str());
 
