@@ -40,8 +40,21 @@ int main(int argc, char* argv[])
    //aca4_1Run();
    //termnate();
 
-   return artifactRun(argc, argv);
-   termnate();
+   if (argc == 1) {
+      std::cout << "Found no command line arguments. Creating artificial comand to trigger M²oRTy GUI.\n";
+
+      char* argvv[3];
+      argc = 3;
+
+      argvv[0] = argv[0];
+      argvv[1] = "--mode";
+      argvv[2] = "gui";
+      return artifactRun(argc, argvv);
+   }
+   else {
+      return artifactRun(argc, argv);
+   }
+
 
    //convenienceArtifactRunHardcoded(MCExecutionType::all);
    //termnate();
