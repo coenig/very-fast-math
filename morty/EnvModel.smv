@@ -621,8 +621,8 @@ DEFINE
    
 	veh___619___.same_lane_as_veh_0 := (FALSE
       | ((veh___609___.lane_b0 & veh___619___.lane_b0)  )
-      | ((veh___609___.lane_b1 & veh___619___.lane_b1) & !(veh___609___.lane_b0 & veh___619___.lane_b2) & !(veh___609___.lane_b2 & veh___619___.lane_b0) )
-      | ((veh___609___.lane_b2 & veh___619___.lane_b2) & !(veh___609___.lane_b1 & veh___619___.lane_b3) & !(veh___609___.lane_b3 & veh___619___.lane_b1) )
+      | ((veh___609___.lane_b1 & veh___619___.lane_b1) ) -- & !(veh___609___.lane_b0 & veh___619___.lane_b2) & !(veh___609___.lane_b2 & veh___619___.lane_b0) )
+      | ((veh___609___.lane_b2 & veh___619___.lane_b2) ) -- & !(veh___609___.lane_b1 & veh___619___.lane_b3) & !(veh___609___.lane_b3 & veh___619___.lane_b1) )
       | ((veh___609___.lane_b3 & veh___619___.lane_b3)  )
       
    );
@@ -664,15 +664,15 @@ DEFINE
    
 	veh___629___.same_lane_as_veh_0 := (FALSE
       | ((veh___609___.lane_b0 & veh___629___.lane_b0)  )
-      | ((veh___609___.lane_b1 & veh___629___.lane_b1) & !(veh___609___.lane_b0 & veh___629___.lane_b2) & !(veh___609___.lane_b2 & veh___629___.lane_b0) )
-      | ((veh___609___.lane_b2 & veh___629___.lane_b2) & !(veh___609___.lane_b1 & veh___629___.lane_b3) & !(veh___609___.lane_b3 & veh___629___.lane_b1) )
+      | ((veh___609___.lane_b1 & veh___629___.lane_b1) ) -- & !(veh___609___.lane_b0 & veh___629___.lane_b2) & !(veh___609___.lane_b2 & veh___629___.lane_b0) )
+      | ((veh___609___.lane_b2 & veh___629___.lane_b2) ) -- & !(veh___609___.lane_b1 & veh___629___.lane_b3) & !(veh___609___.lane_b3 & veh___629___.lane_b1) )
       | ((veh___609___.lane_b3 & veh___629___.lane_b3)  )
       
    );
    veh___629___.same_lane_as_veh_1 := (FALSE
       | ((veh___619___.lane_b0 & veh___629___.lane_b0)  )
-      | ((veh___619___.lane_b1 & veh___629___.lane_b1) & !(veh___619___.lane_b0 & veh___629___.lane_b2) & !(veh___619___.lane_b2 & veh___629___.lane_b0) )
-      | ((veh___619___.lane_b2 & veh___629___.lane_b2) & !(veh___619___.lane_b1 & veh___629___.lane_b3) & !(veh___619___.lane_b3 & veh___629___.lane_b1) )
+      | ((veh___619___.lane_b1 & veh___629___.lane_b1) ) -- & !(veh___619___.lane_b0 & veh___629___.lane_b2) & !(veh___619___.lane_b2 & veh___629___.lane_b0) )
+      | ((veh___619___.lane_b2 & veh___629___.lane_b2) ) -- & !(veh___619___.lane_b1 & veh___629___.lane_b3) & !(veh___619___.lane_b3 & veh___629___.lane_b1) )
       | ((veh___619___.lane_b3 & veh___629___.lane_b3)  )
       
    );
@@ -714,22 +714,22 @@ DEFINE
    
 	veh___639___.same_lane_as_veh_0 := (FALSE
       | ((veh___609___.lane_b0 & veh___639___.lane_b0)  )
-      | ((veh___609___.lane_b1 & veh___639___.lane_b1) & !(veh___609___.lane_b0 & veh___639___.lane_b2) & !(veh___609___.lane_b2 & veh___639___.lane_b0) )
-      | ((veh___609___.lane_b2 & veh___639___.lane_b2) & !(veh___609___.lane_b1 & veh___639___.lane_b3) & !(veh___609___.lane_b3 & veh___639___.lane_b1) )
+      | ((veh___609___.lane_b1 & veh___639___.lane_b1) ) -- & !(veh___609___.lane_b0 & veh___639___.lane_b2) & !(veh___609___.lane_b2 & veh___639___.lane_b0) )
+      | ((veh___609___.lane_b2 & veh___639___.lane_b2) ) -- & !(veh___609___.lane_b1 & veh___639___.lane_b3) & !(veh___609___.lane_b3 & veh___639___.lane_b1) )
       | ((veh___609___.lane_b3 & veh___639___.lane_b3)  )
       
    );
    veh___639___.same_lane_as_veh_1 := (FALSE
       | ((veh___619___.lane_b0 & veh___639___.lane_b0)  )
-      | ((veh___619___.lane_b1 & veh___639___.lane_b1) & !(veh___619___.lane_b0 & veh___639___.lane_b2) & !(veh___619___.lane_b2 & veh___639___.lane_b0) )
-      | ((veh___619___.lane_b2 & veh___639___.lane_b2) & !(veh___619___.lane_b1 & veh___639___.lane_b3) & !(veh___619___.lane_b3 & veh___639___.lane_b1) )
+      | ((veh___619___.lane_b1 & veh___639___.lane_b1) ) -- & !(veh___619___.lane_b0 & veh___639___.lane_b2) & !(veh___619___.lane_b2 & veh___639___.lane_b0) )
+      | ((veh___619___.lane_b2 & veh___639___.lane_b2) ) -- & !(veh___619___.lane_b1 & veh___639___.lane_b3) & !(veh___619___.lane_b3 & veh___639___.lane_b1) )
       | ((veh___619___.lane_b3 & veh___639___.lane_b3)  )
       
    );
    veh___639___.same_lane_as_veh_2 := (FALSE
       | ((veh___629___.lane_b0 & veh___639___.lane_b0)  )
-      | ((veh___629___.lane_b1 & veh___639___.lane_b1) & !(veh___629___.lane_b0 & veh___639___.lane_b2) & !(veh___629___.lane_b2 & veh___639___.lane_b0) )
-      | ((veh___629___.lane_b2 & veh___639___.lane_b2) & !(veh___629___.lane_b1 & veh___639___.lane_b3) & !(veh___629___.lane_b3 & veh___639___.lane_b1) )
+      | ((veh___629___.lane_b1 & veh___639___.lane_b1) ) -- & !(veh___629___.lane_b0 & veh___639___.lane_b2) & !(veh___629___.lane_b2 & veh___639___.lane_b0) )
+      | ((veh___629___.lane_b2 & veh___639___.lane_b2) ) -- & !(veh___629___.lane_b1 & veh___639___.lane_b3) & !(veh___629___.lane_b3 & veh___639___.lane_b1) )
       | ((veh___629___.lane_b3 & veh___639___.lane_b3)  )
       
    );
@@ -772,29 +772,29 @@ DEFINE
    
 	veh___649___.same_lane_as_veh_0 := (FALSE
       | ((veh___609___.lane_b0 & veh___649___.lane_b0)  )
-      | ((veh___609___.lane_b1 & veh___649___.lane_b1) & !(veh___609___.lane_b0 & veh___649___.lane_b2) & !(veh___609___.lane_b2 & veh___649___.lane_b0) )
-      | ((veh___609___.lane_b2 & veh___649___.lane_b2) & !(veh___609___.lane_b1 & veh___649___.lane_b3) & !(veh___609___.lane_b3 & veh___649___.lane_b1) )
+      | ((veh___609___.lane_b1 & veh___649___.lane_b1) ) -- & !(veh___609___.lane_b0 & veh___649___.lane_b2) & !(veh___609___.lane_b2 & veh___649___.lane_b0) )
+      | ((veh___609___.lane_b2 & veh___649___.lane_b2) ) -- & !(veh___609___.lane_b1 & veh___649___.lane_b3) & !(veh___609___.lane_b3 & veh___649___.lane_b1) )
       | ((veh___609___.lane_b3 & veh___649___.lane_b3)  )
       
    );
    veh___649___.same_lane_as_veh_1 := (FALSE
       | ((veh___619___.lane_b0 & veh___649___.lane_b0)  )
-      | ((veh___619___.lane_b1 & veh___649___.lane_b1) & !(veh___619___.lane_b0 & veh___649___.lane_b2) & !(veh___619___.lane_b2 & veh___649___.lane_b0) )
-      | ((veh___619___.lane_b2 & veh___649___.lane_b2) & !(veh___619___.lane_b1 & veh___649___.lane_b3) & !(veh___619___.lane_b3 & veh___649___.lane_b1) )
+      | ((veh___619___.lane_b1 & veh___649___.lane_b1) ) -- & !(veh___619___.lane_b0 & veh___649___.lane_b2) & !(veh___619___.lane_b2 & veh___649___.lane_b0) )
+      | ((veh___619___.lane_b2 & veh___649___.lane_b2) ) -- & !(veh___619___.lane_b1 & veh___649___.lane_b3) & !(veh___619___.lane_b3 & veh___649___.lane_b1) )
       | ((veh___619___.lane_b3 & veh___649___.lane_b3)  )
       
    );
    veh___649___.same_lane_as_veh_2 := (FALSE
       | ((veh___629___.lane_b0 & veh___649___.lane_b0)  )
-      | ((veh___629___.lane_b1 & veh___649___.lane_b1) & !(veh___629___.lane_b0 & veh___649___.lane_b2) & !(veh___629___.lane_b2 & veh___649___.lane_b0) )
-      | ((veh___629___.lane_b2 & veh___649___.lane_b2) & !(veh___629___.lane_b1 & veh___649___.lane_b3) & !(veh___629___.lane_b3 & veh___649___.lane_b1) )
+      | ((veh___629___.lane_b1 & veh___649___.lane_b1) ) -- & !(veh___629___.lane_b0 & veh___649___.lane_b2) & !(veh___629___.lane_b2 & veh___649___.lane_b0) )
+      | ((veh___629___.lane_b2 & veh___649___.lane_b2) ) -- & !(veh___629___.lane_b1 & veh___649___.lane_b3) & !(veh___629___.lane_b3 & veh___649___.lane_b1) )
       | ((veh___629___.lane_b3 & veh___649___.lane_b3)  )
       
    );
    veh___649___.same_lane_as_veh_3 := (FALSE
       | ((veh___639___.lane_b0 & veh___649___.lane_b0)  )
-      | ((veh___639___.lane_b1 & veh___649___.lane_b1) & !(veh___639___.lane_b0 & veh___649___.lane_b2) & !(veh___639___.lane_b2 & veh___649___.lane_b0) )
-      | ((veh___639___.lane_b2 & veh___649___.lane_b2) & !(veh___639___.lane_b1 & veh___649___.lane_b3) & !(veh___639___.lane_b3 & veh___649___.lane_b1) )
+      | ((veh___639___.lane_b1 & veh___649___.lane_b1) ) -- & !(veh___639___.lane_b0 & veh___649___.lane_b2) & !(veh___639___.lane_b2 & veh___649___.lane_b0) )
+      | ((veh___639___.lane_b2 & veh___649___.lane_b2) ) -- & !(veh___639___.lane_b1 & veh___649___.lane_b3) & !(veh___639___.lane_b3 & veh___649___.lane_b1) )
       | ((veh___639___.lane_b3 & veh___649___.lane_b3)  )
       
    );

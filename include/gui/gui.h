@@ -64,7 +64,7 @@ static bool detached_run_running{ false };
 /// 
 class MCScene : public Failable {
 public:
-   MCScene(int argc, char* argv[]);
+   MCScene(const InputParser& inputs);
    void copyWaitingForPreviewGIF();
    void refreshPreview();
    void activateMCButtons(const bool active);
@@ -209,6 +209,9 @@ private:
    bool mc_running_internal_{ false };
 
    ProgressDetector progress_detector_{};
+
+   std::string path_to_template_dir_{};
+   std::string path_to_external_folder_{};
 };
 
 } // vfm

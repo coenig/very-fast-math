@@ -168,8 +168,15 @@ float calculateScaleFactor(int screenNumber)
    return (std::min)(static_cast<float>(screenWidth) / referenceWidth, static_cast<float>(screenHeight) / referenceHeight);
 }
 
-MCScene::MCScene(int argc, char* argv[]) : Failable(GUI_NAME + "-GUI")
+MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
 {
+   inputs.printArgumentsForMC();
+
+   path_to_template_dir_ = inputs.getCmdOption(vfm::test::CMD_TEMPLATE_DIR_PATH);
+   auto path_to_nuxmv = inputs.getCmdOption(vfm::test::CMD_NUXMV_EXEC);
+
+   path_to_external_folder_ = std::filesystem::path(path_to_nuxmv).parent_path().parent_path().generic_string();
+
    for (int screenNumber = 0; screenNumber < Fl::screen_count(); ++screenNumber) {
       Fl::screen_scale(screenNumber, calculateScaleFactor(screenNumber));
    }
@@ -188,7 +195,7 @@ MCScene::MCScene(int argc, char* argv[]) : Failable(GUI_NAME + "-GUI")
    addNote("Terminal initialized.");
 
    window_->resizable(window_);
-   Fl_PNG_Image icon("../src/templates/logo-plain.png");
+   Fl_PNG_Image icon((path_to_template_dir_ + "/logo-plain.png").c_str());
    window_->icon(&icon);
 
    button_reload_json_->callback(buttonReloadJSON, this);
@@ -217,7 +224,7 @@ MCScene::MCScene(int argc, char* argv[]) : Failable(GUI_NAME + "-GUI")
    button_check_json_->color(FL_YELLOW);
 
    window_->end();
-   window_->show(argc, argv);
+   window_->show();
 
    Fl::add_timeout(TIMEOUT_FREQUENT, refreshFrequently, this);
    Fl::add_timeout(TIMEOUT_RARE, refreshRarely, this);
@@ -362,7 +369,7 @@ void vfm::MCScene::setValueForJSONKeyFromString(const std::string& key_to_find, 
 
 std::string MCScene::getTemplateDir() const
 {
-   return "../src/templates/";
+   return path_to_template_dir_;
 }
 
 std::string MCScene::getCachedDir() const
@@ -1461,7 +1468,7 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
 
    StaticHelper::writeTextToFile(main_smv, path_generated + "/main.smv");
 
-   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, path_generated, "FAKE_PATH_NOT_USED", path_template, mc_scene->getCachedDir());
+   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, path_generated, "FAKE_PATH_NOT_USED", path_template, "FAKE_PATH_NOT_USED", mc_scene->getCachedDir(), mc_scene->path_to_external_folder_);
 
    mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
       path_generated,
