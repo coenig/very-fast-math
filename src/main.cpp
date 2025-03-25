@@ -41,14 +41,16 @@ int main(int argc, char* argv[])
    //termnate();
 
    if (argc == 1) {
-      std::cout << "Found no command line arguments. Creating artificial comand to trigger M²oRTy GUI.\n";
+      std::cout << "Found no command line arguments. Creating artificial ones to trigger M²oRTy GUI.\n";
 
-      char* argvv[3];
-      argc = 3;
+      char* argvv[5];
+      argc = 5;
 
       argvv[0] = argv[0];
       argvv[1] = "--mode";
       argvv[2] = "gui";
+      argvv[3] = "--path-to-nuxmv";
+      argvv[4] = "../external/win32/nuXmv.exe";
       return artifactRun(argc, argvv);
    }
    else {
