@@ -227,10 +227,10 @@ bool VisualizationLaunchers::quickGenerateGIFs(
    const std::string& path_cropped,
    const std::string& file_name_without_txt_extension,
    const CexType& cex_type,
-   const bool include_smooth,
-   const bool with_smooth_arrows,
-   const std::set<int>& agents_to_draw_arrows_for,
-   const bool only_preview
+   const bool export_basic,
+   const bool export_with_smooth_arrows,
+   const bool export_without_smooth_arrows,
+   const std::set<int>& agents_to_draw_arrows_for
 ) 
 {
    if (cex_type != CexTypeEnum::smv && cex_type != CexTypeEnum::kratos && cex_type != CexTypeEnum::msatic) {
@@ -283,7 +283,7 @@ bool VisualizationLaunchers::quickGenerateGIFs(
       "preview",
       SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
       agents_to_draw_arrows_for,
-      gen_config_smooth, "preview", true, true);
+      gen_config_smooth, "preview");
 
    VisualizationLaunchers::interpretAndGenerate(
       trace,
@@ -291,16 +291,16 @@ bool VisualizationLaunchers::quickGenerateGIFs(
       "preview2",
       SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
       agents_to_draw_arrows_for,
-      gen_config_non_smooth, "preview 2", true, true);
+      gen_config_non_smooth, "preview 2");
 
-   if (!only_preview) {
+   if (export_basic) {
       VisualizationLaunchers::interpretAndGenerate(
          trace,
          path,
          "cex-full",
          SIM_TYPE_REGULAR,
          agents_to_draw_arrows_for,
-         gen_config_non_smooth, "full (1/7)", true, true);
+         gen_config_non_smooth, "full (1/7)");
 
       VisualizationLaunchers::interpretAndGenerate(
          trace,
@@ -308,7 +308,7 @@ bool VisualizationLaunchers::quickGenerateGIFs(
          "cex-birdseye",
          SIM_TYPE_REGULAR_BIRDSEYE_ONLY,
          agents_to_draw_arrows_for,
-         gen_config_non_smooth, "birdseye (2/7)", true, true);
+         gen_config_non_smooth, "birdseye (2/7)");
 
       VisualizationLaunchers::interpretAndGenerate(
          trace,
@@ -316,43 +316,43 @@ bool VisualizationLaunchers::quickGenerateGIFs(
          "cex-cockpit-only",
          static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation | LiveSimGenerator::LiveSimType::cockpit | LiveSimGenerator::LiveSimType::incremental_image_output),
          agents_to_draw_arrows_for,
-         gen_config_non_smooth, "cockpit (3/7)", true, true);
+         gen_config_non_smooth, "cockpit (3/7)");
+   }
 
-      if (include_smooth) {
-         VisualizationLaunchers::interpretAndGenerate(
-            trace,
-            path,
-            "cex-smooth-full",
-            SIM_TYPE_SMOOTH,
-            agents_to_draw_arrows_for,
-            gen_config_smooth, "full-smooth (4/7)", true, true);
+   if (export_with_smooth_arrows) {
+      VisualizationLaunchers::interpretAndGenerate(
+         trace,
+         path,
+         "cex-smooth-with-arrows-full",
+         SIM_TYPE_SMOOTH_WITH_ARROWS,
+         agents_to_draw_arrows_for,
+         gen_config_smooth, "smooth-with-arrows (6/7)");
 
-         VisualizationLaunchers::interpretAndGenerate(
-            trace,
-            path,
-            "cex-smooth-birdseye",
-            SIM_TYPE_SMOOTH_BIRDSEYE_ONLY,
-            agents_to_draw_arrows_for,
-            gen_config_smooth, "birdseye-smooth (5/7)", true, true);
+      VisualizationLaunchers::interpretAndGenerate(
+         trace,
+         path,
+         "cex-smooth-with-arrows-birdseye",
+         SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
+         agents_to_draw_arrows_for,
+         gen_config_smooth, "smooth-with-arrows-birdseye (7/7)");
+   }
 
-         if (with_smooth_arrows) {
-            VisualizationLaunchers::interpretAndGenerate(
-               trace,
-               path,
-               "cex-smooth-with-arrows-full",
-               SIM_TYPE_SMOOTH_WITH_ARROWS,
-               agents_to_draw_arrows_for,
-               gen_config_smooth, "smooth-with-arrows (6/7)", true, true);
+   if (export_without_smooth_arrows) {
+      VisualizationLaunchers::interpretAndGenerate(
+         trace,
+         path,
+         "cex-smooth-full",
+         SIM_TYPE_SMOOTH,
+         agents_to_draw_arrows_for,
+         gen_config_smooth, "full-smooth (4/7)");
 
-            VisualizationLaunchers::interpretAndGenerate(
-               trace,
-               path,
-               "cex-smooth-with-arrows-birdseye",
-               SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
-               agents_to_draw_arrows_for,
-               gen_config_smooth, "smooth-with-arrows-birdseye (7/7)", true, true);
-         }
-      }
+      VisualizationLaunchers::interpretAndGenerate(
+         trace,
+         path,
+         "cex-smooth-birdseye",
+         SIM_TYPE_SMOOTH_BIRDSEYE_ONLY,
+         agents_to_draw_arrows_for,
+         gen_config_smooth, "birdseye-smooth (5/7)");
    }
 
    return true;
@@ -478,10 +478,12 @@ bool processCEX(
    const bool include_smooth,
    const bool with_smooth_arrows)
 {
-   bool success{ vfm::mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFsSimple(
+   bool success{ vfm::mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
       std::string(path_cropped),
+      "debug_trace_array",
       CexType(std::string(cex_type)),
       include_smooth,
+      true, // without_smooth_arrows
       with_smooth_arrows) };
 
    if (!success) {

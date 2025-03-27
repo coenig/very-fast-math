@@ -84,73 +84,37 @@ public:
       | LiveSimGenerator::LiveSimType::always_paint_arrows // Can make it quite crowded in smooth animation.
       );
 
+   
+   static inline bool quickGeneratePreviewGIFs(
+      const std::string& path_cropped,
+      const std::string& file_name_without_txt_extension,
+      const CexTypeEnum cex_type)
+   {
+      quickGenerateGIFs(path_cropped, file_name_without_txt_extension, cex_type, false, false);
+   }
+
    static inline bool quickGenerateGIFs(
       const std::string& path_cropped,
       const std::string& file_name_without_txt_extension,
       const CexTypeEnum cex_type,
-      const bool include_smooth = true,
-      const bool with_smooth_arrows = false,
-      const std::set<int>& agents_to_draw_arrows_for = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
-      const bool only_preview = false
+      const bool export_basic = true,
+      const bool export_with_smooth_arrows = true,
+      const bool export_without_smooth_arrows = false,
+      const std::set<int>& agents_to_draw_arrows_for = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }
    )
    {
-      return quickGenerateGIFs(path_cropped, file_name_without_txt_extension, CexType(cex_type), include_smooth, with_smooth_arrows, agents_to_draw_arrows_for, only_preview);
+      return quickGenerateGIFs(path_cropped, file_name_without_txt_extension, CexType(cex_type), export_basic, export_with_smooth_arrows, export_without_smooth_arrows, agents_to_draw_arrows_for);
    }
 
    static bool quickGenerateGIFs(
       const std::string& path_cropped,
       const std::string& file_name_without_txt_extension,
       const CexType& cex_type,
-      const bool include_smooth = true,
-      const bool with_smooth_arrows = false,
-      const std::set<int>& agents_to_draw_arrows_for = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
-      const bool only_preview = false
+      const bool export_basic = true,
+      const bool export_with_smooth_arrows = true,
+      const bool export_without_smooth_arrows = false,
+      const std::set<int>& agents_to_draw_arrows_for = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }
    );
-
-   static inline bool quickGenerateGIFsSimple(
-      const std::string& path_cropped,
-      const CexTypeEnum cex_type,
-      const bool include_smooth = true,
-      const bool with_smooth_arrows = false,
-      const std::set<int>& agents_to_draw_arrows_for = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
-      const bool only_preview = false)
-   {
-      return quickGenerateGIFsSimple(path_cropped, CexType(cex_type), include_smooth, with_smooth_arrows, agents_to_draw_arrows_for, only_preview);
-   }
-
-   static inline bool quickGenerateGIFsSimple(
-      const std::string& path_cropped,
-      const CexType& cex_type,
-      const bool include_smooth = true,
-      const bool with_smooth_arrows = false,
-      const std::set<int>& agents_to_draw_arrows_for = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
-      const bool only_preview = false)
-   {
-      return quickGenerateGIFs(path_cropped, "debug_trace_array", cex_type, include_smooth, with_smooth_arrows, agents_to_draw_arrows_for, only_preview);
-   }
-
-   static inline bool interpretAndGenerateFromFile(
-      const std::string& trace_file, 
-      const std::string& out_pathname_raw,
-      const std::string& out_filename_raw,
-      const LiveSimGenerator::LiveSimType sim_type,
-      const std::set<int>& agents_to_draw_arrows_for,
-      const VisualizationScales& settings,
-      const std::string& stage_name,
-      const bool generate_osc = true,
-      const bool generate_gif = true)
-   {
-      return interpretAndGenerate(
-         StaticHelper::extractMCTraceFromNusmvFile(trace_file), 
-         out_pathname_raw,
-         out_filename_raw,
-         sim_type,
-         agents_to_draw_arrows_for,
-         settings,
-         stage_name,
-         generate_osc, 
-         generate_gif);
-   }
 
    static std::string toLimStr(double value, int precision = 2)
    {
