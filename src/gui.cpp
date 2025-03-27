@@ -587,6 +587,8 @@ void vfm::MCScene::putJSONIntoDataPack(const std::string& json_config)
 {
    const bool from_template{ json_config == JSON_TEMPLATE_DENOTER };
 
+   data_->reset();
+
    try {
       nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->value() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
 
