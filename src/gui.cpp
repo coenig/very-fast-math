@@ -583,6 +583,37 @@ std::shared_ptr<OptionsGlobal> vfm::MCScene::getRuntimeGlobalOptions() const
    return runtime_global_options_;
 }
 
+void vfm::MCScene::putJSONIntoDataPack(const std::string& json_config)
+{
+   const bool from_template{ json_config == JSON_TEMPLATE_DENOTER };
+
+   try {
+      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->value() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
+
+      for (auto& [key_config, value_config] : j.items()) {
+         if (key_config == json_config) {
+            for (auto& [key, value] : value_config.items()) {
+               if (value.is_string()) {
+                  std::string val_str = StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "");
+                  data_->addStringToDataPack(val_str, key);
+               }
+               else {
+                  data_->addOrSetSingleVal(key, value);
+               }
+            }
+         }
+      }
+   }
+   catch (const nlohmann::json::parse_error& e) {
+      //addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
+   }
+   catch (...) {
+      //addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
+   }
+
+   //addError("#KEY-NOT-FOUND in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
+}
+
 void MCScene::showAllBBGroups(const bool show)
 {
    for (const auto& group : bb_groups_) {
@@ -952,6 +983,8 @@ void MCScene::checkboxJSONVisibleCallback(Fl_Widget* widget, void* data)
 void MCScene::refreshRarely(void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
+   mc_scene->putJSONIntoDataPack();
+
    std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
 
    if (!StaticHelper::existsFileSafe(path_generated_base_str)) {
@@ -1424,6 +1457,8 @@ void MCScene::jsonChangedCallback(Fl_Widget* widget, void* data) {
    mc_scene->button_check_json_->color(FL_YELLOW);
 }
 
+
+
 void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw, const std::string config_name)
 {
    std::string path_generated{ StaticHelper::replaceAll(path_generated_raw, "\\", "/") };
@@ -1443,16 +1478,10 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
 
    std::string main_smv{ StaticHelper::readFile(path_generated + "/main.smv") };
 
-   const std::string INVAR_SCRIPT{ "go_msat\n\
-         msat_check_invar_bmc -i -a falsification -k " + std::to_string(mc_scene->bmcDepth(config_name)) + "\n\
-         quit" };
-
-   const std::string LTL_SCRIPT{ "go_msat\n\
-         msat_check_ltlspec_bmc -k " + std::to_string(mc_scene->bmcDepth(config_name)) + "\n\
-         quit" };
-
-   const bool is_ltl{ mc_scene->isLTL(config_name) };
-   StaticHelper::writeTextToFile(is_ltl ? LTL_SCRIPT : INVAR_SCRIPT, path_generated + "/script.cmd");
+   mc_scene->putJSONIntoDataPack();
+   std::string script_template{ StaticHelper::readFile(mc_scene->getTemplateDir() + "/script.tpl") };
+   std::string generated_script{ CppParser::generateScript(script_template, mc_scene->data_, mc_scene->parser_) };
+   StaticHelper::writeTextToFile(generated_script, path_generated + "/script.cmd");
 
    mc_scene->addNote("Created script.cmd with the following content:\n" + StaticHelper::readFile(path_generated + "/script.cmd") + "<EOF>");
 

@@ -23,12 +23,6 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   //char* result = new char[100];
-   //auto res = test::morty(
-   //   "1.0,207.28487,12.0,25.0,0.0,;1.0,252.10684,4.0,25.0,0.0,;1.0,297.59235,0.0,25.0,0.0,;1.0,339.70764,4.0,25.0,0.0,;1.0,387.27008,8.0,25.0,0.0,;", 
-   //   result, 
-   //   100);
-
    //std::cout << std::string(res) << std::endl;
    //termnate();
    //vfm::test::runTests();
@@ -43,14 +37,17 @@ int main(int argc, char* argv[])
    if (argc == 1) {
       std::cout << "Found no command line arguments. Creating artificial ones to trigger M²oRTy GUI.\n";
 
-      char* argvv[5];
-      argc = 5;
+      char* argvv[7];
+      argc = 7;
 
       argvv[0] = argv[0];
       argvv[1] = "--mode";
       argvv[2] = "gui";
       argvv[3] = "--path-to-nuxmv";
       argvv[4] = "../external/win32/nuXmv.exe";
+      argvv[5] = "--template-dir";
+      argvv[6] = "../src/templates";
+
       return artifactRun(argc, argvv);
    }
    else {
