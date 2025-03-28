@@ -23,8 +23,6 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   //std::cout << std::string(res) << std::endl;
-   //termnate();
    //vfm::test::runTests();
    //termnate();
 
@@ -35,7 +33,7 @@ int main(int argc, char* argv[])
    //termnate();
 
    if (argc == 1) {
-      std::cout << "Found no command line arguments. Creating artificial ones to trigger M²oRTy GUI.\n";
+      std::cout << "Found no command line arguments. Creating artificial ones to trigger M²oRTy GUI.\nNote: Make sure to run from *vfm*/bin folder.\n";
 
       char* argvv[7];
       argc = 7;
