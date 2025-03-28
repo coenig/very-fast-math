@@ -587,7 +587,7 @@ void vfm::MCScene::putJSONIntoDataPack(const std::string& json_config)
 {
    const bool from_template{ json_config == JSON_TEMPLATE_DENOTER };
 
-   data_->reset();
+   //data_->reset();
 
    try {
       nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->value() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
@@ -597,7 +597,7 @@ void vfm::MCScene::putJSONIntoDataPack(const std::string& json_config)
             for (auto& [key, value] : value_config.items()) {
                if (value.is_string()) {
                   std::string val_str = StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "");
-                  data_->addStringToDataPack(val_str, key);
+                  //data_->addStringToDataPack(val_str, key); // TODO: Currently leads to heap overflow. Need to overwrite instead of append.
                }
                else {
                   data_->addOrSetSingleVal(key, value);
