@@ -801,9 +801,9 @@ void vfm::ProgressDetector::placeProgressImage(
                   const std::filesystem::path trace_path{ path_generated_base_parent / package / "debug_trace_array.txt" };
 
                   if (StaticHelper::existsFileSafe(trace_path)) {
-                     MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile(trace_path.string()) };
+                     std::vector<MCTrace> traces{ StaticHelper::extractMCTracesFromNusmvFile(trace_path.string()) };
 
-                     if (trace.empty()) {
+                     if (traces.empty()) {
                         sec.image_box_mcrun_->image(empty_image_);
                      }
                   }
