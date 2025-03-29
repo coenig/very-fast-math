@@ -725,7 +725,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    num_lanes = 1 + max_lane - min_lane;
 
    lane_structure.setNumLanes(num_lanes);
-   lane_structure.cleanUp();
+   lane_structure.cleanUp(false);
 
    setPerspective(street_height, num_lanes, ego_offset_x, min_lane, max_lane, street_top, ego_lane, dim);
    const Vec2Df pos_ego{ 0, 0 };  // Convention: Ego is at 0/0 position.
