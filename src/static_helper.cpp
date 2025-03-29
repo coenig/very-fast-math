@@ -1716,58 +1716,66 @@ std::vector<MCTrace> vfm::StaticHelper::extractMCTracesFromMSATICFile(const std:
 
 std::vector<MCTrace> StaticHelper::extractMCTracesFromNusmv(const std::string& cexp_string)
 {
-   MCTrace ce{};
- 
+   static const std::string DELIMITER{ "Trace Type: Counterexample" }; // TODO: Make sure this is actually always a fixed string in nuXmv.
+
    if (cexp_string.empty()) {
       Failable::getSingleton()->addNote("Received empty CEX in function 'extractMCTraceFromNusmv'. Nothing to do.");
       return {};
    }
 
-   auto lines{ split(cexp_string, '\n') };
+   std::vector<MCTrace> traces{};
 
-   if (StaticHelper::stringContains(lines[lines.size() - 1], "-- no counterexample found")) {
-      return {};
-   }
+   for (const auto& single_cex : StaticHelper::split(cexp_string, DELIMITER)) {
+      MCTrace ce{};
 
-   lines.push_back("->EOF");
-   std::string state{};
-   VarVals vars{};
-   
-   for (const auto& line : lines) {
-      std::string cline{ StaticHelper::removeWhiteSpace(line) };
+      auto lines = split(single_cex, '\n');
 
-      if (!StaticHelper::stringStartsWith(cline, "#")) {
-         if ((StaticHelper::stringStartsWith(cline, "->") || StaticHelper::stringStartsWith(cline, "--Loop"))
-            && !StaticHelper::stringContains(cline, "->Input:")) { // Jump over "input" state to squash envModel and Planner cycle into one.
-            if (!vars.empty()) {
-               ce.addTraceStep({ state, vars });
-               vars.clear();
+      if (lines.empty() || StaticHelper::stringContains(lines[lines.size() - 1], "-- no counterexample found")) {
+         continue;
+      }
+
+      lines.push_back("->EOF");
+      std::string state{};
+      VarVals vars{};
+
+      for (const auto& line : lines) {
+         std::string cline{ StaticHelper::removeWhiteSpace(line) };
+
+         if (!StaticHelper::stringStartsWith(cline, "#")) {
+            if ((StaticHelper::stringStartsWith(cline, "->") || StaticHelper::stringStartsWith(cline, "--Loop"))
+               && !StaticHelper::stringContains(cline, "->Input:")) { // Jump over "input" state to squash envModel and Planner cycle into one.
+               if (!vars.empty()) {
+                  ce.addTraceStep({ state, vars });
+                  vars.clear();
+               }
+
+               if (StaticHelper::stringStartsWith(cline, "--Loop")) {
+                  ce.addTraceStep({ "LOOP", {} });
+               }
+               else {
+                  state = StaticHelper::replaceAll(StaticHelper::replaceAll(StaticHelper::replaceAll(cline, "<-", ""), "->Input:", "I"), "->State:", "");
+               }
             }
+            else if (!StaticHelper::stringContains(cline, "->Input:")) {
+               if (!state.empty()) {
+                  auto split = StaticHelper::split(cline, '=');
 
-            if (StaticHelper::stringStartsWith(cline, "--Loop")) {
-               ce.addTraceStep({ "LOOP", {} });
-            }
-            else {
-               state = StaticHelper::replaceAll(StaticHelper::replaceAll(StaticHelper::replaceAll(cline, "<-", ""), "->Input:", "I"), "->State:", "");
-            }
-         }
-         else if (!StaticHelper::stringContains(cline, "->Input:")) {
-            if (!state.empty()) {
-               auto split = StaticHelper::split(cline, '=');
-
-               if (split.size() == 2) {
-                  std::string var = split[0];
-                  std::string val = split[1];
-                  vars.insert({ var, val });
+                  if (split.size() == 2) {
+                     std::string var = split[0];
+                     std::string val = split[1];
+                     vars.insert({ var, val });
+                  }
                }
             }
          }
       }
+
+      postprocessTrace(ce);
+
+      if (!ce.empty()) traces.push_back(ce); // Empty CEXs are not put in the list, such that empty list indicates no CEXs.
    }
 
-   postprocessTrace(ce);
-
-   return { ce };
+   return traces;
 }
 
 std::vector<MCTrace> vfm::StaticHelper::extractMCTracesFromNusmvFile(const std::string& path)
