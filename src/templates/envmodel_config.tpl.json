@@ -31,7 +31,7 @@
       "#39": "@f(GapLeftMinMax) { distance_front_min, distance_front_max, distance_rear_min, distance_rear_max } { (env.ego.gaps___609___.s_dist_front > distance_front_min) && (env.ego.gaps___609___.s_dist_rear > distance_rear_min) && (env.ego.gaps___609___.s_dist_front < distance_front_max) && (env.ego.gaps___609___.s_dist_rear < distance_rear_max) }",
       "ABORTREVOKE": false,
       "BMC_CNT": 100,
-      "BMC_NUMBER_OF_CEXS": 1,
+      "BMC_NUMBER_OF_CEXS": 10,
       "BRAKEINHIBITION": false,
       "CALCULATE_RIGHT_GAP_REAR": true,
       "DEBUG": false,
