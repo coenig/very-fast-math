@@ -38,10 +38,10 @@ std::string LaneSegment::toString() const
 
 StraightRoadSection::StraightRoadSection() : StraightRoadSection(-1, -1) {} // Constructs an invalid lane structure.
 
-StraightRoadSection::StraightRoadSection(const int lane_num, const float section_end) 
+StraightRoadSection::StraightRoadSection(const int lane_num, const float section_end)
    : StraightRoadSection(lane_num, section_end, std::vector<LaneSegment>{}) {}
 
-StraightRoadSection::StraightRoadSection(const int lane_num, const float section_end, const std::vector<LaneSegment>& segments) 
+StraightRoadSection::StraightRoadSection(const int lane_num, const float section_end, const std::vector<LaneSegment>& segments)
    : num_lanes_(lane_num), section_end_(section_end), Failable("StraightRoadSection") {
    for (const auto& segment : segments) {
       addLaneSegment(segment);
@@ -55,7 +55,7 @@ void StraightRoadSection::addLaneSegment(const LaneSegment& segment)
    }
 }
 
-void StraightRoadSection::cleanUp()
+void StraightRoadSection::cleanUp(bool add_note)
 {
    constexpr int overall_min_lane = 0;
    const     int overall_max_lane = (num_lanes_ - 1) * 2;
@@ -104,7 +104,7 @@ void StraightRoadSection::cleanUp()
 
       if (this_segment->second.getBegin() - last_segment->second.getBegin()
          < MIN_DISTANCE_BETWEEN_SEGMENTS
-         //* std::min(std::abs(this_segment->second.getActualDrivableMinLane() - last_segment->second.getActualDrivableMinLane()), 
+         //* std::min(std::abs(this_segment->second.getActualDrivableMinLane() - last_segment->second.getActualDrivableMinLane()),
          //           std::abs(this_segment->second.getActualDrivableMaxLane() - last_segment->second.getActualDrivableMaxLane()))
          ) {
          addError("Segments '" + last_segment->second.toString() + "' and '" + this_segment->second.toString() + "' are too close to each other (< " + std::to_string(MIN_DISTANCE_BETWEEN_SEGMENTS) + ").");
@@ -113,7 +113,7 @@ void StraightRoadSection::cleanUp()
       last_segment = this_segment;
    }
 
-   if (change_occurred) {
+   if (change_occurred && add_note) {
       addNotePlain("");
       addNote("Cleaned up lane segments: " + toString());
       //std::cin.get();
@@ -228,7 +228,7 @@ std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithID(const int id)
 std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithCar(const int car_id)
 {
    return findFirstSectionWithProperty([car_id](const std::shared_ptr<RoadGraph> r) -> bool
-   { 
+   {
       for (const auto& other : r->getMyRoad().getOthers()) {
          if (other.car_id_ == car_id) {
             return true;
