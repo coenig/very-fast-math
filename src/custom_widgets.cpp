@@ -44,7 +44,7 @@ vfm::SingleExpController::SingleExpController(
 
    const int checkboxWidth = 50;
    const int checkboxHeight = 100;
-   const int checkboxX = group_->w() - checkboxWidth - 10;
+   const int checkboxX = group_->w() - checkboxWidth - 0;
    const int checkboxY = group_->h() - checkboxHeight - 10;
    checkbox_selected_job_->resize(checkboxX, checkboxY, checkboxWidth, checkboxHeight);
    const int cancel_button_width = 30;
