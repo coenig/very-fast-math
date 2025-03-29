@@ -90,7 +90,7 @@ public:
       const std::string& file_name_without_txt_extension,
       const CexTypeEnum cex_type)
    {
-      quickGenerateGIFs(path_cropped, file_name_without_txt_extension, cex_type, false, false);
+      return quickGenerateGIFs(path_cropped, file_name_without_txt_extension, cex_type, false, false);
    }
 
    static inline bool quickGenerateGIFs(
