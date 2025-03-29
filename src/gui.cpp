@@ -1501,14 +1501,10 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
 
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, path_generated, "FAKE_PATH_NOT_USED", path_template, "FAKE_PATH_NOT_USED", mc_scene->getCachedDir(), mc_scene->path_to_external_folder_);
 
-   mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
+   mc::trajectory_generator::VisualizationLaunchers::quickGeneratePreviewGIFs(
       path_generated,
       "debug_trace_array",
-      mc::trajectory_generator::CexTypeEnum::smv,
-      true,
-      true,
-      { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
-      true);
+      mc::trajectory_generator::CexTypeEnum::smv);
 
    mc_scene->addNote("Model checker run finished for folder '" + path_generated + "'.");
 }
@@ -2201,10 +2197,10 @@ void vfm::MCScene::createTestCase(const MCScene* mc_scene, const std::string& ge
       generated_parent_dir + "/" + id,
       "debug_trace_array",
       mc::trajectory_generator::CexTypeEnum::smv,
-      true,
-      true,
-      { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 },
-      false);
+      true, // export basics
+      true, // export with smooth arrows
+      false, // export without smooth arrows
+      { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
 
    mc_scene->addNote("Finished test case generation for '" + id + "'.");
 }
