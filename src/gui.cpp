@@ -1502,6 +1502,7 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, path_generated, "FAKE_PATH_NOT_USED", path_template, "FAKE_PATH_NOT_USED", mc_scene->getCachedDir(), mc_scene->path_to_external_folder_);
 
    mc::trajectory_generator::VisualizationLaunchers::quickGeneratePreviewGIFs(
+      { 0 }, // TODO: For now only first among several CEXs processed.
       path_generated,
       "debug_trace_array",
       mc::trajectory_generator::CexTypeEnum::smv);
@@ -2194,6 +2195,7 @@ void vfm::MCScene::createTestCase(const MCScene* mc_scene, const std::string& ge
    mc_scene->addNote("Running test case generation " + std::to_string(cnt) + "/" + std::to_string(max) + " for '" + id + "'.");
 
    mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
+      { 0 }, // TODO: for now only first CEX is processed if several given.
       generated_parent_dir + "/" + id,
       "debug_trace_array",
       mc::trajectory_generator::CexTypeEnum::smv,
