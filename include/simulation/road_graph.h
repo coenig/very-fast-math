@@ -123,7 +123,7 @@ public:
    StraightRoadSection(const int lane_num, const float section_end, const std::vector<LaneSegment>& segments);
 
    void addLaneSegment(const LaneSegment& segment);
-   void cleanUp();
+   void cleanUp(bool add_note);
    std::string toString() const;
    void setNumLanes(const int num_lanes) const;
    int getNumLanes() const;
