@@ -363,7 +363,7 @@ public:
       MCScene* mc_scene
    );
 
-   Fl_Group* group_ = new Fl_Group(10, 10, 380, 340, "Group");
+   Fl_Group* group_ = new Fl_Group(10, 10, 380, 450, "Group");
    Fl_Box* image_box_envmodel_ = new Fl_Box(0, 45, 12, 12);
    Fl_Box* labelBox_envmodel_ = new Fl_Box(20, 70, 60, 30, "EnvModel");
    Fl_Box* image_box_mcrun_ = new Fl_Box(0, 135, 12, 12);
@@ -375,6 +375,7 @@ public:
    Fl_Check_Button* checkbox_selected_job_ = new Fl_Check_Button(0, 0, 15, 15);
    Fl_Progress* progress_bar_sec_ = new Fl_Progress(0, 1000, group_->w(), 30);
    Fl_Box* progress_description_ = new Fl_Box(0, 1150, group_->w(), 30);
+   Fl_Value_Slider* slider_ = new Fl_Value_Slider(20, 350, group_->w() - 80, group_->h() / 5);
 
    void tryToSelectController(
       const std::filesystem::path& source_path,
@@ -403,6 +404,7 @@ public:
    void setHasEnvmodel(const bool value);
    void setHasPreview(const bool value);
    bool hasTestcase() const;
+   bool hasSlider() const;
 
    std::vector<std::string> getVariableNames() const;
    std::vector<float> getVariableValues() const;

@@ -631,17 +631,17 @@ public:
    static std::string getFileNameFromPathWithoutExt(const std::string& path);
    static std::string removeFileNameFromPath(const std::string& path);
 
-   static MCTrace extractMCTraceFromMSATIC(const std::string& cexp_string);
-   static MCTrace extractMCTraceFromMSATICFile(const std::string& cexp_string);
+   static std::vector<MCTrace> extractMCTracesFromMSATIC(const std::string& cexp_string); // For now only one CEX is extracted. Empty CEX returned as empty list.
+   static std::vector<MCTrace> extractMCTracesFromMSATICFile(const std::string& cexp_string);
 
-   static MCTrace extractMCTraceFromNusmv(const std::string& cexp_string);
-   static MCTrace extractMCTraceFromNusmvFile(const std::string& path);
+   static std::vector<MCTrace> extractMCTracesFromNusmv(const std::string& cexp_string);
+   static std::vector<MCTrace> extractMCTracesFromNusmvFile(const std::string& path);
    static std::string serializeMCTraceNusmvStyle(const MCTrace& trace, const bool print_unchanged_values = false);
 
    static std::string readFile(const std::string& path, const bool from_utf16 = false);
 
-   static MCTrace extractMCTraceFromKratos(const std::string& cexp_string);
-   static MCTrace extractMCTraceFromKratosFile(const std::string& path, const bool from_utf16 = false);
+   static std::vector<MCTrace> extractMCTracesFromKratos(const std::string& cexp_string); // For now only one CEX is extracted. Empty CEX returned as empty list.
+   static std::vector<MCTrace> extractMCTracesFromKratosFile(const std::string& path, const bool from_utf16 = false);
    static std::string serializeMCTraceKratosStyle(const MCTrace& trace);
    static std::string extractSeries(const MCTrace& trace, const std::vector<std::string>& variables);
 

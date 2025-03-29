@@ -40,10 +40,11 @@ vfm::SingleExpController::SingleExpController(
    image_box_testcase_->show();
    image_box_testcase_->align(FL_ALIGN_RIGHT);
    labelBox_testcase_->align(FL_ALIGN_RIGHT);
+   slider_->hide();
 
    const int checkboxWidth = 50;
    const int checkboxHeight = 100;
-   const int checkboxX = group_->w() - checkboxWidth - 10;
+   const int checkboxX = group_->w() - checkboxWidth - 0;
    const int checkboxY = group_->h() - checkboxHeight - 10;
    checkbox_selected_job_->resize(checkboxX, checkboxY, checkboxWidth, checkboxHeight);
    const int cancel_button_width = 30;
@@ -191,6 +192,11 @@ bool vfm::SingleExpController::hasTestcase() const
    return has_testcase_;
 }
 
+bool vfm::SingleExpController::hasSlider() const
+{
+   return true;
+}
+
 std::vector<std::string> vfm::SingleExpController::getVariableNames() const
 {
    std::vector<std::string> vec{};
@@ -250,7 +256,7 @@ void DragGroup::initializeEditor(const std::string& name, const std::string& for
    editor_.formula_flatten_button_ = new Fl_Button(500, 520, 400, 300, "Flatten");
    editor_.preview_scroll_ = new Fl_Scroll(0, 0, 0, 0);
    editor_.preview_description_ = new Fl_Input(500, 500, 100, 30);
-   editor_.slider_ = new Fl_Value_Slider(100, 100, 100, 30);;
+   editor_.slider_ = new Fl_Value_Slider(100, 100, 100, 30);
    editor_.showOnScreen(false);
 
    editor_.formula_name_editor_->value(name.c_str());
@@ -741,6 +747,22 @@ void vfm::ProgressDetector::placeProgressImage(
 
    for (const auto& package : packages) { // Show progress images.
       for (auto& sec : se_controllers) {
+         if (sec.hasSlider()) {
+            //sec.slider_->parent()->parent()->parent()->remove(sec.slider_);
+            //sec.slider_->parent()->parent()->parent()->add(sec.slider_);
+
+            sec.slider_->show();
+
+            sec.slider_->range(0, 99);
+            // const int preview_num{ (int)sec.slider_->value() };
+            //sec.slider_->resize(0, 0, 100, 50);
+
+            sec.slider_->type(FL_HORIZONTAL);
+            sec.slider_->color(fl_rgb_color(255, 230, 173));
+            sec.slider_->precision(0);
+
+         }
+
          if (sec.getMyId() == package) {
             if (StaticHelper::existsFileSafe(path_generated_base_parent / package / "EnvModel.smv")) {
                sec.image_box_envmodel_->image(check_image_);
@@ -779,9 +801,9 @@ void vfm::ProgressDetector::placeProgressImage(
                   const std::filesystem::path trace_path{ path_generated_base_parent / package / "debug_trace_array.txt" };
 
                   if (StaticHelper::existsFileSafe(trace_path)) {
-                     MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile(trace_path.string()) };
+                     std::vector<MCTrace> traces{ StaticHelper::extractMCTracesFromNusmvFile(trace_path.string()) };
 
-                     if (trace.empty()) {
+                     if (traces.empty()) {
                         sec.image_box_mcrun_->image(empty_image_);
                      }
                   }

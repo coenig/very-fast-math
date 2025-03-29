@@ -212,7 +212,7 @@ inline void replayCounterExample(
       }
    }
 
-   auto ce = StaticHelper::extractMCTraceFromNusmvFile(path_to_counterexample_file_input);
+   auto ce = StaticHelper::extractMCTracesFromNusmvFile(path_to_counterexample_file_input).at(0);
    auto resolver = std::make_shared<FSMResolverDefaultMaxTransWeight>(2.5); // Resolver is overwritten when loading FSM from file.
    std::shared_ptr<FSMs> m = std::make_shared<FSMs>(resolver, NonDeterminismHandling::note_error_on_non_determinism);
 

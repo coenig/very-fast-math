@@ -40,9 +40,9 @@ class MCinterpretedTrace : public Failable
 {
 public:
 	MCinterpretedTrace(
-		const std::string trace_file, const InterpretationConfiguration config);
+      const int trace_num, const std::string trace_file, const InterpretationConfiguration config);
 	MCinterpretedTrace(
-		const vfm::MCTrace& trace, const InterpretationConfiguration config);
+      const int trace_num, const std::vector<vfm::MCTrace>& traces, const InterpretationConfiguration config);
 
 	void applyScaling(const double x_scale_factor, const double y_scale_factor, const double time_scale_factor);
 	void applyOffset(const double x_offset, const double y_offset, const bool to_ego = true, const bool to_other_vehicles = true);

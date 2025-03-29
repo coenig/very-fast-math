@@ -718,6 +718,7 @@ int vfm::test::artifactRun(int argc, char* argv[])
    {
       inputs.addNote("Executing explainability toolchain on '" + inputs.getCmdOption(CMD_CEX_FILE) + "' in '" + generated_dir + "'.");
       success = success && mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
+         { 0 }, // TODO: For do now only first CEX if several given.
          generated_dir,
          StaticHelper::removeLastFileExtension(inputs.getCmdOption(CMD_CEX_FILE)),
          mc::trajectory_generator::CexTypeEnum::smv, // TODO: Make this parametrizable
@@ -1375,7 +1376,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
 
    StaticHelper::writeTextToFile(main_file, "./morty/main.smv");
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
-   MCTrace trace{ StaticHelper::extractMCTraceFromNusmvFile("./morty/debug_trace_array.txt") };
+   MCTrace trace{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt").at(0) };
 
    std::vector<VarValsFloat> deltas{};
    std::set<std::string> variables{};

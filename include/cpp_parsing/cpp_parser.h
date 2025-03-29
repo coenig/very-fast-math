@@ -243,6 +243,7 @@ public:
    static bool signaturesAreEqual(const CppFunctionSignature& s1, const CppFunctionSignature& s2);
    static bool typesAreEqual(const CppFullTypeWithName& s1, const CppFullTypeWithName& s2, const bool ignore_qualifiers = false);
    static std::string findSurroundingNamespace(const std::string code, const int pos);
+   static std::string generateScript(const std::string& script_content, const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser);
 
 private:
    ChunkTypeEnum findIndices(
