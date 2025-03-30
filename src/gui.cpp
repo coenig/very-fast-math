@@ -1086,9 +1086,9 @@ void MCScene::refreshRarely(void* data)
    }
 
    for (const auto& del : to_delete) { // ...and delete those.
-      mc_scene->window_->remove(del.group_);
+      mc_scene->window_->remove(del.sec_group_);
       mc_scene->se_controllers_.erase(del);
-      Fl::delete_widget(del.group_);
+      Fl::delete_widget(del.sec_group_);
       changed = true;
    }
 
@@ -1116,9 +1116,8 @@ void MCScene::refreshRarely(void* data)
       mc_scene->window_width_archived_ = mc_scene->window_->w();
 
       if (!mc_scene->sec_scroll_) {
-         mc_scene->sec_scroll_ = new Fl_Scroll(10, 250, mc_scene->window_->w() - 20, 120);
+         mc_scene->sec_scroll_ = new Fl_Scroll(10, 220, mc_scene->window_->w() - 20, 120);
          mc_scene->sec_scroll_->type(Fl_Scroll::HORIZONTAL);
-
          mc_scene->window_->add(mc_scene->sec_scroll_);
       }
 
@@ -1128,10 +1127,10 @@ void MCScene::refreshRarely(void* data)
       int max{ static_cast<int>(mc_scene->se_controllers_.size()) };
       for (auto& controller : mc_scene->se_controllers_) {
          auto width{ (std::max)(mc_scene->window_->w() / max - 10, MIN_WIDTH) };
-         controller.group_->size(width - 5, 50);
-         mc_scene->sec_scroll_->add(controller.group_);
-         controller.group_->position(width * cnt + 20, 240);
-         controller.group_->copy_label(controller.getAbbreviatedShortId().c_str());
+         controller.sec_group_->size(width - 5, 70);
+         mc_scene->sec_scroll_->add(controller.sec_group_);
+         controller.sec_group_->position(width * cnt + 20, 240);
+         controller.sec_group_->copy_label(controller.getAbbreviatedShortId().c_str());
          controller.invisible_widget_->copy_tooltip(controller.getShortId().c_str());
          controller.invisible_widget_->callback(MCScene::onGroupClickBM, (void*)&controller);
          cnt++;
@@ -1153,7 +1152,7 @@ void MCScene::refreshRarely(void* data)
       for (auto& sec : mc_scene->se_controllers_) {
          if (sec.hasPreview() && sec.hasEnvmodel()) {
             sec.tryToSelectController(
-               path_generated_base_parent / sec.getMyId(),
+               path_generated_base_parent / sec.getMyId() / std::to_string(sec.slider_->value()),
                path_generated_base);
          }
       }
@@ -1162,14 +1161,14 @@ void MCScene::refreshRarely(void* data)
    for (auto& sec : mc_scene->se_controllers_) {
       if (sec.hasPreview()) {
          if (sec.selected_) {
-            sec.group_->color(fl_rgb_color(255, 255, 102));
+            sec.sec_group_->color(fl_rgb_color(255, 255, 102));
          }
          else {
-            sec.group_->color(fl_rgb_color(255, 255, 204));
+            sec.sec_group_->color(fl_rgb_color(255, 255, 204));
          }
       }
       else {
-         sec.group_->color(fl_rgb_color(204, 255, 229));
+         sec.sec_group_->color(fl_rgb_color(204, 255, 229));
       }
 
       sec.adjustAbbreviatedShortID();
@@ -2179,7 +2178,7 @@ void MCScene::onGroupClickBM(Fl_Widget* widget, void* data)
       return;
    }
 
-   controller->tryToSelectController(source_path, path_generated_base);
+   controller->tryToSelectController(source_path / std::to_string((int) controller->slider_->value()), path_generated_base);
 }
 
 void MCScene::buttonReparse(Fl_Widget* widget, void* data)

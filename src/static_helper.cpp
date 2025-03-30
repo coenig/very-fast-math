@@ -293,6 +293,18 @@ bool vfm::StaticHelper::stringContains(const std::string& string, const std::str
    return string.find(substring) != std::string::npos;
 }
 
+size_t vfm::StaticHelper::occurrencesInString(const std::string& string, const std::string& sub_string, const bool count_overlapping)
+{
+   size_t occurrences{ 0 };
+   size_t pos{ 0 };
+   while ((pos = string.find(sub_string, pos)) != std::string::npos) {
+      ++occurrences;
+      pos += count_overlapping ? 1 : sub_string.length();
+   }
+
+   return occurrences;
+}
+
 std::string vfm::StaticHelper::shortenToMaxSize(const std::string& s, const int max_size, const bool add_dots, const int shorten_to, const float percentage_front, const std::string& dots)
 {
    int st = shorten_to < 0 ? max_size : shorten_to;
@@ -1714,7 +1726,7 @@ std::vector<MCTrace> vfm::StaticHelper::extractMCTracesFromMSATICFile(const std:
    return extractMCTracesFromMSATIC(readFile(cexp_string));
 }
 
-std::vector<MCTrace> StaticHelper::extractMCTracesFromNusmv(const std::string& cexp_string)
+std::vector<MCTrace> StaticHelper::extractMCTracesFromNusmv(const std::string& cexp_string, const TraceExtractionMode mode)
 {
    static const std::string DELIMITER{ "Trace Type: Counterexample" }; // TODO: Make sure this is actually always a fixed string in nuXmv.
 
@@ -1724,6 +1736,17 @@ std::vector<MCTrace> StaticHelper::extractMCTracesFromNusmv(const std::string& c
    }
 
    std::vector<MCTrace> traces{};
+
+   if (mode == TraceExtractionMode::quick_only_detect_if_empty) {
+      size_t occ{ occurrencesInString(cexp_string, DELIMITER) };
+      std::vector<MCTrace> simp_res{};
+
+      for (auto i = 0; i < occ; i++) {
+         simp_res.push_back({}); // Fill with empty traces, since we only need to reflect HOW MANY traces.
+      }
+
+      return simp_res; // Return non-empty if and only if there is a CEX in the data.
+   }
 
    for (const auto& single_cex : StaticHelper::split(cexp_string, DELIMITER)) {
       MCTrace ce{};
@@ -1778,9 +1801,9 @@ std::vector<MCTrace> StaticHelper::extractMCTracesFromNusmv(const std::string& c
    return traces;
 }
 
-std::vector<MCTrace> vfm::StaticHelper::extractMCTracesFromNusmvFile(const std::string& path)
+std::vector<MCTrace> vfm::StaticHelper::extractMCTracesFromNusmvFile(const std::string& path, const TraceExtractionMode mode)
 {
-   return extractMCTracesFromNusmv(readFile(path));
+   return extractMCTracesFromNusmv(readFile(path), mode);
 }
 
 std::string vfm::StaticHelper::serializeMCTraceNusmvStyle(const MCTrace& trace, const bool print_unchanged_values)

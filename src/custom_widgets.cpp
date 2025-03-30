@@ -44,8 +44,8 @@ vfm::SingleExpController::SingleExpController(
 
    const int checkboxWidth = 50;
    const int checkboxHeight = 100;
-   const int checkboxX = group_->w() - checkboxWidth - 0;
-   const int checkboxY = group_->h() - checkboxHeight - 10;
+   const int checkboxX = sec_group_->w() - checkboxWidth - 0;
+   const int checkboxY = sec_group_->h() - checkboxHeight - 10;
    checkbox_selected_job_->resize(checkboxX, checkboxY, checkboxWidth, checkboxHeight);
    const int cancel_button_width = 30;
    const int cancel_button_height = 60;
@@ -55,7 +55,7 @@ vfm::SingleExpController::SingleExpController(
    cancel_button_->tooltip("Cancel running MC process.");
    checkbox_selected_job_->tooltip("(De-)activate job; right click to (de-)activate all");
 
-   group_->box(FL_BORDER_BOX); // Set the box type to a border box
+   sec_group_->box(FL_BORDER_BOX); // Set the box type to a border box
 
    progress_bar_sec_->position(0, 100);
    progress_bar_sec_->minimum(0);
@@ -71,7 +71,7 @@ vfm::SingleExpController::SingleExpController(
 
    removeProgressFile();
 
-   group_->end();
+   sec_group_->end();
 }
 
 void vfm::SingleExpController::registerCallbacks() const
@@ -123,9 +123,9 @@ void vfm::SingleExpController::removeProgressFile() const
 
 void vfm::SingleExpController::adjustWidgetsAppearances() const
 {
-   progress_bar_sec_->size(group_->w(), group_->h() / 6);
-   progress_bar_sec_->position(group_->x(), group_->y() + group_->h());
-   progress_description_->position(group_->x(), group_->y() + group_->h());
+   progress_bar_sec_->size(sec_group_->w(), sec_group_->h() / 6);
+   progress_bar_sec_->position(sec_group_->x(), sec_group_->y() + sec_group_->h());
+   progress_description_->position(sec_group_->x(), sec_group_->y() + sec_group_->h());
 
    auto progress_item{ getProgress() };
 
@@ -173,8 +173,8 @@ std::filesystem::path vfm::SingleExpController::getPathOnDisc() const
 
 void vfm::SingleExpController::adjustAbbreviatedShortID() const
 {
-   const_cast<SingleExpController*>(this)->my_abbr_short_id_ = StaticHelper::shortenInTheMiddle(my_short_id_, group_->w() / 8, 1, "...");
-   group_->copy_label(getAbbreviatedShortId().c_str());
+   const_cast<SingleExpController*>(this)->my_abbr_short_id_ = StaticHelper::shortenInTheMiddle(my_short_id_, sec_group_->w() / 8, 1, "...");
+   sec_group_->copy_label(getAbbreviatedShortId().c_str());
 }
 
 bool vfm::SingleExpController::hasEnvmodel() const
@@ -714,11 +714,11 @@ void SingleExpController::tryToSelectController(
       }
 
       selected_ = true;
-      group_->color(fl_rgb_color(255, 255, 102)); // To make color change instantly.
+      sec_group_->color(fl_rgb_color(255, 255, 102)); // To make color change instantly.
    }
    else {
       selected_ = false;
-      group_->color(FL_WHITE); // Short flash.
+      sec_group_->color(FL_WHITE); // Short flash.
    }
 }
 
@@ -747,20 +747,25 @@ void vfm::ProgressDetector::placeProgressImage(
 
    for (const auto& package : packages) { // Show progress images.
       for (auto& sec : se_controllers) {
+         int preview_num{0};
+
+         sec.slider_->range(0, StaticHelper::extractMCTracesFromNusmvFile(
+            (path_generated_base_parent / package / "debug_trace_array.txt").string(), StaticHelper::TraceExtractionMode::quick_only_detect_if_empty).size() - 1);
+
          if (sec.hasSlider()) {
             //sec.slider_->parent()->parent()->parent()->remove(sec.slider_);
             //sec.slider_->parent()->parent()->parent()->add(sec.slider_);
 
             sec.slider_->show();
-
-            sec.slider_->range(0, 99);
-            // const int preview_num{ (int)sec.slider_->value() };
+            preview_num = (int)sec.slider_->value();
             //sec.slider_->resize(0, 0, 100, 50);
 
             sec.slider_->type(FL_HORIZONTAL);
-            sec.slider_->color(fl_rgb_color(255, 230, 173));
+            sec.slider_->color(fl_rgb_color(254, 255, 224));
             sec.slider_->precision(0);
-
+         }
+         else {
+            sec.slider_->hide();
          }
 
          if (sec.getMyId() == package) {
@@ -791,7 +796,7 @@ void vfm::ProgressDetector::placeProgressImage(
             sec.image_box_envmodel_->size(12, 12);
             sec.cancel_button_->hide();
 
-            if (StaticHelper::existsFileSafe(path_generated_base_parent / package / "preview" / "preview.gif")
+            if (StaticHelper::existsFileSafe(path_generated_base_parent / package / std::to_string(preview_num) / "preview" / "preview.gif")
                && sec.getProgressStage() != "preview") {
                sec.image_box_mcrun_->image(check_image_);
                sec.has_preview_ = true;
@@ -801,7 +806,7 @@ void vfm::ProgressDetector::placeProgressImage(
                   const std::filesystem::path trace_path{ path_generated_base_parent / package / "debug_trace_array.txt" };
 
                   if (StaticHelper::existsFileSafe(trace_path)) {
-                     std::vector<MCTrace> traces{ StaticHelper::extractMCTracesFromNusmvFile(trace_path.string()) };
+                     std::vector<MCTrace> traces{ StaticHelper::extractMCTracesFromNusmvFile(trace_path.string(), StaticHelper::TraceExtractionMode::quick_only_detect_if_empty) };
 
                      if (traces.empty()) {
                         sec.image_box_mcrun_->image(empty_image_);
