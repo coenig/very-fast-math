@@ -363,7 +363,7 @@ public:
       MCScene* mc_scene
    );
 
-   Fl_Group* group_ = new Fl_Group(10, 10, 380, 450, "Group");
+   Fl_Group* sec_group_ = new Fl_Group(10, 10, 380, 450, "Group"); // The size of the group is set elsewhere. Leave these numbers alone!
    Fl_Box* image_box_envmodel_ = new Fl_Box(0, 45, 12, 12);
    Fl_Box* labelBox_envmodel_ = new Fl_Box(20, 70, 60, 30, "EnvModel");
    Fl_Box* image_box_mcrun_ = new Fl_Box(0, 135, 12, 12);
@@ -373,9 +373,9 @@ public:
    TransparentButton* invisible_widget_ = new TransparentButton(10, 10, 380, 280, "");
    Fl_Button* cancel_button_ = new Fl_Button(100, 135, 40, 100);
    Fl_Check_Button* checkbox_selected_job_ = new Fl_Check_Button(0, 0, 15, 15);
-   Fl_Progress* progress_bar_sec_ = new Fl_Progress(0, 1000, group_->w(), 30);
-   Fl_Box* progress_description_ = new Fl_Box(0, 1150, group_->w(), 30);
-   Fl_Value_Slider* slider_ = new Fl_Value_Slider(20, 350, group_->w() - 80, group_->h() / 5);
+   Fl_Progress* progress_bar_sec_ = new Fl_Progress(0, 1000, sec_group_->w(), 30);
+   Fl_Box* progress_description_ = new Fl_Box(0, 1150, sec_group_->w(), 30);
+   Fl_Value_Slider* slider_ = new Fl_Value_Slider(15, 350, sec_group_->w() - 80, sec_group_->h() / 5);
 
    void tryToSelectController(
       const std::filesystem::path& source_path,
