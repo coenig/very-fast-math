@@ -447,7 +447,13 @@ void MCScene::refreshPreview()
 
    box_->image(nullptr);
    gif_->release(); // Here the gif image is deleted.
-   gif_ = new Fl_Anim_GIF_Image(path_preview_target.c_str());
+   try {
+      gif_ = new Fl_Anim_GIF_Image(path_preview_target.c_str());
+   }
+   catch (std::exception& e) {
+
+   }
+
    gif_->delay(50); // Set a delay of 50 milliseconds between frames
    box_->image(*gif_);
    gif_->scale(window_->w(), window_->h(), 1, 1);
