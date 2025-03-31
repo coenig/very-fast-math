@@ -83,14 +83,11 @@ public:
    explicit inline OptionsGlobal(const std::string& my_path) : my_path_{ my_path }
    {
       if (!my_path.empty()) {
-         if (std::filesystem::exists(my_path_)) {
-            loadOptions();
-         }
-
+         loadOptions();
          saveOptions();
       }
       else {
-         for (const auto& item : sec_option_global_enum_map) { // Add for missing options a default value.
+         for (const auto& item : sec_option_global_enum_map) { // Add for missing options an invalid value.
             options_[item.first] = "#ERROR-OPTION-NOT-AVAILABLE";
          }
       }
@@ -208,10 +205,7 @@ public:
    explicit inline OptionsLocal(const std::string& my_path) : my_path_{ my_path }
    {
       if (!my_path.empty()) {
-         if (std::filesystem::exists(my_path_)) {
-            loadOptions();
-         }
-
+         loadOptions();
          saveOptions();
       }
       else {
@@ -276,6 +270,7 @@ public:
          options_str += SecOptionLocalItem(option.first).getEnumAsString() + "=" + option.second + ";\n";
       }
 
+      StaticHelper::createDirectoriesSafe(std::filesystem::path(my_path_).parent_path());
       StaticHelper::writeTextToFile(options_str, my_path_);
    }
 

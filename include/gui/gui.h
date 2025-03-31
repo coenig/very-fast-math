@@ -87,6 +87,8 @@ public:
    void evaluateFormulasInJSON(const nlohmann::json j_template);
    void preprocessAndRewriteJSONTemplate();
    nlohmann::json getJSON() const;
+
+   void generatePreview(const std::string& path_generated, const int cex_num);
    
    std::map<std::string, std::pair<std::string, std::string>> loadNewBBsFromJson();
    std::pair<std::string, std::string> getBBNameAndFormulaByJsonName(const std::string& json_name);

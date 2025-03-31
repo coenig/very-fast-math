@@ -377,9 +377,7 @@ public:
    Fl_Box* progress_description_ = new Fl_Box(0, 1150, sec_group_->w(), 30);
    Fl_Value_Slider* slider_ = new Fl_Value_Slider(15, 350, sec_group_->w() - 80, sec_group_->h() / 5);
 
-   void tryToSelectController(
-      const std::filesystem::path& source_path,
-      const std::filesystem::path& path_generated_base) const;
+   void tryToSelectController() const;
 
    std::string getMyId() const;
    std::string getShortId() const;
