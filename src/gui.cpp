@@ -438,6 +438,7 @@ void MCScene::copyWaitingForPreviewGIF() {
 
 void MCScene::refreshPreview()
 {
+   std::lock_guard<std::mutex> lock{ refresh_mutex_ };
    std::string path_preview_target{ getGeneratedDir() + "/preview/preview.gif" };
 
    if (!StaticHelper::existsFileSafe(getGeneratedDir()) || !StaticHelper::existsFileSafe(path_preview_target)) {
