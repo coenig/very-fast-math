@@ -48,10 +48,14 @@ public:
 	std::string generate_as_csv();
 
 private:
-	void addVariables(std::stringstream& osc_ss);
-	void addEgoStartConditions(std::stringstream& osc_ss);
-	void addCustomerSetup(std::stringstream& osc_ss, bool control_ego);
-	void addVehicleTrajectoryFollowers(std::stringstream& osc_ss, bool control_ego);
+	std::string getVechicleDefinitions(std::string indent_prefix) const;
+	std::string getPositionAndSpeedNodes(std::string indent_prefix) const;
+	std::string getPositionAndSpeedNode(std::string indent_prefix, std::string vehicle_name, const FullTrajectory& trajectory) const;
+	std::string getTrajectoryDefinitions(std::string indent_prefix, bool control_ego) const;
+	std::string getTrajectoryDefinition(std::string indent_prefix, FullTrajectory trajectory, std::string vehicle_name, bool wrap_in_osc_node) const;
+	std::string getTrajectoryReplayNodes(std::string indent_prefix, bool control_ego) const;
+	std::string getEgoManeuvers(std::string indent_prefix, bool control_ego) const;
+	
 	void addVehicleTrajectoryFollower(std::stringstream& osc_ss, FullTrajectory trajectory, std::string vehicle_name, bool wrap_in_osc_node);
 	void addIndented(std::stringstream& string_stream, std::string text, int additional_indentation = 0);
 	std::string getIndent(int additional_indentation = 0);
