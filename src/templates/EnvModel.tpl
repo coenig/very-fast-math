@@ -174,7 +174,17 @@ INIT segment_0_min_lane = 0 & segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -
 TRANS next(cnt) = cnt + 1;
 
 DEFINE
-large_number := 10000;
+   -- Rear-left Criticality (RLC)
+   -- Caution: Works only with DISTANCESCALING = 10.
+   rlc_v_rear := ego.gaps___609___.v_rear;
+   rlrc_v_acsf := ego.v;
+   rlc_v_delta := rlc_v_rear - rlrc_v_acsf;
+   rlrc_tB := @{0.4}@.velocityWorldToEnvModelConst;
+   rlrc_a := @{3}@.accelerationWorldToEnvModelConst;
+   rlrc_tG := @{1}@.velocityWorldToEnvModelConst;
+   rlc := rlc_v_delta * rlrc_tB + rlc_v_delta * rlc_v_delta / (2 * rlrc_a) + rlrc_v_acsf * rlrc_tG;
+
+   large_number := 10000;
 
    segment_@{SEGMENTS}@.eval[0]_pos_begin := segment_@{SEGMENTS - 1}@.eval[0]_pos_begin + large_number; -- Helper variable to make below loop simpler.
 
