@@ -466,7 +466,7 @@ void SingleExpController::sliderCallback(Fl_Widget* widget, void* data) {
    const std::filesystem::path sec_path{ path_generated_base_parent / sec->getMyId() };
    const std::filesystem::path source_path(sec_path / std::to_string((int)sec->slider_->value()));
 
-   if (!StaticHelper::existsFileSafe(source_path)) {
+   if (!StaticHelper::existsFileSafe(source_path) || Fl::event_button() == FL_RIGHT_MOUSE) {
       std::thread t{ [sec, sec_path]() { // Don't use references since they go out of scope.
          sec->mc_scene_->deletePreview(sec->generated_path_, false);
          sec->mc_scene_->generatePreview(sec_path.string(), sec->slider_->value());
