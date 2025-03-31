@@ -168,7 +168,7 @@ void LiveSimGenerator::generate(
 {
    std::string image_file_output = base_output_name + ".png";
    std::filesystem::path morty_progress_path{ base_output_name };
-   morty_progress_path = morty_progress_path.parent_path().parent_path();
+   morty_progress_path = morty_progress_path.parent_path().parent_path().parent_path();
    morty_progress_path /= "progress.morty";
 
    auto& vehicle_names_without_ego = m_trajectory_provider.getVehicleNames(true);

@@ -1731,7 +1731,10 @@ std::vector<MCTrace> StaticHelper::extractMCTracesFromNusmv(const std::string& c
    static const std::string DELIMITER{ "Trace Type: Counterexample" }; // TODO: Make sure this is actually always a fixed string in nuXmv.
 
    if (cexp_string.empty()) {
-      Failable::getSingleton()->addNote("Received empty CEX in function 'extractMCTraceFromNusmv'. Nothing to do.");
+      if (mode != TraceExtractionMode::quick_only_detect_if_empty) {
+         Failable::getSingleton()->addNote("Received empty CEX in function 'extractMCTraceFromNusmv'. Nothing to do.");
+      }
+
       return {};
    }
 
@@ -1924,10 +1927,10 @@ std::vector<MCTrace> vfm::StaticHelper::extractMCTracesFromKratos(const std::str
 
 std::string StaticHelper::readFile(const std::string& path, const bool from_utf16)
 {
-   std::string ce_raw;
+   std::string ce_raw{};
 
     if (!StaticHelper::existsFileSafe(path)) {
-       Failable::getSingleton()->addNote("File '" + path + "' not found. Returning empty string.");
+       //Failable::getSingleton()->addNote("File '" + path + "' not found. Returning empty string.");
        return "";
     }
 

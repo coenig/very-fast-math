@@ -445,7 +445,7 @@ void MCScene::refreshPreview()
    }
 
    box_->image(nullptr);
-   gif_->release();
+   gif_->release(); // Here the gif image is deleted.
    gif_ = new Fl_Anim_GIF_Image(path_preview_target.c_str());
    gif_->delay(50); // Set a delay of 50 milliseconds between frames
    box_->image(*gif_);
@@ -1151,9 +1151,7 @@ void MCScene::refreshRarely(void* data)
    if (num == 1) {
       for (auto& sec : mc_scene->se_controllers_) {
          if (sec.hasPreview() && sec.hasEnvmodel()) {
-            sec.tryToSelectController(
-               path_generated_base_parent / sec.getMyId() / std::to_string(sec.slider_->value()),
-               path_generated_base);
+            sec.tryToSelectController();
          }
       }
    }
@@ -1499,14 +1497,22 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
    StaticHelper::writeTextToFile(main_smv, path_generated + "/main.smv");
 
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, path_generated, "FAKE_PATH_NOT_USED", path_template, "FAKE_PATH_NOT_USED", mc_scene->getCachedDir(), mc_scene->path_to_external_folder_);
+   mc_scene->generatePreview(path_generated, 0);
+
+   mc_scene->addNote("Model checker run finished for folder '" + path_generated + "'.");
+}
+
+void vfm::MCScene::generatePreview(const std::string& path_generated, const int cex_num)
+{
+   addNote("Generating preview for folder '" + path_generated + "'.");
 
    mc::trajectory_generator::VisualizationLaunchers::quickGeneratePreviewGIFs(
-      { 0 }, // TODO: For now only first among several CEXs processed.
+      { cex_num },
       path_generated,
       "debug_trace_array",
       mc::trajectory_generator::CexTypeEnum::smv);
 
-   mc_scene->addNote("Model checker run finished for folder '" + path_generated + "'.");
+   refreshPreview();
 }
 
 void vfm::MCScene::runMCJobs(MCScene* mc_scene)
@@ -2178,7 +2184,7 @@ void MCScene::onGroupClickBM(Fl_Widget* widget, void* data)
       return;
    }
 
-   controller->tryToSelectController(source_path / std::to_string((int) controller->slider_->value()), path_generated_base);
+   controller->tryToSelectController();
 }
 
 void MCScene::buttonReparse(Fl_Widget* widget, void* data)

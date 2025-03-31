@@ -196,7 +196,7 @@ bool vfm::SingleExpController::hasTestcase() const
 
 bool vfm::SingleExpController::hasSlider() const
 {
-   return true;
+   return slider_->minimum() != slider_->maximum();
 }
 
 std::vector<std::string> vfm::SingleExpController::getVariableNames() const
@@ -460,6 +460,23 @@ void SingleExpController::sliderCallback(Fl_Widget* widget, void* data) {
    SingleExpController* sec = static_cast<SingleExpController*>(data);
    sec->runtime_local_options_.setOptionValue(SecOptionLocalItemEnum::selected_cex_num, std::to_string((int)slider->value()));
    sec->runtime_local_options_.saveOptions();
+
+   const std::filesystem::path path_generated_base{ sec->generated_path_ }; // TODO: Remove this sort of double code by creating a 'getMyPath()' function.
+   const std::filesystem::path path_generated_base_parent{ path_generated_base.parent_path() };
+   const std::filesystem::path sec_path{ path_generated_base_parent / sec->getMyId() };
+   const std::filesystem::path source_path(sec_path / std::to_string((int)sec->slider_->value()));
+
+   if (!StaticHelper::existsFileSafe(source_path)) {
+      std::thread t{ [sec, sec_path]() { // Don't use references since they go out of scope.
+         sec->mc_scene_->deletePreview(sec->generated_path_, false);
+         sec->mc_scene_->generatePreview(sec_path.string(), sec->slider_->value());
+         sec->tryToSelectController();
+      } };
+
+      t.detach();
+   }
+
+   sec->tryToSelectController();
 }
 
 void DragGroup::buttonApplyCallback(Fl_Widget* widget, void* data)
@@ -683,11 +700,13 @@ void vfm::SingleExpController::cancelButtonCallback(Fl_Widget* widget, void* dat
    }
 }
 
-void SingleExpController::tryToSelectController(
-   const std::filesystem::path& source_path,
-   const std::filesystem::path& path_generated_base) const
+void SingleExpController::tryToSelectController() const
 {
    if (hasPreview() && hasEnvmodel()) {
+      const std::filesystem::path path_generated_base{ generated_path_ };
+      const std::filesystem::path path_generated_base_parent{ path_generated_base.parent_path() };
+      const std::filesystem::path source_path(path_generated_base_parent / getMyId() / std::to_string((int)slider_->value()));
+
       std::filesystem::path source_path_preview{ source_path / "preview" };
       std::filesystem::path source_path_prose{ source_path / PROSE_DESC_NAME };
       std::filesystem::path target_path_prose{ path_generated_base / PROSE_DESC_NAME };
@@ -756,28 +775,27 @@ void vfm::ProgressDetector::placeProgressImage(
 
    for (const auto& package : packages) { // Show progress images.
       for (auto& sec : se_controllers) {
-         int preview_num{0};
-
-         sec.slider_->range(0, StaticHelper::extractMCTracesFromNusmvFile(
-            (path_generated_base_parent / package / "debug_trace_array.txt").string(), StaticHelper::TraceExtractionMode::quick_only_detect_if_empty).size() - 1);
-
-         if (sec.hasSlider()) {
-            //sec.slider_->parent()->parent()->parent()->remove(sec.slider_);
-            //sec.slider_->parent()->parent()->parent()->add(sec.slider_);
-
-            sec.slider_->show();
-            preview_num = (int)sec.slider_->value();
-            //sec.slider_->resize(0, 0, 100, 50);
-
-            sec.slider_->type(FL_HORIZONTAL);
-            sec.slider_->color(fl_rgb_color(254, 255, 224));
-            sec.slider_->precision(0);
-         }
-         else {
-            sec.slider_->hide();
-         }
-
          if (sec.getMyId() == package) {
+            int preview_num{ 0 };
+
+            const double slider_min{ (double) 0 };
+            const double slider_max{ (std::max)(0.0, (double) StaticHelper::extractMCTracesFromNusmvFile(
+               (path_generated_base_parent / package / "debug_trace_array.txt").string(), StaticHelper::TraceExtractionMode::quick_only_detect_if_empty).size() - 1) };
+
+            sec.slider_->range(slider_min, slider_max);
+            sec.slider_->value((std::min)(slider_max, (std::max)(slider_min, sec.slider_->value())));
+
+            if (sec.hasSlider()) {
+               sec.slider_->show();
+               preview_num = (int)sec.slider_->value();
+               sec.slider_->type(FL_HORIZONTAL);
+               sec.slider_->color(fl_rgb_color(254, 255, 224));
+               sec.slider_->precision(0);
+            }
+            else {
+               sec.slider_->hide();
+            }
+
             if (StaticHelper::existsFileSafe(path_generated_base_parent / package / "EnvModel.smv")) {
                sec.image_box_envmodel_->image(check_image_);
                sec.has_envmodel_ = true;
