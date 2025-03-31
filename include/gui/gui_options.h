@@ -25,6 +25,7 @@ namespace vfm {
 
 enum class SecOptionLocalItemEnum {
    selected_job,
+   selected_cex_num,
    invalid
 };
 
@@ -39,6 +40,7 @@ const std::map<SecOptionGlobalItemEnum, std::string> sec_option_global_enum_map{
 
 const std::map<SecOptionLocalItemEnum, std::string> sec_option_local_enum_map{
    { SecOptionLocalItemEnum::selected_job, "selected_job" },
+   { SecOptionLocalItemEnum::selected_cex_num, "selected_cex_num" },
    { SecOptionLocalItemEnum::invalid, "invalid" },
 };
 
@@ -71,6 +73,7 @@ const std::map<SecOptionGlobalItemEnum, std::string> sec_option_global_default_v
 
 const std::map<SecOptionLocalItemEnum, std::string> sec_option_local_default_values{
    { SecOptionLocalItemEnum::selected_job, "true" },
+   { SecOptionLocalItemEnum::selected_cex_num, "0" },
    { SecOptionLocalItemEnum::invalid, "#INVALID" },
 };
 

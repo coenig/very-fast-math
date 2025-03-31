@@ -426,6 +426,7 @@ public:
    // Callbacks
    static void checkboxJobSelectedCallback(Fl_Widget* widget, void* data);
    static void cancelButtonCallback(Fl_Widget* widget, void* data);
+   static void sliderCallback(Fl_Widget* widget, void* data);
 
    void registerCallbacks() const;
 

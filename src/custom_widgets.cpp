@@ -41,6 +41,7 @@ vfm::SingleExpController::SingleExpController(
    image_box_testcase_->align(FL_ALIGN_RIGHT);
    labelBox_testcase_->align(FL_ALIGN_RIGHT);
    slider_->hide();
+   slider_->value(std::stoi(runtime_local_options_.getOptionValue(SecOptionLocalItemEnum::selected_cex_num)));
 
    const int checkboxWidth = 50;
    const int checkboxHeight = 100;
@@ -78,6 +79,7 @@ void vfm::SingleExpController::registerCallbacks() const
 {
    checkbox_selected_job_->callback(checkboxJobSelectedCallback, const_cast<SingleExpController*>(this));
    cancel_button_->callback(cancelButtonCallback, const_cast<SingleExpController*>(this));
+   slider_->callback(sliderCallback, const_cast<SingleExpController*>(this));
 }
 
 std::map<ProgressElement, std::string> vfm::SingleExpController::getProgress() const
@@ -451,6 +453,13 @@ std::string DragGroup::removeFunctionStuffFromString(const std::string& str)
 {
    size_t pos = str.find('('); // Strip off any "function" syntax.
    return pos == std::string::npos ? str : str.substr(0, pos);
+}
+
+void SingleExpController::sliderCallback(Fl_Widget* widget, void* data) {
+   Fl_Value_Slider* slider = (Fl_Value_Slider*)widget;
+   SingleExpController* sec = static_cast<SingleExpController*>(data);
+   sec->runtime_local_options_.setOptionValue(SecOptionLocalItemEnum::selected_cex_num, std::to_string((int)slider->value()));
+   sec->runtime_local_options_.saveOptions();
 }
 
 void DragGroup::buttonApplyCallback(Fl_Widget* widget, void* data)
