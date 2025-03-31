@@ -86,14 +86,16 @@ public:
 
    
    static inline bool quickGeneratePreviewGIFs(
+      const std::set<int>& cex_nums_to_generate, // In case cex file contains more than 1 CEX, numbers to pick.
       const std::string& path_cropped,
       const std::string& file_name_without_txt_extension,
       const CexTypeEnum cex_type)
    {
-      return quickGenerateGIFs(path_cropped, file_name_without_txt_extension, cex_type, false, false);
+      return quickGenerateGIFs(cex_nums_to_generate, path_cropped, file_name_without_txt_extension, cex_type, false, false);
    }
 
    static inline bool quickGenerateGIFs(
+      const std::set<int>& cex_nums_to_generate, // In case cex file contains more than 1 CEX, numbers to pick.
       const std::string& path_cropped,
       const std::string& file_name_without_txt_extension,
       const CexTypeEnum cex_type,
@@ -103,10 +105,11 @@ public:
       const std::set<int>& agents_to_draw_arrows_for = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }
    )
    {
-      return quickGenerateGIFs(path_cropped, file_name_without_txt_extension, CexType(cex_type), export_basic, export_with_smooth_arrows, export_without_smooth_arrows, agents_to_draw_arrows_for);
+      return quickGenerateGIFs(cex_nums_to_generate, path_cropped, file_name_without_txt_extension, CexType(cex_type), export_basic, export_with_smooth_arrows, export_without_smooth_arrows, agents_to_draw_arrows_for);
    }
 
    static bool quickGenerateGIFs(
+      const std::set<int>& cex_nums_to_generate, // In case cex file contains more than 1 CEX, numbers to pick.
       const std::string& path_cropped,
       const std::string& file_name_without_txt_extension,
       const CexType& cex_type,

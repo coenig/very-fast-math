@@ -438,6 +438,7 @@ void MCScene::copyWaitingForPreviewGIF() {
 
 void MCScene::refreshPreview()
 {
+   std::lock_guard<std::mutex> lock{ refresh_mutex_ };
    std::string path_preview_target{ getGeneratedDir() + "/preview/preview.gif" };
 
    if (!StaticHelper::existsFileSafe(getGeneratedDir()) || !StaticHelper::existsFileSafe(path_preview_target)) {
@@ -445,8 +446,14 @@ void MCScene::refreshPreview()
    }
 
    box_->image(nullptr);
-   gif_->release();
-   gif_ = new Fl_Anim_GIF_Image(path_preview_target.c_str());
+   gif_->release(); // Here the gif image is deleted.
+   try {
+      gif_ = new Fl_Anim_GIF_Image(path_preview_target.c_str());
+   }
+   catch (std::exception& e) {
+
+   }
+
    gif_->delay(50); // Set a delay of 50 milliseconds between frames
    box_->image(*gif_);
    gif_->scale(window_->w(), window_->h(), 1, 1);
@@ -581,6 +588,39 @@ void MCScene::setTitle()
 std::shared_ptr<OptionsGlobal> vfm::MCScene::getRuntimeGlobalOptions() const
 {
    return runtime_global_options_;
+}
+
+void vfm::MCScene::putJSONIntoDataPack(const std::string& json_config)
+{
+   const bool from_template{ json_config == JSON_TEMPLATE_DENOTER };
+
+   //data_->reset();
+
+   try {
+      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->value() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
+
+      for (auto& [key_config, value_config] : j.items()) {
+         if (key_config == json_config) {
+            for (auto& [key, value] : value_config.items()) {
+               if (value.is_string()) {
+                  std::string val_str = StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "");
+                  //data_->addStringToDataPack(val_str, key); // TODO: Currently leads to heap overflow. Need to overwrite instead of append.
+               }
+               else {
+                  data_->addOrSetSingleVal(key, value);
+               }
+            }
+         }
+      }
+   }
+   catch (const nlohmann::json::parse_error& e) {
+      //addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
+   }
+   catch (...) {
+      //addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
+   }
+
+   //addError("#KEY-NOT-FOUND in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
 }
 
 void MCScene::showAllBBGroups(const bool show)
@@ -952,6 +992,8 @@ void MCScene::checkboxJSONVisibleCallback(Fl_Widget* widget, void* data)
 void MCScene::refreshRarely(void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
+   mc_scene->putJSONIntoDataPack();
+
    std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
 
    if (!StaticHelper::existsFileSafe(path_generated_base_str)) {
@@ -1051,9 +1093,9 @@ void MCScene::refreshRarely(void* data)
    }
 
    for (const auto& del : to_delete) { // ...and delete those.
-      mc_scene->window_->remove(del.group_);
+      mc_scene->window_->remove(del.sec_group_);
       mc_scene->se_controllers_.erase(del);
-      Fl::delete_widget(del.group_);
+      Fl::delete_widget(del.sec_group_);
       changed = true;
    }
 
@@ -1081,9 +1123,8 @@ void MCScene::refreshRarely(void* data)
       mc_scene->window_width_archived_ = mc_scene->window_->w();
 
       if (!mc_scene->sec_scroll_) {
-         mc_scene->sec_scroll_ = new Fl_Scroll(10, 250, mc_scene->window_->w() - 20, 120);
+         mc_scene->sec_scroll_ = new Fl_Scroll(10, 220, mc_scene->window_->w() - 20, 120);
          mc_scene->sec_scroll_->type(Fl_Scroll::HORIZONTAL);
-
          mc_scene->window_->add(mc_scene->sec_scroll_);
       }
 
@@ -1093,10 +1134,10 @@ void MCScene::refreshRarely(void* data)
       int max{ static_cast<int>(mc_scene->se_controllers_.size()) };
       for (auto& controller : mc_scene->se_controllers_) {
          auto width{ (std::max)(mc_scene->window_->w() / max - 10, MIN_WIDTH) };
-         controller.group_->size(width - 5, 50);
-         mc_scene->sec_scroll_->add(controller.group_);
-         controller.group_->position(width * cnt + 20, 240);
-         controller.group_->copy_label(controller.getAbbreviatedShortId().c_str());
+         controller.sec_group_->size(width - 5, 70);
+         mc_scene->sec_scroll_->add(controller.sec_group_);
+         controller.sec_group_->position(width * cnt + 20, 240);
+         controller.sec_group_->copy_label(controller.getAbbreviatedShortId().c_str());
          controller.invisible_widget_->copy_tooltip(controller.getShortId().c_str());
          controller.invisible_widget_->callback(MCScene::onGroupClickBM, (void*)&controller);
          cnt++;
@@ -1117,9 +1158,7 @@ void MCScene::refreshRarely(void* data)
    if (num == 1) {
       for (auto& sec : mc_scene->se_controllers_) {
          if (sec.hasPreview() && sec.hasEnvmodel()) {
-            sec.tryToSelectController(
-               path_generated_base_parent / sec.getMyId(),
-               path_generated_base);
+            sec.tryToSelectController();
          }
       }
    }
@@ -1127,14 +1166,14 @@ void MCScene::refreshRarely(void* data)
    for (auto& sec : mc_scene->se_controllers_) {
       if (sec.hasPreview()) {
          if (sec.selected_) {
-            sec.group_->color(fl_rgb_color(255, 255, 102));
+            sec.sec_group_->color(fl_rgb_color(255, 255, 102));
          }
          else {
-            sec.group_->color(fl_rgb_color(255, 255, 204));
+            sec.sec_group_->color(fl_rgb_color(255, 255, 204));
          }
       }
       else {
-         sec.group_->color(fl_rgb_color(204, 255, 229));
+         sec.sec_group_->color(fl_rgb_color(204, 255, 229));
       }
 
       sec.adjustAbbreviatedShortID();
@@ -1424,6 +1463,8 @@ void MCScene::jsonChangedCallback(Fl_Widget* widget, void* data) {
    mc_scene->button_check_json_->color(FL_YELLOW);
 }
 
+
+
 void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw, const std::string config_name)
 {
    std::string path_generated{ StaticHelper::replaceAll(path_generated_raw, "\\", "/") };
@@ -1443,16 +1484,10 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
 
    std::string main_smv{ StaticHelper::readFile(path_generated + "/main.smv") };
 
-   const std::string INVAR_SCRIPT{ "go_msat\n\
-         msat_check_invar_bmc -i -a falsification -k " + std::to_string(mc_scene->bmcDepth(config_name)) + "\n\
-         quit" };
-
-   const std::string LTL_SCRIPT{ "go_msat\n\
-         msat_check_ltlspec_bmc -k " + std::to_string(mc_scene->bmcDepth(config_name)) + "\n\
-         quit" };
-
-   const bool is_ltl{ mc_scene->isLTL(config_name) };
-   StaticHelper::writeTextToFile(is_ltl ? LTL_SCRIPT : INVAR_SCRIPT, path_generated + "/script.cmd");
+   mc_scene->putJSONIntoDataPack();
+   std::string script_template{ StaticHelper::readFile(mc_scene->getTemplateDir() + "/script.tpl") };
+   std::string generated_script{ CppParser::generateScript(script_template, mc_scene->data_, mc_scene->parser_) };
+   StaticHelper::writeTextToFile(generated_script, path_generated + "/script.cmd");
 
    mc_scene->addNote("Created script.cmd with the following content:\n" + StaticHelper::readFile(path_generated + "/script.cmd") + "<EOF>");
 
@@ -1469,13 +1504,22 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
    StaticHelper::writeTextToFile(main_smv, path_generated + "/main.smv");
 
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, path_generated, "FAKE_PATH_NOT_USED", path_template, "FAKE_PATH_NOT_USED", mc_scene->getCachedDir(), mc_scene->path_to_external_folder_);
+   mc_scene->generatePreview(path_generated, 0);
+
+   mc_scene->addNote("Model checker run finished for folder '" + path_generated + "'.");
+}
+
+void vfm::MCScene::generatePreview(const std::string& path_generated, const int cex_num)
+{
+   addNote("Generating preview for folder '" + path_generated + "'.");
 
    mc::trajectory_generator::VisualizationLaunchers::quickGeneratePreviewGIFs(
+      { cex_num },
       path_generated,
       "debug_trace_array",
       mc::trajectory_generator::CexTypeEnum::smv);
 
-   mc_scene->addNote("Model checker run finished for folder '" + path_generated + "'.");
+   refreshPreview();
 }
 
 void vfm::MCScene::runMCJobs(MCScene* mc_scene)
@@ -2147,7 +2191,7 @@ void MCScene::onGroupClickBM(Fl_Widget* widget, void* data)
       return;
    }
 
-   controller->tryToSelectController(source_path, path_generated_base);
+   controller->tryToSelectController();
 }
 
 void MCScene::buttonReparse(Fl_Widget* widget, void* data)
@@ -2163,6 +2207,7 @@ void vfm::MCScene::createTestCase(const MCScene* mc_scene, const std::string& ge
    mc_scene->addNote("Running test case generation " + std::to_string(cnt) + "/" + std::to_string(max) + " for '" + id + "'.");
 
    mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
+      { 0 }, // TODO: for now only first CEX is processed if several given.
       generated_parent_dir + "/" + id,
       "debug_trace_array",
       mc::trajectory_generator::CexTypeEnum::smv,

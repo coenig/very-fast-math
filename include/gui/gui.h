@@ -87,6 +87,8 @@ public:
    void evaluateFormulasInJSON(const nlohmann::json j_template);
    void preprocessAndRewriteJSONTemplate();
    nlohmann::json getJSON() const;
+
+   void generatePreview(const std::string& path_generated, const int cex_num);
    
    std::map<std::string, std::pair<std::string, std::string>> loadNewBBsFromJson();
    std::pair<std::string, std::string> getBBNameAndFormulaByJsonName(const std::string& json_name);
@@ -112,6 +114,8 @@ public:
    void setValueForJSONKeyFromBool(const std::string& key_to_find, const std::string& config_name, const bool from_template, const bool value_to_set) const;
 
    std::shared_ptr<OptionsGlobal> getRuntimeGlobalOptions() const;
+
+   void putJSONIntoDataPack(const std::string& json_config = JSON_TEMPLATE_DENOTER);
 
    static void runMCJob(MCScene* mc_scene, const std::string& path_generated, const std::string config_name);
    static void runMCJobs(MCScene* mc_scene);
