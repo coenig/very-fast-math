@@ -239,6 +239,15 @@ public:
    static bool stringContains(const std::string& string, const std::string& substring);
    static bool stringContains(const std::string& string, const char substring);
 
+   /// <summary>
+   /// Returns the number of occurrences of some substring in a string. E.g.:
+   /// occurrencesInString("testest", "es") ==> 2.
+   /// </summary>
+   /// 
+   /// <param name="count_overlapping">Iff occurrencesInString("ttt", "tt", ?) returns 2 (or else 1).</param>
+   /// <returns></returns>
+   static size_t occurrencesInString(const std::string& string, const std::string& sub_string, const bool count_overlapping = false);
+
    static std::string shortenToMaxSize(const std::string& s, const int max_size, const bool add_dots = true, const int shorten_to = -1, const float percentage_front = 1, const std::string& dots = "[...]");
    static std::string shortenInTheMiddle(const std::string& s, const int max_size, const float percentage_front = 0.5, const std::string& dots = "[...]");
 
@@ -631,17 +640,22 @@ public:
    static std::string getFileNameFromPathWithoutExt(const std::string& path);
    static std::string removeFileNameFromPath(const std::string& path);
 
-   static MCTrace extractMCTraceFromMSATIC(const std::string& cexp_string);
-   static MCTrace extractMCTraceFromMSATICFile(const std::string& cexp_string);
+   enum class TraceExtractionMode {
+      regular,
+      quick_only_detect_if_empty
+   };
 
-   static MCTrace extractMCTraceFromNusmv(const std::string& cexp_string);
-   static MCTrace extractMCTraceFromNusmvFile(const std::string& path);
+   static std::vector<MCTrace> extractMCTracesFromMSATIC(const std::string& cexp_string); // For now only one CEX is extracted. Empty CEX returned as empty list.
+   static std::vector<MCTrace> extractMCTracesFromMSATICFile(const std::string& cexp_string);
+
+   static std::vector<MCTrace> extractMCTracesFromNusmv(const std::string& cexp_string, const TraceExtractionMode mode = TraceExtractionMode::regular);
+   static std::vector<MCTrace> extractMCTracesFromNusmvFile(const std::string& path, const TraceExtractionMode mode = TraceExtractionMode::regular);
    static std::string serializeMCTraceNusmvStyle(const MCTrace& trace, const bool print_unchanged_values = false);
 
    static std::string readFile(const std::string& path, const bool from_utf16 = false);
 
-   static MCTrace extractMCTraceFromKratos(const std::string& cexp_string);
-   static MCTrace extractMCTraceFromKratosFile(const std::string& path, const bool from_utf16 = false);
+   static std::vector<MCTrace> extractMCTracesFromKratos(const std::string& cexp_string); // For now only one CEX is extracted. Empty CEX returned as empty list.
+   static std::vector<MCTrace> extractMCTracesFromKratosFile(const std::string& path, const bool from_utf16 = false);
    static std::string serializeMCTraceKratosStyle(const MCTrace& trace);
    static std::string extractSeries(const MCTrace& trace, const std::vector<std::string>& variables);
 

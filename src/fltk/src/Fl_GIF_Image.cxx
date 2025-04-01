@@ -338,6 +338,7 @@ void Fl_GIF_Image::lzw_decode(Fl_Image_Reader &rdr, uchar *Image,
     } else {
       //Fl::error("Fl_GIF_Image: %s - LZW Barf at offset %ld", rdr.name(), rdr.tell());
       //break;
+      i = 0;
     }
 
     while (i >= ColorMapSize) {

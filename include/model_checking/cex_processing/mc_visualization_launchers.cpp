@@ -204,7 +204,7 @@ std::string VisualizationLaunchers::writeProseTrafficScene(const MCTrace trace)
 {
    const auto lane_structure{ getLaneStructureFrom(trace) };
    const auto config = InterpretationConfiguration::getLaneChangeConfiguration();
-   const MCinterpretedTrace interpreted_trace(trace, config);
+   const MCinterpretedTrace interpreted_trace(0, { trace }, config);
    const auto data_vec{ interpreted_trace.getDataTrace() };
    const auto pair{ createOthersVecs(data_vec, lane_structure) };
    const auto ego_vec{ pair.first };
@@ -224,135 +224,146 @@ std::string VisualizationLaunchers::writeProseTrafficScene(const MCTrace trace)
 }
 
 bool VisualizationLaunchers::quickGenerateGIFs(
+   const std::set<int>& cex_nums_to_generate,
    const std::string& path_cropped,
    const std::string& file_name_without_txt_extension,
    const CexType& cex_type,
    const bool export_basic,
    const bool export_with_smooth_arrows,
    const bool export_without_smooth_arrows,
-   const std::set<int>& agents_to_draw_arrows_for
-) 
+   const std::set<int>& agents_to_draw_arrows_for) 
 {
    if (cex_type != CexTypeEnum::smv && cex_type != CexTypeEnum::kratos && cex_type != CexTypeEnum::msatic) {
       Failable::getSingleton()->addError("Cex type '" + cex_type.getEnumAsString() + "' not allowed. CEX generation aborted.");
       return false;
    }
 
-   const std::string path{ path_cropped + "/" };
+   const std::string path_base{ path_cropped + "/" };
 
-   auto trace{ cex_type == CexTypeEnum::msatic
-      ? StaticHelper::extractMCTraceFromMSATICFile(path + file_name_without_txt_extension + ".txt")
+   auto traces{ cex_type == CexTypeEnum::msatic
+      ? StaticHelper::extractMCTracesFromMSATICFile(path_base + file_name_without_txt_extension + ".txt")
       : (cex_type == CexTypeEnum::smv
-         ? StaticHelper::extractMCTraceFromNusmvFile(path + file_name_without_txt_extension + ".txt")
-         : (StaticHelper::extractMCTraceFromKratosFile(path + file_name_without_txt_extension + ".txt"))) };
+         ? StaticHelper::extractMCTracesFromNusmvFile(path_base + file_name_without_txt_extension + ".txt")
+         : (StaticHelper::extractMCTracesFromKratosFile(path_base + file_name_without_txt_extension + ".txt"))) };
 
-   if (trace.empty()) {
-      Failable::getSingleton()->addNote("Received empty CEX in file '" + path + file_name_without_txt_extension + ".txt" + "'. Nothing to do.");
+   if (traces.empty()) {
+      Failable::getSingleton()->addNote("Received empty list of CEXs in file '" + path_base + file_name_without_txt_extension + ".txt" + "'. Nothing to do.");
       return false;
    }
 
-   StaticHelper::writeTextToFile(writeProseTrafficScene(trace), path + "prose_scenario_description.txt");
-   StaticHelper::writeTextToFile(StaticHelper::serializeMCTraceNusmvStyle(trace), path + file_name_without_txt_extension + "_unscaled.smv");
+   for (int index : cex_nums_to_generate) {
+      auto& trace = traces.at(index);
+      const std::string path{ path_base + std::to_string(index) + "/"};
 
-   Failable::getSingleton()->addNote("Applying scaling.");
-   ScaleDescription::createTimescalingFile(path);
-   auto ts_description{ ScaleDescription(StaticHelper::readFile(path + TIMESCALING_FILENAME)) };
-   StaticHelper::applyTimescaling(trace, ts_description);
+      if (trace.empty()) {
+         Failable::getSingleton()->addNote("Received empty CEX at index '" + std::to_string(index) + "' in file '" + path + file_name_without_txt_extension + ".txt" + "'. Nothing to do.");
+         continue;
+      }
 
-   StaticHelper::writeTextToFile(StaticHelper::serializeMCTraceNusmvStyle(trace), path + file_name_without_txt_extension + ".smv");
+      StaticHelper::createDirectoriesSafe(path);
+      StaticHelper::writeTextToFile(writeProseTrafficScene(trace), path + "prose_scenario_description.txt");
+      StaticHelper::writeTextToFile(StaticHelper::serializeMCTraceNusmvStyle(trace), path + file_name_without_txt_extension + "_unscaled.smv");
 
-   std::string trial_name{ file_name_without_txt_extension };
-   std::string comments_file{ path_cropped + "/" + "Comments.csv" };
-   StaticHelper::writeTextToFile(path + trial_name + ";\n", comments_file, true);
+      Failable::getSingleton()->addNote("Applying scaling.");
+      ScaleDescription::createTimescalingFile(path);
+      auto ts_description{ ScaleDescription(StaticHelper::readFile(path + TIMESCALING_FILENAME)) };
+      StaticHelper::applyTimescaling(trace, ts_description);
 
-   VisualizationScales gen_config_non_smooth{};
-   gen_config_non_smooth.x_scaling = 1;
-   gen_config_non_smooth.duration_scale = 1;
-   gen_config_non_smooth.frames_per_second_gif = 0;
-   gen_config_non_smooth.frames_per_second_osc = 0;
-   gen_config_non_smooth.gif_duration_scale = 1 / ts_description.getTimeScalingFactor();
+      StaticHelper::writeTextToFile(StaticHelper::serializeMCTraceNusmvStyle(trace), path + file_name_without_txt_extension + ".smv");
 
-   // Smoothing by adding interpolated frames
-   auto gen_config_smooth = VisualizationScales{ gen_config_non_smooth };
-   gen_config_smooth.frames_per_second_gif = 40;
-   gen_config_smooth.frames_per_second_osc = 40;
+      std::string trial_name{ file_name_without_txt_extension };
+      std::string comments_file{ path_cropped + "/" + "Comments.csv" };
+      StaticHelper::writeTextToFile(path + trial_name + ";\n", comments_file, true);
 
-   VisualizationLaunchers::interpretAndGenerate(
-      trace,
-      path,
-      "preview",
-      SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
-      agents_to_draw_arrows_for,
-      gen_config_smooth, "preview");
+      VisualizationScales gen_config_non_smooth{};
+      gen_config_non_smooth.x_scaling = 1;
+      gen_config_non_smooth.duration_scale = 1;
+      gen_config_non_smooth.frames_per_second_gif = 0;
+      gen_config_non_smooth.frames_per_second_osc = 0;
+      gen_config_non_smooth.gif_duration_scale = 1 / ts_description.getTimeScalingFactor();
 
-   VisualizationLaunchers::interpretAndGenerate(
-      trace,
-      path,
-      "preview2",
-      SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
-      agents_to_draw_arrows_for,
-      gen_config_non_smooth, "preview 2");
-
-   if (export_basic) {
-      VisualizationLaunchers::interpretAndGenerate(
-         trace,
-         path,
-         "cex-full",
-         SIM_TYPE_REGULAR,
-         agents_to_draw_arrows_for,
-         gen_config_non_smooth, "full (1/7)");
+      // Smoothing by adding interpolated frames
+      auto gen_config_smooth = VisualizationScales{ gen_config_non_smooth };
+      gen_config_smooth.frames_per_second_gif = 40;
+      gen_config_smooth.frames_per_second_osc = 40;
 
       VisualizationLaunchers::interpretAndGenerate(
          trace,
          path,
-         "cex-birdseye",
-         SIM_TYPE_REGULAR_BIRDSEYE_ONLY,
-         agents_to_draw_arrows_for,
-         gen_config_non_smooth, "birdseye (2/7)");
-
-      VisualizationLaunchers::interpretAndGenerate(
-         trace,
-         path,
-         "cex-cockpit-only",
-         static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation | LiveSimGenerator::LiveSimType::cockpit | LiveSimGenerator::LiveSimType::incremental_image_output),
-         agents_to_draw_arrows_for,
-         gen_config_non_smooth, "cockpit (3/7)");
-   }
-
-   if (export_with_smooth_arrows) {
-      VisualizationLaunchers::interpretAndGenerate(
-         trace,
-         path,
-         "cex-smooth-with-arrows-full",
-         SIM_TYPE_SMOOTH_WITH_ARROWS,
-         agents_to_draw_arrows_for,
-         gen_config_smooth, "smooth-with-arrows (6/7)");
-
-      VisualizationLaunchers::interpretAndGenerate(
-         trace,
-         path,
-         "cex-smooth-with-arrows-birdseye",
+         "preview",
          SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
          agents_to_draw_arrows_for,
-         gen_config_smooth, "smooth-with-arrows-birdseye (7/7)");
-   }
-
-   if (export_without_smooth_arrows) {
-      VisualizationLaunchers::interpretAndGenerate(
-         trace,
-         path,
-         "cex-smooth-full",
-         SIM_TYPE_SMOOTH,
-         agents_to_draw_arrows_for,
-         gen_config_smooth, "full-smooth (4/7)");
+         gen_config_smooth, "preview");
 
       VisualizationLaunchers::interpretAndGenerate(
          trace,
          path,
-         "cex-smooth-birdseye",
-         SIM_TYPE_SMOOTH_BIRDSEYE_ONLY,
+         "preview2",
+         SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
          agents_to_draw_arrows_for,
-         gen_config_smooth, "birdseye-smooth (5/7)");
+         gen_config_non_smooth, "preview 2");
+
+      if (export_basic) {
+         VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            path,
+            "cex-full",
+            SIM_TYPE_REGULAR,
+            agents_to_draw_arrows_for,
+            gen_config_non_smooth, "full (1/7)");
+
+         VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            path,
+            "cex-birdseye",
+            SIM_TYPE_REGULAR_BIRDSEYE_ONLY,
+            agents_to_draw_arrows_for,
+            gen_config_non_smooth, "birdseye (2/7)");
+
+         VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            path,
+            "cex-cockpit-only",
+            static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation | LiveSimGenerator::LiveSimType::cockpit | LiveSimGenerator::LiveSimType::incremental_image_output),
+            agents_to_draw_arrows_for,
+            gen_config_non_smooth, "cockpit (3/7)");
+      }
+
+      if (export_with_smooth_arrows) {
+         VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            path,
+            "cex-smooth-with-arrows-full",
+            SIM_TYPE_SMOOTH_WITH_ARROWS,
+            agents_to_draw_arrows_for,
+            gen_config_smooth, "smooth-with-arrows (6/7)");
+
+         VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            path,
+            "cex-smooth-with-arrows-birdseye",
+            SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
+            agents_to_draw_arrows_for,
+            gen_config_smooth, "smooth-with-arrows-birdseye (7/7)");
+      }
+
+      if (export_without_smooth_arrows) {
+         VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            path,
+            "cex-smooth-full",
+            SIM_TYPE_SMOOTH,
+            agents_to_draw_arrows_for,
+            gen_config_smooth, "full-smooth (4/7)");
+
+         VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            path,
+            "cex-smooth-birdseye",
+            SIM_TYPE_SMOOTH_BIRDSEYE_ONLY,
+            agents_to_draw_arrows_for,
+            gen_config_smooth, "birdseye-smooth (5/7)");
+      }
    }
 
    return true;
@@ -410,7 +421,7 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
    std::string out_path = full_path + "/" + final_name;
 
    const auto config = InterpretationConfiguration::getLaneChangeConfiguration();
-   MCinterpretedTrace interpreted_trace(trace, config);
+   MCinterpretedTrace interpreted_trace(0, { trace }, config);
 
    assert(interpreted_trace.getEgoTrajectory().size() == interpreted_trace.getDataTrace().size());
 
@@ -477,6 +488,7 @@ bool processCEX(
    const bool with_smooth_arrows)
 {
    bool success{ vfm::mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
+      { 0 }, // For now, always generate only the first CEX.
       std::string(path_cropped),
       "debug_trace_array",
       CexType(std::string(cex_type)),

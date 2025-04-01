@@ -293,6 +293,18 @@ bool vfm::StaticHelper::stringContains(const std::string& string, const std::str
    return string.find(substring) != std::string::npos;
 }
 
+size_t vfm::StaticHelper::occurrencesInString(const std::string& string, const std::string& sub_string, const bool count_overlapping)
+{
+   size_t occurrences{ 0 };
+   size_t pos{ 0 };
+   while ((pos = string.find(sub_string, pos)) != std::string::npos) {
+      ++occurrences;
+      pos += count_overlapping ? 1 : sub_string.length();
+   }
+
+   return occurrences;
+}
+
 std::string vfm::StaticHelper::shortenToMaxSize(const std::string& s, const int max_size, const bool add_dots, const int shorten_to, const float percentage_front, const std::string& dots)
 {
    int st = shorten_to < 0 ? max_size : shorten_to;
@@ -1700,79 +1712,101 @@ void postprocessTrace(MCTrace& trace)
    }
 }
 
-MCTrace vfm::StaticHelper::extractMCTraceFromMSATIC(const std::string& cexp_string)
+std::vector<MCTrace> vfm::StaticHelper::extractMCTracesFromMSATIC(const std::string& cexp_string)
 {
    mc::msatic::Parser parser;
    auto trace_input = parser.extractLinesFromRawTrace(cexp_string);
    auto parsed_trace = parser.parseStepsFromTrace(trace_input);
    postprocessTrace(parsed_trace);
-   return parsed_trace;
+   return parsed_trace.empty() ? std::vector<MCTrace>{} : std::vector<MCTrace>{ parsed_trace };
 }
 
-MCTrace vfm::StaticHelper::extractMCTraceFromMSATICFile(const std::string& cexp_string)
+std::vector<MCTrace> vfm::StaticHelper::extractMCTracesFromMSATICFile(const std::string& cexp_string)
 {
-   return extractMCTraceFromMSATIC(readFile(cexp_string));
+   return extractMCTracesFromMSATIC(readFile(cexp_string));
 }
 
-MCTrace StaticHelper::extractMCTraceFromNusmv(const std::string& cexp_string)
+std::vector<MCTrace> StaticHelper::extractMCTracesFromNusmv(const std::string& cexp_string, const TraceExtractionMode mode)
 {
-   MCTrace ce{};
- 
+   static const std::string DELIMITER{ "Trace Type: Counterexample" }; // TODO: Make sure this is actually always a fixed string in nuXmv.
+
    if (cexp_string.empty()) {
-      Failable::getSingleton()->addNote("Received empty CEX in function 'extractMCTraceFromNusmv'. Nothing to do.");
-      return ce;
+      if (mode != TraceExtractionMode::quick_only_detect_if_empty) {
+         Failable::getSingleton()->addNote("Received empty CEX in function 'extractMCTraceFromNusmv'. Nothing to do.");
+      }
+
+      return {};
    }
 
-   auto lines{ split(cexp_string, '\n') };
+   std::vector<MCTrace> traces{};
 
-   if (StaticHelper::stringContains(lines[lines.size() - 1], "-- no counterexample found")) {
-      return ce;
+   if (mode == TraceExtractionMode::quick_only_detect_if_empty) {
+      size_t occ{ occurrencesInString(cexp_string, DELIMITER) };
+      std::vector<MCTrace> simp_res{};
+
+      for (auto i = 0; i < occ; i++) {
+         simp_res.push_back({}); // Fill with empty traces, since we only need to reflect HOW MANY traces.
+      }
+
+      return simp_res; // Return non-empty if and only if there is a CEX in the data.
    }
 
-   lines.push_back("->EOF");
-   std::string state{};
-   VarVals vars{};
-   
-   for (const auto& line : lines) {
-      std::string cline{ StaticHelper::removeWhiteSpace(line) };
+   for (const auto& single_cex : StaticHelper::split(cexp_string, DELIMITER)) {
+      MCTrace ce{};
 
-      if (!StaticHelper::stringStartsWith(cline, "#")) {
-         if ((StaticHelper::stringStartsWith(cline, "->") || StaticHelper::stringStartsWith(cline, "--Loop"))
-            && !StaticHelper::stringContains(cline, "->Input:")) { // Jump over "input" state to squash envModel and Planner cycle into one.
-            if (!vars.empty()) {
-               ce.addTraceStep({ state, vars });
-               vars.clear();
-            }
+      auto lines = split(single_cex, '\n');
 
-            if (StaticHelper::stringStartsWith(cline, "--Loop")) {
-               ce.addTraceStep({ "LOOP", {} });
-            }
-            else {
-               state = StaticHelper::replaceAll(StaticHelper::replaceAll(StaticHelper::replaceAll(cline, "<-", ""), "->Input:", "I"), "->State:", "");
-            }
-         }
-         else if (!StaticHelper::stringContains(cline, "->Input:")) {
-            if (!state.empty()) {
-               auto split = StaticHelper::split(cline, '=');
+      if (lines.empty() || StaticHelper::stringContains(lines[lines.size() - 1], "-- no counterexample found")) {
+         continue;
+      }
 
-               if (split.size() == 2) {
-                  std::string var = split[0];
-                  std::string val = split[1];
-                  vars.insert({ var, val });
+      lines.push_back("->EOF");
+      std::string state{};
+      VarVals vars{};
+
+      for (const auto& line : lines) {
+         std::string cline{ StaticHelper::removeWhiteSpace(line) };
+
+         if (!StaticHelper::stringStartsWith(cline, "#")) {
+            if ((StaticHelper::stringStartsWith(cline, "->") || StaticHelper::stringStartsWith(cline, "--Loop"))
+               && !StaticHelper::stringContains(cline, "->Input:")) { // Jump over "input" state to squash envModel and Planner cycle into one.
+               if (!vars.empty()) {
+                  ce.addTraceStep({ state, vars });
+                  vars.clear();
+               }
+
+               if (StaticHelper::stringStartsWith(cline, "--Loop")) {
+                  ce.addTraceStep({ "LOOP", {} });
+               }
+               else {
+                  state = StaticHelper::replaceAll(StaticHelper::replaceAll(StaticHelper::replaceAll(cline, "<-", ""), "->Input:", "I"), "->State:", "");
+               }
+            }
+            else if (!StaticHelper::stringContains(cline, "->Input:")) {
+               if (!state.empty()) {
+                  auto split = StaticHelper::split(cline, '=');
+
+                  if (split.size() == 2) {
+                     std::string var = split[0];
+                     std::string val = split[1];
+                     vars.insert({ var, val });
+                  }
                }
             }
          }
       }
+
+      postprocessTrace(ce);
+
+      if (!ce.empty()) traces.push_back(ce); // Empty CEXs are not put in the list, such that empty list indicates no CEXs.
    }
 
-   postprocessTrace(ce);
-
-   return ce;
+   return traces;
 }
 
-MCTrace vfm::StaticHelper::extractMCTraceFromNusmvFile(const std::string& path)
+std::vector<MCTrace> vfm::StaticHelper::extractMCTracesFromNusmvFile(const std::string& path, const TraceExtractionMode mode)
 {
-   return extractMCTraceFromNusmv(readFile(path));
+   return extractMCTracesFromNusmv(readFile(path), mode);
 }
 
 std::string vfm::StaticHelper::serializeMCTraceNusmvStyle(const MCTrace& trace, const bool print_unchanged_values)
@@ -1794,7 +1828,7 @@ std::string vfm::StaticHelper::serializeMCTraceNusmvStyle(const MCTrace& trace, 
    return s;
 }
 
-MCTrace vfm::StaticHelper::extractMCTraceFromKratos(const std::string& cexp_string)
+std::vector<MCTrace> vfm::StaticHelper::extractMCTracesFromKratos(const std::string& cexp_string)
 {
    static const std::set<std::string> DATATYPES_TO_REMOVE{ {"int", "bool", "enum.0", "enum.1", "enum.2", "enum.3", "enum.4"} };
    static const std::string ASSIGN_PREFIX = "(assign (var ";
@@ -1888,15 +1922,15 @@ MCTrace vfm::StaticHelper::extractMCTraceFromKratos(const std::string& cexp_stri
       pc++;
    }
 
-   return trace;
+   return trace.empty() ? std::vector<MCTrace>{} : std::vector<MCTrace>{ trace };
 }
 
 std::string StaticHelper::readFile(const std::string& path, const bool from_utf16)
 {
-   std::string ce_raw;
+   std::string ce_raw{};
 
     if (!StaticHelper::existsFileSafe(path)) {
-       Failable::getSingleton()->addNote("File '" + path + "' not found. Returning empty string.");
+       //Failable::getSingleton()->addNote("File '" + path + "' not found. Returning empty string.");
        return "";
     }
 
@@ -1935,9 +1969,9 @@ std::string StaticHelper::readFile(const std::string& path, const bool from_utf1
    return ce_raw;
 }
 
-MCTrace vfm::StaticHelper::extractMCTraceFromKratosFile(const std::string& path, const bool from_utf16)
+std::vector<MCTrace> vfm::StaticHelper::extractMCTracesFromKratosFile(const std::string& path, const bool from_utf16)
 {
-   return extractMCTraceFromKratos(readFile(path, from_utf16));
+   return extractMCTracesFromKratos(readFile(path, from_utf16));
 }
 
 std::string vfm::StaticHelper::serializeMCTraceKratosStyle(const MCTrace& trace)

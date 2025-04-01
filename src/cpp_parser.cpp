@@ -4636,6 +4636,15 @@ std::string vfm::CppParser::getFullPathToStoreCachedVersionIn(
    return full_path_to_store_cached_version_in;
 }
 
+std::string vfm::CppParser::generateScript(const std::string& script_content, const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser)
+{
+   auto em_script = std::make_shared<vfm::mc::EnvModel>(data, parser);
+   //addFailableChild(em_script); // TODO
+   em_script->setTemplate(script_content);
+   std::string script_processed{ em_script->generateEnvModel(em_script) };
+   return script_processed;
+}
+
 std::string vfm::CppParser::generateEnvModel(
    const std::string& template_file_path, 
    const std::string& generated_filepath,
@@ -4691,10 +4700,7 @@ std::string vfm::CppParser::generateEnvModel(
 
    std::string script_content{ StaticHelper::readFile(source_script_name) };
 
-   auto em_script = std::make_shared<vfm::mc::EnvModel>(data_, parser_);
-   addFailableChild(em_script);
-   em_script->setTemplate(script_content);
-   std::string script_processed{ em_script->generateEnvModel(em_script) };
+   auto script_processed = generateScript(script_content, data_, parser_);
 
    StaticHelper::writeTextToFile(script_processed, target_generated_script_name);
 

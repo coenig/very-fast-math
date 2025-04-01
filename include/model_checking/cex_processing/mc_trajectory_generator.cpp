@@ -42,12 +42,12 @@ void associateEnums(vfm::DataPack& data)
 }
 
 MCinterpretedTrace::MCinterpretedTrace(
-	const std::string trace_file, const InterpretationConfiguration config) : MCinterpretedTrace(
-		StaticHelper::extractMCTraceFromNusmvFile(trace_file), config)
+   const int trace_num, const std::string trace_file, const InterpretationConfiguration config) : MCinterpretedTrace(
+		trace_num, StaticHelper::extractMCTracesFromNusmvFile(trace_file), config)
 {}
 
 MCinterpretedTrace::MCinterpretedTrace(
-	const vfm::MCTrace& trace, const InterpretationConfiguration config) : Failable("Visu_Trajectory"),
+	const int trace_num, const std::vector<vfm::MCTrace>& traces, const InterpretationConfiguration config) : Failable("Visu_Trajectory"),
 	m_config(config), m_required_parameters(config.m_required_parameters), m_current_data{ std::make_shared<DataPack>() }
 {
 	config.m_preprocessing(*this);
@@ -56,7 +56,7 @@ MCinterpretedTrace::MCinterpretedTrace(
 
 	associateEnums(*m_current_data);
 
-	for (const auto& state : trace.getConstTrace()) // for every state
+	for (const auto& state : traces.at(trace_num).getConstTrace()) // for every state
 	{
 		startState(state.first);
 
