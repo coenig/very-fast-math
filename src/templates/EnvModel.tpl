@@ -173,16 +173,11 @@ INIT segment_0_min_lane = 0 & segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -
 
 TRANS next(cnt) = cnt + 1;
 
+@{
+   @{EnvModel_Feasibility.tpl}@.include
+}@.if[@{FEASIBILITY}@.eval]
+
 DEFINE
-   -- Rear-left Criticality (RLC)
-   -- Caution: Works only with DISTANCESCALING = 10.
-   @{rlc_v_rear}@*.scalingVariable[velocity] := ego.gaps___609___.v_rear;
-   @{rlc_v_acsf}@*.scalingVariable[velocity] := ego.v;
-   @{rlc_v_delta}@*.scalingVariable[velocity] := rlc_v_rear - rlc_v_acsf;
-   @{rlc_tB}@*.scalingVariable[velocity] := @{0.4}@.velocityWorldToEnvModelConst;
-   @{rlc_a}@*.scalingVariable[acceleration] := @{3}@.accelerationWorldToEnvModelConst;
-   @{rlc_tG}@*.scalingVariable[velocity] := @{1}@.velocityWorldToEnvModelConst;
-   @{rlc}@*.scalingVariable[distance] := rlc_v_delta * rlc_tB + rlc_v_delta * rlc_v_delta / (2 * rlc_a) + rlc_v_acsf * rlc_tG;
 
    large_number := 10000;
 
