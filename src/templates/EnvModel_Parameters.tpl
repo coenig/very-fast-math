@@ -57,4 +57,8 @@
 @{KEEP_EGO_FROM_GREEN}@******.defaultValue[true]   -- Makes sure, ego never leaves the lanes.
 @{CALCULATE_RIGHT_GAP_REAR}@******.defaultValue[true] -- Flag to leave out the rear/right gap when not needed.
 
+-- Special purpose parameters.
+@{FEASIBILITY}@******.defaultValue[true] -- Includes defines needed for the ACA4.1 Fesibility study.
+
+
 -- EO Don't change.
