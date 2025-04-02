@@ -25,8 +25,6 @@ VAR
   @{debug.allowed_ego_a_front_left}@*.scalingVariable[acceleration] : integer;
   @{debug.allowed_ego_a_front_right}@*.scalingVariable[acceleration] : integer;
   
-  @{debug.rlc}@*.scalingVariable[distance] : integer;
-
   debug.ego_pressured_from_ahead_on_left_lane : boolean;
   debug.ego_pressured_from_ahead_on_own_lane : boolean;
   debug.ego_pressured_from_ahead_on_right_lane : boolean;
@@ -41,7 +39,6 @@ ASSIGN
   init(debug.ego.gaps___609___.lane_availability) := ego.gaps___609___.lane_availability;
   init(debug.ego.gaps___619___.lane_availability) := ego.gaps___619___.lane_availability;
   init(debug.ego.gaps___629___.lane_availability) := ego.gaps___629___.lane_availability;
-  init(debug.rlc) := rlc;
 
   init(debug.ego.a) := ego.a;
   init(debug.gaps___609___.turn_signals_front) := ActionDir____CENTER;
@@ -88,7 +85,6 @@ ASSIGN
   next(debug.ego_pressured_from_ahead_on_own_lane)  := next(ego_pressured_from_ahead_on_own_lane);
   next(debug.ego_pressured_from_ahead_on_right_lane)  := next(ego_pressured_from_ahead_on_right_lane);
   next(debug.crash)  := next(crash);
-  next(debug.rlc)  := next(rlc);
 }@**.if[@{DEBUG}@.eval]
 
 ----------------

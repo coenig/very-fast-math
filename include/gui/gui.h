@@ -119,7 +119,7 @@ public:
 
    static void runMCJob(MCScene* mc_scene, const std::string& path_generated, const std::string config_name);
    static void runMCJobs(MCScene* mc_scene);
-   static void createTestCase(const MCScene* mc_scene, const std::string& generated_parent_dir, const int cnt, const int max, const std::string& id);
+   static void createTestCase(const MCScene* mc_scene, const std::string& generated_parent_dir, const int cnt, const int max, const std::string& id, const int cex_num); // cex_num as given by slider position for resp. run.
    static void createTestCases(MCScene* mc_scene);
 
    // Callbacks:
