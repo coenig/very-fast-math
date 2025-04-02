@@ -2202,12 +2202,12 @@ void MCScene::buttonReparse(Fl_Widget* widget, void* data)
    t.detach();
 }
 
-void vfm::MCScene::createTestCase(const MCScene* mc_scene, const std::string& generated_parent_dir, const int cnt, const int max, const std::string& id)
+void vfm::MCScene::createTestCase(const MCScene* mc_scene, const std::string& generated_parent_dir, const int cnt, const int max, const std::string& id, const int cex_num)
 {
    mc_scene->addNote("Running test case generation " + std::to_string(cnt) + "/" + std::to_string(max) + " for '" + id + "'.");
 
    mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
-      { 0 }, // TODO: for now only first CEX is processed if several given.
+      { cex_num }, // TODO: for now only first CEX is processed if several given.
       generated_parent_dir + "/" + id,
       "debug_trace_array",
       mc::trajectory_generator::CexTypeEnum::smv,
@@ -2235,7 +2235,7 @@ void MCScene::createTestCases(MCScene* mc_scene)
          while (!spawned) {
             if (numThreads < test::MAX_THREADS) {
                threads.emplace_back(std::thread(
-                  MCScene::createTestCase, mc_scene, mc_scene->getGeneratedParentDir(), cnt++, max, sec.getMyId()));
+                  MCScene::createTestCase, mc_scene, mc_scene->getGeneratedParentDir(), cnt++, max, sec.getMyId(), sec.slider_->value()));
                spawned = true;
                numThreads++;
             }
