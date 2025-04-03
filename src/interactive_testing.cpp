@@ -253,10 +253,22 @@ bool vfm::test::isCacheUpToDateWithTemplates(const std::filesystem::path& cached
    const std::filesystem::path envmodel_include_path{ template_path / ENVMODEL_INCLUDES_FILENAME };
    const std::filesystem::path cached_envmodel_include_path{ cached_path / ENVMODEL_INCLUDES_FILENAME };
 
-   bool all_exist{ true };
-   bool all_are_equal{ true };
-
    if (StaticHelper::existsFileSafe(cached_envmodel_include_path)) { // Check if EnvModel_IncludeFiles.txt exists...
+      if (StaticHelper::existsFileSafe(envmodel_include_path)) {
+         // First check if include files are equal.
+         std::string template_contents{ StaticHelper::readFile(envmodel_include_path.string()) };
+         std::string cached_contents{ StaticHelper::readFile(cached_envmodel_include_path.string()) };
+         
+         if (template_contents != cached_contents) { // If not equal, cache is corrupt and needs to be re-created.
+            Failable::getSingleton(gui_name)->addNote("Template INCLUDES file '" + envmodel_include_path.string() + "' differs from cached version '" + cached_envmodel_include_path.string() + "'.");
+            return false;
+         }
+      }
+      else {
+         Failable::getSingleton(gui_name)->addError("Template INCLUDES file '" + envmodel_include_path.string() + "' not found. Something is wrong.");
+      }
+
+
       std::string includes_str{ StaticHelper::readFile(cached_envmodel_include_path.string()) };
       includes_str = StaticHelper::removeComments(includes_str);
       includes_str = StaticHelper::removeBlankLines(includes_str);
@@ -267,14 +279,14 @@ bool vfm::test::isCacheUpToDateWithTemplates(const std::filesystem::path& cached
             const std::filesystem::path file_on_cache_side{ cached_path / file_name };
             const std::filesystem::path file_on_template_side{ template_path / file_name };
 
-            if (StaticHelper::existsFileSafe(file_on_cache_side)) { // ...and, in turn, if all the include files listed therein exist on cache side.
+            if (StaticHelper::existsFileSafe(file_on_cache_side)) { // ...and, in then, if all the include files listed therein exist on cache side.
                if (StaticHelper::existsFileSafe(file_on_template_side)) { // If existing, look if contents are equal.
                   std::string template_contents{ StaticHelper::readFile((template_path / file_name).string()) };
                   std::string cached_contents{ StaticHelper::readFile((cached_path / file_name).string()) };
 
                   if (template_contents != cached_contents) { // If not equal, cache is corrupt and needs to be re-created.
-                     all_are_equal = false;
-                     break;
+                     Failable::getSingleton(gui_name)->addNote("Template file '" + file_on_template_side.string() + "' differs from cached version '" + file_on_cache_side.string() + "'.");
+                     return false;
                   }
                }
                else { // File missing on template side.
@@ -282,17 +294,17 @@ bool vfm::test::isCacheUpToDateWithTemplates(const std::filesystem::path& cached
                }
             }
             else {
-               all_exist = false;
-               break;
+               Failable::getSingleton(gui_name)->addNote("Template file '" + file_on_template_side.string() + "' has no cached version.");
+               return false;
             }
          }
       }
    }
    else {
-      all_exist = false;
+      return false;
    }
 
-   return all_exist && all_are_equal;
+   return true;
 }
 
 void cleanUpCache(const std::string& gui_name, const std::string& cache_dir)

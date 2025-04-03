@@ -35,7 +35,7 @@
       "BRAKEINHIBITION": false,
       "CALCULATE_RIGHT_GAP_REAR": true,
       "DEBUG": false,
-      "DISTANCESCALING": "#{5000}#",
+      "DISTANCESCALING": "#{1000}#",
       "DOUBLEMERGEPROTECTION": false,
       "FARMERGINGCARS": false,
       "HARDBRAKEPREVENTION": -8,
@@ -48,7 +48,7 @@
       "SEGMENTSMINLENGTH": 50,
       "SPEC": "#{ (env.ego.gaps___609___.i_agent_rear = -(1)) || (env.rlc_v_rear <= env.rlc_v_acsf) }#",
       "ShowLOG": true,
-      "TIMESCALING": "#{1000}#",
+      "TIMESCALING": "#{200}#",
       "_BP_INCLUDES_FILE_PATH": "../src/examples/stripped-bp/prototype/motion_planning/rule_based_planning/vfm-includes-viper.txt",
       "_CACHED_PATH": "../examples/tmp",
       "_GENERATED_PATH": "../examples/gp"
