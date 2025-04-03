@@ -198,44 +198,101 @@ std::string getFirstFreeCachedDirPath(const std::string& cached_dir)
    }
 }
 
-void checkForChangedEnvModelTemplateOrCreateOneIfMissing(const std::string& cached_path_str, const std::string& envmodel_template_path_str, const std::string& gui_name)
-{
-   const std::filesystem::path cached_path{ cached_path_str };
-   const std::filesystem::path envmodel_template_path{ envmodel_template_path_str };
-   const std::filesystem::path cached_envmodel_template_path{ cached_path / ENVMODEL_TEMPLATE_FILENAME };
+const static std::string GENERAL_MESSAGE{ "I will delete the cached folder." };
 
+void removeAndCopyHelper(const std::filesystem::path& cached_path, const std::filesystem::path& template_path)
+{
+   const std::filesystem::path envmodel_include_path{ template_path / ENVMODEL_INCLUDES_FILENAME };
+   const std::filesystem::path cached_envmodel_include_path{ cached_path / ENVMODEL_INCLUDES_FILENAME };
+
+   StaticHelper::removeAllFilesSafe(cached_path);
+   StaticHelper::createDirectoriesSafe(cached_path);
+
+   try {
+      std::filesystem::copy(envmodel_include_path, cached_envmodel_include_path);
+   }
+   catch (const std::exception& e) {
+      Failable::getSingleton()->addError("Could not copy '" + envmodel_include_path.string() + "' to '" + cached_envmodel_include_path.string() + "'. " + GENERAL_MESSAGE);
+      StaticHelper::removeAllFilesSafe(cached_path);
+   }
+
+   std::string includes_str{ StaticHelper::readFile(cached_envmodel_include_path.string()) };
+   includes_str = StaticHelper::removeComments(includes_str);
+   includes_str = StaticHelper::removeBlankLines(includes_str);
+
+   for (const auto& file_name : StaticHelper::split(includes_str, "\n")) {
+      if (!file_name.empty()) {
+         std::filesystem::path file{ template_path / StaticHelper::trimAndReturn(file_name) };
+         try {
+            std::filesystem::copy(file, cached_path);
+         }
+         catch (const std::exception& e) {
+            Failable::getSingleton()->addError("Could not copy '" + file.string() + "' to '" + cached_path.string() + "'. " + GENERAL_MESSAGE);
+            StaticHelper::removeAllFilesSafe(cached_path);
+         }
+      }
+   }
+}
+
+void checkForChangedEnvModelTemplatesAndPossiblyReCreateCache(const std::filesystem::path& cached_path, const std::filesystem::path& template_path, const std::string& gui_name)
+{
    if (!StaticHelper::existsFileSafe(cached_path)) { // Create cached dir if missing.
       Failable::getSingleton(gui_name)->addNote("Cache not found, creating one in '" + cached_path.string() + "'.");
       StaticHelper::createDirectoriesSafe(cached_path, false);
    }
 
-   if (!StaticHelper::existsFileSafe(cached_envmodel_template_path)) { // Copy EnvModel.tpl if missing.
-      Failable::getSingleton(gui_name)->addNote("Cached '" + cached_envmodel_template_path.string() + "' file not found, copying the one from '" + envmodel_template_path.string() + "'.");
+   if (!isCacheUpToDateWithTemplates(cached_path, template_path, gui_name)) {
+      Failable::getSingleton(gui_name)->addNote("Cached template files in '" + cached_path.string() + "' are out of date. " + GENERAL_MESSAGE);
+      removeAndCopyHelper(cached_path, template_path);
+      checkForChangedEnvModelTemplatesAndPossiblyReCreateCache(cached_path, template_path, gui_name);
+   }
+}
 
-      try {
-         std::filesystem::copy(envmodel_template_path, cached_envmodel_template_path);
-      }
-      catch (const std::exception& e) {
-         Failable::getSingleton()->addWarning("Could not copy from '" + envmodel_template_path.string() + "' to '" + cached_envmodel_template_path.string() + "'.");
+bool vfm::test::isCacheUpToDateWithTemplates(const std::filesystem::path& cached_path, const std::filesystem::path& template_path, const std::string& gui_name)
+{
+   const std::filesystem::path envmodel_include_path{ template_path / ENVMODEL_INCLUDES_FILENAME };
+   const std::filesystem::path cached_envmodel_include_path{ cached_path / ENVMODEL_INCLUDES_FILENAME };
+
+   bool all_exist{ true };
+   bool all_are_equal{ true };
+
+   if (StaticHelper::existsFileSafe(cached_envmodel_include_path)) { // Check if EnvModel_IncludeFiles.txt exists...
+      std::string includes_str{ StaticHelper::readFile(cached_envmodel_include_path.string()) };
+      includes_str = StaticHelper::removeComments(includes_str);
+      includes_str = StaticHelper::removeBlankLines(includes_str);
+
+      for (const auto& file_name_raw : StaticHelper::split(includes_str, "\n")) {
+         const std::string file_name{ StaticHelper::trimAndReturn(file_name_raw) };
+         if (!file_name.empty()) {
+            const std::filesystem::path file_on_cache_side{ cached_path / file_name };
+            const std::filesystem::path file_on_template_side{ template_path / file_name };
+
+            if (StaticHelper::existsFileSafe(file_on_cache_side)) { // ...and, in turn, if all the include files listed therein exist on cache side.
+               if (StaticHelper::existsFileSafe(file_on_template_side)) { // If existing, look if contents are equal.
+                  std::string template_contents{ StaticHelper::readFile((template_path / file_name).string()) };
+                  std::string cached_contents{ StaticHelper::readFile((cached_path / file_name).string()) };
+
+                  if (template_contents != cached_contents) { // If not equal, cache is corrupt and needs to be re-created.
+                     all_are_equal = false;
+                     break;
+                  }
+               }
+               else { // File missing on template side.
+                  Failable::getSingleton(gui_name)->addError("Template file '" + file_on_template_side.string() + "' not found. Something is wrong.");
+               }
+            }
+            else {
+               all_exist = false;
+               break;
+            }
+         }
       }
    }
-
-   // Assuming Cached EnvModel.tpl exists now.
-
-   // Check if old and new template are equal.
-   try { // This is for the read file stuff
-      std::string envmodel_template{ StaticHelper::readFile(envmodel_template_path.string()) };
-      std::string cached_envmodel_template{ StaticHelper::readFile(cached_envmodel_template_path.string()) };
-
-      if (envmodel_template != cached_envmodel_template) { // If not, delete complete cached folder and call recursively to re-generate cache structure.
-         Failable::getSingleton(gui_name)->addNote("Cached file '" + cached_envmodel_template_path.string() + "' is different from current one in '" + envmodel_template_path.string() + "'. I will delete the cached folder.");
-         StaticHelper::removeAllFilesSafe(cached_path);
-         checkForChangedEnvModelTemplateOrCreateOneIfMissing(cached_path_str, envmodel_template_path_str, gui_name);
-      }
+   else {
+      all_exist = false;
    }
-   catch (const std::exception& e) {
-      Failable::getSingleton()->addWarning("Could not compare EnvModels from '" + envmodel_template_path.string() + "' and '" + cached_envmodel_template_path.string() + "'.");
-   }
+
+   return all_exist && all_are_equal;
 }
 
 void cleanUpCache(const std::string& gui_name, const std::string& cache_dir)
@@ -289,6 +346,9 @@ std::string vfm::test::doParsingRun(
 
    std::string target_dir_without_trailing_slashes{ target_dir };
 
+   std::filesystem::path template_dir{ envmodel_tpl };
+   template_dir = template_dir.parent_path();
+
    while (!target_dir_without_trailing_slashes.empty() && target_dir_without_trailing_slashes.back() == '/') {
       target_dir_without_trailing_slashes.pop_back();
    }
@@ -315,7 +375,7 @@ std::string vfm::test::doParsingRun(
       + planner_path
    };
 
-   checkForChangedEnvModelTemplateOrCreateOneIfMissing(cached_dir, envmodel_tpl, gui_name);
+   checkForChangedEnvModelTemplatesAndPossiblyReCreateCache(cached_dir, template_dir, gui_name);
 
    std::string generated_dir{ cached_dir.empty() ? full_target_path : getFirstFreeCachedDirPath(cached_dir) };
    std::string generated_file{ generated_dir + "/planner.cpp"};

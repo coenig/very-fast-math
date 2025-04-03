@@ -174,8 +174,8 @@ INIT segment_0_min_lane = 0 & segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -
 TRANS next(cnt) = cnt + 1;
 
 @{
-   @{EnvModel_Feasibility.tpl}@.include
-}@.if[@{FEASIBILITY}@.eval]
+   @{EnvModel_Feasibility.tpl}@*******.include
+}@********.if[@{FEASIBILITY}@.eval]
 
 DEFINE
 
@@ -416,6 +416,10 @@ INIT
 
 INIT 
    veh___6[i]9___.rel_pos >= -@{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst & veh___6[i]9___.rel_pos <= @{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst;
+
+-- Make sure ego and vehicle [i] don't collide in the initial state.
+INIT
+   veh___6[i]9___.rel_pos < veh_length | veh___6[i]9___.rel_pos > veh_length | !ego.same_lane_as_veh_[i];
 
 INVAR
     veh___6[i]9___.lane_single | veh___6[i]9___.lane_crossing;

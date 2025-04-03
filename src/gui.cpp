@@ -1362,24 +1362,11 @@ std::pair<std::vector<std::string>, std::vector<std::string>> getCommonAndUnique
 void MCScene::refreshSometimes(void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
-   
-   if (mc_scene->button_run_parser_->active()) { // Don't display this warning when jobs are running.
-      try { // TODO: Remove this try/catch
-         if (StaticHelper::existsFileSafe(mc_scene->getCachedDir()) && !std::filesystem::is_empty(mc_scene->getCachedDir())) {
-            std::filesystem::path env_model_cached_path{ mc_scene->getCachedDir() };
-            env_model_cached_path /= test::ENVMODEL_TEMPLATE_FILENAME;
-            if (StaticHelper::existsFileSafe(env_model_cached_path)) {
-               std::filesystem::path env_model_path{ mc_scene->getTemplateDir() };
-               env_model_path /= test::ENVMODEL_TEMPLATE_FILENAME;
 
-               if (StaticHelper::readFile(env_model_cached_path.string()) != StaticHelper::readFile(env_model_path.string())) {
-                  mc_scene->addWarning("File '" + test::ENVMODEL_TEMPLATE_FILENAME + "' has changed. Cached entries will be deleted on next click on 'Create EnvModels...'. <Delete cache with right-click on the button to stop this message.>");
-               }
-            }
-         }
-      }
-      catch (const std::exception& e) {
-         // Wouldn't do anything here, worst thing is no warning printed.
+   if (mc_scene->button_run_parser_->active()) { // Don't display this warning when jobs are running.
+      if (!test::isCacheUpToDateWithTemplates(mc_scene->getCachedDir(), mc_scene->getTemplateDir(), GUI_NAME + "_Related")) {
+         mc_scene->addWarning("Cache in '" + mc_scene->getCachedDir() + "' is outdated w.r.t. the template files in '" + mc_scene->getTemplateDir() + "'.\n"
+            + "All cached entries will be deleted on next click on 'Create EnvModels...'. <Delete cache with right-click on the button to stop this message.>");
       }
    }
 
