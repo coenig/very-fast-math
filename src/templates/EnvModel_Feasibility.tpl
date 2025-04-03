@@ -1,6 +1,6 @@
 DEFINE
+   -- Feasibility calculation according to R79
    -- Rear-left Criticality (RLC)
-   -- Caution: Works only with DISTANCESCALING = 10.
    @{rlc_v_rear}@*.scalingVariable[velocity] := ego.gaps___609___.v_rear;
    @{rlc_v_acsf}@*.scalingVariable[velocity] := ego.v;
    @{rlc_v_delta}@*.scalingVariable[velocity] := rlc_v_rear - rlc_v_acsf;
