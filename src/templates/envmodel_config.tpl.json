@@ -47,7 +47,7 @@
       "NUMLANES": "#{lanes}#",
       "SEGMENTS": 2,
       "SEGMENTSMINLENGTH": 50,
-      "SPEC": "#{ G(!( env.rlc < env.ego.gaps___609___.s_dist_rear &&  env.ego.gaps___609___.i_agent_rear != -(1) &&  (env.rlc_v_rear > env.rlc_v_acsf) &&  F( (env.ego.gaps___609___.i_agent_rear != -(1)) &&  (env.rlc_v_rear > env.rlc_v_acsf) &&  (env.rlc > env.ego.gaps___609___.s_dist_rear) &&  env.veh___609___.lane_single))) }#",
+      "SPEC": "#{ G(!(F((env.ego.gaps___609___.i_agent_rear != -(1)) && (env.rlc_v_rear > env.rlc_v_acsf) && (env.rlc > env.ego.gaps___609___.s_dist_rear) && env.veh___609___.lane_single))) }#",
       "ShowLOG": true,
       "TIMESCALING": "#{5000}#",
       "_BP_INCLUDES_FILE_PATH": "../src/examples/stripped-bp/prototype/motion_planning/rule_based_planning/vfm-includes-viper.txt",
