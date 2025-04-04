@@ -430,10 +430,8 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
 
    if (generate_osc)
    {
-      // Add X offset of the axis distance to the non-ego vehicles due to different axis coordinate system in SIM (this should be fixed on SIM side at some point)
       MCinterpretedTrace interpreted_trace_osc = interpreted_trace.clone();
       interpreted_trace_osc.applyInterpolation(settings.duration_scale * config.m_default_step_time * settings.frames_per_second_osc);
-      interpreted_trace_osc.applyOffset(3.128, 0, false, true);
 
       std::string header =
          "# Imports config file and scenario file"
