@@ -28,7 +28,7 @@ using namespace vfm;
 
 std::map<std::string, std::pair<std::string, std::string>> MCScene::loadNewBBsFromJson()
 {
-   std::string json_string{ json_input_->value() };
+   std::string json_string{ json_input_->buffer()->text() };
    if (last_json_string_ == json_string) {
       return last_bb_stuff_;
    }
@@ -213,6 +213,10 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
    checkbox_json_visible_->callback(checkboxJSONVisibleCallback, this);
    checkbox_json_visible_->when(FL_WHEN_RELEASE_ALWAYS);
 
+   json_input_->buffer(json_buffer_);
+   json_input_->textfont(FL_COURIER);
+   json_input_->textsize(12);
+
    json_input_->callback(jsonChangedCallback, this);
    json_input_->when(FL_WHEN_CHANGED);
    loadJsonText();
@@ -284,7 +288,7 @@ std::string vfm::MCScene::getValueForJSONKeyAsString(const std::string& key_to_f
    const bool from_template{ config_name == JSON_TEMPLATE_DENOTER };
 
    try {
-      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->value() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
+      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
 
       for (auto& [key_config, value_config] : j.items()) {
          if (key_config == config_name) {
@@ -312,14 +316,14 @@ std::string vfm::MCScene::getValueForJSONKeyAsString(const std::string& key_to_f
 void vfm::MCScene::setValueForJSONKeyFromBool(const std::string& key_to_find, const std::string& config_name, const bool from_template, const bool value_to_set) const
 { // TODO: Double code
    try {
-      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->value() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
+      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
 
       for (auto& [key_config, value_config] : j.items()) {
          if (key_config == config_name) {
             for (auto& [key, value] : value_config.items()) {
                if (key == key_to_find) {
                   value = value_to_set;
-                  json_input_->value(j.dump(3).c_str());
+                  json_input_->buffer()->text(j.dump(3).c_str());
                   return;
                }
             }
@@ -341,14 +345,14 @@ void vfm::MCScene::setValueForJSONKeyFromBool(const std::string& key_to_find, co
 void vfm::MCScene::setValueForJSONKeyFromString(const std::string& key_to_find, const std::string& config_name, const bool from_template, const std::string& value_to_set) const
 { // TODO: Double code
    try {
-      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->value() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
+      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
 
       for (auto& [key_config, value_config] : j.items()) {
          if (key_config == config_name) {
             for (auto& [key, value] : value_config.items()) {
                if (key == key_to_find) {
                   value = value_to_set;
-                  json_input_->value(j.dump(3).c_str());
+                  json_input_->buffer()->text(j.dump(3).c_str());
                   return;
                }
             }
@@ -556,7 +560,7 @@ void MCScene::loadJsonText()
 {
    std::string path{ getTemplateDir() };
    path += "/" + FILE_NAME_JSON_TEMPLATE;
-   json_input_->value(StaticHelper::readFile(path).c_str());
+   json_input_->buffer()->text(StaticHelper::readFile(path).c_str());
    //spec_input->value(getSpecAndBBs().back().c_str());
 }
 
@@ -564,11 +568,11 @@ void MCScene::saveJsonText()
 {
    std::string path{ getTemplateDir() };
    path += "/" + FILE_NAME_JSON_TEMPLATE;
-   StaticHelper::writeTextToFile(json_input_->value(), path);
+   StaticHelper::writeTextToFile(json_input_->buffer()->text(), path);
 
    // Check json syntax.
    try {
-      nlohmann::json json = nlohmann::json::parse(json_input_->value());
+      nlohmann::json json = nlohmann::json::parse(json_input_->buffer()->text());
       resetCachedVariables();
       getGeneratedDir();
       getCachedDir();
@@ -597,7 +601,7 @@ void vfm::MCScene::putJSONIntoDataPack(const std::string& json_config)
    //data_->reset();
 
    try {
-      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->value() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
+      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
 
       for (auto& [key_config, value_config] : j.items()) {
          if (key_config == json_config) {
@@ -1655,7 +1659,7 @@ void MCScene::deletePreview(const std::string& path_generated, const bool actual
 
 nlohmann::json MCScene::getJSON() const
 {
-   std::string json_text{ json_input_->value() };
+   std::string json_text{ json_input_->buffer()->text() };
    nlohmann::json json{};
 
    try {
@@ -1927,7 +1931,7 @@ void MCScene::buttonReloadJSON(Fl_Widget* widget, void* data) {
 
 void MCScene::buttonCheckJSON(Fl_Widget* widget, void* data) {
    auto mc_scene{ static_cast<MCScene*>(data) };
-   std::string json_text{ mc_scene->json_input_->value() };
+   std::string json_text{ mc_scene->json_input_->buffer()->text() };
 
    try {
       nlohmann::json json = nlohmann::json::parse(json_text);
