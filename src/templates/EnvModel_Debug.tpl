@@ -24,7 +24,7 @@ VAR
   @{debug.allowed_ego_a_front_center}@*.scalingVariable[acceleration] : integer;
   @{debug.allowed_ego_a_front_left}@*.scalingVariable[acceleration] : integer;
   @{debug.allowed_ego_a_front_right}@*.scalingVariable[acceleration] : integer;
-
+  
   debug.ego_pressured_from_ahead_on_left_lane : boolean;
   debug.ego_pressured_from_ahead_on_own_lane : boolean;
   debug.ego_pressured_from_ahead_on_right_lane : boolean;

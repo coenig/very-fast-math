@@ -931,7 +931,7 @@ public:
       const std::string END_TAG_ENVMODEL{ "\"" };
 
       if (!std::filesystem::exists(generated_dir + "main.smv")) {
-         Failable::getSingleton()->addNote("File '" + generated_dir + "main.smv" + "' not found. Assuming no-EM mode and omitting timescaling.");
+         Failable::getSingleton()->addWarning("No timescaling to create. File '" + generated_dir + "main.smv" + "' not found. Assuming no-EM mode and omitting timescaling.");
          return false;
       }
 
