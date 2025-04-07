@@ -261,7 +261,7 @@ void LiveSimGenerator::generate(
    }
 
 	std::cout << std::endl;
-   std::filesystem::remove(morty_progress_path);
+   StaticHelper::removeFileSafe(morty_progress_path);
 
    gif_recorder.finish();
 }
