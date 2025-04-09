@@ -44,15 +44,26 @@ for i in range(150):
             input += str(val) + ","
         input += ";"
     
-    result = create_string_buffer(100)
+    result = create_string_buffer(1000)
     print(input)
     res = morty_lib.morty(input.encode('utf-8'), result, sizeof(result))
     
-    res_str = res.decode()
-    res_str = res_str.replace("LANE_LEFT", "0").replace("IDLE", "1").replace("LANE_RIGHT", "2").replace("FASTER", "3").replace("SLOWER", "4")
-    
+    res_str = res.decode()    
     print(res_str)
-    # output.decode()
+
+    for i1, el1 in enumerate(res_str.split(';')):
+        for i2, el2 in enumerate(el1.split('|')):
+            vel = []
+            lan = []
+            for i3, el3 in enumerate(el2.split(',')):
+                if el3:
+                    if i2 == 1:
+                        lan.append(el3)
+                    else:
+                        vel.append(el3)
+        print(vel)
+        print(lan)
+    
     action = tuple(res_str.split(';'))
 
 #plt.imshow(env.render())
