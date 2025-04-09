@@ -22,6 +22,8 @@ Thank you for using
 * On Windows, open the top-level `CMakeLists.txt` with Visual Studio and build the `vfm` target.
 * On Linux, run the `build.bash` script.
 
+Run `vfm(.exe)` from the `bin` folder.
+
 There are no additional dependencies, except `gtest` if you want to run the tests.
 
 ## Authors
