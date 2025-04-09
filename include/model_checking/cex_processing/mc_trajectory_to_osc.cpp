@@ -26,7 +26,7 @@ std::string OSCgenerator::generate(std::string scenario_name, bool control_ego, 
 	std::stringstream osc_text{};
 
 	osc_text << R"(
-# AUTO GENERATED OSC: )" << scenario_name << R"( - Source: M²oRTy
+# AUTO GENERATED OSC: )" << scenario_name << R"( - Source: MÂ²oRTy
 
 # Prerequisites
 # Import map and helper nodes/subscenarios
@@ -39,7 +39,7 @@ import "../../scenario_blocks/map_agnostic/scenario_blocks.osc"
 scenario )" << scenario_name << R"(:
 
   # Vehicles
-  ego: ego_vehicle_SIM_VEHICLE_NAME  # make sure to replace the vehicle name here before usage
+  ego: ego_vehicle_pace  # replace with specific vehicle type if necessary
   )" << getVechicleDefinitions("  ") << R"(
 
   # Trajectories
