@@ -147,7 +147,7 @@ public:
 
    void printArgumentFull(const std::string& name) const
    { 
-      addNote("Value of parameter " + getNameAndDesc(name) + ": '" + setToString(getCmdMultiOption(name)) + "'.");
+      addNote("Value of parameter " + getNameAndDesc(name) + ": " + setToString(getCmdMultiOption(name)) + ".");
    }
 
    void printArgumentsForMC() const
