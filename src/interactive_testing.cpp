@@ -1031,6 +1031,112 @@ void vfm::test::aca4_1Run()
 
 static const Vec2D dim3D{ 500, 120 };
 
+std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphCrossing(
+   const bool write_to_files, 
+   const std::shared_ptr<RoadGraph> ego_section)
+{
+   assert(!ego_section || ego_section->isRootedInZeroAndUnturned());
+   assert(!ego_section || ego_section->getAllNodes().size() == 1);
+   assert(!ego_section || ego_section->getMyRoad().getEgo());
+
+   // Strange junction
+   std::shared_ptr<HighwayTranslator> trans2{ std::make_shared<Plain2DTranslator>() };
+   std::shared_ptr<HighwayTranslator> trans3{ std::make_shared<Plain3DTranslator>(false) };
+   HighwayImage image2{ 3000, 2000, trans2, 4 };
+   HighwayImage image3{ 1500, 500, trans3, 4 };
+   image2.restartPDF();
+   image3.restartPDF();
+   LaneSegment segment11{ 0, 0, 6 };
+   LaneSegment segment12{ 20, 2, 4 };
+   LaneSegment segment21{ 0, 2, 4 };
+   LaneSegment segment22{ 30, 0, 6 };
+   LaneSegment segment31{ 0, 2, 4 };
+   LaneSegment segment32{ 25, 0, 6 };
+   LaneSegment segment41{ 0, 0, 6 };
+   LaneSegment segment42{ 35, 2, 4 };
+   StraightRoadSection sectiona1{ 4, 50 };
+   StraightRoadSection sectiona2{ 4, 60 };
+   StraightRoadSection sectiona3{ 4, 100 };
+   StraightRoadSection sectiona4{ 4, 55 };
+   sectiona1.addLaneSegment(segment11);
+   sectiona1.addLaneSegment(segment12);
+   sectiona2.addLaneSegment(segment21);
+   sectiona2.addLaneSegment(segment22);
+   sectiona3.addLaneSegment(segment31);
+   sectiona3.addLaneSegment(segment32);
+   sectiona4.addLaneSegment(segment41);
+   sectiona4.addLaneSegment(segment42);
+   std::shared_ptr<CarPars> egoa = std::make_shared<CarPars>(20, 40, 13, HighwayImage::EGO_MOCK_ID);
+   std::map<int, std::pair<float, float>> future_positions_of_others1{};
+   std::map<int, std::pair<float, float>> future_positions_of_others2{};
+   std::map<int, std::pair<float, float>> future_positions_of_others3{};
+   std::map<int, std::pair<float, float>> future_positions_of_others4{};
+   CarParsVec othersa1{ };
+   CarParsVec othersa2{ };
+   CarParsVec othersa3{ };
+   CarParsVec othersa4{ };
+   sectiona1.setEgo(egoa);
+   sectiona1.setOthers(othersa1);
+   sectiona1.setFuturePositionsOfOthers(future_positions_of_others1);
+   sectiona2.setEgo(nullptr);
+   sectiona2.setOthers(othersa2);
+   sectiona2.setFuturePositionsOfOthers(future_positions_of_others2);
+   sectiona3.setEgo(nullptr);
+   sectiona3.setOthers(othersa3);
+   sectiona3.setFuturePositionsOfOthers(future_positions_of_others3);
+   sectiona4.setEgo(nullptr);
+   sectiona4.setOthers(othersa4);
+   sectiona4.setFuturePositionsOfOthers(future_positions_of_others4);
+
+   auto ra1 = std::make_shared<RoadGraph>(1);
+   auto ra2 = std::make_shared<RoadGraph>(2);
+   auto ra3 = std::make_shared<RoadGraph>(3);
+   auto ra4 = std::make_shared<RoadGraph>(4);
+   ra1->setMyRoad(sectiona1);
+
+   if (ego_section) {
+      ego_section->getMyRoad().setSectionEnd(ra1->getMyRoad().getLength());
+      ra1 = ego_section;
+   }
+
+   ra1->setOriginPoint({ 0, 6 });
+   ra1->setAngle(0);
+   ra2->setMyRoad(sectiona2);
+   ra2->setOriginPoint({ 60, 5 * vfm::LANE_WIDTH });
+   ra2->setAngle(3.1415 / 2);
+   ra3->setMyRoad(sectiona3);
+   ra3->setOriginPoint({ ra1->getMyRoad().getLength() + 25, 6 });
+   ra3->setAngle(0);
+   ra4->setMyRoad(sectiona4);
+   ra4->setOriginPoint({ 60, -ra4->getMyRoad().getLength() - 10 });
+   ra4->setAngle(3.1415 / 2);
+   ra1->addSuccessor(ra2);
+   ra1->addSuccessor(ra3);
+   ra4->addSuccessor(ra2);
+   ra4->addSuccessor(ra3);
+
+   if (write_to_files) {
+      bool old2 = image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_;
+      bool old3 = image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_;
+      image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
+      image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
+
+      image2.fillImg(BROWN);
+      image3.paintEarthAndSky();
+      image2.paintRoadGraph(ra1, { 500, 60 }, {}, true, 50, 70);
+      image2.store("../examples/crossing", OutputType::pdf);
+      image2.store("../examples/crossing", OutputType::png);
+      image3.paintRoadGraph(ra1, dim3D);
+      image3.store("../examples/crossing_3d", OutputType::pdf);
+      image3.store("../examples/crossing_3d", OutputType::png);
+
+      image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = old2;
+      image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = old3;
+   }
+
+   return ra1;
+}
+
 std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(
    const bool write_to_files, 
    const std::shared_ptr<RoadGraph> ego_section)
@@ -1050,7 +1156,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(
    image3.fillImg(BLACK);
    //image3.paintEarthAndSky({ 1500, 500 });
    LaneSegment segment11{ 0, 2, 6 };
-   LaneSegment segment12{ 20, 0, 4 };
+   LaneSegment segment12{ 20, 0, 6 };
    LaneSegment segment21{ 0, 0, 4 };
    LaneSegment segment22{ 30, 2, 6 };
    LaneSegment segment31{ 0, 2, 6 };
@@ -1124,6 +1230,8 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(
       image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
       image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
 
+      image2.fillImg(BROWN);
+      image3.paintEarthAndSky();
       image2.paintRoadGraph(ra1, { 500, 60 }, {}, true);
       image2.store("../examples/junction", OutputType::pdf);
       image2.store("../examples/junction", OutputType::png);
@@ -1299,6 +1407,8 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
       image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
       image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
 
+      image2.fillImg(BROWN);
+      image3.paintEarthAndSky();
       image2.paintRoadGraph(r1, { 500, 60 }, {}, true, 60, (float)r0->getMyRoad().getNumLanes() / 2.0f);
       image2.store("../examples/roundabout", OutputType::pdf);
       image2.store("../examples/roundabout", OutputType::png);

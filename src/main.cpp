@@ -23,6 +23,9 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
+   test::paintExampleRoadGraphCrossing(true);
+   termnate();
+
    //vfm::test::runTests();
    //termnate();
 
