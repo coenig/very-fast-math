@@ -119,7 +119,7 @@ public:
 
    static void runMCJob(MCScene* mc_scene, const std::string& path_generated, const std::string config_name);
    static void runMCJobs(MCScene* mc_scene);
-   static void createTestCase(const MCScene* mc_scene, const std::string& generated_parent_dir, const int cnt, const int max, const std::string& id);
+   static void createTestCase(const MCScene* mc_scene, const std::string& generated_parent_dir, const int cnt, const int max, const std::string& id, const int cex_num); // cex_num as given by slider position for resp. run.
    static void createTestCases(MCScene* mc_scene);
 
    // Callbacks:
@@ -169,7 +169,8 @@ private:
    Fl_Button* button_delete_testcases_ = new Fl_Button(0, 520, 200, 30, "Delete unselected test cases!");
    Fl_Button* button_delete_generated_ = new Fl_Button(0, 550, 200, 30, "Delete unselected folders!");
    Fl_Button* button_delete_cached_ = new Fl_Button(0, 600, 200, 30, "Delete cache! <RM>");
-   Fl_Multiline_Input* json_input_ = new Fl_Multiline_Input(230, 250, 410, 380);
+   Fl_Text_Buffer* json_buffer_ = new Fl_Text_Buffer();;
+   Fl_Text_Editor* json_input_ = new Fl_Text_Editor(230, 250, 410, 380);
    Fl_Button* button_reload_json_ = new Fl_Button(230, 630, 130, 30, "Reload JSON config");
    Fl_Button* button_save_json_ = new Fl_Button(370, 630, 130, 30, "Save JSON config");
    Fl_Button* button_check_json_ = new Fl_Button(510, 630, 130, 30, "Check JSON syntax");

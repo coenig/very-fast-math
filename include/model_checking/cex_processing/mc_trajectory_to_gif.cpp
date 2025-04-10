@@ -14,7 +14,7 @@ using namespace mc;
 using namespace trajectory_generator;
 
 const auto VARIABLES_TO_BE_PAINTED = std::make_shared<std::vector<PainterVariableDescription>>(std::vector<PainterVariableDescription>
-   { // 3: int, 2: enum, 0: bool, 1: ?? (TODO)
+   { // 3: int, 2: enum, 0: bool, 1: float
       //{ "debug.ego.a",                                  { 3, -11 } },
       //{ "ego.v",                                        { 3, -11 } },
       //{ "ego.abs_pos",                                        { 3, -11 } },
@@ -78,6 +78,7 @@ const auto VARIABLES_TO_BE_PAINTED = std::make_shared<std::vector<PainterVariabl
       //{ R"(REGEX:veh___6.*9___.rel_pos)",   { 3, -11 } },
 
       { R"(REGEX:.*env.ego..*)",   { 3, -11 } },
+      { R"(REGEX:.*rlc.*)",   { 1, -11 } },
 
       //{ R"(ego.right_of_veh_1_lane)",   { 0, -11 } },
       //{ R"(veh_length)",   { 3, -11 } },
@@ -260,7 +261,7 @@ void LiveSimGenerator::generate(
    }
 
 	std::cout << std::endl;
-   std::filesystem::remove(morty_progress_path);
+   StaticHelper::removeFileSafe(morty_progress_path);
 
    gif_recorder.finish();
 }

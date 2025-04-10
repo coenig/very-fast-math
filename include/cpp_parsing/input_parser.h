@@ -56,8 +56,6 @@ public:
          itr++;
       }
 
-      static const std::string empty_string("");
-
       if (result.empty() && defaults_.find(option) != defaults_.end())
       {
          return { defaults_.at(option) };
@@ -149,7 +147,7 @@ public:
 
    void printArgumentFull(const std::string& name) const
    { 
-      addNote("Value of parameter " + getNameAndDesc(name) + ": '" + setToString(getCmdMultiOption(name)) + "'.");
+      addNote("Value of parameter " + getNameAndDesc(name) + ": " + setToString(getCmdMultiOption(name)) + ".");
    }
 
    void printArgumentsForMC() const
@@ -174,7 +172,7 @@ private:
 
    static std::string setToString(const std::set<std::string> aSet)
    {
-      if (aSet.empty()) return "";
+      if (aSet.empty()) return "{" + vfm::FAILED_COLOR + " *NO VALUE PROVIDED* " + vfm::RESET_COLOR + "}";
 
       std::string s{};
 
@@ -186,7 +184,7 @@ private:
 
       s.pop_back();
 
-      return s;
+      return "{ " + s + " }";
    }
 
    void markAsFlag(const std::string parameter)

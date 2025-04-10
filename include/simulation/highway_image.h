@@ -21,7 +21,7 @@ public:
    HighwayImage(const std::shared_ptr<HighwayTranslator> translator, const int num_lanes);
 
    void setupVPointFor3DPerspective(const int num_lanes, const Vec2D& dim); // 3D-Specific - TODO: Needs to go away.
-   void paintEarthAndSky(const Vec2D& dim);                                 // 3D-Specific - TODO: Needs to go away.
+   void paintEarthAndSky(const Vec2D& dim = Vec2D{0, 0});                   // 3D-Specific - TODO: Needs to go away.
 
    void setTranslator(const std::shared_ptr<VisTranslator> function) override;
 
