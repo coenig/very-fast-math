@@ -1448,7 +1448,8 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
 
    StaticHelper::writeTextToFile(main_file, "./morty/main.smv");
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
-   MCTrace trace{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt").at(0) };
+   auto traces{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt") };
+   MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
 
    std::vector<VarValsFloat> deltas{};
    std::set<std::string> variables{};
