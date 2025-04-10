@@ -104,6 +104,7 @@ std::string doParsingRun(
 void extractInitValuesAca4_1();
 void aca4_1Run();
 
+std::shared_ptr<RoadGraph> paintExampleRoadGraphCrossing(const bool write_to_files = true, const std::shared_ptr<RoadGraph> ego_section = nullptr);
 std::shared_ptr<RoadGraph> paintExampleRoadGraphStrangeJunction(const bool write_to_files = true, const std::shared_ptr<RoadGraph> ego_section = nullptr);
 std::shared_ptr<RoadGraph> paintExampleRoadGraphRoundabout(const bool write_to_files = true, const std::shared_ptr<RoadGraph> ego_section = nullptr);
 

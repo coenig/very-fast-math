@@ -113,8 +113,12 @@ void HighwayImage::setupVPointFor3DPerspective(const int num_lanes, const Vec2D&
    v_point_.x = (getXOffsetCorrection(v_point_.x, bl_.x, br_.x));
 }
 
-void HighwayImage::paintEarthAndSky(const Vec2D& dim)
+void HighwayImage::paintEarthAndSky(const Vec2D& dim_raw)
 {
+   const float dimx{ (float) getWidth() };
+   const float dimy{ dimx / 5 };
+   Vec2D dim{ dim_raw.length() == 0 ? Vec2D{ dimx, dimy } : dim_raw };
+
    Vec2D screen_tl_{ 0, 0 };
    Vec2D screen_br_{ dim.x, dim.y };
    Vec2D screen_tr_{ screen_br_.x, screen_tl_.y };
