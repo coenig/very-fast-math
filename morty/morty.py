@@ -51,20 +51,45 @@ for i in range(150):
     res_str = res.decode()    
     print(res_str)
 
+    LOOKOUT_INTO_FUTURE = 3
+    sum_vel_by_car = []
+    sum_lan_by_car = []
+
     for i1, el1 in enumerate(res_str.split(';')):
+        sum_lan_by_car.append(0)
+        sum_vel_by_car.append(0)
         for i2, el2 in enumerate(el1.split('|')):
-            vel = []
-            lan = []
             for i3, el3 in enumerate(el2.split(',')):
-                if el3:
+                if el3 and i3 < LOOKOUT_INTO_FUTURE:
                     if i2 == 1:
-                        lan.append(el3)
+                        sum_lan_by_car[i1] += float(el3)
                     else:
-                        vel.append(el3)
-        print(vel)
-        print(lan)
+                        sum_vel_by_car[i1] += float(el3)
+    print(sum_vel_by_car)
+    print(sum_lan_by_car)
     
-    action = tuple(res_str.split(';'))
+    action_list = []
+    
+    # 0: 'LANE_LEFT',
+    # 1: 'IDLE',
+    # 2: 'LANE_RIGHT',
+    # 3: 'FASTER',
+    # 4: 'SLOWER'
+        
+    for i, el in enumerate(sum_vel_by_car):
+        if sum_lan_by_car[i] < 0:
+            action_list.append(2) # LANE_RIGHT
+        elif sum_lan_by_car[i] > 0:
+            action_list.append(0) # LANE_LEFT
+        elif sum_vel_by_car[i] > 0:
+            action_list.append(3) # FASTER
+        elif sum_vel_by_car[i] < 0:
+            action_list.append(4) # SLOWER
+        else:
+            action_list.append(1) # IDLE
+    
+    print(action_list)
+    action = tuple(action_list)
 
 #plt.imshow(env.render())
 #plt.show()
