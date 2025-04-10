@@ -198,44 +198,113 @@ std::string getFirstFreeCachedDirPath(const std::string& cached_dir)
    }
 }
 
-void checkForChangedEnvModelTemplateOrCreateOneIfMissing(const std::string& cached_path_str, const std::string& envmodel_template_path_str, const std::string& gui_name)
-{
-   const std::filesystem::path cached_path{ cached_path_str };
-   const std::filesystem::path envmodel_template_path{ envmodel_template_path_str };
-   const std::filesystem::path cached_envmodel_template_path{ cached_path / ENVMODEL_TEMPLATE_FILENAME };
+const static std::string GENERAL_MESSAGE{ "I will delete the cached folder." };
 
+void removeAndCopyHelper(const std::filesystem::path& cached_path, const std::filesystem::path& template_path)
+{
+   const std::filesystem::path envmodel_include_path{ template_path / ENVMODEL_INCLUDES_FILENAME };
+   const std::filesystem::path cached_envmodel_include_path{ cached_path / ENVMODEL_INCLUDES_FILENAME };
+
+   StaticHelper::removeAllFilesSafe(cached_path);
+   StaticHelper::createDirectoriesSafe(cached_path);
+
+   try {
+      std::filesystem::copy(envmodel_include_path, cached_envmodel_include_path);
+   }
+   catch (const std::exception& e) {
+      Failable::getSingleton()->addError("Could not copy '" + envmodel_include_path.string() + "' to '" + cached_envmodel_include_path.string() + "'. " + GENERAL_MESSAGE);
+      StaticHelper::removeAllFilesSafe(cached_path);
+   }
+
+   std::string includes_str{ StaticHelper::readFile(cached_envmodel_include_path.string()) };
+   includes_str = StaticHelper::removeComments(includes_str);
+   includes_str = StaticHelper::removeBlankLines(includes_str);
+
+   for (const auto& file_name : StaticHelper::split(includes_str, "\n")) {
+      if (!file_name.empty()) {
+         std::filesystem::path file{ template_path / StaticHelper::trimAndReturn(file_name) };
+         try {
+            std::filesystem::copy(file, cached_path);
+         }
+         catch (const std::exception& e) {
+            Failable::getSingleton()->addError("Could not copy '" + file.string() + "' to '" + cached_path.string() + "'. " + GENERAL_MESSAGE);
+            StaticHelper::removeAllFilesSafe(cached_path);
+         }
+      }
+   }
+}
+
+void checkForChangedEnvModelTemplatesAndPossiblyReCreateCache(const std::filesystem::path& cached_path, const std::filesystem::path& template_path, const std::string& gui_name)
+{
    if (!StaticHelper::existsFileSafe(cached_path)) { // Create cached dir if missing.
       Failable::getSingleton(gui_name)->addNote("Cache not found, creating one in '" + cached_path.string() + "'.");
       StaticHelper::createDirectoriesSafe(cached_path, false);
    }
 
-   if (!StaticHelper::existsFileSafe(cached_envmodel_template_path)) { // Copy EnvModel.tpl if missing.
-      Failable::getSingleton(gui_name)->addNote("Cached '" + cached_envmodel_template_path.string() + "' file not found, copying the one from '" + envmodel_template_path.string() + "'.");
+   if (!isCacheUpToDateWithTemplates(cached_path, template_path, gui_name)) {
+      Failable::getSingleton(gui_name)->addNote("Cached template files in '" + cached_path.string() + "' are out of date. " + GENERAL_MESSAGE);
+      removeAndCopyHelper(cached_path, template_path);
+      checkForChangedEnvModelTemplatesAndPossiblyReCreateCache(cached_path, template_path, gui_name);
+   }
+}
 
-      try {
-         std::filesystem::copy(envmodel_template_path, cached_envmodel_template_path);
+bool vfm::test::isCacheUpToDateWithTemplates(const std::filesystem::path& cached_path, const std::filesystem::path& template_path, const std::string& gui_name)
+{
+   const std::filesystem::path envmodel_include_path{ template_path / ENVMODEL_INCLUDES_FILENAME };
+   const std::filesystem::path cached_envmodel_include_path{ cached_path / ENVMODEL_INCLUDES_FILENAME };
+
+   if (StaticHelper::existsFileSafe(cached_envmodel_include_path)) { // Check if EnvModel_IncludeFiles.txt exists...
+      if (StaticHelper::existsFileSafe(envmodel_include_path)) {
+         // First check if include files are equal.
+         std::string template_contents{ StaticHelper::readFile(envmodel_include_path.string()) };
+         std::string cached_contents{ StaticHelper::readFile(cached_envmodel_include_path.string()) };
+         
+         if (template_contents != cached_contents) { // If not equal, cache is corrupt and needs to be re-created.
+            Failable::getSingleton(gui_name)->addNote("Template INCLUDES file '" + envmodel_include_path.string() + "' differs from cached version '" + cached_envmodel_include_path.string() + "'.");
+            return false;
+         }
       }
-      catch (const std::exception& e) {
-         Failable::getSingleton()->addWarning("Could not copy from '" + envmodel_template_path.string() + "' to '" + cached_envmodel_template_path.string() + "'.");
+      else {
+         Failable::getSingleton(gui_name)->addError("Template INCLUDES file '" + envmodel_include_path.string() + "' not found. Something is wrong.");
+      }
+
+
+      std::string includes_str{ StaticHelper::readFile(cached_envmodel_include_path.string()) };
+      includes_str = StaticHelper::removeComments(includes_str);
+      includes_str = StaticHelper::removeBlankLines(includes_str);
+
+      for (const auto& file_name_raw : StaticHelper::split(includes_str, "\n")) {
+         const std::string file_name{ StaticHelper::trimAndReturn(file_name_raw) };
+         if (!file_name.empty()) {
+            const std::filesystem::path file_on_cache_side{ cached_path / file_name };
+            const std::filesystem::path file_on_template_side{ template_path / file_name };
+
+            if (StaticHelper::existsFileSafe(file_on_cache_side)) { // ...and, in then, if all the include files listed therein exist on cache side.
+               if (StaticHelper::existsFileSafe(file_on_template_side)) { // If existing, look if contents are equal.
+                  std::string template_contents{ StaticHelper::readFile((template_path / file_name).string()) };
+                  std::string cached_contents{ StaticHelper::readFile((cached_path / file_name).string()) };
+
+                  if (template_contents != cached_contents) { // If not equal, cache is corrupt and needs to be re-created.
+                     Failable::getSingleton(gui_name)->addNote("Template file '" + file_on_template_side.string() + "' differs from cached version '" + file_on_cache_side.string() + "'.");
+                     return false;
+                  }
+               }
+               else { // File missing on template side.
+                  Failable::getSingleton(gui_name)->addError("Template file '" + file_on_template_side.string() + "' not found. Something is wrong.");
+               }
+            }
+            else {
+               Failable::getSingleton(gui_name)->addNote("Template file '" + file_on_template_side.string() + "' has no cached version.");
+               return false;
+            }
+         }
       }
    }
-
-   // Assuming Cached EnvModel.tpl exists now.
-
-   // Check if old and new template are equal.
-   try { // This is for the read file stuff
-      std::string envmodel_template{ StaticHelper::readFile(envmodel_template_path.string()) };
-      std::string cached_envmodel_template{ StaticHelper::readFile(cached_envmodel_template_path.string()) };
-
-      if (envmodel_template != cached_envmodel_template) { // If not, delete complete cached folder and call recursively to re-generate cache structure.
-         Failable::getSingleton(gui_name)->addNote("Cached file '" + cached_envmodel_template_path.string() + "' is different from current one in '" + envmodel_template_path.string() + "'. I will delete the cached folder.");
-         StaticHelper::removeAllFilesSafe(cached_path);
-         checkForChangedEnvModelTemplateOrCreateOneIfMissing(cached_path_str, envmodel_template_path_str, gui_name);
-      }
+   else {
+      return false;
    }
-   catch (const std::exception& e) {
-      Failable::getSingleton()->addWarning("Could not compare EnvModels from '" + envmodel_template_path.string() + "' and '" + cached_envmodel_template_path.string() + "'.");
-   }
+
+   return true;
 }
 
 void cleanUpCache(const std::string& gui_name, const std::string& cache_dir)
@@ -289,6 +358,9 @@ std::string vfm::test::doParsingRun(
 
    std::string target_dir_without_trailing_slashes{ target_dir };
 
+   std::filesystem::path template_dir{ envmodel_tpl };
+   template_dir = template_dir.parent_path();
+
    while (!target_dir_without_trailing_slashes.empty() && target_dir_without_trailing_slashes.back() == '/') {
       target_dir_without_trailing_slashes.pop_back();
    }
@@ -315,7 +387,7 @@ std::string vfm::test::doParsingRun(
       + planner_path
    };
 
-   checkForChangedEnvModelTemplateOrCreateOneIfMissing(cached_dir, envmodel_tpl, gui_name);
+   checkForChangedEnvModelTemplatesAndPossiblyReCreateCache(cached_dir, template_dir, gui_name);
 
    std::string generated_dir{ cached_dir.empty() ? full_target_path : getFirstFreeCachedDirPath(cached_dir) };
    std::string generated_file{ generated_dir + "/planner.cpp"};
@@ -959,6 +1031,112 @@ void vfm::test::aca4_1Run()
 
 static const Vec2D dim3D{ 500, 120 };
 
+std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphCrossing(
+   const bool write_to_files, 
+   const std::shared_ptr<RoadGraph> ego_section)
+{
+   assert(!ego_section || ego_section->isRootedInZeroAndUnturned());
+   assert(!ego_section || ego_section->getAllNodes().size() == 1);
+   assert(!ego_section || ego_section->getMyRoad().getEgo());
+
+   // Strange junction
+   std::shared_ptr<HighwayTranslator> trans2{ std::make_shared<Plain2DTranslator>() };
+   std::shared_ptr<HighwayTranslator> trans3{ std::make_shared<Plain3DTranslator>(false) };
+   HighwayImage image2{ 3000, 2000, trans2, 4 };
+   HighwayImage image3{ 1500, 500, trans3, 4 };
+   image2.restartPDF();
+   image3.restartPDF();
+   LaneSegment segment11{ 0, 0, 6 };
+   LaneSegment segment12{ 20, 2, 4 };
+   LaneSegment segment21{ 0, 2, 4 };
+   LaneSegment segment22{ 30, 0, 6 };
+   LaneSegment segment31{ 0, 2, 4 };
+   LaneSegment segment32{ 25, 0, 6 };
+   LaneSegment segment41{ 0, 0, 6 };
+   LaneSegment segment42{ 35, 2, 4 };
+   StraightRoadSection sectiona1{ 4, 50 };
+   StraightRoadSection sectiona2{ 4, 60 };
+   StraightRoadSection sectiona3{ 4, 100 };
+   StraightRoadSection sectiona4{ 4, 55 };
+   sectiona1.addLaneSegment(segment11);
+   sectiona1.addLaneSegment(segment12);
+   sectiona2.addLaneSegment(segment21);
+   sectiona2.addLaneSegment(segment22);
+   sectiona3.addLaneSegment(segment31);
+   sectiona3.addLaneSegment(segment32);
+   sectiona4.addLaneSegment(segment41);
+   sectiona4.addLaneSegment(segment42);
+   std::shared_ptr<CarPars> egoa = std::make_shared<CarPars>(20, 40, 13, HighwayImage::EGO_MOCK_ID);
+   std::map<int, std::pair<float, float>> future_positions_of_others1{};
+   std::map<int, std::pair<float, float>> future_positions_of_others2{};
+   std::map<int, std::pair<float, float>> future_positions_of_others3{};
+   std::map<int, std::pair<float, float>> future_positions_of_others4{};
+   CarParsVec othersa1{ };
+   CarParsVec othersa2{ };
+   CarParsVec othersa3{ };
+   CarParsVec othersa4{ };
+   sectiona1.setEgo(egoa);
+   sectiona1.setOthers(othersa1);
+   sectiona1.setFuturePositionsOfOthers(future_positions_of_others1);
+   sectiona2.setEgo(nullptr);
+   sectiona2.setOthers(othersa2);
+   sectiona2.setFuturePositionsOfOthers(future_positions_of_others2);
+   sectiona3.setEgo(nullptr);
+   sectiona3.setOthers(othersa3);
+   sectiona3.setFuturePositionsOfOthers(future_positions_of_others3);
+   sectiona4.setEgo(nullptr);
+   sectiona4.setOthers(othersa4);
+   sectiona4.setFuturePositionsOfOthers(future_positions_of_others4);
+
+   auto ra1 = std::make_shared<RoadGraph>(1);
+   auto ra2 = std::make_shared<RoadGraph>(2);
+   auto ra3 = std::make_shared<RoadGraph>(3);
+   auto ra4 = std::make_shared<RoadGraph>(4);
+   ra1->setMyRoad(sectiona1);
+
+   if (ego_section) {
+      ego_section->getMyRoad().setSectionEnd(ra1->getMyRoad().getLength());
+      ra1 = ego_section;
+   }
+
+   ra1->setOriginPoint({ 0, 6 });
+   ra1->setAngle(0);
+   ra2->setMyRoad(sectiona2);
+   ra2->setOriginPoint({ 60, 5 * vfm::LANE_WIDTH });
+   ra2->setAngle(3.1415 / 2);
+   ra3->setMyRoad(sectiona3);
+   ra3->setOriginPoint({ ra1->getMyRoad().getLength() + 25, 6 });
+   ra3->setAngle(0);
+   ra4->setMyRoad(sectiona4);
+   ra4->setOriginPoint({ 60, -ra4->getMyRoad().getLength() - 10 });
+   ra4->setAngle(3.1415 / 2);
+   ra1->addSuccessor(ra2);
+   ra1->addSuccessor(ra3);
+   ra4->addSuccessor(ra2);
+   ra4->addSuccessor(ra3);
+
+   if (write_to_files) {
+      bool old2 = image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_;
+      bool old3 = image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_;
+      image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
+      image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
+
+      image2.fillImg(BROWN);
+      image3.paintEarthAndSky();
+      image2.paintRoadGraph(ra1, { 500, 60 }, {}, true, 50, 70);
+      image2.store("../examples/crossing", OutputType::pdf);
+      image2.store("../examples/crossing", OutputType::png);
+      image3.paintRoadGraph(ra1, dim3D);
+      image3.store("../examples/crossing_3d", OutputType::pdf);
+      image3.store("../examples/crossing_3d", OutputType::png);
+
+      image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = old2;
+      image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = old3;
+   }
+
+   return ra1;
+}
+
 std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(
    const bool write_to_files, 
    const std::shared_ptr<RoadGraph> ego_section)
@@ -978,7 +1156,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(
    image3.fillImg(BLACK);
    //image3.paintEarthAndSky({ 1500, 500 });
    LaneSegment segment11{ 0, 2, 6 };
-   LaneSegment segment12{ 20, 0, 4 };
+   LaneSegment segment12{ 20, 0, 6 };
    LaneSegment segment21{ 0, 0, 4 };
    LaneSegment segment22{ 30, 2, 6 };
    LaneSegment segment31{ 0, 2, 6 };
@@ -1052,6 +1230,8 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(
       image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
       image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
 
+      image2.fillImg(BROWN);
+      image3.paintEarthAndSky();
       image2.paintRoadGraph(ra1, { 500, 60 }, {}, true);
       image2.store("../examples/junction", OutputType::pdf);
       image2.store("../examples/junction", OutputType::png);
@@ -1227,6 +1407,8 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
       image2.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
       image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
 
+      image2.fillImg(BROWN);
+      image3.paintEarthAndSky();
       image2.paintRoadGraph(r1, { 500, 60 }, {}, true, 60, (float)r0->getMyRoad().getNumLanes() / 2.0f);
       image2.store("../examples/roundabout", OutputType::pdf);
       image2.store("../examples/roundabout", OutputType::png);
@@ -1376,7 +1558,8 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
 
    StaticHelper::writeTextToFile(main_file, "./morty/main.smv");
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
-   MCTrace trace{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt").at(0) };
+   auto traces{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt") };
+   MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
 
    std::vector<VarValsFloat> deltas{};
    std::set<std::string> variables{};

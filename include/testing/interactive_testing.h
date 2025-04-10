@@ -38,6 +38,7 @@ enum class MCExecutionType {
 };
 
 static const std::string ENVMODEL_TEMPLATE_FILENAME{ "EnvModel.tpl" };
+static const std::string ENVMODEL_INCLUDES_FILENAME{ "EnvModel_IncludeFiles.txt" };
 
 using EnvModelConfig = std::map<std::string, std::string>;
 
@@ -103,8 +104,11 @@ std::string doParsingRun(
 void extractInitValuesAca4_1();
 void aca4_1Run();
 
+std::shared_ptr<RoadGraph> paintExampleRoadGraphCrossing(const bool write_to_files = true, const std::shared_ptr<RoadGraph> ego_section = nullptr);
 std::shared_ptr<RoadGraph> paintExampleRoadGraphStrangeJunction(const bool write_to_files = true, const std::shared_ptr<RoadGraph> ego_section = nullptr);
 std::shared_ptr<RoadGraph> paintExampleRoadGraphRoundabout(const bool write_to_files = true, const std::shared_ptr<RoadGraph> ego_section = nullptr);
+
+bool isCacheUpToDateWithTemplates(const std::filesystem::path& cached_path, const std::filesystem::path& template_path, const std::string& gui_name);
 
 extern "C" char* morty(const char* input, char* result, size_t resultMaxLength);
 } // test

@@ -173,8 +173,13 @@ INIT segment_0_min_lane = 0 & segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -
 
 TRANS next(cnt) = cnt + 1;
 
+@{
+   @{EnvModel_Feasibility.tpl}@*******.include
+}@********.if[@{FEASIBILITY}@.eval]
+
 DEFINE
-large_number := 10000;
+
+   large_number := 10000;
 
    segment_@{SEGMENTS}@.eval[0]_pos_begin := segment_@{SEGMENTS - 1}@.eval[0]_pos_begin + large_number; -- Helper variable to make below loop simpler.
 
@@ -411,6 +416,10 @@ INIT
 
 INIT 
    veh___6[i]9___.rel_pos >= -@{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst & veh___6[i]9___.rel_pos <= @{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst;
+
+-- Make sure ego and vehicle [i] don't collide in the initial state.
+INIT
+   veh___6[i]9___.rel_pos < veh_length | veh___6[i]9___.rel_pos > veh_length | !ego.same_lane_as_veh_[i];
 
 INVAR
     veh___6[i]9___.lane_single | veh___6[i]9___.lane_crossing;
@@ -706,13 +715,6 @@ ASSIGN
     
     init(ego.slow_lane_deadlock_active) := FALSE;
     next(ego.slow_lane_deadlock_active) := FALSE; -- TODO: For now we don't model slow-lane deadlock
-	
-    init(ego.gaps___609___.s_dist_front) := max_ego_visibility_range+1;
-    init(ego.gaps___609___.s_dist_rear) := max_ego_visibility_range+1;
-
-    init(ego.gaps___619___.s_dist_front) := max_ego_visibility_range+1;
-
-    init(ego.gaps___629___.s_dist_front) := max_ego_visibility_range+1;
 
 @{ -- Using ASSIGN structure for gaps due to @{NONEGOS}@.eval[0] <= @{THRESHOLD_FOR_USING_ASSIGNS_IN_GAP_STRUCTURE}@.eval[0] non-ego agents.
     init(ego.gaps___609___.v_front) := max_vel; -- Max velocity is indicator of empty gap to the front, 0, to the rear.

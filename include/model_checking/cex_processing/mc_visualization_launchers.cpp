@@ -261,15 +261,15 @@ bool VisualizationLaunchers::quickGenerateGIFs(
       }
 
       StaticHelper::createDirectoriesSafe(path);
-      StaticHelper::writeTextToFile(writeProseTrafficScene(trace), path + "prose_scenario_description.txt");
       StaticHelper::writeTextToFile(StaticHelper::serializeMCTraceNusmvStyle(trace), path + file_name_without_txt_extension + "_unscaled.smv");
 
       Failable::getSingleton()->addNote("Applying scaling.");
-      ScaleDescription::createTimescalingFile(path);
-      auto ts_description{ ScaleDescription(StaticHelper::readFile(path + TIMESCALING_FILENAME)) };
+      ScaleDescription::createTimescalingFile(path_base);
+      auto ts_description{ ScaleDescription(StaticHelper::readFile(path_base + TIMESCALING_FILENAME)) };
       StaticHelper::applyTimescaling(trace, ts_description);
-
       StaticHelper::writeTextToFile(StaticHelper::serializeMCTraceNusmvStyle(trace), path + file_name_without_txt_extension + ".smv");
+
+      StaticHelper::writeTextToFile(writeProseTrafficScene(trace), path + "prose_scenario_description.txt");
 
       std::string trial_name{ file_name_without_txt_extension };
       std::string comments_file{ path_cropped + "/" + "Comments.csv" };

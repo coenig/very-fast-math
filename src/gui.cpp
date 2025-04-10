@@ -28,7 +28,7 @@ using namespace vfm;
 
 std::map<std::string, std::pair<std::string, std::string>> MCScene::loadNewBBsFromJson()
 {
-   std::string json_string{ json_input_->value() };
+   std::string json_string{ json_input_->buffer()->text() };
    if (last_json_string_ == json_string) {
       return last_bb_stuff_;
    }
@@ -213,6 +213,10 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
    checkbox_json_visible_->callback(checkboxJSONVisibleCallback, this);
    checkbox_json_visible_->when(FL_WHEN_RELEASE_ALWAYS);
 
+   json_input_->buffer(json_buffer_);
+   json_input_->textfont(FL_COURIER);
+   json_input_->textsize(12);
+
    json_input_->callback(jsonChangedCallback, this);
    json_input_->when(FL_WHEN_CHANGED);
    loadJsonText();
@@ -284,7 +288,7 @@ std::string vfm::MCScene::getValueForJSONKeyAsString(const std::string& key_to_f
    const bool from_template{ config_name == JSON_TEMPLATE_DENOTER };
 
    try {
-      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->value() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
+      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
 
       for (auto& [key_config, value_config] : j.items()) {
          if (key_config == config_name) {
@@ -312,14 +316,14 @@ std::string vfm::MCScene::getValueForJSONKeyAsString(const std::string& key_to_f
 void vfm::MCScene::setValueForJSONKeyFromBool(const std::string& key_to_find, const std::string& config_name, const bool from_template, const bool value_to_set) const
 { // TODO: Double code
    try {
-      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->value() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
+      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
 
       for (auto& [key_config, value_config] : j.items()) {
          if (key_config == config_name) {
             for (auto& [key, value] : value_config.items()) {
                if (key == key_to_find) {
                   value = value_to_set;
-                  json_input_->value(j.dump(3).c_str());
+                  json_input_->buffer()->text(j.dump(3).c_str());
                   return;
                }
             }
@@ -341,14 +345,14 @@ void vfm::MCScene::setValueForJSONKeyFromBool(const std::string& key_to_find, co
 void vfm::MCScene::setValueForJSONKeyFromString(const std::string& key_to_find, const std::string& config_name, const bool from_template, const std::string& value_to_set) const
 { // TODO: Double code
    try {
-      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->value() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
+      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
 
       for (auto& [key_config, value_config] : j.items()) {
          if (key_config == config_name) {
             for (auto& [key, value] : value_config.items()) {
                if (key == key_to_find) {
                   value = value_to_set;
-                  json_input_->value(j.dump(3).c_str());
+                  json_input_->buffer()->text(j.dump(3).c_str());
                   return;
                }
             }
@@ -556,7 +560,7 @@ void MCScene::loadJsonText()
 {
    std::string path{ getTemplateDir() };
    path += "/" + FILE_NAME_JSON_TEMPLATE;
-   json_input_->value(StaticHelper::readFile(path).c_str());
+   json_input_->buffer()->text(StaticHelper::readFile(path).c_str());
    //spec_input->value(getSpecAndBBs().back().c_str());
 }
 
@@ -564,11 +568,11 @@ void MCScene::saveJsonText()
 {
    std::string path{ getTemplateDir() };
    path += "/" + FILE_NAME_JSON_TEMPLATE;
-   StaticHelper::writeTextToFile(json_input_->value(), path);
+   StaticHelper::writeTextToFile(json_input_->buffer()->text(), path);
 
    // Check json syntax.
    try {
-      nlohmann::json json = nlohmann::json::parse(json_input_->value());
+      nlohmann::json json = nlohmann::json::parse(json_input_->buffer()->text());
       resetCachedVariables();
       getGeneratedDir();
       getCachedDir();
@@ -597,7 +601,7 @@ void vfm::MCScene::putJSONIntoDataPack(const std::string& json_config)
    //data_->reset();
 
    try {
-      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->value() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
+      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
 
       for (auto& [key_config, value_config] : j.items()) {
          if (key_config == json_config) {
@@ -1362,24 +1366,11 @@ std::pair<std::vector<std::string>, std::vector<std::string>> getCommonAndUnique
 void MCScene::refreshSometimes(void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
-   
-   if (mc_scene->button_run_parser_->active()) { // Don't display this warning when jobs are running.
-      try { // TODO: Remove this try/catch
-         if (StaticHelper::existsFileSafe(mc_scene->getCachedDir()) && !std::filesystem::is_empty(mc_scene->getCachedDir())) {
-            std::filesystem::path env_model_cached_path{ mc_scene->getCachedDir() };
-            env_model_cached_path /= test::ENVMODEL_TEMPLATE_FILENAME;
-            if (StaticHelper::existsFileSafe(env_model_cached_path)) {
-               std::filesystem::path env_model_path{ mc_scene->getTemplateDir() };
-               env_model_path /= test::ENVMODEL_TEMPLATE_FILENAME;
 
-               if (StaticHelper::readFile(env_model_cached_path.string()) != StaticHelper::readFile(env_model_path.string())) {
-                  mc_scene->addWarning("File '" + test::ENVMODEL_TEMPLATE_FILENAME + "' has changed. Cached entries will be deleted on next click on 'Create EnvModels...'. <Delete cache with right-click on the button to stop this message.>");
-               }
-            }
-         }
-      }
-      catch (const std::exception& e) {
-         // Wouldn't do anything here, worst thing is no warning printed.
+   if (mc_scene->button_run_parser_->active()) { // Don't display this warning when jobs are running.
+      if (!test::isCacheUpToDateWithTemplates(mc_scene->getCachedDir(), mc_scene->getTemplateDir(), GUI_NAME + "_Related")) {
+         mc_scene->addWarning("Cache in '" + mc_scene->getCachedDir() + "' is outdated w.r.t. the template files in '" + mc_scene->getTemplateDir() + "'.\n"
+            + "All cached entries will be deleted on next click on 'Create EnvModels...'. <Delete cache with right-click on the button to stop this message.>");
       }
    }
 
@@ -1668,7 +1659,7 @@ void MCScene::deletePreview(const std::string& path_generated, const bool actual
 
 nlohmann::json MCScene::getJSON() const
 {
-   std::string json_text{ json_input_->value() };
+   std::string json_text{ json_input_->buffer()->text() };
    nlohmann::json json{};
 
    try {
@@ -1940,7 +1931,7 @@ void MCScene::buttonReloadJSON(Fl_Widget* widget, void* data) {
 
 void MCScene::buttonCheckJSON(Fl_Widget* widget, void* data) {
    auto mc_scene{ static_cast<MCScene*>(data) };
-   std::string json_text{ mc_scene->json_input_->value() };
+   std::string json_text{ mc_scene->json_input_->buffer()->text() };
 
    try {
       nlohmann::json json = nlohmann::json::parse(json_text);
@@ -2202,12 +2193,12 @@ void MCScene::buttonReparse(Fl_Widget* widget, void* data)
    t.detach();
 }
 
-void vfm::MCScene::createTestCase(const MCScene* mc_scene, const std::string& generated_parent_dir, const int cnt, const int max, const std::string& id)
+void vfm::MCScene::createTestCase(const MCScene* mc_scene, const std::string& generated_parent_dir, const int cnt, const int max, const std::string& id, const int cex_num)
 {
    mc_scene->addNote("Running test case generation " + std::to_string(cnt) + "/" + std::to_string(max) + " for '" + id + "'.");
 
    mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
-      { 0 }, // TODO: for now only first CEX is processed if several given.
+      { cex_num }, // TODO: for now only first CEX is processed if several given.
       generated_parent_dir + "/" + id,
       "debug_trace_array",
       mc::trajectory_generator::CexTypeEnum::smv,
@@ -2235,7 +2226,7 @@ void MCScene::createTestCases(MCScene* mc_scene)
          while (!spawned) {
             if (numThreads < test::MAX_THREADS) {
                threads.emplace_back(std::thread(
-                  MCScene::createTestCase, mc_scene, mc_scene->getGeneratedParentDir(), cnt++, max, sec.getMyId()));
+                  MCScene::createTestCase, mc_scene, mc_scene->getGeneratedParentDir(), cnt++, max, sec.getMyId(), sec.slider_->value()));
                spawned = true;
                numThreads++;
             }
