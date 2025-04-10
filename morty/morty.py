@@ -23,7 +23,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "controlled_vehicles": 5,
     "vehicles_count": 0,
     "screen_width": 1500,
-    "screen_height": 800,
+    "screen_height": 500,
     "scaling": 4.5,
     "show_trajectories": True,
 })
@@ -51,7 +51,7 @@ for i in range(150):
     res_str = res.decode()    
     print(res_str)
 
-    LOOKOUT_INTO_FUTURE = 3
+    LOOKOUT_INTO_FUTURE = 2
     sum_vel_by_car = []
     sum_lan_by_car = []
 
@@ -65,28 +65,29 @@ for i in range(150):
                         sum_lan_by_car[i1] += float(el3)
                     else:
                         sum_vel_by_car[i1] += float(el3)
+                        
     print(sum_vel_by_car)
     print(sum_lan_by_car)
     
     action_list = []
     
-    # 0: 'LANE_LEFT',
-    # 1: 'IDLE',
-    # 2: 'LANE_RIGHT',
-    # 3: 'FASTER',
-    # 4: 'SLOWER'
+    LANE_LEFT = 0
+    IDLE = 1
+    LANE_RIGHT = 2
+    FASTER = 3
+    SLOWER = 4
         
     for i, el in enumerate(sum_vel_by_car):
         if sum_lan_by_car[i] < 0:
-            action_list.append(2) # LANE_RIGHT
+            action_list.append(LANE_RIGHT)
         elif sum_lan_by_car[i] > 0:
-            action_list.append(0) # LANE_LEFT
+            action_list.append(LANE_LEFT)
         elif sum_vel_by_car[i] > 0:
-            action_list.append(3) # FASTER
+            action_list.append(FASTER)
         elif sum_vel_by_car[i] < 0:
-            action_list.append(4) # SLOWER
+            action_list.append(SLOWER)
         else:
-            action_list.append(1) # IDLE
+            action_list.append(IDLE)
     
     print(action_list)
     action = tuple(action_list)
