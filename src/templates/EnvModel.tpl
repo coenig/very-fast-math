@@ -133,11 +133,6 @@ ASSIGN
    next(segment_[num]_max_lane) := segment_[num]_max_lane;
    }@.for[[num], 0, @{SEGMENTS - 1}@.eval]
 
-   INIT section___609___.source.x = 0;
-   INIT section___609___.source.y = 0;
-   -- INIT section___609___.drain.x ==> Not specified, so the length of the section is figured out from the length of the segments.
-   INIT section___609___.drain.y = 0;
-
 
 INVAR tar_dir = ActionDir____LEFT;
 INIT cnt = 0;
