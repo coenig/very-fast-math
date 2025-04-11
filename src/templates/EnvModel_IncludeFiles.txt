@@ -7,3 +7,4 @@ EnvModel_Geometry.tpl
 EnvModel_Header.tpl
 EnvModel_Parameters.tpl
 EnvModel_Timescaling.tpl
+EnvModel_Sections.tpl

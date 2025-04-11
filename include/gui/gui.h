@@ -39,7 +39,6 @@ namespace vfm {
 static const std::string GUI_NAME{ "M²oRTy" };
 static const std::string PROSE_DESC_NAME{ "prose_scenario_description.txt" };
 static const std::string FILE_NAME_JSON{ "envmodel_config.json" };
-static const std::string FILE_NAME_JSON_TEMPLATE{ "envmodel_config.tpl.json" };
 static float TIMEOUT_FREQUENT{ 0.05 };
 static float TIMEOUT_RARE{ 0.5 };
 static float TIMEOUT_SOMETIMES{ 2 };
@@ -215,6 +214,7 @@ private:
 
    ProgressDetector progress_detector_{};
 
+   std::string json_tpl_filename_{};
    std::string path_to_template_dir_{};
    std::string path_to_external_folder_{};
 };
