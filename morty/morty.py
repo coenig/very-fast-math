@@ -3,6 +3,8 @@ import highway_env
 from matplotlib import pyplot as plt
 from ctypes import *
 
+HACKING_CONSTANT = 4
+
 env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "action": {
         "type": "MultiAgentAction",
@@ -12,14 +14,16 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         },
     "longitudinal": True,
     "lateral": True,
-},
+    },
     "observation": {
         "type": "Kinematics",
         "absolute": True,
-        "normalize": False 
+        "normalize": False,
+        "see_behind": True,
+        "clip": False
     },
     "simulation_frequency": 15,  # [Hz]
-    "policy_frequency": 1,  # [Hz]
+    "policy_frequency": HACKING_CONSTANT,  # [Hz]
     "controlled_vehicles": 5,
     "vehicles_count": 0,
     "screen_width": 1500,
@@ -28,15 +32,31 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "show_trajectories": True,
 })
 
-env.reset(seed=21)
+env.reset(seed=0)
 
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
 morty_lib.morty.restype = c_char_p
-action = (2, 2, 2, 2, 2)
-for i in range(150):
-    obs, reward, done, truncated, info = env.step(action)
+    
+LANE_LEFT = 0
+IDLE = 1
+LANE_RIGHT = 2
+FASTER = 3
+SLOWER = 4
+
+action_idle = (IDLE, IDLE, IDLE, IDLE, IDLE)
+action_lane = (IDLE, IDLE, IDLE, IDLE, IDLE)
+action_vel = (IDLE, IDLE, IDLE, IDLE, IDLE)
+
+for global_counter in range(1000):
     env.render()
+    
+    if global_counter % 2 == 0:
+        obs, reward, done, truncated, info = env.step(action_lane)
+    elif global_counter % 2 == 1:
+        obs, reward, done, truncated, info = env.step(action_vel)
+    else:
+        continue
 
     input = ""
     for el in obs:
@@ -69,28 +89,29 @@ for i in range(150):
     print(sum_vel_by_car)
     print(sum_lan_by_car)
     
-    action_list = []
-    
-    LANE_LEFT = 0
-    IDLE = 1
-    LANE_RIGHT = 2
-    FASTER = 3
-    SLOWER = 4
+    action_list_vel = []
+    action_list_lane = []
         
     for i, el in enumerate(sum_vel_by_car):
         if sum_lan_by_car[i] < 0:
-            action_list.append(LANE_RIGHT)
+            action_list_lane.append(LANE_RIGHT)
         elif sum_lan_by_car[i] > 0:
-            action_list.append(LANE_LEFT)
-        elif sum_vel_by_car[i] > 0:
-            action_list.append(FASTER)
-        elif sum_vel_by_car[i] < 0:
-            action_list.append(SLOWER)
+            action_list_lane.append(LANE_LEFT)
         else:
-            action_list.append(IDLE)
+            action_list_lane.append(IDLE)
+            
+        if sum_vel_by_car[i] > 0:
+            action_list_vel.append(FASTER)
+        elif sum_vel_by_car[i] < 0:
+            action_list_vel.append(SLOWER)
+        else:
+            action_list_vel.append(IDLE)
     
-    print(action_list)
-    action = tuple(action_list)
+    print(action_list_vel)
+    print(action_list_lane)
+    
+    action_vel = tuple(action_list_vel)
+    action_lane = tuple(action_list_lane)
 
 #plt.imshow(env.render())
 #plt.show()
