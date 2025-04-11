@@ -248,7 +248,7 @@ DEFINE
     a_min := -5;
     a_max := 5;
     min_dist_long := -1;                            -- the minimum distance kept by other vehicle to preceding ego, we use -1 meaning one meter behind
-    veh_length := 5;                                -- we assume a vehicle length of 5m for distance calculation to the front
+    veh_length := 15;                                -- we assume a vehicle length of 5m for distance calculation to the front
     max_vel := 70;
 
 
