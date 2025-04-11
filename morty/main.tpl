@@ -50,5 +50,5 @@ DEFINE
 --INVARSPEC env.ego.abs_pos >= env.segment_1_pos_begin & env.ego.abs_pos < env.segment_2_pos_begin & env.segment_1_min_lane > 0 -> !env.ego_lane_b0;
 
 --SPEC-STUFF
-INVARSPEC env.cnt < 5 | env.veh___609___.v < 10 | env.veh___619___.v > 5 | env.veh___629___.v > 5 | env.veh___639___.v > 5 | env.veh___649___.v > 5;
+INVARSPEC !(env.cnt >= 3 & env.veh___609___.v > 10 & env.veh___619___.v <= 5 & env.veh___629___.v <= 5 & env.veh___639___.v <= 5 & env.veh___649___.v <= 5);
 --EO-SPEC-STUFF

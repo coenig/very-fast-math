@@ -235,13 +235,13 @@ DEFINE
     --      5. leave_src_lane_latest_after <= complete_lane_change_latest_after
     --      5. abort_lane_change_complete_latest_after <= complete_lane_change_latest_after
 
-    leave_src_lane_earliest_after := 1;             -- earliest point in time where the vehicle may cross the lane border, i.e., after this transition the vehicle occupies two lanes 
-    leave_src_lane_latest_after := 5;
-    complete_lane_change_earliest_after := 1;       -- earliest point in time where the vehicle is entirely on its target lane, i.e., after this transition the vehicle only occupies one lane
-    complete_lane_change_latest_after := 7;
-    abort_lane_change_complete_earliest_after := 1; -- earliest point in time where the vehicle is entirely back on its source lane after a lane change abort
-    abort_lane_change_complete_latest_after := 3;
-    min_time_between_lcs := 1;                      -- after finisihing one lc, how much time needs to pass before the next one may be started
+    leave_src_lane_earliest_after := 0;             -- earliest point in time where the vehicle may cross the lane border, i.e., after this transition the vehicle occupies two lanes 
+    leave_src_lane_latest_after := 0;
+    complete_lane_change_earliest_after := 0;       -- earliest point in time where the vehicle is entirely on its target lane, i.e., after this transition the vehicle only occupies one lane
+    complete_lane_change_latest_after := 0;
+    abort_lane_change_complete_earliest_after := 0; -- earliest point in time where the vehicle is entirely back on its source lane after a lane change abort
+    abort_lane_change_complete_latest_after := 0;
+    min_time_between_lcs := 0;                      -- after finisihing one lc, how much time needs to pass before the next one may be started
 
 ---------------- End of lc parameterization -----------------
 
@@ -1546,18 +1546,6 @@ INVAR -- Non-Ego cars may not "jump" over each other.
 
 ASSIGN
 -- >>> Car 0 <<<
-    init(veh___609___.time_since_last_lc) := min_time_between_lcs;       -- init with max value such that lane change is immediately allowed after start
-    init(veh___609___.do_lane_change) := FALSE;
-    init(veh___609___.abort_lc) := FALSE;
-    init(veh___609___.lc_direction) := ActionDir____CENTER;
-    init(veh___609___.lc_timer) := -1;
-    init(veh___609___.change_lane_now) := 0;
-    init(veh___609___.prev_rel_pos) := 0;
-    -- init(veh___609___.v) := 35;
-    
-    init(veh___609___.turn_signals) := ActionDir____CENTER;
-    init(veh___609___.lc_leave_src_lane) := FALSE;
-
     next(veh___609___.do_lane_change) := 
 	    case 
         veh___609___.do_lane_change = FALSE & veh___609___.time_since_last_lc >= min_time_between_lcs: {TRUE, FALSE};
@@ -1635,18 +1623,6 @@ ASSIGN
     next(veh___609___.v) := min(max(veh___609___.v + veh___609___.a, 0), max_vel);
 
 -- >>> Car 1 <<<
-    init(veh___619___.time_since_last_lc) := min_time_between_lcs;       -- init with max value such that lane change is immediately allowed after start
-    init(veh___619___.do_lane_change) := FALSE;
-    init(veh___619___.abort_lc) := FALSE;
-    init(veh___619___.lc_direction) := ActionDir____CENTER;
-    init(veh___619___.lc_timer) := -1;
-    init(veh___619___.change_lane_now) := 0;
-    init(veh___619___.prev_rel_pos) := 0;
-    -- init(veh___619___.v) := 35;
-    
-    init(veh___619___.turn_signals) := ActionDir____CENTER;
-    init(veh___619___.lc_leave_src_lane) := FALSE;
-
     next(veh___619___.do_lane_change) := 
 	    case 
         veh___619___.do_lane_change = FALSE & veh___619___.time_since_last_lc >= min_time_between_lcs: {TRUE, FALSE};
@@ -1724,18 +1700,6 @@ ASSIGN
     next(veh___619___.v) := min(max(veh___619___.v + veh___619___.a, 0), max_vel);
 
 -- >>> Car 2 <<<
-    init(veh___629___.time_since_last_lc) := min_time_between_lcs;       -- init with max value such that lane change is immediately allowed after start
-    init(veh___629___.do_lane_change) := FALSE;
-    init(veh___629___.abort_lc) := FALSE;
-    init(veh___629___.lc_direction) := ActionDir____CENTER;
-    init(veh___629___.lc_timer) := -1;
-    init(veh___629___.change_lane_now) := 0;
-    init(veh___629___.prev_rel_pos) := 0;
-    -- init(veh___629___.v) := 35;
-    
-    init(veh___629___.turn_signals) := ActionDir____CENTER;
-    init(veh___629___.lc_leave_src_lane) := FALSE;
-
     next(veh___629___.do_lane_change) := 
 	    case 
         veh___629___.do_lane_change = FALSE & veh___629___.time_since_last_lc >= min_time_between_lcs: {TRUE, FALSE};
@@ -1813,18 +1777,6 @@ ASSIGN
     next(veh___629___.v) := min(max(veh___629___.v + veh___629___.a, 0), max_vel);
 
 -- >>> Car 3 <<<
-    init(veh___639___.time_since_last_lc) := min_time_between_lcs;       -- init with max value such that lane change is immediately allowed after start
-    init(veh___639___.do_lane_change) := FALSE;
-    init(veh___639___.abort_lc) := FALSE;
-    init(veh___639___.lc_direction) := ActionDir____CENTER;
-    init(veh___639___.lc_timer) := -1;
-    init(veh___639___.change_lane_now) := 0;
-    init(veh___639___.prev_rel_pos) := 0;
-    -- init(veh___639___.v) := 35;
-    
-    init(veh___639___.turn_signals) := ActionDir____CENTER;
-    init(veh___639___.lc_leave_src_lane) := FALSE;
-
     next(veh___639___.do_lane_change) := 
 	    case 
         veh___639___.do_lane_change = FALSE & veh___639___.time_since_last_lc >= min_time_between_lcs: {TRUE, FALSE};
@@ -1902,18 +1854,6 @@ ASSIGN
     next(veh___639___.v) := min(max(veh___639___.v + veh___639___.a, 0), max_vel);
 
 -- >>> Car 4 <<<
-    init(veh___649___.time_since_last_lc) := min_time_between_lcs;       -- init with max value such that lane change is immediately allowed after start
-    init(veh___649___.do_lane_change) := FALSE;
-    init(veh___649___.abort_lc) := FALSE;
-    init(veh___649___.lc_direction) := ActionDir____CENTER;
-    init(veh___649___.lc_timer) := -1;
-    init(veh___649___.change_lane_now) := 0;
-    init(veh___649___.prev_rel_pos) := 0;
-    -- init(veh___649___.v) := 35;
-    
-    init(veh___649___.turn_signals) := ActionDir____CENTER;
-    init(veh___649___.lc_leave_src_lane) := FALSE;
-
     next(veh___649___.do_lane_change) := 
 	    case 
         veh___649___.do_lane_change = FALSE & veh___649___.time_since_last_lc >= min_time_between_lcs: {TRUE, FALSE};
