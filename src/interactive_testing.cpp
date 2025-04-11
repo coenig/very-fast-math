@@ -1548,12 +1548,17 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
 
          std::set<int> lanes{};
 
-         y = std::round(y);
+         static constexpr float EPS{ 1 };
 
-         if (y < 4) lanes.insert(3);
-         if (y > 0 && y < 8) lanes.insert(2);
-         if (y > 4 && y < 12) lanes.insert(1);
-         if (y > 8) lanes.insert(0);
+         if (y < 4 - EPS) lanes.insert(3);
+         if (y > 0 + EPS && y < 8 - EPS) lanes.insert(2);
+         if (y > 4 + EPS && y < 12 - EPS) lanes.insert(1);
+         if (y > 8 + EPS) lanes.insert(0);
+
+         //if (y < 3) lanes.insert(3);
+         //if (y > 1 && y < 7) lanes.insert(2);
+         //if (y > 5 && y < 11) lanes.insert(1);
+         //if (y > 9) lanes.insert(0);
 
          for (int lane = 0; lane <= 3; lane++) {
             main_file += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
