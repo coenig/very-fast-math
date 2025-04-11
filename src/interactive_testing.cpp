@@ -1548,7 +1548,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
 
          std::set<int> lanes{};
 
-         y = (int)(y * 10) / 10.0;
+         y = (int)y;
 
          if (y < 4) lanes.insert(3);
          if (y > 0 && y < 8) lanes.insert(2);
