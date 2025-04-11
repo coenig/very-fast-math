@@ -146,6 +146,11 @@ VAR
       INIT section___6[sec]9___.source.y mod @{COORDGRANULARITY}@.eval[0] = 0;
       INIT section___6[sec]9___.drain.x mod @{COORDGRANULARITY}@.eval[0] = 0;
       INIT section___6[sec]9___.drain.y mod @{COORDGRANULARITY}@.eval[0] = 0;
+
+      @{
+        -- @{ vec(section___6[sec]9___.source.x; section___6[sec]9___.source.y) }@.syntacticSquareOfVecDistance[ vec(section___6[sec2]9___.source.x; section___6[sec2]9___.source.y) ] >= 
+      }@*.for[[sec2], 0, @{[sec]}@.sub[1]]
+
    }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 
