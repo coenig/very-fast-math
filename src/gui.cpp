@@ -173,6 +173,7 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
    inputs.printArgumentsForMC();
 
    path_to_template_dir_ = inputs.getCmdOption(vfm::test::CMD_TEMPLATE_DIR_PATH);
+   json_tpl_filename_ = inputs.getCmdOption(vfm::test::CMD_JSON_TEMPLATE_FILE_NAME);
    auto path_to_nuxmv = inputs.getCmdOption(vfm::test::CMD_NUXMV_EXEC);
 
    path_to_external_folder_ = std::filesystem::path(path_to_nuxmv).parent_path().parent_path().generic_string();
@@ -530,7 +531,7 @@ std::vector<std::pair<std::string, std::string>> MCScene::getAllFormulasFromJSON
 
 std::pair<std::string, std::string> MCScene::getSpec(const std::string& config)
 {
-   const std::string file_name{ config == JSON_TEMPLATE_DENOTER ? FILE_NAME_JSON_TEMPLATE : FILE_NAME_JSON };
+   const std::string file_name{ config == JSON_TEMPLATE_DENOTER ? json_tpl_filename_ : FILE_NAME_JSON };
 
    try {
       std::string json_text{ StaticHelper::readFile(getTemplateDir() + "/" + file_name) };
@@ -559,7 +560,7 @@ std::pair<std::string, std::string> MCScene::getSpec(const std::string& config)
 void MCScene::loadJsonText()
 {
    std::string path{ getTemplateDir() };
-   path += "/" + FILE_NAME_JSON_TEMPLATE;
+   path += "/" + json_tpl_filename_;
    json_input_->buffer()->text(StaticHelper::readFile(path).c_str());
    //spec_input->value(getSpecAndBBs().back().c_str());
 }
@@ -567,7 +568,7 @@ void MCScene::loadJsonText()
 void MCScene::saveJsonText()
 {
    std::string path{ getTemplateDir() };
-   path += "/" + FILE_NAME_JSON_TEMPLATE;
+   path += "/" + json_tpl_filename_;
    StaticHelper::writeTextToFile(json_input_->buffer()->text(), path);
 
    // Check json syntax.
@@ -583,7 +584,8 @@ void MCScene::saveJsonText()
 
 void MCScene::setTitle()
 {
-   window_->label((GUI_NAME + std::string("         ") 
+   window_->label((GUI_NAME + std::string("         ")
+      + json_tpl_filename_ + " | "
       + StaticHelper::absPath(getTemplateDir()) + " ==> " 
       + StaticHelper::absPath(getGeneratedDir())
       + " [[" + StaticHelper::absPath(getCachedDir()) + "]]").c_str());
@@ -1807,7 +1809,7 @@ void vfm::MCScene::preprocessAndRewriteJSONTemplate()
 {
    std::lock_guard<std::mutex> lock(parser_mutex_);
    const std::string path_template{ getTemplateDir() };
-   const std::string path_json_template{ path_template + "/" + FILE_NAME_JSON_TEMPLATE };
+   const std::string path_json_template{ path_template + "/" + json_tpl_filename_ };
    const std::string path_json_plain{ path_template + "/" + FILE_NAME_JSON };
 
    std::string s{};

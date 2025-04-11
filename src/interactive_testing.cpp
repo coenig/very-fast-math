@@ -661,6 +661,7 @@ InputParser vfm::test::createInputParserForMC(int& argc, char** argv)
    parser.addParameter(CMD_DIR_ROOT, "directory to read input files from", ".");
    parser.addParameter(CMD_DIR_TARGET, "directory for generated files, realtive to '" + CMD_DIR_ROOT + "'", "generated");
    parser.addParameter(CMD_ENV_MODEL_JSON_FILE, "config json for environment model definition, relative to '" + CMD_DIR_ROOT + "'", "envmodel_config.json");
+   parser.addParameter(CMD_JSON_TEMPLATE_FILE_NAME, "filename of the main json template file", "envmodel_config.tpl.json");
    parser.addParameter(CMD_TEMPLATE_DIR_PATH, "template dir, relative to '" + CMD_DIR_ROOT + "'", "../src/templates");
    parser.addParameter(CMD_ENV_MODEL_TEMPLATE, "path to the env model template file, relative to '" + CMD_DIR_ROOT + "'", "EnvModel.tpl");
    parser.addParameter(CMD_PLANNER_FILENAME, "path to the planner include file, relative to '" + CMD_DIR_ROOT + "'", "vfm-includes-planner.txt");
