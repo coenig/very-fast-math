@@ -54,9 +54,9 @@ public:
       }
 
 #elif __linux__
-std::cerr << "TODO: No unix implementation for killByPID() available." << std::endl;
+      addError("TODO: No unix implementation for killByPID() available.");
 #else
-std::cerr << "TODO: No implementation for killByPID() available." << std::endl;
+      addError("TODO: No implementation for killByPID() available.");
 #endif
 
       return res;
@@ -200,9 +200,9 @@ std::cerr << "TODO: No implementation for killByPID() available." << std::endl;
       pEnumerator->Release();
       CoUninitialize();
 #elif __linux__
-      std::cerr << "TODO: No unix implementation for getPIDs() available." << std::endl;
+      addError("TODO: No unix implementation for getPIDs() available.");
 #else
-      std::cerr << "TODO: No implementation for getPIDs() available." << std::endl;
+      addError("TODO: No implementation for getPIDs() available.");
 #endif
 
       return pids;
