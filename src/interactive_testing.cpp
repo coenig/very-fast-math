@@ -1540,13 +1540,15 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          float vx{ std::stof(data[3]) };
          float vy{ std::stof(data[4]) };
 
-         x = std::max(std::min(x, std::numeric_limits<float>::max()), -300.0f);
+         x = std::max(std::min(x, std::numeric_limits<float>::max()), std::numeric_limits<float>::min());
          vx = std::max(std::min(vx, 70.0f), 0.0f);
 
          main_file += "INIT env.veh___6" + std::to_string(i) + "9___.rel_pos = " + std::to_string((int)(x - ego_pos)) + ";\n";
          main_file += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx)) + ";\n";
 
          std::set<int> lanes{};
+
+         y = (int)(y * 10) / 10.0;
 
          if (y < 4) lanes.insert(3);
          if (y > 0 && y < 8) lanes.insert(2);
