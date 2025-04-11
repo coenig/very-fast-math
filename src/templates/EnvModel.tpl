@@ -52,11 +52,13 @@ DEFINE
     @{veh_length}@*.distanceWorldToEnvModelDef[5];                                -- we assume a vehicle length of 5m for distance calculation to the front
     @{max_vel}@*.velocityWorldToEnvModelDef[MAXSPEEDNONEGO];
 
+@{
     @{ego.max_vel}@*.velocityWorldToEnvModelDef[MAXSPEEDEGO];
     @{ego.min_dist_long}@*.scalingVariable[distance] := veh_length;
     @{ego.following_dist}@*.scalingVariable[distance] := max(@{2}@.timeWorldToEnvModelConst * ego.v, ego.min_dist_long);  -- dynamic following distance according to 2s rule (= THW)
     @{ego.min_accel}@*.accelerationWorldToEnvModelDef[MINACCELEGO];
     @{ego.max_accel}@*.accelerationWorldToEnvModelDef[MAXACCELEGO];
+}@**.if[@{!(EGOLESS)}@.eval]
 
     @{params.turn_signal_duration}@*.timeWorldToEnvModelDef[2]; -- turn signals will be on for this amount of time -- TODO: Connection via vfm-aka not working, has to be investigated.
     -- total lc duration shall be 5 s according to code documentation
@@ -91,6 +93,9 @@ VAR
    segment_[num]_min_lane : integer;
    segment_[num]_max_lane : integer;
    }@**.for[[num], 0, @{SEGMENTS - 1}@.eval]
+
+   @{ego.a : 0..0;
+   ego.v : 0..0;}@**.if[@{EGOLESS}@.eval]
 
 	@{
     -- XVarEnvModelCarNote=@{>>> Car [i] <<<}@***.id
@@ -179,6 +184,8 @@ TRANS next(cnt) = cnt + 1;
 
 DEFINE
 
+@{ego.abs_pos := 0;}@**.if[@{EGOLESS}@.eval]
+
    large_number := 10000;
 
    segment_@{SEGMENTS}@.eval[0]_pos_begin := segment_@{SEGMENTS - 1}@.eval[0]_pos_begin + large_number; -- Helper variable to make below loop simpler.
@@ -203,6 +210,9 @@ DEFINE
 }@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 @{
+
+@{
+
 -- Make sure ego does not drive on the GREEN.
 ego.on_lane_min := case
    @{ego_lane_b[j] : [j];
@@ -223,6 +233,8 @@ INVAR (ego.abs_pos >= segment_[num]_pos_begin & ego.abs_pos < segment_@{[num] + 
 }@*.for[[num], 0, @{SEGMENTS - 2}@.eval]
 INVAR (ego.abs_pos >= segment_@{SEGMENTS - 1}@.eval[0]_pos_begin) -> 
 (ego.on_lane_min >= segment_@{SEGMENTS - 1}@.eval[0]_min_lane & ego.on_lane_max <= segment_@{SEGMENTS - 1}@.eval[0]_max_lane);
+
+}@**.if[@{!(EGOLESS)}@.eval]
 
 DEFINE
 }@.if[@{KEEP_EGO_FROM_GREEN}@.eval]
@@ -337,8 +349,11 @@ DEFINE
                       & (veh___6[i]9___.lane_@{[j]-1}@.eval[0] -> next(veh___6[i]9___.lane_@{[j]-1}@.eval[0][j]))
                       }@*.for[[j], 1, @{NUMLANES - 1}@.eval];
 
+@{
+
     -- "Soft" counts half a lane as neighboring, too. (Obsolete "regular" mode which counted only exactly one lane distance has been removed.)
     -- TODO: Case missing where ego is between far left/right lane and the one next to it, and the other car is on the resp. extreme lane.
+
     ego.right_of_veh_[i]_lane := FALSE
        @{| (ego_lane_@{[j]-1}@.eval[0] & veh___6[i]9___.lane_[j]) | (ego_lane_@{[j]-1}@.eval[0] & veh___6[i]9___.lane_~{[j]-1\0}~[j])
        }@*.for[[j], 1, @{NUMLANES - 1}@.eval, 1, | (ego_lane_~{[j]-2\0}~~{[j]-1\0}~ & veh___6[i]9___.lane_~{[j]-1\0}~[j]) | (ego_lane_~{[j]-2\0}~~{[j]-1\0}~ & veh___6[i]9___.lane_~{[j]-1\0}~)];
@@ -376,18 +391,22 @@ DEFINE
 
 	ego.crash_with_veh_[i] := ego.same_lane_as_veh_[i] & (veh___6[i]9___.rel_pos >= -veh_length & veh___6[i]9___.rel_pos <= veh_length);
 	ego.blamable_crash_with_veh_[i] := ego.same_lane_as_veh_[i] & (veh___6[i]9___.rel_pos >= 0 & veh___6[i]9___.rel_pos <= veh_length);
-	
+
+}@**.if[@{!(EGOLESS)}@.eval]
+
    @{################# NOTE THAT THIS PART IS CHANGED AS COMPARED TO TACAS VERSION (might be inefficient) ###################}@.nil
    @{################# FORMERLY: veh___6[i]9___.same_lane_as_veh_[j] := ((veh___6[i]9___.lane_b1 & veh___6[j]9___.lane_b1) | (veh___6[i]9___.lane_b2 & veh___6[j]9___.lane_b2) | (veh___6[i]9___.lane_b3 & veh___6[j]9___.lane_b3)); ###################}@.nil
 	@{
    veh___6[i]9___.same_lane_as_veh_[k] := (FALSE
-      @{| ((veh___6[k]9___.lane_b[j] & veh___6[i]9___.lane_b[j]) @{& !(veh___6[k]9___.lane_b@{[j]-1}@.eval[0] & veh___6[i]9___.lane_b@{[j]+1}@.eval[0]) & !(veh___6[k]9___.lane_b@{[j]+1}@.eval[0] & veh___6[i]9___.lane_b@{[j]-1}@.eval[0])}@.if[@{[j] > 0 && [j] < NUMLANES - 1}@.eval] )
+      @{| ((veh___6[k]9___.lane_b[j] & veh___6[i]9___.lane_b[j]) @{) --}@**.if[@{EGOLESS}@.eval]  @{& !(veh___6[k]9___.lane_b@{[j]-1}@.eval[0] & veh___6[i]9___.lane_b@{[j]+1}@.eval[0]) & !(veh___6[k]9___.lane_b@{[j]+1}@.eval[0] & veh___6[i]9___.lane_b@{[j]-1}@.eval[0])}@.if[@{[j] > 0 && [j] < NUMLANES - 1}@.eval] )
       }@*.for[[j], 0, @{NUMLANES - 1}@.eval]
    );
    }@**.for[[k], 0, @{[i]}@.sub[1]]
 	
 	}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
 
+
+ @{
 
     crash := FALSE@{@{}@.space| ego.crash_with_veh_[i]}@*.for[[i], 0, @{NONEGOS - 1}@.eval];
     blamable_crash := FALSE@{@{}@.space| ego.blamable_crash_with_veh_[i]}@*.for[[i], 0, @{NONEGOS - 1}@.eval];
@@ -397,8 +416,12 @@ DEFINE -- TODO: Formerly INVAR, and "=" instead of ":=" - Check if this is corre
 ego.has_close_vehicle_on_left_left_lane := (FALSE @{@{ | ego.close_to_vehicle_[i]_on_left_left_lane}@.for[[i], 0, @{NONEGOS - 1}@.eval, 1]}@*.if[@{FARMERGINGCARS}@.eval]);     -- For some reason the "FALSE |"...
 ego.has_close_vehicle_on_right_right_lane := (FALSE @{@{ | ego.close_to_vehicle_[i]_on_right_right_lane}@.for[[i], 0, @{NONEGOS - 1}@.eval, 1]}@*.if[@{FARMERGINGCARS}@.eval]); -- ...seems to be crucial for runtime.
 
+}@**.if[@{!(EGOLESS)}@.eval]
+
 INVAR
    num_lanes = @{NUMLANES}@.eval[0];
+
+@{
 
 -- Lookup table to speed-up non-linear calculations
 DEFINE
@@ -408,11 +431,11 @@ square_of_ego_v := case
    TRUE: @{@{MAXSPEEDEGO}@***.velocityWorldToEnvModelConst ** 2}@.eval[0];
 esac;
 
+}@**.if[@{!(EGOLESS)}@.eval]
 
 @{
 -- @{XVarEnvModelCarNote}@**.id
-INIT 
-   veh___6[i]9___.lane_single;
+@{
 
 INIT 
    veh___6[i]9___.rel_pos >= -@{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst & veh___6[i]9___.rel_pos <= @{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst;
@@ -420,6 +443,9 @@ INIT
 -- Make sure ego and vehicle [i] don't collide in the initial state.
 INIT
    veh___6[i]9___.rel_pos < veh_length | veh___6[i]9___.rel_pos > veh_length | !ego.same_lane_as_veh_[i];
+
+}@**.if[@{!(EGOLESS)}@.eval]
+
 
 INVAR
     veh___6[i]9___.lane_single | veh___6[i]9___.lane_crossing;
@@ -438,6 +464,8 @@ square_of_veh_v_[i] := case
    TRUE: @{@{MAXSPEEDNONEGO}@***.velocityWorldToEnvModelConst ** 2}@.eval[0];
 esac;
 
+@{
+
 ego_pressured_by_vehicle_[i] := ego.same_lane_as_veh_[i] 
         | (veh___6[i]9___.lc_direction = ActionDir____RIGHT & ego.right_of_veh_[i]_lane & veh___6[i]9___.change_lane_now = 1)
         | (veh___6[i]9___.lc_direction = ActionDir____LEFT & ego.left_of_veh_[i]_lane & veh___6[i]9___.change_lane_now = 1);
@@ -454,7 +482,10 @@ INVAR
     ego_pressured_by_vehicle_[i]_from_behind ->
             (minimum_dist_to_veh_[i] <= min_dist_long & (veh___6[i]9___.rel_pos < -veh_length));
 
+}@**.if[@{!(EGOLESS)}@.eval]
+
 @{
+
 INVAR -- Non-Ego cars may not collide.
     veh___6[i]9___.same_lane_as_veh_[j] -> (abs(veh___6[j]9___.rel_pos - veh___6[i]9___.rel_pos) > veh_length);
 
@@ -477,7 +508,7 @@ ASSIGN
     init(veh___6[i]9___.change_lane_now) := 0;
     init(veh___6[i]9___.prev_rel_pos) := 0;
     -- init(veh___6[i]9___.v) := @{MAXSPEEDNONEGO / 2}@.velocityWorldToEnvModelConst;
-    init(veh___6[i]9___.a) := 0;
+    @{init(veh___6[i]9___.a) := 0;}@**.if[@{!(EGOLESS)}@.eval]
     init(veh___6[i]9___.turn_signals) := ActionDir____CENTER;
     init(veh___6[i]9___.lc_leave_src_lane) := FALSE;
 
@@ -566,15 +597,15 @@ TRANS
         -- the timer is within the interval where we may leave our source lane, we may transition to any neighbor lane but we do not have to (current lane is also allowed for next state)
         veh___6[i]9___.lc_timer >= leave_src_lane_earliest_after & veh___6[i]9___.lc_timer < leave_src_lane_latest_after & veh___6[i]9___.lane_single & !veh___6[i]9___.abort_lc & !next(veh___6[i]9___.abort_lc): 
         case 
-            veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max & !(ego.left_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length)) : next(veh___6[i]9___.change_lane_now) = 0 ? veh___6[i]9___.lane_unchanged : veh___6[i]9___.lane_move_up;
-            veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min & !(ego.right_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length)) : next(veh___6[i]9___.change_lane_now) = 0 ? veh___6[i]9___.lane_unchanged : veh___6[i]9___.lane_move_down;
+            veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max @{& !(ego.left_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@**.if[@{!(EGOLESS)}@.eval] : next(veh___6[i]9___.change_lane_now) = 0 ? veh___6[i]9___.lane_unchanged : veh___6[i]9___.lane_move_up;
+            veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min @{& !(ego.right_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@**.if[@{!(EGOLESS)}@.eval] : next(veh___6[i]9___.change_lane_now) = 0 ? veh___6[i]9___.lane_unchanged : veh___6[i]9___.lane_move_down;
             TRUE : veh___6[i]9___.lane_unchanged;
         esac;
         -- at the latest point in time, we need to leave the source lane if we have not already
         veh___6[i]9___.lc_timer = leave_src_lane_latest_after & veh___6[i]9___.lane_single: 
         case
-                veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max & !(ego.left_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length)): veh___6[i]9___.lane_move_up; 
-                veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min & !(ego.right_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length)): veh___6[i]9___.lane_move_down;
+                veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max @{& !(ego.left_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@**.if[@{!(EGOLESS)}@.eval] : veh___6[i]9___.lane_move_up; 
+                veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min @{& !(ego.right_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@**.if[@{!(EGOLESS)}@.eval] : veh___6[i]9___.lane_move_down;
                 TRUE : veh___6[i]9___.lane_unchanged;
         esac;
         -- lane change is finished in the next step (time conditions are checked at do_lane_change), set state to target lane (we must be on two lanes right now)
@@ -601,6 +632,8 @@ TRANS
 --------------------------------------------------------
 
 
+@{
+
 --------------------------------------------------------
 --
 -- Begin: Ego Env Model Part (generate once)
@@ -613,7 +646,7 @@ VAR
     ego.abCond_full : boolean; -- conditions for abort of lane change 
 
     -- Ego physical state
-    @{ego.v}@*.scalingVariable[velocity] : 0..ego.max_vel;
+    @{@{ego.v}@*.scalingVariable[velocity] : 0..ego.max_vel;}@**.if[@{!(EGOLESS)}@.eval]
     @{ego.abs_pos}@*.scalingVariable[distance] : integer;
 
     @{
@@ -1141,11 +1174,14 @@ TRANS next(veh___6[i]9___.lane_b@{[j]}@.eval[0]) = veh___6[i]9___.lane_b@{[j]}@.
    next(ego_lane_b[j]) := ego_lane_b[j];
 }@*.for[[j], 0, @{NUMLANES - 1}@.eval]}@**.if[@{KEEPEGOFIXEDTOLANE}@.eval]
 
+
 @{
 @{EnvModel_DummyBP.tpl}@.include
 }@.if[@{VIPER}@.eval]
 
 @{EnvModel_Debug.tpl}@.include
+
+}@**.if[@{!(EGOLESS)}@.eval]
 
 )@
 }@*****.if[@{EM_LESS}@.eval]
