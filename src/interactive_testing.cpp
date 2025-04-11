@@ -250,6 +250,8 @@ void checkForChangedEnvModelTemplatesAndPossiblyReCreateCache(const std::filesys
 
 bool vfm::test::isCacheUpToDateWithTemplates(const std::filesystem::path& cached_path, const std::filesystem::path& template_path, const std::string& gui_name)
 {
+   if (!StaticHelper::existsFileSafe(cached_path)) return true; // If there is no cache, it's an "up-to-date" cornercase. All will be generated from scratch in next run.
+
    const std::filesystem::path envmodel_include_path{ template_path / ENVMODEL_INCLUDES_FILENAME };
    const std::filesystem::path cached_envmodel_include_path{ cached_path / ENVMODEL_INCLUDES_FILENAME };
 
