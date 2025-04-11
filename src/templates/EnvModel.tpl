@@ -123,22 +123,33 @@ VAR
 
     tar_dir : {ActionDir____LEFT, ActionDir____CENTER, ActionDir____RIGHT};
 
+
+   --------------------------------------------------------
+   --
+   -- Sections
+   --
+   --------------------------------------------------------
    @{
-      section___6[sec]9___.source.x : integer;
-      section___6[sec]9___.source.y : integer;
-      section___6[sec]9___.drain.x : integer;
-      section___6[sec]9___.drain.y : integer;
+      VAR
+         section___6[sec]9___.source.x : @{BORDERLEFT}@.eval[0] .. @{BORDERRIGHT}@.eval[0];
+         section___6[sec]9___.source.y : @{BORDERTOP}@.eval[0] .. @{BORDERBOTTOM}@.eval[0];
+         section___6[sec]9___.drain.x : @{BORDERLEFT}@.eval[0] .. @{BORDERRIGHT}@.eval[0];
+         section___6[sec]9___.drain.y : @{BORDERTOP}@.eval[0] .. @{BORDERBOTTOM}@.eval[0];
+
+      ASSIGN
+         next(section___6[sec]9___.source.x) := section___6[sec]9___.source.x;
+         next(section___6[sec]9___.source.y) := section___6[sec]9___.source.y;
+         next(section___6[sec]9___.drain.x) := section___6[sec]9___.drain.x;
+         next(section___6[sec]9___.drain.y) := section___6[sec]9___.drain.y;
+
+      INIT section___6[sec]9___.source.x mod @{COORDGRANULARITY}@.eval[0] = 0;
+      INIT section___6[sec]9___.source.y mod @{COORDGRANULARITY}@.eval[0] = 0;
+      INIT section___6[sec]9___.drain.x mod @{COORDGRANULARITY}@.eval[0] = 0;
+      INIT section___6[sec]9___.drain.y mod @{COORDGRANULARITY}@.eval[0] = 0;
    }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
 
 ASSIGN
-   @{
-      next(section___6[sec]9___.source.x) := section___6[sec]9___.source.x;
-      next(section___6[sec]9___.source.y) := section___6[sec]9___.source.y;
-      next(section___6[sec]9___.drain.x) := section___6[sec]9___.drain.x;
-      next(section___6[sec]9___.drain.y) := section___6[sec]9___.drain.y;
-   }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
-
-
    @{
    next(segment_[num]_pos_begin) := segment_[num]_pos_begin;
    next(segment_[num]_min_lane) := segment_[num]_min_lane;
@@ -150,12 +161,6 @@ ASSIGN
    -- INIT section___609___.drain.x ==> Not specified, so the length of the section is figured out from the length of the segments.
    INIT section___609___.drain.y = 0;
 
-   @{
-      INIT section___6[sec]9___.source.x <= @{BORDERRIGHT}@.eval[0]  & section___6[sec]9___.source.x >= @{BORDERLEFT}@.eval[0];
-      INIT section___6[sec]9___.source.y <= @{BORDERBOTTOM}@.eval[0] & section___6[sec]9___.source.y >= @{BORDERTOP}@.eval[0];
-      INIT section___6[sec]9___.drain.x  <= @{BORDERRIGHT}@.eval[0]  & section___6[sec]9___.drain.x >= @{BORDERLEFT}@.eval[0];
-      INIT section___6[sec]9___.drain.y  <= @{BORDERBOTTOM}@.eval[0] & section___6[sec]9___.drain.y >= @{BORDERTOP}@.eval[0];
-   }@**.for[[sec], 1, @{SECTIONS - 1}@.eval]
 
 INVAR tar_dir = ActionDir____LEFT;
 INIT cnt = 0;
