@@ -369,6 +369,7 @@ bool VisualizationLaunchers::quickGenerateGIFs(
    return true;
 }
 
+// TODO: Needs to return Road Graph
 StraightRoadSection vfm::mc::trajectory_generator::VisualizationLaunchers::getLaneStructureFrom(const MCTrace& trace)
 {
    if (trace.empty()) Failable::getSingleton()->addError("Received empty trace for 'getLaneStructureFrom'.");
