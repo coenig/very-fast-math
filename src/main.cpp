@@ -23,6 +23,9 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
+   test::convenienceArtifactRunHardcoded(MCExecutionType::cex, "../examples/gp_config_lanes=2_nonegos=1_segments=2", "fake", "fake", "fake", "fake", "fake");
+   termnate();
+
    //vfm::test::runTests();
    //termnate();
 
