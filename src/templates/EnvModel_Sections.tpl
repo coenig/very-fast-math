@@ -7,8 +7,7 @@
       VAR
          section_[sec].source.x : @{BORDERLEFT}@.eval[0] .. @{BORDERRIGHT}@.eval[0];
          section_[sec].source.y : @{BORDERTOP}@.eval[0] .. @{BORDERBOTTOM}@.eval[0];
-         section_[sec].drain.x : @{BORDERLEFT}@.eval[0] .. @{BORDERRIGHT}@.eval[0];
-         section_[sec].drain.y : @{BORDERTOP}@.eval[0] .. @{BORDERBOTTOM}@.eval[0];
+         section_[sec].angle : 0 .. 359;
 
          @{
             VAR outgoing_connection_[con]_of_section_[sec] : 0..@{SECTIONS - 1}@.eval[0];
@@ -20,13 +19,10 @@
       ASSIGN
          next(section_[sec].source.x) := section_[sec].source.x;
          next(section_[sec].source.y) := section_[sec].source.y;
-         next(section_[sec].drain.x) := section_[sec].drain.x;
-         next(section_[sec].drain.y) := section_[sec].drain.y;
+         next(section_[sec].angle) := section_[sec].angle;
 
       INIT section_[sec].source.x mod @{COORDGRANULARITY}@.eval[0] = 0;
       INIT section_[sec].source.y mod @{COORDGRANULARITY}@.eval[0] = 0;
-      INIT section_[sec].drain.x mod @{COORDGRANULARITY}@.eval[0] = 0;
-      INIT section_[sec].drain.y mod @{COORDGRANULARITY}@.eval[0] = 0;
 
       @{
         -- @{ vec(section_[sec].source.x; section_[sec].source.y) }@.syntacticSquareOfVecDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] >= 
