@@ -14,7 +14,6 @@
             INVAR outgoing_connection_[con]_of_section_[sec] != [sec]; -- Don't connect to self.
          }@.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
 
-   
 
       INIT section_[sec].source.x mod @{COORDGRANULARITY}@.eval[0] = 0;
       INIT section_[sec].source.y mod @{COORDGRANULARITY}@.eval[0] = 0;
@@ -23,8 +22,6 @@
         -- @{ vec(section_[sec].source.x; section_[sec].source.y) }@.syntacticSquareOfVecDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] >= 
       }@*.for[[sec2], 0, @{[sec]}@.sub[1]]
 
-
-
    }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
    -- Section 0 always starts at (0/0) and goes horizontally to the right.
@@ -32,6 +29,11 @@
    INIT section_0.source.y = 0;
    -- INIT section_0.drain.x ==> Not specified, so the length of the section is figured out from the length of the segments.
    INIT section_0.angle = 0;
+
+VAR    
+   ego.on_section : 0 .. @{SECTIONS - 1}@.eval[0];
+
+INIT ego.on_section = 0;
 
 --------------------------------------------------------
 -- EO Sections

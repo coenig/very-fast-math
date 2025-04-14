@@ -637,8 +637,6 @@ VAR
     ego.slCond_full : boolean; -- conditions for lane change to slow lane (lc allowed and desired)
     ego.abCond_full : boolean; -- conditions for abort of lane change 
 
-    ego.on_section : 0 .. @{SECTIONS - 1}@.eval[0];
-
     -- Ego physical state
     @{@{ego.v}@*.scalingVariable[velocity] : 0..ego.max_vel;}@**.if[@{!(EGOLESS)}@.eval]
     @{ego.abs_pos}@*.scalingVariable[distance] : integer;
