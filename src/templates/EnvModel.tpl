@@ -84,15 +84,21 @@ DEFINE
 --
 --------------------------------------------------------
 
+FROZENVAR
+   @{
+   @{
+   @{section_[sec]_segment_[seg]_pos_begin}@*.scalingVariable[distance] : integer;
+   section_[sec]_segment_[seg]_min_lane : integer;
+   section_[sec]_segment_[seg]_max_lane : integer;
+   }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
+   
+   @{section_[sec]_end}@*.scalingVariable[distance] : 0..@{SECTIONSMAXLENGTH}@.eval[0];
+   
+}@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
 VAR
    cnt : integer;
    num_lanes : integer;
-
-   @{
-   @{segment_[num]_pos_begin}@*.scalingVariable[distance] : integer;
-   segment_[num]_min_lane : integer;
-   segment_[num]_max_lane : integer;
-   }@**.for[[num], 0, @{SEGMENTS - 1}@.eval]
 
    @{ego.a : 0..0;
    ego.v : 0..0;}@**.if[@{EGOLESS}@.eval]
@@ -126,32 +132,27 @@ VAR
 
    @{EnvModel_Sections.tpl}@*******.include
 
-ASSIGN
-   @{
-   next(segment_[num]_pos_begin) := segment_[num]_pos_begin;
-   next(segment_[num]_min_lane) := segment_[num]_min_lane;
-   next(segment_[num]_max_lane) := segment_[num]_max_lane;
-   }@.for[[num], 0, @{SEGMENTS - 1}@.eval]
-
 
 INVAR tar_dir = ActionDir____LEFT;
 INIT cnt = 0;
 
-INIT 0 = @{segment_0_pos_begin}@*.scalingVariable[distance];
-INIT segment_@{SEGMENTS - 1}@.eval[0]_pos_begin < @{200}@.distanceWorldToEnvModelConst;
 @{
-INIT segment_[num]_pos_begin + @{SEGMENTSMINLENGTH}@.distanceWorldToEnvModelConst < segment_@{[num] + 1}@.eval[0]_pos_begin;
-INIT abs(segment_[num]_min_lane - segment_@{[num] + 1}@.eval[0]_min_lane) <= 1;
-INIT abs(segment_[num]_max_lane - segment_@{[num] + 1}@.eval[0]_max_lane) <= 1;
+INIT 0 = @{section_[sec]_segment_0_pos_begin}@*.scalingVariable[distance];
+INIT section_[sec]_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin < section_[sec]_end;
+@{
+INIT section_[sec]_segment_[num]_pos_begin + @{SEGMENTSMINLENGTH}@.distanceWorldToEnvModelConst < section_[sec]_segment_@{[num] + 1}@.eval[0]_pos_begin;
+INIT abs(section_[sec]_segment_[num]_min_lane - section_[sec]_segment_@{[num] + 1}@.eval[0]_min_lane) <= 1;
+INIT abs(section_[sec]_segment_[num]_max_lane - section_[sec]_segment_@{[num] + 1}@.eval[0]_max_lane) <= 1;
 }@**.for[[num], 0, @{SEGMENTS - 2}@.eval]
 
 @{
-INIT segment_[num]_max_lane >= segment_[num]_min_lane;
-INIT segment_[num]_min_lane >= 0;
-INIT segment_[num]_max_lane <= @{(NUMLANES - 1)}@.eval[0];
+INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lane;
+INIT section_[sec]_segment_[num]_min_lane >= 0;
+INIT section_[sec]_segment_[num]_max_lane <= @{(NUMLANES - 1)}@.eval[0];
 }@.for[[num], 0, @{SEGMENTS - 1}@.eval]
 
-INIT segment_0_min_lane = 0 & segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -- Make sure we always have a drivable lane at the start. TODO: Make flexible.
+INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -- Make sure we always have a drivable lane at the start. TODO: Make flexible.
+}@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 TRANS next(cnt) = cnt + 1;
 
@@ -165,22 +166,35 @@ DEFINE
 
    large_number := 10000;
 
-   segment_@{SEGMENTS}@.eval[0]_pos_begin := segment_@{SEGMENTS - 1}@.eval[0]_pos_begin + large_number; -- Helper variable to make below loop simpler.
+   @{
+      section_[sec]_segment_@{SEGMENTS}@.eval[0]_pos_begin := section_[sec]_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin + large_number; -- Helper variable to make below loop simpler.
+   }@*.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
 
    @{
-   @{lane_[lane]_availability_from_segment_@{SEGMENTS}@**.eval[0]}@*.scalingVariable[distance] := 0;          -- Helper variable to make below loop simpler.
+
+   @{
+   @{section_[sec]_lane_[lane]_availability_from_segment_@{SEGMENTS}@**.eval[0]}@*.scalingVariable[distance] := 0;          -- Helper variable to make below loop simpler.
    
-   @{@{lane_[lane]_availability_from_segment_[seg]}@*.scalingVariable[distance] := case
-      segment_[seg]_min_lane <= [lane] & segment_[seg]_max_lane >= [lane] : lane_[lane]_availability_from_segment_@{[seg] + 1}@.eval[0] + segment_@{[seg] + 1}@.eval[0]_pos_begin - segment_[seg]_pos_begin;
+   @{@{section_[sec]_lane_[lane]_availability_from_segment_[seg]}@*.scalingVariable[distance] := case
+      section_[sec]_segment_[seg]_min_lane <= [lane] & section_[sec]_segment_[seg]_max_lane >= [lane] : section_[sec]_lane_[lane]_availability_from_segment_@{[seg] + 1}@.eval[0] + section_[sec]_segment_@{[seg] + 1}@.eval[0]_pos_begin - section_[sec]_segment_[seg]_pos_begin;
       TRUE: 0;
    esac;
    }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
+   }@****.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
-   @{ego.lane_[lane]_availability}@*.scalingVariable[distance] := case
-      @{ego.abs_pos >= segment_[seg]_pos_begin : lane_[lane]_availability_from_segment_[seg] + segment_[seg]_pos_begin - ego.abs_pos;
-      }@.for[[seg], @{SEGMENTS - 1}@.eval, 0, -1]TRUE: 0;
+   @{ego.lane_[lane]_availability}@*.scalingVariable[distance] :=
+   case 
+   @{
+      ego.on_section = [sec]:  
+         case
+            @{ego.abs_pos >= section_[sec]_segment_[seg]_pos_begin : section_[sec]_lane_[lane]_availability_from_segment_[seg] + section_[sec]_segment_[seg]_pos_begin - ego.abs_pos;
+            }@.for[[seg], @{SEGMENTS - 1}@.eval, 0, -1]TRUE: 0;
+         esac;
+   }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
    esac;
    }@***.for[[lane], 0, @{NUMLANES - 1}@.eval]
+
  
 @{
    @{veh___6[i]9___.abs_pos}@*.scalingVariable[distance] := veh___6[i]9___.rel_pos + ego.abs_pos;
@@ -201,15 +215,15 @@ ego.on_lane_max := case
    }@.for[[j], @{NUMLANES - 1}@.eval, 1, -1]TRUE : 0;
 esac;
 
-INVAR (ego.abs_pos < segment_0_pos_begin) -> 
-(ego.on_lane_min >= segment_0_min_lane & ego.on_lane_max <= segment_0_max_lane);
-
-@{
-INVAR (ego.abs_pos >= segment_[num]_pos_begin & ego.abs_pos < segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
-(ego.on_lane_min >= segment_[num]_min_lane & ego.on_lane_max <= segment_[num]_max_lane);
-}@*.for[[num], 0, @{SEGMENTS - 2}@.eval]
-INVAR (ego.abs_pos >= segment_@{SEGMENTS - 1}@.eval[0]_pos_begin) -> 
-(ego.on_lane_min >= segment_@{SEGMENTS - 1}@.eval[0]_min_lane & ego.on_lane_max <= segment_@{SEGMENTS - 1}@.eval[0]_max_lane);
+-- INVAR (ego.abs_pos < segment_0_pos_begin) -> 
+-- (ego.on_lane_min >= segment_0_min_lane & ego.on_lane_max <= segment_0_max_lane);
+-- 
+-- @{
+-- INVAR (ego.abs_pos >= segment_[num]_pos_begin & ego.abs_pos < segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
+-- (ego.on_lane_min >= segment_[num]_min_lane & ego.on_lane_max <= segment_[num]_max_lane);
+-- }@*.for[[num], 0, @{SEGMENTS - 2}@.eval]
+-- INVAR (ego.abs_pos >= segment_@{SEGMENTS - 1}@.eval[0]_pos_begin) -> 
+-- (ego.on_lane_min >= segment_@{SEGMENTS - 1}@.eval[0]_min_lane & ego.on_lane_max <= segment_@{SEGMENTS - 1}@.eval[0]_max_lane);
 
 }@**.if[@{!(EGOLESS)}@.eval]
 
@@ -241,18 +255,19 @@ esac;
    -- veh___6[i]9___.prohibit_lanes_from_[j] := @{!veh___6[i]9___.lane_b[k]}@.for[[k], [j], @{NUMLANES - 1}@.eval, 1, &];
 }@*.for[[j], 1, @{NUMLANES - 1}@.eval]}@**.for[[i], 0, @{NONEGOS - 1}@.eval].nil
 
-@{
-INVAR (veh___6[i]9___.abs_pos < segment_0_pos_begin) -> 
-(veh___6[i]9___.on_lane_min >= segment_0_min_lane & veh___6[i]9___.on_lane_max <= segment_0_max_lane);
+-- @{
+-- INVAR (veh___6[i]9___.abs_pos < segment_0_pos_begin) -> 
+-- (veh___6[i]9___.on_lane_min >= segment_0_min_lane & veh___6[i]9___.on_lane_max <= segment_0_max_lane);
+-- 
+-- @{
+-- INVAR (veh___6[i]9___.abs_pos >= segment_[num]_pos_begin & veh___6[i]9___.abs_pos < segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
+-- (veh___6[i]9___.on_lane_min >= segment_[num]_min_lane & veh___6[i]9___.on_lane_max <= segment_[num]_max_lane);
+-- }@*.for[[num], 0, @{SEGMENTS - 2}@.eval]
+-- 
+-- INVAR (veh___6[i]9___.abs_pos >= segment_@{SEGMENTS - 1}@.eval[0]_pos_begin) -> 
+-- (veh___6[i]9___.on_lane_min >= segment_@{SEGMENTS - 1}@.eval[0]_min_lane & veh___6[i]9___.on_lane_max <= segment_@{SEGMENTS - 1}@.eval[0]_max_lane);
 
-@{
-INVAR (veh___6[i]9___.abs_pos >= segment_[num]_pos_begin & veh___6[i]9___.abs_pos < segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
-(veh___6[i]9___.on_lane_min >= segment_[num]_min_lane & veh___6[i]9___.on_lane_max <= segment_[num]_max_lane);
-}@*.for[[num], 0, @{SEGMENTS - 2}@.eval]
-INVAR (veh___6[i]9___.abs_pos >= segment_@{SEGMENTS - 1}@.eval[0]_pos_begin) -> 
-(veh___6[i]9___.on_lane_min >= segment_@{SEGMENTS - 1}@.eval[0]_min_lane & veh___6[i]9___.on_lane_max <= segment_@{SEGMENTS - 1}@.eval[0]_max_lane);
-
-}@**.for[[i], 0, @{NONEGOS - 1}@.eval]
+-- }@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 DEFINE
 -- Schematic for ego.right_of_veh_*_lane
@@ -621,6 +636,8 @@ VAR
     ego.flCond_full : boolean; -- conditions for lane change to fast lane (lc allowed and desired)
     ego.slCond_full : boolean; -- conditions for lane change to slow lane (lc allowed and desired)
     ego.abCond_full : boolean; -- conditions for abort of lane change 
+
+    ego.on_section : 0 .. @{SECTIONS - 1}@.eval[0];
 
     -- Ego physical state
     @{@{ego.v}@*.scalingVariable[velocity] : 0..ego.max_vel;}@**.if[@{!(EGOLESS)}@.eval]

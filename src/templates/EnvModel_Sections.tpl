@@ -4,7 +4,7 @@
 --------------------------------------------------------
 
    @{
-      VAR
+      FROZENVAR
          section_[sec].source.x : @{BORDERLEFT}@.eval[0] .. @{BORDERRIGHT}@.eval[0];
          section_[sec].source.y : @{BORDERTOP}@.eval[0] .. @{BORDERBOTTOM}@.eval[0];
          section_[sec].angle : 0 .. 359;
@@ -15,11 +15,6 @@
          }@.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
 
    
-
-      ASSIGN
-         next(section_[sec].source.x) := section_[sec].source.x;
-         next(section_[sec].source.y) := section_[sec].source.y;
-         next(section_[sec].angle) := section_[sec].angle;
 
       INIT section_[sec].source.x mod @{COORDGRANULARITY}@.eval[0] = 0;
       INIT section_[sec].source.y mod @{COORDGRANULARITY}@.eval[0] = 0;
@@ -36,7 +31,7 @@
    INIT section_0.source.x = 0;
    INIT section_0.source.y = 0;
    -- INIT section_0.drain.x ==> Not specified, so the length of the section is figured out from the length of the segments.
-   INIT section_0.drain.y = 0;
+   INIT section_0.angle = 0;
 
 --------------------------------------------------------
 -- EO Sections

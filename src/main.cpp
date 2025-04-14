@@ -24,13 +24,13 @@ using namespace mc::trajectory_generator;
 int main(int argc, char* argv[])
 {
    //test::convenienceArtifactRunHardcoded(MCExecutionType::cex, "", "fake", "fake", "fake", "fake", "fake");
-   mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
-      { 0 }, 
-      "../examples/gp_config_lanes=2_nonegos=1_segments=2", 
-      "debug_trace_array",
-      CexTypeEnum::smv,
-      false, false, false);
-   termnate();
+   //mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
+   //   { 0 }, 
+   //   "../examples/gp_config_lanes=2_nonegos=1_segments=2", 
+   //   "debug_trace_array",
+   //   CexTypeEnum::smv,
+   //   false, false, false);
+   //termnate();
 
    //vfm::test::runTests();
    //termnate();
