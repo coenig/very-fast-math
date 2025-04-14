@@ -89,7 +89,7 @@ public:
 	void generate(
 		const std::string& base_output_name,
 		const std::set<int>& agents_to_draw_arrows_for,
-      StraightRoadSection& lane_structure,
+      const std::shared_ptr<RoadGraph> road_graph,
       const std::string& stage_name,
 		const LiveSimType visu_type = static_cast<LiveSimType>(LiveSimType::constant_image_output | LiveSimType::birdseye),
       const std::vector<vfm::OutputType> single_images_output_types = { OutputType::png },
@@ -128,7 +128,7 @@ private:
 		const DataPackPtr future_data,
 		const std::shared_ptr<std::vector<PainterVariableDescription>> variables_to_be_painted,
 		const std::set<int>& agents_to_draw_arrows_for,
-      StraightRoadSection& lane_structure);
+      const std::shared_ptr<RoadGraph> road_graph);
 };
 
 struct Vector3

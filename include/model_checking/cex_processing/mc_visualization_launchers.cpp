@@ -202,11 +202,11 @@ inline std::pair<std::vector<CarPars>, std::vector<CarParsVec>> createOthersVecs
 
 std::string VisualizationLaunchers::writeProseTrafficScene(const MCTrace trace)
 {
-   const auto lane_structure{ getLaneStructureFrom(trace) };
+   const auto road_graph{ getLaneStructureFrom(trace) };
    const auto config = InterpretationConfiguration::getLaneChangeConfiguration();
    const MCinterpretedTrace interpreted_trace(0, { trace }, config);
    const auto data_vec{ interpreted_trace.getDataTrace() };
-   const auto pair{ createOthersVecs(data_vec, lane_structure) };
+   const auto pair{ createOthersVecs(data_vec, road_graph->getMyRoad()) };
    const auto ego_vec{ pair.first };
    const auto others_vec{ pair.second };
    std::string res{};
@@ -370,17 +370,19 @@ bool VisualizationLaunchers::quickGenerateGIFs(
 }
 
 // TODO: Needs to return Road Graph
-StraightRoadSection vfm::mc::trajectory_generator::VisualizationLaunchers::getLaneStructureFrom(const MCTrace& trace)
+std::shared_ptr<RoadGraph> vfm::mc::trajectory_generator::VisualizationLaunchers::getLaneStructureFrom(const MCTrace& trace)
 {
+   std::shared_ptr<RoadGraph> road_graph = std::make_shared<RoadGraph>(0);
+
    if (trace.empty()) Failable::getSingleton()->addError("Received empty trace for 'getLaneStructureFrom'.");
 
    StraightRoadSection lane_structure{};
    lane_structure.setNumLanes(std::stoi(trace.at(0).second.at("num_lanes")));
 
    for (int i = 0; ; i++) {
-      std::string segment_begin_name{ "segment_" + std::to_string(i) + "_pos_begin" };
-      std::string segment_min_lane_name{ "segment_" + std::to_string(i) + "_min_lane" };
-      std::string segment_max_lane_name{ "segment_" + std::to_string(i) + "_max_lane" };
+      std::string segment_begin_name{ "section_0_segment_" + std::to_string(i) + "_pos_begin" };
+      std::string segment_min_lane_name{ "section_0_segment_" + std::to_string(i) + "_min_lane" };
+      std::string segment_max_lane_name{ "section_0_segment_" + std::to_string(i) + "_max_lane" };
 
       auto first_state{ trace.at(0).second };
 
@@ -397,7 +399,9 @@ StraightRoadSection vfm::mc::trajectory_generator::VisualizationLaunchers::getLa
       }
    }
 
-   return lane_structure;
+   road_graph->setMyRoad(lane_structure);
+
+   return road_graph;
 }
 
 bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
