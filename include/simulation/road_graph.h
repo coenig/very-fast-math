@@ -115,6 +115,10 @@ static constexpr int MIN_DISTANCE_BETWEEN_SEGMENTS{ 20 };
 
 /// <summary>
 /// Sequence of LaneSegment's.
+/// begin1 = 0   begin2            begin_n    section_end_  
+/// ------------------------------------------
+///   SEG1       |  SEG2  | ... |  SEG n     |
+/// ------------------------------------------
 /// </summary>
 class StraightRoadSection : public Failable {
 public:
