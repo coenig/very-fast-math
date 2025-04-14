@@ -103,10 +103,10 @@ public:
       const bool start_pdf,
       const float crop_left,
       const float crop_right,
-      StraightRoadSection& lane_structure) const
+      const std::shared_ptr<RoadGraph>& road_graph) const
    {
       if (!outside_view_) {
-         outside_view_ = std::make_shared<HighwayImage>(getImageWidth(MAX_NUM_LANES_SIMPLE), getImageHeight(), std::make_shared<Plain2DTranslator>(), lane_structure.getNumLanes());
+         outside_view_ = std::make_shared<HighwayImage>(getImageWidth(MAX_NUM_LANES_SIMPLE), getImageHeight(), std::make_shared<Plain2DTranslator>(), road_graph->getMyRoad().getNumLanes());
       }
 
       if (start_pdf) {
@@ -119,24 +119,16 @@ public:
       CarParsVec others_current_vec{};
       std::map<int, std::pair<float, float>> others_future_vec{};
 
-      createOthersVecs(others_current_vec, others_future_vec, agents_to_draw_arrows_for, lane_structure, future_data);
+      //createOthersVecs(others_current_vec, others_future_vec, agents_to_draw_arrows_for, road_graph.getMyRoad(), future_data); // TODO: For whole road graph, not only single lane.
 
       //env.agents_pos_x_[vehicle_index] = traj_pos.second.at(PossibleParameter::pos_x) - ego_x;
       //env.agents_pos_y_[vehicle_index] = 2 + traj_pos.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
       
-      lane_structure.setEgo(std::make_shared<CarPars>(ego_pos_y_, ego_pos_x_, (int)(ego_vx_), HighwayImage::EGO_MOCK_ID));
-      lane_structure.setOthers(others_current_vec);
-      lane_structure.setFuturePositionsOfOthers(others_future_vec);
-      lane_structure.setSectionEnd(100);
-
-      auto r = std::make_shared<RoadGraph>(0);
-      r->setMyRoad(lane_structure);
-
       outside_view_->paintRoadGraph(
-         r,
+         road_graph,
          { 500, 60 },
          additional_var_vals,
-         true, 60, (float) lane_structure.getNumLanes() / 2.0f);
+         true, 60, (float) road_graph->getMyRoad().getNumLanes() / 2.0f);
 
       return outside_view_;
    }
@@ -146,7 +138,7 @@ public:
       const ExtraVehicleArgs& additional_var_vals,
       const DataPackPtr future_data,
       const bool start_pdf,
-      StraightRoadSection& lane_structure,
+      const std::shared_ptr<RoadGraph>& road_graph,
       const int width,
       const int height) const
    {
@@ -159,8 +151,8 @@ public:
       auto trans_cpvm{ std::make_shared<Plain3DTranslator>(true) };
 
       if (!cockpit_view_ || cockpit_view_->getWidth() != width || cockpit_view_->getHeight() != height) {
-         cockpit_view_ = std::make_shared<HighwayImage>(width, height, trans_cpv, lane_structure.getNumLanes());
-         cockpit_view_mirror_ = std::make_shared<HighwayImage>(mirror_width, mirror_height, trans_cpvm, lane_structure.getNumLanes());
+         cockpit_view_ = std::make_shared<HighwayImage>(width, height, trans_cpv, road_graph->getMyRoad().getNumLanes());
+         cockpit_view_mirror_ = std::make_shared<HighwayImage>(mirror_width, mirror_height, trans_cpvm, road_graph->getMyRoad().getNumLanes());
       }
 
       if (start_pdf) {
@@ -170,7 +162,7 @@ public:
 
       CarParsVec others_vec{};
       std::map<int, std::pair<float, float>> others_future_vec{};
-      createOthersVecs(others_vec, others_future_vec, agents_to_draw_arrows_for, lane_structure, future_data);
+      //createOthersVecs(others_vec, others_future_vec, agents_to_draw_arrows_for, lane_structure, future_data);
 
       auto no_trans{std::make_shared<DefaultHighwayTranslator>()};
       cockpit_view_->setTranslator(no_trans);
@@ -181,21 +173,14 @@ public:
       cockpit_view_mirror_->paintEarthAndSky({ (float)mirror_width, (float)mirror_height });
       cockpit_view_mirror_->setTranslator(trans_cpvm);
 
-      lane_structure.setEgo(std::make_shared<CarPars>(ego_pos_y_, ego_pos_x_, (int)(ego_vx_), HighwayImage::EGO_MOCK_ID));
-      lane_structure.setOthers(others_vec);
-      lane_structure.setFuturePositionsOfOthers(others_future_vec);
-
-      auto r = std::make_shared<RoadGraph>(0);
-      r->setMyRoad(lane_structure);
-
       cockpit_view_->paintRoadGraph(
-         r,
+         road_graph,
          { 500, 120 },
          additional_var_vals,
          true);
 
       cockpit_view_mirror_->paintRoadGraph(
-         r,
+         road_graph,
          { 500, 120 },
          additional_var_vals,
          true);
