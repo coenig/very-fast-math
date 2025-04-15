@@ -372,25 +372,23 @@ bool VisualizationLaunchers::quickGenerateGIFs(
 // TODO: Needs to return Road Graph
 std::shared_ptr<RoadGraph> vfm::mc::trajectory_generator::VisualizationLaunchers::getLaneStructureFrom(const MCTrace& trace)
 {
-   std::shared_ptr<RoadGraph> road_graph = std::make_shared<RoadGraph>(0);
-
    if (trace.empty()) Failable::getSingleton()->addError("Received empty trace for 'getLaneStructureFrom'.");
 
    const auto first_state{ trace.at(0).second };
 
-   int sec_num{ 0 };
-
    const auto segment_begin_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_pos_begin"; };
    const auto segment_min_lane_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_min_lane"; };
    const auto segment_max_lane_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_max_lane"; };
+   const auto connection = [](const int sec, const int con) -> std::string { return "env.outgoing_connection_" + std::to_string(con) + "_of_section_" + std::to_string(sec); };
 
-   for (; first_state.count(segment_begin_name(sec_num, 0)); sec_num++);
+   std::vector<std::shared_ptr<RoadGraph>> road_graphs{};
 
-   for (int sec = 0; first_state.count(segment_begin_name(sec_num, 0)); sec++) {
+   for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
+      road_graphs.push_back(std::make_shared<RoadGraph>(sec));
       StraightRoadSection lane_structure{};
       lane_structure.setNumLanes(std::stoi(trace.at(0).second.at("num_lanes")));
 
-      for (int seg = 0; first_state.count(segment_begin_name(sec, seg)); seg++) {
+      for (int seg = 0; first_state.count(segment_min_lane_name(sec, seg)); seg++) {
             lane_structure.addLaneSegment({
                std::stof(first_state.at(segment_begin_name(sec, seg))),
                (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_max_lane_name(sec, seg)))) * 2, // Remove "* 2"...
@@ -398,12 +396,23 @@ std::shared_ptr<RoadGraph> vfm::mc::trajectory_generator::VisualizationLaunchers
                }
                );
       }
-
-      road_graph->setMyRoad(lane_structure);
+      
+      road_graphs[sec]->setOriginPoint({ 
+         std::stof(first_state.at("section_" + std::to_string(sec) + ".source.x")),
+         std::stof(first_state.at("section_" + std::to_string(sec) + ".source.x"))});
+      
+      road_graphs[sec]->setAngle(std::stof(first_state.at("section_" + std::to_string(sec) + ".angle")));
+      road_graphs[sec]->setMyRoad(lane_structure);
    }
 
+   for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
+      for (int connect = 0; first_state.count(connection(sec, connect)); connect++) {
+         int successor = std::stof(first_state.at(connection(sec, connect)));
+         road_graphs[sec]->addSuccessor(road_graphs.at(successor));
+      }
+   }
 
-   return road_graph;
+   return road_graphs[0];
 }
 
 bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
@@ -471,11 +480,16 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
 
       interpreted_trace.applyScaling(1.0, -1.0, 1.0); // flip y
 
-      auto lane_structure{ getLaneStructureFrom(trace) };
+      auto road_graph{ getLaneStructureFrom(trace) };
 
+      // TODO
+      auto others = createOthersVecs(interpreted_trace.getDataTrace(), road_graph->getMyRoad());
+      road_graph->getMyRoad().setEgo(std::make_shared<CarPars>(others.first.at(0)));
+      road_graph->getMyRoad().setOthers(others.second.at(0));
+      
       LiveSimGenerator(interpreted_trace).generate(out_path,
          agents_to_draw_arrows_for,
-         lane_structure,
+         road_graph,
          stage_name,
          sim_type,
          { OutputType::png, OutputType::pdf },
