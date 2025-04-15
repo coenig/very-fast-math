@@ -376,30 +376,32 @@ std::shared_ptr<RoadGraph> vfm::mc::trajectory_generator::VisualizationLaunchers
 
    if (trace.empty()) Failable::getSingleton()->addError("Received empty trace for 'getLaneStructureFrom'.");
 
-   StraightRoadSection lane_structure{};
-   lane_structure.setNumLanes(std::stoi(trace.at(0).second.at("num_lanes")));
+   const auto first_state{ trace.at(0).second };
 
-   for (int i = 0; ; i++) {
-      std::string segment_begin_name{ "section_0_segment_" + std::to_string(i) + "_pos_begin" };
-      std::string segment_min_lane_name{ "section_0_segment_" + std::to_string(i) + "_min_lane" };
-      std::string segment_max_lane_name{ "section_0_segment_" + std::to_string(i) + "_max_lane" };
+   int sec_num{ 0 };
 
-      auto first_state{ trace.at(0).second };
+   const auto segment_begin_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_pos_begin"; };
+   const auto segment_min_lane_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_min_lane"; };
+   const auto segment_max_lane_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_max_lane"; };
 
-      if (first_state.count(segment_begin_name) && first_state.count(segment_min_lane_name) && first_state.count(segment_max_lane_name)) {
-         lane_structure.addLaneSegment({
-            std::stof(first_state.at(segment_begin_name)),
-            (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_max_lane_name))) * 2, // Remove "* 2"...
-            (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_min_lane_name))) * 2, // ...to activate hard shoulders.
-            }
-         );
+   for (; first_state.count(segment_begin_name(sec_num, 0)); sec_num++);
+
+   for (int sec = 0; first_state.count(segment_begin_name(sec_num, 0)); sec++) {
+      StraightRoadSection lane_structure{};
+      lane_structure.setNumLanes(std::stoi(trace.at(0).second.at("num_lanes")));
+
+      for (int seg = 0; first_state.count(segment_begin_name(sec, seg)); seg++) {
+            lane_structure.addLaneSegment({
+               std::stof(first_state.at(segment_begin_name(sec, seg))),
+               (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_max_lane_name(sec, seg)))) * 2, // Remove "* 2"...
+               (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_min_lane_name(sec, seg)))) * 2, // ...to activate hard shoulders.
+               }
+               );
       }
-      else {
-         break;
-      }
+
+      road_graph->setMyRoad(lane_structure);
    }
 
-   road_graph->setMyRoad(lane_structure);
 
    return road_graph;
 }
