@@ -186,6 +186,7 @@ inline std::pair<std::vector<CarPars>, std::vector<CarParsVec>> createOthersVecs
       for (int i{ 0 }; i < num_cars; i++) {
          CarPars other{};
 
+         other.car_id_ = i;
          other.car_lane_ = (LANE_CONSTANT - data->getSingleVal("veh___6" + std::to_string(i) + "9___.on_lane")) / 2;
          other.car_rel_pos_ = data->getSingleVal("veh___6" + std::to_string(i) + "9___.rel_pos");
          other.car_velocity_ = data->getSingleVal("veh___6" + std::to_string(i) + "9___.v");
@@ -287,30 +288,30 @@ bool VisualizationLaunchers::quickGenerateGIFs(
       gen_config_smooth.frames_per_second_gif = 40;
       gen_config_smooth.frames_per_second_osc = 40;
 
-      VisualizationLaunchers::interpretAndGenerate(
-         trace,
-         path,
-         "preview",
-         SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
-         agents_to_draw_arrows_for,
-         gen_config_smooth, "preview");
+      //VisualizationLaunchers::interpretAndGenerate(
+      //   trace,
+      //   path,
+      //   "preview",
+      //   SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
+      //   agents_to_draw_arrows_for,
+      //   gen_config_smooth, "preview");
 
-      VisualizationLaunchers::interpretAndGenerate(
-         trace,
-         path,
-         "preview2",
-         SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
-         agents_to_draw_arrows_for,
-         gen_config_non_smooth, "preview 2");
+      //VisualizationLaunchers::interpretAndGenerate(
+      //   trace,
+      //   path,
+      //   "preview2",
+      //   SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
+      //   agents_to_draw_arrows_for,
+      //   gen_config_non_smooth, "preview 2");
 
       if (export_basic) {
-         VisualizationLaunchers::interpretAndGenerate(
-            trace,
-            path,
-            "cex-full",
-            SIM_TYPE_REGULAR,
-            agents_to_draw_arrows_for,
-            gen_config_non_smooth, "full (1/7)");
+         //VisualizationLaunchers::interpretAndGenerate(
+         //   trace,
+         //   path,
+         //   "cex-full",
+         //   SIM_TYPE_REGULAR,
+         //   agents_to_draw_arrows_for,
+         //   gen_config_non_smooth, "full (1/7)");
 
          VisualizationLaunchers::interpretAndGenerate(
             trace,
@@ -320,13 +321,13 @@ bool VisualizationLaunchers::quickGenerateGIFs(
             agents_to_draw_arrows_for,
             gen_config_non_smooth, "birdseye (2/7)");
 
-         VisualizationLaunchers::interpretAndGenerate(
-            trace,
-            path,
-            "cex-cockpit-only",
-            static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation | LiveSimGenerator::LiveSimType::cockpit | LiveSimGenerator::LiveSimType::incremental_image_output),
-            agents_to_draw_arrows_for,
-            gen_config_non_smooth, "cockpit (3/7)");
+         //VisualizationLaunchers::interpretAndGenerate(
+         //   trace,
+         //   path,
+         //   "cex-cockpit-only",
+         //   static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation | LiveSimGenerator::LiveSimType::cockpit | LiveSimGenerator::LiveSimType::incremental_image_output),
+         //   agents_to_draw_arrows_for,
+         //   gen_config_non_smooth, "cockpit (3/7)");
       }
 
       if (export_with_smooth_arrows) {

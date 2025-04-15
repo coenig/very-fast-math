@@ -28,7 +28,7 @@ int main(int argc, char* argv[])
       "../examples/gp_config_lanes=2_nonegos=1_segments=2", 
       "debug_trace_array",
       CexTypeEnum::smv,
-      false, false, false);
+      true, false, false);
    termnate();
 
    //vfm::test::runTests();
