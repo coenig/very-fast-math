@@ -400,9 +400,9 @@ std::shared_ptr<RoadGraph> vfm::mc::trajectory_generator::VisualizationLaunchers
       
       road_graphs[sec]->setOriginPoint({ 
          std::stof(first_state.at("section_" + std::to_string(sec) + ".source.x")),
-         std::stof(first_state.at("section_" + std::to_string(sec) + ".source.x"))});
+         std::stof(first_state.at("section_" + std::to_string(sec) + ".source.y"))});
       
-      road_graphs[sec]->setAngle(std::stof(first_state.at("section_" + std::to_string(sec) + ".angle")));
+      road_graphs[sec]->setAngle(2.0 * 3.1415 * std::stof(first_state.at("section_" + std::to_string(sec) + ".angle")) / 360.0);
       road_graphs[sec]->setMyRoad(lane_structure);
    }
 
