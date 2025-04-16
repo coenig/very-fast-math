@@ -386,7 +386,7 @@ std::shared_ptr<RoadGraph> vfm::mc::trajectory_generator::VisualizationLaunchers
 
    for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
       road_graphs.push_back(std::make_shared<RoadGraph>(sec));
-      StraightRoadSection lane_structure{};
+      StraightRoadSection lane_structure{std::stoi(first_state.at("num_lanes")), std::stof(first_state.at("section_" + std::to_string(sec) + "_end")) };
       lane_structure.setNumLanes(std::stoi(trace.at(0).second.at("num_lanes")));
 
       for (int seg = 0; first_state.count(segment_min_lane_name(sec, seg)); seg++) {
