@@ -339,12 +339,16 @@ void vfm::RoadGraph::setAngle(const float angle)
 
 void vfm::RoadGraph::addSuccessor(const std::shared_ptr<RoadGraph> subgraph)
 {
+   for (const auto& el : successors_) if (el == subgraph) return; // Already is a successor
+
    successors_.push_back(subgraph);
    subgraph->predecessors_.push_back(shared_from_this());
 }
 
 void vfm::RoadGraph::addPredecessor(const std::shared_ptr<RoadGraph> subgraph)
 {
+   for (const auto& el : predecessors_) if (el == subgraph) return; // Already is a predecessor
+
    predecessors_.push_back(subgraph);
    subgraph->successors_.push_back(shared_from_this());
 }
