@@ -105,8 +105,8 @@ public:
       const float crop_right,
       const std::shared_ptr<RoadGraph>& road_graph) const
    {
-      if (!outside_view_) {
-         outside_view_ = std::make_shared<HighwayImage>(getImageWidth(MAX_NUM_LANES_SIMPLE), getImageHeight(), std::make_shared<Plain2DTranslator>(), road_graph->getMyRoad().getNumLanes());
+      if (true || !outside_view_) { // TODO: Can we optimize that for performance?
+         outside_view_ = std::make_shared<HighwayImage>(getImageWidth(MAX_NUM_LANES_SIMPLE), getImageHeight() * 10, std::make_shared<Plain2DTranslator>(), road_graph->getMyRoad().getNumLanes());
       }
 
       if (start_pdf) {

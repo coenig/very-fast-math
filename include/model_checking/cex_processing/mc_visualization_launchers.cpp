@@ -370,7 +370,6 @@ bool VisualizationLaunchers::quickGenerateGIFs(
    return true;
 }
 
-// TODO: Needs to return Road Graph
 std::shared_ptr<RoadGraph> vfm::mc::trajectory_generator::VisualizationLaunchers::getLaneStructureFrom(const MCTrace& trace)
 {
    if (trace.empty()) Failable::getSingleton()->addError("Received empty trace for 'getLaneStructureFrom'.");
