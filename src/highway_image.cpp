@@ -1041,7 +1041,8 @@ void vfm::HighwayImage::paintRoadGraph(
    else {
       setTranslator(std::make_shared<DefaultHighwayTranslator>());
    }
-   return;
+   
+   //return;
    std::vector<Pol2D> additional_arrows{};
 
    for (int i = 0; i <= 30; i++) {

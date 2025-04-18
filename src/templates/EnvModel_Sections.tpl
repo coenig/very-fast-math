@@ -19,7 +19,10 @@
       INIT section_[sec].source.y mod @{COORDGRANULARITY}@.eval[0] = 0;
 
       @{
-        -- @{ vec(section_[sec].source.x; section_[sec].source.y) }@.syntacticSquareOfVecDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] >= 
+        INIT @{ vec(section_[sec].source.x; section_[sec].source.y) }@.syntacticManhattenDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
+            <= @{MAXDISTCONNECTIONS}@.eval[0]; -- Use Manhatten distance as upper bound.
+        INIT @{ vec(section_[sec].source.x; section_[sec].source.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
+            >= @{MINDISTCONNECTIONS}@.eval[0]; -- Use only farther away distance as lower bound.
       }@*.for[[sec2], 0, @{[sec]}@.sub[1]]
 
    }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]

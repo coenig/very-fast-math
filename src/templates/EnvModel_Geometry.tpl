@@ -29,7 +29,10 @@
 @{@{@f(vec, x, y, 0); @f(line, x, y, 0); @f(lines, x, y, 0)}@.eval}@.nil
 
 @{ ((#0#) * (#0#)) }@***.newMethod[syntacticSquare, 0]
-@{ (@{@{#1#}@.atVfmTupel[0]-@{#0#}@.atVfmTupel[0]}@.syntacticSquare + @{@{#1#}@.atVfmTupel[1]-@{#0#}@.atVfmTupel[1]}@.syntacticSquare) }@***.newMethod[syntacticSquareOfVecDistance, 1]
+@{ (@{@{#1#}@.atVfmTupel[0] - @{#0#}@.atVfmTupel[0]}@.syntacticSquare + @{@{#1#}@.atVfmTupel[1] - @{#0#}@.atVfmTupel[1]}@.syntacticSquare) }@***.newMethod[syntacticSquareOfVecDistance, 1]
+
+@{ ( abs( @{#0#}@.atVfmTupel[0] - @{#1#}@.atVfmTupel[0] ) + abs( @{#0#}@.atVfmTupel[1] - @{#1#}@.atVfmTupel[1] ) ) }@***.newMethod[syntacticManhattenDistance, 1]
+@{ ( max( abs( @{#0#}@.atVfmTupel[0] - @{#1#}@.atVfmTupel[0] ), abs( @{#0#}@.atVfmTupel[1] - @{#1#}@.atVfmTupel[1] ) ) ) }@***.newMethod[syntacticMaxCoordDistance, 1]
 
 @{ ((@{#0#}@.atVfmTupel[0] <= max(@{#1#}@.atVfmTupel[0].atVfmTupel[0], @{#1#}@.atVfmTupel[1].atVfmTupel[0]) && @{#0#}@.atVfmTupel[0] >= min(@{#1#}@.atVfmTupel[0].atVfmTupel[0], @{#1#}@.atVfmTupel[1].atVfmTupel[0]) && @{#0#}@.atVfmTupel[1] <= max(@{#1#}@.atVfmTupel[0].atVfmTupel[1], @{#1#}@.atVfmTupel[1].atVfmTupel[1]) && @{#0#}@.atVfmTupel[1] >= min(@{#1#}@.atVfmTupel[0].atVfmTupel[1], @{#1#}@.atVfmTupel[1].atVfmTupel[1]))) }@***.newMethod[syntacticIsPointOnSegment, 1]
 
