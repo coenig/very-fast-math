@@ -407,6 +407,18 @@ const std::string SYMB_SET_ARR =   "Set";         constexpr int OPNUM_SET_ARR = 
 const std::string SYMB_GET_VAR =   "get";         constexpr int OPNUM_GET_VAR = 1;    constexpr int PRIO_GET_VAR   = -1;
 const std::string SYMB_GET_ARR =   "Get";         constexpr int OPNUM_GET_ARR = 2;    constexpr int PRIO_GET_ARR   = -1;
 const std::string SYMB_LN =        "ln";          constexpr int OPNUM_LN = 1;         constexpr int PRIO_LN        = -1;
+const std::string SYMB_SIN =       "sin";         constexpr int OPNUM_SIN = 1;        constexpr int PRIO_SIN       = -1;
+const std::string SYMB_COS =       "cos";         constexpr int OPNUM_COS = 1;        constexpr int PRIO_COS       = -1;
+const std::string SYMB_TAN =       "tan";         constexpr int OPNUM_TAN = 1;        constexpr int PRIO_TAN       = -1;
+const std::string SYMB_CSC =       "csc";         constexpr int OPNUM_CSC = 1;        constexpr int PRIO_CSC       = -1;
+const std::string SYMB_SEC =       "sec";         constexpr int OPNUM_SEC = 1;        constexpr int PRIO_SEC       = -1;
+const std::string SYMB_COT =       "cot";         constexpr int OPNUM_COT = 1;        constexpr int PRIO_COT       = -1;
+const std::string SYMB_ARCSIN =    "arcsin";      constexpr int OPNUM_ARCSIN = 1;     constexpr int PRIO_ARCSIN    = -1;
+const std::string SYMB_ARCCOS =    "arccos";      constexpr int OPNUM_ARCCOS = 1;     constexpr int PRIO_ARCCOS    = -1;
+const std::string SYMB_ARCTAN =    "arctan";      constexpr int OPNUM_ARCTAN = 1;     constexpr int PRIO_ARCTAN    = -1;
+const std::string SYMB_SINH =      "sinh";        constexpr int OPNUM_SINH = 1;       constexpr int PRIO_SINH      = -1;
+const std::string SYMB_COSH =      "cosh";        constexpr int OPNUM_COSH = 1;       constexpr int PRIO_COSH      = -1;
+const std::string SYMB_TANH =      "tanh";        constexpr int OPNUM_TANH = 1;       constexpr int PRIO_TANH      = -1;
 const std::string SYMB_MALLOC =    "malloc";      constexpr int OPNUM_MALLOC = 1;     constexpr int PRIO_MALLOC    = -1;
 const std::string SYMB_DELETE =    "free";        constexpr int OPNUM_DELETE = 1;     constexpr int PRIO_DELETE    = -1;
 const std::string SYMB_COMPOUND =  "compound";    constexpr int OPNUM_COMPOUND = 2;   constexpr int PRIO_COMPOUND  = -1; // Compound structures comprise two operands, a function call and the definition of the function.
