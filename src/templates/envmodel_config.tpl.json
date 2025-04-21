@@ -47,7 +47,7 @@
       "NONEGOS": "#{nonegos}#",
       "NUMLANES": "#{lanes}#",
       "SEGMENTS": "#{segments}#",
-      "SECTIONS": "#{2}#",
+      "SECTIONS": "#{3}#",
       "SEGMENTSMINLENGTH": 50,
       "SPEC": "#{ env.cnt < 2 }#",
       "ShowLOG": true,
