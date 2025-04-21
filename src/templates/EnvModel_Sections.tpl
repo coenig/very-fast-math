@@ -14,6 +14,9 @@
       section_[sec].source.y := section_[sec].source.y_raw * @{COORDGRANULARITY}@.eval[0];
       section_[sec].angle := section_[sec].angle_raw * @{ANGLEGRANULARITY}@.eval[0];
 
+--      section_[sec].drain.x := section_[sec].source.x + section_[sec]_end * cos(section_[sec].angle)
+--      section_[sec].drain.y := section_[sec].source.y + section_[sec]_end * sin⁡(section_[sec].angle)
+
          @{
             VAR outgoing_connection_[con]_of_section_[sec] : 0..@{SECTIONS - 1}@.eval[0];
             INVAR outgoing_connection_[con]_of_section_[sec] != [sec]; -- Don't connect to self.
