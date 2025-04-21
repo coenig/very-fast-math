@@ -562,6 +562,9 @@ public:
    ///
    Vector2D<float> v_point_{};
 
+   int offset_x_{};
+   int offset_y_{};
+
 private:
 #ifdef _WIN32
    static std::string ExePath();
@@ -582,7 +585,7 @@ private:
    int height_{};
    std::vector<Color> buf_{};
    int expand_dynamically_to_the_right_{};  // Enlarges the image if pixels are painted outside of the visible range.
-   int expand_dynamically_to_the_bottom_{}; // Enlarges the image if pixels are painted outside of the visible range.
+   int expand_dynamically_to_the_bottom_{}; // ---
 
    std::shared_ptr<VisTranslator> translator_{ std::make_shared<DefaultTranslator>() };
 

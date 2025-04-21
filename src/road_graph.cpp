@@ -293,7 +293,7 @@ void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
    assert(r_ego->isRootedInZeroAndUnturned());
 }
 
-constexpr float EPS{ 0.01 };
+static constexpr float EPS{ 0.01 };
 bool vfm::RoadGraph::isOriginAtZero() const
 {
 
