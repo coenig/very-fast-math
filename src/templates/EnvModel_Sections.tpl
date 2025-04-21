@@ -5,13 +5,14 @@
 
    @{
       FROZENVAR
-         section_[sec].source.x_raw : @{BORDERLEFT / COORDGRANULARITY}@.eval[0] .. @{BORDERRIGHT / COORDGRANULARITY}@.eval[0];
-         section_[sec].source.y_raw : @{BORDERTOP / COORDGRANULARITY}@.eval[0] .. @{BORDERBOTTOM / COORDGRANULARITY}@.eval[0];
-         section_[sec].angle : 0 .. 359;
+         section_[sec].source.x_raw : @{ trunc(BORDERLEFT / COORDGRANULARITY) }@.eval[0] .. @{ trunc(BORDERRIGHT / COORDGRANULARITY) }@.eval[0];
+         section_[sec].source.y_raw : @{ trunc(BORDERTOP / COORDGRANULARITY) }@.eval[0] .. @{ trunc(BORDERBOTTOM / COORDGRANULARITY) }@.eval[0];
+         section_[sec].angle_raw : 0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
       
       DEFINE 
       section_[sec].source.x := section_[sec].source.x_raw * @{COORDGRANULARITY}@.eval[0];
       section_[sec].source.y := section_[sec].source.y_raw * @{COORDGRANULARITY}@.eval[0];
+      section_[sec].angle := section_[sec].angle_raw * @{ANGLEGRANULARITY}@.eval[0];
 
          @{
             VAR outgoing_connection_[con]_of_section_[sec] : 0..@{SECTIONS - 1}@.eval[0];
