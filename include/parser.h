@@ -51,6 +51,7 @@
 #include "term_malloc.h"
 #include "term_delete.h"
 #include "term_id.h"
+#include "terms_trigonometry.h"
 #include "equation.h"
 #include "earley/earley_grammar.h"
 #include <vector>
@@ -325,6 +326,12 @@ inline std::shared_ptr<Term> _mult_plain(const std::shared_ptr<Term> term1, cons
 inline std::shared_ptr<Term> _div_plain(const std::shared_ptr<Term> term1, const std::shared_ptr<Term> term2) { return std::make_shared<TermDiv>(term1, term2); }
 inline std::shared_ptr<Term> _pow_plain(const std::shared_ptr<Term> term1, const std::shared_ptr<Term> term2) { return std::make_shared<TermPow>(term1, term2); }
 inline std::shared_ptr<Term> _ln_plain(const std::shared_ptr<Term> term1) { return std::make_shared<TermLn>(term1); }
+inline std::shared_ptr<Term> _sin_plain(const std::shared_ptr<Term> term1) { return std::make_shared<TermSin>(term1); }
+inline std::shared_ptr<Term> _cos_plain(const std::shared_ptr<Term> term1) { return std::make_shared<TermCos>(term1); }
+inline std::shared_ptr<Term> _tan_plain(const std::shared_ptr<Term> term1) { return std::make_shared<TermTan>(term1); }
+inline std::shared_ptr<Term> _asin_plain(const std::shared_ptr<Term> term1) { return std::make_shared<TermASin>(term1); }
+inline std::shared_ptr<Term> _acos_plain(const std::shared_ptr<Term> term1) { return std::make_shared<TermACos>(term1); }
+inline std::shared_ptr<Term> _atan_plain(const std::shared_ptr<Term> term1) { return std::make_shared<TermATan>(term1); }
 
 inline std::shared_ptr<Term> _neg_plain(const std::shared_ptr<Term> term) { return std::make_shared<TermNeg>(term); }
 inline std::shared_ptr<Term> _neg_one_minus_plain(const std::shared_ptr<Term> term1) { return SingletonFormulaParser::getInstance()->termFactory(SYMB_NEG_ALT, { term1 }); }
@@ -403,6 +410,12 @@ inline std::shared_ptr<Term> _mult(const std::shared_ptr<Term> term1, const std:
 inline std::shared_ptr<Term> _div(const std::shared_ptr<Term> term1, const std::shared_ptr<Term> term2) { return _div_plain(term1, term2)->setChildrensFathers(false, false)->toTermIfApplicable(); }
 inline std::shared_ptr<Term> _pow(const std::shared_ptr<Term> term1, const std::shared_ptr<Term> term2) { return _pow_plain(term1, term2)->setChildrensFathers(false, false)->toTermIfApplicable(); }
 inline std::shared_ptr<Term> _ln(const std::shared_ptr<Term> term1) { return _ln_plain(term1)->setChildrensFathers(false, false)->toTermIfApplicable(); }
+inline std::shared_ptr<Term> _sin(const std::shared_ptr<Term> term1) { return _sin_plain(term1)->setChildrensFathers(false, false)->toTermIfApplicable(); }
+inline std::shared_ptr<Term> _cos(const std::shared_ptr<Term> term1) { return _cos_plain(term1)->setChildrensFathers(false, false)->toTermIfApplicable(); }
+inline std::shared_ptr<Term> _tan(const std::shared_ptr<Term> term1) { return _tan_plain(term1)->setChildrensFathers(false, false)->toTermIfApplicable(); }
+inline std::shared_ptr<Term> _asin(const std::shared_ptr<Term> term1) { return _asin_plain(term1)->setChildrensFathers(false, false)->toTermIfApplicable(); }
+inline std::shared_ptr<Term> _acos(const std::shared_ptr<Term> term1) { return _acos_plain(term1)->setChildrensFathers(false, false)->toTermIfApplicable(); }
+inline std::shared_ptr<Term> _atan(const std::shared_ptr<Term> term1) { return _atan_plain(term1)->setChildrensFathers(false, false)->toTermIfApplicable(); }
 
 inline std::shared_ptr<Term> _neg(const std::shared_ptr<Term> term) { return _neg_plain(term)->setChildrensFathers(false, false)->toTermIfApplicable(); }
 inline std::shared_ptr<Term> _neg_one_minus(const std::shared_ptr<Term> term) { return _neg_one_minus_plain(term)->setChildrensFathers(false, false)->toTermIfApplicable(); }
@@ -547,6 +560,12 @@ inline static const std::map<std::string, std::string> _FUNCTION_NAMES{
    { SYMB_DIV, "_div" },
    { SYMB_POW, "_pow" },
    { SYMB_LN, "_ln" },
+   { SYMB_SIN, "_sin" },
+   { SYMB_COS, "_cos" },
+   { SYMB_TAN, "_tan" },
+   { SYMB_ARCSIN, "_asin" },
+   { SYMB_ARCCOS, "_acos" },
+   { SYMB_ARCTAN, "_atan" },
    { SYMB_MOD, "_mod" },
    { SYMB_MIN, "_min" },
    { SYMB_MAX, "_max" },
