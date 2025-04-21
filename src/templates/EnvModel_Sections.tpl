@@ -10,9 +10,9 @@
          section_[sec].angle_raw : 0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
       
       DEFINE 
-      section_[sec].source.x := section_[sec].source.x_raw * @{COORDGRANULARITY}@.eval[0];
-      section_[sec].source.y := section_[sec].source.y_raw * @{COORDGRANULARITY}@.eval[0];
-      section_[sec].angle := section_[sec].angle_raw * @{ANGLEGRANULARITY}@.eval[0];
+         section_[sec].source.x := section_[sec].source.x_raw * @{COORDGRANULARITY}@.eval[0];
+         section_[sec].source.y := section_[sec].source.y_raw * @{COORDGRANULARITY}@.eval[0];
+         section_[sec].angle := section_[sec].angle_raw * @{ANGLEGRANULARITY}@.eval[0];
 
       -- @{cos(213)}@.eval
 
