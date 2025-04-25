@@ -128,7 +128,7 @@ public:
          road_graph,
          { 500, 60 },
          additional_var_vals,
-         true, 60, (float) road_graph->getMyRoad().getNumLanes() / 2.0f);
+         true, 60, (float) road_graph->getMyRoad().getNumLanes() / 2.0f + 10);
 
       return outside_view_;
    }

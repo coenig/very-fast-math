@@ -23,13 +23,13 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   //mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
-   //   { 0 }, 
-   //   "../examples/gp_config_lanes=2_nonegos=1_segments=2", 
-   //   "debug_trace_array",
-   //   CexTypeEnum::smv,
-   //   true, false, false);
-   //termnate();
+   mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
+      { 0 }, 
+      "../examples/gp_config_lanes=2_nonegos=1_segments=1", 
+      "debug_trace_array",
+      CexTypeEnum::smv,
+      true, false, false);
+   termnate();
 
    //vfm::test::runTests();
    //termnate();
