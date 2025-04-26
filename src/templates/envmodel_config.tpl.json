@@ -47,7 +47,7 @@
       "NONEGOS": "#{nonegos}#",
       "NUMLANES": "#{lanes}#",
       "SEGMENTS": "#{segments}#",
-      "SECTIONS": "#{4}#",
+      "SECTIONS": "#{10}#",
       "COORDGRANULARITY": "#{50}#",
       "ANGLEGRANULARITY": "#{60}#",
       "SECTIONSMINLENGTH": "#{50}#",
