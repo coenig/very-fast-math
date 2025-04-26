@@ -7,7 +7,11 @@
       FROZENVAR
          section_[sec].source.x_raw : @{ trunc(BORDERLEFT / COORDGRANULARITY) }@.eval[0] .. @{ trunc(BORDERRIGHT / COORDGRANULARITY) }@.eval[0];
          section_[sec].source.y_raw : @{ trunc(BORDERTOP / COORDGRANULARITY) }@.eval[0] .. @{ trunc(BORDERBOTTOM / COORDGRANULARITY) }@.eval[0];
-         section_[sec].angle_raw : 0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
+--         section_[sec].angle_raw : 0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
+
+-- TODO: This is just for testing, comment in above again.
+         section_[sec].angle_raw : @{@(0)@@(1)@}@.if[@{ [sec] == 0 }@.eval] .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
+         INIT section_[sec].angle != 180;
       
       DEFINE 
          section_[sec].source.x := section_[sec].source.x_raw * @{COORDGRANULARITY}@.eval[0];
