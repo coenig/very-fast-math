@@ -107,8 +107,8 @@ public:
    {
       if (true || !outside_view_) { // TODO: Can we optimize that for performance?
          outside_view_ = std::make_shared<HighwayImage>(
-            getImageWidth(MAX_NUM_LANES_SIMPLE), // TODO: Remove factor (make more intelligent)
-            getImageHeight() * 5,                   // TODO: Remove factor (make more intelligent)
+            getImageWidth(MAX_NUM_LANES_SIMPLE) * 10, // TODO: Remove factor (make more intelligent)
+            getImageHeight() * 20,                   // TODO: Remove factor (make more intelligent)
             std::make_shared<Plain2DTranslator>(), 
             road_graph->getMyRoad().getNumLanes());
       }
@@ -129,7 +129,7 @@ public:
       //env.agents_pos_y_[vehicle_index] = 2 + traj_pos.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
       
       const Rec2D bounding_box{ road_graph->getBoundingBox() };
-      const float offset_x{ -bounding_box.upper_left_.x + 10 };
+      const float offset_x{ -bounding_box.upper_left_.x + 15 };
       const float offset_y{ -bounding_box.upper_left_.y + 15 };
 
       outside_view_->paintRoadGraph(
