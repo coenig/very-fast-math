@@ -688,7 +688,14 @@ int vfm::test::artifactRun(int argc, char* argv[])
 
    if (inputs.getCmdOption(CMD_HELP) != "true") inputs.triggerErrorifAnyArgumentMissing();
 
-   if (inputs.getCmdOption(CMD_HELP) == "true" || inputs.hasErrorOccurred()) {
+   if (inputs.getCmdOption(CMD_HELP) == "true") {
+      inputs.addNote("vfm is a library for Model Checking of ADAS software.");
+      inputs.addNote("Run without parameters for GUI mode or use the below command line parameters, particularly '--mode' for specific run modes.");
+      inputs.printArgumentsForMC();
+      return EXIT_SUCCESS;
+   }
+
+   if (inputs.hasErrorOccurred()) {
       inputs.printArgumentsForMC();
       return EXIT_FAILURE;
    }
