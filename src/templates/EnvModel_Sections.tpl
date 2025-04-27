@@ -44,7 +44,10 @@
                      <= @{MAXDISTCONNECTIONS}@.eval[0]) -- Use Manhatten distance as upper bound.
                   & (@{ vec(section_[sec].drain.x; section_[sec].drain.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
                      >= @{MINDISTCONNECTIONS}@.eval[0]); -- Use only farther away coordinate as lower bound.
-                  & (section_[sec].angle != section_[sec2].angle))
+                  & (section_[sec].angle != section_[sec2].angle) -- Angles have to differ (TODO: do they??).
+                  & (@{@{lines(line(vec(section_[sec].source.x; section_[sec].source.y); vec(section_[sec].drain.x; section_[sec].drain.y)); line(vec(section_[sec2].source.x; section_[sec2].source.y); vec(section_[sec2].drain.x; section_[sec2].drain.y)))}@.syntacticSegmentAndLineIntersect}@.serializeNuXmv) -- Don't intersect with imagined prolongued line segment 1.
+                  & (@{@{lines(line(vec(section_[sec2].source.x; section_[sec2].source.y); vec(section_[sec2].drain.x; section_[sec2].drain.y)); line(vec(section_[sec].source.x; section_[sec].source.y); vec(section_[sec].drain.x; section_[sec].drain.y)))}@.syntacticSegmentAndLineIntersect}@.serializeNuXmv) -- Don't intersect with imagined prolongued line segment 2.
+                  );
                }@.if[@{ [sec] != [sec2] }@.eval]
             }@*.for[[sec2], 0, @{SECTIONS - 1}@.eval]
          }@**.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
