@@ -3,8 +3,6 @@
 -- Sections
 --------------------------------------------------------
 
-   INIT outgoing_connection_0_of_section_0 != outgoing_connection_1_of_section_0; -- TODO: REMOVE
-
    @{
       FROZENVAR
          section_[sec].source.x_raw : @{ trunc(BORDERLEFT / COORDGRANULARITY) }@.eval[0] .. @{ trunc(BORDERRIGHT / COORDGRANULARITY) }@.eval[0];
@@ -45,7 +43,8 @@
                   INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> ((@{ vec(section_[sec].drain.x; section_[sec].drain.y) }@.syntacticManhattenDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
                      <= @{MAXDISTCONNECTIONS}@.eval[0]) -- Use Manhatten distance as upper bound.
                   & (@{ vec(section_[sec].drain.x; section_[sec].drain.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
-                     >= @{MINDISTCONNECTIONS}@.eval[0])); -- Use only farther away coordinate as lower bound.
+                     >= @{MINDISTCONNECTIONS}@.eval[0]); -- Use only farther away coordinate as lower bound.
+                  & (section_[sec].angle != section_[sec2].angle))
                }@.if[@{ [sec] != [sec2] }@.eval]
             }@*.for[[sec2], 0, @{SECTIONS - 1}@.eval]
          }@**.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
