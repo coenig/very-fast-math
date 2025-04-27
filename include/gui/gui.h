@@ -61,12 +61,21 @@ static bool detached_run_running{ false };
 /// information such as "env models have been generated", "model checker run completed" etc. are derived from the file structure
 /// in the respective directories.
 /// 
+
+enum class ButtonClass {
+   RunButtons,
+   DeleteButtons,
+   All,
+   None
+};
+
 class MCScene : public Failable {
 public:
    MCScene(const InputParser& inputs);
    void copyWaitingForPreviewGIF();
    void refreshPreview();
-   void activateMCButtons(const bool active);
+
+   void activateMCButtons(const bool active, const ButtonClass which);
    bool isLTL(const std::string& config);
    int bmcDepth(const std::string& config);
 

@@ -468,27 +468,37 @@ void MCScene::refreshPreview()
    box_->when(FL_WHEN_CHANGED);
 }
 
-void MCScene::activateMCButtons(const bool active)
+void MCScene::activateMCButtons(const bool active, const ButtonClass which)
 {
    if (active) {
-      button_run_parser_->activate();
-      button_run_cex_->activate();
-      button_run_mc_and_preview_->activate();
-      button_delete_generated_->activate();
-      button_delete_testcases_->activate();
-      button_delete_current_preview_->activate();
-      button_delete_cached_->activate();
-      button_runtime_analysis_->activate();
+      if (which == ButtonClass::RunButtons || which == ButtonClass::All) {
+         button_run_parser_->activate();
+         button_run_cex_->activate();
+         button_run_mc_and_preview_->activate();
+         button_runtime_analysis_->activate();
+      }
+
+      if (which == ButtonClass::DeleteButtons || which == ButtonClass::All) {
+         button_delete_generated_->activate();
+         button_delete_testcases_->activate();
+         button_delete_current_preview_->activate();
+         button_delete_cached_->activate();
+      }
    }
    else {
-      button_run_parser_->deactivate();
-      button_run_cex_->deactivate();
-      button_run_mc_and_preview_->deactivate();
-      button_delete_generated_->deactivate();
-      button_delete_testcases_->deactivate();
-      button_delete_current_preview_->deactivate();
-      button_delete_cached_->deactivate();
-      button_runtime_analysis_->deactivate();
+      if (which == ButtonClass::RunButtons || which == ButtonClass::All) {
+         button_run_parser_->deactivate();
+         button_run_cex_->deactivate();
+         button_run_mc_and_preview_->deactivate();
+         button_runtime_analysis_->deactivate();
+      }
+
+      if (which == ButtonClass::DeleteButtons || which == ButtonClass::All) {
+         button_delete_generated_->deactivate();
+         button_delete_testcases_->deactivate();
+         button_delete_current_preview_->deactivate();
+         button_delete_cached_->deactivate();
+      }
    }
 }
 
@@ -1536,6 +1546,8 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
       ThreadPool pool(test::MAX_THREADS);
 
       for (const auto& folder : possibles) {
+         std::this_thread::sleep_for(std::chrono::seconds(1));
+
          const std::string config_name{ std::filesystem::path(folder).filename().string() };
 
          if (StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(config_name, SecOptionLocalItemEnum::selected_job))) {
@@ -1617,7 +1629,7 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
    }
 
    mc_scene->mc_running_internal_ = false;
-   mc_scene->activateMCButtons(true);
+   mc_scene->activateMCButtons(true, ButtonClass::All);
 }
 
 void MCScene::deletePreview(const std::string& path_generated, const bool actually_delete_gif) 
@@ -1957,7 +1969,7 @@ void vfm::MCScene::resetParserAndData()
 
 void deleteCurrentPreview(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
-   mc_scene->activateMCButtons(false);
+   mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
    std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
    std::filesystem::path path_generated_base(path_generated_base_str);
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
@@ -1974,12 +1986,12 @@ void deleteCurrentPreview(MCScene* mc_scene) // Free function that actually does
 
    mc_scene->deletePreview(path_generated_base_str, false);
    mc_scene->resetParserAndData();
-   mc_scene->activateMCButtons(true);
+   mc_scene->activateMCButtons(true, ButtonClass::All);
 }
 
 void deleteTestCases(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
-   mc_scene->activateMCButtons(false);
+   mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
    std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
    std::filesystem::path path_generated_base(path_generated_base_str);
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
@@ -2009,12 +2021,12 @@ void deleteTestCases(MCScene* mc_scene) // Free function that actually does it, 
       }
    }
 
-   mc_scene->activateMCButtons(true);
+   mc_scene->activateMCButtons(true, ButtonClass::All);
 }
 
 void deleteFolders(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
-   mc_scene->activateMCButtons(false);
+   mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
    std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
    std::filesystem::path path_generated_base(path_generated_base_str);
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
@@ -2049,16 +2061,16 @@ void deleteFolders(MCScene* mc_scene) // Free function that actually does it, ra
    }
 
    mc_scene->copyWaitingForPreviewGIF();
-   mc_scene->activateMCButtons(true);
+   mc_scene->activateMCButtons(true, ButtonClass::All);
 }
 
 void deleteCached(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
-   mc_scene->activateMCButtons(false);
+   mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
    std::string path_cached{ mc_scene->getCachedDir() };
    mc_scene->addNote("Deleting folder '" + path_cached + "'.");
    StaticHelper::removeAllFilesSafe(path_cached);
-   mc_scene->activateMCButtons(true);
+   mc_scene->activateMCButtons(true, ButtonClass::All);
 }
 
 void MCScene::buttonDeleteCurrentPreview(Fl_Widget* widget, void* data)
@@ -2102,7 +2114,7 @@ void vfm::MCScene::buttonDeleteCached(Fl_Widget* widget, void* data)
 void MCScene::buttonRunMCAndPreview(Fl_Widget* widget, void* data) {
    auto mc_scene{ static_cast<MCScene*>(data) };
    mc_scene->showAllBBGroups(false);
-   mc_scene->activateMCButtons(false);
+   mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
    mc_scene->mc_running_internal_ = true;
 
    //generatePreviews(mc_scene);
@@ -2112,7 +2124,7 @@ void MCScene::buttonRunMCAndPreview(Fl_Widget* widget, void* data) {
 
 void MCScene::doAllEnvModelGenerations(MCScene* mc_scene)
 {
-   mc_scene->activateMCButtons(false);
+   mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
    mc_scene->showAllBBGroups(false);
 
    std::string path{ mc_scene->getTemplateDir() };
@@ -2155,7 +2167,7 @@ void MCScene::doAllEnvModelGenerations(MCScene* mc_scene)
       }
    }
 
-   mc_scene->activateMCButtons(true);
+   mc_scene->activateMCButtons(true, ButtonClass::All);
 }
 
 void MCScene::onGroupClickBM(Fl_Widget* widget, void* data)
@@ -2214,7 +2226,7 @@ void vfm::MCScene::createTestCase(const MCScene* mc_scene, const std::string& ge
 
 void MCScene::createTestCases(MCScene* mc_scene)
 {
-   mc_scene->activateMCButtons(false);
+   mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
 
    int cnt{ 1 };
    int max{ (int)mc_scene->se_controllers_.size() };
@@ -2243,7 +2255,7 @@ void MCScene::createTestCases(MCScene* mc_scene)
 
    for (auto& t : threads) t.join();
 
-   mc_scene->activateMCButtons(true);
+   mc_scene->activateMCButtons(true, ButtonClass::All);
 }
 
 void MCScene::buttonCEX(Fl_Widget* widget, void* data)

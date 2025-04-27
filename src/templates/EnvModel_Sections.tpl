@@ -3,6 +3,8 @@
 -- Sections
 --------------------------------------------------------
 
+   INIT outgoing_connection_0_of_section_0 != outgoing_connection_1_of_section_0; -- TODO: REMOVE
+
    @{
       FROZENVAR
          section_[sec].source.x_raw : @{ trunc(BORDERLEFT / COORDGRANULARITY) }@.eval[0] .. @{ trunc(BORDERRIGHT / COORDGRANULARITY) }@.eval[0];
