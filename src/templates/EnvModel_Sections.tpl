@@ -43,7 +43,7 @@
                   INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> ((@{ vec(section_[sec].drain.x; section_[sec].drain.y) }@.syntacticManhattenDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
                      <= @{MAXDISTCONNECTIONS}@.eval[0]) -- Use Manhatten distance as upper bound.
                   & (@{ vec(section_[sec].drain.x; section_[sec].drain.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
-                     >= @{MINDISTCONNECTIONS}@.eval[0]); -- Use only farther away coordinate as lower bound.
+                     >= @{MINDISTCONNECTIONS}@.eval[0]) -- Use only farther away coordinate as lower bound.
                   & (section_[sec].angle != section_[sec2].angle) -- Angles have to differ (TODO: do they??).
                   & (@{@{lines(line(vec(section_[sec].source.x; section_[sec].source.y); vec(section_[sec].drain.x; section_[sec].drain.y)); line(vec(section_[sec2].source.x; section_[sec2].source.y); vec(section_[sec2].drain.x; section_[sec2].drain.y)))}@.syntacticSegmentAndLineIntersect}@.serializeNuXmv) -- Don't intersect with imagined prolongued line segment 1.
                   & (@{@{lines(line(vec(section_[sec2].source.x; section_[sec2].source.y); vec(section_[sec2].drain.x; section_[sec2].drain.y)); line(vec(section_[sec].source.x; section_[sec].source.y); vec(section_[sec].drain.x; section_[sec].drain.y)))}@.syntacticSegmentAndLineIntersect}@.serializeNuXmv) -- Don't intersect with imagined prolongued line segment 2.
