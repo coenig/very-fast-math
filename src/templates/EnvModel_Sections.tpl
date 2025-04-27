@@ -40,10 +40,10 @@
             INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Don't connect to self.
             @{
                @{
-                  INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> @{ vec(section_[sec].drain.x; section_[sec].drain.y) }@.syntacticManhattenDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
-                     <= @{MAXDISTCONNECTIONS}@.eval[0]; -- Use Manhatten distance as upper bound.
-                  INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> @{ vec(section_[sec].drain.x; section_[sec].drain.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
-                     >= @{MINDISTCONNECTIONS}@.eval[0]; -- Use only farther away coordinate as lower bound.
+                  INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> ((@{ vec(section_[sec].drain.x; section_[sec].drain.y) }@.syntacticManhattenDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
+                     <= @{MAXDISTCONNECTIONS}@.eval[0]) -- Use Manhatten distance as upper bound.
+                  & (@{ vec(section_[sec].drain.x; section_[sec].drain.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
+                     >= @{MINDISTCONNECTIONS}@.eval[0])); -- Use only farther away coordinate as lower bound.
                }@.if[@{ [sec] != [sec2] }@.eval]
             }@*.for[[sec2], 0, @{SECTIONS - 1}@.eval]
          }@**.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
