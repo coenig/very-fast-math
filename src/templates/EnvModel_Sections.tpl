@@ -37,11 +37,14 @@
             FROZENVAR outgoing_connection_[con]_of_section_[sec] : 0..@{SECTIONS - 1}@.eval[0];
             INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Don't connect to self.
             
+
             @{
                @{
+                  FROZENVAR dist_[con]_of_section_[sec]_to_[sec2] : @{MINDISTCONNECTIONS}@.eval[0] .. @{MAXDISTCONNECTIONS}@.eval[0];
+
                   INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> (
-                       (section_[sec2].source.x = section_[sec].drain.x + (@{MINDISTCONNECTIONS}@.eval[0] * (cos_of_section_[sec]_angle + cos_of_section_[sec2]_angle)) / 100)
-                     & (section_[sec2].source.y = section_[sec].drain.y + (@{MINDISTCONNECTIONS}@.eval[0] * (sin_of_section_[sec]_angle + sin_of_section_[sec2]_angle)) / 100)
+                       (section_[sec2].source.x >= section_[sec].drain.x + (dist_[con]_of_section_[sec]_to_[sec2] * (cos_of_section_[sec]_angle + cos_of_section_[sec2]_angle)) / 100)
+                     & (section_[sec2].source.y >= section_[sec].drain.y + (dist_[con]_of_section_[sec]_to_[sec2] * (sin_of_section_[sec]_angle + sin_of_section_[sec2]_angle)) / 100)
                   );
                }@.if[@{ [sec] != [sec2] }@.eval]
             }@*.for[[sec2], 0, @{SECTIONS - 1}@.eval]
@@ -67,6 +70,10 @@
 
       @{
          INIT @{ vec(section_[sec].source.x; section_[sec].source.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
+            >= @{MINDISTCONNECTIONS}@.eval[0]; -- Use only farther away coordinate as lower bound.
+         INIT @{ vec(section_[sec].source.x; section_[sec].source.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].drain.x; section_[sec2].drain.y) ] 
+            >= @{MINDISTCONNECTIONS}@.eval[0]; -- Use only farther away coordinate as lower bound.
+         INIT @{ vec(section_[sec].drain.x; section_[sec].drain.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
             >= @{MINDISTCONNECTIONS}@.eval[0]; -- Use only farther away coordinate as lower bound.
       }@*.for[[sec2], 0, @{[sec]}@.sub[1]]
 
