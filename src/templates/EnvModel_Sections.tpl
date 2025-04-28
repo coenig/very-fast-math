@@ -7,12 +7,8 @@
       FROZENVAR
          section_[sec].source.x : integer;
          section_[sec].source.y : integer;
---         section_[sec].angle_raw : 0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
+         section_[sec].angle_raw : 0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
 
--- TODO: This is just for testing, comment in above again.
-         section_[sec].angle_raw : @{@(0)@@(1)@}@.if[@{ [sec] == 0 }@.eval] .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
-         INIT section_[sec].angle != 180;
-      
       DEFINE 
          section_[sec].angle := section_[sec].angle_raw * @{ANGLEGRANULARITY}@.eval[0];
 
@@ -43,8 +39,8 @@
                   FROZENVAR dist_[con]_of_section_[sec]_to_[sec2] : @{MINDISTCONNECTIONS}@.eval[0] .. @{MAXDISTCONNECTIONS}@.eval[0];
 
                   INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> (
-                       (section_[sec2].source.x >= section_[sec].drain.x + (dist_[con]_of_section_[sec]_to_[sec2] * (cos_of_section_[sec]_angle + cos_of_section_[sec2]_angle)) / 100)
-                     & (section_[sec2].source.y >= section_[sec].drain.y + (dist_[con]_of_section_[sec]_to_[sec2] * (sin_of_section_[sec]_angle + sin_of_section_[sec2]_angle)) / 100)
+                       (section_[sec2].source.x = section_[sec].drain.x + (dist_[con]_of_section_[sec]_to_[sec2] * (cos_of_section_[sec]_angle + cos_of_section_[sec2]_angle)) / 100)
+                     & (section_[sec2].source.y = section_[sec].drain.y + (dist_[con]_of_section_[sec]_to_[sec2] * (sin_of_section_[sec]_angle + sin_of_section_[sec2]_angle)) / 100)
                   );
                }@.if[@{ [sec] != [sec2] }@.eval]
             }@*.for[[sec2], 0, @{SECTIONS - 1}@.eval]
