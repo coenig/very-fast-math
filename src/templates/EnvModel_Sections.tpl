@@ -3,11 +3,10 @@
 -- Sections
 --------------------------------------------------------
 
-       INIT section_0.angle = 0;
-
    @{
-
       FROZENVAR
+         section_[sec].source.x : integer;
+         section_[sec].source.y : integer;
 --         section_[sec].angle_raw : 0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
 
 -- TODO: This is just for testing, comment in above again.
@@ -37,6 +36,16 @@
          @{
             FROZENVAR outgoing_connection_[con]_of_section_[sec] : 0..@{SECTIONS - 1}@.eval[0];
             INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Don't connect to self.
+            
+            @{
+               @{
+                  INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> (
+                       (section_[sec2].source.x = section_[sec].drain.x + (@{MINDISTCONNECTIONS}@.eval[0] * (cos_of_section_[sec]_angle + cos_of_section_[sec2]_angle)) / 100)
+                     & (section_[sec2].source.y = section_[sec].drain.y + (@{MINDISTCONNECTIONS}@.eval[0] * (sin_of_section_[sec]_angle + sin_of_section_[sec2]_angle)) / 100)
+                  );
+               }@.if[@{ [sec] != [sec2] }@.eval]
+            }@*.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+
 
             @{ THIS PART IS COMMENTED OUT since the calculation is too complex.
                @{
@@ -62,31 +71,13 @@
       }@*.for[[sec2], 0, @{[sec]}@.sub[1]]
 
 
-DEFINE
-      section_[sec].source.x := case
-      @{                  
-         @{
-            @{
-               outgoing_connection_[con]_of_section_[sec2] = [sec] : (section_[sec2].drain.x + (@{MINDISTCONNECTIONS}@.eval[0] * (cos_of_section_[sec2]_angle + cos_of_section_[sec]_angle)) / 100);
-            }@.if[@{ [sec] != [sec2] && [sec] != 0 }@.eval]
-         }@*.for[[sec2], 0, @{SECTIONS - 1}@.eval]
-      }@**.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval]
-      TRUE : 0;
-      esac;
-
-      section_[sec].source.y := case
-      @{                  
-         @{
-            @{
-               outgoing_connection_[con]_of_section_[sec2] = [sec] : (section_[sec2].drain.y + (@{MINDISTCONNECTIONS}@.eval[0] * (sin_of_section_[sec2]_angle + sin_of_section_[sec]_angle)) / 100);
-            }@.if[@{ [sec] != [sec2] && [sec] != 0 }@.eval]
-         }@*.for[[sec2], 0, @{SECTIONS - 1}@.eval]
-      }@**.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval]
-      TRUE : 0;
-      esac;
-
    }@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
+   -- Section 0 always starts at (0/0) and goes horizontally to the right.
+   INIT section_0.source.x = 0;
+   INIT section_0.source.y = 0;
+   -- INIT section_0.drain.x ==> Not specified, so the length of the section is figured out from the length of the segments.
+   INIT section_0.angle = 0;
 
 VAR    
    ego.on_section : 0 .. @{SECTIONS - 1}@.eval[0];
