@@ -408,7 +408,10 @@ std::shared_ptr<RoadGraph> vfm::mc::trajectory_generator::VisualizationLaunchers
    for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
       for (int connect = 0; first_state.count(connection(sec, connect)); connect++) {
          int successor = std::stof(first_state.at(connection(sec, connect)));
-         road_graphs[sec]->addSuccessor(road_graphs.at(successor));
+
+         if (successor >= 0) { // -1 is code for "not present".
+            road_graphs[sec]->addSuccessor(road_graphs.at(successor));
+         }
       }
    }
 

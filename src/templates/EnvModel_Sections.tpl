@@ -3,6 +3,9 @@
 -- Sections
 --------------------------------------------------------
 
+   INIT outgoing_connection_0_of_section_0 != -1; --TODO
+   INIT outgoing_connection_1_of_section_0 != -1; --TODO
+
    @{
       FROZENVAR
          section_[sec].source.x : integer;
@@ -28,11 +31,12 @@
 
       section_[sec].drain.x := section_[sec].source.x + (section_[sec]_end * cos_of_section_[sec]_angle) / 100;
       section_[sec].drain.y := section_[sec].source.y + (section_[sec]_end * sin_of_section_[sec]_angle) / 100;
+ 
+      INIT outgoing_connection_0_of_section_[sec] != outgoing_connection_1_of_section_[sec]; -- TODO
 
          @{
-            FROZENVAR outgoing_connection_[con]_of_section_[sec] : 0..@{SECTIONS - 1}@.eval[0];
+            FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1..@{SECTIONS - 1}@.eval[0];
             INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Don't connect to self.
-            
 
             @{
                @{
@@ -44,23 +48,6 @@
                   );
                }@.if[@{ [sec] != [sec2] }@.eval]
             }@*.for[[sec2], 0, @{SECTIONS - 1}@.eval]
-
-
-            @{ THIS PART IS COMMENTED OUT since the calculation is too complex.
-               @{
-                  @{
-                     INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> ((@{ vec(section_[sec].drain.x; section_[sec].drain.y) }@.syntacticManhattenDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
-                        <= @{MAXDISTCONNECTIONS}@.eval[0]) -- Use Manhatten distance as upper bound.
-                     & (@{ vec(section_[sec].drain.x; section_[sec].drain.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
-                        >= @{MINDISTCONNECTIONS}@.eval[0]) -- Use only farther away coordinate as lower bound.
-                     & (section_[sec].angle != section_[sec2].angle) -- Angles have to differ (TODO: do they??).
-                     & (@{@{lines(line(vec(section_[sec].source.x; section_[sec].source.y); vec(section_[sec].drain.x; section_[sec].drain.y)); line(vec(section_[sec2].source.x; section_[sec2].source.y); vec(section_[sec2].drain.x; section_[sec2].drain.y)))}@.syntacticSegmentAndLineIntersect}@.serializeNuXmv) -- Don't intersect with imagined prolongued line segment 1.
-                     & (@{@{lines(line(vec(section_[sec2].source.x; section_[sec2].source.y); vec(section_[sec2].drain.x; section_[sec2].drain.y)); line(vec(section_[sec].source.x; section_[sec].source.y); vec(section_[sec].drain.x; section_[sec].drain.y)))}@.syntacticSegmentAndLineIntersect}@.serializeNuXmv) -- Don't intersect with imagined prolongued line segment 2.
-                     );
-                  }@.if[@{ [sec] != [sec2] }@.eval]
-               }@*.for[[sec2], 0, @{SECTIONS - 1}@.eval]
-            }@*********.nil
-
          }@**.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
 
 
