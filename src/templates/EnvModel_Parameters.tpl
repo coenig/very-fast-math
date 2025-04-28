@@ -22,7 +22,7 @@
 @{COORDGRANULARITY}@******.defaultValue[10]      -- Only every n-th coordinate in x and y direction can be used to place connection points on
 @{ANGLEGRANULARITY}@******.defaultValue[45]      -- Only every n-th angle (DEG) can be used between two sections at connection points (zero degrees is straight ahead)
 @{MAXOUTGOINGCONNECTIONS}@******.defaultValue[3] -- Maximum number of successors a straight road may have
-@{MINDISTCONNECTIONS}@******.defaultValue[10]    -- Two connection points have to be at least this far apart
+@{MINDISTCONNECTIONS}@******.defaultValue[20]    -- Two connection points have to be at least this far apart
 @{MAXDISTCONNECTIONS}@******.defaultValue[50]    -- Two connection points may not be more than this apart
 
 -- Parameters for ego and non-ego vehicles

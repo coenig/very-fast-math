@@ -51,7 +51,7 @@
       "NONEGOS": "#{1}#",
       "NUMLANES": "#{4}#",
       "SECTIONS": "#{sections}#",
-      "SECTIONSMINLENGTH": "#{10}#",
+      "SECTIONSMINLENGTH": "#{50}#",
       "SECTIONSMAXLENGTH": "#{150}#",
       "MAXOUTGOINGCONNECTIONS": "#{3}#",
       "SEGMENTS": "#{1}#",
