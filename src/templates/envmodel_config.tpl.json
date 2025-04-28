@@ -53,6 +53,8 @@
       "SECTIONS": "#{sections}#",
       "SECTIONSMINLENGTH": "#{50}#",
       "SECTIONSMAXLENGTH": "#{150}#",
+      "MINDISTCONNECTIONS": "#{15}#",
+      "MAXDISTCONNECTIONS": "#{20}#",
       "MAXOUTGOINGCONNECTIONS": "#{3}#",
       "SEGMENTS": "#{1}#",
       "SEGMENTSMINLENGTH": 0,
