@@ -16,7 +16,7 @@ Thank you for using
 
 ## Examples
 ![Image from a counterexample sequence generated through model checking](examples/cex.png?raw=true "Image from a counterexample sequence generated through model checking")
-![Model checking-generated street network](examples/mc_selfgen1.png?raw=true "Model checking-generated street network")
+<img src="examples/mc_selfgen1.png" alt="Model checking-generated street network" width="200"/>
 
 ## How to build
 `vfm` is implemented in `C++` and can be built with CMake (stable) or Bazel (experimental). With CMake, proceed as follows:
