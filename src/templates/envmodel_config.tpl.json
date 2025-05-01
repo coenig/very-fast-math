@@ -50,7 +50,7 @@
       "LTL_MODE": false,
       "NONEGOS": "#{1}#",
       "NUMLANES": "#{4}#",
-      "SECTIONS": "#{sections}#",
+      "SECTIONS": "#{1}#",
       "SECTIONSMINLENGTH": "#{50}#",
       "SECTIONSMAXLENGTH": "#{150}#",
       "MINDISTCONNECTIONS": "#{15}#",

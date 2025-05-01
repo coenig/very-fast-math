@@ -1871,6 +1871,15 @@ void vfm::MCScene::preprocessAndRewriteJSONTemplate()
       }
    }
 
+   if (variables.empty()) { // Mock some range to get exactly one config.
+      static const std::string DUMMY_RANGE_VAR_NAME{ "DUMMYVAR" };
+      variables.insert(DUMMY_RANGE_VAR_NAME);
+      int address{ data_->reserveHeap(2) };
+      data_->addOrSetSingleVal(DUMMY_RANGE_VAR_NAME, address);
+      data_->setHeapLocation(address, 0);
+      data_->setHeapLocation(address + 1, std::numeric_limits<float>::quiet_NaN());
+   }
+
    std::vector<std::pair<std::string, std::vector<float>>> ranges{};
    addNote("Recovering ranges from vfm heap.");
    for (const auto& var : variables) {
