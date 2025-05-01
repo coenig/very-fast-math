@@ -15,8 +15,8 @@ Thank you for using
 `vfm` is a formal verification software for [ADAS](https://en.wikipedia.org/wiki/Advanced_driver-assistance_system) with the [nuXmv model checker](https://nuxmv.fbk.eu/) in its core. It can parse C++ code of an automated driving function (or other) and translate it into a transition system for the nuXmv model checker. Optionally, it can be integrated with an environment model, providing a discrete traffic simulation for the driving function to be verified against. The resulting counterexamples can be visualized and converted into the [OSC2 format](https://www.asam.net/static_downloads/public/asam-openscenario/2.0.0/welcome.html).
 
 ## Examples
-![Image from a counterexample sequence generated through model checking](examples/cex.png?raw=true "Image from a counterexample sequence generated through model checking")
-<img src="examples/mc_selfgen1.png" alt="Model checking-generated street network" width="200"/>
+<img src="examples/cex.png" alt="Image from a counterexample sequence generated through model checking" width="800"/>
+<img src="examples/mc_selfgen1.png" alt="Model checking-generated street network" width="400"/>
 
 ## How to build
 `vfm` is implemented in `C++` and can be built with CMake (stable) or Bazel (experimental). With CMake, proceed as follows:
