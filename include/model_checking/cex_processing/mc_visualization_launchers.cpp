@@ -288,13 +288,13 @@ bool VisualizationLaunchers::quickGenerateGIFs(
       gen_config_smooth.frames_per_second_gif = 40;
       gen_config_smooth.frames_per_second_osc = 40;
 
-      //VisualizationLaunchers::interpretAndGenerate(
-      //   trace,
-      //   path,
-      //   "preview",
-      //   SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
-      //   agents_to_draw_arrows_for,
-      //   gen_config_smooth, "preview");
+      VisualizationLaunchers::interpretAndGenerate(
+         trace,
+         path,
+         "preview",
+         SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
+         agents_to_draw_arrows_for,
+         gen_config_smooth, "preview");
 
       VisualizationLaunchers::interpretAndGenerate(
          trace,
