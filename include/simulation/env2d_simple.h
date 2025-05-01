@@ -123,14 +123,15 @@ public:
       CarParsVec others_current_vec{};
       std::map<int, std::pair<float, float>> others_future_vec{};
 
-      //createOthersVecs(others_current_vec, others_future_vec, agents_to_draw_arrows_for, road_graph.getMyRoad(), future_data); // TODO: For whole road graph, not only single lane.
-
-      //env.agents_pos_x_[vehicle_index] = traj_pos.second.at(PossibleParameter::pos_x) - ego_x;
-      //env.agents_pos_y_[vehicle_index] = 2 + traj_pos.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
+      const bool infinite_highway{ road_graph->getNumberOfNodes() == 1 };
       
-      const Rec2D bounding_box{ road_graph->getBoundingBox() };
-      const float offset_x{ -bounding_box.upper_left_.x + 15 };
-      const float offset_y{ -bounding_box.upper_left_.y + 15 };
+      const Rec2D bounding_box{ infinite_highway ? Rec2D{} : road_graph->getBoundingBox() };
+      const float offset_x{ infinite_highway
+         ? 60 
+         : - bounding_box.upper_left_.x + 15 };
+      const float offset_y{ infinite_highway
+         ? (float)road_graph->getMyRoad().getNumLanes() / 2.0f 
+         : -bounding_box.upper_left_.y + 15 };
 
       outside_view_->paintRoadGraph(
          road_graph,
