@@ -215,7 +215,10 @@ namespace trajectory_generator {
 		std::vector<std::string> possible_vehicle_keys{
 			"veh___609___", "veh___619___", "veh___629___", "veh___639___", "veh___649___",
 			"veh___659___", "veh___669___", "veh___679___", "veh___689___", "veh___699___",
-			"veh___6109___", "veh___6119___", "veh___6129___", "veh___6139___", "veh___6149___" };
+			"veh___6109___", "veh___6119___", "veh___6129___", "veh___6139___", "veh___6149___",
+         "veh___6159___", "veh___6169___", "veh___6179___", "veh___6189___", "veh___6199___",
+			"veh___6209___", "veh___6219___", "veh___6229___", "veh___6239___", "veh___6249___",
+			"veh___6259___", "veh___6269___", "veh___6279___", "veh___6289___", "veh___6299___" };
 
 
 		auto preprocessing = [ego_vehicle_name](MCinterpretedTrace& traj) {

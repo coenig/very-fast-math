@@ -262,6 +262,15 @@ Vec2Df vfm::RoadGraph::getOriginPoint() const
    return origin_point_;
 }
 
+Vec2Df vfm::RoadGraph::getDrainPoint() const
+{
+   // section_[sec].drain.x := section_[sec].source.x + (section_[sec]_end * cos_of_section_[sec]_angle) / 100
+   // section_[sec].drain.y := section_[sec].source.y + (section_[sec]_end * sin_of_section_[sec]_angle) / 100;
+
+   return { origin_point_.x + const_cast<RoadGraph*>(this)->getMyRoad().section_end_ * std::cos(angle_), 
+            origin_point_.y + const_cast<RoadGraph*>(this)->getMyRoad().section_end_ * std::sin(angle_) };
+}
+
 float vfm::RoadGraph::getAngle() const
 {
    return angle_;
@@ -293,7 +302,7 @@ void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
    assert(r_ego->isRootedInZeroAndUnturned());
 }
 
-constexpr float EPS{ 0.01 };
+static constexpr float EPS{ 0.01 };
 bool vfm::RoadGraph::isOriginAtZero() const
 {
 
@@ -339,14 +348,30 @@ void vfm::RoadGraph::setAngle(const float angle)
 
 void vfm::RoadGraph::addSuccessor(const std::shared_ptr<RoadGraph> subgraph)
 {
+   for (const auto& el : successors_) if (el == subgraph) return; // Already is a successor
+
    successors_.push_back(subgraph);
    subgraph->predecessors_.push_back(shared_from_this());
 }
 
 void vfm::RoadGraph::addPredecessor(const std::shared_ptr<RoadGraph> subgraph)
 {
+   for (const auto& el : predecessors_) if (el == subgraph) return; // Already is a predecessor
+
    predecessors_.push_back(subgraph);
    subgraph->successors_.push_back(shared_from_this());
+}
+
+Rec2D vfm::RoadGraph::getBoundingBox() const
+{
+   Pol2D temp_pol{};
+
+   const_cast<RoadGraph*>(this)->applyToMeAndAllMySuccessorsAndPredecessors([&temp_pol](const std::shared_ptr<RoadGraph> r) {
+      temp_pol.add(r->getOriginPoint());
+      temp_pol.add(r->getDrainPoint());
+   });
+
+   return *temp_pol.getBoundingBox();
 }
 
 std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getSuccessors() const

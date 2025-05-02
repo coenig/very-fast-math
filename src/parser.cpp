@@ -296,6 +296,12 @@ void FormulaParser::init() {
       { SYMB_PLUS, { { TermPlus::my_struct.arg_num, TermPlus::my_struct } } },
       { SYMB_POW, { { TermPow::my_struct.arg_num, TermPow::my_struct } } },
       { SYMB_LN, { { TermLn::my_struct.arg_num, TermLn::my_struct } } },
+      { SYMB_SIN, { { TermSin::my_struct.arg_num, TermSin::my_struct } } },
+      { SYMB_COS, { { TermCos::my_struct.arg_num, TermCos::my_struct } } },
+      { SYMB_TAN, { { TermTan::my_struct.arg_num, TermTan::my_struct } } },
+      { SYMB_ARCSIN, { { TermASin::my_struct.arg_num, TermASin::my_struct } } },
+      { SYMB_ARCCOS, { { TermACos::my_struct.arg_num, TermACos::my_struct } } },
+      { SYMB_ARCTAN, { { TermATan::my_struct.arg_num, TermATan::my_struct } } },
       { SYMB_MINUS, { { TermMinus::my_struct.arg_num, TermMinus::my_struct } } },
       { SYMB_MULT, { { TermMult::my_struct.arg_num, TermMult::my_struct } } },
       { SYMB_DIV, { { TermDiv::my_struct.arg_num, TermDiv::my_struct } } },
@@ -375,6 +381,12 @@ std::shared_ptr<Term> FormulaParser::termFactory(
    if (optor == SYMB_PLUS && terms.size() == OPNUM_PLUS) return std::make_shared<TermPlus>(terms);
    if (optor == SYMB_POW && terms.size() == OPNUM_POW) return std::make_shared<TermPow>(terms);
    if (optor == SYMB_LN && terms.size() == OPNUM_LN) return std::make_shared<TermLn>(terms);
+   if (optor == SYMB_SIN && terms.size() == OPNUM_SIN) return std::make_shared<TermSin>(terms);
+   if (optor == SYMB_COS && terms.size() == OPNUM_COS) return std::make_shared<TermCos>(terms);
+   if (optor == SYMB_TAN && terms.size() == OPNUM_TAN) return std::make_shared<TermTan>(terms);
+   if (optor == SYMB_ARCSIN && terms.size() == OPNUM_ARCSIN) return std::make_shared<TermASin>(terms);
+   if (optor == SYMB_ARCCOS && terms.size() == OPNUM_ARCCOS) return std::make_shared<TermACos>(terms);
+   if (optor == SYMB_ARCTAN && terms.size() == OPNUM_ARCTAN) return std::make_shared<TermATan>(terms);
    if (optor == SYMB_MINUS && terms.size() == OPNUM_MINUS) return std::make_shared<TermMinus>(terms);
    if (optor == SYMB_MULT && terms.size() == OPNUM_MULT) return std::make_shared<TermMult>(terms);
    if (optor == SYMB_DIV && terms.size() == OPNUM_DIV) return std::make_shared<TermDiv>(terms);

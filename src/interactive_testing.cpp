@@ -250,6 +250,8 @@ void checkForChangedEnvModelTemplatesAndPossiblyReCreateCache(const std::filesys
 
 bool vfm::test::isCacheUpToDateWithTemplates(const std::filesystem::path& cached_path, const std::filesystem::path& template_path, const std::string& gui_name)
 {
+   if (!StaticHelper::existsFileSafe(cached_path)) return true; // If there is no cache, it's an "up-to-date" cornercase. All will be generated from scratch in next run.
+
    const std::filesystem::path envmodel_include_path{ template_path / ENVMODEL_INCLUDES_FILENAME };
    const std::filesystem::path cached_envmodel_include_path{ cached_path / ENVMODEL_INCLUDES_FILENAME };
 
@@ -659,6 +661,7 @@ InputParser vfm::test::createInputParserForMC(int& argc, char** argv)
    parser.addParameter(CMD_DIR_ROOT, "directory to read input files from", ".");
    parser.addParameter(CMD_DIR_TARGET, "directory for generated files, realtive to '" + CMD_DIR_ROOT + "'", "generated");
    parser.addParameter(CMD_ENV_MODEL_JSON_FILE, "config json for environment model definition, relative to '" + CMD_DIR_ROOT + "'", "envmodel_config.json");
+   parser.addParameter(CMD_JSON_TEMPLATE_FILE_NAME, "filename of the main json template file", "envmodel_config.tpl.json");
    parser.addParameter(CMD_TEMPLATE_DIR_PATH, "template dir, relative to '" + CMD_DIR_ROOT + "'", "../src/templates");
    parser.addParameter(CMD_ENV_MODEL_TEMPLATE, "path to the env model template file, relative to '" + CMD_DIR_ROOT + "'", "EnvModel.tpl");
    parser.addParameter(CMD_PLANNER_FILENAME, "path to the planner include file, relative to '" + CMD_DIR_ROOT + "'", "vfm-includes-planner.txt");
@@ -685,7 +688,14 @@ int vfm::test::artifactRun(int argc, char* argv[])
 
    if (inputs.getCmdOption(CMD_HELP) != "true") inputs.triggerErrorifAnyArgumentMissing();
 
-   if (inputs.getCmdOption(CMD_HELP) == "true" || inputs.hasErrorOccurred()) {
+   if (inputs.getCmdOption(CMD_HELP) == "true") {
+      inputs.addNote("vfm is a library for Model Checking of ADAS software.");
+      inputs.addNote("Run without parameters for GUI mode or use the below command line parameters, particularly '--mode' for specific run modes.");
+      inputs.printArgumentsForMC();
+      return EXIT_SUCCESS;
+   }
+
+   if (inputs.hasErrorOccurred()) {
       inputs.printArgumentsForMC();
       return EXIT_FAILURE;
    }
@@ -1537,7 +1547,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          float vx{ std::stof(data[3]) };
          float vy{ std::stof(data[4]) };
 
-         x = std::max(std::min(x, std::numeric_limits<float>::max()), -300.0f);
+         x = std::max(std::min(x, std::numeric_limits<float>::max()), std::numeric_limits<float>::min());
          vx = std::max(std::min(vx, 70.0f), 0.0f);
 
          main_file += "INIT env.veh___6" + std::to_string(i) + "9___.rel_pos = " + std::to_string((int)(x - ego_pos)) + ";\n";
@@ -1545,10 +1555,17 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
 
          std::set<int> lanes{};
 
-         if (y < 4) lanes.insert(3);
-         if (y > 0 && y < 8) lanes.insert(2);
-         if (y > 4 && y < 12) lanes.insert(1);
-         if (y > 8) lanes.insert(0);
+         static constexpr float EPS{ 1 };
+
+         if (y < 4 - EPS) lanes.insert(3);
+         if (y > 0 + EPS && y < 8 - EPS) lanes.insert(2);
+         if (y > 4 + EPS && y < 12 - EPS) lanes.insert(1);
+         if (y > 8 + EPS) lanes.insert(0);
+
+         //if (y < 4) lanes.insert(3);
+         //if (y > 0 && y < 8) lanes.insert(2);
+         //if (y > 4 && y < 12) lanes.insert(1);
+         //if (y > 8) lanes.insert(0);
 
          for (int lane = 0; lane <= 3; lane++) {
             main_file += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";

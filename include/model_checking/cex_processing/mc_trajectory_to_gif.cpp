@@ -159,7 +159,7 @@ const auto VARIABLES_TO_BE_PAINTED = std::make_shared<std::vector<PainterVariabl
 void LiveSimGenerator::generate(
    const std::string& base_output_name,
    const std::set<int>& agents_to_draw_arrows_for,
-   StraightRoadSection& lane_structure,
+   const std::shared_ptr<RoadGraph> road_graph,
    const std::string& stage_name,
    const LiveSimType visu_type,
    const std::vector<vfm::OutputType> single_images_output_types,
@@ -193,7 +193,7 @@ void LiveSimGenerator::generate(
 
       // Provide ego data
       env.ego_vx_ = current_ego.second.at(PossibleParameter::vel_x) / x_scaling;
-      env.ego_pos_y_ = lane_structure.getNumLanes() - 1 + current_ego.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
+      env.ego_pos_y_ = road_graph->getMyRoad().getNumLanes() - 1 + current_ego.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
       env.ego_pos_x_ = current_ego.second.at(PossibleParameter::pos_x);
       
       if (current_ego.second.at(PossibleParameter::turn_signal_left) > 0.5)
@@ -216,7 +216,7 @@ void LiveSimGenerator::generate(
          auto& traj_pos = m_trajectory_provider.getVehicleTrajectory(vehicle_name)[trajectory_index];
 
          env.agents_pos_x_[vehicle_index] = traj_pos.second.at(PossibleParameter::pos_x) - env.ego_pos_x_;
-         env.agents_pos_y_[vehicle_index] = lane_structure.getNumLanes() - 1 + traj_pos.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
+         env.agents_pos_y_[vehicle_index] = road_graph->getMyRoad().getNumLanes() - 1 + traj_pos.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
          env.agents_vx_rel_[vehicle_index] = traj_pos.second.at(PossibleParameter::vel_x) / x_scaling - env.ego_vx_;
 
          if (traj_pos.second.at(PossibleParameter::turn_signal_left) > 0.5)
@@ -243,7 +243,7 @@ void LiveSimGenerator::generate(
          m_trajectory_provider.getDataTrace().size() > trajectory_index + 1 ? m_trajectory_provider.getDataTrace().at(trajectory_index + 1) : nullptr,
          VARIABLES_TO_BE_PAINTED,
          agents_to_draw_arrows_for,
-         lane_structure);
+         road_graph);
 
       // Determine frame duration from trajectory
       double frame_duration;
@@ -298,7 +298,7 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
    const DataPackPtr future_data,
    const std::shared_ptr<std::vector<PainterVariableDescription>> variables_to_be_painted,
    const std::set<int>& agents_to_draw_arrows_for,
-   StraightRoadSection& lane_structure
+   const std::shared_ptr<RoadGraph> road_graph
    )
 {
    const bool activate_pdf{ ((visu_type & LiveSimType::constant_image_output) || (visu_type & LiveSimType::incremental_image_output))
@@ -322,7 +322,7 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
          activate_pdf,
          CREATE_COCKPIT_VIEW ? 0 : 900, // TODO: Not so nice to hard-code this. But cropping the birds-eye view like this is often beneficial when used as a figure in a text.
          CREATE_COCKPIT_VIEW ? 0 : 700,
-         lane_structure)
+         road_graph)
       : nullptr;
 
    if (birds_eye)
@@ -337,7 +337,7 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
          var_vals,
          actual_future_data,
          activate_pdf,
-         lane_structure,
+         road_graph,
          width_cpv, 
          height_cpv)
       : nullptr;

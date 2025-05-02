@@ -474,7 +474,7 @@ void vfm::Failable::addFailableChild(const std::shared_ptr<const Failable> child
       }
    }
    else {
-      addDebug("Failable child '" + child->failable_name_ + "' not added because it is already a child of this failable.");
+      //addDebug("Failable child '" + child->failable_name_ + "' not added because it is already a child of this failable.");
    }
 #endif
 }

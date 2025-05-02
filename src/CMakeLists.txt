@@ -65,6 +65,7 @@ set(VFM_MAIN_SOURCES
    term_plus.cpp
    term_pow.cpp
    term_ln.cpp
+   terms_trigonometry.cpp
    term_rand.cpp
    term_trunc.cpp
    term_val.cpp
