@@ -3,8 +3,8 @@
 -- Sections
 --------------------------------------------------------
 
-   INIT outgoing_connection_0_of_section_0 != -1; --TODO
-   INIT outgoing_connection_1_of_section_0 != -1; --TODO
+   -- INIT outgoing_connection_0_of_section_0 != -1; -- Make first section split...
+   -- INIT outgoing_connection_1_of_section_0 != -1; -- ...into two target roads.
 
    @{
       FROZENVAR
@@ -32,7 +32,7 @@
       section_[sec].drain.x := section_[sec].source.x + (section_[sec]_end * cos_of_section_[sec]_angle) / 100;
       section_[sec].drain.y := section_[sec].source.y + (section_[sec]_end * sin_of_section_[sec]_angle) / 100;
  
-      INIT outgoing_connection_0_of_section_[sec] != outgoing_connection_1_of_section_[sec]; -- TODO
+      -- INIT outgoing_connection_0_of_section_[sec] != outgoing_connection_1_of_section_[sec]; -- If we want to have at least one outgoing connection for all roads.
 
          @{
             FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1..@{SECTIONS - 1}@.eval[0];
