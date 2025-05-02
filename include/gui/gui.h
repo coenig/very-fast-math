@@ -39,7 +39,6 @@ namespace vfm {
 static const std::string GUI_NAME{ "M²oRTy" };
 static const std::string PROSE_DESC_NAME{ "prose_scenario_description.txt" };
 static const std::string FILE_NAME_JSON{ "envmodel_config.json" };
-static const std::string FILE_NAME_JSON_TEMPLATE{ "envmodel_config.tpl.json" };
 static float TIMEOUT_FREQUENT{ 0.05 };
 static float TIMEOUT_RARE{ 0.5 };
 static float TIMEOUT_SOMETIMES{ 2 };
@@ -62,12 +61,21 @@ static bool detached_run_running{ false };
 /// information such as "env models have been generated", "model checker run completed" etc. are derived from the file structure
 /// in the respective directories.
 /// 
+
+enum class ButtonClass {
+   RunButtons,
+   DeleteButtons,
+   All,
+   None
+};
+
 class MCScene : public Failable {
 public:
    MCScene(const InputParser& inputs);
    void copyWaitingForPreviewGIF();
    void refreshPreview();
-   void activateMCButtons(const bool active);
+
+   void activateMCButtons(const bool active, const ButtonClass which);
    bool isLTL(const std::string& config);
    int bmcDepth(const std::string& config);
 
@@ -215,6 +223,7 @@ private:
 
    ProgressDetector progress_detector_{};
 
+   std::string json_tpl_filename_{};
    std::string path_to_template_dir_{};
    std::string path_to_external_folder_{};
 };

@@ -115,6 +115,10 @@ static constexpr int MIN_DISTANCE_BETWEEN_SEGMENTS{ 20 };
 
 /// <summary>
 /// Sequence of LaneSegment's.
+/// begin1 = 0   begin2            begin_n    section_end_  
+/// ------------------------------------------
+///   SEG1       |  SEG2  | ... |  SEG n     |
+/// ------------------------------------------
 /// </summary>
 class StraightRoadSection : public Failable {
 public:
@@ -165,6 +169,7 @@ public:
 
    StraightRoadSection& getMyRoad();
    Vec2D getOriginPoint() const;
+   Vec2D getDrainPoint() const;
    float getAngle() const;
 
    /// <summary>
@@ -188,6 +193,8 @@ public:
    void addSuccessor(const std::shared_ptr<RoadGraph> subgraph);
    void addPredecessor(const std::shared_ptr<RoadGraph> subgraph);
 
+   Rec2D getBoundingBox() const;
+
    std::vector<std::shared_ptr<RoadGraph>> getSuccessors() const;
    std::vector<std::shared_ptr<RoadGraph>> getPredecessors() const;
 
@@ -198,7 +205,7 @@ public:
    StraightRoadSection my_road_{}; // TODO: Make private.
 private:
    Vec2D origin_point_{ 0.0F, 0.0F };
-   float angle_{ 0 };
+   float angle_{ 0 }; // In RAD
    int id_{};
 
    std::vector<std::shared_ptr<RoadGraph>> successors_{};

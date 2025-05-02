@@ -186,6 +186,7 @@ inline std::pair<std::vector<CarPars>, std::vector<CarParsVec>> createOthersVecs
       for (int i{ 0 }; i < num_cars; i++) {
          CarPars other{};
 
+         other.car_id_ = i;
          other.car_lane_ = (LANE_CONSTANT - data->getSingleVal("veh___6" + std::to_string(i) + "9___.on_lane")) / 2;
          other.car_rel_pos_ = data->getSingleVal("veh___6" + std::to_string(i) + "9___.rel_pos");
          other.car_velocity_ = data->getSingleVal("veh___6" + std::to_string(i) + "9___.v");
@@ -202,11 +203,11 @@ inline std::pair<std::vector<CarPars>, std::vector<CarParsVec>> createOthersVecs
 
 std::string VisualizationLaunchers::writeProseTrafficScene(const MCTrace trace)
 {
-   const auto lane_structure{ getLaneStructureFrom(trace) };
+   const auto road_graph{ getLaneStructureFrom(trace) };
    const auto config = InterpretationConfiguration::getLaneChangeConfiguration();
    const MCinterpretedTrace interpreted_trace(0, { trace }, config);
    const auto data_vec{ interpreted_trace.getDataTrace() };
-   const auto pair{ createOthersVecs(data_vec, lane_structure) };
+   const auto pair{ createOthersVecs(data_vec, road_graph->getMyRoad()) };
    const auto ego_vec{ pair.first };
    const auto others_vec{ pair.second };
    std::string res{};
@@ -369,34 +370,52 @@ bool VisualizationLaunchers::quickGenerateGIFs(
    return true;
 }
 
-StraightRoadSection vfm::mc::trajectory_generator::VisualizationLaunchers::getLaneStructureFrom(const MCTrace& trace)
+std::shared_ptr<RoadGraph> vfm::mc::trajectory_generator::VisualizationLaunchers::getLaneStructureFrom(const MCTrace& trace)
 {
    if (trace.empty()) Failable::getSingleton()->addError("Received empty trace for 'getLaneStructureFrom'.");
 
-   StraightRoadSection lane_structure{};
-   lane_structure.setNumLanes(std::stoi(trace.at(0).second.at("num_lanes")));
+   const auto first_state{ trace.at(0).second };
 
-   for (int i = 0; ; i++) {
-      std::string segment_begin_name{ "segment_" + std::to_string(i) + "_pos_begin" };
-      std::string segment_min_lane_name{ "segment_" + std::to_string(i) + "_min_lane" };
-      std::string segment_max_lane_name{ "segment_" + std::to_string(i) + "_max_lane" };
+   const auto segment_begin_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_pos_begin"; };
+   const auto segment_min_lane_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_min_lane"; };
+   const auto segment_max_lane_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_max_lane"; };
+   const auto connection = [](const int sec, const int con) -> std::string { return "env.outgoing_connection_" + std::to_string(con) + "_of_section_" + std::to_string(sec); };
 
-      auto first_state{ trace.at(0).second };
+   std::vector<std::shared_ptr<RoadGraph>> road_graphs{};
 
-      if (first_state.count(segment_begin_name) && first_state.count(segment_min_lane_name) && first_state.count(segment_max_lane_name)) {
-         lane_structure.addLaneSegment({
-            std::stof(first_state.at(segment_begin_name)),
-            (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_max_lane_name))) * 2, // Remove "* 2"...
-            (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_min_lane_name))) * 2, // ...to activate hard shoulders.
-            }
-         );
+   for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
+      road_graphs.push_back(std::make_shared<RoadGraph>(sec));
+      StraightRoadSection lane_structure{std::stoi(first_state.at("num_lanes")), std::stof(first_state.at("section_" + std::to_string(sec) + "_end")) };
+      lane_structure.setNumLanes(std::stoi(trace.at(0).second.at("num_lanes")));
+
+      for (int seg = 0; first_state.count(segment_min_lane_name(sec, seg)); seg++) {
+            lane_structure.addLaneSegment({
+               std::stof(first_state.at(segment_begin_name(sec, seg))),
+               (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_max_lane_name(sec, seg)))) * 2, // Remove "* 2"...
+               (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_min_lane_name(sec, seg)))) * 2, // ...to activate hard shoulders.
+               }
+               );
       }
-      else {
-         break;
+      
+      road_graphs[sec]->setOriginPoint({ 
+         std::stof(first_state.at("section_" + std::to_string(sec) + ".source.x")),
+         std::stof(first_state.at("section_" + std::to_string(sec) + ".source.y"))});
+      
+      road_graphs[sec]->setAngle(2.0 * 3.1415 * std::stof(first_state.at("section_" + std::to_string(sec) + ".angle")) / 360.0);
+      road_graphs[sec]->setMyRoad(lane_structure);
+   }
+
+   for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
+      for (int connect = 0; first_state.count(connection(sec, connect)); connect++) {
+         int successor = std::stof(first_state.at(connection(sec, connect)));
+
+         if (successor >= 0) { // -1 is code for "not present".
+            road_graphs[sec]->addSuccessor(road_graphs.at(successor));
+         }
       }
    }
 
-   return lane_structure;
+   return road_graphs[0];
 }
 
 bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
@@ -464,11 +483,16 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
 
       interpreted_trace.applyScaling(1.0, -1.0, 1.0); // flip y
 
-      auto lane_structure{ getLaneStructureFrom(trace) };
+      auto road_graph{ getLaneStructureFrom(trace) };
 
+      // TODO
+      auto others = createOthersVecs(interpreted_trace.getDataTrace(), road_graph->getMyRoad());
+      road_graph->getMyRoad().setEgo(std::make_shared<CarPars>(others.first.at(0)));
+      road_graph->getMyRoad().setOthers(others.second.at(0));
+      
       LiveSimGenerator(interpreted_trace).generate(out_path,
          agents_to_draw_arrows_for,
-         lane_structure,
+         road_graph,
          stage_name,
          sim_type,
          { OutputType::png, OutputType::pdf },
