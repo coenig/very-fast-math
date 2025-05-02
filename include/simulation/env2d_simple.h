@@ -61,17 +61,17 @@ public:
    }
 
    inline void createOthersVecs(
-      CarParsVec& others_vec, 
       std::map<int, std::pair<float, float>>& others_future_vec,
       const std::set<int>& agents_to_draw_arrows_for,
-      StraightRoadSection& lane_structure,
+      const std::shared_ptr<RoadGraph> road_graph,
       const DataPackPtr future_data
-      ) const
+   ) const
    {
-      const float LANE_CONSTANT{ ((float)lane_structure.getNumLanes() - 1) * 2 };
-
+      const float LANE_CONSTANT{ ((float)road_graph->getMyRoad().getNumLanes() - 1) * 2}; // TODO: What is different sections have different numbers of lanes?
       for (int i{}; i < num_cars_; i++) {
+         CarParsVec others_vec{ road_graph->findSectionWithCar(i)->getMyRoad().getOthers() };
          others_vec.push_back({ agents_pos_y_[i], agents_pos_x_[i], (int)((agents_vx_rel_[i] + ego_vx_) * SPEED_DIVISOR_FOR_STEP_SMOOTHNESS), i });
+         road_graph->findSectionWithCar(i)->getMyRoad().setOthers(others_vec);
 
          if (future_data && agents_to_draw_arrows_for.count(i)) {
             others_future_vec.insert(
@@ -120,8 +120,8 @@ public:
 
       outside_view_->fillImg(BROWN);
 
-      CarParsVec others_current_vec{};
       std::map<int, std::pair<float, float>> others_future_vec{};
+      createOthersVecs(others_future_vec, agents_to_draw_arrows_for, road_graph, future_data);
 
       const bool infinite_highway{ road_graph->getNumberOfNodes() == 1 };
       
@@ -169,9 +169,8 @@ public:
          cockpit_view_mirror_->restartPDF();
       }
 
-      CarParsVec others_vec{};
       std::map<int, std::pair<float, float>> others_future_vec{};
-      //createOthersVecs(others_vec, others_future_vec, agents_to_draw_arrows_for, lane_structure, future_data);
+      createOthersVecs(others_future_vec, agents_to_draw_arrows_for, road_graph, future_data);
 
       auto no_trans{std::make_shared<DefaultHighwayTranslator>()};
       cockpit_view_->setTranslator(no_trans);
