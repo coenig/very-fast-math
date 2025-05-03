@@ -319,16 +319,9 @@ int vfm::RoadGraph::getID() const
    return id_;
 }
 
-int vfm::RoadGraph::getNumberOfNodes() const
+int vfm::RoadGraph::getNodeCount() const
 {
-   int cnt{ 0 };
-
-   const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([&cnt](const std::shared_ptr<RoadGraph>) -> bool {
-      cnt++;
-      return false;
-   });
-
-   return cnt;
+   return getAllNodes().size(); // TODO: This is not very efficient but works for now.
 }
 
 void vfm::RoadGraph::setMyRoad(const StraightRoadSection& section)
@@ -384,7 +377,7 @@ std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getPredecessors() const
    return predecessors_;
 }
 
-std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getAllNodes() const
+std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getAllNodes() const // TODO: Why not use set? (I believe there WAS a reason...)
 {
    std::vector<std::shared_ptr<RoadGraph>> res{};
 
@@ -400,7 +393,27 @@ std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getAllNodes() const
    return res;
 }
 
+using namespace xml;
+
 std::shared_ptr<xml::CodeXML> vfm::RoadGraph::generateOSM() const
 {
-   return nullptr;
+   std::cout << "Road graph has '" << getNodeCount() << "' sections." << std::endl << std::endl;
+
+   std::shared_ptr<CodeXML> code{ CodeXML::beginXML() };
+   std::shared_ptr<CodeXML> nodes_code{ CodeXML::emptyXML() };
+   std::shared_ptr<CodeXML> way_inner_code{ CodeXML::emptyXML() };
+
+   nodes_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("node", { {"id", "0"}, {"visible", "true"}, {"version", "1"}, {"lat", "49.00025283925"}, {"lon", "8.4547305243"} }));
+   nodes_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("node", { {"id", "1"}, {"visible", "true"}, {"version", "1"}, {"lat", "49.00025283925"}, {"lon", "8.4547305243"} }));
+   nodes_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("node", { {"id", "2"}, {"visible", "true"}, {"version", "1"}, {"lat", "49.00025283925"}, {"lon", "8.4547305243"} }));
+   nodes_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("node", { {"id", "3"}, {"visible", "true"}, {"version", "1"}, {"lat", "49.00025283925"}, {"lon", "8.4547305243"} }));
+
+   way_inner_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("nd", { {"ref", "1087001"} }));
+   way_inner_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("nd", { {"ref", "1087002"} }));
+   way_inner_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("tag", { {"k", "rl:meta:country_code"}, {"v", "276"} }));
+
+   nodes_code->appendAtTheEnd(CodeXML::retrieveElementWithXMLContent("way", { {"id", "4"},{ "visible", "true"}, {"version", "1" } }, way_inner_code));
+   code->appendAtTheEnd(CodeXML::retrieveElementWithXMLContent("osm", { {"version", "0.6"}, {"upload", "false"}, {"generator", "vfm"} }, nodes_code));
+
+   return code;
 }

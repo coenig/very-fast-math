@@ -127,7 +127,7 @@ public:
       std::map<int, std::pair<float, float>> others_future_vec{};
       createOthersVecs(others_future_vec, agents_to_draw_arrows_for, road_graph, future_data);
 
-      const bool infinite_highway{ road_graph->getNumberOfNodes() == 1 };
+      const bool infinite_highway{ road_graph->getNodeCount() == 1 };
       
       const Rec2D bounding_box{ infinite_highway ? Rec2D{} : road_graph->getBoundingBox() };
       const float offset_x{ infinite_highway

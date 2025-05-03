@@ -14,7 +14,7 @@
 #include "model_checking/counterexample_replay.h"
 #include "vfmacro/script.h"
 #include "gui/gui.h"
-#include "xml/xml_generator.h"
+#include "simulation/road_graph.h"
 // #include "examples/fct_enumdefinitions.h" // TODO: This does not work on Linux (needed for replayCounterExample).
 
 using namespace vfm;
@@ -25,16 +25,9 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   std::shared_ptr<CodeXML> code{ CodeXML::beginXML() };
-   std::shared_ptr<CodeXML> sub_code{ CodeXML::retrieveParsOnlyElement("node", {{"id", "0"}, {"visible", "true"}, {"version", "1"}, {"lat", "49.00025283925"}, {"lon", "8.4547305243"} }) };
-
-   sub_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("node", { {"id", "1"}, {"visible", "true"}, {"version", "1"}, {"lat", "49.00025283925"}, {"lon", "8.4547305243"} }));
-   sub_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("node", { {"id", "2"}, {"visible", "true"}, {"version", "1"}, {"lat", "49.00025283925"}, {"lon", "8.4547305243"} }));
-   sub_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("node", { {"id", "3"}, {"visible", "true"}, {"version", "1"}, {"lat", "49.00025283925"}, {"lon", "8.4547305243"} }));
-   
-   code->appendAtTheEnd(CodeXML::retrieveElementWithXMLContent("osm", { {"version", "0.6"}, {"upload", "false"}, {"generator", "vfm"} }, sub_code));
-
-   std::cout << code->serializeBlock() << std::endl;
+   auto traces = StaticHelper::extractMCTracesFromNusmvFile("../examples/gp_config_sections=5/debug_trace_array.txt");
+   std::shared_ptr<RoadGraph> r{ mc::trajectory_generator::VisualizationLaunchers::getRoadGraphFrom(traces.at(0)) };
+   std::cout << r->generateOSM()->serializeBlock() << std::endl;
    termnate();
 
    //mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(

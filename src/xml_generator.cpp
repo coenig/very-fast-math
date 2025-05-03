@@ -16,11 +16,6 @@ std::string convertParsToString(const vfm::VarVals& pars)
    return res;
 }
 
-vfm::xml::CodeXML::CodeXML(const std::string& tag)
-   : CodeBlockCustom("</" + tag + ">",
-      "", "<!--", "-->", "#ERROR-NO-INLINE-COMMENTS-IN-XML"), tag_{ tag } {
-}
-
 vfm::xml::CodeXML::CodeXML(const std::string& tag, const VarVals& pars)
    : CodeBlockCustom("<" + tag + convertParsToString(pars) + " />",
       "", "<!--", "-->", "#ERROR-NO-INLINE-COMMENTS-IN-XML"), tag_{ tag }, pars_{ pars } {}
@@ -40,6 +35,8 @@ std::string vfm::xml::CodeXML::serializeSingleLine() const
 
 std::string vfm::xml::CodeXML::serializeSingleLine(const int indent, const std::string& formula_name) const
 {
+   if (tag_ == EMPTY_XML_DENOTER) return "";
+
    std::string s = indentation(indent) + getContent() + "\n";
 
    if (complex_content_) {
@@ -56,5 +53,12 @@ std::shared_ptr<CodeXML> vfm::xml::CodeXML::beginXML(const VarVals& pars)
 
    res->setContent("<?xml" + convertParsToString(pars) + "?>");
 
+   return res;
+}
+
+std::shared_ptr<CodeXML> vfm::xml::CodeXML::emptyXML()
+{
+   auto res = std::make_shared<CodeXML>(EMPTY_XML_DENOTER, VarVals{});
+   res->tag_ = EMPTY_XML_DENOTER;
    return res;
 }

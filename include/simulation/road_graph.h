@@ -185,7 +185,7 @@ public:
    void normalizeRoadGraphToEgoSection();
 
    int getID() const;
-   int getNumberOfNodes() const;
+   int getNodeCount() const;
 
    void setMyRoad(const StraightRoadSection& section);
    void setOriginPoint(const Vec2D& point);

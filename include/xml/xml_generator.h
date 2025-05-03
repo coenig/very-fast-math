@@ -10,10 +10,11 @@
 
 namespace vfm::xml {
 
+static const std::string EMPTY_XML_DENOTER{ "<#EMPTY>" };
+
 class CodeXML : public code_block::CodeBlockCustom
 {
 public:
-   CodeXML(const std::string& tag);                                                                // "</tag>" // End tag.
    CodeXML(const std::string& tag, const VarVals& pars);                                           // "<tag par0="val0" par1="val1" ... />"
    CodeXML(const std::string& tag, const VarVals& pars, const std::string& content);               // "<tag par0="val0" par1="val1" ... > content </tag>"
    CodeXML(const std::string& tag, const VarVals& pars, const std::shared_ptr<CodeXML> content);   // "<tag par0="val0" par1="val1" ... > *xml sub-content* </tag>"
@@ -22,7 +23,7 @@ public:
    std::string serializeSingleLine(const int indent, const std::string& formula_name) const override;
 
    static std::shared_ptr<CodeXML> beginXML(const VarVals& pars = { { "version", "1.0" } });
-   static inline std::shared_ptr<CodeXML> retrieveEndTag(const std::string& tag) { return std::make_shared<CodeXML>(tag); }
+   static std::shared_ptr<CodeXML> emptyXML();
    static inline std::shared_ptr<CodeXML> retrieveParsOnlyElement(const std::string& tag, const VarVals& pars) { return std::make_shared<CodeXML>(tag, pars); }
    static inline std::shared_ptr<CodeXML> retrieveElementWithSimpleContent(const std::string& tag, const VarVals& pars, const std::string& content) { return std::make_shared<CodeXML>(tag, pars, content); }
    static inline std::shared_ptr<CodeXML> retrieveElementWithXMLContent(const std::string& tag, const VarVals& pars, const std::shared_ptr<CodeXML> content) { return std::make_shared<CodeXML>(tag, pars, content); }
