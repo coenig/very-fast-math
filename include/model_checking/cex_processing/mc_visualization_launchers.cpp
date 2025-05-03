@@ -405,6 +405,11 @@ std::shared_ptr<RoadGraph> vfm::mc::trajectory_generator::VisualizationLaunchers
       road_graphs[sec]->setMyRoad(lane_structure);
    }
 
+   // TODO: set actual EGO?
+   CarPars c{ 0, 0, 0, vfm::HighwayImage::EGO_MOCK_ID };
+   road_graphs[0]->getMyRoad().setEgo(std::make_shared<CarPars>());
+   // EO TODO
+
    for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
       for (int connect = 0; first_state.count(connection(sec, connect)); connect++) {
          int successor = std::stof(first_state.at(connection(sec, connect)));
