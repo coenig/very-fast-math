@@ -7,7 +7,7 @@
 
 #include "testing/test_functions.h"
 #include "testing/interactive_testing.h"
-#include "simplification/simplification_function.h"
+#include "simplification/code_block.h"
 #include "model_checking/cex_processing/mc_visualization_launchers.h"
 #include "cpp_parsing/cpp_parser.h"
 #include "cpp_parsing/options.h"
@@ -92,9 +92,9 @@ int main(int argc, char* argv[])
    //processCEX("../examples/env_model_devel/generator/2024_01_09_Artificial2", CexType(CexTypeEnum::smv).getEnumAsString().c_str(), true, true);
    //termnate();
 
-   //simplification::CodeGenerator::deleteAndWriteSimplificationRulesToFile(simplification::CodeGenerationMode::positive, "../include/simplification/simplification_pos.h");     // Normal mode.
-   //simplification::CodeGenerator::deleteAndWriteSimplificationRulesToFile(simplification::CodeGenerationMode::negative, "../include/simplification/simplification.h"); // Normal mode (negative).
-   //simplification::CodeGenerator::deleteAndWriteSimplificationRulesToFile(simplification::CodeGenerationMode::negative, "../include/model_checking/simplification.h", nullptr, true); // MC mode (negative).
+   //code_block::CodeGenerator::deleteAndWriteSimplificationRulesToFile(code_block::CodeGenerationMode::positive, "../include/simplification/simplification_pos.h");     // Normal mode.
+   //code_block::CodeGenerator::deleteAndWriteSimplificationRulesToFile(code_block::CodeGenerationMode::negative, "../include/simplification/simplification.h"); // Normal mode (negative).
+   //code_block::CodeGenerator::deleteAndWriteSimplificationRulesToFile(code_block::CodeGenerationMode::negative, "../include/model_checking/simplification.h", nullptr, true); // MC mode (negative).
    //termnate();
 
    //std::string dir{"../examples/mc/G1-demo_FSM/"};
