@@ -11,30 +11,30 @@
 #include <memory>
 
 namespace vfm {
-namespace simplification {
+namespace code_block {
 
 static const std::string PLACEHOLDER_FORMULA_NAME{ "FORMULANAME" };
 
-class SimplificationFunctionLineCustom;
-class SimplificationFunctionLineDecl;
-class SimplificationFunctionLineDef;
-class SimplificationFunctionLineIf;
-class SimplificationFunctionLineNull;
-class SimplificationFunctionLinePlaceholder;
-class SimplificationFunctionLineReturn;
+class CodeBlockCustom;
+class CodeBlockDecl;
+class CodeBlockDef;
+class CodeBlockIf;
+class CodeBlockNull;
+class CodeBlockPlaceholder;
+class CodeBlockReturn;
 
-class SimplificationFunctionLine : public std::enable_shared_from_this<SimplificationFunctionLine>, public Failable
+class CodeBlock : public std::enable_shared_from_this<CodeBlock>, public Failable
 {
 public:
-   SimplificationFunctionLine(const std::string& content, const std::string& comment);
+   CodeBlock(const std::string& content, const std::string& comment);
 
    virtual std::string serializeSingleLine() const;
    virtual std::string serializeSingleLine(const int indent, const std::string& formula_name) const;
    std::string missingPredecessorNote() const;
-   void applyToMeAndMyChildren(const std::function<void(const std::shared_ptr<SimplificationFunctionLine>)>& f);
-   virtual void applyToMeAndMyChildren(const std::function<void(const std::shared_ptr<SimplificationFunctionLine>)>& f, bool& breakitoff);
-   virtual void applyToMeAndMyParents(const std::function<void(const std::shared_ptr<SimplificationFunctionLine>)>& f, const bool exclude_me = false);
-   void replace(const std::shared_ptr<SimplificationFunctionLine> line);
+   void applyToMeAndMyChildren(const std::function<void(const std::shared_ptr<CodeBlock>)>& f);
+   virtual void applyToMeAndMyChildren(const std::function<void(const std::shared_ptr<CodeBlock>)>& f, bool& breakitoff);
+   virtual void applyToMeAndMyParents(const std::function<void(const std::shared_ptr<CodeBlock>)>& f, const bool exclude_me = false);
+   void replace(const std::shared_ptr<CodeBlock> line);
    
    bool isEmptyLine() const;
    bool isEmptyFromThisLineOn() const;
@@ -47,41 +47,41 @@ public:
 
    std::string serializeBlock() const;
    std::string serializeBlock(const int indent, const std::string& formula_name, const MarkerMode marker_mode = MarkerMode::automatic) const;
-   bool isStructurallyEqual(const std::shared_ptr<SimplificationFunctionLine> other);
+   bool isStructurallyEqual(const std::shared_ptr<CodeBlock> other);
 
-   virtual std::shared_ptr<SimplificationFunctionLineIf> toIfIfApplicable() { return nullptr; }
-   virtual std::shared_ptr<SimplificationFunctionLineReturn> toReturnIfApplicable() { return nullptr; }
-   virtual std::shared_ptr<SimplificationFunctionLineDecl> toDeclIfApplicable() { return nullptr; }
-   virtual std::shared_ptr<SimplificationFunctionLineDef> toDefIfApplicable() { return nullptr; }
-   virtual std::shared_ptr<SimplificationFunctionLineCustom> toCustomIfApplicable() { return nullptr; }
-   virtual std::shared_ptr<SimplificationFunctionLineNull> toNullIfApplicable() { return nullptr; }
-   virtual std::shared_ptr<SimplificationFunctionLinePlaceholder> toPlaceholderIfApplicable() { return nullptr; }
+   virtual std::shared_ptr<CodeBlockIf> toIfIfApplicable() { return nullptr; }
+   virtual std::shared_ptr<CodeBlockReturn> toReturnIfApplicable() { return nullptr; }
+   virtual std::shared_ptr<CodeBlockDecl> toDeclIfApplicable() { return nullptr; }
+   virtual std::shared_ptr<CodeBlockDef> toDefIfApplicable() { return nullptr; }
+   virtual std::shared_ptr<CodeBlockCustom> toCustomIfApplicable() { return nullptr; }
+   virtual std::shared_ptr<CodeBlockNull> toNullIfApplicable() { return nullptr; }
+   virtual std::shared_ptr<CodeBlockPlaceholder> toPlaceholderIfApplicable() { return nullptr; }
 
    virtual std::string getContent() const;
    bool containsLineBelowIncludingThis(const std::string& line) const;
    bool containsLineAboveIncludingThis(const std::string& line) const;
    void setContent(const std::string& content);
-   std::shared_ptr<SimplificationFunctionLine> getSuccessor() const;
-   std::shared_ptr<SimplificationFunctionLine> getPredecessor() const;
-   std::shared_ptr<SimplificationFunctionLine> getLastLine();
-   std::shared_ptr<SimplificationFunctionLine> getFirstLine();
+   std::shared_ptr<CodeBlock> getSuccessor() const;
+   std::shared_ptr<CodeBlock> getPredecessor() const;
+   std::shared_ptr<CodeBlock> getLastLine();
+   std::shared_ptr<CodeBlock> getFirstLine();
    bool checkForEqualDefinitions();
-   void setSuccessor(const std::shared_ptr<SimplificationFunctionLine> successor);
-   void setPredecessor(const std::shared_ptr<SimplificationFunctionLine> predecessor);
-   void appendAtTheEnd(const std::shared_ptr<SimplificationFunctionLine> line, const bool replace_last_line = false, const bool insert_one_before_end = false);
+   void setSuccessor(const std::shared_ptr<CodeBlock> successor);
+   void setPredecessor(const std::shared_ptr<CodeBlock> predecessor);
+   void appendAtTheEnd(const std::shared_ptr<CodeBlock> line, const bool replace_last_line = false, const bool insert_one_before_end = false);
    std::string getComment() const;
    void setComment(const std::string& comment);
-   void setFather(const std::shared_ptr< SimplificationFunctionLine> father);
-   std::shared_ptr<SimplificationFunctionLine> getFather() const;
+   void setFather(const std::shared_ptr< CodeBlock> father);
+   std::shared_ptr<CodeBlock> getFather() const;
    void makeComment(const bool do_it);
    bool isComment() const;
-   std::shared_ptr<SimplificationFunctionLine> goToNextNonEmptyLine();
-   std::shared_ptr<SimplificationFunctionLineIf> goToLastIfInBlock();
+   std::shared_ptr<CodeBlock> goToNextNonEmptyLine();
+   std::shared_ptr<CodeBlockIf> goToLastIfInBlock();
 
    void removeAllRedefinitionsOrReinitializations();
-   void mergeWithOtherSimplificationFunction(const std::shared_ptr<SimplificationFunctionLine> other, const FormulaParser& p);
+   void mergeWithOtherSimplificationFunction(const std::shared_ptr<CodeBlock> other, const FormulaParser& p);
 
-   std::shared_ptr<SimplificationFunctionLine> copy();
+   std::shared_ptr<CodeBlock> copy();
 
    bool checkIntegrity();
    int nodeCount();
@@ -90,11 +90,11 @@ private:
    bool make_comment_{ false };
    std::string content_{};
    std::string comment_{};
-   std::shared_ptr<SimplificationFunctionLine> successor_{};
-   std::shared_ptr<SimplificationFunctionLine> predecessor_{}; // Only one of predecessor_ or father_ can be non-null.
-   std::weak_ptr<SimplificationFunctionLine> father_{}; // Non-null only for the FIRST line in an IF sub-statement.
+   std::shared_ptr<CodeBlock> successor_{};
+   std::shared_ptr<CodeBlock> predecessor_{}; // Only one of predecessor_ or father_ can be non-null.
+   std::weak_ptr<CodeBlock> father_{}; // Non-null only for the FIRST line in an IF sub-statement.
 
-   virtual std::shared_ptr<SimplificationFunctionLine> copy_core() const = 0;
+   virtual std::shared_ptr<CodeBlock> copy_core() const = 0;
 };
 
 enum class IfConditionMode
@@ -184,56 +184,56 @@ private:
    std::string free_string_{};
 };
 
-class SimplificationFunctionLineIf : public SimplificationFunctionLine
+class CodeBlockIf : public CodeBlock
 {
 public:
-   void applyToMeAndMyChildren(const std::function<void(const std::shared_ptr<SimplificationFunctionLine>)>& f, bool& breakitoff) override;
-   std::shared_ptr<SimplificationFunctionLineIf> toIfIfApplicable() override;
+   void applyToMeAndMyChildren(const std::function<void(const std::shared_ptr<CodeBlock>)>& f, bool& breakitoff) override;
+   std::shared_ptr<CodeBlockIf> toIfIfApplicable() override;
    std::string getContent() const override;
    std::string serializeSingleLine() const override;
    std::string serializeSingleLine(const int indent, const std::string& formula_name) const override;
    IfCondition getCondition() const;
    std::string getConditionString() const;
-   std::shared_ptr<SimplificationFunctionLine> getBodyIf() const;
-   void setBodyIf(const std::shared_ptr<SimplificationFunctionLine> body);
-   std::shared_ptr<SimplificationFunctionLine> getBodyElse() const;
-   void setBodyElse(const std::shared_ptr<SimplificationFunctionLine> body);
-   std::vector<std::shared_ptr<SimplificationFunctionLineIf>> getElseIfs() const;
-   void addElseIf(const IfCondition& condition, const std::shared_ptr<SimplificationFunctionLine> body);
+   std::shared_ptr<CodeBlock> getBodyIf() const;
+   void setBodyIf(const std::shared_ptr<CodeBlock> body);
+   std::shared_ptr<CodeBlock> getBodyElse() const;
+   void setBodyElse(const std::shared_ptr<CodeBlock> body);
+   std::vector<std::shared_ptr<CodeBlockIf>> getElseIfs() const;
+   void addElseIf(const IfCondition& condition, const std::shared_ptr<CodeBlock> body);
    void setCondition(const IfCondition& condition);
 
-   SimplificationFunctionLineIf( // Don't call this directly, always use getInstance to get fathers initialized correctly.
+   CodeBlockIf( // Don't call this directly, always use getInstance to get fathers initialized correctly.
       const IfCondition& condition,
-      const std::shared_ptr<SimplificationFunctionLine> body_if,
-      const std::shared_ptr<SimplificationFunctionLine> body_else = nullptr,
+      const std::shared_ptr<CodeBlock> body_if,
+      const std::shared_ptr<CodeBlock> body_else = nullptr,
       const std::string& comment = "");
 
-   static std::shared_ptr<SimplificationFunctionLineIf> getInstance(
+   static std::shared_ptr<CodeBlockIf> getInstance(
       const IfCondition& condition,
-      const std::shared_ptr<SimplificationFunctionLine> body_if,
-      const std::shared_ptr<SimplificationFunctionLine> body_else = nullptr,
+      const std::shared_ptr<CodeBlock> body_if,
+      const std::shared_ptr<CodeBlock> body_else = nullptr,
       const std::string& comment = "");
 
 private:
-   std::shared_ptr<SimplificationFunctionLine> body_if_;
-   std::vector<std::shared_ptr<SimplificationFunctionLineIf>> else_ifs_;
-   std::shared_ptr<SimplificationFunctionLine> body_else_;
+   std::shared_ptr<CodeBlock> body_if_;
+   std::vector<std::shared_ptr<CodeBlockIf>> else_ifs_;
+   std::shared_ptr<CodeBlock> body_else_;
    mutable IfCondition condition_{};
 
-   std::shared_ptr<SimplificationFunctionLine> copy_core() const override;
+   std::shared_ptr<CodeBlock> copy_core() const override;
 };
 
-class SimplificationFunctionLineDef : public SimplificationFunctionLine
+class CodeBlockDef : public CodeBlock
 {
 public:
-   SimplificationFunctionLineDef(
+   CodeBlockDef(
       const std::vector<int>& trace_up_to,
       const int next,
       const std::string& custom_right_side = "",
       const std::string& comment = "",
       const bool declare = true);
 
-   virtual std::shared_ptr<SimplificationFunctionLineDef> toDefIfApplicable() override;
+   virtual std::shared_ptr<CodeBlockDef> toDefIfApplicable() override;
    std::string getLeftSide() const;
    std::string getContent() const override;
    std::vector<int> getTraceUpTo() const;
@@ -249,15 +249,15 @@ private:
    std::string custom_rhs_{};
    bool declare_{};
 
-   std::shared_ptr<SimplificationFunctionLine> copy_core() const override;
+   std::shared_ptr<CodeBlock> copy_core() const override;
 };
 
-class SimplificationFunctionLineDecl : public SimplificationFunctionLine
+class CodeBlockDecl : public CodeBlock
 {
 public:
-   SimplificationFunctionLineDecl(const std::vector<int>& trace_up_to, const int next, const std::string& comment = "");
+   CodeBlockDecl(const std::vector<int>& trace_up_to, const int next, const std::string& comment = "");
 
-   virtual std::shared_ptr<SimplificationFunctionLineDecl> toDeclIfApplicable() override;
+   virtual std::shared_ptr<CodeBlockDecl> toDeclIfApplicable() override;
    std::string getContent() const override;
    std::vector<int> getTraceUpTo() const;
    int getNext() const;
@@ -268,15 +268,15 @@ private:
    std::vector<int> trace_up_to_;
    int next_;
 
-   std::shared_ptr<SimplificationFunctionLine> copy_core() const override;
+   std::shared_ptr<CodeBlock> copy_core() const override;
 };
 
-class SimplificationFunctionLineReturn : public SimplificationFunctionLine
+class CodeBlockReturn : public CodeBlock
 {
 public:
-   SimplificationFunctionLineReturn(const bool value, const std::string& comment = "");
+   CodeBlockReturn(const bool value, const std::string& comment = "");
 
-   virtual std::shared_ptr<SimplificationFunctionLineReturn> toReturnIfApplicable() override;
+   virtual std::shared_ptr<CodeBlockReturn> toReturnIfApplicable() override;
    std::string serializeSingleLine() const override;
    std::string serializeSingleLine(const int indent, const std::string& formula_name) const override;
    //std::string getContent() const override;
@@ -286,46 +286,46 @@ public:
 private:
    bool ret_value_;
 
-   std::shared_ptr<SimplificationFunctionLine> copy_core() const override;
+   std::shared_ptr<CodeBlock> copy_core() const override;
 };
 
-class SimplificationFunctionLineCustom : public SimplificationFunctionLine
+class CodeBlockCustom : public CodeBlock
 {
 public:
-   SimplificationFunctionLineCustom(const std::string& arbitrary_content, const std::string& comment = "");
+   CodeBlockCustom(const std::string& arbitrary_content, const std::string& comment = "");
 
-   virtual std::shared_ptr<SimplificationFunctionLineCustom> toCustomIfApplicable() override;
+   virtual std::shared_ptr<CodeBlockCustom> toCustomIfApplicable() override;
    std::string getRetValue() const;
    void setRetValue(const bool arbitrary_content);
 
 private:
    std::string arbitrary_content_;
 
-   std::shared_ptr<SimplificationFunctionLine> copy_core() const override;
+   std::shared_ptr<CodeBlock> copy_core() const override;
 };
 
-class SimplificationFunctionLineNull : public SimplificationFunctionLine
+class CodeBlockNull : public CodeBlock
 {
 public:
-   SimplificationFunctionLineNull();
+   CodeBlockNull();
 
-   virtual std::shared_ptr<SimplificationFunctionLineNull> toNullIfApplicable() override;
+   virtual std::shared_ptr<CodeBlockNull> toNullIfApplicable() override;
    std::string serializeSingleLine(const int indent, const std::string& formula_name) const override;
 
 private:
-   std::shared_ptr<SimplificationFunctionLine> copy_core() const override;
+   std::shared_ptr<CodeBlock> copy_core() const override;
 };
 
-class SimplificationFunctionLinePlaceholder : public SimplificationFunctionLineNull
+class CodeBlockPlaceholder : public CodeBlockNull
 {
 public:
-   SimplificationFunctionLinePlaceholder();
+   CodeBlockPlaceholder();
 
-   virtual std::shared_ptr<SimplificationFunctionLinePlaceholder> toPlaceholderIfApplicable() override;
+   virtual std::shared_ptr<CodeBlockPlaceholder> toPlaceholderIfApplicable() override;
    std::string serializeSingleLine(const int indent, const std::string& formula_name) const override;
 
 private:
-   std::shared_ptr<SimplificationFunctionLine> copy_core() const override;
+   std::shared_ptr<CodeBlock> copy_core() const override;
 };
 
 enum class CodeGenerationMode
@@ -337,7 +337,7 @@ enum class CodeGenerationMode
 class CodeGenerator
 {
 public:
-   static std::shared_ptr<simplification::SimplificationFunctionLine> createCodeFromMetaRule(
+   static std::shared_ptr<code_block::CodeBlock> createCodeFromMetaRule(
       const MetaRule& rule, 
       const CodeGenerationMode code_generation_mode,
       const bool optimize_away_first_condition,
@@ -381,5 +381,5 @@ private:
       const bool mc_mode);
 };
 
-}; // simplification
+}; // code_block
 }; // vfm

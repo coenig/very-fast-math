@@ -115,7 +115,7 @@ set(VFM_MAIN_SOURCES
    script.cpp
    environment_model_generator.cpp
    highway_image.cpp
-   simplification_function.cpp
+   code_block.cpp
    interactive_testing.cpp
    options.cpp
    gui.cpp
