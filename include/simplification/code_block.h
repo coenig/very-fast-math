@@ -27,6 +27,7 @@ class CodeBlock : public std::enable_shared_from_this<CodeBlock>, public Failabl
 {
 public:
    CodeBlock(const std::string& content, const std::string& comment);
+   CodeBlock(const std::string& content, const std::string& comment, const std::string& comment_denoter_before, const std::string& comment_denoter_after, const std::string& comment_denoter_inline);
 
    virtual std::string serializeSingleLine() const;
    virtual std::string serializeSingleLine(const int indent, const std::string& formula_name) const;
@@ -86,10 +87,15 @@ public:
    bool checkIntegrity();
    int nodeCount();
 
+   static std::string CodeBlock::indentation(const int length, const std::string symbol = " ");
+
 private:
    bool make_comment_{ false };
    std::string content_{};
    std::string comment_{};
+   std::string comment_denoter_before_{};
+   std::string comment_denoter_after_{};
+   std::string comment_denoter_inline_{};
    std::shared_ptr<CodeBlock> successor_{};
    std::shared_ptr<CodeBlock> predecessor_{}; // Only one of predecessor_ or father_ can be non-null.
    std::weak_ptr<CodeBlock> father_{}; // Non-null only for the FIRST line in an IF sub-statement.
@@ -293,6 +299,7 @@ class CodeBlockCustom : public CodeBlock
 {
 public:
    CodeBlockCustom(const std::string& arbitrary_content, const std::string& comment = "");
+   CodeBlockCustom(const std::string& arbitrary_content, const std::string& comment, const std::string& comment_denoter_before, const std::string& comment_denoter_after, const std::string& comment_denoter_inline);
 
    virtual std::shared_ptr<CodeBlockCustom> toCustomIfApplicable() override;
    std::string getRetValue() const;

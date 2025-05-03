@@ -8,6 +8,7 @@
 
 #include "geometry/vector_2d.h"
 #include "geometry/polygon_2d.h"
+#include "xml/xml_generator.h"
 #include "failable.h"
 #include <string>
 
@@ -200,9 +201,11 @@ public:
 
    std::vector<std::shared_ptr<RoadGraph>> getAllNodes() const;
 
-   std::vector<ConnectorPolygonEnding> connectors_{};
+   std::shared_ptr<xml::CodeXML> generateOSM() const;
 
+   std::vector<ConnectorPolygonEnding> connectors_{};
    StraightRoadSection my_road_{}; // TODO: Make private.
+
 private:
    Vec2D origin_point_{ 0.0F, 0.0F };
    float angle_{ 0 }; // In RAD

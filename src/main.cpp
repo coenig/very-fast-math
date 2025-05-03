@@ -14,15 +14,29 @@
 #include "model_checking/counterexample_replay.h"
 #include "vfmacro/script.h"
 #include "gui/gui.h"
+#include "xml/xml_generator.h"
 // #include "examples/fct_enumdefinitions.h" // TODO: This does not work on Linux (needed for replayCounterExample).
 
 using namespace vfm;
 using namespace test;
+using namespace xml;
 using namespace mc::trajectory_generator;
 
 
 int main(int argc, char* argv[])
 {
+   std::shared_ptr<CodeXML> code{ CodeXML::beginXML() };
+   std::shared_ptr<CodeXML> sub_code{ CodeXML::retrieveParsOnlyElement("node", {{"id", "0"}, {"visible", "true"}, {"version", "1"}, {"lat", "49.00025283925"}, {"lon", "8.4547305243"} }) };
+
+   sub_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("node", { {"id", "1"}, {"visible", "true"}, {"version", "1"}, {"lat", "49.00025283925"}, {"lon", "8.4547305243"} }));
+   sub_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("node", { {"id", "2"}, {"visible", "true"}, {"version", "1"}, {"lat", "49.00025283925"}, {"lon", "8.4547305243"} }));
+   sub_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("node", { {"id", "3"}, {"visible", "true"}, {"version", "1"}, {"lat", "49.00025283925"}, {"lon", "8.4547305243"} }));
+   
+   code->appendAtTheEnd(CodeXML::retrieveElementWithXMLContent("osm", { {"version", "0.6"}, {"upload", "false"}, {"generator", "vfm"} }, sub_code));
+
+   std::cout << code->serializeBlock() << std::endl;
+   termnate();
+
    //mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
    //   { 
    //      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,

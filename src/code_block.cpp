@@ -21,7 +21,7 @@ static const std::string SIMPLIFICATION_FAST_FUNCTION_NAME_FULL_NEG{ SIMPLIFICAT
 static const std::string SIMPLIFICATION_VERY_FAST_FUNCTION_NAME_FULL{ SIMPLIFICATION_VERY_FAST_FUNCTION_NAMESPACE + "::" + SIMPLIFICATION_VERY_FAST_FUNCTION_NAME };
 static constexpr bool OPTIMIZE_AWAY_FIRST_CONDITION_FOR_FAST_SIMPLIFICATION{ true }; // Currently only implemented for "negative" version. (Compiler optimizes away, anyway?)
 
-std::string indentation(const int length, const std::string symbol = " ")
+std::string CodeBlock::indentation(const int length, const std::string symbol)
 {
    std::string result;
    for (int i = 0; i < length; i++)
@@ -30,14 +30,19 @@ std::string indentation(const int length, const std::string symbol = " ")
 }
 
 CodeBlock::CodeBlock(const std::string& content, const std::string& comment)
-   : Failable("CodeBlock"), content_(content), comment_(comment) {
-}
+   : CodeBlock(content, comment, "/*", "*/", "//") {}
+
+CodeBlock::CodeBlock(const std::string& content, const std::string& comment, const std::string& comment_denoter_before, const std::string& comment_denoter_after, const std::string& comment_denoter_inline)
+   : Failable("CodeBlock"), content_(content), comment_(comment), comment_denoter_before_{ comment_denoter_before }, comment_denoter_after_{ comment_denoter_after }, comment_denoter_inline_{ comment_denoter_inline } {}
 
 std::string CodeBlock::serializeSingleLine() const { return serializeSingleLine(0, "formula"); }
 
 std::string CodeBlock::serializeSingleLine(const int indent, const std::string& formula_name) const
 {
-   return indentation(indent) + (isComment() ? "// " : "") + getContent() + (comment_.empty() ? "" : " // " + comment_) + "\n"
+   return indentation(indent) 
+      + (isComment() ? (comment_denoter_before_ + " ") : "") 
+      + getContent() + (comment_.empty() ? "" : " " + comment_denoter_inline_ + " " + comment_) 
+      + (isComment() ? (" " + comment_denoter_after_) : "") + "\n"
       + missingPredecessorNote();
 }
 
@@ -1059,7 +1064,10 @@ std::shared_ptr<CodeBlock> vfm::code_block::CodeBlockReturn::copy_core() const
 }
 
 CodeBlockCustom::CodeBlockCustom(const std::string& arbitrary_content, const std::string& comment)
-   : CodeBlock(arbitrary_content, comment), arbitrary_content_(arbitrary_content) {}
+   : CodeBlock(arbitrary_content, comment, "/*", "*/", "//"), arbitrary_content_(arbitrary_content) {}
+
+CodeBlockCustom::CodeBlockCustom(const std::string& arbitrary_content, const std::string& comment, const std::string& comment_denoter_before, const std::string& comment_denoter_after, const std::string& comment_denoter_inline)
+   : CodeBlock(arbitrary_content, comment, comment_denoter_before, comment_denoter_after, comment_denoter_inline), arbitrary_content_(arbitrary_content) {}
 
 std::shared_ptr<CodeBlockCustom> CodeBlockCustom::toCustomIfApplicable()
 {
