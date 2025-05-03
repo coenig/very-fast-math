@@ -122,6 +122,7 @@ set(VFM_MAIN_SOURCES
    interpreter_terminal.cpp
    custom_widgets.cpp
    road_graph.cpp
+   xml_generator.cpp
 haru/hpdf_3dmeasure.c
 haru/hpdf_annotation.c
 haru/hpdf_array.c

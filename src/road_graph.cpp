@@ -399,3 +399,8 @@ std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getAllNodes() const
 
    return res;
 }
+
+std::shared_ptr<xml::CodeXML> vfm::RoadGraph::generateOSM() const
+{
+   return nullptr;
+}
