@@ -761,7 +761,7 @@ public:
 
    static void applyTimescaling(MCTrace& trace, const ScaleDescription& ts_description);
    
-   static std::pair<double, double> cartesianToWGS84(const float x, const float y, const float z);
+   static std::pair<double, double> cartesianToWGS84(const double x, const double y);
 
    static std::vector<std::string> getSafeCharactersAsciiLike();
    static std::map<std::string, int> getSafeCharactersAsciiLikeReverse();

@@ -10,6 +10,7 @@
 #include "geometry/polygon_2d.h"
 #include "xml/xml_generator.h"
 #include "failable.h"
+#include "static_helper.h"
 #include <string>
 
 namespace vfm {
@@ -86,9 +87,19 @@ static int global_id_first_free{ 0 };
 
 class Way {
 public:
-   inline Way() : id_{ global_id_first_free++ } {}
+   inline Way() : id_{ global_id_first_free++ }, origin_id_{ global_id_first_free++ }, target_id_{ global_id_first_free++ } {}
 
-   inline std::shared_ptr<xml::CodeXML> getXML() const
+   inline std::shared_ptr<xml::CodeXML> getNodesXML() const
+   {
+      auto origin_coord = StaticHelper::cartesianToWGS84(origin_.x, origin_.y);
+      auto target_coord = StaticHelper::cartesianToWGS84(target_.x, target_.y);
+      auto res = getNodeXML(origin_id_, origin_coord.first, origin_coord.second);
+      res->appendAtTheEnd(getNodeXML(target_id_, target_coord.first, target_coord.second));
+
+      return res;
+   }
+
+   inline std::shared_ptr<xml::CodeXML> getWayXML() const
    {
       auto way_inner = xml::CodeXML::emptyXML();
       auto xml = xml::CodeXML::retrieveElementWithXMLContent("way", { {"id", std::to_string(id_)},{"visible", "true"}, {"version", "1"}}, way_inner);
@@ -96,12 +107,26 @@ public:
    }
 
    int id_{};
+   int origin_id_{};
+   int target_id_{};
    Vec2D origin_{};
    Vec2D target_{};
    std::set<int> predecessor_ids_{};
    std::set<int> successor_ids_{};
    int left_id_{};
    int right_id_{};
+
+private:
+   inline static std::shared_ptr<xml::CodeXML> getNodeXML(const int id, const double lat, const double lon)
+   {
+      return xml::CodeXML::retrieveParsOnlyElement("node", {
+         { "id", std::to_string(id) },
+         { "visible", "true" },
+         { "version", "1" },
+         { "lat", std::to_string(lat) },
+         { "lon", std::to_string(lon) }
+         });
+   }
 };
 
 /// <summary>
@@ -182,6 +207,7 @@ public:
    int getNumLanes() const;
    bool isValid() const;
    std::map<float, LaneSegment> getSegments() const;
+   std::map<float, LaneSegment>& getSegmentsRef();
 
    void setEgo(const std::shared_ptr<CarPars> ego);
    void setOthers(const CarParsVec& others);

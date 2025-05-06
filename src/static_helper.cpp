@@ -3367,7 +3367,7 @@ void vfm::StaticHelper::applyTimescaling(MCTrace& trace, const ScaleDescription&
 static constexpr double LAT_ZERO{ 48.999031665333156 }; // Coordinates of...
 static constexpr double LON_ZERO{ 9.294116971817786 };  // ...Grossbottwar :-)
 
-std::pair<double, double> vfm::StaticHelper::cartesianToWGS84(const float x, const float y, const float z)
+std::pair<double, double> vfm::StaticHelper::cartesianToWGS84(const double x, const double y)
 {
    return { LAT_ZERO + x / 111000.0, LON_ZERO - y / 75000.0 };
 }
