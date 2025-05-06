@@ -198,8 +198,8 @@ std::shared_ptr<RoadGraph> vfm::RoadGraph::findFirstSectionWithProperty(
    const std::function<bool(const std::shared_ptr<RoadGraph>)> property,
    std::set<std::shared_ptr<RoadGraph>>& visited)
 {
-   if (property(shared_from_this())) return shared_from_this();
    if (!visited.insert(shared_from_this()).second) return nullptr;
+   if (property(shared_from_this())) return shared_from_this();
 
    for (const auto& succ_ptr : successors_) {
       std::shared_ptr<RoadGraph> ptr{ succ_ptr->findFirstSectionWithProperty(property, visited) };
@@ -321,7 +321,14 @@ int vfm::RoadGraph::getID() const
 
 int vfm::RoadGraph::getNodeCount() const
 {
-   return getAllNodes().size(); // TODO: This is not very efficient but works for now.
+   int cnt{ 0 };
+
+   const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([&cnt](const std::shared_ptr<RoadGraph>) -> bool {
+      cnt++;
+      return false;
+   });
+
+   return cnt;
 }
 
 void vfm::RoadGraph::setMyRoad(const StraightRoadSection& section)
