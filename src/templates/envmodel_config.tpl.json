@@ -7,7 +7,7 @@
       "#06": "@f(range_mult, x, start, cnt, mult) { x = array(cnt + 1); @i = get(x); @val = start; while(i < get(x) + cnt) { i = val; @i = i + 1; @val = val * mult }; i = nan() }",
       "#07": "range(@nonegos, 2, 2);",
       "#08": "range(@lanes, 2, 5);",
-      "#09": "range(@segments, 1, 1);",
+      "#09": "range(@segments, 2, 2);",
       "#10": "range_mult(@d, 125, 7, 2);",
       "#11": "range_mult(@t, 500, 3, 2);",
       "#12": "@distscaling = array(3); @distscaling[0] = 8000; @distscaling[1] = 25000; @distscaling[2] = nan();",

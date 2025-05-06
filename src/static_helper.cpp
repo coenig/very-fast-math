@@ -3364,6 +3364,14 @@ void vfm::StaticHelper::applyTimescaling(MCTrace& trace, const ScaleDescription&
    }
 }
 
+static constexpr double LAT_ZERO{ 48.999031665333156 }; // Coordinates of...
+static constexpr double LON_ZERO{ 9.294116971817786 };  // ...Grossbottwar :-)
+
+std::pair<double, double> vfm::StaticHelper::cartesianToWGS84(const float x, const float y, const float z)
+{
+   return { LAT_ZERO + x / 111000.0, LON_ZERO - y / 75000.0 };
+}
+
 // This function is licensed under CC-BY-SA-4.0 which is a copy-left license
 // (https://creativecommons.org/licenses/by-sa/4.0/deed.en)!
 void vfm::StaticHelper::fakeCallWithCommandLineArguments(const std::string& argv_combined, std::function<void(int argc, char* argv[])> to_do)

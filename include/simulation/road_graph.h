@@ -81,6 +81,29 @@ struct CarPars {
 
 using CarParsVec = std::vector<CarPars>;
 
+
+static int global_id_first_free{ 0 };
+
+class Way {
+public:
+   inline Way() : id_{ global_id_first_free++ } {}
+
+   inline std::shared_ptr<xml::CodeXML> getXML() const
+   {
+      auto way_inner = xml::CodeXML::emptyXML();
+      auto xml = xml::CodeXML::retrieveElementWithXMLContent("way", { {"id", std::to_string(id_)},{"visible", "true"}, {"version", "1"}}, way_inner);
+      return xml;
+   }
+
+   int id_{};
+   Vec2D origin_{};
+   Vec2D target_{};
+   std::set<int> predecessor_ids_{};
+   std::set<int> successor_ids_{};
+   int left_id_{};
+   int right_id_{};
+};
+
 /// <summary>
 /// Represents one straight road segment with a minimum lane id and a maximum lane id.
 /// It is embedded into a StraightRoadSection which defines the number of lanes available.
@@ -104,22 +127,47 @@ public:
    void screwUpBegin();
    bool isScrewedUp();
 
+   //inline void addWaysFromPredecessor(const LaneSegment& predecessor, const Vec2D& origin) {
+   //   for (int i = getMinLane(); i <= getMaxLane(); i++) {
+   //      Way way{};
+   //      ways_.push_back(way);
+   //   }
+   //}
+
+   //inline void clearWays() 
+   //{
+   //   ways_.clear();
+   //}
+
+   //inline void addWay(const Way& way) 
+   //{
+   //   ways_.push_back(way);
+   //}
+
+   inline std::map<int, Way>& getWays()
+   {
+      return ways_;
+   }
+
    std::string toString() const;
 
 private:
    float begin_{};
    const int min_lane_{}; // 0: right-most, 1: right-most as emergency, 2: right-most - 1 etc.
    const int max_lane_{};
+   std::map<int, Way> ways_{};
 };
 
 static constexpr int MIN_DISTANCE_BETWEEN_SEGMENTS{ 20 };
 
 /// <summary>
 /// Sequence of LaneSegment's.
-/// begin1 = 0   begin2            begin_n    section_end_  
+/// begin1 = 0   begin2            begin_n                       section_end_  
 /// ------------------------------------------
 ///   SEG1       |  SEG2  | ... |  SEG n     |
-/// ------------------------------------------
+/// -------------------------------------------------------------
+///   SEG1       |  SEG2  | ... |  SEG n     | ... |  SEG m     |
+/// -------------------------------------------------------------
 /// </summary>
 class StraightRoadSection : public Failable {
 public:
@@ -143,6 +191,7 @@ public:
    CarParsVec getOthers() const;
    std::map<int, std::pair<float, float>> getFuturePositionsOfOthers() const;
    float getLength() const;
+
 
 private:
    std::map<float, LaneSegment> segments_{};

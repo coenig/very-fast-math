@@ -5,8 +5,17 @@
 
 using namespace vfm;
 
+//int id_{};
+//Vec2D origin_{};
+//Vec2D target_{};
+//std::vector<int> predecessor_id_{};
+//int left_id_{};
+//int right_id_{};
+
 LaneSegment::LaneSegment(const float begin, const int min_lane, const int max_lane)
-   : begin_(begin), min_lane_(min_lane), max_lane_(max_lane) {
+   : begin_(begin), min_lane_(min_lane), max_lane_(max_lane), ways_{}
+{
+   for (int i = min_lane; i <= max_lane; i++) ways_.insert({ i, Way() });
 }
 
 float LaneSegment::getBegin() const { return begin_; }
@@ -404,23 +413,30 @@ using namespace xml;
 
 std::shared_ptr<xml::CodeXML> vfm::RoadGraph::generateOSM() const
 {
-   std::cout << "Road graph has '" << getNodeCount() << "' sections." << std::endl << std::endl;
+   const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([](const std::shared_ptr<RoadGraph> r) -> bool {
+      std::vector<int> predecessors{};
+      std::vector<int> successors{};
+      auto my_way = r->getMyRoad().getSegments().at(0).getWays().at(0);
 
-   std::shared_ptr<CodeXML> code{ CodeXML::beginXML() };
-   std::shared_ptr<CodeXML> nodes_code{ CodeXML::emptyXML() };
-   std::shared_ptr<CodeXML> way_inner_code{ CodeXML::emptyXML() };
+      for (const auto& pred : r->getPredecessors()) {
+         pred->getMyRoad().getSegments().at(0).getWays().at(0).successor_ids_.insert(my_way.id_);
+      }
 
-   nodes_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("node", { {"id", "0"}, {"visible", "true"}, {"version", "1"}, {"lat", "49.00025283925"}, {"lon", "8.4547305243"} }));
-   nodes_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("node", { {"id", "1"}, {"visible", "true"}, {"version", "1"}, {"lat", "49.00025283925"}, {"lon", "8.4547305243"} }));
-   nodes_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("node", { {"id", "2"}, {"visible", "true"}, {"version", "1"}, {"lat", "49.00025283925"}, {"lon", "8.4547305243"} }));
-   nodes_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("node", { {"id", "3"}, {"visible", "true"}, {"version", "1"}, {"lat", "49.00025283925"}, {"lon", "8.4547305243"} }));
+      for (const auto& succ : r->getSuccessors()) {
+         succ->getMyRoad().getSegments().at(0).getWays().at(0).predecessor_ids_.insert(my_way.id_);
+      }
 
-   way_inner_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("nd", { {"ref", "1087001"} }));
-   way_inner_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("nd", { {"ref", "1087002"} }));
-   way_inner_code->appendAtTheEnd(CodeXML::retrieveParsOnlyElement("tag", { {"k", "rl:meta:country_code"}, {"v", "276"} }));
+      my_way.origin_ = r->getOriginPoint();
+      my_way.target_ = r->getDrainPoint();
 
-   nodes_code->appendAtTheEnd(CodeXML::retrieveElementWithXMLContent("way", { {"id", "4"},{ "visible", "true"}, {"version", "1" } }, way_inner_code));
-   code->appendAtTheEnd(CodeXML::retrieveElementWithXMLContent("osm", { {"version", "0.6"}, {"upload", "false"}, {"generator", "vfm"} }, nodes_code));
+      return false;
+   });
 
-   return code;
+   auto xml = xml::CodeXML::emptyXML();
+   const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([&xml](const std::shared_ptr<RoadGraph> r) -> bool {
+      xml->appendAtTheEnd(r->getMyRoad().getSegments().at(0).getWays().at(0).getXML());
+      return false;
+   });
+
+   return xml;
 }
