@@ -162,6 +162,11 @@ std::map<float, LaneSegment> StraightRoadSection::getSegments() const
    return segments_;
 }
 
+std::map<float, LaneSegment>& StraightRoadSection::getSegmentsRef()
+{
+   return segments_;
+}
+
 void vfm::StraightRoadSection::setEgo(const std::shared_ptr<CarPars> ego)
 {
    ego_ = ego;
@@ -416,14 +421,14 @@ std::shared_ptr<xml::CodeXML> vfm::RoadGraph::generateOSM() const
    const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([](const std::shared_ptr<RoadGraph> r) -> bool {
       std::vector<int> predecessors{};
       std::vector<int> successors{};
-      auto my_way = r->getMyRoad().getSegments().at(0).getWays().at(0);
+      auto& my_way = r->getMyRoad().getSegmentsRef().at(0).getWays().at(0);
 
       for (const auto& pred : r->getPredecessors()) {
-         pred->getMyRoad().getSegments().at(0).getWays().at(0).successor_ids_.insert(my_way.id_);
+         pred->getMyRoad().getSegmentsRef().at(0).getWays().at(0).successor_ids_.insert(my_way.id_);
       }
 
       for (const auto& succ : r->getSuccessors()) {
-         succ->getMyRoad().getSegments().at(0).getWays().at(0).predecessor_ids_.insert(my_way.id_);
+         succ->getMyRoad().getSegmentsRef().at(0).getWays().at(0).predecessor_ids_.insert(my_way.id_);
       }
 
       my_way.origin_ = r->getOriginPoint();
@@ -432,9 +437,14 @@ std::shared_ptr<xml::CodeXML> vfm::RoadGraph::generateOSM() const
       return false;
    });
 
-   auto xml = xml::CodeXML::emptyXML();
+   auto xml = CodeXML::beginXML();
    const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([&xml](const std::shared_ptr<RoadGraph> r) -> bool {
-      xml->appendAtTheEnd(r->getMyRoad().getSegments().at(0).getWays().at(0).getXML());
+      xml->appendAtTheEnd(r->getMyRoad().getSegments().at(0).getWays().at(0).getNodesXML());
+      return false;
+   });
+
+   const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([&xml](const std::shared_ptr<RoadGraph> r) -> bool {
+      xml->appendAtTheEnd(r->getMyRoad().getSegments().at(0).getWays().at(0).getWayXML());
       return false;
    });
 
