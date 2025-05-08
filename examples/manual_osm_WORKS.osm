@@ -1,0 +1,101 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<osm version='0.6' upload='false' generator='JOSM'>
+  <node id='-25435' lat='48.99903274883' lon='9.29403713536' visible="true" version="1" />
+  <node id='-25436' lat='48.99960660943' lon='9.29403713536' visible="true" version="1" />
+  <node id='-25445' lat='48.99903274883' lon='9.29419438423' visible="true" version="1" />
+  <node id='-25446' lat='48.99960660943' lon='9.29419438423' visible="true" version="1" />
+  <node id='1675' version='1' lat='48.999032' lon='9.294117' visible="true" />
+  <node id='1676' version='1' lat='48.999608' lon='9.294117' visible="true" />
+  <node id='1696' version='1' lat='48.999743' lon='9.29377' visible="true" />
+  <node id='1697' version='1' lat='48.999455' lon='9.293031' visible="true" />
+  <node id='1717' version='1' lat='48.999185' lon='9.293037' visible="true" />
+  <node id='1718' version='1' lat='48.998896' lon='9.293776' visible="true" />
+  <node id='1738' version='1' lat='48.999185' lon='9.295197' visible="true" />
+  <node id='1739' version='1' lat='48.998897' lon='9.294458' visible="true" />
+  <node id='1759' version='1' lat='48.999743' lon='9.294464' visible="true" />
+  <node id='1760' version='1' lat='48.999455' lon='9.295203' visible="true" />
+  <way id='-662' visible="true" version="1">
+    <nd ref='-25435' />
+    <nd ref='-25436' />
+    <tag k="Painting::LineWidth" v="0.300000" />
+    <tag k="Painting::MarkingType" v="Solid" />
+    <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+    <tag k="Painting::SingleLineWidths" v="0.300000" />
+    <tag k="color" v="white" />
+    <tag k="subtype" v="solid" />
+    <tag k="type" v="line_thick" />
+    <tag k="width" v="0.300000" />
+  </way>
+  <way id='-670' visible="true" version="1">
+    <nd ref='-25445' />
+    <nd ref='-25446' />
+    <tag k="Painting::LineWidth" v="0.300000" />
+    <tag k="Painting::MarkingType" v="Solid" />
+    <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+    <tag k="Painting::SingleLineWidths" v="0.300000" />
+    <tag k="color" v="white" />
+    <tag k="subtype" v="solid" />
+    <tag k="type" v="line_thick" />
+    <tag k="width" v="0.300000" />
+  </way>
+  <way id='1674' visible="true" version="1">
+    <nd ref='1675' />
+    <nd ref='1676' />
+    <tag k='type' v='road_link' />
+    <tag k="rl:meta:country_code" v="276" />
+    <tag k="rl:meta:is_controlled" v="false" />
+    <tag k="rl:meta:is_motorway" v="false" />
+    <tag k="rl:meta:is_separated_structurally" v="false" />
+    <tag k="rl:meta:is_urban" v="false" />
+    <tag k="rl:predecessors" v="" />
+    <tag k="rl:successors" v="" />
+    <tag k="rl:travel_direction" v="along" />
+    <tag k="rl:type" v="no_special" />
+  </way>
+  <way id='1900' visible="true" version="1">
+    <nd ref='1675' />
+    <nd ref='1676' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='2674' version='1'>
+    <nd ref='1696' />
+    <nd ref='1697' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='3674' version='1'>
+    <nd ref='1717' />
+    <nd ref='1718' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='4674' version='1'>
+    <nd ref='1738' />
+    <nd ref='1739' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='5674' version='1'>
+    <nd ref='1759' />
+    <nd ref='1760' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='6674' version='1'>
+    <nd ref='1676' />
+    <nd ref='1696' />
+    <tag k='type' v='virtual' />
+  </way>
+  <way id='7674' version='1'>
+    <nd ref='1676' />
+    <nd ref='1759' />
+    <tag k='type' v='virtual' />
+  </way>
+  <relation id="1019" visible="true" version="1">
+    <member type="way" ref="-662" role="left" />
+    <member type="way" ref="-670" role="right" />
+    <member type="way" ref="1900" role="centerline" />
+    <tag k="location" v="nonurban" />
+    <tag k="rl:direction" v="along" />
+    <tag k="rl:id" v="1674" />
+    <tag k="speed_limit" v="130.000000" />
+    <tag k="subtype" v="highway" />
+    <tag k="type" v="lanelet" />
+  </relation>
+</osm>
