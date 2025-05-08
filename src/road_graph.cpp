@@ -438,15 +438,18 @@ std::shared_ptr<xml::CodeXML> vfm::RoadGraph::generateOSM() const
    });
 
    auto xml = CodeXML::beginXML();
-   const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([&xml](const std::shared_ptr<RoadGraph> r) -> bool {
-      xml->appendAtTheEnd(r->getMyRoad().getSegments().at(0).getWays().at(0).getNodesXML());
+   auto osm = CodeXML::emptyXML();
+   const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([&osm](const std::shared_ptr<RoadGraph> r) -> bool {
+      osm->appendAtTheEnd(r->getMyRoad().getSegments().at(0).getWays().at(0).getNodesXML());
       return false;
    });
 
-   const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([&xml](const std::shared_ptr<RoadGraph> r) -> bool {
-      xml->appendAtTheEnd(r->getMyRoad().getSegments().at(0).getWays().at(0).getWayXML());
+   const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([&osm](const std::shared_ptr<RoadGraph> r) -> bool {
+      osm->appendAtTheEnd(r->getMyRoad().getSegments().at(0).getWays().at(0).getWayXML());
       return false;
    });
+
+   xml->appendAtTheEnd(CodeXML::retrieveElementWithXMLContent("osm", { { "version", "0.6" }, { "upload", "false" }, { "generator", "vfm" } }, osm));
 
    return xml;
 }
