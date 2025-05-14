@@ -39,6 +39,7 @@ int main(int argc, char* argv[])
    img.fillImg(BROWN);
    img.paintRoadGraph(r, { 500, 60 }, {}, true, offset_x, offset_y);
    img.store("test", OutputType::pdf);
+   img.store("test", OutputType::png);
    termnate();
 
    //mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(

@@ -516,7 +516,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             connections.insert(connections.begin(), ConnectorPolygonEnding{
                ConnectorPolygonEnding::Side::drain,
                Lin2D{ top_right_corner_lane, top_right_second_lane },
-               0, // THICK
+               0.1, // THICK
                std::make_shared<Color>(GREY),
                i,
                getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
@@ -524,7 +524,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             connections.insert(connections.begin(), ConnectorPolygonEnding{
                ConnectorPolygonEnding::Side::source,
                Lin2D{ top_left_corner_lane, top_left_second_lane },
-               0, // THICK
+               0.1, // THICK
                std::make_shared<Color>(GREY),
                i,
                getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
