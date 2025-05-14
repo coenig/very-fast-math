@@ -414,6 +414,34 @@ std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getAllNodes() const // T
    return res;
 }
 
+std::vector<CarPars> vfm::RoadGraph::getNonegosOnCrossingTowardsSuccessor(const std::shared_ptr<RoadGraph> r) const
+{
+   return nonegos_towards_successors_.count(r) ? nonegos_towards_successors_.at(r) : CarParsVec{};
+}
+
+std::map<std::shared_ptr<RoadGraph>, std::vector<CarPars>> vfm::RoadGraph::getNonegosOnCrossingTowardsAllSuccessors() const
+{
+   return nonegos_towards_successors_;
+}
+
+void vfm::RoadGraph::addNonegoOnCrossingTowards(const std::shared_ptr<RoadGraph> r, const CarPars& nonego)
+{
+   nonegos_towards_successors_.insert({ r, {} }); // Add empty vector only if this successor not yet in the map.
+   nonegos_towards_successors_.at(r).push_back(nonego);
+}
+
+void vfm::RoadGraph::addNonegoOnCrossingTowards(const int r_id, const CarPars& nonego)
+{
+   auto r = findSectionWithID(r_id);
+
+   if (r) {
+      addNonegoOnCrossingTowards(r, nonego);
+   }
+   else {
+      addError("Id '" + std::to_string(r_id) + "' not found as successor of section '" + std::to_string(id_) + "'.");
+   }
+}
+
 using namespace xml;
 
 std::shared_ptr<xml::CodeXML> vfm::RoadGraph::generateOSM() const

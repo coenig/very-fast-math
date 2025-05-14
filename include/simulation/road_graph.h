@@ -276,12 +276,24 @@ public:
 
    std::vector<std::shared_ptr<RoadGraph>> getAllNodes() const;
 
+   std::vector<CarPars> getNonegosOnCrossingTowardsSuccessor(const std::shared_ptr<RoadGraph> r) const;
+   std::map<std::shared_ptr<RoadGraph>, std::vector<CarPars>> getNonegosOnCrossingTowardsAllSuccessors() const;
+   void addNonegoOnCrossingTowards(const std::shared_ptr<RoadGraph> r, const CarPars& nonego);
+   void addNonegoOnCrossingTowards(const int r_id, const CarPars& nonego);
+
    std::shared_ptr<xml::CodeXML> generateOSM() const;
 
-   std::vector<ConnectorPolygonEnding> connectors_{};
-   StraightRoadSection my_road_{}; // TODO: Make private.
+   std::vector<ConnectorPolygonEnding> connectors_{}; // TODO: Make private.
+   StraightRoadSection my_road_{};                    // TODO: Make private.
 
 private:
+   std::shared_ptr<RoadGraph> findFirstSectionWithProperty(
+      const std::function<bool(std::shared_ptr<RoadGraph>)> property,
+      std::set<std::shared_ptr<RoadGraph>>& visited);
+
+   bool isOriginAtZero() const;
+   bool isAngleZero() const;
+
    Vec2D origin_point_{ 0.0F, 0.0F };
    float angle_{ 0 }; // In RAD
    int id_{};
@@ -289,12 +301,7 @@ private:
    std::vector<std::shared_ptr<RoadGraph>> successors_{};
    std::vector<std::shared_ptr<RoadGraph>> predecessors_{};
 
-   std::shared_ptr<RoadGraph> findFirstSectionWithProperty(
-      const std::function<bool(std::shared_ptr<RoadGraph>)> property,
-      std::set<std::shared_ptr<RoadGraph>>& visited);
-
-   bool isOriginAtZero() const;
-   bool isAngleZero() const;
+   std::map<std::shared_ptr<RoadGraph>, std::vector<CarPars>> nonegos_towards_successors_{};
 };
 
 } // vfm

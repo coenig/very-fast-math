@@ -367,6 +367,8 @@ void vfm::HighwayImage::doShoulder(
    }
 }
 
+static constexpr int FIRST_LANE_CONNECTOR_ID{ 5 };
+
 void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
    const StraightRoadSection& lane_structure,
    const std::shared_ptr<CarPars> ego_raw,
@@ -499,6 +501,34 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             std::make_shared<Color>(PAVEMENT_COLOR),
             4,
             getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
+
+         for (int i = FIRST_LANE_CONNECTOR_ID; i < FIRST_LANE_CONNECTOR_ID + lane_structure.getNumLanes(); i++) { // Lane center lines
+            const float lane_width{ getHighwayTranslator()->translate({0, LANE_WIDTH}).length() };
+            auto top_right_corner_lane = top_right_corner;
+            auto top_right_second_lane = top_right_second;
+            auto top_left_corner_lane = top_left_corner;
+            auto top_left_second_lane = top_left_second;
+            top_right_corner_lane.add({ 0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5) });
+            top_right_second_lane.add({ 0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5) });
+            top_left_corner_lane.add({  0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5) });
+            top_left_second_lane.add({  0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5) });
+
+            connections.insert(connections.begin(), ConnectorPolygonEnding{
+               ConnectorPolygonEnding::Side::drain,
+               Lin2D{ top_right_corner_lane, top_right_second_lane },
+               0, // THICK
+               std::make_shared<Color>(GREY),
+               i,
+               getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
+
+            connections.insert(connections.begin(), ConnectorPolygonEnding{
+               ConnectorPolygonEnding::Side::source,
+               Lin2D{ top_left_corner_lane, top_left_second_lane },
+               0, // THICK
+               std::make_shared<Color>(GREY),
+               i,
+               getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
+         }
       }
       else { // BOTTOM
          auto bottom_right_corner = (*overpaint.points_.rbegin());
@@ -1043,6 +1073,7 @@ void vfm::HighwayImage::paintRoadGraph(
    }
    
    //return;
+   // Draw crossings between sections.
    std::vector<Pol2D> additional_arrows{};
 
    for (int i = 0; i <= 30; i++) {
@@ -1169,6 +1200,16 @@ void vfm::HighwayImage::paintRoadGraph(
                         }
                      }
                      //drawPolygon(arrow, BLACK, true, true, true);
+
+                     // Draw cars in crossing
+                     if (i == 4) { // This is the id of the pavement.
+                        CarParsVec nonegos_on_crossing{ r->getNonegosOnCrossingTowardsSuccessor(r_succ) };
+                        auto mid = a_connector_basepoint_translated;
+                        mid.add(b_connector_basepoint_translated);
+                        mid.div(2);
+                        Circ2D circ{ mid, 10 };
+                        fillPolygon(circ.toPol(), RED);
+                     }
                   }
                }
             }
