@@ -248,17 +248,36 @@ void findMinMax(const CarPars& agent, int& min_lane, int& max_lane)
 static constexpr float LONG_FACTOR{ 5 };
 static constexpr float CAR_FINAL_WIDTH{ CAR_WIDTH / LANE_WIDTH };
 
-void HighwayImage::plotCar2D(const float thick, const Vec2Df& pos_car, const Color& fill_color, const Color& car_frame_color)
+void HighwayImage::plotCar2D(const float thick, const Vec2Df& pos_car, const Color& fill_color, const Color& car_frame_color, const Vec2D scale, const float angle_rad)
 {
    const float thikko{ (-thick + 1) / 30 };
 
    if (thick > 1) {
-      fillRectangle(pos_car.x, pos_car.y, CAR_LENGTH - thikko * LONG_FACTOR, CAR_FINAL_WIDTH - thikko, car_frame_color);
-      fillRectangle(pos_car.x, pos_car.y, CAR_LENGTH, CAR_FINAL_WIDTH, fill_color);
+      float width1  = (CAR_LENGTH - thikko * LONG_FACTOR) * scale.x;
+      float height1 = (CAR_FINAL_WIDTH - thikko) * scale.y;
+      float width2  = (CAR_LENGTH) * scale.x;
+      float height2 = (CAR_FINAL_WIDTH) * scale.y;
+      float ww1 = width1 / 2;
+      float hh1 = height1 / 2;
+      float ww2 = width2 / 2;
+      float hh2 = height2 / 2;
+
+      Vec2D tl1{ pos_car.x - ww1, pos_car.y - hh1 };
+      Vec2D br1{ pos_car.x + width1 - ww1, pos_car.y + height1 - hh1 };
+      Vec2D tl2{ pos_car.x - ww2, pos_car.y - hh2 };
+      Vec2D br2{ pos_car.x + width2 - ww2, pos_car.y + height2 - hh2 };
+      Pol2D p1{ tl1, { tl1.x, br1.y }, br1, { br1.x, tl1.y } };
+      Pol2D p2{ tl2, { tl2.x, br2.y }, br2, { br2.x, tl2.y } };
+
+      p1.rotate(angle_rad);
+      p2.rotate(angle_rad);
+
+      fillPolygon(p1, car_frame_color);
+      fillPolygon(p2, fill_color);
    }
    else {
-      fillRectangle(pos_car.x, pos_car.y, CAR_LENGTH, CAR_FINAL_WIDTH, CAR_COLOR);
-      rectangle(pos_car.x, pos_car.y, CAR_LENGTH - thikko * LONG_FACTOR, CAR_FINAL_WIDTH - thikko, car_frame_color);
+      fillRectangle(pos_car.x, pos_car.y, CAR_LENGTH * scale.x, CAR_FINAL_WIDTH * scale.y, CAR_COLOR);
+      rectangle(pos_car.x, pos_car.y, (CAR_LENGTH - thikko * LONG_FACTOR) * scale.x, (CAR_FINAL_WIDTH - thikko) * scale.y, car_frame_color);
    }
 }
 
@@ -1209,6 +1228,7 @@ void vfm::HighwayImage::paintRoadGraph(
 
                         for (const auto& nonego : nonegos_on_crossing) {
                            if (nonego.car_lane_ == i - FIRST_LANE_CONNECTOR_ID) {
+                              float arc_length{ bezier::arcLength(1, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) / norm_length_a };
                               Vec2D p{ bezier::pointAtRatio(0.6, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
                               Vec2D dir{ bezier::B_prime(0.6, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
                               Vec2D p2{ p + dir / dir.length() * 40 };
@@ -1218,6 +1238,8 @@ void vfm::HighwayImage::paintRoadGraph(
 
                               drawPolygon(Circ2D{ p, 10 }.toPol(), RED);
                               drawPolygon(arrow, RED);
+                              
+                              plotCar2D(3, p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
                            }
                         }
                      }
