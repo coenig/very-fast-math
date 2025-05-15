@@ -46,6 +46,10 @@ public:
    ///  with regard to the smaller angle.
    bool orientation(const Vector2D<NumType>& other) const;
 
+   Vector2D<NumType> operator*(const NumType scalar) const;
+   Vector2D<NumType> operator/(const NumType scalar) const;
+   Vector2D<NumType> operator+(const Vector2D<NumType> other) const;
+   Vector2D<NumType> operator-(const Vector2D<NumType> other) const;
    void mult(const NumType constant);
    void div(const NumType constant);
    void normalize();
@@ -83,6 +87,38 @@ typedef Vector2D<double> Vec2Dd;
 typedef Vector2D<int> Vec2Di;
 typedef Vector2D<long> Vec2Dl;
 typedef Vec2Df Vec2D; // For convenience use "Vec2D" as default with float.
+
+template<class NumType>
+inline Vector2D<NumType> Vector2D<NumType>::operator*(const NumType scalar) const
+{
+   Vector2D<NumType> res{ *this };
+   res.mult(scalar);
+   return res;
+}
+
+template<class NumType>
+inline Vector2D<NumType> Vector2D<NumType>::operator/(const NumType scalar) const
+{
+   Vector2D<NumType> res{ *this };
+   res.div(scalar);
+   return res;
+}
+
+template<class NumType>
+inline Vector2D<NumType> Vector2D<NumType>::operator+(const Vector2D<NumType> other) const
+{
+   Vector2D<NumType> res{ *this };
+   res.add(other);
+   return res;
+}
+
+template<class NumType>
+inline Vector2D<NumType> Vector2D<NumType>::operator-(const Vector2D<NumType> other) const
+{
+   Vector2D<NumType> res{ *this };
+   res.sub(other);
+   return res;
+}
 
 template<class NumType>
 inline Vector2D<NumType>::Vector2D()

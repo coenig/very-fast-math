@@ -8,6 +8,7 @@
 #include "simulation/highway_image.h"
 #include "static_helper.h"
 #include "testing/interactive_testing.h"
+#include "geometry/bezier_functions.h"
 
 using namespace vfm;
 
@@ -1202,13 +1203,23 @@ void vfm::HighwayImage::paintRoadGraph(
                      //drawPolygon(arrow, BLACK, true, true, true);
 
                      // Draw cars in crossing
-                     if (i == 4) { // This is the id of the pavement.
+                     if (i >= FIRST_LANE_CONNECTOR_ID) { // This is the id of the pavement.
+                        r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 10, 10, 0 }); // TODO
                         CarParsVec nonegos_on_crossing{ r->getNonegosOnCrossingTowardsSuccessor(r_succ) };
-                        auto mid = a_connector_basepoint_translated;
-                        mid.add(b_connector_basepoint_translated);
-                        mid.div(2);
-                        Circ2D circ{ mid, 10 };
-                        fillPolygon(circ.toPol(), RED);
+
+                        for (const auto& nonego : nonegos_on_crossing) {
+                           if (nonego.car_lane_ == i - FIRST_LANE_CONNECTOR_ID) {
+                              Vec2D p{ bezier::pointAtRatio(0.6, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
+                              Vec2D dir{ bezier::B_prime(0.6, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
+                              Vec2D p2{ p + dir / dir.length() * 40 };
+                              Pol2D arrow{};
+
+                              arrow.createArrow({ p, p2 }, 5, {}, {}, {}, ARROW_END_PPT_STYLE_1);
+
+                              drawPolygon(Circ2D{ p, 10 }.toPol(), RED);
+                              drawPolygon(arrow, RED);
+                           }
+                        }
                      }
                   }
                }
