@@ -1223,23 +1223,41 @@ void vfm::HighwayImage::paintRoadGraph(
 
                      // Draw cars in crossing
                      if (i >= FIRST_LANE_CONNECTOR_ID) { // This is the id of the pavement.
-                        r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 10, 10, 0 }); // TODO
+                        if (r->getSuccessors().size() == 1) {
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 3, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 13, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 1, 3, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 1, 13, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 3, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 13, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 3, 3, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 3, 13, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 23, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 33, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 1, 23, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 1, 33, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 23, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 33, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 3, 23, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 3, 33, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 43, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 1, 43, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 43, 10, 0 }); // TODO
+                           r->addNonegoOnCrossingTowards(r_succ, CarPars{ 3, 43, 10, 0 }); // TODO
+                        }
+
                         CarParsVec nonegos_on_crossing{ r->getNonegosOnCrossingTowardsSuccessor(r_succ) };
 
                         for (const auto& nonego : nonegos_on_crossing) {
                            if (nonego.car_lane_ == i - FIRST_LANE_CONNECTOR_ID) {
                               float arc_length{ bezier::arcLength(1, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) / norm_length_a };
-                              Vec2D p{ bezier::pointAtRatio(0.6, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
-                              Vec2D dir{ bezier::B_prime(0.6, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
-                              Vec2D p2{ p + dir / dir.length() * 40 };
-                              Pol2D arrow{};
+                              float rel{ nonego.car_rel_pos_ / arc_length };
 
-                              arrow.createArrow({ p, p2 }, 5, {}, {}, {}, ARROW_END_PPT_STYLE_1);
-
-                              drawPolygon(Circ2D{ p, 10 }.toPol(), RED);
-                              drawPolygon(arrow, RED);
-                              
-                              plotCar2D(3, p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
+                              if (rel >= 0 && rel <= 1) {
+                                 Vec2D p{ bezier::pointAtRatio(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
+                                 Vec2D dir{ bezier::B_prime(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
+                                 plotCar2D(3, p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
+                              }
                            }
                         }
                      }
