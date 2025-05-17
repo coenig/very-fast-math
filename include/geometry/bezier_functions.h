@@ -12,22 +12,17 @@
 namespace vfm::bezier {
 
 // Function to calculate the point on a cubic Bezier curve
-Vec2D cubicBezier(float t, const Vec2D& s, const Vec2D& v, const Vec2D& w, const Vec2D& e) {
-   return s * pow(1 - t, 3) + v * (3 * pow(1 - t, 2) * t) + w * (3 * (1 - t) * pow(t, 2)) + e * pow(t, 3);
+static Vec2D cubicBezier(float t, const Vec2D& p0, const Vec2D& p1, const Vec2D& p2, const Vec2D& p3) {
+   return p0 * pow(1 - t, 3) + p1 * (3 * pow(1 - t, 2) * t) + p2 * (3 * (1 - t) * pow(t, 2)) + p3 * pow(t, 3);
 }
 
 // Function to calculate the derivative of a cubic Bezier curve
-Vec2D B_prime(float t, const Vec2D& s, const Vec2D& v, const Vec2D& w, const Vec2D& e) {
-   return (v - s) * (3 * pow(1 - t, 2)) + (w - v) * (6 * (1 - t) * t) + (e - w) * (3 * pow(t, 2));
-}
-
-// Function to calculate the magnitude of a vector
-float magnitude(const Vec2D& vector) {
-   return vector.length();
+static Vec2D B_prime(float t, const Vec2D& p0, const Vec2D& p1, const Vec2D& p2, const Vec2D& p3) {
+   return (p1 - p0) * (3 * pow(1 - t, 2)) + (p2 - p1) * (6 * (1 - t) * t) + (p3 - p2) * (3 * pow(t, 2));
 }
 
 // Function to approximate the arc length from s to B(t) using numerical integration (Trapezoidal Rule)
-float arcLength(float t, const Vec2D& s, const Vec2D& v, const Vec2D& w, const Vec2D& e) {
+static float arcLength(float t, const Vec2D& s, const Vec2D& v, const Vec2D& w, const Vec2D& e) {
    int n = 100; // Number of segments for integration (adjust as needed)
    float dt = t / n;
    float length = 0.0;
@@ -36,13 +31,28 @@ float arcLength(float t, const Vec2D& s, const Vec2D& v, const Vec2D& w, const V
       float t2 = (i + 1) * dt;
       Vec2D p1 = B_prime(t1, s, v, w, e);  // Evaluate derivative at t1
       Vec2D p2 = B_prime(t2, s, v, w, e);  // Evaluate derivative at t2
-      length += 0.5 * (magnitude(p1) + magnitude(p2)) * dt; // Trapezoidal rule
+      length += 0.5 * (p1.length() + p2.length()) * dt; // Trapezoidal rule
+   }
+   return length;
+}
+
+// Function to approximate the arc length from s to B(t) using numerical integration (Trapezoidal Rule); omit the square for vector length calculation
+static float arcLengthSquare(float t, const Vec2D& s, const Vec2D& v, const Vec2D& w, const Vec2D& e) {
+   int n = 100; // Number of segments for integration (adjust as needed)
+   float dt = t / n;
+   float length = 0.0;
+   for (int i = 0; i < n; ++i) {
+      float t1 = i * dt;
+      float t2 = (i + 1) * dt;
+      Vec2D p1 = B_prime(t1, s, v, w, e);  // Evaluate derivative at t1
+      Vec2D p2 = B_prime(t2, s, v, w, e);  // Evaluate derivative at t2
+      length += 0.5 * (p1.lengthSquare() + p2.lengthSquare()) * dt; // Trapezoidal rule
    }
    return length;
 }
 
 // Function to find the parameter t such that arcLength(t) ≈ l using bisection
-float findT(float l, const Vec2D& s, const Vec2D& v, const Vec2D& w, const Vec2D& e, float tolerance = 1e-6) {
+static float findT(float l, const Vec2D& s, const Vec2D& v, const Vec2D& w, const Vec2D& e, float tolerance = 1e-6) {
    float a = 0.0;  // Lower bound for t
    float b = 1.0;  // Upper bound for t
    while ((b - a) > tolerance) {
@@ -58,7 +68,7 @@ float findT(float l, const Vec2D& s, const Vec2D& v, const Vec2D& w, const Vec2D
 }
 
 // Function to calculate the point at a given length (relative to the full arc length) along a cubic Bezier curve
-Vec2D pointAtRatio(float l, const Vec2D& s, const Vec2D& v, const Vec2D& w, const Vec2D& e) {
+static Vec2D pointAtRatio(float l, const Vec2D& s, const Vec2D& v, const Vec2D& w, const Vec2D& e) {
    assert(0 <= l && l <= 1);
    float totalLength = arcLength(1.0, s, v, w, e);
    float t = findT(l * totalLength, s, v, w, e);

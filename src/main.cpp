@@ -15,6 +15,7 @@
 #include "vfmacro/script.h"
 #include "gui/gui.h"
 #include "simulation/road_graph.h"
+#include "geometry/bezier_functions.h"
 // #include "examples/fct_enumdefinitions.h" // TODO: This does not work on Linux (needed for replayCounterExample).
 
 using namespace vfm;
@@ -25,22 +26,50 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   auto traces = StaticHelper::extractMCTracesFromNusmvFile("../examples/gp_config_sections=5/debug_trace_array.txt");
-   std::shared_ptr<RoadGraph> r{ mc::trajectory_generator::VisualizationLaunchers::getRoadGraphFrom(traces.at(0)) };
-   std::cout << r->generateOSM()->serializeBlock() << std::endl;
-   
-   HighwayImage img{ 1600, 2600, std::make_shared<Plain2DTranslator>(), 4 };
+   //for (int i = 0; i < 100; i++) {
+   //   Image img{ 1500, 1500 };
+   //   img.fillImg(BROWN);
+   //   Vec2D p0{ (float)i, (float)(i % 5) }, p1{ (float)(i % 7), (float)(i % 13) }, p2{ (float)(-i), (float)(i % 19) }, p3{ (float)(i % 23), (float)(i % 29) };
+   //   float hull{ p0.distanceSquare(p1) + p1.distanceSquare(p2) + p2.distanceSquare(p3) };
+   //   float line{ p0.distanceSquare(p3) };
+   //   auto mid = bezier::cubicBezier(0.5, p0, p1, p2, p3);
+   //   float mid_line{ p0.distance(mid) + mid.distance(p3) };
+   //   std::cout << "ExactS: " << std::pow(bezier::arcLength(1, p0, p1, p2, p3), 2) << std::endl;
+   //   std::cout << "Exact : " << bezier::arcLength(1, p0, p1, p2, p3) << std::endl;
+   //   std::cout << "Hull  : " << hull << std::endl;
+   //   std::cout << "Line  : " << line << std::endl;
+   //   std::cout << "Avg   : " << (line + hull) / 2 << std::endl;
+   //   std::cout << "Mid   : " << mid_line << std::endl;
+   //   Pol2D p{};
+   //   p.bezier(p0, p1, p2, p3);
+   //   Pol2D arrow{};
+   //   arrow.createArrow(p, 0.1);
+   //   arrow.scale({ 50, 50 });
+   //   arrow.translate({ 700, 700 });
+   //   img.fillPolygon(arrow, BLUE);
+   //   img.writeAsciiText(100, 100, std::to_string(bezier::arcLength(1, p0, p1, p2, p3)));
+   //   img.writeAsciiText(100, 130, std::to_string(mid_line));
+   //   img.store("bezier");
+   //   std::cin.get();
+   //   //std::cout << "DIFF: " << (line + hull) / 2 + std::pow(bezier::arcLength(1, p0, p1, p2, p3), 2) << std::endl;
+   //}
+   //termnate();
 
-   const Rec2D bounding_box{ r->getBoundingBox() };
-   const float offset_x{ -bounding_box.upper_left_.x + 15 };
-   const float offset_y{ -bounding_box.upper_left_.y + 15 };
+   //auto traces = StaticHelper::extractMCTracesFromNusmvFile("../examples/gp_config_sections=5/debug_trace_array.txt");
+   //std::shared_ptr<RoadGraph> r{ mc::trajectory_generator::VisualizationLaunchers::getRoadGraphFrom(traces.at(0)) };
+   //std::cout << r->generateOSM()->serializeBlock() << std::endl;
+   //
+   //HighwayImage img{ 1600, 2600, std::make_shared<Plain2DTranslator>(), 4 };
 
-   img.startOrKeepUpPDF();
-   img.fillImg(BROWN);
-   img.paintRoadGraph(r, { 500, 60 }, {}, true, offset_x, offset_y);
-   img.store("test", OutputType::pdf);
-   img.store("test", OutputType::png);
-   termnate();
+   //const Rec2D bounding_box{ r->getBoundingBox() };
+   //const float offset_x{ -bounding_box.upper_left_.x + 15 };
+   //const float offset_y{ -bounding_box.upper_left_.y + 15 };
+
+   //img.startOrKeepUpPDF();
+   //img.fillImg(BROWN);
+   //img.paintRoadGraph(r, { 500, 60 }, {}, true, offset_x, offset_y);
+   //img.store("test", OutputType::pdf);
+   //termnate();
 
    //mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
    //   { 

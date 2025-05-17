@@ -1223,7 +1223,7 @@ void vfm::HighwayImage::paintRoadGraph(
 
                      // Draw cars in crossing
                      if (i >= FIRST_LANE_CONNECTOR_ID) { // This is the id of the pavement.
-                        if (r->getSuccessors().size() == 1) {
+                        if (true || r->getSuccessors().size() == 1) {
                            r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 3, 10, 0 }); // TODO
                            r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 13, 10, 0 }); // TODO
                            r->addNonegoOnCrossingTowards(r_succ, CarPars{ 1, 3, 10, 0 }); // TODO
