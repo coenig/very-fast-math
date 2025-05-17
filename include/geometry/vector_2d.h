@@ -34,6 +34,7 @@ public:
    std::string serialize() const override;
    std::string serializeRoundedDown() const;
    float length() const;
+   float lengthSquare() const; /// Omits the square root required to get the actual norm length.
    float dotProduct(const Vector2D<NumType>& other) const;
    float angle(const Vector2D<NumType>& other) const;
    void translate(const Vector2D<NumType>& other);
@@ -56,6 +57,7 @@ public:
    void setLength(const NumType l);
    void ortho();
    float distance(const Vector2D<NumType>& other) const;
+   float distanceSquare(const Vector2D<NumType>& other) const; /// Omits the square root required to get the actual Euclidean distance.
 
    /// \brief Returns iff this (interpreted as a point) is within the given rectangle
    /// (excluding border line).
@@ -168,6 +170,12 @@ inline float Vector2D<NumType>::length() const
 }
 
 template<class NumType>
+inline float Vector2D<NumType>::lengthSquare() const
+{
+   return tof(x * x + y * y);
+}
+
+template<class NumType>
 inline float Vector2D<NumType>::dotProduct(const Vector2D<NumType>& other) const
 {
    return tof(x * other.x + y * other.y);
@@ -256,6 +264,12 @@ template<class NumType>
 inline float Vector2D<NumType>::distance(const Vector2D<NumType>& other) const
 {
    return std::sqrt(tof(std::pow(x - other.x, 2) + std::pow(y - other.y, 2)));
+}
+
+template<class NumType>
+inline float Vector2D<NumType>::distanceSquare(const Vector2D<NumType>& other) const
+{
+   return tof(std::pow(x - other.x, 2) + std::pow(y - other.y, 2));
 }
 
 template<class NumType>

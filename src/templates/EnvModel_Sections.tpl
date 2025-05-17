@@ -50,6 +50,10 @@
             }@*.for[[sec2], 0, @{SECTIONS - 1}@.eval]
          }@**.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
 
+         @{
+         INVAR 
+            @{ outgoing_connection_0_of_section_[sec2] = [sec] }@.for[[sec2], 0, @{[sec]}@.sub[1], 1, |];
+         }@.if[@{[sec] > 0}@.eval]
 
       @{
          INIT @{ vec(section_[sec].source.x; section_[sec].source.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
@@ -59,7 +63,6 @@
          INIT @{ vec(section_[sec].drain.x; section_[sec].drain.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
             >= @{MINDISTCONNECTIONS}@.eval[0]; -- Use only farther away coordinate as lower bound.
       }@*.for[[sec2], 0, @{[sec]}@.sub[1]]
-
 
    }@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
