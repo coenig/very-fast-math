@@ -1080,6 +1080,8 @@ void vfm::HighwayImage::paintRoadGraph(
             print_agent_ids,
             infinite_road ? dim_raw : preserved_dimension_,
             mode);
+
+         writeAsciiText(10, -1, "Sec" + std::to_string(r_sub->getID()));
       }
    };
    
