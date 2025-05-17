@@ -5,8 +5,17 @@
 
 using namespace vfm;
 
+//int id_{};
+//Vec2D origin_{};
+//Vec2D target_{};
+//std::vector<int> predecessor_id_{};
+//int left_id_{};
+//int right_id_{};
+
 LaneSegment::LaneSegment(const float begin, const int min_lane, const int max_lane)
-   : begin_(begin), min_lane_(min_lane), max_lane_(max_lane) {
+   : begin_(begin), min_lane_(min_lane), max_lane_(max_lane), ways_{}
+{
+   for (int i = min_lane; i <= max_lane; i++) ways_.insert({ i, Way() });
 }
 
 float LaneSegment::getBegin() const { return begin_; }
@@ -153,6 +162,11 @@ std::map<float, LaneSegment> StraightRoadSection::getSegments() const
    return segments_;
 }
 
+std::map<float, LaneSegment>& StraightRoadSection::getSegmentsRef()
+{
+   return segments_;
+}
+
 void vfm::StraightRoadSection::setEgo(const std::shared_ptr<CarPars> ego)
 {
    ego_ = ego;
@@ -198,8 +212,8 @@ std::shared_ptr<RoadGraph> vfm::RoadGraph::findFirstSectionWithProperty(
    const std::function<bool(const std::shared_ptr<RoadGraph>)> property,
    std::set<std::shared_ptr<RoadGraph>>& visited)
 {
-   if (property(shared_from_this())) return shared_from_this();
    if (!visited.insert(shared_from_this()).second) return nullptr;
+   if (property(shared_from_this())) return shared_from_this();
 
    for (const auto& succ_ptr : successors_) {
       std::shared_ptr<RoadGraph> ptr{ succ_ptr->findFirstSectionWithProperty(property, visited) };
@@ -319,7 +333,7 @@ int vfm::RoadGraph::getID() const
    return id_;
 }
 
-int vfm::RoadGraph::getNumberOfNodes() const
+int vfm::RoadGraph::getNodeCount() const
 {
    int cnt{ 0 };
 
@@ -384,7 +398,7 @@ std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getPredecessors() const
    return predecessors_;
 }
 
-std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getAllNodes() const
+std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getAllNodes() const // TODO: Why not use set? (I believe there WAS a reason...)
 {
    std::vector<std::shared_ptr<RoadGraph>> res{};
 
@@ -398,4 +412,72 @@ std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getAllNodes() const
    });
 
    return res;
+}
+
+std::vector<CarPars> vfm::RoadGraph::getNonegosOnCrossingTowardsSuccessor(const std::shared_ptr<RoadGraph> r) const
+{
+   return nonegos_towards_successors_.count(r) ? nonegos_towards_successors_.at(r) : CarParsVec{};
+}
+
+std::map<std::shared_ptr<RoadGraph>, std::vector<CarPars>> vfm::RoadGraph::getNonegosOnCrossingTowardsAllSuccessors() const
+{
+   return nonegos_towards_successors_;
+}
+
+void vfm::RoadGraph::addNonegoOnCrossingTowards(const std::shared_ptr<RoadGraph> r, const CarPars& nonego)
+{
+   nonegos_towards_successors_.insert({ r, {} }); // Add empty vector only if this successor not yet in the map.
+   nonegos_towards_successors_.at(r).push_back(nonego);
+}
+
+void vfm::RoadGraph::addNonegoOnCrossingTowards(const int r_id, const CarPars& nonego)
+{
+   auto r = findSectionWithID(r_id);
+
+   if (r) {
+      addNonegoOnCrossingTowards(r, nonego);
+   }
+   else {
+      addError("Id '" + std::to_string(r_id) + "' not found as successor of section '" + std::to_string(id_) + "'.");
+   }
+}
+
+using namespace xml;
+
+std::shared_ptr<xml::CodeXML> vfm::RoadGraph::generateOSM() const
+{
+   const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([](const std::shared_ptr<RoadGraph> r) -> bool {
+      std::vector<int> predecessors{};
+      std::vector<int> successors{};
+      auto& my_way = r->getMyRoad().getSegmentsRef().at(0).getWays().at(0);
+
+      for (const auto& pred : r->getPredecessors()) {
+         pred->getMyRoad().getSegmentsRef().at(0).getWays().at(0).successor_ids_.insert(my_way.id_);
+      }
+
+      for (const auto& succ : r->getSuccessors()) {
+         succ->getMyRoad().getSegmentsRef().at(0).getWays().at(0).predecessor_ids_.insert(my_way.id_);
+      }
+
+      my_way.origin_ = r->getOriginPoint();
+      my_way.target_ = r->getDrainPoint();
+
+      return false;
+   });
+
+   auto xml = CodeXML::beginXML();
+   auto osm = CodeXML::emptyXML();
+   const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([&osm](const std::shared_ptr<RoadGraph> r) -> bool {
+      osm->appendAtTheEnd(r->getMyRoad().getSegments().at(0).getWays().at(0).getNodesXML());
+      return false;
+   });
+
+   const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([&osm](const std::shared_ptr<RoadGraph> r) -> bool {
+      osm->appendAtTheEnd(r->getMyRoad().getSegments().at(0).getWays().at(0).getWayXML());
+      return false;
+   });
+
+   xml->appendAtTheEnd(CodeXML::retrieveElementWithXMLContent("osm", { { "version", "0.6" }, { "upload", "false" }, { "generator", "vfm" } }, osm));
+
+   return xml;
 }

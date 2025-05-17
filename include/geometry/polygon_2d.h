@@ -112,7 +112,7 @@ public:
    /// NOTE: The convex polygon (which is also star-shaped) needs to have all points in counter-clockwise order.
    Polygon2D<NumType> clipPolygonsOneConvex(const Polygon2D<NumType>& p2) const;
 
-   /// \brief Adds a bezier curve through the points (p1, p2, p3, p4). Point distance is controlled via step in [0, 1].
+   /// \brief Adds a cubic bezier curve through the points (p1, p2, p3, p4). Point distance is controlled via step in [0, 1].
    Polygon2D<NumType> bezier(const Vector2D<NumType>& p0, const Vector2D<NumType>& p1, const Vector2D<NumType>& p2, const Vector2D<NumType>& p3, const float step = 0.01);
 
    /// \brief Adds a bezier curve through arbitrary many points with associated direction vectors. 

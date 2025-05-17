@@ -16,7 +16,7 @@
 //   - (ADD) Additional rule for 'ifelse': ifelse(a, b, c) ==> if(a, b) [[c: 'has_no_sideeffects']] $10.
 // -----------------------------------------------------------------------------------------------------------------------
 
-// Creation time: Sat Nov 16 20:26:29 2024
+// Creation time: Sat May  3 08:05:34 2025
 
 // Usage note: There are three simplification modes in vfm (only two are currently working) which have the following benefits (if in doubt use 2):
 // 1) Runtime simplification via MathStruct::simplify(): Slowest, but can be triggered to provide detailed debugging information.
@@ -39,7 +39,7 @@ namespace mc {
 namespace simplification {
 
 // Unique operators at creation time. Overloading one of these might lead to errors in the simplification if they are part of a simplification rule.
-static const std::set<std::string> NON_OVERLOADED_OPERATORS = { "!", "!=", "!==", "%", "&&", "*", "**", "+", "--", ".", ".C", ".D", "/", ":", ";", "<", "<=", "<=>", "=", "==", "===", "=>", ">", ">=", "?", "@f", "F", "F_bound", "G", "G_bound", "Get", "Get2", "Get3", "Getk", "H", "H_bound", "O", "O_bound", "Print", "S", "Set", "Set2", "Set3", "Setk", "T", "U", "V", "X", "Y", "Z", "_def_", "abs", "array", "array2", "array3", "arrayk", "boolify", "combineArrays", "compound", "copy", "dot", "fctin", "fib", "fillArray3", "for", "forRange", "free", "get", "id", "if", "ifelse", "isprime", "lambda", "length", "literal", "ln", "malloc", "max", "min", "o_", "p_", "print", "print2", "printErr", "print_plain", "printf", "printfln", "println", "q_func", "rand", "return", "rsqrt", "s_", "set", "sqrt", "square", "trunc", "while", "whilelim", "xnor", "xor", "||", };
+static const std::set<std::string> NON_OVERLOADED_OPERATORS = { "!", "!=", "!==", "%", "&&", "*", "**", "+", "--", ".", ".C", ".D", "/", ":", ";", "<", "<=", "<=>", "=", "==", "===", "=>", ">", ">=", "?", "@f", "F", "F_bound", "G", "G_bound", "Get", "Get2", "Get3", "Getk", "H", "H_bound", "O", "O_bound", "Print", "S", "Set", "Set2", "Set3", "Setk", "T", "U", "V", "X", "Y", "Z", "_def_", "abs", "arccos", "arcsin", "arctan", "array", "array2", "array3", "arrayk", "boolify", "combineArrays", "compound", "copy", "cos", "dot", "fctin", "fib", "fillArray3", "for", "forRange", "free", "get", "id", "if", "ifelse", "isprime", "lambda", "length", "literal", "ln", "malloc", "max", "min", "o_", "p_", "print", "print2", "printErr", "print_plain", "printf", "printfln", "println", "q_func", "rand", "return", "rsqrt", "s_", "set", "sin", "sqrt", "square", "tan", "trunc", "while", "whilelim", "xnor", "xor", "||", };
 
 // Overloaded operators at creation time.
 static const std::set<std::string> OVERLOADED_OPERATORS = { "-", };

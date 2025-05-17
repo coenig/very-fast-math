@@ -203,7 +203,7 @@ inline std::pair<std::vector<CarPars>, std::vector<CarParsVec>> createOthersVecs
 
 std::string VisualizationLaunchers::writeProseTrafficScene(const MCTrace trace)
 {
-   const auto road_graph{ getLaneStructureFrom(trace) };
+   const auto road_graph{ getRoadGraphFrom(trace) };
    const auto config = InterpretationConfiguration::getLaneChangeConfiguration();
    const MCinterpretedTrace interpreted_trace(0, { trace }, config);
    const auto data_vec{ interpreted_trace.getDataTrace() };
@@ -370,9 +370,9 @@ bool VisualizationLaunchers::quickGenerateGIFs(
    return true;
 }
 
-std::shared_ptr<RoadGraph> vfm::mc::trajectory_generator::VisualizationLaunchers::getLaneStructureFrom(const MCTrace& trace)
+std::shared_ptr<RoadGraph> vfm::mc::trajectory_generator::VisualizationLaunchers::getRoadGraphFrom(const MCTrace& trace)
 {
-   if (trace.empty()) Failable::getSingleton()->addError("Received empty trace for 'getLaneStructureFrom'.");
+   if (trace.empty()) Failable::getSingleton()->addError("Received empty trace for 'getRoadGraphFrom'.");
 
    const auto first_state{ trace.at(0).second };
 
@@ -404,6 +404,11 @@ std::shared_ptr<RoadGraph> vfm::mc::trajectory_generator::VisualizationLaunchers
       road_graphs[sec]->setAngle(2.0 * 3.1415 * std::stof(first_state.at("section_" + std::to_string(sec) + ".angle")) / 360.0);
       road_graphs[sec]->setMyRoad(lane_structure);
    }
+
+   // TODO: set actual EGO?
+   CarPars c{ 0, 0, 0, vfm::HighwayImage::EGO_MOCK_ID };
+   road_graphs[0]->getMyRoad().setEgo(std::make_shared<CarPars>());
+   // EO TODO
 
    for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
       for (int connect = 0; first_state.count(connection(sec, connect)); connect++) {
@@ -483,7 +488,7 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
 
       interpreted_trace.applyScaling(1.0, -1.0, 1.0); // flip y
 
-      auto road_graph{ getLaneStructureFrom(trace) };
+      auto road_graph{ getRoadGraphFrom(trace) };
 
       // TODO
       auto others = createOthersVecs(interpreted_trace.getDataTrace(), road_graph->getMyRoad());

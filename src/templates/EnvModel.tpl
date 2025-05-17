@@ -215,15 +215,15 @@ ego.on_lane_max := case
    }@.for[[j], @{NUMLANES - 1}@.eval, 1, -1]TRUE : 0;
 esac;
 
--- INVAR (ego.abs_pos < segment_0_pos_begin) -> 
--- (ego.on_lane_min >= segment_0_min_lane & ego.on_lane_max <= segment_0_max_lane);
--- 
--- @{
--- INVAR (ego.abs_pos >= segment_[num]_pos_begin & ego.abs_pos < segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
--- (ego.on_lane_min >= segment_[num]_min_lane & ego.on_lane_max <= segment_[num]_max_lane);
--- }@*.for[[num], 0, @{SEGMENTS - 2}@.eval]
--- INVAR (ego.abs_pos >= segment_@{SEGMENTS - 1}@.eval[0]_pos_begin) -> 
--- (ego.on_lane_min >= segment_@{SEGMENTS - 1}@.eval[0]_min_lane & ego.on_lane_max <= segment_@{SEGMENTS - 1}@.eval[0]_max_lane);
+INVAR (ego.abs_pos < section_0_segment_0_pos_begin) -> 
+   (ego.on_lane_min >= section_0_segment_0_min_lane & ego.on_lane_max <= section_0_segment_0_max_lane);
+
+@{
+   INVAR (ego.abs_pos >= section_0_segment_[num]_pos_begin & ego.abs_pos < section_0_segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
+   (ego.on_lane_min >= section_0_segment_[num]_min_lane & ego.on_lane_max <= section_0_segment_[num]_max_lane);
+   }@*.for[[num], 0, @{SEGMENTS - 2}@.eval]
+   INVAR (ego.abs_pos >= section_0_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin) -> 
+   (ego.on_lane_min >= section_0_segment_@{SEGMENTS - 1}@.eval[0]_min_lane & ego.on_lane_max <= section_0_segment_@{SEGMENTS - 1}@.eval[0]_max_lane);
 
 }@**.if[@{!(EGOLESS)}@.eval]
 
@@ -255,19 +255,19 @@ esac;
    -- veh___6[i]9___.prohibit_lanes_from_[j] := @{!veh___6[i]9___.lane_b[k]}@.for[[k], [j], @{NUMLANES - 1}@.eval, 1, &];
 }@*.for[[j], 1, @{NUMLANES - 1}@.eval]}@**.for[[i], 0, @{NONEGOS - 1}@.eval].nil
 
--- @{
--- INVAR (veh___6[i]9___.abs_pos < segment_0_pos_begin) -> 
--- (veh___6[i]9___.on_lane_min >= segment_0_min_lane & veh___6[i]9___.on_lane_max <= segment_0_max_lane);
--- 
--- @{
--- INVAR (veh___6[i]9___.abs_pos >= segment_[num]_pos_begin & veh___6[i]9___.abs_pos < segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
--- (veh___6[i]9___.on_lane_min >= segment_[num]_min_lane & veh___6[i]9___.on_lane_max <= segment_[num]_max_lane);
--- }@*.for[[num], 0, @{SEGMENTS - 2}@.eval]
--- 
--- INVAR (veh___6[i]9___.abs_pos >= segment_@{SEGMENTS - 1}@.eval[0]_pos_begin) -> 
--- (veh___6[i]9___.on_lane_min >= segment_@{SEGMENTS - 1}@.eval[0]_min_lane & veh___6[i]9___.on_lane_max <= segment_@{SEGMENTS - 1}@.eval[0]_max_lane);
+@{
+   INVAR (veh___6[i]9___.abs_pos < section_0_segment_0_pos_begin) -> 
+   (veh___6[i]9___.on_lane_min >= section_0_segment_0_min_lane & veh___6[i]9___.on_lane_max <= section_0_segment_0_max_lane);
 
--- }@**.for[[i], 0, @{NONEGOS - 1}@.eval]
+   @{
+   INVAR (veh___6[i]9___.abs_pos >= section_0_segment_[num]_pos_begin & veh___6[i]9___.abs_pos < section_0_segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
+   (veh___6[i]9___.on_lane_min >= section_0_segment_[num]_min_lane & veh___6[i]9___.on_lane_max <= section_0_segment_[num]_max_lane);
+   }@*.for[[num], 0, @{SEGMENTS - 2}@.eval]
+
+   INVAR (veh___6[i]9___.abs_pos >= section_0_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin) -> 
+   (veh___6[i]9___.on_lane_min >= section_0_segment_@{SEGMENTS - 1}@.eval[0]_min_lane & veh___6[i]9___.on_lane_max <= section_0_segment_@{SEGMENTS - 1}@.eval[0]_max_lane);
+
+}@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 DEFINE
 -- Schematic for ego.right_of_veh_*_lane

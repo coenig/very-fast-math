@@ -8,7 +8,9 @@
 
 #include "geometry/vector_2d.h"
 #include "geometry/polygon_2d.h"
+#include "xml/xml_generator.h"
 #include "failable.h"
+#include "static_helper.h"
 #include <string>
 
 namespace vfm {
@@ -80,6 +82,53 @@ struct CarPars {
 
 using CarParsVec = std::vector<CarPars>;
 
+
+static int global_id_first_free{ 0 };
+
+class Way {
+public:
+   inline Way() : id_{ global_id_first_free++ }, origin_id_{ global_id_first_free++ }, target_id_{ global_id_first_free++ } {}
+
+   inline std::shared_ptr<xml::CodeXML> getNodesXML() const
+   {
+      auto origin_coord = StaticHelper::cartesianToWGS84(origin_.x, origin_.y);
+      auto target_coord = StaticHelper::cartesianToWGS84(target_.x, target_.y);
+      auto res = getNodeXML(origin_id_, origin_coord.first, origin_coord.second);
+      res->appendAtTheEnd(getNodeXML(target_id_, target_coord.first, target_coord.second));
+
+      return res;
+   }
+
+   inline std::shared_ptr<xml::CodeXML> getWayXML() const
+   {
+      auto way_inner = xml::CodeXML::emptyXML();
+      auto xml = xml::CodeXML::retrieveElementWithXMLContent("way", { {"id", std::to_string(id_)},{"visible", "true"}, {"version", "1"}}, way_inner);
+      return xml;
+   }
+
+   int id_{};
+   int origin_id_{};
+   int target_id_{};
+   Vec2D origin_{};
+   Vec2D target_{};
+   std::set<int> predecessor_ids_{};
+   std::set<int> successor_ids_{};
+   int left_id_{};
+   int right_id_{};
+
+private:
+   inline static std::shared_ptr<xml::CodeXML> getNodeXML(const int id, const double lat, const double lon)
+   {
+      return xml::CodeXML::retrieveParsOnlyElement("node", {
+         { "id", std::to_string(id) },
+         { "visible", "true" },
+         { "version", "1" },
+         { "lat", std::to_string(lat) },
+         { "lon", std::to_string(lon) }
+         });
+   }
+};
+
 /// <summary>
 /// Represents one straight road segment with a minimum lane id and a maximum lane id.
 /// It is embedded into a StraightRoadSection which defines the number of lanes available.
@@ -103,22 +152,47 @@ public:
    void screwUpBegin();
    bool isScrewedUp();
 
+   //inline void addWaysFromPredecessor(const LaneSegment& predecessor, const Vec2D& origin) {
+   //   for (int i = getMinLane(); i <= getMaxLane(); i++) {
+   //      Way way{};
+   //      ways_.push_back(way);
+   //   }
+   //}
+
+   //inline void clearWays() 
+   //{
+   //   ways_.clear();
+   //}
+
+   //inline void addWay(const Way& way) 
+   //{
+   //   ways_.push_back(way);
+   //}
+
+   inline std::map<int, Way>& getWays()
+   {
+      return ways_;
+   }
+
    std::string toString() const;
 
 private:
    float begin_{};
    const int min_lane_{}; // 0: right-most, 1: right-most as emergency, 2: right-most - 1 etc.
    const int max_lane_{};
+   std::map<int, Way> ways_{};
 };
 
 static constexpr int MIN_DISTANCE_BETWEEN_SEGMENTS{ 20 };
 
 /// <summary>
 /// Sequence of LaneSegment's.
-/// begin1 = 0   begin2            begin_n    section_end_  
+/// begin1 = 0   begin2            begin_n                       section_end_  
 /// ------------------------------------------
 ///   SEG1       |  SEG2  | ... |  SEG n     |
-/// ------------------------------------------
+/// -------------------------------------------------------------
+///   SEG1       |  SEG2  | ... |  SEG n     | ... |  SEG m     |
+/// -------------------------------------------------------------
 /// </summary>
 class StraightRoadSection : public Failable {
 public:
@@ -133,6 +207,7 @@ public:
    int getNumLanes() const;
    bool isValid() const;
    std::map<float, LaneSegment> getSegments() const;
+   std::map<float, LaneSegment>& getSegmentsRef();
 
    void setEgo(const std::shared_ptr<CarPars> ego);
    void setOthers(const CarParsVec& others);
@@ -142,6 +217,7 @@ public:
    CarParsVec getOthers() const;
    std::map<int, std::pair<float, float>> getFuturePositionsOfOthers() const;
    float getLength() const;
+
 
 private:
    std::map<float, LaneSegment> segments_{};
@@ -184,7 +260,7 @@ public:
    void normalizeRoadGraphToEgoSection();
 
    int getID() const;
-   int getNumberOfNodes() const;
+   int getNodeCount() const;
 
    void setMyRoad(const StraightRoadSection& section);
    void setOriginPoint(const Vec2D& point);
@@ -200,10 +276,24 @@ public:
 
    std::vector<std::shared_ptr<RoadGraph>> getAllNodes() const;
 
-   std::vector<ConnectorPolygonEnding> connectors_{};
+   std::vector<CarPars> getNonegosOnCrossingTowardsSuccessor(const std::shared_ptr<RoadGraph> r) const;
+   std::map<std::shared_ptr<RoadGraph>, std::vector<CarPars>> getNonegosOnCrossingTowardsAllSuccessors() const;
+   void addNonegoOnCrossingTowards(const std::shared_ptr<RoadGraph> r, const CarPars& nonego);
+   void addNonegoOnCrossingTowards(const int r_id, const CarPars& nonego);
 
-   StraightRoadSection my_road_{}; // TODO: Make private.
+   std::shared_ptr<xml::CodeXML> generateOSM() const;
+
+   std::vector<ConnectorPolygonEnding> connectors_{}; // TODO: Make private.
+   StraightRoadSection my_road_{};                    // TODO: Make private.
+
 private:
+   std::shared_ptr<RoadGraph> findFirstSectionWithProperty(
+      const std::function<bool(std::shared_ptr<RoadGraph>)> property,
+      std::set<std::shared_ptr<RoadGraph>>& visited);
+
+   bool isOriginAtZero() const;
+   bool isAngleZero() const;
+
    Vec2D origin_point_{ 0.0F, 0.0F };
    float angle_{ 0 }; // In RAD
    int id_{};
@@ -211,12 +301,7 @@ private:
    std::vector<std::shared_ptr<RoadGraph>> successors_{};
    std::vector<std::shared_ptr<RoadGraph>> predecessors_{};
 
-   std::shared_ptr<RoadGraph> findFirstSectionWithProperty(
-      const std::function<bool(std::shared_ptr<RoadGraph>)> property,
-      std::set<std::shared_ptr<RoadGraph>>& visited);
-
-   bool isOriginAtZero() const;
-   bool isAngleZero() const;
+   std::map<std::shared_ptr<RoadGraph>, std::vector<CarPars>> nonegos_towards_successors_{};
 };
 
 } // vfm

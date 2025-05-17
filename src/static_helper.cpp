@@ -10,7 +10,7 @@
 #include "failable.h"
 #include "meta_rule.h"
 #include "model_checking/msatic_parsing/msatic_trace.h"
-#include "simplification/simplification_function.h"
+#include "simplification/code_block.h"
 #include "testing/interactive_testing.h"
 #include <array>
 #include <cassert>
@@ -3171,7 +3171,7 @@ void vfm::StaticHelper::checkForOutdatedSimplification(const std::shared_ptr<For
          }
 
          parser->addNote("Creating new simplification procedure in '" + StaticHelper::absPath(new_path) + "'.");
-         simplification::CodeGenerator::deleteAndWriteSimplificationRulesToFile(simplification::CodeGenerationMode::negative, new_path, parser, true); // MC mode.
+         code_block::CodeGenerator::deleteAndWriteSimplificationRulesToFile(code_block::CodeGenerationMode::negative, new_path, parser, true); // MC mode.
          parser->addWarning("Note that you'll need to recompile and then re-run the cpp parser. The current run is possibly broken, we'll exit it to be safe.");
          std::exit(EXIT_FAILURE);
       }
@@ -3362,6 +3362,14 @@ void vfm::StaticHelper::applyTimescaling(MCTrace& trace, const ScaleDescription&
          }
       }
    }
+}
+
+static constexpr double LAT_ZERO{ 48.999031665333156 }; // Coordinates of...
+static constexpr double LON_ZERO{ 9.294116971817786 };  // ...Grossbottwar :-)
+
+std::pair<double, double> vfm::StaticHelper::cartesianToWGS84(const double x, const double y)
+{
+   return { LAT_ZERO + x / 111000.0, LON_ZERO - y / 75000.0 };
 }
 
 // This function is licensed under CC-BY-SA-4.0 which is a copy-left license
