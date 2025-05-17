@@ -55,21 +55,21 @@ int main(int argc, char* argv[])
    //}
    //termnate();
 
-   //auto traces = StaticHelper::extractMCTracesFromNusmvFile("../examples/gp_config_sections=5/debug_trace_array.txt");
-   //std::shared_ptr<RoadGraph> r{ mc::trajectory_generator::VisualizationLaunchers::getRoadGraphFrom(traces.at(0)) };
-   //std::cout << r->generateOSM()->serializeBlock() << std::endl;
-   //
-   //HighwayImage img{ 1600, 2600, std::make_shared<Plain2DTranslator>(), 4 };
+   auto traces = StaticHelper::extractMCTracesFromNusmvFile("../examples/gp_config_sections=5/debug_trace_array.txt");
+   std::shared_ptr<RoadGraph> r{ mc::trajectory_generator::VisualizationLaunchers::getRoadGraphFrom(traces.at(0)) };
+   std::cout << r->generateOSM()->serializeBlock() << std::endl;
+   
+   HighwayImage img{ 1600, 2600, std::make_shared<Plain2DTranslator>(), 4 };
 
-   //const Rec2D bounding_box{ r->getBoundingBox() };
-   //const float offset_x{ -bounding_box.upper_left_.x + 15 };
-   //const float offset_y{ -bounding_box.upper_left_.y + 15 };
+   const Rec2D bounding_box{ r->getBoundingBox() };
+   const float offset_x{ -bounding_box.upper_left_.x + 15 };
+   const float offset_y{ -bounding_box.upper_left_.y + 15 };
 
-   //img.startOrKeepUpPDF();
-   //img.fillImg(BROWN);
-   //img.paintRoadGraph(r, { 500, 60 }, {}, true, offset_x, offset_y);
-   //img.store("test", OutputType::pdf);
-   //termnate();
+   img.startOrKeepUpPDF();
+   img.fillImg(BROWN);
+   img.paintRoadGraph(r, { 500, 60 }, {}, true, offset_x, offset_y);
+   img.store("test", OutputType::pdf);
+   termnate();
 
    //mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
    //   { 
