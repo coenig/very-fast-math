@@ -108,7 +108,7 @@ public:
       Vec2D origin_right{ origin_ + dir };
       Vec2D target_left{ target_ - dir };
       Vec2D target_right{ target_ + dir };
-      Vec2D mid_left{ (origin_left + target_left) / 2 - dir };
+      Vec2D mid_left{ (origin_left + target_left) / 2 - dir };  // TODO: Just a hack that should go away again.
       Vec2D mid_right{ (origin_right + target_right) / 2 - dir };
 
       auto origin_left_coord = StaticHelper::cartesianToWGS84(origin_left.x, origin_left.y);
