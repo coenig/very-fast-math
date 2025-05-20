@@ -66,31 +66,31 @@
 
       @{
          @{
-            DEFINE
-               angle_from_sec_[sec]_to_sec_[sec2]_raw := section_[sec2].angle - section_[sec].angle;
-               angle_from_sec_[sec]_to_sec_[sec2] := case
-                  angle_from_sec_[sec]_to_sec_[sec2]_raw < 0 : angle_from_sec_[sec]_to_sec_[sec2]_raw + 360;
-                  angle_from_sec_[sec]_to_sec_[sec2]_raw >= 360 : angle_from_sec_[sec]_to_sec_[sec2]_raw - 360;
-                  TRUE : angle_from_sec_[sec]_to_sec_[sec2]_raw;
-               esac;
-               connection_distance_sec_[sec]_to_sec_[sec2] := case -- TODO: We could have several connections for the same sections with different conn. distances.
-                  @{
-                     outgoing_connection_[con]_of_section_[sec] = [sec2] : dist_[con]_of_section_[sec]_to_[sec2];
-                  }@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval]
-                  TRUE : -1;
-               esac;
+         DEFINE
+            angle_from_sec_[sec]_to_sec_[sec2]_raw := section_[sec2].angle - section_[sec].angle;
+            angle_from_sec_[sec]_to_sec_[sec2] := case
+               angle_from_sec_[sec]_to_sec_[sec2]_raw < 0 : angle_from_sec_[sec]_to_sec_[sec2]_raw + 360;
+               angle_from_sec_[sec]_to_sec_[sec2]_raw >= 360 : angle_from_sec_[sec]_to_sec_[sec2]_raw - 360;
+               TRUE : angle_from_sec_[sec]_to_sec_[sec2]_raw;
+            esac;
+            connection_distance_sec_[sec]_to_sec_[sec2] := case -- TODO: We could have several connections for the same sections with different conn. distances.
+               @{
+                  outgoing_connection_[con]_of_section_[sec] = [sec2] : dist_[con]_of_section_[sec]_to_[sec2];
+               }@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval]
+               TRUE : -1;
+            esac;
 
-               arclength_from_sec_[sec]_to_sec_[sec2] := case
+            @{
+               arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] := case
                   @{
                      @{
-                        @{
-                           angle_from_sec_[sec]_to_sec_[sec2] = [angle] & connection_distance_sec_[sec]_to_sec_[sec2] = [dist] &  : 0;
-                        }@*.for[[lane], 0, @{NUMLANES - 1}@.eval]
-                     }@**.for[[dist], @{MINDISTCONNECTIONS}@.eval, @{MAXDISTCONNECTIONS}@.eval]
-                  }@***.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
+                           angle_from_sec_[sec]_to_sec_[sec2] = [angle] & connection_distance_sec_[sec]_to_sec_[sec2] = [dist] : 0;
+                     }@*.for[[dist], @{MINDISTCONNECTIONS}@.eval, @{MAXDISTCONNECTIONS}@.eval]
+                  }@**.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
                   TRUE : -1;
                esac;
-         }@.if[@{[sec] != [sec2]}@.eval]
+            }@***.for[[lane], 0, @{NUMLANES - 1}@.eval]
+         }@****.if[@{[sec] != [sec2]}@.eval]
       }@*****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
    }@******.for[[sec], 0, @{SECTIONS - 1}@.eval]
 

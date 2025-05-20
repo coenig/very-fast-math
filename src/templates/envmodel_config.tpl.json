@@ -13,7 +13,7 @@
       "#12": "@distscaling = array(3); @distscaling[0] = 8000; @distscaling[1] = 25000; @distscaling[2] = nan();",
       "#13": "x[0] * y[3]",
       "#14": "range_mult(@gran, 10, 4, 2);",
-      "#15": "range(@sections, 1, 1);",
+      "#15": "range(@sections, 3, 3);",
       "#21": "@f(LaneAvailableLeft) { distance_front } { env.ego.gaps___609___.lane_availability > distance_front }",
       "#22": "@f(LaneAvailableLeft) {} { LaneAvailableLeft(0) }",
       "#23": "@f(LaneAvailableRight) { distance_front } { env.ego.gaps___629___.lane_availability > distance_front }",
