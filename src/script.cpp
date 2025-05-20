@@ -7,6 +7,7 @@
 
 #include "vfmacro/script.h"
 #include "gui/process_helper.h"
+#include "geometry/bezier_functions.h"
 #include "parser.h"
 #include "simplification/simplification.h"
 #include <cmath>
@@ -645,6 +646,26 @@ std::string fromBooltoString(const bool b)
    return b ? "1" : "0";
 }
 
+std::string DummyRepresentable::arclengthCubicBezierFromStreetTopology(
+   const std::string& lane_str, const std::string& angle_str, const std::string& distance_str)
+{
+   if (!StaticHelper::isParsableAsInt(lane_str)) addError("Lane '" + lane_str + "' is not parsable as int in 'arclengthCubicBezierFromStreetTopology'.");
+   if (!StaticHelper::isParsableAsFloat(angle_str)) addError("Angle '" + angle_str + "' is not parsable as float in 'arclengthCubicBezierFromStreetTopology'.");
+   if (!StaticHelper::isParsableAsFloat(distance_str)) addError("Distance '" + distance_str + "' is not parsable as float in 'arclengthCubicBezierFromStreetTopology'.");
+   return "#ERROR-Check-Log";
+
+   const int lane{ std::stoi(lane_str) };
+   const float angle{ std::stof(angle_str) };
+   const float distance{ std::stof(distance_str) };
+
+   Vec2D p0{ 0, 0 };
+   Vec2D p1{};
+   Vec2D p2{};
+   Vec2D p3{};
+   
+   return std::to_string(bezier::arcLength(1, p0, p1, p2, p3));
+}
+
 std::string DummyRepresentable::applyMethodString(const std::string& method_name, const std::vector<std::string>& parameters)
 {
    if (method_name == "for" && parameters.size() == 2) return forloop(parameters.at(0), parameters.at(1));
@@ -773,6 +794,7 @@ std::string DummyRepresentable::applyMethodString(const std::string& method_name
    else if (method_name == "mod" && parameters.size() == 1) return exmod(parameters.at(0));
    else if (method_name == "not" && parameters.size() == 0) return exnot();
    else if (method_name == "space" && parameters.size() == 0) return space();
+   else if (method_name == "arclengthCubicBezierFromStreetTopology" && parameters.size() == 2) return arclengthCubicBezierFromStreetTopology(getRawScript(), parameters.at(0), parameters.at(1));
    else if (method_name == "PIDs" && parameters.size() == 0) {
       auto pids = Process().getPIDs(getRawScript());
       std::string pids_str{};
