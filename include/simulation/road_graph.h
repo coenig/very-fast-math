@@ -87,14 +87,16 @@ static int global_id_first_free{ 0 };
 
 class Way {
 public:
-   inline Way() : 
-      road_link_id_{ global_id_first_free++ }, 
-      left_border_id_{ global_id_first_free++ }, 
-      right_border_id_{ global_id_first_free++ }, 
-      origin_node_left_id_{ global_id_first_free++ }, 
-      target_node_left_id_{ global_id_first_free++ }, 
-      origin_node_right_id_{ global_id_first_free++ }, 
-      target_node_right_id_{ global_id_first_free++ } {}
+   inline Way() :
+      relation_id_{ global_id_first_free++ },
+      road_link_id_{ global_id_first_free++ },
+      left_border_id_{ global_id_first_free++ },
+      right_border_id_{ global_id_first_free++ },
+      origin_node_left_id_{ global_id_first_free++ },
+      target_node_left_id_{ global_id_first_free++ },
+      origin_node_right_id_{ global_id_first_free++ },
+      target_node_right_id_{ global_id_first_free++ } {
+   }
 
    inline std::shared_ptr<xml::CodeXML> getNodesXML() const
    {
@@ -106,41 +108,47 @@ public:
       Vec2D origin_right{ origin_ + dir };
       Vec2D target_left{ target_ - dir };
       Vec2D target_right{ target_ + dir };
+      Vec2D mid_left{ (origin_left + target_left) / 2 - dir };
+      Vec2D mid_right{ (origin_right + target_right) / 2 - dir };
 
       auto origin_left_coord = StaticHelper::cartesianToWGS84(origin_left.x, origin_left.y);
       auto target_left_coord = StaticHelper::cartesianToWGS84(target_left.x, target_left.y);
       auto origin_right_coord = StaticHelper::cartesianToWGS84(origin_right.x, origin_right.y);
       auto target_right_coord = StaticHelper::cartesianToWGS84(target_right.x, target_right.y);
-      auto res = 
-                          getNodeXML(origin_node_left_id_, origin_left_coord.first, origin_left_coord.second);
+      auto mid_left_coord = StaticHelper::cartesianToWGS84(mid_left.x, mid_left.y);
+      auto mid_right_coord = StaticHelper::cartesianToWGS84(mid_right.x, mid_right.y);
+      auto res =
+         getNodeXML(origin_node_left_id_, origin_left_coord.first, origin_left_coord.second);
       res->appendAtTheEnd(getNodeXML(target_node_left_id_, target_left_coord.first, target_left_coord.second));
       res->appendAtTheEnd(getNodeXML(origin_node_right_id_, origin_right_coord.first, origin_right_coord.second));
       res->appendAtTheEnd(getNodeXML(target_node_right_id_, target_right_coord.first, target_right_coord.second));
+      res->appendAtTheEnd(getNodeXML(target_node_left_id_ + 1000, mid_left_coord.first, mid_left_coord.second));
+      res->appendAtTheEnd(getNodeXML(target_node_right_id_ + 1000, mid_right_coord.first, mid_right_coord.second));
 
       return res;
    }
 
-      //<nd ref = '-25494' / >
-   //   <nd ref = '-25495' / >
-   //   <tag k = "Painting::LineWidth" v = "0.300000" / >
-   //   <tag k = "Painting::MarkingType" v = "Solid" / >
-   //   <tag k = "Painting::SingleLineOffsets" v = "-0.000000" / >
-   //   <tag k = "Painting::SingleLineWidths" v = "0.300000" / >
-   //   <tag k = "color" v = "white" / >
-   //   <tag k = "subtype" v = "solid" / >
-   //   <tag k = "type" v = "line_thick" / >
-   //   <tag k = "width" v = "0.300000" / >
-   // 
-   //   <tag k = 'type' v = 'road_link' / >
-   //   <tag k = "rl:meta:country_code" v = "276" / >
-   //   <tag k = "rl:meta:is_controlled" v = "false" / >
-   //   <tag k = "rl:meta:is_motorway" v = "false" / >
-   //   <tag k = "rl:meta:is_separated_structurally" v = "false" / >
-   //   <tag k = "rl:meta:is_urban" v = "false" / >
-   //   <tag k = "rl:predecessors" v = "" / >
-   //   <tag k = "rl:successors" v = "" / >
-   //   <tag k = "rl:travel_direction" v = "along" / >
-   //   <tag k = "rl:type" v = "no_special" / >
+   //<nd ref = '-25494' / >
+//   <nd ref = '-25495' / >
+//   <tag k = "Painting::LineWidth" v = "0.300000" / >
+//   <tag k = "Painting::MarkingType" v = "Solid" / >
+//   <tag k = "Painting::SingleLineOffsets" v = "-0.000000" / >
+//   <tag k = "Painting::SingleLineWidths" v = "0.300000" / >
+//   <tag k = "color" v = "white" / >
+//   <tag k = "subtype" v = "solid" / >
+//   <tag k = "type" v = "line_thick" / >
+//   <tag k = "width" v = "0.300000" / >
+// 
+//   <tag k = 'type' v = 'road_link' / >
+//   <tag k = "rl:meta:country_code" v = "276" / >
+//   <tag k = "rl:meta:is_controlled" v = "false" / >
+//   <tag k = "rl:meta:is_motorway" v = "false" / >
+//   <tag k = "rl:meta:is_separated_structurally" v = "false" / >
+//   <tag k = "rl:meta:is_urban" v = "false" / >
+//   <tag k = "rl:predecessors" v = "" / >
+//   <tag k = "rl:successors" v = "" / >
+//   <tag k = "rl:travel_direction" v = "along" / >
+//   <tag k = "rl:type" v = "no_special" / >
 
    inline std::shared_ptr<xml::CodeXML> getWayXML() const
    {
@@ -159,15 +167,18 @@ public:
       dummy->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "type"}, {"v", "line_thick"} }));
       dummy->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "width"}, {"v", "0.300000"} }));
 
-      way_inner_left->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("nd", { {"ref", std::to_string(origin_node_left_id_) }}));
-      way_inner_left->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("nd", { {"ref", std::to_string(target_node_left_id_) }}));
-      way_inner_right->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("nd", { {"ref", std::to_string(origin_node_right_id_) }}));
-      way_inner_right->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("nd", { {"ref", std::to_string(target_node_right_id_) }}));
+      way_inner_left->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("nd", { {"ref", std::to_string(origin_node_left_id_) } }));
+      way_inner_left->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("nd", { {"ref", std::to_string(target_node_left_id_ + 1000) } }));
+      way_inner_left->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("nd", { {"ref", std::to_string(target_node_left_id_) } }));
+      way_inner_right->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("nd", { {"ref", std::to_string(origin_node_right_id_) } }));
+      way_inner_right->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("nd", { {"ref", std::to_string(target_node_right_id_ + 1000) } }));
+      way_inner_right->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("nd", { {"ref", std::to_string(target_node_right_id_) } }));
 
       way_inner_left->appendAtTheEnd(dummy);
       way_inner_right->appendAtTheEnd(dummy);
 
       way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("nd", { {"ref", std::to_string(origin_node_left_id_) } }));
+      way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("nd", { {"ref", std::to_string(target_node_left_id_ + 1000) } }));
       way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("nd", { {"ref", std::to_string(target_node_left_id_) } }));
       way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "type"}, {"v", "road_link"} }));
       way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "rl:meta:country_code"}, {"v", "276"} }));
@@ -180,13 +191,37 @@ public:
       way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "rl:travel_direction"}, {"v", "along"} }));
       way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "rl:type"}, {"v", "no_special"} }));
 
-      auto xml = xml::CodeXML::retrieveElementWithXMLContent("way", { {"id", std::to_string(left_border_id_)},{"visible", "true"}, {"version", "1"}}, way_inner_left);
-      xml->appendAtTheEnd(xml::CodeXML::retrieveElementWithXMLContent("way", { {"id", std::to_string(right_border_id_)},{"visible", "true"}, {"version", "1"}}, way_inner_right));
-      xml->appendAtTheEnd(xml::CodeXML::retrieveElementWithXMLContent("way", { {"id", std::to_string(road_link_id_)},{"visible", "true"}, {"version", "1"}}, way_inner_link));
+      auto relation_inner = xml::CodeXML::emptyXML();
+      relation_inner->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("member", { { "type","way" }, { "ref", std::to_string(left_border_id_) }, { "role", "left" }}));
+      relation_inner->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("member", { { "type","way" }, { "ref", std::to_string(right_border_id_) }, { "role", "right" }}));
+      relation_inner->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { { "k","location" }, { "v", "nonurban" }}));
+      relation_inner->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { { "k","rl:direction" }, { "v", "along" }}));
+      relation_inner->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { { "k","rl:id" }, { "v", std::to_string(road_link_id_) }}));
+      relation_inner->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { { "k","speed_limit" }, { "v", "130.000000" }}));
+      relation_inner->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { { "k","subtype" }, { "v", "highway" }}));
+      relation_inner->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { { "k","type" }, { "v", "lanelet" }}));
+
+      //   <relation id = "1019" visible = "true" version = "1">
+      //   <member type = "way" ref = "-694" role = "left" / >
+      //   <member type = "way" ref = "-715" role = "right" / >
+      //   <tag k = "location" v = "nonurban" / >
+      //   <tag k = "rl:direction" v = "along" / >
+      //   <tag k = "rl:id" v = "-71511" / >
+      //   <tag k = "speed_limit" v = "130.000000" / >
+      //   <tag k = "subtype" v = "highway" / >
+      //   <tag k = "type" v = "lanelet" / >
+      //   < / relation>
+
+
+      auto xml = xml::CodeXML::retrieveElementWithXMLContent("way", { {"id", std::to_string(left_border_id_)},{"visible", "true"}, {"version", "1"} }, way_inner_left);
+      xml->appendAtTheEnd(xml::CodeXML::retrieveElementWithXMLContent("way", { {"id", std::to_string(right_border_id_)},{"visible", "true"}, {"version", "1"} }, way_inner_right));
+      xml->appendAtTheEnd(xml::CodeXML::retrieveElementWithXMLContent("way", { {"id", std::to_string(road_link_id_)},{"visible", "true"}, {"version", "1"} }, way_inner_link));
+      xml->appendAtTheEnd(xml::CodeXML::retrieveElementWithXMLContent("relation", { { "id", std::to_string(relation_id_) }, {"visible", "true"}, { "version", "1" } }, relation_inner));
 
       return xml;
    }
 
+   int relation_id_{};
    int road_link_id_{};
    int left_border_id_{};
    int right_border_id_{};
