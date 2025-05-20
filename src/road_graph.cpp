@@ -445,11 +445,11 @@ std::shared_ptr<xml::CodeXML> vfm::RoadGraph::generateOSM() const
       auto& my_way = r->getMyRoad().getSegmentsRef().at(0).getWays().at(0);
 
       for (const auto& pred : r->getPredecessors()) {
-         pred->getMyRoad().getSegmentsRef().at(0).getWays().at(0).successor_ids_.insert(my_way.road_link_id_);
+         pred->getMyRoad().getSegmentsRef().at(0).getWays().at(0).successor_ids_.insert(my_way.relation_id_);
       }
 
       for (const auto& succ : r->getSuccessors()) {
-         succ->getMyRoad().getSegmentsRef().at(0).getWays().at(0).predecessor_ids_.insert(my_way.road_link_id_);
+         succ->getMyRoad().getSegmentsRef().at(0).getWays().at(0).predecessor_ids_.insert(my_way.relation_id_);
       }
 
       my_way.origin_ = r->getOriginPoint();
