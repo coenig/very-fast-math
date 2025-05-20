@@ -6,6 +6,7 @@
 /// @file
 #pragma once
 
+#include "geometry/polygon_2d.h"
 #include "geometry/vector_2d.h"
 #include <cmath>
 

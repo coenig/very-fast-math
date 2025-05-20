@@ -965,6 +965,8 @@ public:
    std::string exnot() { return std::to_string(!isBooleanTrue(getTagFreeRawScript()));}
 
    std::string space() { return " "; }
+   
+   std::string arclengthCubicBezierFromStreetTopology(const std::string& lane, const std::string& angle, const std::string& distance);
 
    std::string forloop(const std::string& varname, const std::string& loop_vec)
    {
