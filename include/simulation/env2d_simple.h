@@ -134,7 +134,7 @@ public:
          ? 60 
          : - bounding_box.upper_left_.x + 15 };
       const float offset_y{ infinite_highway
-         ? (float)road_graph->getMyRoad().getNumLanes() / 2.0f 
+         ? (float)road_graph->getMyRoad().getNumLanes() / 2.0f
          : -bounding_box.upper_left_.y + 15 };
 
       outside_view_->paintRoadGraph(
