@@ -5,13 +5,6 @@
 
 using namespace vfm;
 
-//int id_{};
-//Vec2D origin_{};
-//Vec2D target_{};
-//std::vector<int> predecessor_id_{};
-//int left_id_{};
-//int right_id_{};
-
 LaneSegment::LaneSegment(const float begin, const int min_lane, const int max_lane)
    : begin_(begin), min_lane_(min_lane), max_lane_(max_lane), ways_{}
 {
@@ -452,11 +445,11 @@ std::shared_ptr<xml::CodeXML> vfm::RoadGraph::generateOSM() const
       auto& my_way = r->getMyRoad().getSegmentsRef().at(0).getWays().at(0);
 
       for (const auto& pred : r->getPredecessors()) {
-         pred->getMyRoad().getSegmentsRef().at(0).getWays().at(0).successor_ids_.insert(my_way.id_);
+         pred->getMyRoad().getSegmentsRef().at(0).getWays().at(0).successor_ids_.insert(my_way.road_link_id_);
       }
 
       for (const auto& succ : r->getSuccessors()) {
-         succ->getMyRoad().getSegmentsRef().at(0).getWays().at(0).predecessor_ids_.insert(my_way.id_);
+         succ->getMyRoad().getSegmentsRef().at(0).getWays().at(0).predecessor_ids_.insert(my_way.road_link_id_);
       }
 
       my_way.origin_ = r->getOriginPoint();

@@ -59,6 +59,8 @@ int main(int argc, char* argv[])
    std::shared_ptr<RoadGraph> r{ mc::trajectory_generator::VisualizationLaunchers::getRoadGraphFrom(traces.at(0)) };
    std::cout << r->generateOSM()->serializeBlock() << std::endl;
    
+   StaticHelper::writeTextToFile(r->generateOSM()->serializeBlock(), "test.osm");
+
    HighwayImage img{ 1600, 2600, std::make_shared<Plain2DTranslator>(), 4 };
 
    const Rec2D bounding_box{ r->getBoundingBox() };
