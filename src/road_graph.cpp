@@ -449,15 +449,13 @@ way_ids_{ WayIDs{} },
 {
 }
 
-Image img{ 1000, 1000 };
-
 std::shared_ptr<xml::CodeXML> vfm::Way::getNodesXML() const
 {
    auto origin = my_road_graph_->getOriginPoint();
    auto drain = my_road_graph_->getDrainPoint();
    Vec2D dir_lat{ drain - origin };
    dir_lat.ortho();
-   dir_lat.setLength(3.75 / 2);
+   dir_lat.setLength(LANE_WIDTH / 2);
 
    Vec2D origin_left{ origin - dir_lat };
    Vec2D origin_right{ origin + dir_lat };
@@ -486,14 +484,14 @@ std::shared_ptr<xml::CodeXML> vfm::Way::getNodesXML() const
 
       Vec2D dir_lat_succ{ drain_succ - origin_succ };
       dir_lat_succ.ortho();
-      dir_lat_succ.setLength(3.75 / 2);
+      dir_lat_succ.setLength(LANE_WIDTH / 2);
       Vec2D origin_left_succ{ origin_succ - dir_lat_succ };
       Vec2D origin_right_succ{ origin_succ + dir_lat_succ };
 
       Pol2D pol{};
       Pol2D arrow{};
       pol.bezier(drain, drain + dir_mine, origin_succ + dir_succ, origin_succ, 0.1);
-      arrow.createArrow(pol, 3.75, {}, { origin_right_succ, origin_left_succ });
+      arrow.createArrow(pol, LANE_WIDTH, {}, { origin_right_succ, origin_left_succ });
 
       std::vector<int> node_ids_left{};
       std::vector<int> node_ids_right{};
@@ -638,8 +636,6 @@ std::shared_ptr<xml::CodeXML> vfm::RoadGraph::generateOSM() const
    osm_nodes->appendAtTheEnd(osm_ways);
 
    xml->appendAtTheEnd(CodeXML::retrieveElementWithXMLContent("osm", { { "version", "0.6" }, { "upload", "false" }, { "generator", "vfm" } }, osm_nodes));
-
-   img.store("test");
 
    return xml;
 }
