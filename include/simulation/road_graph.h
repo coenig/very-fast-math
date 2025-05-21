@@ -87,12 +87,12 @@ static int global_id_first_free{ 0 };
 
 class RoadGraph;
 
-class Way {
+class Way : public Failable {
 public:
    inline Way(const std::shared_ptr<RoadGraph> my_father_rg);
-
    std::pair<std::shared_ptr<xml::CodeXML>, std::shared_ptr<xml::CodeXML>> getXML() const;
 
+private:
    int relation_id_{};
    int road_link_id_{};
    int left_border_id_{};
@@ -101,9 +101,12 @@ public:
    int target_node_left_id_{};
    int origin_node_right_id_{};
    int target_node_right_id_{};
+   mutable std::vector<std::vector<int>> ids_to_connector_successor_nodes_left_{};
+   mutable std::vector<std::vector<int>> ids_to_connector_successor_nodes_right_{};
    std::shared_ptr<RoadGraph> my_road_graph_{};
 
-private:
+   static std::shared_ptr<xml::CodeXML> getWayXMLGeneric();
+
    std::shared_ptr<xml::CodeXML> getNodesXML() const;
    std::shared_ptr<xml::CodeXML> getWayXML() const;
 

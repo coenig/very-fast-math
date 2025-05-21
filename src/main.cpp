@@ -61,16 +61,16 @@ int main(int argc, char* argv[])
    
    StaticHelper::writeTextToFile(r->generateOSM()->serializeBlock(), "test.osm");
 
-   HighwayImage img{ 1600, 2600, std::make_shared<Plain2DTranslator>(), 4 };
+   //HighwayImage img{ 1600, 2600, std::make_shared<Plain2DTranslator>(), 4 };
 
-   const Rec2D bounding_box{ r->getBoundingBox() };
-   const float offset_x{ -bounding_box.upper_left_.x + 15 };
-   const float offset_y{ -bounding_box.upper_left_.y + 15 };
+   //const Rec2D bounding_box{ r->getBoundingBox() };
+   //const float offset_x{ -bounding_box.upper_left_.x + 15 };
+   //const float offset_y{ -bounding_box.upper_left_.y + 15 };
 
-   img.startOrKeepUpPDF();
-   img.fillImg(BROWN);
-   img.paintRoadGraph(r, { 500, 60 }, {}, true, offset_x, offset_y);
-   img.store("test", OutputType::pdf);
+   //img.startOrKeepUpPDF();
+   //img.fillImg(BROWN);
+   //img.paintRoadGraph(r, { 500, 60 }, {}, true, offset_x, offset_y);
+   //img.store("test", OutputType::pdf);
    termnate();
 
    //mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(

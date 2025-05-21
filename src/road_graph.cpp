@@ -1,4 +1,5 @@
 #include "simulation/road_graph.h"
+#include "geometry/images.h"
 #include <vector>
 #include <cmath>
 
@@ -435,7 +436,7 @@ void vfm::RoadGraph::addNonegoOnCrossingTowards(const int r_id, const CarPars& n
 
 using namespace xml;
 
-vfm::Way::Way(const std::shared_ptr<RoadGraph> my_father_rg) :
+vfm::Way::Way(const std::shared_ptr<RoadGraph> my_father_rg) : Failable("OSM-Way"),
    relation_id_{ global_id_first_free++ },
    road_link_id_{ global_id_first_free++ },
    left_border_id_{ global_id_first_free++ },
@@ -444,34 +445,81 @@ vfm::Way::Way(const std::shared_ptr<RoadGraph> my_father_rg) :
    target_node_left_id_{ global_id_first_free++ },
    origin_node_right_id_{ global_id_first_free++ },
    target_node_right_id_{ global_id_first_free++ },
+   ids_to_connector_successor_nodes_left_{},
+   ids_to_connector_successor_nodes_right_{},
    my_road_graph_{ my_father_rg }
 {
 }
 
+Image img{ 1000, 1000 };
+
 std::shared_ptr<xml::CodeXML> vfm::Way::getNodesXML() const
 {
    auto origin = my_road_graph_->getOriginPoint();
-   auto target = my_road_graph_->getDrainPoint();
-   Vec2D dir{ target - origin };
-   dir.ortho();
-   dir.setLength(3.75 / 2);
+   auto drain = my_road_graph_->getDrainPoint();
+   Vec2D dir_lat{ drain - origin };
+   dir_lat.ortho();
+   dir_lat.setLength(3.75 / 2);
 
-   Vec2D origin_left{ origin - dir };
-   Vec2D origin_right{ origin + dir };
-   Vec2D target_left{ target - dir };
-   Vec2D target_right{ target + dir };
+   Vec2D origin_left{ origin - dir_lat };
+   Vec2D origin_right{ origin + dir_lat };
+   Vec2D drain_left{ drain - dir_lat };
+   Vec2D drain_right{ drain + dir_lat };
 
    auto origin_left_coord = StaticHelper::cartesianToWGS84(origin_left.x, origin_left.y);
-   auto target_left_coord = StaticHelper::cartesianToWGS84(target_left.x, target_left.y);
+   auto target_left_coord = StaticHelper::cartesianToWGS84(drain_left.x, drain_left.y);
    auto origin_right_coord = StaticHelper::cartesianToWGS84(origin_right.x, origin_right.y);
-   auto target_right_coord = StaticHelper::cartesianToWGS84(target_right.x, target_right.y);
+   auto target_right_coord = StaticHelper::cartesianToWGS84(drain_right.x, drain_right.y);
    auto res =
       getNodeXML(origin_node_left_id_, origin_left_coord.first, origin_left_coord.second);
    res->appendAtTheEnd(getNodeXML(target_node_left_id_, target_left_coord.first, target_left_coord.second));
    res->appendAtTheEnd(getNodeXML(origin_node_right_id_, origin_right_coord.first, origin_right_coord.second));
    res->appendAtTheEnd(getNodeXML(target_node_right_id_, target_right_coord.first, target_right_coord.second));
 
+   // Connectors towards successors.
+   for (const auto& r_succ : my_road_graph_->getSuccessors()) {
+      Vec2D origin_succ{ r_succ->getOriginPoint() };
+      Vec2D drain_succ{ r_succ->getDrainPoint() };
+      float dist{ drain.distance(origin_succ) };
+      Vec2D dir_mine{ drain - origin };
+      Vec2D dir_succ{ origin_succ - drain_succ };
+      dir_mine.setLength(dist / 3);
+      dir_succ.setLength(dist / 3);
+      Pol2D pol{};
+      Pol2D arrow{};
+      pol.bezier(drain, drain + dir_mine, origin_succ + dir_succ, origin_succ, 0.01);
+      arrow.createArrow(pol, 3.75);
+
+      std::vector<int> node_ids_left{};
+      std::vector<int> node_ids_right{};
+
+      if (!arrow.points_.size() % 2) addError("Bezier road block has odd number of points: '" + std::to_string(arrow.points_.size()) + "'.");
+
+      auto func = [&node_ids_left, &node_ids_right, &res](const Vec2D point, const bool left) {
+         int id = global_id_first_free++;
+         auto coord = StaticHelper::cartesianToWGS84(point.x, point.y);
+         res->appendAtTheEnd(getNodeXML(id, coord.first, coord.second));
+         (left ? node_ids_left : node_ids_right).push_back(id);
+      };
+
+      for (int i = 0; i < arrow.points_.size() / 2; i++) {
+         func(arrow.points_.at(i), true);
+      }
+
+      for (int i = arrow.points_.size() / 2; i < arrow.points_.size(); i++) {
+         func(arrow.points_.at(i), false);
+      }
+
+      ids_to_connector_successor_nodes_left_.push_back(node_ids_left);
+      ids_to_connector_successor_nodes_right_.push_back(node_ids_right);
+   }
+
    return res;
+}
+
+std::shared_ptr<xml::CodeXML> vfm::Way::getWayXMLGeneric()
+{
+   return std::shared_ptr<xml::CodeXML>();
 }
 
 std::shared_ptr<xml::CodeXML> vfm::Way::getWayXML() const
@@ -557,6 +605,8 @@ std::shared_ptr<xml::CodeXML> vfm::RoadGraph::generateOSM() const
    osm_nodes->appendAtTheEnd(osm_ways);
 
    xml->appendAtTheEnd(CodeXML::retrieveElementWithXMLContent("osm", { { "version", "0.6" }, { "upload", "false" }, { "generator", "vfm" } }, osm_nodes));
+
+   img.store("test");
 
    return xml;
 }
