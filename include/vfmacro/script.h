@@ -966,7 +966,7 @@ public:
 
    std::string space() { return " "; }
    
-   std::string arclengthCubicBezierFromStreetTopology(const std::string& lane, const std::string& angle, const std::string& distance);
+   std::string arclengthCubicBezierFromStreetTopology(const std::string& lane, const std::string& angle, const std::string& distance, const std::string& num_lanes);
 
    std::string forloop(const std::string& varname, const std::string& loop_vec)
    {

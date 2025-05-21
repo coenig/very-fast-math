@@ -84,7 +84,7 @@
                arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] := case
                   @{
                      @{
-                           angle_from_sec_[sec]_to_sec_[sec2] = [angle] & connection_distance_sec_[sec]_to_sec_[sec2] = [dist] : @{[lane]}@.arclengthCubicBezierFromStreetTopology[[angle], [dist]];
+                           angle_from_sec_[sec]_to_sec_[sec2] = [angle] & connection_distance_sec_[sec]_to_sec_[sec2] = [dist] : @{[lane]}@.arclengthCubicBezierFromStreetTopology[[angle], [dist], @{NUMLANES}@.eval[0]];
                      }@*.for[[dist], @{MINDISTCONNECTIONS}@.eval, @{MAXDISTCONNECTIONS}@.eval]
                   }@**.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
                   TRUE : -1;
