@@ -491,7 +491,7 @@ std::shared_ptr<xml::CodeXML> vfm::Way::getNodesXML() const
       Pol2D pol{};
       Pol2D arrow{};
       pol.bezier(drain, drain + dir_mine, origin_succ + dir_succ, origin_succ, 0.1);
-      arrow.createArrow(pol, LANE_WIDTH, {}, { origin_right_succ, origin_left_succ });
+      arrow.createArrow(pol, LANE_WIDTH, { drain_right, drain_left }, { origin_right_succ, origin_left_succ });
 
       std::vector<int> node_ids_left{};
       std::vector<int> node_ids_right{};
