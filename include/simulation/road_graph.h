@@ -91,7 +91,7 @@ class Way {
 public:
    inline Way(const std::shared_ptr<RoadGraph> my_father_rg);
 
-   std::shared_ptr<xml::CodeXML> getXML() const;
+   std::pair<std::shared_ptr<xml::CodeXML>, std::shared_ptr<xml::CodeXML>> getXML() const;
 
    int relation_id_{};
    int road_link_id_{};
