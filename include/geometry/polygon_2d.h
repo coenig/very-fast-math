@@ -113,7 +113,7 @@ public:
    Polygon2D<NumType> clipPolygonsOneConvex(const Polygon2D<NumType>& p2) const;
 
    /// \brief Adds a cubic bezier curve through the points (p1, p2, p3, p4). Point distance is controlled via step in [0, 1].
-   Polygon2D<NumType> bezier(const Vector2D<NumType>& p0, const Vector2D<NumType>& p1, const Vector2D<NumType>& p2, const Vector2D<NumType>& p3, const float step = 0.01);
+   Polygon2D<NumType> bezier(const Vector2D<NumType>& p0, const Vector2D<NumType>& p1, const Vector2D<NumType>& p2, const Vector2D<NumType>& p3, const float step = 0.01, const bool start_at_half_step = false);
 
    /// \brief Adds a bezier curve through arbitrary many points with associated direction vectors. 
    /// Point distance is controlled via step in [0, 1].
@@ -683,7 +683,8 @@ inline Polygon2D<NumType> Polygon2D<NumType>::clipPolygonsOneConvex(const Polygo
 }
 
 template<class NumType>
-inline Polygon2D<NumType> Polygon2D<NumType>::bezier(const Vector2D<NumType>& p0, const Vector2D<NumType>& p1, const Vector2D<NumType>& p2, const Vector2D<NumType>& p3, const float step)
+inline Polygon2D<NumType> Polygon2D<NumType>::bezier(
+   const Vector2D<NumType>& p0, const Vector2D<NumType>& p1, const Vector2D<NumType>& p2, const Vector2D<NumType>& p3, const float step, const bool start_at_half_step)
 {
    Vector2D<NumType> punkt;
    Vector2D<NumType> dreiP0(p0);
@@ -697,7 +698,7 @@ inline Polygon2D<NumType> Polygon2D<NumType>::bezier(const Vector2D<NumType>& p0
    Vector2D<NumType> punkt2, punkt3;
    NumType tQuad, tKub;
 
-   for (double t = 0; t <= 1; t += step) {
+   for (double t = start_at_half_step * step / 2; t <= 1; t += step) {
       tQuad = t * t;
       tKub = t * tQuad;
            
