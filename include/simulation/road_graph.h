@@ -87,25 +87,41 @@ static int global_id_first_free{ 0 };
 
 class RoadGraph;
 
+struct WayIDs {
+   inline WayIDs() : 
+      relation_id_{ global_id_first_free++ },
+      road_link_id_{ global_id_first_free++ },
+      left_border_id_{ global_id_first_free++ },
+      right_border_id_{ global_id_first_free++ }
+   {}
+
+   int relation_id_{};
+   int road_link_id_{};
+   int left_border_id_{};
+   int right_border_id_{};
+};
+
 class Way : public Failable {
 public:
    inline Way(const std::shared_ptr<RoadGraph> my_father_rg);
    std::pair<std::shared_ptr<xml::CodeXML>, std::shared_ptr<xml::CodeXML>> getXML() const;
 
 private:
-   int relation_id_{};
-   int road_link_id_{};
-   int left_border_id_{};
-   int right_border_id_{};
+   WayIDs way_ids_{};
    int origin_node_left_id_{};
    int target_node_left_id_{};
    int origin_node_right_id_{};
    int target_node_right_id_{};
    mutable std::vector<std::vector<int>> ids_to_connector_successor_nodes_left_{};
    mutable std::vector<std::vector<int>> ids_to_connector_successor_nodes_right_{};
+   mutable std::vector<WayIDs> ids_for_connector_successor_ways_{};
    std::shared_ptr<RoadGraph> my_road_graph_{};
 
-   static std::shared_ptr<xml::CodeXML> getWayXMLGeneric();
+   static std::shared_ptr<xml::CodeXML> getWayXMLGeneric(
+      WayIDs way_ids,
+      const std::vector<int> left_ids,
+      const std::vector<int> right_ids
+   );
 
    std::shared_ptr<xml::CodeXML> getNodesXML() const;
    std::shared_ptr<xml::CodeXML> getWayXML() const;
