@@ -666,10 +666,10 @@ std::string DummyRepresentable::arclengthCubicBezierFromStreetTopology(
    const int num_lanes{ std::stoi(num_lanes_str) };
    const float angle{ deg2Rad(std::stof(angle_str)) };
    const float distance{ std::stof(distance_str) };
-   const float l{ (lane - (num_lanes - 1) / 2) * LANE_WIDTH };
+   const float l{ (lane - (num_lanes - 1.0f) / 2.0f) * LANE_WIDTH };
 
-   const Vec2D v{ std::cos(angle - 180), sin(angle - 180) };
-   const Vec2D vr{ std::cos(angle + 90), sin(angle + 90) };
+   const Vec2D v{ std::cos(angle - deg2Rad(180)), sin(angle - deg2Rad(180)) };
+   const Vec2D vr{ std::cos(angle + deg2Rad(90)), sin(angle + deg2Rad(90)) };
    const Vec2D P3{ Vec2D{distance, 0} - v * distance };
 
    const Vec2D p0{ 0,  l };
@@ -680,10 +680,10 @@ std::string DummyRepresentable::arclengthCubicBezierFromStreetTopology(
    Vec2D p1{ d, l };
    Vec2D p2{ p3 + v * d };
    
-   return std::to_string((int) bezier::arcLength(1, p0, p1, p2, p3)) 
+   return std::to_string((int) std::round(bezier::arcLength(1, p0, p1, p2, p3)))
       + " -- l=" + std::to_string(l) 
       + ", angle=" + std::to_string(angle) 
-      + ", v=" + v.serialize()
+      + "(rad), v=" + v.serialize()
       + ", vr=" + vr.serialize()
       + ", P3=" + P3.serialize()
       + ", p0=" + p0.serialize()
@@ -691,6 +691,7 @@ std::string DummyRepresentable::arclengthCubicBezierFromStreetTopology(
       + ", p2=" + p2.serialize()
       + ", p3=" + p3.serialize()
       + ", d=" + std::to_string(d)
+      + ", N=" + std::to_string(num_lanes)
       ;
 }
 
