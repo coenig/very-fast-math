@@ -803,6 +803,7 @@ std::string DummyRepresentable::applyMethodString(const std::string& method_name
          return StaticHelper::readFile(filepath);
       }
       else {
+         addFatalError("File '" + filepath + "' not found.");
          return "#FILE_NOT_FOUND<" + filepath + ">";
       }
    }
