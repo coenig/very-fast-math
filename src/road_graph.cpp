@@ -483,11 +483,17 @@ std::shared_ptr<xml::CodeXML> vfm::Way::getNodesXML() const
       Vec2D dir_succ{ origin_succ - drain_succ };
       dir_mine.setLength(dist / 3);
       dir_succ.setLength(dist / 3);
+
+      Vec2D dir_lat_succ{ drain_succ - origin_succ };
+      dir_lat_succ.ortho();
+      dir_lat_succ.setLength(3.75 / 2);
+      Vec2D origin_left_succ{ origin_succ - dir_lat_succ };
+      Vec2D origin_right_succ{ origin_succ + dir_lat_succ };
+
       Pol2D pol{};
       Pol2D arrow{};
       pol.bezier(drain, drain + dir_mine, origin_succ + dir_succ, origin_succ, 0.1);
-      pol.add(origin_succ);
-      arrow.createArrow(pol, 3.75);
+      arrow.createArrow(pol, 3.75, {}, { origin_right_succ, origin_left_succ });
 
       std::vector<int> node_ids_left{};
       std::vector<int> node_ids_right{};
