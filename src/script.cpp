@@ -681,17 +681,18 @@ std::string DummyRepresentable::arclengthCubicBezierFromStreetTopology(
    Vec2D p2{ p3 + v * d };
    
    return std::to_string((int) std::round(bezier::arcLength(1, p0, p1, p2, p3)))
-      + " -- l=" + std::to_string(l) 
-      + ", angle=" + std::to_string(angle) 
-      + "(rad), v=" + v.serialize()
-      + ", vr=" + vr.serialize()
-      + ", P3=" + P3.serialize()
-      + ", p0=" + p0.serialize()
-      + ", p1=" + p1.serialize()
-      + ", p2=" + p2.serialize()
-      + ", p3=" + p3.serialize()
-      + ", d=" + std::to_string(d)
-      + ", N=" + std::to_string(num_lanes)
+      // Output for debugging, but does not work with distance scaling.
+      //+ " -- l=" + std::to_string(l)
+      //+ ", angle=" + std::to_string(angle) 
+      //+ "(rad), v=" + v.serialize()
+      //+ ", vr=" + vr.serialize()
+      //+ ", P3=" + P3.serialize()
+      //+ ", p0=" + p0.serialize()
+      //+ ", p1=" + p1.serialize()
+      //+ ", p2=" + p2.serialize()
+      //+ ", p3=" + p3.serialize()
+      //+ ", d=" + std::to_string(d)
+      //+ ", N=" + std::to_string(num_lanes)
       ;
 }
 
