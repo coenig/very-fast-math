@@ -8,6 +8,14 @@
 
    @{
       FROZENVAR
+         @{
+            @{section_[sec]_segment_[seg]_pos_begin}@*.scalingVariable[distance] : integer;
+            section_[sec]_segment_[seg]_min_lane : integer;
+            section_[sec]_segment_[seg]_max_lane : integer;
+         }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
+   
+         @{section_[sec]_end}@*.scalingVariable[distance] : @{SECTIONSMINLENGTH}@.eval[0] .. @{SECTIONSMAXLENGTH}@.eval[0];
+
          section_[sec].source.x : integer;
          section_[sec].source.y : integer;
          section_[sec].angle_raw : 0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
