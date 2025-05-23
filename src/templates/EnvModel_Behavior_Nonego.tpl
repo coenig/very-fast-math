@@ -59,71 +59,11 @@ DEFINE
 
 @{ego.abs_pos := 0;  -- Mock EGO interface in EGOLESS mode.}@**.if[@{EGOLESS}@.eval]
 
-   large_number := 10000;
-
-   @{
-      section_[sec]_segment_@{SEGMENTS}@.eval[0]_pos_begin := section_[sec]_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin + large_number; -- Helper variable to make below loop simpler.
-   }@*.for[[sec], 0, @{SECTIONS - 1}@.eval]
-
-
-   @{
-
-   @{
-   @{section_[sec]_lane_[lane]_availability_from_segment_@{SEGMENTS}@**.eval[0]}@*.scalingVariable[distance] := 0;          -- Helper variable to make below loop simpler.
-   
-   @{@{section_[sec]_lane_[lane]_availability_from_segment_[seg]}@*.scalingVariable[distance] := case
-      section_[sec]_segment_[seg]_min_lane <= [lane] & section_[sec]_segment_[seg]_max_lane >= [lane] : section_[sec]_lane_[lane]_availability_from_segment_@{[seg] + 1}@.eval[0] + section_[sec]_segment_@{[seg] + 1}@.eval[0]_pos_begin - section_[sec]_segment_[seg]_pos_begin;
-      TRUE: 0;
-   esac;
-   }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
-   }@****.for[[sec], 0, @{SECTIONS - 1}@.eval]
-
-   @{ego.lane_[lane]_availability}@*.scalingVariable[distance] :=
-   case 
-   @{
-      ego.on_section = [sec]:  
-         case
-            @{ego.abs_pos >= section_[sec]_segment_[seg]_pos_begin : section_[sec]_lane_[lane]_availability_from_segment_[seg] + section_[sec]_segment_[seg]_pos_begin - ego.abs_pos;
-            }@.for[[seg], @{SEGMENTS - 1}@.eval, 0, -1]TRUE: 0;
-         esac;
-   }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
-   esac;
-   }@***.for[[lane], 0, @{NUMLANES - 1}@.eval]
-
  
 @{
    @{veh___6[i]9___.abs_pos}@*.scalingVariable[distance] := veh___6[i]9___.rel_pos + ego.abs_pos;
 }@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 
-@{
-
-@{
-
--- Make sure ego does not drive on the GREEN.
-ego.on_lane_min := case
-   @{ego_lane_b[j] : [j];
-   }@.for[[j], 0, @{NUMLANES - 2}@.eval]TRUE : @{NUMLANES - 1}@.eval[0];
-esac;
-
-ego.on_lane_max := case
-   @{ego_lane_b[j] : [j];
-   }@.for[[j], @{NUMLANES - 1}@.eval, 1, -1]TRUE : 0;
-esac;
-
-INVAR (ego.abs_pos < section_0_segment_0_pos_begin) -> 
-   (ego.on_lane_min >= section_0_segment_0_min_lane & ego.on_lane_max <= section_0_segment_0_max_lane);
-
-@{
-   INVAR (ego.abs_pos >= section_0_segment_[num]_pos_begin & ego.abs_pos < section_0_segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
-   (ego.on_lane_min >= section_0_segment_[num]_min_lane & ego.on_lane_max <= section_0_segment_[num]_max_lane);
-   }@*.for[[num], 0, @{SEGMENTS - 2}@.eval]
-   INVAR (ego.abs_pos >= section_0_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin) -> 
-   (ego.on_lane_min >= section_0_segment_@{SEGMENTS - 1}@.eval[0]_min_lane & ego.on_lane_max <= section_0_segment_@{SEGMENTS - 1}@.eval[0]_max_lane);
-
-}@**.if[@{!(EGOLESS)}@.eval]
-
-DEFINE
-}@.if[@{KEEP_EGO_FROM_GREEN}@.eval]
 
 -- Make sure non-egos do not drive on the GREEN.
 @{
