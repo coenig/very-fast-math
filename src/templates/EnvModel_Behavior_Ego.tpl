@@ -51,9 +51,13 @@ VAR
     ego.gaps___629___.i_agent_front : empty_gap_indicator..@{NONEGOS-1}@.eval[0];
     ego.gaps___629___.i_agent_rear : -1..-1;
 
+    tar_dir : {ActionDir____LEFT, ActionDir____CENTER, ActionDir____RIGHT};
+
 @{
     #ERROR: ASSIGN structure for gaps not supported anymore since 2024-06-20.
 }@.if[@{NONEGOS <= THRESHOLD_FOR_USING_ASSIGNS_IN_GAP_STRUCTURE}@.eval]
+
+INVAR tar_dir = ActionDir____LEFT; -- TODO: This is only needed as interface towards BP. Remove when better solution comes up.
 
 DEFINE
     ego_lane_0 := ego_lane_b0 @{& !ego_lane_b[j]}@.for[[j], 1, @{NUMLANES - 1}@.eval];

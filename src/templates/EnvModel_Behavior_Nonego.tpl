@@ -6,11 +6,10 @@
 
 
 VAR
-   cnt : integer;
-   num_lanes : integer;
-
-   @{ego.a : 0..0;
-   ego.v : 0..0;}@**.if[@{EGOLESS}@.eval]
+   @{
+      ego.a : 0..0;  -- Mock EGO interface...
+      ego.v : 0..0;  -- ...in EGOLESS mode.
+   }@**.if[@{EGOLESS}@.eval]
 
 	@{
     -- XVarEnvModelCarNote=@{>>> Car [i] <<<}@***.id
@@ -36,13 +35,6 @@ VAR
 	
 	}@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 
-    tar_dir : {ActionDir____LEFT, ActionDir____CENTER, ActionDir____RIGHT};
-
-
-
-
-INVAR tar_dir = ActionDir____LEFT;
-INIT cnt = 0;
 
 @{
 INIT 0 = @{section_[sec]_segment_0_pos_begin}@*.scalingVariable[distance];
@@ -62,11 +54,10 @@ INIT section_[sec]_segment_[num]_max_lane <= @{(NUMLANES - 1)}@.eval[0];
 INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -- Make sure we always have a drivable lane at the start. TODO: Make flexible.
 }@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
-TRANS next(cnt) = cnt + 1;
 
 DEFINE
 
-@{ego.abs_pos := 0;}@**.if[@{EGOLESS}@.eval]
+@{ego.abs_pos := 0;  -- Mock EGO interface in EGOLESS mode.}@**.if[@{EGOLESS}@.eval]
 
    large_number := 10000;
 
