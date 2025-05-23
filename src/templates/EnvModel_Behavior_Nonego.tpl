@@ -145,17 +145,10 @@ DEFINE
 
 @{
 -- @{XVarEnvModelCarNote}@**.id
-@{
+
 
 INIT 
    veh___6[i]9___.rel_pos >= -@{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst & veh___6[i]9___.rel_pos <= @{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst;
-
--- Make sure ego and vehicle [i] don't collide in the initial state.
-INIT
-   veh___6[i]9___.rel_pos < veh_length | veh___6[i]9___.rel_pos > veh_length | !ego.same_lane_as_veh_[i];
-
-}@**.if[@{!(EGOLESS)}@.eval]
-
 
 INVAR
     veh___6[i]9___.lane_single | veh___6[i]9___.lane_crossing;
@@ -174,25 +167,6 @@ square_of_veh_v_[i] := case
    TRUE: @{@{MAXSPEEDNONEGO}@***.velocityWorldToEnvModelConst ** 2}@.eval[0];
 esac;
 
-@{
-
-ego_pressured_by_vehicle_[i] := ego.same_lane_as_veh_[i] 
-        | (veh___6[i]9___.lc_direction = ActionDir____RIGHT & ego.right_of_veh_[i]_lane & veh___6[i]9___.change_lane_now = 1)
-        | (veh___6[i]9___.lc_direction = ActionDir____LEFT & ego.left_of_veh_[i]_lane & veh___6[i]9___.change_lane_now = 1);
-
-ego_pressured_by_vehicle_[i]_from_behind := ego_pressured_by_vehicle_[i] & (veh___6[i]9___.prev_rel_pos < 0);
-
--- minimum_dist_to_veh_[i] := (veh___6[i]9___.rel_pos + ego_v_minus_veh_[i]_v_square / (2* abs(a_min))); -- This was another way of doing it, though not quite accurate; turns out, it is also slower.
-
-@{minimum_dist_to_veh_[i]}@.scalingVariable[distance] := veh___6[i]9___.rel_pos - square_of_veh_v_[i] / (2*a_min) + square_of_ego_v / (2*a_min);
-
--- these are invariants that apply to any state
--- check that chosen long acceleration of other vehicle is indeed safe
-INVAR
-    ego_pressured_by_vehicle_[i]_from_behind ->
-            (minimum_dist_to_veh_[i] <= min_dist_long & (veh___6[i]9___.rel_pos < -veh_length));
-
-}@**.if[@{!(EGOLESS)}@.eval]
 
 @{
 
