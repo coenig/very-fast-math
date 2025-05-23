@@ -209,6 +209,14 @@ ego.has_close_vehicle_on_left_left_lane := (FALSE @{@{ | ego.close_to_vehicle_[i
 ego.has_close_vehicle_on_right_right_lane := (FALSE @{@{ | ego.close_to_vehicle_[i]_on_right_right_lane}@.for[[i], 0, @{NONEGOS - 1}@.eval, 1]}@*.if[@{FARMERGINGCARS}@.eval]); -- ...seems to be crucial for runtime.
 
 
+-- Lookup table to speed-up non-linear calculations
+DEFINE
+square_of_ego_v := case
+   @{ego.v = [x] : @{[x] ** 2}@.eval[0];
+   }@*.for[[x], 0, @{@{MAXSPEEDEGO}@***.velocityWorldToEnvModelConst - 1}@.eval[0]]
+   TRUE: @{@{MAXSPEEDEGO}@***.velocityWorldToEnvModelConst ** 2}@.eval[0];
+esac;
+
 
 INVAR
     ego_lane_single | ego_lane_crossing;
