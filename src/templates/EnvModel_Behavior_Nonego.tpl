@@ -143,22 +143,6 @@ DEFINE
 	}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 
-
-INVAR
-   num_lanes = @{NUMLANES}@.eval[0];
-
-@{
-
--- Lookup table to speed-up non-linear calculations
-DEFINE
-square_of_ego_v := case
-   @{ego.v = [x] : @{[x] ** 2}@.eval[0];
-   }@*.for[[x], 0, @{@{MAXSPEEDEGO}@***.velocityWorldToEnvModelConst - 1}@.eval[0]]
-   TRUE: @{@{MAXSPEEDEGO}@***.velocityWorldToEnvModelConst ** 2}@.eval[0];
-esac;
-
-}@**.if[@{!(EGOLESS)}@.eval]
-
 @{
 -- @{XVarEnvModelCarNote}@**.id
 @{
