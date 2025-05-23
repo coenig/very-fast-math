@@ -1,8 +1,46 @@
 
 --------------------------------------------------------
 -- Sections
+--  ==> Segments
 --------------------------------------------------------
 
+   DEFINE
+      large_number := 10000;
+
+   @{
+      section_[sec]_segment_@{SEGMENTS}@.eval[0]_pos_begin := section_[sec]_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin + large_number; -- Helper variable to make below loop simpler.
+   }@*.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
+
+   @{
+
+   @{
+   @{section_[sec]_lane_[lane]_availability_from_segment_@{SEGMENTS}@**.eval[0]}@*.scalingVariable[distance] := 0;          -- Helper variable to make below loop simpler.
+   
+   @{@{section_[sec]_lane_[lane]_availability_from_segment_[seg]}@*.scalingVariable[distance] := case
+      section_[sec]_segment_[seg]_min_lane <= [lane] & section_[sec]_segment_[seg]_max_lane >= [lane] : section_[sec]_lane_[lane]_availability_from_segment_@{[seg] + 1}@.eval[0] + section_[sec]_segment_@{[seg] + 1}@.eval[0]_pos_begin - section_[sec]_segment_[seg]_pos_begin;
+      TRUE: 0;
+   esac;
+   }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
+   }@****.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
+   @{ego.lane_[lane]_availability}@*.scalingVariable[distance] :=
+   case
+   @{
+      ego.on_section = [sec]:  
+         case
+            @{ego.abs_pos >= section_[sec]_segment_[seg]_pos_begin : section_[sec]_lane_[lane]_availability_from_segment_[seg] + section_[sec]_segment_[seg]_pos_begin - ego.abs_pos;
+            }@.for[[seg], @{SEGMENTS - 1}@.eval, 0, -1]TRUE: 0;
+         esac;
+   }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
+   esac;
+   }@***.for[[lane], 0, @{NUMLANES - 1}@.eval]
+
+--------------------------------------------------------
+--  <== EO Segments
+--------------------------------------------------------
+
+   
    -- INIT outgoing_connection_0_of_section_0 != -1; -- Make first section split...
    -- INIT outgoing_connection_1_of_section_0 != -1; -- ...into two target roads.
 
