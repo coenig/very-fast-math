@@ -26,6 +26,14 @@ MODULE EnvModel
 )@
 @( -- EM-full build
 
+VAR
+   cnt : integer;
+   num_lanes : integer;
+
+INIT cnt = 0;
+TRANS next(cnt) = cnt + 1;
+
+
 @{EnvModel_Constants.tpl}@********.include
 @{EnvModel_Sections.tpl}@*******.include
 @{EnvModel_Behavior_Nonego.tpl}@********.include
