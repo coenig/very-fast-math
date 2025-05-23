@@ -4,17 +4,6 @@
 --
 --------------------------------------------------------
 
-FROZENVAR
-   @{
-   @{
-   @{section_[sec]_segment_[seg]_pos_begin}@*.scalingVariable[distance] : integer;
-   section_[sec]_segment_[seg]_min_lane : integer;
-   section_[sec]_segment_[seg]_max_lane : integer;
-   }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
-   
-   @{section_[sec]_end}@*.scalingVariable[distance] : @{SECTIONSMINLENGTH}@.eval[0] .. @{SECTIONSMAXLENGTH}@.eval[0];
-   
-}@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 VAR
    cnt : integer;

@@ -8,7 +8,7 @@
       "#07": "range(@nonegos, 2, 2);",
       "#08": "range(@lanes, 4, 4);",
       "#09": "range(@segments, 1, 1);",
-      "#10": "range_mult(@d, 1000, 2, 2);",
+      "#10": "range_mult(@d, 1000, 1, 2);",
       "#11": "range_mult(@t, 500, 3, 2);",
       "#12": "@distscaling = array(3); @distscaling[0] = 8000; @distscaling[1] = 25000; @distscaling[2] = nan();",
       "#13": "x[0] * y[3]",
