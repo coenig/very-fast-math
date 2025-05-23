@@ -105,52 +105,6 @@ esac;
 }@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 DEFINE
--- Schematic for ego.right_of_veh_*_lane
---..   ????  ####                     ..--
---..   ????  ####                     ..--
---..   ????  ####         ..          ..--
---..   ????  ####         ..          ..--
---..   ????  ####         ..          ..--
---..   ????  ####         ..          ..--
---..   ????  ####         ..          ..--
---..   ????  ####         ..          ..--
---..          ..          ..          ..--
---..          ..          ..          ..--
---..          ..                      ..--
---..          ..                      ..--
---..   ****  ****  ####   ..          ..--
---..   ****  ****  ####   ..          ..--
---..   ****  ****  ####   ..          ..--
---..   ****  ****  ####   ..          ..--
---..   ****  ****  ####   ..          ..--
---..   ****  ****  ####   ..          ..--
---..   ****  ****  ####   ..          ..--
---..   ****  ****  ####   ..          ..--
---..                                  ..--
---..                                  ..--
---..          ..          ..          ..--
---..          ..          ..          ..--
---..         ****  ****  ####         ..--
---..         ****  ****  ####         ..--
---..         ****  ****  ####         ..--
---..         ****  ****  ####         ..--
---..         ****  ****  ####         ..--
---..         ****  ****  ####         ..--
---..         ****  ****  ####         ..--
---..         ****  ****  ####         ..--
---..          ..          ..          ..--
---..          ..          ..          ..--
---..          ..          ..          ..--
---..          ..          ..          ..--
---..               ****  ****  ####   ..--
---..               ****  ****  ####   ..--
---..          ..   ****  ****  ####   ..--
---..          ..   ****  ****  ####   ..--
---..          ..   ****  ****  ####   ..--
---..          ..   ****  ****  ####   ..--
---..          ..   ****  ****  ####   ..--
---..          ..   ****  ****  ####   ..--
-
 
 	@{
     -- @{XVarEnvModelCarNote}@***.id
@@ -176,50 +130,6 @@ DEFINE
                       & (veh___6[i]9___.lane_@{[j]-1}@.eval[0] -> next(veh___6[i]9___.lane_@{[j]-1}@.eval[0][j]))
                       }@*.for[[j], 1, @{NUMLANES - 1}@.eval];
 
-@{
-
-    -- "Soft" counts half a lane as neighboring, too. (Obsolete "regular" mode which counted only exactly one lane distance has been removed.)
-    -- TODO: Case missing where ego is between far left/right lane and the one next to it, and the other car is on the resp. extreme lane.
-
-    ego.right_of_veh_[i]_lane := FALSE
-       @{| (ego_lane_@{[j]-1}@.eval[0] & veh___6[i]9___.lane_[j]) | (ego_lane_@{[j]-1}@.eval[0] & veh___6[i]9___.lane_~{[j]-1\0}~[j])
-       }@*.for[[j], 1, @{NUMLANES - 1}@.eval, 1, | (ego_lane_~{[j]-2\0}~~{[j]-1\0}~ & veh___6[i]9___.lane_~{[j]-1\0}~[j]) | (ego_lane_~{[j]-2\0}~~{[j]-1\0}~ & veh___6[i]9___.lane_~{[j]-1\0}~)];
-
-    ego.left_of_veh_[i]_lane := FALSE
-       @{| (ego_lane_[j] & veh___6[i]9___.lane_@{[j]-1}@.eval[0]) | (ego_lane_[j] & veh___6[i]9___.lane_@{[j]-1}@.eval[0][j])
-       }@*.for[[j], 1, @{NUMLANES - 1}@.eval, 1, | (ego_lane_~{[j]-1\0}~~{[j]\0}~ & veh___6[i]9___.lane_~{[j]-2\0}~~{[j]-1\0}~) | (ego_lane_~{[j]-1\0}~~{[j]\0}~ & veh___6[i]9___.lane_~{[j]-1\0}~)];
-
--- ####### TODO: This part is not yet adapted for n lanes (currently only 3 lanes). ####### --
-    @{ego.right_right_of_veh_[i]_lane := ego_lane_b1 & (veh___6[i]9___.lane_b1 |veh___6[i]9___.lane_b2 | veh___6[i]9___.lane_b3);
-      ego.left_left_of_veh_[i]_lane := ego_lane_b3 & (veh___6[i]9___.lane_b3 |veh___6[i]9___.lane_b2 | veh___6[i]9___.lane_b1);
-
-    ego.close_to_vehicle_[i] := veh___6[i]9___.rel_pos >= -@{CLOSETOEGOPAR}@.distanceWorldToEnvModelConst & veh___6[i]9___.rel_pos < @{CLOSETOEGOPAR}@.distanceWorldToEnvModelConst;
-
-    ego.close_to_vehicle_[i]_on_left_left_lane := ego.right_right_of_veh_[i]_lane & ego.close_to_vehicle_[i];
-    ego.close_to_vehicle_[i]_on_right_right_lane := ego.left_left_of_veh_[i]_lane & ego.close_to_vehicle_[i];}@.if[@{FARMERGINGCARS}@.eval]
-
---    ego.right_of_veh_[i]_lane_gaps := (ego_lane_1 & veh___6[i]9___.lane_b2 & !veh___6[i]9___.lane_b3) |
---	                                (ego_lane_12 & veh___6[i]9___.lane_b2 & !veh___6[i]9___.lane_b1) |
---	                                (ego_lane_2 & veh___6[i]9___.lane_b3) |
---	                                (ego_lane_23 & veh___6[i]9___.lane_3)
---	                               ;
-	
---    ego.left_of_veh_[i]_lane_gaps := (ego_lane_3 & veh___6[i]9___.lane_b2 & !veh___6[i]9___.lane_b1) |
---	                                (ego_lane_23 & veh___6[i]9___.lane_b2 & !veh___6[i]9___.lane_b3) |
---	                                (ego_lane_2 & veh___6[i]9___.lane_b1) |
---	                                (ego_lane_12 & veh___6[i]9___.lane_1)
---	                               ;
--- ####### EO TODO: This part is not yet adapted for n lanes (currently only 3 lanes). ####### --
-
-   ego.same_lane_as_veh_[i] := (FALSE
-      @{| ((ego_lane_b[j] & veh___6[i]9___.lane_b[j]) @{& !(ego_lane_b@{[j]-1}@.eval[0] & veh___6[i]9___.lane_b@{[j]+1}@.eval[0]) & !(ego_lane_b@{[j]+1}@.eval[0] & veh___6[i]9___.lane_b@{[j]-1}@.eval[0])}@.if[@{[j] > 0 && [j] < NUMLANES - 1}@.eval] )
-      }@*.for[[j], 0, @{NUMLANES - 1}@.eval]
-   );
-
-	ego.crash_with_veh_[i] := ego.same_lane_as_veh_[i] & (veh___6[i]9___.rel_pos >= -veh_length & veh___6[i]9___.rel_pos <= veh_length);
-	ego.blamable_crash_with_veh_[i] := ego.same_lane_as_veh_[i] & (veh___6[i]9___.rel_pos >= 0 & veh___6[i]9___.rel_pos <= veh_length);
-
-}@**.if[@{!(EGOLESS)}@.eval]
 
    @{################# NOTE THAT THIS PART IS CHANGED AS COMPARED TO TACAS VERSION (might be inefficient) ###################}@.nil
    @{################# FORMERLY: veh___6[i]9___.same_lane_as_veh_[j] := ((veh___6[i]9___.lane_b1 & veh___6[j]9___.lane_b1) | (veh___6[i]9___.lane_b2 & veh___6[j]9___.lane_b2) | (veh___6[i]9___.lane_b3 & veh___6[j]9___.lane_b3)); ###################}@.nil
@@ -233,17 +143,6 @@ DEFINE
 	}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 
- @{
-
-    crash := FALSE@{@{}@.space| ego.crash_with_veh_[i]}@*.for[[i], 0, @{NONEGOS - 1}@.eval];
-    blamable_crash := FALSE@{@{}@.space| ego.blamable_crash_with_veh_[i]}@*.for[[i], 0, @{NONEGOS - 1}@.eval];
-    
-
-DEFINE -- TODO: Formerly INVAR, and "=" instead of ":=" - Check if this is correct!
-ego.has_close_vehicle_on_left_left_lane := (FALSE @{@{ | ego.close_to_vehicle_[i]_on_left_left_lane}@.for[[i], 0, @{NONEGOS - 1}@.eval, 1]}@*.if[@{FARMERGINGCARS}@.eval]);     -- For some reason the "FALSE |"...
-ego.has_close_vehicle_on_right_right_lane := (FALSE @{@{ | ego.close_to_vehicle_[i]_on_right_right_lane}@.for[[i], 0, @{NONEGOS - 1}@.eval, 1]}@*.if[@{FARMERGINGCARS}@.eval]); -- ...seems to be crucial for runtime.
-
-}@**.if[@{!(EGOLESS)}@.eval]
 
 INVAR
    num_lanes = @{NUMLANES}@.eval[0];
