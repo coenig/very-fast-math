@@ -793,15 +793,15 @@ inline void Polygon2D<NumType>::createArrow(
    const bool cut_out_intersecting_points)
 {
    if (base_points.points_.size() < 2) return;
-   if (dock_at_begin.points_.size() != 2
-      || dock_at_end.points_.size() != 2) Failable::getSingleton()->addFatalError("Docking only possible at exactly two points.");
+   if ((!dock_at_begin.points_.empty() && dock_at_begin.points_.size() != 2)
+      || (!dock_at_end.points_.empty() && dock_at_end.points_.size() != 2)) Failable::getSingleton()->addFatalError("Docking only possible at exactly two points.");
 
    Polygon2D<NumType> pointList2;
    float thickness_first = thickness(base_points.points_[0], 0);
 
    // Arrow head.
    createArrowEnd(base_points, arrow_head, head_factor, thickness_first, pointList2, true);
-   add(dock_at_begin.points_.at(0));
+   if (!dock_at_begin.points_.empty()) add(dock_at_begin.points_.at(0));
 
    Vector2D<NumType> c1(base_points.points_[1]);
    c1.sub(base_points.points_[0]);
@@ -864,7 +864,7 @@ inline void Polygon2D<NumType>::createArrow(
       add(pointList2.points_[i]);
    }
 
-   add(dock_at_begin.points_.at(1));
+   if (!dock_at_begin.points_.empty()) add(dock_at_begin.points_.at(1));
 }
 
 template<class NumType>
