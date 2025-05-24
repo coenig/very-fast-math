@@ -760,6 +760,8 @@ public:
    static std::filesystem::file_time_type lastWritetimeOfFileSafe(const std::filesystem::path& filepath, const bool quiet = true);
 
    static void applyTimescaling(MCTrace& trace, const ScaleDescription& ts_description);
+   
+   static std::pair<double, double> cartesianToWGS84(const double x, const double y);
 
    static std::vector<std::string> getSafeCharactersAsciiLike();
    static std::map<std::string, int> getSafeCharactersAsciiLikeReverse();

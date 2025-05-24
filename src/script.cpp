@@ -7,8 +7,10 @@
 
 #include "vfmacro/script.h"
 #include "gui/process_helper.h"
+#include "geometry/bezier_functions.h"
 #include "parser.h"
 #include "simplification/simplification.h"
+#include "geometry/images.h"
 #include <cmath>
 
 
@@ -645,6 +647,55 @@ std::string fromBooltoString(const bool b)
    return b ? "1" : "0";
 }
 
+float deg2Rad(const float deg)
+{
+   static constexpr float PI{ 3.1415926536 };
+   return deg * PI / 180;
+}
+
+std::string DummyRepresentable::arclengthCubicBezierFromStreetTopology(
+   const std::string& lane_str, const std::string& angle_str, const std::string& distance_str, const std::string& num_lanes_str)
+{
+   if (!StaticHelper::isParsableAsInt(lane_str)) addError("Lane '" + lane_str + "' is not parsable as int in 'arclengthCubicBezierFromStreetTopology'.");
+   if (!StaticHelper::isParsableAsFloat(angle_str)) addError("Angle '" + angle_str + "' is not parsable as float in 'arclengthCubicBezierFromStreetTopology'.");
+   if (!StaticHelper::isParsableAsFloat(distance_str)) addError("Distance '" + distance_str + "' is not parsable as float in 'arclengthCubicBezierFromStreetTopology'.");
+   if (!StaticHelper::isParsableAsInt(num_lanes_str)) addError("NumLanes '" + num_lanes_str + "' is not parsable as float in 'arclengthCubicBezierFromStreetTopology'.");
+   if (hasErrorOccurred()) return "#ERROR-Check-Log";
+
+   const int lane{ std::stoi(lane_str) };
+   const int num_lanes{ std::stoi(num_lanes_str) };
+   const float angle{ deg2Rad(std::stof(angle_str)) };
+   const float distance{ std::stof(distance_str) };
+   const float l{ (lane - (num_lanes - 1.0f) / 2.0f) * LANE_WIDTH };
+
+   const Vec2D v{ std::cos(angle - deg2Rad(180)), sin(angle - deg2Rad(180)) };
+   const Vec2D vr{ std::cos(angle + deg2Rad(90)), sin(angle + deg2Rad(90)) };
+   const Vec2D P3{ Vec2D{distance, 0} - v * distance };
+
+   const Vec2D p0{ 0,  l };
+   const Vec2D p3{ P3 + vr * l };
+
+   const float d{ p0.distance(p3) / 3.0f };
+
+   Vec2D p1{ d, l };
+   Vec2D p2{ p3 + v * d };
+   
+   return std::to_string((int) std::round(bezier::arcLength(1, p0, p1, p2, p3)))
+      // Output for debugging, but does not work with distance scaling.
+      //+ " -- l=" + std::to_string(l)
+      //+ ", angle=" + std::to_string(angle) 
+      //+ "(rad), v=" + v.serialize()
+      //+ ", vr=" + vr.serialize()
+      //+ ", P3=" + P3.serialize()
+      //+ ", p0=" + p0.serialize()
+      //+ ", p1=" + p1.serialize()
+      //+ ", p2=" + p2.serialize()
+      //+ ", p3=" + p3.serialize()
+      //+ ", d=" + std::to_string(d)
+      //+ ", N=" + std::to_string(num_lanes)
+      ;
+}
+
 std::string DummyRepresentable::applyMethodString(const std::string& method_name, const std::vector<std::string>& parameters)
 {
    if (method_name == "for" && parameters.size() == 2) return forloop(parameters.at(0), parameters.at(1));
@@ -752,6 +803,7 @@ std::string DummyRepresentable::applyMethodString(const std::string& method_name
          return StaticHelper::readFile(filepath);
       }
       else {
+         addFatalError("File '" + filepath + "' not found.");
          return "#FILE_NOT_FOUND<" + filepath + ">";
       }
    }
@@ -773,6 +825,7 @@ std::string DummyRepresentable::applyMethodString(const std::string& method_name
    else if (method_name == "mod" && parameters.size() == 1) return exmod(parameters.at(0));
    else if (method_name == "not" && parameters.size() == 0) return exnot();
    else if (method_name == "space" && parameters.size() == 0) return space();
+   else if (method_name == "arclengthCubicBezierFromStreetTopology" && parameters.size() == 3) return arclengthCubicBezierFromStreetTopology(getRawScript(), parameters.at(0), parameters.at(1), parameters.at(2));
    else if (method_name == "PIDs" && parameters.size() == 0) {
       auto pids = Process().getPIDs(getRawScript());
       std::string pids_str{};

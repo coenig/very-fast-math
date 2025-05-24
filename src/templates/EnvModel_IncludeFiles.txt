@@ -1,10 +1,13 @@
 // List here all EnvModel template files for caching. First entry needs to be the main file.
 EnvModel.tpl
+EnvModel_Behavior_Ego.tpl
+EnvModel_Behavior_Nonego.tpl
+EnvModel_Constants.tpl
 EnvModel_Debug.tpl
 EnvModel_DummyBP.tpl
 EnvModel_Feasibility.tpl
 EnvModel_Geometry.tpl
 EnvModel_Header.tpl
 EnvModel_Parameters.tpl
-EnvModel_Timescaling.tpl
+EnvModel_Scaling.tpl
 EnvModel_Sections.tpl
