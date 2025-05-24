@@ -288,13 +288,17 @@ bool VisualizationLaunchers::quickGenerateGIFs(
       gen_config_smooth.frames_per_second_gif = 40;
       gen_config_smooth.frames_per_second_osc = 40;
 
-      VisualizationLaunchers::interpretAndGenerate(
-         trace,
-         path,
-         "preview",
-         SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
-         agents_to_draw_arrows_for,
-         gen_config_smooth, "preview");
+      if (!trace.at(0).second.count("env.section_1_segment_0_pos_begin")) {
+         // TODO: For now we don't generate preview GIF for multi-section scenes because it's very expensive due to hard-coded large image size.
+         // Needs to be fixed by reducing image size to what is actually needed. (Plus some other intelligent stuff.)
+         VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            path,
+            "preview",
+            SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
+            agents_to_draw_arrows_for,
+            gen_config_smooth, "preview");
+      }
 
       VisualizationLaunchers::interpretAndGenerate(
          trace,

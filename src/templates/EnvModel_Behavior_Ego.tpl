@@ -225,7 +225,11 @@ INVAR
             (minimum_dist_to_veh_[i] <= min_dist_long & (veh___6[i]9___.rel_pos < -veh_length));
 
 -- Make sure ego and vehicle [i] don't collide in the initial state.
-INIT veh___6[i]9___.rel_pos < veh_length | veh___6[i]9___.rel_pos > veh_length | !ego.same_lane_as_veh_[i];
+INIT abs(veh___6[i]9___.rel_pos) > veh_length | !ego.same_lane_as_veh_[i];
+
+INVAR -- Ego may not "jump" over non-ego cars.
+    !(ego.same_lane_as_veh_[i] & (veh___6[i]9___.prev_rel_pos < 0) & (veh___6[i]9___.rel_pos >= 0)) &
+    !(ego.same_lane_as_veh_[i] & (veh___6[i]9___.prev_rel_pos > 0) & (veh___6[i]9___.rel_pos <= 0));
 }@**.for[[i], 0, @{NONEGOS - 1}@.eval]
     
 
