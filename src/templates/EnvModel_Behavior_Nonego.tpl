@@ -52,25 +52,6 @@ VAR
 	}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 
-@{
-INIT 0 = @{section_[sec]_segment_0_pos_begin}@*.scalingVariable[distance];
-INIT section_[sec]_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin < section_[sec]_end;
-@{
-INIT section_[sec]_segment_[num]_pos_begin + @{SEGMENTSMINLENGTH}@.distanceWorldToEnvModelConst < section_[sec]_segment_@{[num] + 1}@.eval[0]_pos_begin;
-INIT abs(section_[sec]_segment_[num]_min_lane - section_[sec]_segment_@{[num] + 1}@.eval[0]_min_lane) <= 1;
-INIT abs(section_[sec]_segment_[num]_max_lane - section_[sec]_segment_@{[num] + 1}@.eval[0]_max_lane) <= 1;
-}@**.for[[num], 0, @{SEGMENTS - 2}@.eval]
-
-@{
-INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lane;
-INIT section_[sec]_segment_[num]_min_lane >= 0;
-INIT section_[sec]_segment_[num]_max_lane <= @{(NUMLANES - 1)}@.eval[0];
-}@.for[[num], 0, @{SEGMENTS - 1}@.eval]
-
-INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -- Make sure we always have a drivable lane at the start. TODO: Make flexible.
-}@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
-
-
 DEFINE
 
 @{ego.abs_pos := 0;  -- Mock EGO interface in EGOLESS mode.}@**.if[@{EGOLESS}@.eval]
