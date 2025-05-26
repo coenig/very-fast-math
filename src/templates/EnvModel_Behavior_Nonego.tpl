@@ -21,7 +21,8 @@ VAR
     @{veh___6[i]9___.time_since_last_lc}@*.scalingVariable[time] : -1..min_time_between_lcs;        -- enough time has expired since the last lc happened
     veh___6[i]9___.change_lane_now : 0..1;                     -- variable for the non-deterministic choice whether we now change the lane
 
-    @{veh___6[i]9___.rel_pos}@*.scalingVariable[distance] : integer; -- relative position to ego in m, rel_pos < 0 means the rear bumber of the other vehicle is behind the rear bumper of the ego
+    @{veh___6[i]9___.abs_pos}@*.scalingVariable[distance] : integer; -- absolute position on current section (invalid if in between sections)
+    @{veh___6[i]9___.prev_abs_pos}@*.scalingVariable[distance] : integer;
     @{veh___6[i]9___.prev_rel_pos}@*.scalingVariable[distance] : integer;
     @{veh___6[i]9___.a}@*.scalingVariable[acceleration] : integer;    -- accel in m/s^2, (assume positive accel up to 6m/s^2, which is already a highly tuned sports car)
     @{veh___6[i]9___.v}@*.scalingVariable[velocity] : integer;
@@ -62,11 +63,6 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
 DEFINE
 
 @{ego.abs_pos := 0;  -- Mock EGO interface in EGOLESS mode.}@**.if[@{EGOLESS}@.eval]
-
- 
-@{
-   @{veh___6[i]9___.abs_pos}@*.scalingVariable[distance] := veh___6[i]9___.rel_pos + ego.abs_pos;
-}@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 
 -- Make sure non-egos do not drive on the GREEN.
@@ -152,14 +148,15 @@ DEFINE
 
 
 INIT 
-   veh___6[i]9___.rel_pos >= -@{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst & veh___6[i]9___.rel_pos <= @{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst;
+   veh___6[i]9___.abs_pos >= -@{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst & veh___6[i]9___.abs_pos <= @{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst;
+
+DEFINE
+   veh___6[i]9___.rel_pos := veh___6[i]9___.abs_pos - ego.abs_pos; -- relative position to ego in m (valid only if ego is on same section), rel_pos < 0 means the rear bumber of the other vehicle is behind the rear bumper of the ego
 
 INVAR
     veh___6[i]9___.lane_single | veh___6[i]9___.lane_crossing;
 
 INVAR
-    (-@{LONGDISTMAX}@.distanceWorldToEnvModelConst <= veh___6[i]9___.rel_pos & veh___6[i]9___.rel_pos <= @{LONGDISTMAX}@.distanceWorldToEnvModelConst) &
-    (-@{LONGDISTMAX}@.distanceWorldToEnvModelConst <= veh___6[i]9___.prev_rel_pos & veh___6[i]9___.prev_rel_pos <= @{LONGDISTMAX}@.distanceWorldToEnvModelConst) &
     (max(-veh___6[i]9___.v, a_min) <= veh___6[i]9___.a & veh___6[i]9___.a <= a_max) &
     (0 <= veh___6[i]9___.v & veh___6[i]9___.v <= max_vel);
 
@@ -175,11 +172,11 @@ esac;
 @{
 
 INVAR -- Non-Ego cars may not collide.
-    veh___6[i]9___.same_lane_as_veh_[j] -> (abs(veh___6[j]9___.rel_pos - veh___6[i]9___.rel_pos) > veh_length);
+    veh___6[i]9___.same_lane_as_veh_[j] -> (abs(veh___6[j]9___.abs_pos - veh___6[i]9___.abs_pos) > veh_length);
 
 INVAR -- Non-Ego cars may not "jump" over each other.
-    !(veh___6[i]9___.same_lane_as_veh_[j] & (veh___6[j]9___.prev_rel_pos < veh___6[i]9___.prev_rel_pos) & (veh___6[j]9___.rel_pos >= veh___6[i]9___.rel_pos)) &
-    !(veh___6[i]9___.same_lane_as_veh_[j] & (veh___6[i]9___.prev_rel_pos < veh___6[j]9___.prev_rel_pos) & (veh___6[i]9___.rel_pos >= veh___6[j]9___.rel_pos));
+    !(veh___6[i]9___.same_lane_as_veh_[j] & (veh___6[j]9___.prev_abs_pos < veh___6[i]9___.prev_abs_pos) & (veh___6[j]9___.abs_pos >= veh___6[i]9___.abs_pos)) &
+    !(veh___6[i]9___.same_lane_as_veh_[j] & (veh___6[i]9___.prev_abs_pos < veh___6[j]9___.prev_abs_pos) & (veh___6[i]9___.abs_pos >= veh___6[j]9___.abs_pos));
 	
 }@.for[[j], 0, @{[i]}@.sub[1]]}@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 
@@ -198,6 +195,7 @@ ASSIGN
     init(veh___6[i]9___.lc_timer) := -1;
     init(veh___6[i]9___.change_lane_now) := 0;
     init(veh___6[i]9___.prev_rel_pos) := 0;
+    init(veh___6[i]9___.prev_abs_pos) := 0;
     -- init(veh___6[i]9___.v) := @{MAXSPEEDNONEGO / 2}@.velocityWorldToEnvModelConst;
     @{init(veh___6[i]9___.a) := 0;}@**.if[@{!(EGOLESS)}@.eval]
     init(veh___6[i]9___.turn_signals) := ActionDir____CENTER;
@@ -280,7 +278,8 @@ ASSIGN
 	
     -- update position (directly feed-through new velocity)
     next(veh___6[i]9___.prev_rel_pos) := veh___6[i]9___.rel_pos;
-    next(veh___6[i]9___.rel_pos) := min(max(veh___6[i]9___.rel_pos + (next(veh___6[i]9___.v) - next(ego.v)), -@{LONGDISTMAX}@.distanceWorldToEnvModelConst), @{LONGDISTMAX}@.distanceWorldToEnvModelConst);
+    next(veh___6[i]9___.prev_abs_pos) := veh___6[i]9___.abs_pos;
+    next(veh___6[i]9___.abs_pos) := veh___6[i]9___.abs_pos + next(veh___6[i]9___.v) - next(ego.v);
 
     -- update velocity (directly feed-through newly chosen accel)
     next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, 0), max_vel);
