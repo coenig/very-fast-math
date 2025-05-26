@@ -33,12 +33,23 @@ VAR
 
     -- auxialiary variables required for property evaluation
     veh___6[i]9___.lc_leave_src_lane : boolean; -- probably superfluous meanwhile
-	
---    veh___6[i]9___.section : integer;
---    veh___6[i]9___.next_section : integer;
---    veh___6[i]9___.is_on_junction : boolean;
 
-	}@**.for[[i], 0, @{NONEGOS - 1}@.eval]
+    @{
+       veh___6[i]9___.is_on_sec_[sec2] : 0..1;
+       @{
+          @{
+          veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] : 0..1;
+          }@.if[@{[sec] != [sec2]}@.eval]
+       }@*.for[[sec], 0, @{SECTIONS - 1}@.eval]	
+    }@**.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+
+	}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
+
+   @{
+   INVAR @{veh___6[i]9___.is_on_sec_[sec]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval, 1, +]
+      @{@{@{+ veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]}@.if[@{[sec] != [sec2]}@.eval]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval]}@**.for[[sec2], 0, @{SECTIONS - 1}@.eval] = 1;
+
+	}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 
 @{
@@ -185,9 +196,6 @@ INVAR -- Non-Ego cars may not "jump" over each other.
 ASSIGN
 @{
 -- @{XVarEnvModelCarNote}@
---    init(veh___6[i]9___.next_section) := -1;
---    init(veh___6[i]9___.is_on_junction) := FALSE;
-
     init(veh___6[i]9___.time_since_last_lc) := min_time_between_lcs;       -- init with max value such that lane change is immediately allowed after start
     init(veh___6[i]9___.do_lane_change) := FALSE;
     init(veh___6[i]9___.abort_lc) := FALSE;
@@ -200,12 +208,6 @@ ASSIGN
     @{init(veh___6[i]9___.a) := 0;}@**.if[@{!(EGOLESS)}@.eval]
     init(veh___6[i]9___.turn_signals) := ActionDir____CENTER;
     init(veh___6[i]9___.lc_leave_src_lane) := FALSE;
-
---    next(veh___6[i]9___.next_section) := case
---       veh___6[i]9___.next_section = -1 : ;
---       veh___6[i]9___.is_on_junction : -1;
---       TRUE : veh___6[i]9___.next_section;
---    esac;
 
     next(veh___6[i]9___.do_lane_change) := 
 	    case 
