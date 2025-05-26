@@ -279,7 +279,7 @@ ASSIGN
     -- update position (directly feed-through new velocity)
     next(veh___6[i]9___.prev_rel_pos) := veh___6[i]9___.rel_pos;
     next(veh___6[i]9___.prev_abs_pos) := veh___6[i]9___.abs_pos;
-    next(veh___6[i]9___.abs_pos) := veh___6[i]9___.abs_pos + next(veh___6[i]9___.v) - next(ego.v);
+    next(veh___6[i]9___.abs_pos) := veh___6[i]9___.abs_pos + next(veh___6[i]9___.v);
 
     -- update velocity (directly feed-through newly chosen accel)
     next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, 0), max_vel);
