@@ -114,9 +114,9 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
             }@*.for[[sec2], 0, @{SECTIONS - 1}@.eval]
          }@**.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
 
-         @{
-         INVAR 
-            @{ outgoing_connection_0_of_section_[sec2] = [sec] }@.for[[sec2], 0, @{[sec]}@.sub[1], 1, |];
+         @{ -- TODO: Comment in to make all sections connect.
+         -- INVAR 
+            @{ -- outgoing_connection_0_of_section_[sec2] = [sec] }@.for[[sec2], 0, @{[sec]}@.sub[1], 1, |];
          }@.if[@{[sec] > 0}@.eval]
 
       @{
