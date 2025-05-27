@@ -15,11 +15,6 @@
 @{SECTIONS}@******.defaultValue[3]               -- Number of straight road SECTIONS which form a road network
 @{SECTIONSMAXLENGTH}@******.defaultValue[150]
 @{SECTIONSMINLENGTH}@******.defaultValue[50]
-@{BORDERLEFT}@******.defaultValue[-1000]         -- Left...
-@{BORDERTOP}@******.defaultValue[-1000]          -- Top...
-@{BORDERRIGHT}@******.defaultValue[1000]         -- Right...
-@{BORDERBOTTOM}@******.defaultValue[1000]        -- Bottom border of the coordinate system the straight roads can be placed on
-@{COORDGRANULARITY}@******.defaultValue[10]      -- Only every n-th coordinate in x and y direction can be used to place connection points on
 @{ANGLEGRANULARITY}@******.defaultValue[45]      -- Only every n-th angle (DEG) can be used between two sections at connection points (zero degrees is straight ahead)
 @{MAXOUTGOINGCONNECTIONS}@******.defaultValue[3] -- Maximum number of successors a straight road may have
 @{MINDISTCONNECTIONS}@******.defaultValue[20]    -- Two connection points have to be at least this far apart
@@ -43,7 +38,7 @@
 @{MAXEGOVISRANGE}@******.defaultValue[250]
 @{CLOSEFRONTDIST}@******.defaultValue[10]
 @{LONGDISTMAX}@******.defaultValue[300]         -- This is the max distance to the front and back of ego.
-@{INITPOSRANGENONEGOS}@******.defaultValue[200] -- Range to front and back where non-egos can be positioned initially.
+@{INITPOSRANGENONEGOS}@******.defaultValue[50]  -- Range to front where non-egos can be positioned initially. (TODO: Should be replaced by length of resp. section.)
 @{CLOSETOEGOPAR}@******.defaultValue[80]
 @{TIMESCALING}@******.defaultValue[1000]        -- nondimensionalization constant for time, in milliseconds
 @{DISTANCESCALING}@******.defaultValue[1000]    -- nondimensionalization constant for distance, in millimeters

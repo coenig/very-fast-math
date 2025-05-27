@@ -39,7 +39,6 @@
       "BMC_NUMBER_OF_CEXS": 1,
       "BRAKEINHIBITION": false,
       "CALCULATE_RIGHT_GAP_REAR": true,
-      "COORDGRANULARITY": "#{1}#",
       "DEBUG": false,
       "DISTANCESCALING": "#{d}#",
       "DOUBLEMERGEPROTECTION": false,

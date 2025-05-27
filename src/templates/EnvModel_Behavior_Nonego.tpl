@@ -140,7 +140,7 @@ DEFINE
 
 
 INIT 
-   veh___6[i]9___.abs_pos >= -@{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst & veh___6[i]9___.abs_pos <= @{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst;
+   veh___6[i]9___.abs_pos >= 0 & veh___6[i]9___.abs_pos <= @{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst;
 
 DEFINE
    veh___6[i]9___.rel_pos := veh___6[i]9___.abs_pos - ego.abs_pos; -- relative position to ego in m (valid only if ego is on same section), rel_pos < 0 means the rear bumber of the other vehicle is behind the rear bumper of the ego
@@ -175,9 +175,9 @@ INVAR -- Non-Ego cars may not "jump" over each other.
 
 
 
-ASSIGN
 @{
 -- @{XVarEnvModelCarNote}@
+ASSIGN
     init(veh___6[i]9___.time_since_last_lc) := min_time_between_lcs;       -- init with max value such that lane change is immediately allowed after start
     init(veh___6[i]9___.do_lane_change) := FALSE;
     init(veh___6[i]9___.abort_lc) := FALSE;
@@ -295,17 +295,15 @@ ASSIGN
     -- esac;
     -- ########## EO IDEA #########
 
+    -- update velocity (directly feed-through newly chosen accel)
+    next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, 0), max_vel);
+
     @{
        @{
           @{INVAR veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 -> veh___6[i]9___.v <= 5;}@.if[@{[sec] != [sec2]}@.eval]
           @{TRANS next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) = 1 -> veh___6[i]9___.lane_single;}@.if[@{[sec] != [sec2]}@.eval]
        }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
     }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
-
-
-    -- update velocity (directly feed-through newly chosen accel)
-    next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, 0), max_vel);
-
 }@****.for[[i], @{STANDINGCARSUPTOID + 1}@.eval, @{NONEGOS - 1}@.eval]
 
 @{
