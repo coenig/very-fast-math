@@ -133,7 +133,7 @@ public:
    /// to avoid the nullptr, but it is not placed at the correct position.
    /// EGO and the other cars need to be added subsequently.
    /// </summary>
-   static std::shared_ptr<RoadGraph> getRoadGraphFrom(const MCTrace& trace);
+   static std::shared_ptr<RoadGraph> getRoadGraphTopologyFrom(const MCTrace& trace);
 
    // Provide frames_per_second <= 0 to disable interpolation.
    static bool interpretAndGenerate(

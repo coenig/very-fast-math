@@ -203,7 +203,7 @@ inline std::pair<std::vector<CarPars>, std::vector<CarParsVec>> createOthersVecs
 
 std::string VisualizationLaunchers::writeProseTrafficScene(const MCTrace trace)
 {
-   const auto road_graph{ getRoadGraphFrom(trace) };
+   const auto road_graph{ getRoadGraphTopologyFrom(trace) };
    const auto config = InterpretationConfiguration::getLaneChangeConfiguration();
    const MCinterpretedTrace interpreted_trace(0, { trace }, config);
    const auto data_vec{ interpreted_trace.getDataTrace() };
@@ -374,9 +374,9 @@ bool VisualizationLaunchers::quickGenerateGIFs(
    return true;
 }
 
-std::shared_ptr<RoadGraph> vfm::mc::trajectory_generator::VisualizationLaunchers::getRoadGraphFrom(const MCTrace& trace)
+std::shared_ptr<RoadGraph> vfm::mc::trajectory_generator::VisualizationLaunchers::getRoadGraphTopologyFrom(const MCTrace& trace)
 {
-   if (trace.empty()) Failable::getSingleton()->addError("Received empty trace for 'getRoadGraphFrom'.");
+   if (trace.empty()) Failable::getSingleton()->addError("Received empty trace for 'getRoadGraphTopologyFrom'.");
 
    const auto first_state{ trace.at(0).second };
 
@@ -492,7 +492,7 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
 
       interpreted_trace.applyScaling(1.0, -1.0, 1.0); // flip y
 
-      auto road_graph{ getRoadGraphFrom(trace) };
+      auto road_graph{ getRoadGraphTopologyFrom(trace) };
 
       // TODO
       auto others = createOthersVecs(interpreted_trace.getDataTrace(), road_graph->getMyRoad());

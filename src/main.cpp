@@ -27,7 +27,7 @@ using namespace mc::trajectory_generator;
 int main(int argc, char* argv[])
 {
    //auto traces = StaticHelper::extractMCTracesFromNusmvFile("../examples/gp_config_sections=5/debug_trace_array.txt");
-   //std::shared_ptr<RoadGraph> r{ mc::trajectory_generator::VisualizationLaunchers::getRoadGraphFrom(traces.at(0)) };
+   //std::shared_ptr<RoadGraph> r{ mc::trajectory_generator::VisualizationLaunchers::getRoadGraphTopologyFrom(traces.at(0)) };
    //std::cout << r->generateOSM()->serializeBlock() << std::endl;
    //
    //StaticHelper::writeTextToFile(r->generateOSM()->serializeBlock(), "test.osm");

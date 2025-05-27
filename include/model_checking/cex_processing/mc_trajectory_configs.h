@@ -37,6 +37,7 @@ constexpr double STATE_TACTICAL_PLANNER = 2;
 		turn_signal_right,
 		gap_0_i_agent_front, gap_1_i_agent_front, gap_2_i_agent_front,
 		gap_0_i_agent_rear, gap_1_i_agent_rear, gap_2_i_agent_rear,
+      on_straight_section, traversion_from, traversion_to
 	};
 	// NOTE: When you add more parameters here and access them every state, make sure to add them to required_parameters in the config.
 
