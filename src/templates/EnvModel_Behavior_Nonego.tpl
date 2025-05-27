@@ -277,26 +277,31 @@ ASSIGN
           TRUE : veh___6[i]9___.next_abs_pos;
     esac;
 
+    -- update velocity (directly feed-through newly chosen accel)
+    next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, 0), max_vel);
+
     -- ############ IDEA ###########
     -- Set future road either to 1/0 if it's clear we'll end or not end up there, or to {0, 1} whenever there IS a connection,
     -- but we're not sure if there might be another one. Together with the INVAR that makes it sum up to 1,
     -- we are sure that exactly one will be chosen.
-    --
-    -- ### Future pos is section ###
-    -- next(veh___6[i]9___.is_on_sec_[sec2]) := case
-    --    veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & ... : 1;
-    --    TRUE : 0;
-    -- esac;
-    --
-    -- ## Future pos is junction ##
-    -- next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) := case
-    --    veh___6[i]9___.is_on_sec_[sec] = 1 & outgoing_connection_[con]_of_section_[sec] = [sec2] ... : {0, 1};
-    --    TRUE : 0;
-    -- esac;
     -- ########## EO IDEA #########
 
-    -- update velocity (directly feed-through newly chosen accel)
-    next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, 0), max_vel);
+    -- ### Future pos is section ###
+       @{
+         next(veh___6[i]9___.is_on_sec_[sec2]) := case
+             @{@{
+                @{veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 1;}@.if[@{[sec] != [sec2]}@.eval]
+             }@*.for[[lane], 0, @{NUMLANES - 1}@.eval]
+          }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
+             TRUE : veh___6[i]9___.is_on_sec_[sec2];
+          esac;
+       }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+    
+          -- ## Future pos is junction ##
+          -- next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) := case
+          --    veh___6[i]9___.is_on_sec_[sec] = 1 & outgoing_connection_[con]_of_section_[sec] = [sec2] ... : {0, 1};
+          --    TRUE : 0;
+          -- esac;
 
     @{
        @{
