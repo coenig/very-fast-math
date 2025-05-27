@@ -111,8 +111,8 @@ public:
    {
       if (true || !outside_view_) { // TODO: Can we optimize that for performance?
          outside_view_ = std::make_shared<HighwayImage>(
-            getImageWidth(MAX_NUM_LANES_SIMPLE) * (road_graph->getNodeCount() > 1 ? 10 : 1), // TODO: Remove factor (make more intelligent)
-            getImageHeight()  * (road_graph->getNodeCount() > 1 ? 20 : 1),                   // TODO: Remove factor (make more intelligent)
+            getImageWidth(MAX_NUM_LANES_SIMPLE) * (/*road_graph->getNodeCount() > 1 ? 10 :*/ 1), // TODO: Remove factor (make more intelligent)
+            getImageHeight()  * (/*road_graph->getNodeCount() > 1 ? 20 :*/ 1),                   // TODO: Remove factor (make more intelligent)
             std::make_shared<Plain2DTranslator>(), 
             road_graph->getMyRoad().getNumLanes());
       }
@@ -133,9 +133,13 @@ public:
       const float offset_x{ infinite_highway
          ? 60 
          : - bounding_box.upper_left_.x + 15 };
-      const float offset_y{ infinite_highway
-         ? (float)road_graph->getMyRoad().getNumLanes() / 2.0f
-         : -bounding_box.upper_left_.y + 15 };
+      const float offset_y{ 
+         //infinite_highway
+         //? 
+         (float)road_graph->getMyRoad().getNumLanes() / 2.0f
+         //: 
+         //-bounding_box.upper_left_.y + 15 
+      };
 
       outside_view_->paintRoadGraph(
          road_graph,
