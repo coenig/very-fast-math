@@ -286,7 +286,7 @@ ASSIGN
     -- we are sure that exactly one will be chosen.
     -- ########## EO IDEA #########
 
-    -- ### Future pos is section ###
+    -- ### Future pos is straight section ###
        @{
          next(veh___6[i]9___.is_on_sec_[sec2]) := case
              @{@{
@@ -297,11 +297,18 @@ ASSIGN
           esac;
        }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
     
-          -- ## Future pos is junction ##
-          -- next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) := case
-          --    veh___6[i]9___.is_on_sec_[sec] = 1 & outgoing_connection_[con]_of_section_[sec] = [sec2] ... : {0, 1};
-          --    TRUE : 0;
-          -- esac;
+    -- ## Future pos is curved junction ##
+       @{@{
+             @{
+                next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) := case
+                   @{
+                      veh___6[i]9___.is_on_sec_[sec] = 1 & outgoing_connection_[con]_of_section_[sec] = [sec2] & veh___6[i]9___.next_abs_pos > section_[sec]_end : {0, 1};
+                   }@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval]
+                   TRUE : veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2];
+                esac;
+             }@.if[@{[sec] != [sec2]}@.eval]
+             }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
+       }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
 
     @{
        @{
