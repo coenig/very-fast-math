@@ -54,7 +54,7 @@
       "NUMLANES": "#{lanes}#",
       "SECTIONS": "#{sections}#",
       "SECTIONSMAXLENGTH": "#{200}#",
-      "SECTIONSMINLENGTH": "#{0}#",
+      "SECTIONSMINLENGTH": "#{50}#",
       "SEGMENTS": "#{segments}#",
       "SEGMENTSMINLENGTH": 0,
       "SPEC": "#{ env.cnt < 5 }#",
