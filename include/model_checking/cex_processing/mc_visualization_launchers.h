@@ -131,7 +131,7 @@ public:
    /// Generates a road graph that contains only the topology of the road,
    /// NO traffic participants. For convenience, there is a dummy EGO added
    /// to avoid the nullptr, but it is not placed at the correct position.
-   /// EGO ant the other cars need to be added subsequently.
+   /// EGO and the other cars need to be added subsequently.
    /// </summary>
    static std::shared_ptr<RoadGraph> getRoadGraphFrom(const MCTrace& trace);
 
