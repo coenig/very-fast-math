@@ -313,7 +313,7 @@ ASSIGN
 
     @{
        @{
-          @{INVAR veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 -> veh___6[i]9___.v <= 5;}@.if[@{[sec] != [sec2]}@.eval]
+          @{INVAR (veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1) -> (veh___6[i]9___.v <= 5 & veh___6[i]9___.lane_single);}@.if[@{[sec] != [sec2]}@.eval]
           @{TRANS next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) = 1 -> veh___6[i]9___.lane_single;}@.if[@{[sec] != [sec2]}@.eval]
        }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
     }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]

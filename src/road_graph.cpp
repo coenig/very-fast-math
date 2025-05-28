@@ -281,6 +281,7 @@ void vfm::RoadGraph::removeNonegoCars()
 {
    findFirstSectionWithProperty([](const std::shared_ptr<RoadGraph> r) -> bool {
       r->my_road_.setOthers({});
+      r->clearNonegosOnCrossingsTowardsAny();
       return false;
    });
 }
@@ -459,6 +460,11 @@ void vfm::RoadGraph::addNonegoOnCrossingTowards(const int r_id, const CarPars& n
    else {
       addError("Id '" + std::to_string(r_id) + "' not found as successor of section '" + std::to_string(id_) + "'.");
    }
+}
+
+void vfm::RoadGraph::clearNonegosOnCrossingsTowardsAny()
+{
+   nonegos_towards_successors_.clear();
 }
 
 using namespace xml;
