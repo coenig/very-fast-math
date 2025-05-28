@@ -167,9 +167,9 @@ std::string VisualizationLaunchers::writeProseSingleStep(
 }
 
 inline std::pair<std::vector<CarPars>, std::vector<CarParsVec>> createOthersVecs1(
-   const DataPackTrace data_trace, const StraightRoadSection lane_structure)
+   const DataPackTrace data_trace, const int num_lanes)
 {
-   const float LANE_CONSTANT{ ((float)lane_structure.getNumLanes() - 1) * 2 };
+   const float LANE_CONSTANT{ ((float)num_lanes - 1) * 2 };
    int num_cars{};
    std::vector<CarPars> ego_values{};
    std::vector<CarParsVec> others_values{};
@@ -204,11 +204,10 @@ inline std::pair<std::vector<CarPars>, std::vector<CarParsVec>> createOthersVecs
 
 std::string VisualizationLaunchers::writeProseTrafficScene(const MCTrace trace)
 {
-   const auto road_graph{ getRoadGraphFrom(trace) };
    const auto config = InterpretationConfiguration::getLaneChangeConfiguration();
    const MCinterpretedTrace interpreted_trace(0, { trace }, config);
    const auto data_vec{ interpreted_trace.getDataTrace() };
-   const auto pair{ createOthersVecs1(data_vec, road_graph->getMyRoad()) };
+   const auto pair{ createOthersVecs1(data_vec, interpreted_trace.getRequiredParameters().at(PossibleParameter::) };
    const auto ego_vec{ pair.first };
    const auto others_vec{ pair.second };
    std::string res{};
