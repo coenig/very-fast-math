@@ -442,6 +442,7 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
       LiveSimGenerator(interpreted_trace).generate(out_path,
          agents_to_draw_arrows_for,
          stage_name,
+         trace,
          sim_type,
          { OutputType::png, OutputType::pdf },
          settings.x_scaling,

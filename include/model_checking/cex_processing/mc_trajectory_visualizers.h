@@ -17,6 +17,7 @@
 #include "fsm.h"
 #include "failable.h"
 #include "simulation/env2d_simple.h"
+#include "model_checking/mc_types.h"
 
 #include <vector>
 #include <string>
@@ -97,6 +98,7 @@ public:
 		const std::string& base_output_name,
 		const std::set<int>& agents_to_draw_arrows_for,
       const std::string& stage_name,
+      const MCTrace& trace,
 		const LiveSimType visu_type = static_cast<LiveSimType>(LiveSimType::constant_image_output | LiveSimType::birdseye),
       const std::vector<vfm::OutputType> single_images_output_types = { OutputType::png },
 		const double x_scaling = 1.0,
