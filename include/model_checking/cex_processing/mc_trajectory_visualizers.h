@@ -83,13 +83,19 @@ public:
 		always_paint_arrows = 32
 	};
 
+
+   /// <summary>
+   /// Generates a road graph that contains the topology of the road,
+   /// AND the traffic participants.
+   /// </summary>
+   std::shared_ptr<RoadGraph> getRoadGraphFrom(const MCTrace& trace);
+
 	/// \brief So far, "live" simulation means creating image files on the fly
 	/// while a smart image viewer such as Sumatra PDF (can also handle PNGs) can be used
 	/// to show the sim live. Possible image formates are currently: png, jpg, bmp, ppm.
 	void generate(
 		const std::string& base_output_name,
 		const std::set<int>& agents_to_draw_arrows_for,
-      const std::shared_ptr<RoadGraph> road_graph,
       const std::string& stage_name,
 		const LiveSimType visu_type = static_cast<LiveSimType>(LiveSimType::constant_image_output | LiveSimType::birdseye),
       const std::vector<vfm::OutputType> single_images_output_types = { OutputType::png },
