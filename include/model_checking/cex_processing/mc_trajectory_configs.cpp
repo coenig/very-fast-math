@@ -50,6 +50,30 @@ namespace trajectory_generator {
 
 				})},
 
+			{"ego.on_straight_section",
+			std::make_shared<InterpretableKey<double>>(
+				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double on_section) {
+
+					traj.pushVehicleParameter(ego_vehicle_name, on_section, PossibleParameter::on_straight_section);
+
+				})},
+
+			{"ego.traversion_from",
+			std::make_shared<InterpretableKey<double>>(
+				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double from) {
+
+					traj.pushVehicleParameter(ego_vehicle_name, from, PossibleParameter::traversion_from);
+
+				})},
+
+			{"ego.traversion_to",
+			std::make_shared<InterpretableKey<double>>(
+				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double to) {
+
+					traj.pushVehicleParameter(ego_vehicle_name, to, PossibleParameter::traversion_to);
+
+				})},
+
 			{R"(planner."flCond.cond18_driver_lanechange_request")",
 			std::make_shared<InterpretableKey<bool>>(
 				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, bool lc) {
@@ -160,6 +184,33 @@ namespace trajectory_generator {
 					// Set the y position according to the lane (interpolation will happen in postprocessing)
 					auto vehicle_name = key_elements[0];
 					traj.pushVehicleParameter(vehicle_name, lane_index * LANE_WIDTH_HALF, PossibleParameter::pos_y);
+
+				})},
+
+			{"on_straight_section",
+			std::make_shared<InterpretableKey<double>>(
+				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double on_section) {
+
+					auto vehicle_name = key_elements[0];
+					traj.pushVehicleParameter(vehicle_name, on_section, PossibleParameter::on_straight_section);
+
+				})},
+
+			{"traversion_from",
+			std::make_shared<InterpretableKey<double>>(
+				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double from) {
+
+					auto vehicle_name = key_elements[0];
+					traj.pushVehicleParameter(vehicle_name, from, PossibleParameter::traversion_from);
+
+				})},
+
+			{"traversion_to",
+			std::make_shared<InterpretableKey<double>>(
+				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double to) {
+
+					auto vehicle_name = key_elements[0];
+					traj.pushVehicleParameter(vehicle_name, to, PossibleParameter::traversion_to);
 
 				})},
 
@@ -343,6 +394,24 @@ namespace trajectory_generator {
 
 		required_parameters.push_back(ParameterDetails{
 			PossibleParameter::gap_2_i_agent_rear, "ego.gaps___629___.i_agent_rear", false, no_interpolation, [](double last_value) {
+				return std::isnan(last_value) ? -1 : last_value;
+			}
+			});
+
+      required_parameters.push_back(ParameterDetails{
+			PossibleParameter::on_straight_section, "on_straight_section", true, no_interpolation, [](double last_value) {
+				return std::isnan(last_value) ? -1 : last_value;
+			}
+			});
+
+      required_parameters.push_back(ParameterDetails{
+			PossibleParameter::traversion_from, "traversion_from", true, no_interpolation, [](double last_value) {
+				return std::isnan(last_value) ? -1 : last_value;
+			}
+			});
+
+      required_parameters.push_back(ParameterDetails{
+			PossibleParameter::traversion_to, "traversion_to", true, no_interpolation, [](double last_value) {
 				return std::isnan(last_value) ? -1 : last_value;
 			}
 			});
