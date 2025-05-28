@@ -662,8 +662,8 @@ std::string DummyRepresentable::arclengthCubicBezierFromStreetTopology(
    if (!StaticHelper::isParsableAsInt(num_lanes_str)) addError("NumLanes '" + num_lanes_str + "' is not parsable as float in 'arclengthCubicBezierFromStreetTopology'.");
    if (hasErrorOccurred()) return "#ERROR-Check-Log";
 
-   const int lane{ std::stoi(lane_str) };
    const int num_lanes{ std::stoi(num_lanes_str) };
+   const int lane{ num_lanes - std::stoi(lane_str) - 1 };
    const float angle{ deg2Rad(std::stof(angle_str)) };
    const float distance{ std::stof(distance_str) };
    const float l{ (lane - (num_lanes - 1.0f) / 2.0f) * LANE_WIDTH };

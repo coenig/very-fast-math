@@ -271,6 +271,7 @@ public:
    std::map<std::shared_ptr<RoadGraph>, std::vector<CarPars>> getNonegosOnCrossingTowardsAllSuccessors() const;
    void addNonegoOnCrossingTowards(const std::shared_ptr<RoadGraph> r, const CarPars& nonego);
    void addNonegoOnCrossingTowards(const int r_id, const CarPars& nonego);
+   void clearNonegosOnCrossingsTowardsAny();
 
    std::shared_ptr<xml::CodeXML> generateOSM() const;
 
