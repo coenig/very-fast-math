@@ -167,11 +167,10 @@ namespace trajectory_generator {
 
 				})},
 
-			{"rel_pos",
+			{"abs_pos",
 			std::make_shared<InterpretableKey<double>>(
 				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double x_relative_to_ego) {
 
-					// Push the position value relative to the ego. In the post-processing step, we turn this into absolute values once we have calculated the ego position.
 					auto vehicle_name = key_elements[0];
 					traj.pushVehicleParameter(vehicle_name, x_relative_to_ego, PossibleParameter::pos_x);
 
@@ -290,12 +289,6 @@ namespace trajectory_generator {
 
 			for (const auto& vehicle_name : traj.getVehicleNames())
 			{
-				if (vehicle_name != ego_vehicle_name) // exclude the ego
-				{
-					// Set the other vehicle x position relative to the ego
-					transform_relative_to_absolute_trajectory(traj, vehicle_name, ego_vehicle_name, PossibleParameter::pos_x);
-				}
-
 				// Detect and interpolate lane changes (movement along y)
 
 				auto& trajectory = traj.getEditableVehicleTrajectory(vehicle_name);
