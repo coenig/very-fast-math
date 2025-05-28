@@ -156,10 +156,70 @@ const auto VARIABLES_TO_BE_PAINTED = std::make_shared<std::vector<PainterVariabl
    }
 );
 
+std::shared_ptr<RoadGraph> LiveSimGenerator::getRoadGraphFrom(const MCTrace& trace)
+{
+   if (trace.empty()) Failable::getSingleton()->addError("Received empty trace for 'getRoadGraphFrom'.");
+
+   const auto first_state{ trace.at(0).second };
+
+   const auto segment_begin_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_pos_begin"; };
+   const auto segment_min_lane_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_min_lane"; };
+   const auto segment_max_lane_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_max_lane"; };
+   const auto connection = [](const int sec, const int con) -> std::string { return "env.outgoing_connection_" + std::to_string(con) + "_of_section_" + std::to_string(sec); };
+
+   std::vector<std::shared_ptr<RoadGraph>> road_graphs{};
+
+   for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
+      road_graphs.push_back(std::make_shared<RoadGraph>(sec));
+      StraightRoadSection lane_structure{ std::stoi(first_state.at("num_lanes")), std::stof(first_state.at("section_" + std::to_string(sec) + "_end")) };
+      lane_structure.setNumLanes(std::stoi(trace.at(0).second.at("num_lanes")));
+
+      for (int seg = 0; first_state.count(segment_min_lane_name(sec, seg)); seg++) {
+         lane_structure.addLaneSegment({
+            std::stof(first_state.at(segment_begin_name(sec, seg))),
+            (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_max_lane_name(sec, seg)))) * 2, // Remove "* 2"...
+            (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_min_lane_name(sec, seg)))) * 2, // ...to activate hard shoulders.
+            }
+            );
+      }
+
+      road_graphs[sec]->setOriginPoint({
+         std::stof(first_state.at("section_" + std::to_string(sec) + ".source.x")),
+         std::stof(first_state.at("section_" + std::to_string(sec) + ".source.y")) });
+
+      road_graphs[sec]->setAngle(2.0 * 3.1415 * std::stof(first_state.at("section_" + std::to_string(sec) + ".angle")) / 360.0);
+      road_graphs[sec]->setMyRoad(lane_structure);
+   }
+
+   //env.ego_vx_ = current_ego.second.at(PossibleParameter::vel_x) / x_scaling;
+   //env.ego_pos_y_ = road_graph->getMyRoad().getNumLanes() - 1 + current_ego.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
+   //env.ego_pos_x_ = current_ego.second.at(PossibleParameter::pos_x);
+
+   //env.agents_pos_x_[vehicle_index] = traj_pos.second.at(PossibleParameter::pos_x) - env.ego_pos_x_;
+   //env.agents_pos_y_[vehicle_index] = road_graph->getMyRoad().getNumLanes() - 1 + traj_pos.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
+   //env.agents_vx_rel_[vehicle_index] = traj_pos.second.at(PossibleParameter::vel_x) / x_scaling - env.ego_vx_;
+
+   // TODO: set actual EGO?
+   CarPars c{ 0, 0, 0, vfm::HighwayImage::EGO_MOCK_ID };
+   road_graphs[0]->getMyRoad().setEgo(std::make_shared<CarPars>());
+   // EO TODO
+
+   for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
+      for (int connect = 0; first_state.count(connection(sec, connect)); connect++) {
+         int successor = std::stof(first_state.at(connection(sec, connect)));
+
+         if (successor >= 0) { // -1 is code for "not present".
+            road_graphs[sec]->addSuccessor(road_graphs.at(successor));
+         }
+      }
+   }
+
+   return road_graphs[0];
+}
+
 void LiveSimGenerator::generate(
    const std::string& base_output_name,
    const std::set<int>& agents_to_draw_arrows_for,
-   const std::shared_ptr<RoadGraph> road_graph,
    const std::string& stage_name,
    const LiveSimType visu_type,
    const std::vector<vfm::OutputType> single_images_output_types,
@@ -167,6 +227,9 @@ void LiveSimGenerator::generate(
    const double time_factor,
    const long sleep_for_ms)
 {
+   //m_trajectory_provider.
+   auto road_graph{ getRoadGraphFrom({}) };
+
    std::string image_file_output = base_output_name + ".png";
    std::filesystem::path morty_progress_path{ base_output_name };
    morty_progress_path = morty_progress_path.parent_path().parent_path().parent_path();
