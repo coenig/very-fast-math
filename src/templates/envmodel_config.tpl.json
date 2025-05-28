@@ -57,7 +57,7 @@
       "SECTIONSMINLENGTH": "#{50}#",
       "SEGMENTS": "#{segments}#",
       "SEGMENTSMINLENGTH": 0,
-      "SPEC": "#{ env.ego.v >= 5 || (env.veh___609___.is_on_sec_0 == 1) || (env.veh___609___.abs_pos < 50) }#",
+      "SPEC": "#{ (env.ego.v >= 5) || (env.veh___609___.is_on_sec_0 == 1) || (env.veh___619___.is_on_sec_0 == 1) || (env.veh___609___.abs_pos < 50) || (env.veh___619___.abs_pos < 50) || env.veh___609___.v == env.veh___619___.v }#",
       "ShowLOG": true,
       "TIMESCALING": "#{1000}#",
       "_BP_INCLUDES_FILE_PATH": "../src/examples/ego_less/vfm-includes.txt",
