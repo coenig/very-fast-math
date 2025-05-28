@@ -1632,8 +1632,7 @@ bool StaticHelper::isBooleanTrue(const std::string& bool_str)
    return result;
 }
 
-// Function to extract an integer after a specific substring.
-int extractIntegerAfterSubstring(const std::string& str, const std::string& substring) {
+int vfm::StaticHelper::extractIntegerAfterSubstring(const std::string& str, const std::string& substring) {
    size_t pos = str.find(substring);
 
    if (pos == std::string::npos) {
@@ -1694,7 +1693,7 @@ void postprocessTrace(MCTrace& trace)
    for (auto& state : trace.getTrace()) {
       for (auto& varvals : state.second) {
          if (StaticHelper::stringContains(varvals.first, "lane_b")) {
-            const size_t lane_num = extractIntegerAfterSubstring(varvals.first, "lane_b");
+            const size_t lane_num = StaticHelper::extractIntegerAfterSubstring(varvals.first, "lane_b");
             const bool bool_val = StaticHelper::isBooleanTrue(varvals.second);
             std::string which{};
 
@@ -1716,7 +1715,7 @@ void postprocessTrace(MCTrace& trace)
             const bool bool_val = StaticHelper::isBooleanTrue(varvals.second); // Works for 0..1 as well as true/false.
 
             if (bool_val) {
-               const int sec_num = extractIntegerAfterSubstring(varvals.first, "is_on_sec_");
+               const int sec_num = StaticHelper::extractIntegerAfterSubstring(varvals.first, "is_on_sec_");
                std::string which{};
 
                std::string helper{ StaticHelper::replaceAll(varvals.first, "env.", "") };
@@ -1736,8 +1735,8 @@ void postprocessTrace(MCTrace& trace)
             const bool bool_val = StaticHelper::isBooleanTrue(varvals.second); // Works for 0..1 as well as true/false.
 
             if (bool_val) {
-               const int from_num = extractIntegerAfterSubstring(varvals.first, "from_sec_");
-               const int to_num = extractIntegerAfterSubstring(varvals.first, "to_sec_");
+               const int from_num = StaticHelper::extractIntegerAfterSubstring(varvals.first, "from_sec_");
+               const int to_num = StaticHelper::extractIntegerAfterSubstring(varvals.first, "to_sec_");
                std::string which{};
 
                std::string helper{ StaticHelper::replaceAll(varvals.first, "env.", "") };

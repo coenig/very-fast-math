@@ -197,6 +197,7 @@ public:
 
    void setEgo(const std::shared_ptr<CarPars> ego);
    void setOthers(const CarParsVec& others);
+   void addOther(const CarPars& other);
    void setFuturePositionsOfOthers(const std::map<int, std::pair<float, float>>& future_positions_of_others);
    void setSectionEnd(const float end);
    std::shared_ptr<CarPars> getEgo() const;
@@ -228,6 +229,10 @@ public:
    std::shared_ptr<RoadGraph> findSectionWithCar(const int car_id);
    std::shared_ptr<RoadGraph> findSectionWithEgo();
    void applyToMeAndAllMySuccessorsAndPredecessors(const std::function<void(const std::shared_ptr<RoadGraph>)> action);
+
+   void cleanFromAllCars();
+   void removeEgo();
+   void removeNonegoCars();
 
    StraightRoadSection& getMyRoad();
    Vec2D getOriginPoint() const;
