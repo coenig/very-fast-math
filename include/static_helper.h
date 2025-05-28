@@ -645,6 +645,11 @@ public:
       quick_only_detect_if_empty
    };
 
+
+   // Function to extract an integer after a specific substring, like so:
+   // f("this_is_my_string_12345_and_more", "my_string") ==> 12345
+   static int extractIntegerAfterSubstring(const std::string& str, const std::string& substring);
+
    static std::vector<MCTrace> extractMCTracesFromMSATIC(const std::string& cexp_string); // For now only one CEX is extracted. Empty CEX returned as empty list.
    static std::vector<MCTrace> extractMCTracesFromMSATICFile(const std::string& cexp_string);
 

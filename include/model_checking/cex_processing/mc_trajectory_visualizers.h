@@ -86,10 +86,12 @@ public:
 
 
    /// <summary>
-   /// Generates a road graph that contains the topology of the road,
-   /// AND the traffic participants.
+   /// Generates a road graph that contains only the topology of the road,
+   /// for conveniece, a dummy EGO is also placed at Sec. 0.
    /// </summary>
-   std::shared_ptr<RoadGraph> getRoadGraphFrom(const MCTrace& trace);
+   std::shared_ptr<RoadGraph> getRoadGraphTopologyFrom(const MCTrace& trace);
+   
+   void equipRoadGraphWithCars(const std::shared_ptr<RoadGraph> r, const size_t trajectory_index, const double x_scaling);
 
 	/// \brief So far, "live" simulation means creating image files on the fly
 	/// while a smart image viewer such as Sumatra PDF (can also handle PNGs) can be used

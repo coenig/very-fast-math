@@ -169,6 +169,11 @@ void vfm::StraightRoadSection::setOthers(const CarParsVec& others)
    others_ = others;
 }
 
+void vfm::StraightRoadSection::addOther(const CarPars& other)
+{
+   others_.push_back(other);
+}
+
 void vfm::StraightRoadSection::setFuturePositionsOfOthers(const std::map<int, std::pair<float, float>>& future_positions_of_others)
 {
    future_positions_of_others_ = future_positions_of_others;
@@ -254,6 +259,28 @@ void vfm::RoadGraph::applyToMeAndAllMySuccessorsAndPredecessors(const std::funct
 {
    findFirstSectionWithProperty([&action](const std::shared_ptr<RoadGraph> r) -> bool {
       action(r);
+      return false;
+   });
+}
+
+void vfm::RoadGraph::cleanFromAllCars()
+{
+   removeEgo();
+   removeNonegoCars();
+}
+
+void vfm::RoadGraph::removeEgo()
+{
+   findFirstSectionWithProperty([](const std::shared_ptr<RoadGraph> r) -> bool {
+      r->my_road_.setEgo(nullptr);
+      return false;
+   });
+}
+
+void vfm::RoadGraph::removeNonegoCars()
+{
+   findFirstSectionWithProperty([](const std::shared_ptr<RoadGraph> r) -> bool {
+      r->my_road_.setOthers({});
       return false;
    });
 }
