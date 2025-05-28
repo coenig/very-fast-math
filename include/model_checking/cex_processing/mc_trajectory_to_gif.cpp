@@ -191,6 +191,8 @@ std::shared_ptr<RoadGraph> LiveSimGenerator::getRoadGraphFrom(const MCTrace& tra
       road_graphs[sec]->setMyRoad(lane_structure);
    }
 
+   //m_trajectory_provider.
+
    //env.ego_vx_ = current_ego.second.at(PossibleParameter::vel_x) / x_scaling;
    //env.ego_pos_y_ = road_graph->getMyRoad().getNumLanes() - 1 + current_ego.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
    //env.ego_pos_x_ = current_ego.second.at(PossibleParameter::pos_x);
@@ -221,14 +223,14 @@ void LiveSimGenerator::generate(
    const std::string& base_output_name,
    const std::set<int>& agents_to_draw_arrows_for,
    const std::string& stage_name,
+   const MCTrace& trace,
    const LiveSimType visu_type,
    const std::vector<vfm::OutputType> single_images_output_types,
    const double x_scaling,
    const double time_factor,
    const long sleep_for_ms)
 {
-   //m_trajectory_provider.
-   auto road_graph{ getRoadGraphFrom({}) };
+   auto road_graph{ getRoadGraphFrom(trace) };
 
    std::string image_file_output = base_output_name + ".png";
    std::filesystem::path morty_progress_path{ base_output_name };
