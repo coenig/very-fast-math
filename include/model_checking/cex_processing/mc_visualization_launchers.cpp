@@ -207,7 +207,7 @@ std::string VisualizationLaunchers::writeProseTrafficScene(const MCTrace trace)
    const auto config = InterpretationConfiguration::getLaneChangeConfiguration();
    const MCinterpretedTrace interpreted_trace(0, { trace }, config);
    const auto data_vec{ interpreted_trace.getDataTrace() };
-   const auto pair{ createOthersVecs1(data_vec, interpreted_trace.getRequiredParameters().at(PossibleParameter::) };
+   const auto pair{ createOthersVecs1(data_vec, std::stoi(trace.at(0).second.at("num_lanes"))) };
    const auto ego_vec{ pair.first };
    const auto others_vec{ pair.second };
    std::string res{};
