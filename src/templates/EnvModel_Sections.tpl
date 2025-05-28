@@ -58,9 +58,14 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
 --  <== EO Segments
 --------------------------------------------------------
 
-   
-   -- INIT outgoing_connection_0_of_section_0 != -1; -- Make first section split...
-   -- INIT outgoing_connection_1_of_section_0 != -1; -- ...into two target roads.
+   -- TODO: Needs to be removed again
+   INIT outgoing_connection_0_of_section_0 = 1; -- Make first section split...
+   INIT outgoing_connection_1_of_section_0 = 2; -- ...into two target roads.
+   INIT section_1.angle_raw != 0;
+   INIT section_2.angle_raw != 0;
+   INIT veh___609___.is_on_sec_0 = 1;
+   INIT veh___619___.is_on_sec_0 = 1;
+   -- EO TODO: Needs to be removed again
 
    @{
       FROZENVAR

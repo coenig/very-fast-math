@@ -782,7 +782,6 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    lane_structure.cleanUp(false);
 
    setPerspective(street_height, num_lanes, ego_offset_x, min_lane, max_lane, street_top, ego_lane, dim);
-   const Vec2Df pos_ego{ 0, 0 };  // Convention: Ego is at 0/0 position.
    float y = street_top;
 
    auto tl_orig{ plain_2d_translator_->reverseTranslate({ 0, 0 }).projectToXY() };
@@ -827,7 +826,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       std::map<int, int> id_to_others_vec{};
 
       for (int i = 0; i < others.size(); i++) {
-         Vec2Df pos{ others[i].car_rel_pos_, others[i].car_lane_ - ego_lane };
+         Vec2Df pos{ others[i].car_rel_pos_ - ego_rel_pos, others[i].car_lane_ - ego_lane };
          cars_by_distance[others[i].car_id_] = Vec2Df({ pos.x, std::abs(ego_lane - pos.y) * LANE_WIDTH }).length();
          id_to_others_vec[others[i].car_id_] = i;
       }
@@ -855,7 +854,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
          auto car_id{ cars_sorted_by_distance[i] };
          const auto pair{ others[id_to_others_vec[car_id]] };
 
-         Vec2Df pos{ pair.car_rel_pos_, pair.car_lane_ - ego_lane };
+         Vec2Df pos{ pair.car_rel_pos_ - ego_rel_pos, pair.car_lane_ - ego_lane };
 
          float text_pos_x{ (std::max)(tl_orig.x + 2, (std::min)((float)br_orig.x - 2, pos.x)) };
          Color car_frame_color{ CAR_FRAME_COLOR };
@@ -872,8 +871,8 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
          if (car_id == gap_2_rear) { car_frame_color = GAP_2_REAR_COLOR; thick = 5;   /* writeAsciiText(text_pos_x + SLIDE_X, pos.y + SLIDE_Y, "2R"); */ }
 
          if (future_positions_of_others.count(car_id)) {
-            float future_pos_x{ pos_ego.x + future_positions_of_others.at(car_id).first };
-            float future_pos_y{ pos_ego.y + (future_positions_of_others.at(car_id).second - ego_lane) };
+            float future_pos_x{ future_positions_of_others.at(car_id).first };
+            float future_pos_y{ (future_positions_of_others.at(car_id).second - ego_lane) };
             createArrows(pos.x, future_pos_x, pos.y, future_pos_y, arrow_polygons);
          }
 
@@ -899,20 +898,20 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       std::string varname_ego_turn_signals = "ego.turn_signals";
       if (var_vals.count(varname_ego_turn_signals)) {
          if (var_vals.at(varname_ego_turn_signals) == "LEFT") {
-            fillBlinker(Vec2Df{ pos_ego.x, pos_ego.y }, -1.0);
+            fillBlinker(Vec2Df{ 0, 0 }, -1.0);
          }
          else if (var_vals.at(varname_ego_turn_signals) == "RIGHT") {
-            fillBlinker(Vec2Df{ pos_ego.x, pos_ego.y }, 1.0);
+            fillBlinker(Vec2Df{ 0, 0 }, 1.0);
          }
       }
 
       if (future_positions_of_others.count(-1)) {
-         float future_pos_x = pos_ego.x + future_positions_of_others.at(-1).first;
-         float future_pos_y = pos_ego.y + (future_positions_of_others.at(-1).second - ego_lane);
-         createArrows(pos_ego.x, future_pos_x, pos_ego.y, future_pos_y, arrow_polygons);
+         float future_pos_x = future_positions_of_others.at(-1).first;
+         float future_pos_y = (future_positions_of_others.at(-1).second - ego_lane);
+         createArrows(0, future_pos_x, 0, future_pos_y, arrow_polygons);
       }
 
-      if (ego) plotCar2D(3, pos_ego, RED, CAR_FRAME_COLOR);
+      if (ego) plotCar2D(3, { 0, 0 }, RED, CAR_FRAME_COLOR);
 
       for (const auto& pol : arrow_polygons) {
          fillPolygon(pol, DARK_GREY);
@@ -920,13 +919,13 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 
       for (int i = 0; i < cars_sorted_by_distance.size(); i++) {
          const auto pair = others[id_to_others_vec[cars_sorted_by_distance[i]]];
-         Vec2Df pos{ pair.car_rel_pos_, pair.car_lane_ - ego_lane };
+         Vec2Df pos{ pair.car_rel_pos_ - ego_rel_pos, pair.car_lane_ - ego_lane };
          if (getHighwayTranslator()->is3D()) plotCar3D(pos, CAR_COLOR, CAR_FRAME_COLOR);
       }
 
-      if (ego) if (getHighwayTranslator()->is3D()) plotCar3D(pos_ego, RED, CAR_FRAME_COLOR); // EGO 3D
+      if (ego) if (getHighwayTranslator()->is3D()) plotCar3D({0, 0}, RED, CAR_FRAME_COLOR); // EGO 3D
 
-      if (ego) writeAsciiText(pos_ego.x, pos_ego.y, std::to_string(ego_velocity), CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
+      if (ego) writeAsciiText(0, 0, std::to_string(ego_velocity), CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
 
       if (ego) {
          auto text_pos_y{ plain_2d_translator_->reverseTranslate({ 0, 13 }).y };
