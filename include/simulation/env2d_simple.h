@@ -61,7 +61,8 @@ public:
    }
 
    /// TODO: Future vec not yet working.
-   inline void createOthersVecs(
+   /// TODO2: Road Graph does not need a modification here.
+   inline void createOthersVecs2(
       std::map<int, std::pair<float, float>>& others_future_vec,
       const std::set<int>& agents_to_draw_arrows_for,
       const std::shared_ptr<RoadGraph> road_graph,
@@ -124,8 +125,8 @@ public:
 
       outside_view_->fillImg(BROWN);
 
-      std::map<int, std::pair<float, float>> others_future_vec{};
-      createOthersVecs(others_future_vec, agents_to_draw_arrows_for, road_graph, future_data);
+      std::map<int, std::pair<float, float>> others_future_vec{}; // TODO: Future vec not yet working.
+      //createOthersVecs2(others_future_vec, agents_to_draw_arrows_for, road_graph, future_data);
 
       const bool infinite_highway{ road_graph->getNodeCount() == 1 };
       
@@ -177,8 +178,8 @@ public:
          cockpit_view_mirror_->restartPDF();
       }
 
-      std::map<int, std::pair<float, float>> others_future_vec{};
-      createOthersVecs(others_future_vec, agents_to_draw_arrows_for, road_graph, future_data);
+      std::map<int, std::pair<float, float>> others_future_vec{}; // TODO: Future vec not yet working.
+      //createOthersVecs2(others_future_vec, agents_to_draw_arrows_for, road_graph, future_data);
 
       auto no_trans{std::make_shared<DefaultHighwayTranslator>()};
       cockpit_view_->setTranslator(no_trans);
