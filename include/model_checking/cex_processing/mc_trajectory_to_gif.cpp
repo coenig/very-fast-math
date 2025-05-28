@@ -192,9 +192,9 @@ void LiveSimGenerator::generate(
       const auto& current_ego = ego_trajectory[trajectory_index];
 
       // Provide ego data
-      env.ego_vx_ = current_ego.second.at(PossibleParameter::vel_x) / x_scaling;
-      env.ego_pos_y_ = road_graph->getMyRoad().getNumLanes() - 1 + current_ego.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
-      env.ego_pos_x_ = current_ego.second.at(PossibleParameter::pos_x);
+      //env.ego_vx_ = current_ego.second.at(PossibleParameter::vel_x) / x_scaling;
+      //env.ego_pos_y_ = road_graph->getMyRoad().getNumLanes() - 1 + current_ego.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
+      //env.ego_pos_x_ = current_ego.second.at(PossibleParameter::pos_x);
       
       if (current_ego.second.at(PossibleParameter::turn_signal_left) > 0.5)
          extra_var_vals.insert({ "ego.turn_signals", "LEFT" });
@@ -215,9 +215,9 @@ void LiveSimGenerator::generate(
       {
          auto& traj_pos = m_trajectory_provider.getVehicleTrajectory(vehicle_name)[trajectory_index];
 
-         env.agents_pos_x_[vehicle_index] = traj_pos.second.at(PossibleParameter::pos_x) - env.ego_pos_x_;
-         env.agents_pos_y_[vehicle_index] = road_graph->getMyRoad().getNumLanes() - 1 + traj_pos.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
-         env.agents_vx_rel_[vehicle_index] = traj_pos.second.at(PossibleParameter::vel_x) / x_scaling - env.ego_vx_;
+         //env.agents_pos_x_[vehicle_index] = traj_pos.second.at(PossibleParameter::pos_x) - env.ego_pos_x_;
+         //env.agents_pos_y_[vehicle_index] = road_graph->getMyRoad().getNumLanes() - 1 + traj_pos.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
+         //env.agents_vx_rel_[vehicle_index] = traj_pos.second.at(PossibleParameter::vel_x) / x_scaling - env.ego_vx_;
 
          if (traj_pos.second.at(PossibleParameter::turn_signal_left) > 0.5)
             extra_var_vals.insert({ vehicle_name + ".turn_signals", "LEFT" });

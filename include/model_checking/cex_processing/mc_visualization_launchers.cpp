@@ -166,7 +166,7 @@ std::string VisualizationLaunchers::writeProseSingleStep(
    return "";
 }
 
-inline std::pair<std::vector<CarPars>, std::vector<CarParsVec>> createOthersVecs(const DataPackTrace data_trace, const StraightRoadSection lane_structure)
+inline std::pair<std::vector<CarPars>, std::vector<CarParsVec>> createOthersVecs1(const DataPackTrace data_trace, const StraightRoadSection lane_structure)
 {
    const float LANE_CONSTANT{ ((float)lane_structure.getNumLanes() - 1) * 2 };
    int num_cars{};
@@ -207,7 +207,7 @@ std::string VisualizationLaunchers::writeProseTrafficScene(const MCTrace trace)
    const auto config = InterpretationConfiguration::getLaneChangeConfiguration();
    const MCinterpretedTrace interpreted_trace(0, { trace }, config);
    const auto data_vec{ interpreted_trace.getDataTrace() };
-   const auto pair{ createOthersVecs(data_vec, road_graph->getMyRoad()) };
+   const auto pair{ createOthersVecs1(data_vec, road_graph->getMyRoad()) };
    const auto ego_vec{ pair.first };
    const auto others_vec{ pair.second };
    std::string res{};
@@ -495,7 +495,7 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
       auto road_graph{ getRoadGraphTopologyFrom(trace) };
 
       // TODO
-      auto others = createOthersVecs(interpreted_trace.getDataTrace(), road_graph->getMyRoad());
+      auto others = createOthersVecs1(interpreted_trace.getDataTrace(), road_graph->getMyRoad());
       road_graph->getMyRoad().setEgo(std::make_shared<CarPars>(others.first.at(0)));
       road_graph->getMyRoad().setOthers(others.second.at(0));
       
