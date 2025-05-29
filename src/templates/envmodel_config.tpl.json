@@ -57,7 +57,7 @@
       "SECTIONSMINLENGTH": "#{50}#",
       "SEGMENTS": "#{segments}#",
       "SEGMENTSMINLENGTH": 0,
-      "SPEC": "#{ (env.ego.abs_pos != env.section_0_end) || (env.veh___609___.is_on_sec_1 == 0 && env.veh___609___.is_on_sec_2 == 0) }#",
+      "SPEC": "#{ (env.ego.abs_pos != env.section_0_end) || (env.veh___609___.is_on_sec_1 == 0 && env.veh___609___.is_on_sec_2 == 0) || env.veh___609___.lane_crossing }#",
       "ShowLOG": true,
       "TIMESCALING": "#{1000}#",
       "_BP_INCLUDES_FILE_PATH": "../src/examples/ego_less/vfm-includes.txt",
