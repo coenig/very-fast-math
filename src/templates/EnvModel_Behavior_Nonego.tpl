@@ -293,7 +293,7 @@ ASSIGN
                 @{veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 1;}@.if[@{[sec] != [sec2]}@.eval]
              }@*.for[[lane], 0, @{NUMLANES - 1}@.eval]
           }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
-             veh___6[i]9___.next_abs_pos > section_[sec2]_end : 0;
+             veh___6[i]9___.is_on_sec_[sec2] = 1 & veh___6[i]9___.next_abs_pos > section_[sec2]_end : 0;
              TRUE : veh___6[i]9___.is_on_sec_[sec2];
           esac;
        }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
@@ -305,6 +305,9 @@ ASSIGN
                    @{
                       veh___6[i]9___.is_on_sec_[sec] = 1 & outgoing_connection_[con]_of_section_[sec] = [sec2] & veh___6[i]9___.next_abs_pos > section_[sec]_end : {0, 1};
                    }@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval]
+                   @{
+                      veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 0;
+                   }@*.for[[lane], 0, @{NUMLANES - 1}@.eval]
                    TRUE : veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2];
                 esac;
              }@.if[@{[sec] != [sec2]}@.eval]
