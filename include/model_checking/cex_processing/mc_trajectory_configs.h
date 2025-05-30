@@ -49,7 +49,7 @@ constexpr double STATE_TACTICAL_PLANNER = 2;
       virtual void addAdditionalData(const std::vector<double>& additional_data);
    };
 
-   class LinearInterpolation : public Interpolation 
+   class LinearInterpolation : public Interpolation
    {
    public:
       LinearInterpolation();
@@ -75,7 +75,7 @@ constexpr double STATE_TACTICAL_PLANNER = 2;
       void addAdditionalData(const std::vector<double>& additional_data) override;
 
    private:
-      double correction_{ 0 };
+      double correction_{ -1 };
    };
 
    class NoInterpolation : public Interpolation 

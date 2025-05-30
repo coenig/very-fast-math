@@ -474,7 +474,7 @@ namespace trajectory_generator {
 	{
 		std::vector<ParameterDetails> tracked_parameters{
 			// position
-			{PossibleParameter::pos_x, "x", true},
+			{PossibleParameter::pos_x, "x", true, std::make_shared<LinearInterpolationWithCorrection>()},
 
 			{PossibleParameter::pos_y, "y", true},
 			{PossibleParameter::pos_z, "z", true},
@@ -518,7 +518,9 @@ namespace trajectory_generator {
 
    double LinearInterpolationWithCorrection::interpolate(const double current_value, const double next_value, const double factor) const
    {
-      return current_value + factor * (next_value - current_value) + correction_;
+      if (correction_ < 0) return LinearInterpolation().interpolate(current_value, next_value, factor);
+      const double interp_corrected{ current_value + factor * (next_value + correction_ - current_value) };
+      return interp_corrected > correction_ ? interp_corrected - correction_ : interp_corrected;
    }
 
    double OnetimeSwitchInterpolation::interpolate(const double current_value, const double next_value, const double factor) const
@@ -535,7 +537,9 @@ namespace trajectory_generator {
    void LinearInterpolationWithCorrection::addAdditionalData(const std::vector<double>& additional_data)
    {
       if (additional_data.empty()) addError("No information about correction found in 'additional_data'.");
-      else correction_ = additional_data.at(0);
+      else {
+         correction_ = additional_data.at(0);
+      }
    }
 
    ParameterDetails::ParameterDetails(

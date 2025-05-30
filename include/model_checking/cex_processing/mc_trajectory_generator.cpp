@@ -265,19 +265,22 @@ void MCinterpretedTrace::interpolate(const std::string& vehicle_name, FullTrajec
       // Here come the helper variables for interpolation when jumping over borders of straight sections and curved junctions.
       // TODO: Maybe this all should better go in the actual interpolation function??
       // TODO: remove special treatment for ego once ego data is also there.
-      const int on_straight_section{ vehicle_name == "ego" ? -1 : (int)std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt))};
-      const int traversion_from{ vehicle_name == "ego" ? -1 : (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_from", trace_cnt))};
-      const int traversion_to{ vehicle_name == "ego" ? -1 : (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_to", trace_cnt))};
+      const int on_straight_section{ vehicle_name == "ego" ? -1 : (int)std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt)) };
+      const int traversion_from{ vehicle_name == "ego" ? -1 : (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_from", trace_cnt)) };
+      const int traversion_to{ vehicle_name == "ego" ? -1 : (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_to", trace_cnt)) };
 
       if (on_straight_section < 0 && traversion_from < 0 && traversion_to < 0) addError("Car '" + vehicle_name + "' is neither on straight section nor on curved junction.");
 
-      const int on_lane{ vehicle_name == "ego" ? -1 : (int)std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_lane", trace_cnt)) };
+      const int on_lane{ vehicle_name == "ego" ? -1 : 3 - (int)(std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_lane", trace_cnt)) / 2) };
       const int current_seclet_length{ vehicle_name == "ego" 
          ? -1 
          : (on_straight_section >= 0
             ? (int)std::stof(trace.getLastValueOfVariableAtStep("env.section_" + std::to_string(on_straight_section) + "_end", trace_cnt))
             : (int)std::stof(trace.getLastValueOfVariableAtStep("env.arclength_from_sec_" + std::to_string(traversion_from) + "_to_sec_" + std::to_string(traversion_to) + "_on_lane_" + std::to_string(on_lane), trace_cnt))
             )};
+      const bool is_switching_towards_next_step{ vehicle_name == "ego" || trace.size() <= trace_cnt + 2
+         ? false 
+         : trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt) != trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt + 2) };
 
 		for (size_t j = 1; j < (steps_between + 1); j++)
 		{
@@ -285,6 +288,7 @@ void MCinterpretedTrace::interpolate(const std::string& vehicle_name, FullTrajec
 
 			TrajectoryPosition interp_p;
 			interp_p.first = interp_time;
+         double store_regular_interp_x{ -1 };
 
 			ParameterMap interp_params;
 			for (auto& pp : prev_param)
@@ -295,7 +299,22 @@ void MCinterpretedTrace::interpolate(const std::string& vehicle_name, FullTrajec
 
 				const ParameterDetails& details = getParameterDetails(param_key);
 
+            if (is_switching_towards_next_step) {
+               if (param_key == PossibleParameter::pos_x) {
+                  store_regular_interp_x = details.interpolation_method_->interpolate(current_value, next_value + current_seclet_length, j * factor);
+                  details.interpolation_method_->addAdditionalData({ (double)current_seclet_length });
+               }
+               if (param_key == PossibleParameter::on_straight_section || param_key == PossibleParameter::traversion_from || param_key == PossibleParameter::traversion_to) {
+                  if (store_regular_interp_x < 0) addError("Wrong order - pos_x should have been calculated before.");
+
+                  if (store_regular_interp_x > current_seclet_length) {
+                     details.interpolation_method_->addAdditionalData({ 1 });
+                  }
+               }
+            }
+
 				interp_params[pp.first] = details.interpolation_method_->interpolate(current_value, next_value, j*factor);
+            details.interpolation_method_->addAdditionalData({ -1 });
 
 				/*
 				if (param_key == PossibleParameter::turn_signal_left || param_key == PossibleParameter::turn_signal_right)
