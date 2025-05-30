@@ -194,7 +194,7 @@ void MCinterpretedTrace::printDebug(const std::string header) const
 
 	for (const ParameterDetails& param : m_config.m_required_parameters)
 	{
-		addNotePlain("\n\nValues of parameter: \033[1m" + param.name + "\033[0m");
+		addNotePlain("\n\nValues of parameter: \033[1m" + param.name_ + "\033[0m");
 
 		bool first = true;
 
@@ -221,7 +221,7 @@ void MCinterpretedTrace::printDebug(const std::string header) const
 			for (const TrajectoryPosition& traj_pos : trajectory)
 			{
 				ParameterMap param_data_map = traj_pos.second;
-				double value = param_data_map.at(param.identifier);
+				double value = param_data_map.at(param.identifier_);
 
 				line << " |" << std::setw(decimals + 1) << std::setfill(' ') << std::to_string(value).substr(0, decimals);
 			}
@@ -276,7 +276,7 @@ void MCinterpretedTrace::interpolate(FullTrajectory& editable_trajectory, const 
 				double next_value = next_param[param_key];
 
 				const ParameterDetails& details = getParameterDetails(param_key);
-				interp_params[pp.first] = details.interpolation_method(current_value, next_value, j*factor);
+				interp_params[pp.first] = details.interpolation_method_->interpolate(current_value, next_value, j*factor);
 
 				/*
 				if (param_key == PossibleParameter::turn_signal_left || param_key == PossibleParameter::turn_signal_right)
@@ -347,7 +347,7 @@ const ParameterDetails& MCinterpretedTrace::getParameterDetails(PossibleParamete
 {
 	for (const auto& param_detail : m_required_parameters)
 	{
-		if (param_detail.identifier == param)
+		if (param_detail.identifier_ == param)
 			return param_detail;
 	}
 	throw std::invalid_argument("Parameter is not among the required parameters");
@@ -523,15 +523,15 @@ void VehicleWithTrajectory::appendCurrentParametersToTrajectory(double timestamp
    // Transfer parameters
    for (ParameterDetails param : required_parameters)
    {
-      if (m_parameters_this_state.count(param.identifier) == 0) // parameter is missing
+      if (m_parameters_this_state.count(param.identifier_) == 0) // parameter is missing
       {
-         double last_val_or_nan = (last_trajectory_entry.second.count(param.identifier) == 0) ? std::numeric_limits<double>::quiet_NaN() : last_trajectory_entry.second[param.identifier];
+         double last_val_or_nan = (last_trajectory_entry.second.count(param.identifier_) == 0) ? std::numeric_limits<double>::quiet_NaN() : last_trajectory_entry.second[param.identifier_];
          // call the method to retrive what's valid if it's missing
-         parameters[param.identifier] = param.provide_if_missing(last_val_or_nan);
+         parameters[param.identifier_] = param.provide_if_missing_(last_val_or_nan);
       }
       else
       {
-         parameters[param.identifier] = m_parameters_this_state[param.identifier];
+         parameters[param.identifier_] = m_parameters_this_state[param.identifier_];
       }
    }
    // Note: The loop above only transfers the requirec parameters.
