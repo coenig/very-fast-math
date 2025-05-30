@@ -233,25 +233,26 @@ void MCinterpretedTrace::printDebug(const std::string header) const
 	addNotePlain("\n");
 }
 
-void MCinterpretedTrace::applyInterpolation(int steps_to_insert)
+void MCinterpretedTrace::applyInterpolation(const int steps_to_insert, const MCTrace& trace)
 {
 	if (steps_to_insert <= 0)
 	{
 		return;
 	}
 
-	for (const std::string& vehicle_name : getVehicleNames())
+   for (const std::string& vehicle_name : getVehicleNames())
 	{
 		auto& trajectory = getEditableVehicleTrajectory(vehicle_name);
-		interpolate(trajectory, steps_to_insert);
+      interpolate(vehicle_name, trajectory, trace, steps_to_insert);
 	}
 
    interpolateDataPacks(m_data_trace, steps_to_insert);
 }
 
-void MCinterpretedTrace::interpolate(FullTrajectory& editable_trajectory, const size_t steps_between)
+void MCinterpretedTrace::interpolate(const std::string& vehicle_name, FullTrajectory& editable_trajectory, const MCTrace& trace, const size_t steps_between)
 {
 	double factor = 1.0 / (steps_between + 1);
+   int trace_cnt{ 0 };
 
 	for (size_t i = 0; i < editable_trajectory.size() - 1; i++)
 	{
@@ -260,6 +261,23 @@ void MCinterpretedTrace::interpolate(FullTrajectory& editable_trajectory, const 
 		double next_time = next.first;
 		ParameterMap next_param = next.second;
 		ParameterMap prev_param = prev.second;
+
+      // Here come the helper variables for interpolation when jumping over borders of straight sections and curved junctions.
+      // TODO: Maybe this all should better go in the actual interpolation function??
+      // TODO: remove special treatment for ego once ego data is also there.
+      const int on_straight_section{ vehicle_name == "ego" ? -1 : (int)std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt))};
+      const int traversion_from{ vehicle_name == "ego" ? -1 : (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_from", trace_cnt))};
+      const int traversion_to{ vehicle_name == "ego" ? -1 : (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_to", trace_cnt))};
+
+      if (on_straight_section < 0 && traversion_from < 0 && traversion_to < 0) addError("Car '" + vehicle_name + "' is neither on straight section nor on curved junction.");
+
+      const int on_lane{ vehicle_name == "ego" ? -1 : (int)std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_lane", trace_cnt)) };
+      const int current_seclet_length{ vehicle_name == "ego" 
+         ? -1 
+         : (on_straight_section >= 0
+            ? (int)std::stof(trace.getLastValueOfVariableAtStep("env.section_" + std::to_string(on_straight_section) + "_end", trace_cnt))
+            : (int)std::stof(trace.getLastValueOfVariableAtStep("env.arclength_from_sec_" + std::to_string(traversion_from) + "_to_sec_" + std::to_string(traversion_to) + "_on_lane_" + std::to_string(on_lane), trace_cnt))
+            )};
 
 		for (size_t j = 1; j < (steps_between + 1); j++)
 		{
@@ -276,6 +294,7 @@ void MCinterpretedTrace::interpolate(FullTrajectory& editable_trajectory, const 
 				double next_value = next_param[param_key];
 
 				const ParameterDetails& details = getParameterDetails(param_key);
+
 				interp_params[pp.first] = details.interpolation_method_->interpolate(current_value, next_value, j*factor);
 
 				/*
@@ -292,6 +311,7 @@ void MCinterpretedTrace::interpolate(FullTrajectory& editable_trajectory, const 
 		}
 
 		i += steps_between;
+      trace_cnt += 2;
 	}
 }
 
