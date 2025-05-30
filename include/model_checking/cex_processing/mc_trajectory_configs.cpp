@@ -280,6 +280,7 @@ namespace trajectory_generator {
 
 		auto postprocessing = [ego_vehicle_name, lane_width, step_time](MCinterpretedTrace& traj) {
 
+         // TODO: The below comment is not true anymore. Ego has an abs_pos now.
 			// Make the ego move along its x based on its velocity (because in the trace, the ego is always at x == 0)
 			//extrapolate_param_by_derivation(traj.getEditableVehicleTrajectory(ego_vehicle_name), 0, PossibleParameter::pos_x, PossibleParameter::vel_x);
 
@@ -334,14 +335,15 @@ namespace trajectory_generator {
 
 		// add parameters specific to lane change traces
 
+      auto no_interpolation = std::make_shared<NoInterpolation>();
+      auto linear_interpolation = std::make_shared<LinearInterpolation>();
+
 		required_parameters.push_back(ParameterDetails{
-			PossibleParameter::special_current_state, "current_state", false, ParameterDetails::linearInterpolation,
+			PossibleParameter::special_current_state, "current_state", false, linear_interpolation,
 			[](double last_value) {return -1;} });
 
 		required_parameters.push_back(ParameterDetails{ PossibleParameter::do_lane_change, "do_lane_change", false });
 		required_parameters.push_back(ParameterDetails{ PossibleParameter::change_lane_now, "change_lane_now", false });
-
-		auto no_interpolation = [](double current_value, double next_value, double factor) {return current_value;};
 
 		required_parameters.push_back(ParameterDetails{
 			PossibleParameter::turn_signal_left, "turn_signal_left", false, no_interpolation, [](double last_value) {
@@ -495,7 +497,29 @@ namespace trajectory_generator {
 		return tracked_parameters;
 	}
 
+   Interpolation::Interpolation(const std::string& failable_name) : Failable(failable_name) {}
+   LinearInterpolation::LinearInterpolation() : Interpolation("LinearInterpolation") {}
+   NoInterpolation::NoInterpolation() : Interpolation("NoInterpolation"){}
 
+   double NoInterpolation::interpolate(const double current_value, const double next_value, const double factor) const
+   {
+      return current_value;
+   }
+
+   double LinearInterpolation::interpolate(const double current_value, const double next_value, const double factor) const
+   {
+      return current_value + factor * (next_value - current_value);
+   }
+
+   ParameterDetails::ParameterDetails(
+      const PossibleParameter identifier, 
+      const std::string& name, 
+      const bool needed_for_osc_trajectory, 
+      const std::shared_ptr<Interpolation> interpolation_method,
+      const std::function<double(double)> provide_if_missing)
+      : identifier_{ identifier }, name_{ name }, needed_for_osc_trajectory_{ needed_for_osc_trajectory }, interpolation_method_{ interpolation_method }, provide_if_missing_{ provide_if_missing }
+   {
+   }
 
 } // trajectory_generator
 } // mc
