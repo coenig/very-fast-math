@@ -406,7 +406,7 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
    if (generate_osc)
    {
       MCinterpretedTrace interpreted_trace_osc = interpreted_trace.clone();
-      interpreted_trace_osc.applyInterpolation(settings.duration_scale * config.m_default_step_time * settings.frames_per_second_osc);
+      interpreted_trace_osc.applyInterpolation(settings.duration_scale * config.m_default_step_time * settings.frames_per_second_osc, trace);
 
       std::string header =
          "# Imports config file and scenario file"
@@ -433,7 +433,7 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
    }
    if (generate_gif)
    {
-      interpreted_trace.applyInterpolation(settings.duration_scale * config.m_default_step_time * settings.frames_per_second_gif * settings.gif_duration_scale);
+      interpreted_trace.applyInterpolation(settings.duration_scale * config.m_default_step_time * settings.frames_per_second_gif * settings.gif_duration_scale, trace);
 
       assert(interpreted_trace.getEgoTrajectory().size() == interpreted_trace.getDataTrace().size());
 

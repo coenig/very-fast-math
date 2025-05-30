@@ -20,7 +20,7 @@ namespace trajectory_generator {
 	InterpretationConfiguration InterpretationConfiguration::getLaneChangeConfiguration()
 	{
 		// CONFIGURATION
-		std::string ego_vehicle_name = "ego_vehicle";
+		std::string ego_vehicle_name = "ego"; // TODO: Changed from formerly "ego_vehicle"; check if this has undesired sideeffects.
 
 		InterpretationCommands general_interpretations{
 			{"timestamp", // The key provided here will be directly compared with the keys in the MCTrace
@@ -394,19 +394,19 @@ namespace trajectory_generator {
 			});
 
       required_parameters.push_back(ParameterDetails{
-			PossibleParameter::on_straight_section, "on_straight_section", true, no_interpolation, [](double last_value) {
+			PossibleParameter::on_straight_section, "on_straight_section", true, std::make_shared<OnetimeSwitchInterpolation>(), [](double last_value) {
 				return std::isnan(last_value) ? -1 : last_value;
 			}
 			});
 
       required_parameters.push_back(ParameterDetails{
-			PossibleParameter::traversion_from, "traversion_from", true, no_interpolation, [](double last_value) {
+			PossibleParameter::traversion_from, "traversion_from", true, std::make_shared<OnetimeSwitchInterpolation>(), [](double last_value) {
 				return std::isnan(last_value) ? -1 : last_value;
 			}
 			});
 
       required_parameters.push_back(ParameterDetails{
-			PossibleParameter::traversion_to, "traversion_to", true, no_interpolation, [](double last_value) {
+			PossibleParameter::traversion_to, "traversion_to", true, std::make_shared<OnetimeSwitchInterpolation>(), [](double last_value) {
 				return std::isnan(last_value) ? -1 : last_value;
 			}
 			});
@@ -500,6 +500,11 @@ namespace trajectory_generator {
    Interpolation::Interpolation(const std::string& failable_name) : Failable(failable_name) {}
    LinearInterpolation::LinearInterpolation() : Interpolation("LinearInterpolation") {}
    NoInterpolation::NoInterpolation() : Interpolation("NoInterpolation"){}
+   OnetimeSwitchInterpolation::OnetimeSwitchInterpolation() : Interpolation("OnetimeSwitchInterpolation") {}
+   LinearInterpolationWithCorrection::LinearInterpolationWithCorrection() : Interpolation("LinearInterpolationWithCorrection") {}
+
+   // No default behavior. Needs to be implemented by subclasses if additional data is desired.
+   void Interpolation::addAdditionalData(const std::vector<double>& additional_data) {}
 
    double NoInterpolation::interpolate(const double current_value, const double next_value, const double factor) const
    {
@@ -509,6 +514,28 @@ namespace trajectory_generator {
    double LinearInterpolation::interpolate(const double current_value, const double next_value, const double factor) const
    {
       return current_value + factor * (next_value - current_value);
+   }
+
+   double LinearInterpolationWithCorrection::interpolate(const double current_value, const double next_value, const double factor) const
+   {
+      return current_value + factor * (next_value - current_value) + correction_;
+   }
+
+   double OnetimeSwitchInterpolation::interpolate(const double current_value, const double next_value, const double factor) const
+   {
+      return has_switch_occurred_ ? next_value : current_value;
+   }
+   
+   void OnetimeSwitchInterpolation::addAdditionalData(const std::vector<double>& additional_data)
+   {
+      if (additional_data.empty()) addError("No information about switching found in 'additional_data'.");
+      else has_switch_occurred_ = (bool)(additional_data.at(0));
+   }
+   
+   void LinearInterpolationWithCorrection::addAdditionalData(const std::vector<double>& additional_data)
+   {
+      if (additional_data.empty()) addError("No information about correction found in 'additional_data'.");
+      else correction_ = additional_data.at(0);
    }
 
    ParameterDetails::ParameterDetails(
