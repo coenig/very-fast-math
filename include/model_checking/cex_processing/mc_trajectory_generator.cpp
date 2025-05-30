@@ -244,6 +244,7 @@ void MCinterpretedTrace::applyInterpolation(const int steps_to_insert, const MCT
 	{
 		auto& trajectory = getEditableVehicleTrajectory(vehicle_name);
       interpolate(vehicle_name, trajectory, trace, steps_to_insert);
+      int x{};
 	}
 
    interpolateDataPacks(m_data_trace, steps_to_insert);
@@ -271,7 +272,7 @@ void MCinterpretedTrace::interpolate(const std::string& vehicle_name, FullTrajec
 
       if (on_straight_section < 0 && traversion_from < 0 && traversion_to < 0) addError("Car '" + vehicle_name + "' is neither on straight section nor on curved junction.");
 
-      const int on_lane{ vehicle_name == "ego" ? -1 : 3 - (int)(std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_lane", trace_cnt)) / 2) };
+      const int on_lane{ vehicle_name == "ego" ? -1 : (int)(std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_lane", trace_cnt)) / 2) };
       const int current_seclet_length{ vehicle_name == "ego" 
          ? -1 
          : (on_straight_section >= 0
@@ -314,7 +315,7 @@ void MCinterpretedTrace::interpolate(const std::string& vehicle_name, FullTrajec
             }
 
 				interp_params[pp.first] = details.interpolation_method_->interpolate(current_value, next_value, j*factor);
-            details.interpolation_method_->addAdditionalData({ -1 });
+            details.interpolation_method_->clearAdditionalData();
 
 				/*
 				if (param_key == PossibleParameter::turn_signal_left || param_key == PossibleParameter::turn_signal_right)
