@@ -506,6 +506,9 @@ namespace trajectory_generator {
    // No default behavior. Needs to be implemented by subclasses if additional data is desired.
    void Interpolation::addAdditionalData(const std::vector<double>& additional_data) {}
 
+   // No default behavior. Needs to be implemented by subclasses if additional data is desired.
+   void Interpolation::clearAdditionalData() {}
+
    double NoInterpolation::interpolate(const double current_value, const double next_value, const double factor) const
    {
       return current_value;
@@ -534,12 +537,22 @@ namespace trajectory_generator {
       else has_switch_occurred_ = (bool)(additional_data.at(0));
    }
    
+   void OnetimeSwitchInterpolation::clearAdditionalData()
+   {
+      has_switch_occurred_ = false;
+   }
+   
    void LinearInterpolationWithCorrection::addAdditionalData(const std::vector<double>& additional_data)
    {
       if (additional_data.empty()) addError("No information about correction found in 'additional_data'.");
       else {
          correction_ = additional_data.at(0);
       }
+   }
+   
+   void LinearInterpolationWithCorrection::clearAdditionalData()
+   {
+      correction_ = -1;
    }
 
    ParameterDetails::ParameterDetails(

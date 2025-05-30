@@ -47,6 +47,7 @@ constexpr double STATE_TACTICAL_PLANNER = 2;
       Interpolation(const std::string& failable_name);
       virtual double interpolate(const double current_value, const double next_value, const double factor) const = 0;
       virtual void addAdditionalData(const std::vector<double>& additional_data);
+      virtual void clearAdditionalData();
    };
 
    class LinearInterpolation : public Interpolation
@@ -62,6 +63,7 @@ constexpr double STATE_TACTICAL_PLANNER = 2;
       OnetimeSwitchInterpolation();
       double interpolate(const double current_value, const double next_value, const double factor) const override;
       void addAdditionalData(const std::vector<double>& additional_data) override;
+      void clearAdditionalData() override;
 
    private:
       bool has_switch_occurred_{ false };
@@ -73,6 +75,7 @@ constexpr double STATE_TACTICAL_PLANNER = 2;
       LinearInterpolationWithCorrection();
       double interpolate(const double current_value, const double next_value, const double factor) const override;
       void addAdditionalData(const std::vector<double>& additional_data) override;
+      void clearAdditionalData() override;
 
    private:
       double correction_{ -1 };
