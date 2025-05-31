@@ -17,8 +17,9 @@
 @{SECTIONSMINLENGTH}@******.defaultValue[50]
 @{ANGLEGRANULARITY}@******.defaultValue[45]      -- Only every n-th angle (DEG) can be used between two sections at connection points (zero degrees is straight ahead)
 @{MAXOUTGOINGCONNECTIONS}@******.defaultValue[3] -- Maximum number of successors a straight road may have
-@{MINDISTCONNECTIONS}@******.defaultValue[20]    -- Two connection points have to be at least this far apart
-@{MAXDISTCONNECTIONS}@******.defaultValue[50]    -- Two connection points may not be more than this apart
+@{MINDISTCONNECTIONS}@******.defaultValue[20]    -- The minimal "X" variable when going from the drain of one road to the source of a connected one
+@{MAXDISTCONNECTIONS}@******.defaultValue[50]    -- The maximal "X" variable when going from the drain of one road to the source of a connected one
+@{MAXDISTENDPOINTS}@******.defaultValue[5]    -- Two end points must be at least this apart (approximated by maxvar method)
 
 -- Parameters for ego and non-ego vehicles
 @{EGOLESS}@******.defaultValue[false]
