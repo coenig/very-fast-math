@@ -57,21 +57,6 @@ namespace helpers {
 		}
 	}
 
-	void transform_relative_to_absolute_trajectory(MCinterpretedTrace& traj, std::string vehicle_to_transform_name, std::string absolute_vehicle_name, PossibleParameter param)
-	{
-		auto& relative_vehicle_trajectory = traj.getEditableVehicleTrajectory(vehicle_to_transform_name);
-		auto& absolute_vehicle_trajectory = traj.getEditableVehicleTrajectory(absolute_vehicle_name);
-
-		for (int i = 0; i < relative_vehicle_trajectory.size(); i++)
-		{
-			TrajectoryPosition& relative_pos = relative_vehicle_trajectory[i];
-			TrajectoryPosition& absolute_pos = absolute_vehicle_trajectory[i];
-
-			// add absolute pos to relative pos
-			relative_pos.second[param] += absolute_pos.second[param];
-		}
-	}
-
 	void extrapolate_trajectory_to_t0(FullTrajectory& editable_trajectory, PossibleParameter pos_param, PossibleParameter velocity_param)
 	{
 		// Extrapolate to timestamp t = 0 based on the velocities and prepend that to the trajectories.

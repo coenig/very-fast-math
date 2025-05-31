@@ -2221,7 +2221,7 @@ void vfm::MCScene::createTestCase(const MCScene* mc_scene, const std::string& ge
    mc_scene->addNote("Running test case generation " + std::to_string(cnt) + "/" + std::to_string(max) + " for '" + id + "'.");
 
    mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
-      { cex_num }, // TODO: for now only first CEX is processed if several given.
+      { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 }, // TODO: for now only first CEX is processed if several given.
       generated_parent_dir + "/" + id,
       "debug_trace_array",
       mc::trajectory_generator::CexTypeEnum::smv,

@@ -25,8 +25,8 @@ public:
 
    void setTranslator(const std::shared_ptr<VisTranslator> function) override;
 
-   void plotCar2D(const float thick, const Vec2Df& pos_ego, const Color& fill_color, const Color& car_frame_color);
-   void plotCar3D(const Vec2Df& pos_ego, const Color& fill_color, const Color& car_frame_color);
+   void plotCar2D(const float thick, const Vec2Df& pos_ego, const Color& fill_color, const Color& car_frame_color, const Vec2D scale = Vec2D{ 1, 1 }, const float angle_rad = 0);
+   void plotCar3D(const Vec2Df& pos_ego, const Color& fill_color, const Color& car_frame_color, const Vec2D scale = Vec2D{ 1, 1 }, const float angle_rad = 0);
 
    void doShoulder(
       const bool min_lane,

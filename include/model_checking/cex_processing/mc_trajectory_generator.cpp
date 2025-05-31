@@ -194,7 +194,7 @@ void MCinterpretedTrace::printDebug(const std::string header) const
 
 	for (const ParameterDetails& param : m_config.m_required_parameters)
 	{
-		addNotePlain("\n\nValues of parameter: \033[1m" + param.name + "\033[0m");
+		addNotePlain("\n\nValues of parameter: \033[1m" + param.name_ + "\033[0m");
 
 		bool first = true;
 
@@ -221,7 +221,7 @@ void MCinterpretedTrace::printDebug(const std::string header) const
 			for (const TrajectoryPosition& traj_pos : trajectory)
 			{
 				ParameterMap param_data_map = traj_pos.second;
-				double value = param_data_map.at(param.identifier);
+				double value = param_data_map.at(param.identifier_);
 
 				line << " |" << std::setw(decimals + 1) << std::setfill(' ') << std::to_string(value).substr(0, decimals);
 			}
@@ -233,25 +233,27 @@ void MCinterpretedTrace::printDebug(const std::string header) const
 	addNotePlain("\n");
 }
 
-void MCinterpretedTrace::applyInterpolation(int steps_to_insert)
+void MCinterpretedTrace::applyInterpolation(const int steps_to_insert, const MCTrace& trace)
 {
 	if (steps_to_insert <= 0)
 	{
 		return;
 	}
 
-	for (const std::string& vehicle_name : getVehicleNames())
+   for (const std::string& vehicle_name : getVehicleNames())
 	{
 		auto& trajectory = getEditableVehicleTrajectory(vehicle_name);
-		interpolate(trajectory, steps_to_insert);
+      interpolate(vehicle_name, trajectory, trace, steps_to_insert);
+      int x{};
 	}
 
    interpolateDataPacks(m_data_trace, steps_to_insert);
 }
 
-void MCinterpretedTrace::interpolate(FullTrajectory& editable_trajectory, const size_t steps_between)
+void MCinterpretedTrace::interpolate(const std::string& vehicle_name, FullTrajectory& editable_trajectory, const MCTrace& trace, const size_t steps_between)
 {
 	double factor = 1.0 / (steps_between + 1);
+   int trace_cnt{ 0 };
 
 	for (size_t i = 0; i < editable_trajectory.size() - 1; i++)
 	{
@@ -261,12 +263,33 @@ void MCinterpretedTrace::interpolate(FullTrajectory& editable_trajectory, const 
 		ParameterMap next_param = next.second;
 		ParameterMap prev_param = prev.second;
 
+      // Here come the helper variables for interpolation when jumping over borders of straight sections and curved junctions.
+      // TODO: Maybe this all should better go in the actual interpolation function??
+      // TODO: remove special treatment for ego once ego data is also there.
+      const int on_straight_section{ vehicle_name == "ego" ? -1 : (int)std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt)) };
+      const int traversion_from{ vehicle_name == "ego" ? -1 : (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_from", trace_cnt)) };
+      const int traversion_to{ vehicle_name == "ego" ? -1 : (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_to", trace_cnt)) };
+
+      if (on_straight_section < 0 && traversion_from < 0 && traversion_to < 0) addError("Car '" + vehicle_name + "' is neither on straight section nor on curved junction.");
+
+      const int on_lane{ vehicle_name == "ego" ? -1 : (int)(std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_lane", trace_cnt)) / 2) };
+      const int current_seclet_length{ vehicle_name == "ego" 
+         ? -1 
+         : (on_straight_section >= 0
+            ? (int)std::stof(trace.getLastValueOfVariableAtStep("env.section_" + std::to_string(on_straight_section) + "_end", trace_cnt))
+            : (int)std::stof(trace.getLastValueOfVariableAtStep("env.arclength_from_sec_" + std::to_string(traversion_from) + "_to_sec_" + std::to_string(traversion_to) + "_on_lane_" + std::to_string(on_lane), trace_cnt))
+            )};
+      const bool is_switching_towards_next_step{ vehicle_name == "ego" || trace.size() <= trace_cnt + 2
+         ? false 
+         : trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt) != trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt + 2) };
+
 		for (size_t j = 1; j < (steps_between + 1); j++)
 		{
 			double interp_time = prev.first + (j * factor) * (next_time - prev.first);
 
 			TrajectoryPosition interp_p;
 			interp_p.first = interp_time;
+         double store_regular_interp_x{ -1 };
 
 			ParameterMap interp_params;
 			for (auto& pp : prev_param)
@@ -276,7 +299,23 @@ void MCinterpretedTrace::interpolate(FullTrajectory& editable_trajectory, const 
 				double next_value = next_param[param_key];
 
 				const ParameterDetails& details = getParameterDetails(param_key);
-				interp_params[pp.first] = details.interpolation_method(current_value, next_value, j*factor);
+
+            if (is_switching_towards_next_step) {
+               if (param_key == PossibleParameter::pos_x) {
+                  store_regular_interp_x = details.interpolation_method_->interpolate(current_value, next_value + current_seclet_length, j * factor);
+                  details.interpolation_method_->addAdditionalData({ (double)current_seclet_length });
+               }
+               if (param_key == PossibleParameter::on_straight_section || param_key == PossibleParameter::traversion_from || param_key == PossibleParameter::traversion_to) {
+                  if (store_regular_interp_x < 0) addError("Wrong order - pos_x should have been calculated before.");
+
+                  if (store_regular_interp_x > current_seclet_length) {
+                     details.interpolation_method_->addAdditionalData({ 1 });
+                  }
+               }
+            }
+
+				interp_params[pp.first] = details.interpolation_method_->interpolate(current_value, next_value, j*factor);
+            details.interpolation_method_->clearAdditionalData();
 
 				/*
 				if (param_key == PossibleParameter::turn_signal_left || param_key == PossibleParameter::turn_signal_right)
@@ -292,6 +331,7 @@ void MCinterpretedTrace::interpolate(FullTrajectory& editable_trajectory, const 
 		}
 
 		i += steps_between;
+      trace_cnt += 2;
 	}
 }
 
@@ -347,7 +387,7 @@ const ParameterDetails& MCinterpretedTrace::getParameterDetails(PossibleParamete
 {
 	for (const auto& param_detail : m_required_parameters)
 	{
-		if (param_detail.identifier == param)
+		if (param_detail.identifier_ == param)
 			return param_detail;
 	}
 	throw std::invalid_argument("Parameter is not among the required parameters");
@@ -523,15 +563,15 @@ void VehicleWithTrajectory::appendCurrentParametersToTrajectory(double timestamp
    // Transfer parameters
    for (ParameterDetails param : required_parameters)
    {
-      if (m_parameters_this_state.count(param.identifier) == 0) // parameter is missing
+      if (m_parameters_this_state.count(param.identifier_) == 0) // parameter is missing
       {
-         double last_val_or_nan = (last_trajectory_entry.second.count(param.identifier) == 0) ? std::numeric_limits<double>::quiet_NaN() : last_trajectory_entry.second[param.identifier];
+         double last_val_or_nan = (last_trajectory_entry.second.count(param.identifier_) == 0) ? std::numeric_limits<double>::quiet_NaN() : last_trajectory_entry.second[param.identifier_];
          // call the method to retrive what's valid if it's missing
-         parameters[param.identifier] = param.provide_if_missing(last_val_or_nan);
+         parameters[param.identifier_] = param.provide_if_missing_(last_val_or_nan);
       }
       else
       {
-         parameters[param.identifier] = m_parameters_this_state[param.identifier];
+         parameters[param.identifier_] = m_parameters_this_state[param.identifier_];
       }
    }
    // Note: The loop above only transfers the requirec parameters.

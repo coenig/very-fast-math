@@ -10,7 +10,7 @@
 #include "failable.h"
 #include "meta_rule.h"
 #include "model_checking/msatic_parsing/msatic_trace.h"
-#include "simplification/simplification_function.h"
+#include "simplification/code_block.h"
 #include "testing/interactive_testing.h"
 #include <array>
 #include <cassert>
@@ -1632,24 +1632,54 @@ bool StaticHelper::isBooleanTrue(const std::string& bool_str)
    return result;
 }
 
+int vfm::StaticHelper::extractIntegerAfterSubstring(const std::string& str, const std::string& substring) {
+   size_t pos = str.find(substring);
+
+   if (pos == std::string::npos) {
+      std::cerr << "Error: Substring '" << substring << "' not found." << std::endl;
+      return -1; // Or throw an exception
+   }
+
+   // Find the position of the first underscore after the substring.
+   size_t startPos = pos + substring.length();
+   size_t endPos = str.find_first_not_of("0123456789", startPos);
+
+   // Extract the number string
+   std::string numberStr;
+   if (endPos == std::string::npos)
+   {
+      numberStr = str.substr(startPos);
+   }
+   else
+   {
+      numberStr = str.substr(startPos, endPos - startPos);
+   }
+
+   // Convert to integer and handle errors.
+   try {
+      return stoi(numberStr);
+   }
+   catch (const std::invalid_argument& e) {
+      std::cerr << "Error: Invalid integer format after '" << substring << "'." << std::endl;
+      return -1;
+   }
+   catch (const std::out_of_range& e) {
+      std::cerr << "Error: Integer out of range after '" << substring << "'." << std::endl;
+      return -1;
+   }
+}
+
 void postprocessTrace(MCTrace& trace)
 { // TODO: Lots of hard-coded stuff.
    std::map<std::string, std::vector<bool>> lane_bools{};
+   std::map<std::string, int> on_straight_section{}, traversion_from{}, traversion_to{};
 
-   //MCTrace temp_trace{}; // TODO: Remove this code. It was intended to cut out the input states.
-   //for (const auto& el : trace) {
-   //   if (!StaticHelper::stringStartsWith(el.first, "I")) {
-   //      temp_trace.push_back(el);
-   //   }
-   //}
-
-   //trace = temp_trace;
-
+   // Remove possible leading env. when using EnvModel as SMV module.
    for (auto& state : trace.getTrace()) {
       std::vector<std::pair<std::string, std::string>> to_add{};
 
       for (auto& varvals : state.second) {
-         if (StaticHelper::stringStartsWith(varvals.first, "env.")) { // Remove possible leading env. when using EnvModel as SMV module.
+         if (StaticHelper::stringStartsWith(varvals.first, "env.")) {
             to_add.push_back({ varvals.first.substr(4), varvals.second });
          }
       }
@@ -1659,18 +1689,20 @@ void postprocessTrace(MCTrace& trace)
       }
    }
 
+   // Create special variables such as the "on_lane" or the "on_straight_section", "traversion_from", "traversion_to" variables.
    for (auto& state : trace.getTrace()) {
       for (auto& varvals : state.second) {
          if (StaticHelper::stringContains(varvals.first, "lane_b")) {
-            size_t lane_num = std::stoi(StaticHelper::makeString(varvals.first[varvals.first.size() - 1]));
-            bool bool_val = StaticHelper::isBooleanTrue(varvals.second);
+            const size_t lane_num = StaticHelper::extractIntegerAfterSubstring(varvals.first, "lane_b");
+            const bool bool_val = StaticHelper::isBooleanTrue(varvals.second);
             std::string which{};
 
-            if (StaticHelper::stringStartsWith(varvals.first, "ego")) {
+            std::string helper{ StaticHelper::replaceAll(varvals.first, "env.", "") };
+            if (StaticHelper::stringStartsWith(helper, "ego")) {
                which = "ego.";
             }
             else {
-               which = StaticHelper::split(varvals.first, ".")[0] + ".";
+               which = StaticHelper::split(helper, ".")[0] + ".";
             }
 
             while (lane_bools[which].size() <= lane_num) {
@@ -1678,6 +1710,47 @@ void postprocessTrace(MCTrace& trace)
             }
 
             lane_bools[which][lane_num] = bool_val; // Assuming all values are initialized in the beginning (otherwise we'd need to initialize to false or so).
+         }
+         else if (StaticHelper::stringContains(varvals.first, "is_on_sec_")) {
+            const bool bool_val = StaticHelper::isBooleanTrue(varvals.second); // Works for 0..1 as well as true/false.
+
+            if (bool_val) {
+               const int sec_num = StaticHelper::extractIntegerAfterSubstring(varvals.first, "is_on_sec_");
+               std::string which{};
+
+               std::string helper{ StaticHelper::replaceAll(varvals.first, "env.", "") };
+               if (StaticHelper::stringStartsWith(helper, "ego")) {
+                  which = "ego.";
+               }
+               else {
+                  which = StaticHelper::split(helper, ".")[0] + ".";
+               }
+
+               on_straight_section[which] = sec_num;
+               traversion_from[which] = -1;
+               traversion_to[which] = -1;
+            }
+         }
+         else if (StaticHelper::stringContains(varvals.first, "is_traversing_from_sec_")) {
+            const bool bool_val = StaticHelper::isBooleanTrue(varvals.second); // Works for 0..1 as well as true/false.
+
+            if (bool_val) {
+               const int from_num = StaticHelper::extractIntegerAfterSubstring(varvals.first, "from_sec_");
+               const int to_num = StaticHelper::extractIntegerAfterSubstring(varvals.first, "to_sec_");
+               std::string which{};
+
+               std::string helper{ StaticHelper::replaceAll(varvals.first, "env.", "") };
+               if (StaticHelper::stringStartsWith(helper, "ego")) {
+                  which = "ego.";
+               }
+               else {
+                  which = StaticHelper::split(helper, ".")[0] + ".";
+               }
+
+               on_straight_section[which] = -1;
+               traversion_from[which] = from_num;
+               traversion_to[which] = to_num;
+            }
          }
 
          varvals.second = StaticHelper::replaceAll(varvals.second, "0sd16_", ""); // Remove bitvector encoding (16 bits, signed, decimal)
@@ -1701,6 +1774,16 @@ void postprocessTrace(MCTrace& trace)
          std::string on_lane_str = std::to_string(on_lane);
 
          state.second[pair.first + "on_lane"] = on_lane_str;
+      }
+
+      for (const auto& pair : on_straight_section) {
+         int straight{ pair.second };
+         int from{ traversion_from.at(pair.first) };
+         int to{ traversion_to.at(pair.first) };
+
+         state.second[pair.first + "on_straight_section"] = std::to_string(straight);
+         state.second[pair.first + "traversion_from"] = std::to_string(from);
+         state.second[pair.first + "traversion_to"] = std::to_string(to);
       }
 
       state.second["Array.CurrentState"] = "state_EnvironmentModel";
@@ -3171,7 +3254,7 @@ void vfm::StaticHelper::checkForOutdatedSimplification(const std::shared_ptr<For
          }
 
          parser->addNote("Creating new simplification procedure in '" + StaticHelper::absPath(new_path) + "'.");
-         simplification::CodeGenerator::deleteAndWriteSimplificationRulesToFile(simplification::CodeGenerationMode::negative, new_path, parser, true); // MC mode.
+         code_block::CodeGenerator::deleteAndWriteSimplificationRulesToFile(code_block::CodeGenerationMode::negative, new_path, parser, true); // MC mode.
          parser->addWarning("Note that you'll need to recompile and then re-run the cpp parser. The current run is possibly broken, we'll exit it to be safe.");
          std::exit(EXIT_FAILURE);
       }
@@ -3362,6 +3445,14 @@ void vfm::StaticHelper::applyTimescaling(MCTrace& trace, const ScaleDescription&
          }
       }
    }
+}
+
+static constexpr double LAT_ZERO{ 48.999031665333156 }; // Coordinates of...
+static constexpr double LON_ZERO{ 9.294116971817786 };  // ...Grossbottwar :-)
+
+std::pair<double, double> vfm::StaticHelper::cartesianToWGS84(const double x, const double y)
+{
+   return { LAT_ZERO + x / 111000.0, LON_ZERO - y / 75000.0 };
 }
 
 // This function is licensed under CC-BY-SA-4.0 which is a copy-left license

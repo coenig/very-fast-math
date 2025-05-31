@@ -20,7 +20,7 @@ namespace trajectory_generator {
 	InterpretationConfiguration InterpretationConfiguration::getLaneChangeConfiguration()
 	{
 		// CONFIGURATION
-		std::string ego_vehicle_name = "ego_vehicle";
+		std::string ego_vehicle_name = "ego"; // TODO: Changed from formerly "ego_vehicle"; check if this has undesired sideeffects.
 
 		InterpretationCommands general_interpretations{
 			{"timestamp", // The key provided here will be directly compared with the keys in the MCTrace
@@ -47,6 +47,30 @@ namespace trajectory_generator {
 
 					double lane_y = lane * LANE_WIDTH_HALF;
 					traj.pushVehicleParameter(ego_vehicle_name, lane_y, PossibleParameter::pos_y);
+
+				})},
+
+			{"ego.on_straight_section",
+			std::make_shared<InterpretableKey<double>>(
+				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double on_section) {
+
+					traj.pushVehicleParameter(ego_vehicle_name, on_section, PossibleParameter::on_straight_section);
+
+				})},
+
+			{"ego.traversion_from",
+			std::make_shared<InterpretableKey<double>>(
+				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double from) {
+
+					traj.pushVehicleParameter(ego_vehicle_name, from, PossibleParameter::traversion_from);
+
+				})},
+
+			{"ego.traversion_to",
+			std::make_shared<InterpretableKey<double>>(
+				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double to) {
+
+					traj.pushVehicleParameter(ego_vehicle_name, to, PossibleParameter::traversion_to);
 
 				})},
 
@@ -143,11 +167,10 @@ namespace trajectory_generator {
 
 				})},
 
-			{"rel_pos",
+			{"abs_pos",
 			std::make_shared<InterpretableKey<double>>(
 				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double x_relative_to_ego) {
 
-					// Push the position value relative to the ego. In the post-processing step, we turn this into absolute values once we have calculated the ego position.
 					auto vehicle_name = key_elements[0];
 					traj.pushVehicleParameter(vehicle_name, x_relative_to_ego, PossibleParameter::pos_x);
 
@@ -160,6 +183,33 @@ namespace trajectory_generator {
 					// Set the y position according to the lane (interpolation will happen in postprocessing)
 					auto vehicle_name = key_elements[0];
 					traj.pushVehicleParameter(vehicle_name, lane_index * LANE_WIDTH_HALF, PossibleParameter::pos_y);
+
+				})},
+
+			{"on_straight_section",
+			std::make_shared<InterpretableKey<double>>(
+				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double on_section) {
+
+					auto vehicle_name = key_elements[0];
+					traj.pushVehicleParameter(vehicle_name, on_section, PossibleParameter::on_straight_section);
+
+				})},
+
+			{"traversion_from",
+			std::make_shared<InterpretableKey<double>>(
+				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double from) {
+
+					auto vehicle_name = key_elements[0];
+					traj.pushVehicleParameter(vehicle_name, from, PossibleParameter::traversion_from);
+
+				})},
+
+			{"traversion_to",
+			std::make_shared<InterpretableKey<double>>(
+				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double to) {
+
+					auto vehicle_name = key_elements[0];
+					traj.pushVehicleParameter(vehicle_name, to, PossibleParameter::traversion_to);
 
 				})},
 
@@ -230,6 +280,7 @@ namespace trajectory_generator {
 
 		auto postprocessing = [ego_vehicle_name, lane_width, step_time](MCinterpretedTrace& traj) {
 
+         // TODO: The below comment is not true anymore. Ego has an abs_pos now.
 			// Make the ego move along its x based on its velocity (because in the trace, the ego is always at x == 0)
 			//extrapolate_param_by_derivation(traj.getEditableVehicleTrajectory(ego_vehicle_name), 0, PossibleParameter::pos_x, PossibleParameter::vel_x);
 
@@ -239,12 +290,6 @@ namespace trajectory_generator {
 
 			for (const auto& vehicle_name : traj.getVehicleNames())
 			{
-				if (vehicle_name != ego_vehicle_name) // exclude the ego
-				{
-					// Set the other vehicle x position relative to the ego
-					transform_relative_to_absolute_trajectory(traj, vehicle_name, ego_vehicle_name, PossibleParameter::pos_x);
-				}
-
 				// Detect and interpolate lane changes (movement along y)
 
 				auto& trajectory = traj.getEditableVehicleTrajectory(vehicle_name);
@@ -290,14 +335,15 @@ namespace trajectory_generator {
 
 		// add parameters specific to lane change traces
 
+      auto no_interpolation = std::make_shared<NoInterpolation>();
+      auto linear_interpolation = std::make_shared<LinearInterpolation>();
+
 		required_parameters.push_back(ParameterDetails{
-			PossibleParameter::special_current_state, "current_state", false, ParameterDetails::linearInterpolation,
+			PossibleParameter::special_current_state, "current_state", false, linear_interpolation,
 			[](double last_value) {return -1;} });
 
 		required_parameters.push_back(ParameterDetails{ PossibleParameter::do_lane_change, "do_lane_change", false });
 		required_parameters.push_back(ParameterDetails{ PossibleParameter::change_lane_now, "change_lane_now", false });
-
-		auto no_interpolation = [](double current_value, double next_value, double factor) {return current_value;};
 
 		required_parameters.push_back(ParameterDetails{
 			PossibleParameter::turn_signal_left, "turn_signal_left", false, no_interpolation, [](double last_value) {
@@ -343,6 +389,24 @@ namespace trajectory_generator {
 
 		required_parameters.push_back(ParameterDetails{
 			PossibleParameter::gap_2_i_agent_rear, "ego.gaps___629___.i_agent_rear", false, no_interpolation, [](double last_value) {
+				return std::isnan(last_value) ? -1 : last_value;
+			}
+			});
+
+      required_parameters.push_back(ParameterDetails{
+			PossibleParameter::on_straight_section, "on_straight_section", true, std::make_shared<OnetimeSwitchInterpolation>(), [](double last_value) {
+				return std::isnan(last_value) ? -1 : last_value;
+			}
+			});
+
+      required_parameters.push_back(ParameterDetails{
+			PossibleParameter::traversion_from, "traversion_from", true, std::make_shared<OnetimeSwitchInterpolation>(), [](double last_value) {
+				return std::isnan(last_value) ? -1 : last_value;
+			}
+			});
+
+      required_parameters.push_back(ParameterDetails{
+			PossibleParameter::traversion_to, "traversion_to", true, std::make_shared<OnetimeSwitchInterpolation>(), [](double last_value) {
 				return std::isnan(last_value) ? -1 : last_value;
 			}
 			});
@@ -410,7 +474,7 @@ namespace trajectory_generator {
 	{
 		std::vector<ParameterDetails> tracked_parameters{
 			// position
-			{PossibleParameter::pos_x, "x", true},
+			{PossibleParameter::pos_x, "x", true, std::make_shared<LinearInterpolationWithCorrection>()},
 
 			{PossibleParameter::pos_y, "y", true},
 			{PossibleParameter::pos_z, "z", true},
@@ -433,7 +497,73 @@ namespace trajectory_generator {
 		return tracked_parameters;
 	}
 
+   Interpolation::Interpolation(const std::string& failable_name) : Failable(failable_name) {}
+   LinearInterpolation::LinearInterpolation() : Interpolation("LinearInterpolation") {}
+   NoInterpolation::NoInterpolation() : Interpolation("NoInterpolation"){}
+   OnetimeSwitchInterpolation::OnetimeSwitchInterpolation() : Interpolation("OnetimeSwitchInterpolation") {}
+   LinearInterpolationWithCorrection::LinearInterpolationWithCorrection() : Interpolation("LinearInterpolationWithCorrection") {}
 
+   // No default behavior. Needs to be implemented by subclasses if additional data is desired.
+   void Interpolation::addAdditionalData(const std::vector<double>& additional_data) {}
+
+   // No default behavior. Needs to be implemented by subclasses if additional data is desired.
+   void Interpolation::clearAdditionalData() {}
+
+   double NoInterpolation::interpolate(const double current_value, const double next_value, const double factor) const
+   {
+      return current_value;
+   }
+
+   double LinearInterpolation::interpolate(const double current_value, const double next_value, const double factor) const
+   {
+      return current_value + factor * (next_value - current_value);
+   }
+
+   double LinearInterpolationWithCorrection::interpolate(const double current_value, const double next_value, const double factor) const
+   {
+      if (correction_ < 0) return LinearInterpolation().interpolate(current_value, next_value, factor);
+      const double interp_corrected{ current_value + factor * (next_value + correction_ - current_value) };
+      return interp_corrected > correction_ ? interp_corrected - correction_ : interp_corrected;
+   }
+
+   double OnetimeSwitchInterpolation::interpolate(const double current_value, const double next_value, const double factor) const
+   {
+      return has_switch_occurred_ ? next_value : current_value;
+   }
+   
+   void OnetimeSwitchInterpolation::addAdditionalData(const std::vector<double>& additional_data)
+   {
+      if (additional_data.empty()) addError("No information about switching found in 'additional_data'.");
+      else has_switch_occurred_ = (bool)(additional_data.at(0));
+   }
+   
+   void OnetimeSwitchInterpolation::clearAdditionalData()
+   {
+      has_switch_occurred_ = false;
+   }
+   
+   void LinearInterpolationWithCorrection::addAdditionalData(const std::vector<double>& additional_data)
+   {
+      if (additional_data.empty()) addError("No information about correction found in 'additional_data'.");
+      else {
+         correction_ = additional_data.at(0);
+      }
+   }
+   
+   void LinearInterpolationWithCorrection::clearAdditionalData()
+   {
+      correction_ = -1;
+   }
+
+   ParameterDetails::ParameterDetails(
+      const PossibleParameter identifier, 
+      const std::string& name, 
+      const bool needed_for_osc_trajectory, 
+      const std::shared_ptr<Interpolation> interpolation_method,
+      const std::function<double(double)> provide_if_missing)
+      : identifier_{ identifier }, name_{ name }, needed_for_osc_trajectory_{ needed_for_osc_trajectory }, interpolation_method_{ interpolation_method }, provide_if_missing_{ provide_if_missing }
+   {
+   }
 
 } // trajectory_generator
 } // mc

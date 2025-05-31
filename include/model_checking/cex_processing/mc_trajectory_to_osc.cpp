@@ -303,14 +303,14 @@ void OSCgenerator::addVehicleTrajectoryFollower(std::stringstream& osc_ss, FullT
 
 	for (ParameterDetails required_param : m_interpreted_trace.getRequiredParameters())
 	{
-		if (required_param.needed_for_osc_trajectory)
+		if (required_param.needed_for_osc_trajectory_)
 		{
-			osc_ss << std::setw(decimals + 1) << std::setfill(' ') << required_param.name << "  ";
+			osc_ss << std::setw(decimals + 1) << std::setfill(' ') << required_param.name_ << "  ";
 		}
 		else
 		{
 			// skip empty names because those are not needed in the trajectory
-			ignored_parameters.insert(required_param.identifier);
+			ignored_parameters.insert(required_param.identifier_);
 		}
 	}
 	osc_ss << "\n";

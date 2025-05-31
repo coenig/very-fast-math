@@ -37,26 +37,79 @@ constexpr double STATE_TACTICAL_PLANNER = 2;
 		turn_signal_right,
 		gap_0_i_agent_front, gap_1_i_agent_front, gap_2_i_agent_front,
 		gap_0_i_agent_rear, gap_1_i_agent_rear, gap_2_i_agent_rear,
+      on_straight_section, traversion_from, traversion_to
 	};
 	// NOTE: When you add more parameters here and access them every state, make sure to add them to required_parameters in the config.
 
-	// A representation for a parameter that should be provided in the trajectory output. The method will be used for stage where the value has not been provided.
-	struct ParameterDetails
-	{
-		PossibleParameter identifier{};
-		std::string name{};
-		bool needed_for_osc_trajectory{false};
-		std::function<double(double, double, double)> interpolation_method{ linearInterpolation };
-		std::function<double(double)> provide_if_missing{ provideZeroIfNan };
+   class Interpolation : public Failable 
+   {
+   public:
+      Interpolation(const std::string& failable_name);
+      virtual double interpolate(const double current_value, const double next_value, const double factor) const = 0;
+      virtual void addAdditionalData(const std::vector<double>& additional_data);
+      virtual void clearAdditionalData();
+   };
 
-		static double linearInterpolation(double current_value, double next_value, double factor)
-		{
-			return current_value + factor * (next_value - current_value);
-		}
-		static double provideZeroIfNan(double value)
+   class LinearInterpolation : public Interpolation
+   {
+   public:
+      LinearInterpolation();
+      double interpolate(const double current_value, const double next_value, const double factor) const override;
+   };
+
+   class OnetimeSwitchInterpolation : public Interpolation
+   {
+   public:
+      OnetimeSwitchInterpolation();
+      double interpolate(const double current_value, const double next_value, const double factor) const override;
+      void addAdditionalData(const std::vector<double>& additional_data) override;
+      void clearAdditionalData() override;
+
+   private:
+      bool has_switch_occurred_{ false };
+   };
+
+   class LinearInterpolationWithCorrection : public Interpolation 
+   {
+   public:
+      LinearInterpolationWithCorrection();
+      double interpolate(const double current_value, const double next_value, const double factor) const override;
+      void addAdditionalData(const std::vector<double>& additional_data) override;
+      void clearAdditionalData() override;
+
+   private:
+      double correction_{ -1 };
+   };
+
+   class NoInterpolation : public Interpolation 
+   {
+   public:
+      NoInterpolation();
+      double interpolate(const double current_value, const double next_value, const double factor) const override;
+   };
+
+	// A representation for a parameter that should be provided in the trajectory output. The method will be used for stage where the value has not been provided.
+	class ParameterDetails
+	{
+   public:
+      ParameterDetails(
+         const PossibleParameter identifier,
+         const std::string& name,
+         const bool needed_for_osc_trajectory,
+         const std::shared_ptr<Interpolation> interpolation_method = std::make_shared<LinearInterpolation>(),
+         const std::function<double(double)> provide_if_missing = provideZeroIfNan);
+
+      static double provideZeroIfNan(double value)
 		{
 			return std::isnan(value) ? 0 : value;
 		}
+
+   public: // TODO: Make private
+      PossibleParameter identifier_{};
+		std::string name_{};
+		bool needed_for_osc_trajectory_{false};
+      std::shared_ptr<Interpolation> interpolation_method_{};
+		std::function<double(double)> provide_if_missing_{ provideZeroIfNan };
 	};
 
 	typedef std::map<std::string, std::shared_ptr<InterpretableKeyInterface>> InterpretationCommands;

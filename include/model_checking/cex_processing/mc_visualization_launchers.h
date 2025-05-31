@@ -127,8 +127,6 @@ public:
       return out.str();
    }
 
-   static std::shared_ptr<RoadGraph> getLaneStructureFrom(const MCTrace& trace);
-
    // Provide frames_per_second <= 0 to disable interpolation.
    static bool interpretAndGenerate(
       const MCTrace& trace,

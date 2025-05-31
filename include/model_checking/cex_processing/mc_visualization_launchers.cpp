@@ -166,9 +166,10 @@ std::string VisualizationLaunchers::writeProseSingleStep(
    return "";
 }
 
-inline std::pair<std::vector<CarPars>, std::vector<CarParsVec>> createOthersVecs(const DataPackTrace data_trace, const StraightRoadSection lane_structure)
+inline std::pair<std::vector<CarPars>, std::vector<CarParsVec>> createOthersVecs1(
+   const DataPackTrace data_trace, const int num_lanes)
 {
-   const float LANE_CONSTANT{ ((float)lane_structure.getNumLanes() - 1) * 2 };
+   const float LANE_CONSTANT{ ((float)num_lanes - 1) * 2 };
    int num_cars{};
    std::vector<CarPars> ego_values{};
    std::vector<CarParsVec> others_values{};
@@ -203,11 +204,10 @@ inline std::pair<std::vector<CarPars>, std::vector<CarParsVec>> createOthersVecs
 
 std::string VisualizationLaunchers::writeProseTrafficScene(const MCTrace trace)
 {
-   const auto road_graph{ getLaneStructureFrom(trace) };
    const auto config = InterpretationConfiguration::getLaneChangeConfiguration();
    const MCinterpretedTrace interpreted_trace(0, { trace }, config);
    const auto data_vec{ interpreted_trace.getDataTrace() };
-   const auto pair{ createOthersVecs(data_vec, road_graph->getMyRoad()) };
+   const auto pair{ createOthersVecs1(data_vec, std::stoi(trace.at(0).second.at("num_lanes"))) };
    const auto ego_vec{ pair.first };
    const auto others_vec{ pair.second };
    std::string res{};
@@ -288,13 +288,17 @@ bool VisualizationLaunchers::quickGenerateGIFs(
       gen_config_smooth.frames_per_second_gif = 40;
       gen_config_smooth.frames_per_second_osc = 40;
 
-      VisualizationLaunchers::interpretAndGenerate(
-         trace,
-         path,
-         "preview",
-         SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
-         agents_to_draw_arrows_for,
-         gen_config_smooth, "preview");
+      if (true || !trace.at(0).second.count("env.section_1_segment_0_pos_begin")) {
+         // TODO: For now we can skip generating preview GIF for multi-section scenes with the surrounding IF because it's very expensive due to hard-coded large image size.
+         // Needs to be fixed by reducing image size to what is actually needed. (Plus some other intelligent stuff.)
+         VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            path,
+            "preview",
+            SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
+            agents_to_draw_arrows_for,
+            gen_config_smooth, "preview");
+      }
 
       VisualizationLaunchers::interpretAndGenerate(
          trace,
@@ -370,54 +374,6 @@ bool VisualizationLaunchers::quickGenerateGIFs(
    return true;
 }
 
-std::shared_ptr<RoadGraph> vfm::mc::trajectory_generator::VisualizationLaunchers::getLaneStructureFrom(const MCTrace& trace)
-{
-   if (trace.empty()) Failable::getSingleton()->addError("Received empty trace for 'getLaneStructureFrom'.");
-
-   const auto first_state{ trace.at(0).second };
-
-   const auto segment_begin_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_pos_begin"; };
-   const auto segment_min_lane_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_min_lane"; };
-   const auto segment_max_lane_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_max_lane"; };
-   const auto connection = [](const int sec, const int con) -> std::string { return "env.outgoing_connection_" + std::to_string(con) + "_of_section_" + std::to_string(sec); };
-
-   std::vector<std::shared_ptr<RoadGraph>> road_graphs{};
-
-   for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
-      road_graphs.push_back(std::make_shared<RoadGraph>(sec));
-      StraightRoadSection lane_structure{std::stoi(first_state.at("num_lanes")), std::stof(first_state.at("section_" + std::to_string(sec) + "_end")) };
-      lane_structure.setNumLanes(std::stoi(trace.at(0).second.at("num_lanes")));
-
-      for (int seg = 0; first_state.count(segment_min_lane_name(sec, seg)); seg++) {
-            lane_structure.addLaneSegment({
-               std::stof(first_state.at(segment_begin_name(sec, seg))),
-               (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_max_lane_name(sec, seg)))) * 2, // Remove "* 2"...
-               (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_min_lane_name(sec, seg)))) * 2, // ...to activate hard shoulders.
-               }
-               );
-      }
-      
-      road_graphs[sec]->setOriginPoint({ 
-         std::stof(first_state.at("section_" + std::to_string(sec) + ".source.x")),
-         std::stof(first_state.at("section_" + std::to_string(sec) + ".source.y"))});
-      
-      road_graphs[sec]->setAngle(2.0 * 3.1415 * std::stof(first_state.at("section_" + std::to_string(sec) + ".angle")) / 360.0);
-      road_graphs[sec]->setMyRoad(lane_structure);
-   }
-
-   for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
-      for (int connect = 0; first_state.count(connection(sec, connect)); connect++) {
-         int successor = std::stof(first_state.at(connection(sec, connect)));
-
-         if (successor >= 0) { // -1 is code for "not present".
-            road_graphs[sec]->addSuccessor(road_graphs.at(successor));
-         }
-      }
-   }
-
-   return road_graphs[0];
-}
-
 bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
    const MCTrace& trace, 
    const std::string& out_pathname_raw, 
@@ -450,7 +406,7 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
    if (generate_osc)
    {
       MCinterpretedTrace interpreted_trace_osc = interpreted_trace.clone();
-      interpreted_trace_osc.applyInterpolation(settings.duration_scale * config.m_default_step_time * settings.frames_per_second_osc);
+      interpreted_trace_osc.applyInterpolation(settings.duration_scale * config.m_default_step_time * settings.frames_per_second_osc, trace);
 
       std::string header =
          "# Imports config file and scenario file"
@@ -477,23 +433,16 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
    }
    if (generate_gif)
    {
-      interpreted_trace.applyInterpolation(settings.duration_scale * config.m_default_step_time * settings.frames_per_second_gif * settings.gif_duration_scale);
+      interpreted_trace.applyInterpolation(settings.duration_scale * config.m_default_step_time * settings.frames_per_second_gif * settings.gif_duration_scale, trace);
 
       assert(interpreted_trace.getEgoTrajectory().size() == interpreted_trace.getDataTrace().size());
 
       interpreted_trace.applyScaling(1.0, -1.0, 1.0); // flip y
 
-      auto road_graph{ getLaneStructureFrom(trace) };
-
-      // TODO
-      auto others = createOthersVecs(interpreted_trace.getDataTrace(), road_graph->getMyRoad());
-      road_graph->getMyRoad().setEgo(std::make_shared<CarPars>(others.first.at(0)));
-      road_graph->getMyRoad().setOthers(others.second.at(0));
-      
       LiveSimGenerator(interpreted_trace).generate(out_path,
          agents_to_draw_arrows_for,
-         road_graph,
          stage_name,
+         trace,
          sim_type,
          { OutputType::png, OutputType::pdf },
          settings.x_scaling,

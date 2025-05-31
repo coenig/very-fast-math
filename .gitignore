@@ -58,6 +58,7 @@ morty/debug_trace_array.txt
 morty/main.smv
 morty/mc_runtimes.txt
 morty/scaling_info.txt
+enc_temp_folder
 
 !src/examples/aca4/**/*
 
