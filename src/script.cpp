@@ -17,8 +17,6 @@
 using namespace vfm;
 using namespace macro;
 
-bool Script::ignorePreprocessorsAndAnimateOnce{};
-
 ScriptTree::ScriptTree() : ScriptTree(nullptr) {}
 ScriptTree::ScriptTree(std::shared_ptr<ScriptTree> father) : Failable("ScriptTree"), father_{ father } {}
 std::map<std::string, RepresentableAsPDF> Script::knownChains{};
@@ -32,9 +30,6 @@ std::map<std::string, std::string> DummyRepresentable::inscriptMethodParPatterns
 
 std::set<std::string> Script::VARIABLES_MAYBE{};
 
-//DummyRepresentable::DummyRepresentable(const std::shared_ptr<Script> repToEmbed) 
-//   : DummyRepresentable(repToEmbed, std::make_shared<DataPack>(), SingletonFormulaParser::getInstance())
-//{}
 
 vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser)
    : Failable("ScriptMacro"), vfm_data_(data), vfm_parser_(parser)
@@ -54,8 +49,6 @@ vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shar
    putPlaceholderMapping(METHOD_PARS_END_TAG);
    putPlaceholderMapping(CONVERSION_PREFIX);
    putPlaceholderMapping(CONVERSION_POSTFIX);
-   putPlaceholderMapping(DECL_BEG_TAG);
-   putPlaceholderMapping(DECL_END_TAG);
    putPlaceholderMapping(START_TAG_FOR_NESTED_VARIABLES);
    putPlaceholderMapping(END_TAG_FOR_NESTED_VARIABLES);
    putPlaceholderMapping(INSCR_BEG_TAG);
@@ -69,31 +62,20 @@ vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shar
    putPlaceholderMapping(EXPR_BEG_TAG_AFTER);
    putPlaceholderMapping(EXPR_END_TAG_AFTER);
 
-   SPECIAL_SYMBOLS.insert(THIS_NAME);
    SPECIAL_SYMBOLS.insert(PREPROCESSOR_FIELD_NAME);
    SPECIAL_SYMBOLS.insert(VARIABLE_DELIMITER);
    SPECIAL_SYMBOLS.insert(StaticHelper::makeString(END_VALUE));
-   SPECIAL_SYMBOLS.insert(ANIMATE_FIELD_NAME);
-   SPECIAL_SYMBOLS.insert(EXERCISE_FIELD_LONG_NAME);
-   SPECIAL_SYMBOLS.insert(EXERCISE_FIELD_SHORT_NAME);
-   SPECIAL_SYMBOLS.insert(NULL_VALUE);
    SPECIAL_SYMBOLS.insert(PREAMBLE_FOR_NON_SCRIPT_METHODS);
    SPECIAL_SYMBOLS.insert(NOP_SYMBOL);
-
-   IGNORE_BEG_TAGS_IN_DECL.push_back(INSCR_BEG_TAG);
-   IGNORE_BEG_TAGS_IN_DECL.push_back(INSCR_BEG_TAG_FOR_INTERNAL_USAGE);
-   IGNORE_END_TAGS_IN_DECL.push_back(INSCR_END_TAG);
-   IGNORE_END_TAGS_IN_DECL.push_back(INSCR_END_TAG_FOR_INTERNAL_USAGE);
 }
 
-std::string Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const int debugLevel) 
+void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const int debugLevel) 
 {
    rawScript = codeRaw2; // Nothing is done to rawScript code.
-   resetDebugVars();
 
    if (codeRaw2.empty()) {
       processedScript = "";
-      return "";
+      return;
    }
 
    std::string codeRaw = inferPlaceholdersForPlainText(codeRaw2); // Secure plain-text parts.
@@ -105,22 +87,16 @@ std::string Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw
    processedScript = evaluateAll(processedScript, EXPR_BEG_TAG_BEFORE, EXPR_END_TAG_BEFORE);
 
    findAllVariables();
-   setDeclaredFields();
 
-   // SCRIPT TREE ** creation starts here.
-   initializeScriptTree();
+   // SCRIPT TREE ** creation starts here. [COMMENT OBSOLETE; Script tree removed.]
    std::map<std::string, std::shared_ptr<int>> themap;
    extractInscriptProcessors(themap, debugLevel);                    // Process all inscript preprocessors.
    // EO SCRIPT TREE ** The tree will not be adapted after this point.
 
-   processedScript = remDecl(processedScript);                      // Cut out declarations.
    processedScript = undoPlaceholdersForPlainText(processedScript); // Undo placeholder securing.
    processedScript = StaticHelper::replaceAll(processedScript, NOP_SYMBOL, "");       // Clear all NOP symbols from script.
-   ignorePreprocessorsAndAnimateOnce = false;  // Reset to not ignoring any fields.
 
    processedScript = evaluateAll(processedScript, EXPR_BEG_TAG_AFTER, EXPR_END_TAG_AFTER);
-
-   return finalizeDebugScript(debugLevel > 0);
 }
 
 std::string vfm::macro::Script::getProcessedScript() const
@@ -167,7 +143,6 @@ bool Script::extractInscriptProcessors(std::map<std::string, std::shared_ptr<int
    bool debug = debugLevel > 0;
    bool debugWithPrep = debugLevel > 1;
    if (indexOfPrep < 0) {
-      handleSingleDebugScript(debug, debugScript, -1, -1, debugWithPrep);
       return false; // No preprocessor tags.
    }
 
@@ -209,7 +184,6 @@ bool Script::extractInscriptProcessors(std::map<std::string, std::shared_ptr<int
          // The right side of the assignment has to be qualified.
          qualifiedDelta = qualifiedIdentifierName.length() - preprocessorScript.length();
          preprocessorScript = qualifiedIdentifierName;
-         scriptTree->shiftEnd(partBefore.length() + declLength, qualifiedDelta);
       }
 
       if (getPreprocessors().count(identifierName)) {
@@ -231,23 +205,8 @@ bool Script::extractInscriptProcessors(std::map<std::string, std::shared_ptr<int
    preprocessorScript = preprocessorScript + methods;
    std::string placeholder_for_inscript{};
 
-   // Refresh script tree.
-   int wholePrepLength = preprocessorScript.length()
-      + INSCR_BEG_TAG.length()
-      + INSCR_END_TAG.length()
-      + declLength
-      + scaleLength;
-   if (createScriptTree) {
-      scriptTree->addScript(
-         identifierName,
-         preprocessorScript,
-         partBefore.length(),
-         partBefore.length() + wholePrepLength - 1);
-   }
-
    // Store debug script.
    int begin = indexOfPrep - declLength;
-   handleSingleDebugScript(debug, debugScript, begin, begin + wholePrepLength + starsIgnored - qualifiedDelta, debugWithPrep);
 
    // Check if the preprocessor is just an identifier name.
    std::string trimmed = StaticHelper::trimAndReturn(preprocessorScript);
@@ -266,7 +225,7 @@ bool Script::extractInscriptProcessors(std::map<std::string, std::shared_ptr<int
             identifierName,
             preprocessorScript,
             scale,
-            !StaticHelper::isWithinLevelwise(processedScript, indexOfPrep, DECL_BEG_TAG, DECL_END_TAG));
+            true /*!StaticHelper::isWithinLevelwise(processedScript, indexOfPrep, DECL_BEG_TAG, DECL_END_TAG)*/);
 
          //                if (dynamicExpansion) {
          knownPreprocessors.insert({ preprocessorScript, placeholder_for_inscript });
@@ -277,14 +236,10 @@ bool Script::extractInscriptProcessors(std::map<std::string, std::shared_ptr<int
    //if (!placeholder_for_inscript.empty()) { // TODO: Placeholder cannot be empty - but recheck please... (stupid Java...)
       std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
       processedScript = partBefore + placeholderFinal + partAfter;
-      scriptTree->shiftEnd(
-         partBefore.length() + wholePrepLength - 1,
-         placeholderFinal.length() - wholePrepLength);
       changed = true;
    //}
 
    processPendingVars();
-   setDeclaredFields();
    count++;
 
    bool nested_call = extractInscriptProcessors(processed, debugLevel);
@@ -381,12 +336,6 @@ void Script::processPendingVars()
          partBefore
          + placeholder_for_inscript // TODO: true?? 
          + partAfter;
-
-      int wholePrepLength = varPart.length() + VAR_BEG_TAG.length() + VAR_END_TAG.length();
-
-      scriptTree->shiftEnd(
-         partBefore.length() + wholePrepLength - 1,
-         placeholder_for_inscript.length() - wholePrepLength);
    }
 
    processPendingVars();
@@ -524,7 +473,7 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
          repToProcess = repfactory_instanceFromScript(repPart, father);
 
          if (!repToProcess) { // String is no script, but plain expression.
-            repToProcess = std::make_shared<DummyRepresentable>(repThis, vfm_data_, vfm_parser_);
+            repToProcess = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
             processedChain = createDummyrep(processedChain, repToProcess, father);
          }
          else {
@@ -532,7 +481,7 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
          }
       }
       else { // Treat as plain text.
-         repToProcess = std::make_shared<DummyRepresentable>(repThis, vfm_data_, vfm_parser_);
+         repToProcess = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
          repToProcess->createInstanceFromScript(INSCR_BEG_TAG + repPart + INSCR_END_TAG, father);
          processedChain = processedRaw.substr(*methodBegin + 1);
       }
@@ -544,7 +493,7 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
          repToProcess = repfactory_instanceFromScript(script, father);
 
          if (!repToProcess) { // String is no script, but plain expression.
-            repToProcess = std::make_shared<DummyRepresentable>(repThis, vfm_data_, vfm_parser_);
+            repToProcess = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
             repToProcess->createInstanceFromScript(script, father);
             //                    processed = createDummyrep(processed, repToProcess);
          }
@@ -556,7 +505,7 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
          repToProcess = repfactory_instanceFromScript(processedChain, father);
 
          if (!repToProcess) { // String is no script, but plain expression.
-            repToProcess = std::make_shared<DummyRepresentable>(repThis, vfm_data_, vfm_parser_);
+            repToProcess = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
             processedChain = createDummyrep(processedChain, repToProcess, father);
          }
          else {
@@ -1184,7 +1133,7 @@ std::string Script::getConversionTag(const std::string& scriptWithoutComments)
 
 RepresentableAsPDF DummyRepresentable::createThisObject(const RepresentableAsPDF repThis, const std::string repScrThis, const RepresentableAsPDF father) {
    if (!repThis) {
-      auto repThis_copy = std::make_shared<DummyRepresentable>(nullptr, getData(), getParser());
+      auto repThis_copy = std::make_shared<DummyRepresentable>(getData(), getParser());
       addFailableChild(repThis_copy, "");
       repThis_copy->createInstanceFromScript(repScrThis, father);
       return repThis_copy;
@@ -1195,10 +1144,6 @@ RepresentableAsPDF DummyRepresentable::createThisObject(const RepresentableAsPDF
 
 bool Script::isVariable(const std::string& preprocessorScript)
 {
-   //if (!StaticHelper::isAlphaNumeric(preprocessorScript)) {
-   //   return false;
-   //}
-
    return VARIABLES_MAYBE.count(preprocessorScript);
 }
 
@@ -1295,47 +1240,6 @@ std::string Script::getQualifiedIdentifierName(const std::string& identifierName
    return identifierName + QUALIFIED_IDENT_MARKER + std::to_string(identCounts.at(identifierName));
 }
 
-void Script::handleSingleDebugScript(const bool debug, const std::string& currScr, const int begSel, const int endSel, const bool includePreprocessors) 
-{
-   std::string currentScript = currScr;
-
-   if (begSel >= 0) {
-      std::string before = currScr.substr(0, begSel);
-      std::string within = currScr.substr(begSel, endSel - begSel);
-      std::string after = currScr.substr(endSel);
-      currentScript = before + ">>>" + within + "<<<" + after;
-   }
-
-   if (debug) {
-      std::string overallOutput = currentScript
-         + (includePreprocessors ? "\n" + getPreprocessorStringForDeclarations(true, false) : "");
-      debugScript += "\n\\noindent{\\huge\\HandCuffRight}\\begin{verbatim}(" + std::to_string(debugScriptCounter) + ") "
-         + PLAIN_TEXT_BEGIN_TAG
-         + overallOutput
-         + PLAIN_TEXT_END_TAG
-         + " \\end{verbatim}"
-         + "\\thispagestyle{empty}\\pagebreak\n";
-      debugAnimateInstruction += "page" + std::to_string(debugScriptCounter) + "->";
-      debugScriptCounter++;
-      adjustMaxLinesAndLineLengths("dum\nmy\n" + overallOutput);
-   }
-}
-
-void Script::adjustMaxLinesAndLineLengths(const std::string& str)
-{
-   std::vector<std::string> lines = StaticHelper::split(str, "\n");
-   int maxLocalWidth = 0;
-
-   for (const auto& line : lines) {
-      if (line.length() > maxLocalWidth) {
-         maxLocalWidth = line.length();
-      }
-   }
-
-   maxHeight = (std::max)(maxHeight, (int) lines.size());
-   maxWidth = (std::max)(maxWidth, maxLocalWidth);
-}
-
 std::string Script::getPreprocessorStringForDeclarations(const bool includeHidden, const bool includeAll)
 {
    std::map<std::string, std::string> thePreprocessors;
@@ -1407,39 +1311,12 @@ int Script::findNextInscriptPos()
          int starPos = pos + INSCR_END_TAG.length();
          processedScript = processedScript.substr(0, starPos)
             + processedScript.substr(starPos + s.length());
-         scriptTree->shiftEnd(pos - 1, -s.length());
 
          return i;
       }
    }
 
    return -1;
-}
-
-void Script::initializeScriptTree() 
-{
-   if (processedScript.empty()) {
-      processedScript = rawScript.substr(rawScript.find(":") + 1);
-   }
-
-   scriptTree = std::make_shared<ScriptTree>();                                      // Create and...
-   scriptTree->addScript("", processedScript, 0, processedScript.length() - 1); // ...initialize script tree.
-}
-
-std::string Script::remDecl(const std::string& codeRaw)
-{
-   std::string code = codeRaw;
-
-   code = inferPlaceholdersForPlainText(code);
-
-   std::string codeWithoutDec = removeTaggedPartsOnTopLevel(
-      code,
-      DECL_BEG_TAG,
-      DECL_END_TAG,
-      IGNORE_BEG_TAGS_IN_DECL,
-      IGNORE_END_TAGS_IN_DECL);
-
-   return undoPlaceholdersForPlainText(codeWithoutDec);
 }
 
 std::string Script::removeTaggedPartsOnTopLevel(
@@ -1482,65 +1359,6 @@ std::string Script::removeTaggedPartsOnTopLevel(
 std::string Script::undoPlaceholdersForPlainText(const std::string& script)
 {
    return replacePlaceholders(script, false);
-}
-
-void Script::setDeclaredFields() 
-{
-   std::string withoutPreprocessors = removePreprocessors(processedScript);
-
-   auto fieldSetter = extractNVPairs(
-      withoutPreprocessors,
-      BEGIN_LITERAL,
-      END_LITERAL,
-      END_VALUE,
-      DECL_BEG_TAG,
-      DECL_END_TAG);
-
-   for (const auto& nameValue : fieldSetter) {
-      std::string name = nameValue.first;
-      std::string value = nameValue.second;
-      setViaFakeReflections(name, value);
-   }
-}
-
-void Script::setViaFakeReflections(const std::string& fieldName, const std::string& value) 
-{
-   std::string val = value;
-
-   // "e" and "exerciseString" are reserved fields that cannot be used in child classes.
-   if (fieldName == EXERCISE_FIELD_LONG_NAME
-      || fieldName == EXERCISE_FIELD_SHORT_NAME) {
-      //setExercise(new Exercise(value)); TODO?
-      //exerciseString = this.getExercise().getRawExerciseString();
-      return;
-   }
-
-   // Preprocessors.
-   if (!ignorePreprocessorsAndAnimateOnce) {
-      if (StaticHelper::stringStartsWith(fieldName, PREPROCESSOR_FIELD_NAME)) {
-         if (!StaticHelper::stringStartsWith(val, START_TAG_FOR_NESTED_VARIABLES)
-            || !StaticHelper::stringEndsWith(val, END_TAG_FOR_NESTED_VARIABLES)) {
-            val = START_TAG_FOR_NESTED_VARIABLES + val + END_TAG_FOR_NESTED_VARIABLES;
-         }
-
-         std::string preprocessor = *StaticHelper::extractFirstSubstringLevelwise(
-            val,
-            START_TAG_FOR_NESTED_VARIABLES,
-            END_TAG_FOR_NESTED_VARIABLES,
-            0);
-
-         addPreprocessor(preprocessor, false);
-      }
-
-      if (fieldName == ANIMATE_FIELD_NAME) {
-         animate = value;
-      }
-   }
-
-   // Fake set via reflections:
-   if (fieldName == "field1") field1 = value;
-   if (fieldName == "field2") field2 = value;
-   if (fieldName == "field3") field3 = value;
 }
 
 void Script::addPreprocessor(const std::string& preprocessorScript, const bool hidden) 
@@ -1662,150 +1480,6 @@ int Script::getNextNonInscriptPosition(const std::string& partAfter)
    return partAfter.length(); // Whole partAfter belongs to preprocessor.
 }
 
-std::vector<std::pair<std::string, std::string>> Script::extractNVPairs(
-   const std::string& codeRaw,
-   char beginLiteral,
-   char endLiteral,
-   char endValue,
-   const std::string& beginTag,
-   const std::string& endTag)
-{
-   std::string name;
-   std::string value;
-   const int nameMode = 0;
-   const int valueRegularMode = 1;
-   const int valueLiteralMode = 2;
-
-   std::vector<std::pair<std::string, std::string>> variables;
-
-   std::string declarations = getDeclarations(
-      codeRaw,
-      beginTag,
-      endTag);
-
-   int mode = nameMode;
-
-   std::vector<std::string> nameValue;
-   for (int i = 0; i < declarations.length(); i++) {
-
-      if (mode == nameMode) {
-         if (declarations.at(i) == ASSIGNMENT_OPERATOR) {
-            nameValue.push_back(StaticHelper::removeWhiteSpace(name));
-
-            if (declarations.find(START_TAG_FOR_NESTED_VARIABLES, i + 1) == i + 1) {
-               std::string varValue = *StaticHelper::extractFirstSubstringLevelwise(
-                  declarations,
-                  START_TAG_FOR_NESTED_VARIABLES,
-                  END_TAG_FOR_NESTED_VARIABLES,
-                  i + 1);
-
-               nameValue.push_back(varValue);
-               std::pair<std::string, std::string> name_val_copy = { nameValue.at(0), nameValue.at(1) };
-               name = "";
-               value = "";
-               nameValue.clear();
-               variables.push_back(name_val_copy);
-               mode = nameMode;
-
-               i += START_TAG_FOR_NESTED_VARIABLES.length()
-                  + END_TAG_FOR_NESTED_VARIABLES.length()
-                  + varValue.length()
-                  + 1; // This is for the semicolon (or whatever) at the end.
-            }
-            else {
-               mode = valueRegularMode;
-            }
-         }
-         else {
-            name += declarations.at(i);
-         }
-      }
-      else if (mode == valueRegularMode) {
-         if (declarations.at(i) == beginLiteral) {
-            mode = valueLiteralMode;
-         }
-         else if (declarations.at(i) == endValue) {
-            nameValue.push_back(value);
-            std::pair<std::string, std::string> name_val_copy = { nameValue.at(0), nameValue.at(1) };
-            name = "";
-            value = "";
-            nameValue.clear();
-            variables.push_back(name_val_copy);
-            mode = nameMode;
-         }
-         else if (!StaticHelper::isEmptyExceptWhiteSpaces(StaticHelper::makeString(declarations.at(i)))) {
-            value += StaticHelper::makeString(declarations.at(i));
-         }
-      }
-      else if (mode == valueLiteralMode) {
-         if (declarations.at(i) == endLiteral) {
-            mode = valueRegularMode;
-         }
-         else {
-            value += StaticHelper::makeString(declarations.at(i));
-         }
-      }
-   }
-
-   if (!StaticHelper::trimAndReturn(name).empty() || !StaticHelper::trimAndReturn(value).empty()) {
-      if (nameValue.empty()) {
-         nameValue.push_back(name);
-      }
-
-      nameValue.push_back(value);
-      std::pair<std::string, std::string> name_val_copy = { nameValue.at(0), nameValue.at(1) };
-      name = "";
-      value = "";
-      nameValue.clear();
-      variables.push_back(name_val_copy);
-   }
-
-   return variables;
-}
-
-std::string Script::getDeclarations(
-   std::string script,
-   std::string beginTag,
-   std::string endTag) 
-{
-   if (!StaticHelper::stringContains(script, beginTag) || !StaticHelper::stringContains(script, endTag)) {
-      return "";
-   }
-
-   if (beginTag == endTag) {
-      addError("It doesn't make sense to use level-wise matching when begin and end tag are equal.");
-   }
-
-   std::vector<std::string> declList = StaticHelper::extractSubstringsLevelwise(script, beginTag, endTag, 0, IGNORE_BEG_TAGS_IN_DECL, IGNORE_END_TAGS_IN_DECL);
-
-   std::string declarations = "";
-
-   for (std::string s : declList) {
-      declarations += s;
-   }
-
-   return declarations;
-}
-
-std::string Script::finalizeDebugScript(const bool debug) const
-{
-   if (debug) {
-      const int width = std::round((float) maxWidth * 5.55) + 10;
-      const int height = std::round((float) maxHeight * 17.8) + 10;
-      const std::string margin = "10";
-
-      return std::string("latex:%artlet|gra|bbding|\\usepackage[paperwidth=") 
-         + std::to_string(width) + "pt,paperheight=" + std::to_string(height) + "pt,hmargin={" + margin + "mm," + margin + "mm},vmargin={" + margin + "mm," + margin + "mm}]{geometry}%\n"
-         + debugScript
-         + DECL_BEG_TAG + "\n"
-         + ANIMATE_FIELD_NAME + VARIABLE_DELIMITER + debugAnimateInstruction + ";"
-         + "\n" + DECL_END_TAG;
-   }
-   else {
-      return "";
-   }
-}
-
 std::string Script::inferPlaceholdersForPlainText(const std::string& script) 
 {
    std::string script2 = script;
@@ -1848,15 +1522,6 @@ std::string Script::inferPlaceholdersForPlainText(const std::string& script)
    }
 
    return script2;
-}
-
-void Script::resetDebugVars() 
-{
-   debugScript = "";
-   debugAnimateInstruction = "";
-   debugScriptCounter = 1;
-   maxHeight = 0;
-   maxWidth = 0;
 }
 
 bool Script::removePlaintextTagsAfterPreprocessorApplication() const 
@@ -1974,47 +1639,24 @@ void vfm::macro::Script::setRawScript(const std::string& script)
 
 RepresentableAsPDF vfm::macro::Script::copy() const
 {
-   auto non_const_this = const_cast<Script*>(this);
-   auto copy_script = std::make_shared<DummyRepresentable>(non_const_this->toDummyIfApplicable()->getEmbeddedRep(), vfm_data_, vfm_parser_);
+   auto copy_script = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
 
    addFailableChild(copy_script, "");
 
    copy_script->SPECIAL_SYMBOLS = SPECIAL_SYMBOLS;
    copy_script->PLACEHOLDER_MAPPING = PLACEHOLDER_MAPPING;
    copy_script->PLACEHOLDER_INVERSE_MAPPING = PLACEHOLDER_INVERSE_MAPPING;
-   copy_script->IGNORE_BEG_TAGS_IN_DECL = IGNORE_BEG_TAGS_IN_DECL;
-   copy_script->IGNORE_END_TAGS_IN_DECL = IGNORE_END_TAGS_IN_DECL;
    copy_script->HIDDEN_PREPROCESSORS = HIDDEN_PREPROCESSORS;
    copy_script->alltimePreprocessors = alltimePreprocessors;
    copy_script->identCounts = identCounts;
    copy_script->rawScript = rawScript;
    copy_script->processedScript = processedScript;
    copy_script->preamble = preamble;
-   copy_script->debugScript = debugScript;
-   copy_script->debugAnimateInstruction = debugAnimateInstruction;
-   copy_script->debugScriptCounter = debugScriptCounter;
-   copy_script->starsIgnored = starsIgnored;
-   copy_script->maxHeight = maxHeight;
-   copy_script->maxWidth = maxWidth;
-   copy_script->VARIABLES_MAYBE = VARIABLES_MAYBE;
-   copy_script->field1 = field1;
-   copy_script->field2 = field2;
-   copy_script->field3 = field3;
-   copy_script->animate = animate;
    copy_script->methodPartBegins = methodPartBegins;
-   copy_script->scriptTree = scriptTree; // TODO: Currently only ptr copied.
    copy_script->recalculatePreprocessors = recalculatePreprocessors;
    copy_script->allOfIt = allOfIt;
    copy_script->count = count;
-   copy_script->createScriptTree = createScriptTree;
 
-   return copy_script;
-}
-
-RepresentableAsPDF vfm::macro::DummyRepresentable::copy() const
-{
-   auto copy_script = this->Script::copy()->toDummyIfApplicable();
-   if (embeddedRep_) copy_script->embeddedRep_ = embeddedRep_->copy();
    return copy_script;
 }
 
@@ -2030,28 +1672,10 @@ std::shared_ptr<DummyRepresentable> vfm::macro::DummyRepresentable::toDummyIfApp
 
 RepresentableAsPDF vfm::macro::Script::repfactory_instanceFromScript(const std::string& script, const RepresentableAsPDF father)
 {
-   // TODO? Currently only accepts DummyRep, i.e., plain-text scripts.
-   //if (StaticHelper::stringStartsWith(script, PREAMBLE_FOR_NON_SCRIPT_METHODS)) {
-      std::shared_ptr<DummyRepresentable> dummy = std::make_shared<DummyRepresentable>(nullptr, vfm_data_, vfm_parser_);
-      addFailableChild(dummy, "");
-      dummy->createInstanceFromScript(script, father);
-      return dummy;
-   //}
-
-   ////RepresentableAsPDF applicablePDFType = ScriptConversionMethods.getApplicablePDFType(
-   ////   ScriptConversionMethods.removeComments(script),
-   ////   getAvailableTypes(),
-   ////   father);
-
-   //if (applicablePDFType == null) {
-   //   return null;
-   //   //            throw new RuntimeException("No applicable 'Representable' type found for script: " + script);
-   //}
-   //else {
-   //   applicablePDFType.createInstanceFromScript(script, father);
-   //}
-
-   //return applicablePDFType;
+   std::shared_ptr<DummyRepresentable> dummy = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
+   addFailableChild(dummy, "");
+   dummy->createInstanceFromScript(script, father);
+   return dummy;
 }
 
 std::string vfm::macro::Script::createDummyrep(const std::string& processed_raw, RepresentableAsPDF repToProcess, RepresentableAsPDF father)
@@ -2061,7 +1685,6 @@ std::string vfm::macro::Script::createDummyrep(const std::string& processed_raw,
    std::string extract_expression_part = extractExpressionPart(processed);
    repToProcess->createInstanceFromScript(extract_expression_part, father);
 
-   //        processed = processed.replace(extractExpressionPart, "");
    processed = processed.substr(extract_expression_part.length());
 
    if (StaticHelper::stringStartsWith(processed, METHOD_CHAIN_SEPARATOR)) {
@@ -2297,13 +1920,12 @@ std::string vfm::macro::Script::processScript(
    list_data_.clear();
    knownChains.clear();
    knownReps.clear();
-   ignorePreprocessorsAndAnimateOnce = false;
    DummyRepresentable::inscriptMethodDefinitions.clear();
    DummyRepresentable::inscriptMethodParNums.clear();
    DummyRepresentable::inscriptMethodParPatterns.clear();
    VARIABLES_MAYBE.clear();
 
-   auto s = std::make_shared<DummyRepresentable>(nullptr, data ? data : std::make_shared<DataPack>(), parser ? parser : SingletonFormulaParser::getInstance());
+   auto s = std::make_shared<DummyRepresentable>(data ? data : std::make_shared<DataPack>(), parser ? parser : SingletonFormulaParser::getInstance());
    
    if (father_failable) {
       father_failable->addFailableChild(s);

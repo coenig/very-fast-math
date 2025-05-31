@@ -258,12 +258,12 @@ const auto TEST_SCRIPT_EXPANSION = [](const std::set<std::set<std::string>>& ope
 @{var2}@
 )", "$", std::to_string(rand2));
 
-   std::shared_ptr<macro::Script> s1 = std::make_shared<macro::DummyRepresentable>(nullptr, nullptr, nullptr);
+   std::shared_ptr<macro::Script> s1 = std::make_shared<macro::DummyRepresentable>(nullptr, nullptr);
    if (!print) s1->setOutputLevels(ErrorLevelEnum::error, ErrorLevelEnum::error);
    s1->applyDeclarationsAndPreprocessors(test_string1, 0);
    std::string result1 = StaticHelper::trimAndReturn(s1->getProcessedScript());
 
-   std::shared_ptr<macro::Script> s2 = std::make_shared<macro::DummyRepresentable>(nullptr, nullptr, nullptr);
+   std::shared_ptr<macro::Script> s2 = std::make_shared<macro::DummyRepresentable>(nullptr, nullptr);
    if (!print) s2->setOutputLevels(ErrorLevelEnum::error, ErrorLevelEnum::error);
    s2->applyDeclarationsAndPreprocessors(test_string2, 0);
    std::string result2 = StaticHelper::trimAndReturn(s2->getProcessedScript());
