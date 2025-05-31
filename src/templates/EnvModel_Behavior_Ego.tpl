@@ -72,7 +72,7 @@ DEFINE
     ego_lane_max_free := !ego_lane_b@{NUMLANES - 1}@.eval[0];
 
     ego_lane_single := @{ego_lane_[j] }@*.for[[j], 0, @{NUMLANES - 1}@.eval, 1, |];
-    ego_lane_crossing := @{ego_lane_@{[j]-1}@.eval[0][j]}@*.for[[j], 1, @{NUMLANES - 1}@.eval, 1, |];
+    ego_lane_crossing := FALSE @{| ego_lane_@{[j]-1}@.eval[0][j]}@*.for[[j], 1, @{NUMLANES - 1}@.eval];
     ego_lane_unchanged := @{ego_lane_b[j] = next(ego_lane_b[j])}@.for[[j], 0, @{NUMLANES - 1}@.eval, 1, &];
 
     ego_lane_move_down := 

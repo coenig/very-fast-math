@@ -109,7 +109,7 @@ DEFINE
     veh___6[i]9___.lane_min := veh___6[i]9___.lane_0;
     veh___6[i]9___.lane_max := veh___6[i]9___.lane_@{NUMLANES - 1}@.eval[0];
     veh___6[i]9___.lane_single := @{veh___6[i]9___.lane_[j] }@*.for[[j], 0, @{NUMLANES - 1}@.eval, 1, |];
-    veh___6[i]9___.lane_crossing := @{veh___6[i]9___.lane_@{[j]-1}@.eval[0][j]}@*.for[[j], 1, @{NUMLANES - 1}@.eval, 1, |];
+    veh___6[i]9___.lane_crossing := FALSE @{| veh___6[i]9___.lane_@{[j]-1}@.eval[0][j]}@*.for[[j], 1, @{NUMLANES - 1}@.eval];
     veh___6[i]9___.lane_unchanged := @{veh___6[i]9___.lane_b[j] = next(veh___6[i]9___.lane_b[j])}@.for[[j], 0, @{NUMLANES - 1}@.eval, 1, &];
     veh___6[i]9___.lane_move_down := 
                       (veh___6[i]9___.lane_0 -> next(veh___6[i]9___.lane_0))

@@ -59,12 +59,12 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
 --------------------------------------------------------
 
    -- TODO: Needs to be removed again
-   INIT outgoing_connection_0_of_section_0 = 1; -- Make first section split...
-   INIT outgoing_connection_1_of_section_0 = 2; -- ...into two target roads.
-   INIT section_1.angle_raw != 0;
-   INIT section_2.angle_raw != 0;
-   INIT veh___609___.is_on_sec_0 = 1;
-   INIT veh___619___.is_on_sec_0 = 1;
+   INIT outgoing_connection_0_of_section_0 = 1;
+   INIT outgoing_connection_1_of_section_0 = 3;
+   INIT outgoing_connection_2_of_section_0 = 5;
+   INIT outgoing_connection_0_of_section_4 = 1;
+   INIT outgoing_connection_1_of_section_4 = 7;
+   INIT outgoing_connection_2_of_section_4 = 5;
    -- EO TODO: Needs to be removed again
 
    @{
