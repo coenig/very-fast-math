@@ -43,6 +43,7 @@
       "DISTANCESCALING": "#{1000}#",
       "DOUBLEMERGEPROTECTION": false,
       "FARMERGINGCARS": false,
+      "EGOLESS": true,
       "FEASIBILITY": false,
       "HARDBRAKEPREVENTION": -8,
       "KEEP_EGO_FROM_GREEN": true,

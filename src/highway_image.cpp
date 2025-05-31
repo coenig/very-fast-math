@@ -1268,13 +1268,18 @@ void vfm::HighwayImage::paintRoadGraph(
       });
    }
 
-   for (const auto& a : additional_arrows) {
-      if (!a.points_.empty()) {
-         if (old_trans->is3D()) {
-            auto a_reverse = plain_2d_translator_->reverseTranslatePolygon(a);
-            fillPolygon(a_reverse, DARK_GREY);
-         } else {
-            fillPolygon(a, DARK_GREY);
+   constexpr bool DRAW_DIRECTION_ARROWS_ON_JUNCTIONS = { false };
+
+   if (DRAW_DIRECTION_ARROWS_ON_JUNCTIONS) {
+      for (const auto& a : additional_arrows) {
+         if (!a.points_.empty()) {
+            if (old_trans->is3D()) {
+               auto a_reverse = plain_2d_translator_->reverseTranslatePolygon(a);
+               fillPolygon(a_reverse, DARK_GREY);
+            }
+            else {
+               fillPolygon(a, DARK_GREY);
+            }
          }
       }
    }
