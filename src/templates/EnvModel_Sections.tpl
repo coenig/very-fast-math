@@ -79,8 +79,12 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
    INIT section_5.angle = 270;
    INIT section_6.angle = 90;
    INIT section_7.angle = 180;
-   INIT section_4.source.y = section_0.source.y - 4;
-   INIT section_1.source.x = section_2.source.x - 4;
+   INIT section_4.source.y <= section_0.source.y - 6;
+   INIT section_1.source.x <= section_2.source.x - 6;
+   INIT veh___609___.is_on_sec_4 = 1;
+   INIT veh___609___.abs_pos = 0;
+   DEFINE ego.abs_pos := cnt * 3;  -- Mock EGO interface in EGOLESS mode.
+   DEFINE ego.v := 3;              -- Mock EGO interface in EGOLESS mode.
    -- EO TODO: Needs to be removed again
 
    @{
