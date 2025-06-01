@@ -88,10 +88,7 @@ void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2)
 
    findAllVariables();
 
-   // SCRIPT TREE ** creation starts here. [COMMENT OBSOLETE; Script tree removed.]
-   std::map<std::string, std::shared_ptr<int>> themap;
-   extractInscriptProcessors(themap);                    // Process all inscript preprocessors.
-   // EO SCRIPT TREE ** The tree will not be adapted after this point.
+   extractInscriptProcessors(); // Process all inscript preprocessors.
 
    processedScript = undoPlaceholdersForPlainText(processedScript); // Undo placeholder securing.
    processedScript = StaticHelper::replaceAll(processedScript, NOP_SYMBOL, "");       // Clear all NOP symbols from script.
@@ -121,20 +118,8 @@ std::string Script::findVarName(const std::string script, int& begin) const
    return var_name;
 }
 
-bool Script::extractInscriptProcessors(std::map<std::string, std::shared_ptr<int>>& processed)
+bool Script::extractInscriptProcessors()
 {
-   // Check for deep regression.
-   auto times = processed.count(processedScript) ? processed.at(processedScript) : nullptr;
-
-   if (times && *times > 30) {
-      addError("Deep regression detected for script:\n" + processedScript);
-   }
-
-   if (!times) {
-      processed.insert({ processedScript, std::make_shared<int>(1) });
-   }
-
-   processed[processedScript] = std::make_shared<int>(*processed.at(processedScript) + 1);
    std::string debugScript = processedScript;
 
    // Find next preprocessor.
@@ -231,16 +216,14 @@ bool Script::extractInscriptProcessors(std::map<std::string, std::shared_ptr<int
       }
    }
 
-   //if (!placeholder_for_inscript.empty()) { // TODO: Placeholder cannot be empty - but recheck please... (stupid Java...)
-      std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
-      processedScript = partBefore + placeholderFinal + partAfter;
-      changed = true;
-   //}
+   std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
+   processedScript = partBefore + placeholderFinal + partAfter;
+   changed = true;
 
    processPendingVars();
    count++;
 
-   bool nested_call = extractInscriptProcessors(processed);
+   bool nested_call = extractInscriptProcessors();
 
    return changed || nested_call;
 }
@@ -1931,6 +1914,6 @@ std::string vfm::macro::Script::processScript(
 
    s->addNote("Processing script. Variable '" + MY_PATH_VARNAME + "' is set to '" + s->getMyPath() + "'.");
 
-   s->applyDeclarationsAndPreprocessors(text, 0);
+   s->applyDeclarationsAndPreprocessors(text);
    return s->getProcessedScript();
 }
