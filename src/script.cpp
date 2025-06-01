@@ -120,8 +120,6 @@ std::string Script::findVarName(const std::string script, int& begin) const
 
 bool Script::extractInscriptProcessors()
 {
-   std::string debugScript = processedScript;
-
    // Find next preprocessor.
    int indexOfPrep = findNextInscriptPos();
 
