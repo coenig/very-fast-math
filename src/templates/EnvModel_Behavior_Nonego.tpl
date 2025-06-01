@@ -41,14 +41,17 @@ VAR
       veh___6[i]9___.traversion_from : -1 .. @{SECTIONS - 1}@.eval[0];
       veh___6[i]9___.traversion_to : -1 .. @{SECTIONS - 1}@.eval[0];
 
+      INVAR veh___6[i]9___.on_straight_section = -1 -> (veh___6[i]9___.traversion_from != -1 & veh___6[i]9___.traversion_from != -1);
+      INVAR (veh___6[i]9___.traversion_from = -1 | veh___6[i]9___.traversion_from = -1) -> veh___6[i]9___.on_straight_section != -1;
+      INVAR veh___6[i]9___.traversion_from = -1 <-> veh___6[i]9___.traversion_to = -1;
+
       @{
          VAR veh___6[i]9___.is_on_sec_[sec2] : 0..1;
          INVAR (veh___6[i]9___.is_on_sec_[sec2] = 1) <-> (veh___6[i]9___.on_straight_section = [sec2]);
          @{
             @{
             VAR veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] : 0..1;
-            INVAR (veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1) <-> (veh___6[i]9___.traversion_from = [sec]);
-            INVAR (veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1) <-> (veh___6[i]9___.traversion_to = [sec2]);
+            INVAR (veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1) <-> (veh___6[i]9___.traversion_from = [sec] & veh___6[i]9___.traversion_to = [sec2]);
             }@.if[@{[sec] != [sec2]}@.eval]
          }@*.for[[sec], 0, @{SECTIONS - 1}@.eval]
       }@**.for[[sec2], 0, @{SECTIONS - 1}@.eval]
