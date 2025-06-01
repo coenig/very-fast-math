@@ -375,9 +375,8 @@ public:
    /// </UL>
    ///
    /// @param codeRaw2  The code to parse (without a real parser though). Comments must have been removed already.
-   /// @param debugLevel     If 1, a debug script is created, if 2, preprocessors are included.
    /// @return  Debug code if requested, <code>null</code> otherwise.
-   void applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const int debugLevel);
+   void applyDeclarationsAndPreprocessors(const std::string& codeRaw2);
 
    virtual std::shared_ptr<Script> createThisObject(const std::shared_ptr<Script> repThis, const std::string repScrThis, const std::shared_ptr<Script> father) = 0;
    virtual void createInstanceFromScript(const std::string& code, std::shared_ptr<Script> father) = 0;
@@ -529,10 +528,9 @@ private:
    ///
    /// @param allowRegularScripts  If set to false, only plain-text scripts are
    ///                             considered, the others ignored.
-   /// @param debug                If 1, a debug script is created, if 2, preprocessors are included.
    /// @return  Iff there has been a change on
    ///          {@link RepresentableDefault#processedScript}.
-   bool extractInscriptProcessors(std::map<std::string, std::shared_ptr<int>>& processed, const int debugLevel);
+   bool extractInscriptProcessors(std::map<std::string, std::shared_ptr<int>>& processed);
 
    /// Searches for plain-text parts <code>"@{ *PLAINTEXT/// }@"</code> in the
    /// script and replaces all symbols within them with placeholders, thereby
