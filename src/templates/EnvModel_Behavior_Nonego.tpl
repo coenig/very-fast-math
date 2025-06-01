@@ -42,7 +42,7 @@ VAR
       veh___6[i]9___.traversion_to : -1 .. @{SECTIONS - 1}@.eval[0];
 
       INVAR veh___6[i]9___.on_straight_section = -1 -> (veh___6[i]9___.traversion_from != -1 & veh___6[i]9___.traversion_from != -1);
-      INVAR (veh___6[i]9___.traversion_from = -1 | veh___6[i]9___.traversion_from = -1) -> veh___6[i]9___.on_straight_section != -1;
+      INVAR (veh___6[i]9___.traversion_from != -1 | veh___6[i]9___.traversion_from != -1) -> veh___6[i]9___.on_straight_section = -1;
       INVAR veh___6[i]9___.traversion_from = -1 <-> veh___6[i]9___.traversion_to = -1;
 
       @{
