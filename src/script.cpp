@@ -1129,8 +1129,6 @@ std::map<std::string, std::string> Script::getPreprocessors()
 
 void Script::processPreprocessors()
 {
-   allOfIt = 0;
-
    while (recalculatePreprocessors && !alltimePreprocessors.empty()) { // Do it as often as necessary.
       resetTime();
       recalculatePreprocessors = false;
@@ -1142,15 +1140,13 @@ void Script::processPreprocessors()
       std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
       long thatsIt = measureElapsedTime("processing " + std::to_string(alltimePreprocessors.size()) + " preprocessors");
-      allOfIt += thatsIt;
    }
 }
 
 void Script::processPreprocessor(const std::string& rawName)
 {
    std::string name = rawName;
-   auto& mapFromAlltimes = alltimePreprocessors;
-   std::string code = mapFromAlltimes.at(name);
+   std::string code = alltimePreprocessors.at(name);
    int nextPoint1 = StaticHelper::indexOfOnTopLevel(code, { "." }, 0, START_TAG_FOR_NESTED_VARIABLES, END_TAG_FOR_NESTED_VARIABLES);
    int nextPoint2 = StaticHelper::indexOfOnTopLevel(code, { "." }, 0, INSCR_BEG_TAG, INSCR_END_TAG);
 
@@ -1161,23 +1157,18 @@ void Script::processPreprocessor(const std::string& rawName)
    std::string objectName = StaticHelper::replaceAll(StaticHelper::replaceAll(code.substr(0, nextPoint1), INSCR_BEG_TAG, ""), INSCR_END_TAG, "");
    std::string rest = code.substr(nextPoint1);
 
-   for (const auto& var_pair : alltimePreprocessors) {
-      std::string var = var_pair.first;
+   if (alltimePreprocessors.count(objectName)) {
+      std::string original = alltimePreprocessors.at(objectName);
+      std::string newChain = original + rest;
+      addNote("Preprocessors -- changing from '" + alltimePreprocessors.at(name) + "' to '" + newChain + "'.");
+      alltimePreprocessors[name] = newChain;
 
-      if (var == objectName) {
-         std::string original = var_pair.second;
-         std::string newChain = original + rest;
-         addNote("Preprocessors -- changing from '" + mapFromAlltimes.at(name) + "' to '" + newChain + "'.");
-         mapFromAlltimes[name] = newChain;
-
-         if (methodPartBegins.count(original)) {
-            int mBeg = methodPartBegins.at(original);
-            methodPartBegins[newChain] = mBeg;
-         }
-
-         recalculatePreprocessors = true;
-         return;
+      if (methodPartBegins.count(original)) {
+         int mBeg = methodPartBegins.at(original);
+         methodPartBegins[newChain] = mBeg;
       }
+
+      recalculatePreprocessors = true;
    }
 }
 
@@ -1576,7 +1567,6 @@ RepresentableAsPDF vfm::macro::Script::copy() const
    copy_script->processedScript = processedScript;
    copy_script->methodPartBegins = methodPartBegins;
    copy_script->recalculatePreprocessors = recalculatePreprocessors;
-   copy_script->allOfIt = allOfIt;
    copy_script->count = count;
 
    return copy_script;
