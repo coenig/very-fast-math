@@ -83,8 +83,7 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
    INIT section_1.source.x <= section_2.source.x - 6;
    INIT veh___609___.is_on_sec_4 = 1;
    INIT veh___609___.abs_pos = 0;
-   DEFINE ego.abs_pos := cnt * 3;  -- Mock EGO interface in EGOLESS mode.
-   DEFINE ego.v := 3;              -- Mock EGO interface in EGOLESS mode.
+   INIT section_0.drain.x = section_7.source.x;
    -- EO TODO: Needs to be removed again
 
    @{

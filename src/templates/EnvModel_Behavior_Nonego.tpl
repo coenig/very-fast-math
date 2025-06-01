@@ -8,7 +8,6 @@
 VAR
    @{
       ego.a : 0..0;  -- Mock EGO interface...
-      ego.v : 0..0;  -- ...in EGOLESS mode.
    }@**.if[@{EGOLESS}@.eval]
 
 	@{
@@ -34,17 +33,27 @@ VAR
     -- auxialiary variables required for property evaluation
     veh___6[i]9___.lc_leave_src_lane : boolean; -- probably superfluous meanwhile
 
-    @{
-       veh___6[i]9___.is_on_sec_[sec2] : 0..1;
-       @{
-          @{
-          veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] : 0..1;
-          }@.if[@{[sec] != [sec2]}@.eval]
-       }@*.for[[sec], 0, @{SECTIONS - 1}@.eval]	
-    }@**.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+    -- TODO: Assigning sections to cars MIGHT be more efficient the other way around,
+    -- i.e., having logic for the three integer variables and calculating the bools from that.
+     
+      veh___6[i]9___.on_straight_section : -1 .. @{SECTIONS - 1}@.eval;
+      veh___6[i]9___.traversion_from : -1 .. @{SECTIONS - 1}@.eval;
+      veh___6[i]9___.traversion_to : -1 .. @{SECTIONS - 1}@.eval;
+
+      @{
+         VAR veh___6[i]9___.is_on_sec_[sec2] : 0..1;
+         INVAR veh___6[i]9___.is_on_sec_[sec2] <-> veh___6[i]9___.on_straight_section = [sec2])
+         @{
+            @{
+            VAR veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] : 0..1;
+            INVAR veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] <-> (veh___6[i]9___.traversion_from = [sec] && veh___6[i]9___.traversion_to = [sec2])
+            }@.if[@{[sec] != [sec2]}@.eval]
+         }@*.for[[sec], 0, @{SECTIONS - 1}@.eval]
+      }@**.for[[sec2], 0, @{SECTIONS - 1}@.eval]
 
 	}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
 
+   
    @{
    INVAR @{veh___6[i]9___.is_on_sec_[sec]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval, 1, +]
       @{@{@{+ veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]}@.if[@{[sec] != [sec2]}@.eval]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval]}@**.for[[sec2], 0, @{SECTIONS - 1}@.eval] = 1;

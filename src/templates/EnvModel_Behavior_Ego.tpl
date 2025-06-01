@@ -7,14 +7,7 @@
 -------------------------------------------------------------------------------
 
 VAR
-    ego.flCond_full : boolean; -- conditions for lane change to fast lane (lc allowed and desired)
-    ego.slCond_full : boolean; -- conditions for lane change to slow lane (lc allowed and desired)
-    ego.abCond_full : boolean; -- conditions for abort of lane change 
-
     -- Ego physical state
-    @{@{ego.v}@*.scalingVariable[velocity] : 0..ego.max_vel;}@**.if[@{!(EGOLESS)}@.eval]
-    @{ego.abs_pos}@*.scalingVariable[distance] : integer;
-
     @{
     ego_lane_b[j] : boolean;
     }@.for[[j], 0, @{NUMLANES - 1}@.eval]
@@ -248,7 +241,6 @@ INVAR
 
 INIT ego_lane_single;
 
-INIT ego.abs_pos = 0;
 
 -- TODO: Needed?
 @{
@@ -295,7 +287,6 @@ ASSIGN
 
     -- ego.v 
     next(ego.v) := min(max(ego.v + ego.a, 0), ego.max_vel);
-    next(ego.abs_pos) := ego.abs_pos + ego.v;
 
 
 -- check that non-ego drives non-maliciously, i.e., behavior does not lead to inevitable crash with ego
@@ -710,3 +701,31 @@ TRANS next(veh___6[i]9___.lane_b@{[j]}@.eval[0]) = veh___6[i]9___.lane_b@{[j]}@.
 @{EnvModel_Debug.tpl}@.include
 
 }@**.if[@{!(EGOLESS)}@.eval]
+
+---------------------------------------------------------------------
+-- Here comes logic which is independent of EGO-less or EGO-full mode
+---------------------------------------------------------------------
+-- TODO: The ego not driving on the green stuff should be probably here, as well, once the section logic is there.
+-- TODO: The ego lane logic (without lane change) should be probably here, as well.
+
+VAR
+   -- "cond" variables are in ego-less mode only there to mock the interface towards the BP
+   ego.flCond_full : boolean; -- conditions for lane change to fast lane (lc allowed and desired)
+   ego.slCond_full : boolean; -- conditions for lane change to slow lane (lc allowed and desired)
+   ego.abCond_full : boolean; -- conditions for abort of lane change 
+   -- EO "cond" variables are in ego-less mode only there to mock the interface towards the BP
+
+   @{ego.abs_pos}@*.scalingVariable[distance] : integer;
+
+@{FROZENVAR}@**.if[@{(EGOLESS)}@.eval]
+   @{ego.v}@*.scalingVariable[velocity] : 0..ego.max_vel;
+
+INIT ego.abs_pos = 0;
+
+ASSIGN     
+   next(ego.abs_pos) := ego.abs_pos + ego.v;
+
+
+---------------------------------------------------------------------
+-- EO logic which is independent of EGO-less or EGO-full mode
+---------------------------------------------------------------------
