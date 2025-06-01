@@ -69,7 +69,7 @@ vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shar
    SPECIAL_SYMBOLS.insert(NOP_SYMBOL);
 }
 
-void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const int debugLevel) 
+void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2)
 {
    rawScript = codeRaw2; // Nothing is done to rawScript code.
 
@@ -90,7 +90,7 @@ void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2, cons
 
    // SCRIPT TREE ** creation starts here. [COMMENT OBSOLETE; Script tree removed.]
    std::map<std::string, std::shared_ptr<int>> themap;
-   extractInscriptProcessors(themap, debugLevel);                    // Process all inscript preprocessors.
+   extractInscriptProcessors(themap);                    // Process all inscript preprocessors.
    // EO SCRIPT TREE ** The tree will not be adapted after this point.
 
    processedScript = undoPlaceholdersForPlainText(processedScript); // Undo placeholder securing.
@@ -121,7 +121,7 @@ std::string Script::findVarName(const std::string script, int& begin) const
    return var_name;
 }
 
-bool Script::extractInscriptProcessors(std::map<std::string, std::shared_ptr<int>>& processed, const int debugLevel)
+bool Script::extractInscriptProcessors(std::map<std::string, std::shared_ptr<int>>& processed)
 {
    // Check for deep regression.
    auto times = processed.count(processedScript) ? processed.at(processedScript) : nullptr;
@@ -140,8 +140,6 @@ bool Script::extractInscriptProcessors(std::map<std::string, std::shared_ptr<int
    // Find next preprocessor.
    int indexOfPrep = findNextInscriptPos();
 
-   bool debug = debugLevel > 0;
-   bool debugWithPrep = debugLevel > 1;
    if (indexOfPrep < 0) {
       return false; // No preprocessor tags.
    }
@@ -242,7 +240,7 @@ bool Script::extractInscriptProcessors(std::map<std::string, std::shared_ptr<int
    processPendingVars();
    count++;
 
-   bool nested_call = extractInscriptProcessors(processed, debugLevel);
+   bool nested_call = extractInscriptProcessors(processed);
 
    return changed || nested_call;
 }
