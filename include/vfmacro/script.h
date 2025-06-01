@@ -619,7 +619,7 @@ private:
    /// @param hidden        Iff the preprocessor is hidden. For Latex, e.g.,
    ///                      preprocessors are used "inscript", hidden from
    ///                      the user.
-   void addPreprocessor(const std::string& preprocessorScript, const bool hidden);
+   void addPreprocessor(const std::string& preprocessorScript);
 
    /// Adds a preprocessor to this representable. Note that the preprocessor
    /// code has to be well-formatted - as opposed to the other method with
@@ -630,7 +630,7 @@ private:
    /// @param hidden        Iff the preprocessor is hidden. For Latex, e.g.,
    ///                      preprocessors are used "inscript", hidden from
    ///                      the user.
-   void addPreprocessor(const std::string& preprocessor, const std::string& filename, const bool hidden, const int indexOfMethodsPartBegin);
+   void addPreprocessor(const std::string& preprocessor, const std::string& filename, const int indexOfMethodsPartBegin);
 
    bool isVariable(const std::string& preprocessorScript);
 
@@ -697,8 +697,6 @@ private:
    /// @return  The processed chain - can be equal to received chain.
    std::string processChain(const std::string& chain);
 
-   std::string getPreprocessorStringForDeclarations(const bool includeHidden, const bool includeAll);
-   bool isPreprocessorHidden(const std::string& name);
    std::string raiseAndGetQualifiedIdentifierName(const std::string& identifierName);
    std::string getQualifiedIdentifierName(const std::string& identifierName);
    std::string getUnqualifiedName(const std::string& qualifiedName);
@@ -735,19 +733,17 @@ private:
    std::set<std::string> SPECIAL_SYMBOLS{};
    std::map<std::string, std::string> PLACEHOLDER_MAPPING{};
    std::map<std::string, std::string> PLACEHOLDER_INVERSE_MAPPING{};
-   std::set<std::string> HIDDEN_PREPROCESSORS{};
    std::map<std::string, std::string> alltimePreprocessors{};
    std::map<std::string, int> identCounts{};
 
    std::string rawScript{};
    std::string processedScript{};
-   std::string preamble{};
    int starsIgnored{};
 
    std::map<std::string, int> methodPartBegins{};
   
    bool recalculatePreprocessors{ true };
-   long allOfIt{};
+   //long allOfIt{};
    int count{ 0 };
    static std::map<std::string, std::shared_ptr<Script>> knownChains; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
    static std::map<std::string, std::shared_ptr<Script>> knownReps; // TODO: no static! Should belong to some base class belonging to a single expansion "session".

@@ -80,9 +80,7 @@ void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2)
 
    std::string codeRaw = inferPlaceholdersForPlainText(codeRaw2); // Secure plain-text parts.
 
-   int colonPos = 0/*codeRaw.find(":") + 1*/;
-   preamble = codeRaw.substr(0, colonPos);
-   processedScript = codeRaw.substr(colonPos);
+   processedScript = codeRaw;
 
    processedScript = evaluateAll(processedScript, EXPR_BEG_TAG_BEFORE, EXPR_END_TAG_BEFORE);
 
@@ -158,7 +156,6 @@ bool Script::extractInscriptProcessors()
       identifierName = raiseAndGetQualifiedIdentifierName(identifierName);
       declLength = partBefore.length() - indexOfFNBegin - 1;
       partBefore = partBefore.substr(0, indexOfFNBegin + 1);
-      hidden = false;
 
       std::string qualifiedIdentifierName = getQualifiedIdentifierName(preprocessorScript);
       if (qualifiedIdentifierName != preprocessorScript) {
@@ -193,10 +190,10 @@ bool Script::extractInscriptProcessors()
    std::string trimmed = StaticHelper::trimAndReturn(preprocessorScript);
    if (isVariable(trimmed)) {
       placeholder_for_inscript = VAR_BEG_TAG + trimmed + VAR_END_TAG; // TODO: Do we need this?
-      addPreprocessor(preprocessorScript, identifierName, hidden, methodPartBegin);
+      addPreprocessor(preprocessorScript, identifierName, methodPartBegin);
    }
    else {
-      addPreprocessor(preprocessorScript, identifierName, hidden, methodPartBegin);
+      addPreprocessor(preprocessorScript, identifierName, methodPartBegin);
 
       if (knownPreprocessors.count(preprocessorScript)) {
          placeholder_for_inscript = knownPreprocessors.at(preprocessorScript);
@@ -206,11 +203,9 @@ bool Script::extractInscriptProcessors()
             identifierName,
             preprocessorScript,
             scale,
-            true /*!StaticHelper::isWithinLevelwise(processedScript, indexOfPrep, DECL_BEG_TAG, DECL_END_TAG)*/);
+            true);
 
-         //                if (dynamicExpansion) {
          knownPreprocessors.insert({ preprocessorScript, placeholder_for_inscript });
-         //                }
       }
    }
 
@@ -534,12 +529,12 @@ RepresentableAsPDF Script::applyMethodChain(const RepresentableAsPDF original, c
       newRep = applyMethod(newRep, methodSignature);
 
       if (newRep->toDummyIfApplicable()) {
-         addNote(
-            "Plain text method call: "
-            + methodSignature
-            + " (results in '"
-            + StaticHelper::replaceAll(newRep->getRawScript(), PREAMBLE_FOR_NON_SCRIPT_METHODS, "")
-            + "')");
+         //addNote(
+         //   "Plain text method call: "
+         //   + methodSignature
+         //   + " (results in '"
+         //   + StaticHelper::replaceAll(newRep->getRawScript(), PREAMBLE_FOR_NON_SCRIPT_METHODS, "")
+         //   + "')");
       }
       else {
          addError(
@@ -1219,52 +1214,6 @@ std::string Script::getQualifiedIdentifierName(const std::string& identifierName
    return identifierName + QUALIFIED_IDENT_MARKER + std::to_string(identCounts.at(identifierName));
 }
 
-std::string Script::getPreprocessorStringForDeclarations(const bool includeHidden, const bool includeAll)
-{
-   std::map<std::string, std::string> thePreprocessors;
-   if (includeAll) {
-      //alltimePreprocessors.keySet().forEach(p->thePreprocessors.putAll(alltimePreprocessors.at(p)));
-      addFatalError("Including 'all' preprocessors is not (yet?) supported.");
-   }
-   else {
-      thePreprocessors = alltimePreprocessors;
-   }
-
-   if (thePreprocessors.empty()) {
-      return "";
-   }
-
-   std::string s = "";
-   int num = 1;
-
-   for (const auto& datnam_pair : thePreprocessors) {
-      std::string datnam = datnam_pair.first;
-
-      if (includeHidden || includeAll || !isPreprocessorHidden(datnam)) {
-         std::string thePreprocessor = thePreprocessors.at(datnam);
-         std::string oneEntry = "\n" + PREPROCESSOR_FIELD_NAME + std::to_string(num)
-            + VARIABLE_DELIMITER
-            + START_TAG_FOR_NESTED_VARIABLES
-            + datnam + VARIABLE_DELIMITER + StaticHelper::replaceAll(StaticHelper::replaceAll(thePreprocessor, "\n", "\\n"), "\n", "\\n")
-            + END_TAG_FOR_NESTED_VARIABLES
-            + "" + BEGIN_COMMENT
-            + std::to_string(methodPartBegins.at(thePreprocessor))
-            + END_COMMENT
-            + ";";
-
-         s += oneEntry;
-         num++;
-      }
-   }
-
-   return s;
-}
-
-bool Script::isPreprocessorHidden(const std::string& name)
-{
-   return HIDDEN_PREPROCESSORS.count(name);
-}
-
 int Script::findNextInscriptPos()
 {
    std::string s{};
@@ -1340,15 +1289,15 @@ std::string Script::undoPlaceholdersForPlainText(const std::string& script)
    return replacePlaceholders(script, false);
 }
 
-void Script::addPreprocessor(const std::string& preprocessorScript, const bool hidden) 
+void Script::addPreprocessor(const std::string& preprocessorScript) 
 {
    int indexOf = preprocessorScript.find(VARIABLE_DELIMITER);
    std::string datnam = StaticHelper::removeWhiteSpace(preprocessorScript.substr(0, indexOf));
    std::string plainPreprocessor = StaticHelper::trimAndReturn(preprocessorScript.substr(indexOf + 1));
-   addPreprocessor(plainPreprocessor, datnam, hidden, StaticHelper::indexOfOnTopLevel(plainPreprocessor, { METHOD_CHAIN_SEPARATOR }, 0, INSCR_BEG_TAG, INSCR_END_TAG));
+   addPreprocessor(plainPreprocessor, datnam, StaticHelper::indexOfOnTopLevel(plainPreprocessor, { METHOD_CHAIN_SEPARATOR }, 0, INSCR_BEG_TAG, INSCR_END_TAG));
 }
 
-void Script::addPreprocessor(const std::string& preprocessor, const std::string& filename, const bool hidden, const int indexOfMethodsPartBegin)
+void Script::addPreprocessor(const std::string& preprocessor, const std::string& filename, const int indexOfMethodsPartBegin)
 {
    alltimePreprocessors.insert({ filename, StaticHelper::trimAndReturn(preprocessor) });
 
@@ -1359,10 +1308,6 @@ void Script::addPreprocessor(const std::string& preprocessor, const std::string&
    }
 
    recalculatePreprocessors = true;
-
-   if (hidden) {
-      HIDDEN_PREPROCESSORS.insert(filename);
-   }
 }
 
 std::string Script::removePreprocessors(const std::string& script)
@@ -1625,12 +1570,10 @@ RepresentableAsPDF vfm::macro::Script::copy() const
    copy_script->SPECIAL_SYMBOLS = SPECIAL_SYMBOLS;
    copy_script->PLACEHOLDER_MAPPING = PLACEHOLDER_MAPPING;
    copy_script->PLACEHOLDER_INVERSE_MAPPING = PLACEHOLDER_INVERSE_MAPPING;
-   copy_script->HIDDEN_PREPROCESSORS = HIDDEN_PREPROCESSORS;
    copy_script->alltimePreprocessors = alltimePreprocessors;
    copy_script->identCounts = identCounts;
    copy_script->rawScript = rawScript;
    copy_script->processedScript = processedScript;
-   copy_script->preamble = preamble;
    copy_script->methodPartBegins = methodPartBegins;
    copy_script->recalculatePreprocessors = recalculatePreprocessors;
    copy_script->allOfIt = allOfIt;
@@ -1852,7 +1795,7 @@ std::string Script::evaluateExpression(const std::string& expression, const std:
 
    decimals = std::stof(decimals_str);
 
-   addDebug("Expression '" + expression + "' resulted in " + std::to_string(result) + (decimals >= 0 ? " (will be rounded to " + std::to_string(decimals) + " decimals)" : "") + ".");
+   //addDebug("Expression '" + expression + "' resulted in " + std::to_string(result) + (decimals >= 0 ? " (will be rounded to " + std::to_string(decimals) + " decimals)" : "") + ".");
 
    if (decimals < 0) {
       return std::to_string(result);
