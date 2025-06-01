@@ -526,11 +526,9 @@ private:
    /// </BR>
    /// Non-inscript preprocessors are evaluated during declarations evaluation.
    ///
-   /// @param allowRegularScripts  If set to false, only plain-text scripts are
-   ///                             considered, the others ignored.
    /// @return  Iff there has been a change on
    ///          {@link RepresentableDefault#processedScript}.
-   bool extractInscriptProcessors(std::map<std::string, std::shared_ptr<int>>& processed);
+   bool extractInscriptProcessors();
 
    /// Searches for plain-text parts <code>"@{ *PLAINTEXT/// }@"</code> in the
    /// script and replaces all symbols within them with placeholders, thereby
