@@ -172,15 +172,18 @@ square_of_veh_v_[i] := case
    TRUE: @{@{MAXSPEEDNONEGO}@***.velocityWorldToEnvModelConst ** 2}@.eval[0];
 esac;
 
-
 @{
 
+DEFINE veh_[i]_and_veh_[j]_on_same_seclet := 
+veh___6[i]9___.on_straight_section = veh___6[j]9___.on_straight_section & veh___6[i]9___.traversion_from = veh___6[j]9___.traversion_from & veh___6[i]9___.traversion_to = veh___6[j]9___.traversion_to;
+
 INVAR -- Non-Ego cars may not collide.
-    veh___6[i]9___.same_lane_as_veh_[j] -> (abs(veh___6[j]9___.abs_pos - veh___6[i]9___.abs_pos) > veh_length);
+    veh_[i]_and_veh_[j]_on_same_seclet -> (veh___6[i]9___.same_lane_as_veh_[j] -> (abs(veh___6[j]9___.abs_pos - veh___6[i]9___.abs_pos) > veh_length));
 
 INVAR -- Non-Ego cars may not "jump" over each other.
-    !(veh___6[i]9___.same_lane_as_veh_[j] & (veh___6[j]9___.prev_abs_pos < veh___6[i]9___.prev_abs_pos) & (veh___6[j]9___.abs_pos >= veh___6[i]9___.abs_pos)) &
-    !(veh___6[i]9___.same_lane_as_veh_[j] & (veh___6[i]9___.prev_abs_pos < veh___6[j]9___.prev_abs_pos) & (veh___6[i]9___.abs_pos >= veh___6[j]9___.abs_pos));
+    veh_[i]_and_veh_[j]_on_same_seclet -> (
+       !(veh___6[i]9___.same_lane_as_veh_[j] & (veh___6[j]9___.prev_abs_pos < veh___6[i]9___.prev_abs_pos) & (veh___6[j]9___.abs_pos >= veh___6[i]9___.abs_pos)) &
+       !(veh___6[i]9___.same_lane_as_veh_[j] & (veh___6[i]9___.prev_abs_pos < veh___6[j]9___.prev_abs_pos) & (veh___6[i]9___.abs_pos >= veh___6[j]9___.abs_pos)));
 	
 }@.for[[j], 0, @{[i]}@.sub[1]]}@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 
