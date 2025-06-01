@@ -718,7 +718,7 @@ VAR
    @{ego.abs_pos}@*.scalingVariable[distance] : integer;
 
 @{FROZENVAR}@**.if[@{(EGOLESS)}@.eval]
-   @{ego.v}@*.scalingVariable[velocity] : 0..ego.max_vel;
+   @{ego.v}@*.scalingVariable[velocity] : 0 .. @{2}@.velocityWorldToEnvModelConst; -- ego.max_vel;
 
 INIT ego.abs_pos = 0;
 

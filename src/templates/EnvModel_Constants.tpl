@@ -31,8 +31,8 @@ DEFINE
     @{veh_length}@*.distanceWorldToEnvModelDef[5];                                -- we assume a vehicle length of 5m for distance calculation to the front
     @{max_vel}@*.velocityWorldToEnvModelDef[MAXSPEEDNONEGO];
 
+    @{ego.max_vel}@*.velocityWorldToEnvModelDef[MAXSPEEDEGO]; -- Leave this even in ego-less mode.
 @{
-    @{ego.max_vel}@*.velocityWorldToEnvModelDef[MAXSPEEDEGO];
     @{ego.min_dist_long}@*.scalingVariable[distance] := veh_length;
     @{ego.following_dist}@*.scalingVariable[distance] := max(@{2}@.timeWorldToEnvModelConst * ego.v, ego.min_dist_long);  -- dynamic following distance according to 2s rule (= THW)
     @{ego.min_accel}@*.accelerationWorldToEnvModelDef[MINACCELEGO];
