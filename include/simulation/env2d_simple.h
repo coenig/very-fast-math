@@ -61,7 +61,8 @@ public:
    }
 
    /// TODO: Future vec not yet working.
-   inline void createOthersVecs(
+   /// TODO2: Road Graph does not need a modification here.
+   inline void createOthersVecs2(
       std::map<int, std::pair<float, float>>& others_future_vec,
       const std::set<int>& agents_to_draw_arrows_for,
       const std::shared_ptr<RoadGraph> road_graph,
@@ -111,8 +112,8 @@ public:
    {
       if (true || !outside_view_) { // TODO: Can we optimize that for performance?
          outside_view_ = std::make_shared<HighwayImage>(
-            getImageWidth(MAX_NUM_LANES_SIMPLE) /* * 10 */, // TODO: Remove factor (make more intelligent)
-            getImageHeight() /* * 20*/,                   // TODO: Remove factor (make more intelligent)
+            getImageWidth(MAX_NUM_LANES_SIMPLE) * (/*road_graph->getNodeCount() > 1 ? 10 :*/ 1), // TODO: Remove factor (make more intelligent)
+            getImageHeight()  * (road_graph->getNodeCount() > 1 ? 4 : 1),                   // TODO: Remove factor (make more intelligent)
             std::make_shared<Plain2DTranslator>(), 
             road_graph->getMyRoad().getNumLanes());
       }
@@ -124,18 +125,23 @@ public:
 
       outside_view_->fillImg(BROWN);
 
-      std::map<int, std::pair<float, float>> others_future_vec{};
-      createOthersVecs(others_future_vec, agents_to_draw_arrows_for, road_graph, future_data);
+      std::map<int, std::pair<float, float>> others_future_vec{}; // TODO: Future vec not yet working.
+      //createOthersVecs2(others_future_vec, agents_to_draw_arrows_for, road_graph, future_data);
 
-      const bool infinite_highway{ road_graph->getNumberOfNodes() == 1 };
+      const bool infinite_highway{ road_graph->getNodeCount() == 1 };
       
       const Rec2D bounding_box{ infinite_highway ? Rec2D{} : road_graph->getBoundingBox() };
       const float offset_x{ infinite_highway
          ? 60 
          : - bounding_box.upper_left_.x + 15 };
-      const float offset_y{ infinite_highway
-         ? (float)road_graph->getMyRoad().getNumLanes() / 2.0f 
-         : -bounding_box.upper_left_.y + 15 };
+      const float offset_y{ 
+         infinite_highway
+         ? 
+         (float)road_graph->getMyRoad().getNumLanes() / 2.0f
+         : 
+         //-bounding_box.upper_left_.y + 15 
+         -getImageHeight() * (getImageHeight() / outside_view_->getHeight() / 2) + 25
+      };
 
       outside_view_->paintRoadGraph(
          road_graph,
@@ -173,8 +179,8 @@ public:
          cockpit_view_mirror_->restartPDF();
       }
 
-      std::map<int, std::pair<float, float>> others_future_vec{};
-      createOthersVecs(others_future_vec, agents_to_draw_arrows_for, road_graph, future_data);
+      std::map<int, std::pair<float, float>> others_future_vec{}; // TODO: Future vec not yet working.
+      //createOthersVecs2(others_future_vec, agents_to_draw_arrows_for, road_graph, future_data);
 
       auto no_trans{std::make_shared<DefaultHighwayTranslator>()};
       cockpit_view_->setTranslator(no_trans);

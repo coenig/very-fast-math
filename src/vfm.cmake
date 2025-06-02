@@ -189,13 +189,14 @@ SOURCES
    script.cpp
    environment_model_generator.cpp
    highway_image.cpp
-   simplification_function.cpp
+   code_block.cpp
    interactive_testing.cpp
    options.cpp
    gui.cpp
    interpreter_terminal.cpp
    custom_widgets.cpp
    road_graph.cpp
+   xml_generator.cpp
 haru/hpdf_3dmeasure.c
 haru/hpdf_annotation.c
 haru/hpdf_array.c

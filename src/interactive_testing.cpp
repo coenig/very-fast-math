@@ -438,7 +438,7 @@ void vfm::test::termnate() {
    std::cout << std::endl << "<TERMINATED>" << std::endl;
 
    #ifdef _WIN32
-      std::cin.get(); // Prevent Windows from closing the terminal immediately after termination.
+      //std::cin.get(); // Prevent Windows from closing the terminal immediately after termination.
    #endif
 
    std::exit(0);
@@ -546,7 +546,7 @@ void vfm::test::runInterpreter()
          rules->at(op_name).insert({arg_num, {}});
          rules->at(op_name).at(arg_num).insert(m);
          std::cout << "Adding meta rule '" << HIGHLIGHT_COLOR << m.serialize() << RESET_COLOR << "' to runtime rule set (" + HIGHLIGHT_COLOR + "now " << MetaRule::countMetaRules(*rules) << " rules" + RESET_COLOR + ")." << std::endl << std::endl;
-         std::cout << simplification::CodeGenerator::createCodeFromMetaRuleString(m, simplification::CodeGenerationMode::negative, "rule", false, "parser", parser) << std::endl << std::endl;
+         std::cout << code_block::CodeGenerator::createCodeFromMetaRuleString(m, code_block::CodeGenerationMode::negative, "rule", false, "parser", parser) << std::endl << std::endl;
          std::getline(std::cin, s);
          continue;
       }

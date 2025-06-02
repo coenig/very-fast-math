@@ -1,4 +1,5 @@
 #include "simulation/road_graph.h"
+#include "geometry/images.h"
 #include <vector>
 #include <cmath>
 
@@ -6,8 +7,8 @@
 using namespace vfm;
 
 LaneSegment::LaneSegment(const float begin, const int min_lane, const int max_lane)
-   : begin_(begin), min_lane_(min_lane), max_lane_(max_lane) {
-}
+   : begin_(begin), min_lane_(min_lane), max_lane_(max_lane)
+{}
 
 float LaneSegment::getBegin() const { return begin_; }
 int LaneSegment::getMinLane() const { return min_lane_; }
@@ -153,6 +154,11 @@ std::map<float, LaneSegment> StraightRoadSection::getSegments() const
    return segments_;
 }
 
+std::map<float, LaneSegment>& StraightRoadSection::getSegmentsRef()
+{
+   return segments_;
+}
+
 void vfm::StraightRoadSection::setEgo(const std::shared_ptr<CarPars> ego)
 {
    ego_ = ego;
@@ -161,6 +167,11 @@ void vfm::StraightRoadSection::setEgo(const std::shared_ptr<CarPars> ego)
 void vfm::StraightRoadSection::setOthers(const CarParsVec& others)
 {
    others_ = others;
+}
+
+void vfm::StraightRoadSection::addOther(const CarPars& other)
+{
+   others_.push_back(other);
 }
 
 void vfm::StraightRoadSection::setFuturePositionsOfOthers(const std::map<int, std::pair<float, float>>& future_positions_of_others)
@@ -198,8 +209,8 @@ std::shared_ptr<RoadGraph> vfm::RoadGraph::findFirstSectionWithProperty(
    const std::function<bool(const std::shared_ptr<RoadGraph>)> property,
    std::set<std::shared_ptr<RoadGraph>>& visited)
 {
-   if (property(shared_from_this())) return shared_from_this();
    if (!visited.insert(shared_from_this()).second) return nullptr;
+   if (property(shared_from_this())) return shared_from_this();
 
    for (const auto& succ_ptr : successors_) {
       std::shared_ptr<RoadGraph> ptr{ succ_ptr->findFirstSectionWithProperty(property, visited) };
@@ -248,6 +259,29 @@ void vfm::RoadGraph::applyToMeAndAllMySuccessorsAndPredecessors(const std::funct
 {
    findFirstSectionWithProperty([&action](const std::shared_ptr<RoadGraph> r) -> bool {
       action(r);
+      return false;
+   });
+}
+
+void vfm::RoadGraph::cleanFromAllCars()
+{
+   removeEgo();
+   removeNonegoCars();
+}
+
+void vfm::RoadGraph::removeEgo()
+{
+   findFirstSectionWithProperty([](const std::shared_ptr<RoadGraph> r) -> bool {
+      r->my_road_.setEgo(nullptr);
+      return false;
+   });
+}
+
+void vfm::RoadGraph::removeNonegoCars()
+{
+   findFirstSectionWithProperty([](const std::shared_ptr<RoadGraph> r) -> bool {
+      r->my_road_.setOthers({});
+      r->clearNonegosOnCrossingsTowardsAny();
       return false;
    });
 }
@@ -319,7 +353,7 @@ int vfm::RoadGraph::getID() const
    return id_;
 }
 
-int vfm::RoadGraph::getNumberOfNodes() const
+int vfm::RoadGraph::getNodeCount() const
 {
    int cnt{ 0 };
 
@@ -384,7 +418,7 @@ std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getPredecessors() const
    return predecessors_;
 }
 
-std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getAllNodes() const
+std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getAllNodes() const // TODO: Why not use set? (I believe there WAS a reason...)
 {
    std::vector<std::shared_ptr<RoadGraph>> res{};
 
@@ -398,4 +432,243 @@ std::vector<std::shared_ptr<RoadGraph>> vfm::RoadGraph::getAllNodes() const
    });
 
    return res;
+}
+
+std::vector<CarPars> vfm::RoadGraph::getNonegosOnCrossingTowardsSuccessor(const std::shared_ptr<RoadGraph> r) const
+{
+   return nonegos_towards_successors_.count(r) ? nonegos_towards_successors_.at(r) : CarParsVec{};
+}
+
+std::map<std::shared_ptr<RoadGraph>, std::vector<CarPars>> vfm::RoadGraph::getNonegosOnCrossingTowardsAllSuccessors() const
+{
+   return nonegos_towards_successors_;
+}
+
+void vfm::RoadGraph::addNonegoOnCrossingTowards(const std::shared_ptr<RoadGraph> r, const CarPars& nonego)
+{
+   nonegos_towards_successors_.insert({ r, {} }); // Add empty vector only if this successor not yet in the map.
+   nonegos_towards_successors_.at(r).push_back(nonego);
+}
+
+void vfm::RoadGraph::addNonegoOnCrossingTowards(const int r_id, const CarPars& nonego)
+{
+   auto r = findSectionWithID(r_id);
+
+   if (r) {
+      addNonegoOnCrossingTowards(r, nonego);
+   }
+   else {
+      addError("Id '" + std::to_string(r_id) + "' not found as successor of section '" + std::to_string(id_) + "'.");
+   }
+}
+
+void vfm::RoadGraph::clearNonegosOnCrossingsTowardsAny()
+{
+   nonegos_towards_successors_.clear();
+}
+
+using namespace xml;
+
+vfm::Way::Way(const std::shared_ptr<RoadGraph> my_father_rg) : Failable("OSM-Way"),
+way_ids_{ WayIDs{} },
+   origin_node_left_id_{ global_id_first_free++ },
+   target_node_left_id_{ global_id_first_free++ },
+   origin_node_right_id_{ global_id_first_free++ },
+   target_node_right_id_{ global_id_first_free++ },
+   ids_to_connector_successor_nodes_left_{},
+   ids_to_connector_successor_nodes_right_{},
+   ids_for_connector_successor_ways_{},
+   my_road_graph_{ my_father_rg }
+{
+}
+
+std::shared_ptr<xml::CodeXML> vfm::Way::getNodesXML() const
+{
+   auto origin = my_road_graph_->getOriginPoint();
+   auto drain = my_road_graph_->getDrainPoint();
+   Vec2D dir_lat{ drain - origin };
+   dir_lat.ortho();
+   dir_lat.setLength(LANE_WIDTH / 2);
+
+   Vec2D origin_left{ origin - dir_lat };
+   Vec2D origin_right{ origin + dir_lat };
+   Vec2D drain_left{ drain - dir_lat };
+   Vec2D drain_right{ drain + dir_lat };
+
+   auto origin_left_coord = StaticHelper::cartesianToWGS84(origin_left.x, origin_left.y);
+   auto target_left_coord = StaticHelper::cartesianToWGS84(drain_left.x, drain_left.y);
+   auto origin_right_coord = StaticHelper::cartesianToWGS84(origin_right.x, origin_right.y);
+   auto target_right_coord = StaticHelper::cartesianToWGS84(drain_right.x, drain_right.y);
+   auto res =
+      getNodeXML(origin_node_left_id_, origin_left_coord.first, origin_left_coord.second);
+   res->appendAtTheEnd(getNodeXML(target_node_left_id_, target_left_coord.first, target_left_coord.second));
+   res->appendAtTheEnd(getNodeXML(origin_node_right_id_, origin_right_coord.first, origin_right_coord.second));
+   res->appendAtTheEnd(getNodeXML(target_node_right_id_, target_right_coord.first, target_right_coord.second));
+
+   // Connectors towards successors.
+   for (const auto& r_succ : my_road_graph_->getSuccessors()) {
+      Vec2D origin_succ{ r_succ->getOriginPoint() };
+      Vec2D drain_succ{ r_succ->getDrainPoint() };
+      float dist{ drain.distance(origin_succ) };
+      Vec2D dir_mine{ drain - origin };
+      Vec2D dir_succ{ origin_succ - drain_succ };
+      dir_mine.setLength(dist / 3);
+      dir_succ.setLength(dist / 3);
+
+      Vec2D dir_lat_succ{ drain_succ - origin_succ };
+      dir_lat_succ.ortho();
+      dir_lat_succ.setLength(LANE_WIDTH / 2);
+      Vec2D origin_left_succ{ origin_succ - dir_lat_succ };
+      Vec2D origin_right_succ{ origin_succ + dir_lat_succ };
+
+      Pol2D pol{};
+      Pol2D arrow{};
+      pol.bezier(drain, drain + dir_mine, origin_succ + dir_succ, origin_succ, 0.1, true);
+      arrow.createArrow(pol, LANE_WIDTH, { drain_right, drain_left }, { origin_right_succ, origin_left_succ });
+
+      std::vector<int> node_ids_left{};
+      std::vector<int> node_ids_right{};
+
+      if (!arrow.points_.size() % 2) addError("Bezier road block has odd number of points: '" + std::to_string(arrow.points_.size()) + "'.");
+
+      auto func = [&node_ids_left, &node_ids_right, &res](const Vec2D point, const bool left) {
+         int id = global_id_first_free++;
+         auto coord = StaticHelper::cartesianToWGS84(point.x, point.y);
+         res->appendAtTheEnd(getNodeXML(id, coord.first, coord.second));
+         (left ? node_ids_left : node_ids_right).push_back(id);
+      };
+
+      for (int i = 0; i < arrow.points_.size() / 2; i++) {
+         func(arrow.points_.at(i), true);
+      }
+
+      for (int i = arrow.points_.size() / 2; i < arrow.points_.size(); i++) {
+         func(arrow.points_.at(i), false);
+      }
+
+      ids_to_connector_successor_nodes_left_.push_back(node_ids_left);
+      ids_to_connector_successor_nodes_right_.push_back(node_ids_right);
+      ids_for_connector_successor_ways_.push_back(WayIDs());
+   }
+
+   return res;
+}
+
+std::shared_ptr<xml::CodeXML> vfm::Way::getWayXMLGeneric(
+   WayIDs way_ids,
+   const std::vector<int> left_ids,
+   const std::vector<int> right_ids
+)
+{
+   auto dummy = xml::CodeXML::emptyXML();
+   auto way_inner_left = xml::CodeXML::emptyXML();
+   auto way_inner_right = xml::CodeXML::emptyXML();
+   auto way_inner_link = xml::CodeXML::emptyXML();
+
+   dummy->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "Painting::LineWidth"}, {"v", "0.300000"} }));
+   dummy->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "Painting::LineWidth"}, {"v", "0.300000"} }));
+   dummy->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "Painting::MarkingType"}, {"v", "Solid"} }));
+   dummy->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "Painting::SingleLineOffsets"}, {"v", "-0.000000"} }));
+   dummy->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "Painting::SingleLineWidths"}, {"v", "0.300000"} }));
+   dummy->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "color"}, {"v", "white"} }));
+   dummy->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "subtype"}, {"v", "solid"} }));
+   dummy->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "type"}, {"v", "line_thick"} }));
+   dummy->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "width"}, {"v", "0.300000"} }));
+
+   for (const auto& id : left_ids) {
+      way_inner_left->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("nd", { {"ref", std::to_string(id) } }));
+      way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("nd", { {"ref", std::to_string(id) } }));
+   }
+
+   for (const auto& id : right_ids) {
+      way_inner_right->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("nd", { {"ref", std::to_string(id) } }));
+   }
+
+   way_inner_left->appendAtTheEnd(dummy);
+   way_inner_right->appendAtTheEnd(dummy);
+
+   way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "type"}, {"v", "road_link"} }));
+   way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "rl:meta:country_code"}, {"v", "276"} }));
+   way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "rl:meta:is_controlled"}, {"v", "false"} }));
+   way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "rl:meta:is_motorway"}, {"v", "false"} }));
+   way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "rl:meta:is_separated_structurally"}, {"v", "false"} }));
+   way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "rl:meta:is_urban"}, {"v", "false"} }));
+   way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "rl:predecessors"}, {"v", ""} }));
+   way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "rl:successors"}, {"v", ""} }));
+   way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "rl:travel_direction"}, {"v", "along"} }));
+   way_inner_link->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { {"k", "rl:type"}, {"v", "no_special"} }));
+
+   auto relation_inner = xml::CodeXML::emptyXML();
+   relation_inner->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("member", { { "type","way" }, { "ref", std::to_string(way_ids.left_border_id_) }, { "role", "left" } }));
+   relation_inner->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("member", { { "type","way" }, { "ref", std::to_string(way_ids.right_border_id_) }, { "role", "right" } }));
+   relation_inner->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { { "k","location" }, { "v", "nonurban" } }));
+   relation_inner->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { { "k","rl:direction" }, { "v", "along" } }));
+   relation_inner->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { { "k","rl:id" }, { "v", std::to_string(way_ids.road_link_id_) } }));
+   relation_inner->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { { "k","speed_limit" }, { "v", "130.000000" } }));
+   relation_inner->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { { "k","subtype" }, { "v", "highway" } }));
+   relation_inner->appendAtTheEnd(xml::CodeXML::retrieveParsOnlyElement("tag", { { "k","type" }, { "v", "lanelet" } }));
+
+   auto xml = xml::CodeXML::retrieveElementWithXMLContent("way", { {"id", std::to_string(way_ids.left_border_id_)},{"visible", "true"}, {"version", "1"} }, way_inner_left);
+   xml->appendAtTheEnd(xml::CodeXML::retrieveElementWithXMLContent("way", { {"id", std::to_string(way_ids.right_border_id_)},{"visible", "true"}, {"version", "1"} }, way_inner_right));
+   xml->appendAtTheEnd(xml::CodeXML::retrieveElementWithXMLContent("way", { {"id", std::to_string(way_ids.road_link_id_)},{"visible", "true"}, {"version", "1"} }, way_inner_link));
+   xml->appendAtTheEnd(xml::CodeXML::retrieveElementWithXMLContent("relation", { { "id", std::to_string(way_ids.relation_id_) }, {"visible", "true"}, { "version", "1" } }, relation_inner));
+
+   return xml;
+}
+
+std::shared_ptr<xml::CodeXML> vfm::Way::getWayXML() const
+{
+   auto res = getWayXMLGeneric(way_ids_, { origin_node_left_id_, target_node_left_id_ }, { origin_node_right_id_, target_node_right_id_ });
+   
+   if (ids_to_connector_successor_nodes_left_.size() != ids_to_connector_successor_nodes_right_.size()) {
+      addError("Different number of connector ways to the left (" 
+         + std::to_string(ids_to_connector_successor_nodes_left_.size()) + ") and right (" 
+         + std::to_string(ids_to_connector_successor_nodes_right_.size()) + ").");
+   }
+   
+   if (ids_to_connector_successor_nodes_left_.size() != ids_for_connector_successor_ways_.size()) {
+      addError("Different number of connector way ids (" 
+         + std::to_string(ids_for_connector_successor_ways_.size()) + ") and left node ids ("
+         + std::to_string(ids_to_connector_successor_nodes_left_.size()) + ").");
+   }
+
+   for (int i = 0; i < ids_to_connector_successor_nodes_left_.size(); i++) {
+      auto ways = ids_for_connector_successor_ways_.at(i);
+      auto left_ids = ids_to_connector_successor_nodes_left_.at(i);
+      auto right_ids = ids_to_connector_successor_nodes_right_.at(i);
+      res->appendAtTheEnd(getWayXMLGeneric(ways, left_ids, right_ids));
+   }
+
+   return res;
+}
+
+std::pair<std::shared_ptr<xml::CodeXML>, std::shared_ptr<xml::CodeXML>> vfm::Way::getXML() const
+{
+   auto xml_nodes = CodeXML::emptyXML();
+   auto xml_ways = CodeXML::emptyXML();
+
+   xml_nodes->appendAtTheEnd(getNodesXML());
+   xml_ways->appendAtTheEnd(getWayXML());
+
+   return { xml_nodes, xml_ways };
+}
+
+std::shared_ptr<xml::CodeXML> vfm::RoadGraph::generateOSM() const
+{
+   auto xml = CodeXML::beginXML();
+   auto osm_nodes = CodeXML::emptyXML();
+   auto osm_ways = CodeXML::emptyXML();
+   
+   const_cast<RoadGraph*>(this)->findFirstSectionWithProperty([&osm_nodes, &osm_ways](const std::shared_ptr<RoadGraph> r) -> bool {
+      auto nodes_ways = Way(r).getXML();
+      osm_nodes->appendAtTheEnd(nodes_ways.first);
+      osm_ways->appendAtTheEnd(nodes_ways.second);
+      return false;
+   });
+
+   osm_nodes->appendAtTheEnd(osm_ways);
+
+   xml->appendAtTheEnd(CodeXML::retrieveElementWithXMLContent("osm", { { "version", "0.6" }, { "upload", "false" }, { "generator", "vfm" } }, osm_nodes));
+
+   return xml;
 }

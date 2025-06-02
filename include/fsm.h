@@ -30,7 +30,7 @@
 #include "model_checking/type_abstraction_layer.h"
 #include "model_checking/simplification.h"
 #include "simplification/simplification.h"
-#include "simplification/simplification_function.h"
+#include "simplification/code_block.h"
 
 #include <ctime>
 #include <cmath>

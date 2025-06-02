@@ -7,22 +7,43 @@
 
 #include "testing/test_functions.h"
 #include "testing/interactive_testing.h"
-#include "simplification/simplification_function.h"
+#include "simplification/code_block.h"
 #include "model_checking/cex_processing/mc_visualization_launchers.h"
 #include "cpp_parsing/cpp_parser.h"
 #include "cpp_parsing/options.h"
 #include "model_checking/counterexample_replay.h"
 #include "vfmacro/script.h"
 #include "gui/gui.h"
+#include "simulation/road_graph.h"
+#include "geometry/bezier_functions.h"
 // #include "examples/fct_enumdefinitions.h" // TODO: This does not work on Linux (needed for replayCounterExample).
 
 using namespace vfm;
 using namespace test;
+using namespace xml;
 using namespace mc::trajectory_generator;
 
 
 int main(int argc, char* argv[])
 {
+   //auto traces = StaticHelper::extractMCTracesFromNusmvFile("../examples/gp_config_sections=5/debug_trace_array.txt");
+   //std::shared_ptr<RoadGraph> r{ mc::trajectory_generator::VisualizationLaunchers::getRoadGraphTopologyFrom(traces.at(0)) };
+   //std::cout << r->generateOSM()->serializeBlock() << std::endl;
+   //
+   //StaticHelper::writeTextToFile(r->generateOSM()->serializeBlock(), "test.osm");
+
+   ////HighwayImage img{ 1600, 2600, std::make_shared<Plain2DTranslator>(), 4 };
+
+   ////const Rec2D bounding_box{ r->getBoundingBox() };
+   ////const float offset_x{ -bounding_box.upper_left_.x + 15 };
+   ////const float offset_y{ -bounding_box.upper_left_.y + 15 };
+
+   ////img.startOrKeepUpPDF();
+   ////img.fillImg(BROWN);
+   ////img.paintRoadGraph(r, { 500, 60 }, {}, true, offset_x, offset_y);
+   ////img.store("test", OutputType::pdf);
+   //termnate();
+
    //mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
    //   { 
    //      0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
@@ -92,9 +113,9 @@ int main(int argc, char* argv[])
    //processCEX("../examples/env_model_devel/generator/2024_01_09_Artificial2", CexType(CexTypeEnum::smv).getEnumAsString().c_str(), true, true);
    //termnate();
 
-   //simplification::CodeGenerator::deleteAndWriteSimplificationRulesToFile(simplification::CodeGenerationMode::positive, "../include/simplification/simplification_pos.h");     // Normal mode.
-   //simplification::CodeGenerator::deleteAndWriteSimplificationRulesToFile(simplification::CodeGenerationMode::negative, "../include/simplification/simplification.h"); // Normal mode (negative).
-   //simplification::CodeGenerator::deleteAndWriteSimplificationRulesToFile(simplification::CodeGenerationMode::negative, "../include/model_checking/simplification.h", nullptr, true); // MC mode (negative).
+   //code_block::CodeGenerator::deleteAndWriteSimplificationRulesToFile(code_block::CodeGenerationMode::positive, "../include/simplification/simplification_pos.h");     // Normal mode.
+   //code_block::CodeGenerator::deleteAndWriteSimplificationRulesToFile(code_block::CodeGenerationMode::negative, "../include/simplification/simplification.h"); // Normal mode (negative).
+   //code_block::CodeGenerator::deleteAndWriteSimplificationRulesToFile(code_block::CodeGenerationMode::negative, "../include/model_checking/simplification.h", nullptr, true); // MC mode (negative).
    //termnate();
 
    //std::string dir{"../examples/mc/G1-demo_FSM/"};

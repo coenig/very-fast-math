@@ -17,6 +17,7 @@
 #include "fsm.h"
 #include "failable.h"
 #include "simulation/env2d_simple.h"
+#include "model_checking/mc_types.h"
 
 #include <vector>
 #include <string>
@@ -83,14 +84,23 @@ public:
 		always_paint_arrows = 32
 	};
 
+
+   /// <summary>
+   /// Generates a road graph that contains only the topology of the road,
+   /// for conveniece, a dummy EGO is also placed at Sec. 0.
+   /// </summary>
+   std::shared_ptr<RoadGraph> getRoadGraphTopologyFrom(const MCTrace& trace);
+   
+   void equipRoadGraphWithCars(const std::shared_ptr<RoadGraph> r, const size_t trajectory_index, const double x_scaling);
+
 	/// \brief So far, "live" simulation means creating image files on the fly
 	/// while a smart image viewer such as Sumatra PDF (can also handle PNGs) can be used
 	/// to show the sim live. Possible image formates are currently: png, jpg, bmp, ppm.
 	void generate(
 		const std::string& base_output_name,
 		const std::set<int>& agents_to_draw_arrows_for,
-      const std::shared_ptr<RoadGraph> road_graph,
       const std::string& stage_name,
+      const MCTrace& trace,
 		const LiveSimType visu_type = static_cast<LiveSimType>(LiveSimType::constant_image_output | LiveSimType::birdseye),
       const std::vector<vfm::OutputType> single_images_output_types = { OutputType::png },
 		const double x_scaling = 1.0,

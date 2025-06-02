@@ -66,7 +66,9 @@ INIT !lane_change_aborted;
 
 --TRANS env.ego.abCond_full = ((env.ego_timer > 0) & !planner."agent.slCond_full" & !planner."agent.flCond_full");
 TRANS next(lane_changed) = (lane_changed | planner."flCond.cond26_all_conditions_fulfilled_raw");
+@{
 TRANS next(lane_change_aborted) = ((lane_change_aborted | planner."abCond.cond26_all_conditions_fulfilled_raw" & env.ego_lane_crossing));
+}@.if[@{!EGOLESS}@.eval]
 
 --DEFINE
 --env.ego.flCond_full := planner."flCond.cond26_all_conditions_fulfilled_raw";
