@@ -18,7 +18,7 @@ Thank you for using
 ### MC-generated traffic situation on highway
 <img src="examples/cex.png" alt="Image from a counterexample sequence generated through model checking" width="1000"/>
 
-### MC-generated road network
+### MC-generated road network and traffic situation
 <img src="examples/cex.gif" width="1000" />
 
 ## How to build
