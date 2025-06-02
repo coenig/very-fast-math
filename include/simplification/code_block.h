@@ -87,7 +87,7 @@ public:
    bool checkIntegrity();
    int nodeCount();
 
-   static std::string CodeBlock::indentation(const int length, const std::string symbol = " ");
+   static std::string indentation(const int length, const std::string symbol = " ");
 
 private:
    bool make_comment_{ false };
