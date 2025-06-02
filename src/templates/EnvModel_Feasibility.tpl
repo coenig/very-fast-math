@@ -1,3 +1,5 @@
+@{
+
 DEFINE
    -- Feasibility calculation according to R79
    -- Rear-left Criticality (RLC)
@@ -11,3 +13,5 @@ DEFINE
 
    INIT
    (rlc < ego.gaps___609___.s_dist_rear) & (ego.gaps___609___.i_agent_rear != -(1)) & (rlc_v_rear > rlc_v_acsf);
+
+}@********.if[@{FEASIBILITY}@.eval]

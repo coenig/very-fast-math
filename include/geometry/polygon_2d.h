@@ -112,8 +112,8 @@ public:
    /// NOTE: The convex polygon (which is also star-shaped) needs to have all points in counter-clockwise order.
    Polygon2D<NumType> clipPolygonsOneConvex(const Polygon2D<NumType>& p2) const;
 
-   /// \brief Adds a bezier curve through the points (p1, p2, p3, p4). Point distance is controlled via step in [0, 1].
-   Polygon2D<NumType> bezier(const Vector2D<NumType>& p0, const Vector2D<NumType>& p1, const Vector2D<NumType>& p2, const Vector2D<NumType>& p3, const float step = 0.01);
+   /// \brief Adds a cubic bezier curve through the points (p1, p2, p3, p4). Point distance is controlled via step in [0, 1].
+   Polygon2D<NumType> bezier(const Vector2D<NumType>& p0, const Vector2D<NumType>& p1, const Vector2D<NumType>& p2, const Vector2D<NumType>& p3, const float step = 0.01, const bool start_at_half_step = false);
 
    /// \brief Adds a bezier curve through arbitrary many points with associated direction vectors. 
    /// Point distance is controlled via step in [0, 1].
@@ -683,7 +683,8 @@ inline Polygon2D<NumType> Polygon2D<NumType>::clipPolygonsOneConvex(const Polygo
 }
 
 template<class NumType>
-inline Polygon2D<NumType> Polygon2D<NumType>::bezier(const Vector2D<NumType>& p0, const Vector2D<NumType>& p1, const Vector2D<NumType>& p2, const Vector2D<NumType>& p3, const float step)
+inline Polygon2D<NumType> Polygon2D<NumType>::bezier(
+   const Vector2D<NumType>& p0, const Vector2D<NumType>& p1, const Vector2D<NumType>& p2, const Vector2D<NumType>& p3, const float step, const bool start_at_half_step)
 {
    Vector2D<NumType> punkt;
    Vector2D<NumType> dreiP0(p0);
@@ -697,7 +698,7 @@ inline Polygon2D<NumType> Polygon2D<NumType>::bezier(const Vector2D<NumType>& p0
    Vector2D<NumType> punkt2, punkt3;
    NumType tQuad, tKub;
 
-   for (double t = 0; t <= 1; t += step) {
+   for (double t = start_at_half_step * step / 2; t <= 1; t += step) {
       tQuad = t * t;
       tKub = t * tQuad;
            
@@ -792,13 +793,15 @@ inline void Polygon2D<NumType>::createArrow(
    const bool cut_out_intersecting_points)
 {
    if (base_points.points_.size() < 2) return;
+   if ((!dock_at_begin.points_.empty() && dock_at_begin.points_.size() != 2)
+      || (!dock_at_end.points_.empty() && dock_at_end.points_.size() != 2)) Failable::getSingleton()->addFatalError("Docking only possible at exactly two points.");
 
    Polygon2D<NumType> pointList2;
    float thickness_first = thickness(base_points.points_[0], 0);
 
    // Arrow head.
-   addAll(dock_at_begin);
    createArrowEnd(base_points, arrow_head, head_factor, thickness_first, pointList2, true);
+   if (!dock_at_begin.points_.empty()) add(dock_at_begin.points_.at(0));
 
    Vector2D<NumType> c1(base_points.points_[1]);
    c1.sub(base_points.points_[0]);
@@ -860,6 +863,8 @@ inline void Polygon2D<NumType>::createArrow(
    for (int i = pointList2.points_.size() - 1; i >= 0; i--) {
       add(pointList2.points_[i]);
    }
+
+   if (!dock_at_begin.points_.empty()) add(dock_at_begin.points_.at(1));
 }
 
 template<class NumType>
@@ -975,7 +980,7 @@ template<class NumType>
 inline void Polygon2D<NumType>::extendBoundingBox(const Point& pt) const
 {
    if (pt.x != pt.x || pt.y != pt.y) {
-      Failable::getSingleton()->addDebug("NAN occurred in polygon generation.");
+      //Failable::getSingleton()->addDebug("NAN occurred in polygon generation.");
       return;
    }
 

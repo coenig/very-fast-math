@@ -156,17 +156,118 @@ const auto VARIABLES_TO_BE_PAINTED = std::make_shared<std::vector<PainterVariabl
    }
 );
 
+std::shared_ptr<RoadGraph> LiveSimGenerator::getRoadGraphTopologyFrom(const MCTrace& trace)
+{
+   if (trace.empty()) Failable::getSingleton()->addError("Received empty trace for 'getRoadGraphFrom'.");
+
+   const auto first_state{ trace.at(0).second };
+
+   const auto segment_begin_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_pos_begin"; };
+   const auto segment_min_lane_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_min_lane"; };
+   const auto segment_max_lane_name = [](const int sec, const int seg) -> std::string { return "section_" + std::to_string(sec) + "_segment_" + std::to_string(seg) + "_max_lane"; };
+   const auto connection = [](const int sec, const int con) -> std::string { return "env.outgoing_connection_" + std::to_string(con) + "_of_section_" + std::to_string(sec); };
+
+   std::vector<std::shared_ptr<RoadGraph>> road_graphs{};
+
+   for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
+      road_graphs.push_back(std::make_shared<RoadGraph>(sec));
+      StraightRoadSection lane_structure{ std::stoi(first_state.at("num_lanes")), std::stof(first_state.at("section_" + std::to_string(sec) + "_end")) };
+      lane_structure.setNumLanes(std::stoi(trace.at(0).second.at("num_lanes")));
+
+      for (int seg = 0; first_state.count(segment_min_lane_name(sec, seg)); seg++) {
+         lane_structure.addLaneSegment({
+            std::stof(first_state.at(segment_begin_name(sec, seg))),
+            (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_max_lane_name(sec, seg)))) * 2, // Remove "* 2"...
+            (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_min_lane_name(sec, seg)))) * 2, // ...to activate hard shoulders.
+            }
+            );
+      }
+
+      road_graphs[sec]->setOriginPoint({
+         std::stof(first_state.at("section_" + std::to_string(sec) + ".source.x")),
+         std::stof(first_state.at("section_" + std::to_string(sec) + ".source.y")) });
+
+      road_graphs[sec]->setAngle(2.0 * 3.1415 * std::stof(first_state.at("section_" + std::to_string(sec) + ".angle")) / 360.0);
+      road_graphs[sec]->setMyRoad(lane_structure);
+   }
+
+   CarPars c{ 0, 0, 0, vfm::HighwayImage::EGO_MOCK_ID };
+   road_graphs[0]->getMyRoad().setEgo(std::make_shared<CarPars>());
+
+   for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
+      for (int connect = 0; first_state.count(connection(sec, connect)); connect++) {
+         int successor = std::stof(first_state.at(connection(sec, connect)));
+
+         if (successor >= 0) { // -1 is code for "not present".
+            road_graphs[sec]->addSuccessor(road_graphs.at(successor));
+         }
+      }
+   }
+
+   return road_graphs[0];
+}
+
+void vfm::mc::trajectory_generator::LiveSimGenerator::equipRoadGraphWithCars(
+   const std::shared_ptr<RoadGraph> r, const size_t trajectory_index, const double x_scaling)
+{
+   const auto& ego_trajectory = m_trajectory_provider.getEgoTrajectory();
+   const auto& current_ego = ego_trajectory[trajectory_index];
+
+   r->cleanFromAllCars();
+
+   //const float car_lane, const float car_rel_pos, const int car_velocity, const int car_id
+   const auto ego = std::make_shared<CarPars>(
+      r->getMyRoad().getNumLanes() - 1 + current_ego.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH, // Lane
+      current_ego.second.at(PossibleParameter::pos_x),                                                                           // Position
+      current_ego.second.at(PossibleParameter::vel_x) / x_scaling,                                                               // Velocity
+      vfm::HighwayImage::EGO_MOCK_ID                                                                                             // ID
+   );
+
+   r->findSectionWithID(0)->getMyRoad().setEgo(ego); // TODO: Use correct section, once available.
+
+   auto& vehicle_names_without_ego = m_trajectory_provider.getVehicleNames(true);
+
+   for (const auto& vehicle_name : vehicle_names_without_ego) {
+      const auto& traj_pos = m_trajectory_provider.getVehicleTrajectory(vehicle_name)[trajectory_index];
+      const int on_straight_section{ (int) traj_pos.second.at(PossibleParameter::on_straight_section) };
+      const int traversion_from{ (int) traj_pos.second.at(PossibleParameter::traversion_from) };
+      const int traversion_to{ (int) traj_pos.second.at(PossibleParameter::traversion_to) };
+      const int vehicle_index{ StaticHelper::extractIntegerAfterSubstring(
+         StaticHelper::replaceAll(vehicle_name, "9___", "____"), // Avoid getting 49 instead of 4 as index.
+         "veh___6") };
+
+      const CarPars veh{
+         (float) (r->getMyRoad().getNumLanes() - 1 + traj_pos.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH), // Lane
+         (float) (traj_pos.second.at(PossibleParameter::pos_x)),                                                                           // Position
+         (int) (traj_pos.second.at(PossibleParameter::vel_x) / x_scaling),                                                                 // Velocity
+         vehicle_index                                                                                                                     // ID
+      };
+
+      if (on_straight_section >= 0) {
+         r->findSectionWithID(on_straight_section)->getMyRoad().addOther(veh);
+      }
+      else if (traversion_from >= 0 && traversion_to >= 0) {
+         r->findSectionWithID(traversion_from)->addNonegoOnCrossingTowards(traversion_to, veh);
+      }
+      else {
+         addError("Car '" + vehicle_name + "' is placed neither on a straight section nor on a junction.");
+      }
+   }
+}
+
 void LiveSimGenerator::generate(
    const std::string& base_output_name,
    const std::set<int>& agents_to_draw_arrows_for,
-   const std::shared_ptr<RoadGraph> road_graph,
    const std::string& stage_name,
+   const MCTrace& trace,
    const LiveSimType visu_type,
    const std::vector<vfm::OutputType> single_images_output_types,
    const double x_scaling,
    const double time_factor,
    const long sleep_for_ms)
 {
+   std::shared_ptr<RoadGraph> road_graph{ getRoadGraphTopologyFrom(trace) };
+
    std::string image_file_output = base_output_name + ".png";
    std::filesystem::path morty_progress_path{ base_output_name };
    morty_progress_path = morty_progress_path.parent_path().parent_path().parent_path();
@@ -182,20 +283,16 @@ void LiveSimGenerator::generate(
    int trajectory_length = ego_trajectory.size();
 
    for (size_t trajectory_index = 0; trajectory_index < trajectory_length; trajectory_index++) {
-
-		// Print output (override itself)
-      std::cout << StaticHelper::printProgress("Rendering Progress", trajectory_index, trajectory_length, 30);
+      std::cout << StaticHelper::printProgress("Rendering Progress", trajectory_index, trajectory_length, 30); // Print output (override itself)
       StaticHelper::writeTextToFile(std::to_string(trajectory_index) + "#" + std::to_string(trajectory_length - 1) + "#" + stage_name, morty_progress_path.string());
+
+      equipRoadGraphWithCars(road_graph, trajectory_index, x_scaling);
 
       ExtraVehicleArgs extra_var_vals = {}; // Extra data currently only used to inform about turn signals
       
       const auto& current_ego = ego_trajectory[trajectory_index];
 
       // Provide ego data
-      env.ego_vx_ = current_ego.second.at(PossibleParameter::vel_x) / x_scaling;
-      env.ego_pos_y_ = road_graph->getMyRoad().getNumLanes() - 1 + current_ego.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
-      env.ego_pos_x_ = current_ego.second.at(PossibleParameter::pos_x);
-      
       if (current_ego.second.at(PossibleParameter::turn_signal_left) > 0.5)
          extra_var_vals.insert({ "ego.turn_signals", "LEFT" });
       if (current_ego.second.at(PossibleParameter::turn_signal_right) > 0.5)
@@ -210,21 +307,14 @@ void LiveSimGenerator::generate(
       // TODO: Above 2 currently not used.
 
       // Provide data for other vehicles
-      int vehicle_index = 0;
       for (const auto& vehicle_name : vehicle_names_without_ego)
       {
          auto& traj_pos = m_trajectory_provider.getVehicleTrajectory(vehicle_name)[trajectory_index];
-
-         env.agents_pos_x_[vehicle_index] = traj_pos.second.at(PossibleParameter::pos_x) - env.ego_pos_x_;
-         env.agents_pos_y_[vehicle_index] = road_graph->getMyRoad().getNumLanes() - 1 + traj_pos.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH;
-         env.agents_vx_rel_[vehicle_index] = traj_pos.second.at(PossibleParameter::vel_x) / x_scaling - env.ego_vx_;
 
          if (traj_pos.second.at(PossibleParameter::turn_signal_left) > 0.5)
             extra_var_vals.insert({ vehicle_name + ".turn_signals", "LEFT" });
          if (traj_pos.second.at(PossibleParameter::turn_signal_right) > 0.5)
             extra_var_vals.insert({ vehicle_name + ".turn_signals", "RIGHT" });
-
-         vehicle_index++;
       }
 
       if (visu_type & LiveSimType::incremental_image_output)

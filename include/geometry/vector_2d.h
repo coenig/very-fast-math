@@ -34,6 +34,7 @@ public:
    std::string serialize() const override;
    std::string serializeRoundedDown() const;
    float length() const;
+   float lengthSquare() const; /// Omits the square root required to get the actual norm length.
    float dotProduct(const Vector2D<NumType>& other) const;
    float angle(const Vector2D<NumType>& other) const;
    void translate(const Vector2D<NumType>& other);
@@ -46,12 +47,17 @@ public:
    ///  with regard to the smaller angle.
    bool orientation(const Vector2D<NumType>& other) const;
 
+   Vector2D<NumType> operator*(const NumType scalar) const;
+   Vector2D<NumType> operator/(const NumType scalar) const;
+   Vector2D<NumType> operator+(const Vector2D<NumType> other) const;
+   Vector2D<NumType> operator-(const Vector2D<NumType> other) const;
    void mult(const NumType constant);
    void div(const NumType constant);
    void normalize();
    void setLength(const NumType l);
    void ortho();
    float distance(const Vector2D<NumType>& other) const;
+   float distanceSquare(const Vector2D<NumType>& other) const; /// Omits the square root required to get the actual Euclidean distance.
 
    /// \brief Returns iff this (interpreted as a point) is within the given rectangle
    /// (excluding border line).
@@ -83,6 +89,38 @@ typedef Vector2D<double> Vec2Dd;
 typedef Vector2D<int> Vec2Di;
 typedef Vector2D<long> Vec2Dl;
 typedef Vec2Df Vec2D; // For convenience use "Vec2D" as default with float.
+
+template<class NumType>
+inline Vector2D<NumType> Vector2D<NumType>::operator*(const NumType scalar) const
+{
+   Vector2D<NumType> res{ *this };
+   res.mult(scalar);
+   return res;
+}
+
+template<class NumType>
+inline Vector2D<NumType> Vector2D<NumType>::operator/(const NumType scalar) const
+{
+   Vector2D<NumType> res{ *this };
+   res.div(scalar);
+   return res;
+}
+
+template<class NumType>
+inline Vector2D<NumType> Vector2D<NumType>::operator+(const Vector2D<NumType> other) const
+{
+   Vector2D<NumType> res{ *this };
+   res.add(other);
+   return res;
+}
+
+template<class NumType>
+inline Vector2D<NumType> Vector2D<NumType>::operator-(const Vector2D<NumType> other) const
+{
+   Vector2D<NumType> res{ *this };
+   res.sub(other);
+   return res;
+}
 
 template<class NumType>
 inline Vector2D<NumType>::Vector2D()
@@ -129,6 +167,12 @@ template<class NumType>
 inline float Vector2D<NumType>::length() const
 {
    return std::sqrt(tof(x * x + y * y));
+}
+
+template<class NumType>
+inline float Vector2D<NumType>::lengthSquare() const
+{
+   return tof(x * x + y * y);
 }
 
 template<class NumType>
@@ -220,6 +264,12 @@ template<class NumType>
 inline float Vector2D<NumType>::distance(const Vector2D<NumType>& other) const
 {
    return std::sqrt(tof(std::pow(x - other.x, 2) + std::pow(y - other.y, 2)));
+}
+
+template<class NumType>
+inline float Vector2D<NumType>::distanceSquare(const Vector2D<NumType>& other) const
+{
+   return tof(std::pow(x - other.x, 2) + std::pow(y - other.y, 2));
 }
 
 template<class NumType>

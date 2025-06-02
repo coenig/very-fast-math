@@ -2,7 +2,7 @@ go_msat
 @{
 @(
   @{
-     @(msat_check_ltlspec_bmc -k @{BMC_CNT}@.eval[0])@
+     @(msat_check_ltlspec_bmc -N @{BMC_NUMBER_OF_CEXS}@.eval[0] -k @{BMC_CNT}@.eval[0])@
      @(check_ltlspec_ic3 -i -a 1 -O 2)@
   }@*.if[@{BMC_CNT > 0}@.eval]
 )@

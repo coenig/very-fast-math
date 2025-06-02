@@ -47,8 +47,8 @@ public:
 	void applyScaling(const double x_scale_factor, const double y_scale_factor, const double time_scale_factor);
 	void applyOffset(const double x_offset, const double y_offset, const bool to_ego = true, const bool to_other_vehicles = true);
 	void printDebug(const std::string header) const;
-	void applyInterpolation(const int steps_to_insert);
-	void interpolate(FullTrajectory& editable_trajectory, const size_t steps_between);
+	void applyInterpolation(const int steps_to_insert, const MCTrace& trace);
+	void interpolate(const std::string& vehicle_name, FullTrajectory& editable_trajectory, const MCTrace& trace, const size_t steps_between);
 	void interpolateDataPacks(DataPackTrace& data, const size_t steps_between);
 
 	void pushTimestamp(const double t);

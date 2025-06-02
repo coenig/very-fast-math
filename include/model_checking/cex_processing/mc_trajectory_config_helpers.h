@@ -26,7 +26,6 @@ namespace helpers {
 	void scale_duration(FullTrajectory& editable_trajectory, double duration_scale_factor);
 	void add_to_param(FullTrajectory& editable_trajectory, PossibleParameter param, double value_to_add);
 	void extrapolate_param_by_derivation(FullTrajectory& editable_trajectory, double start_value, PossibleParameter param, PossibleParameter derivation_param);
-	void transform_relative_to_absolute_trajectory(MCinterpretedTrace& osc, std::string vehicle_to_transform, std::string absolute_vehicle, PossibleParameter param);
 	void extrapolate_trajectory_to_t0(FullTrajectory& editable_trajectory, PossibleParameter pos_param, PossibleParameter velocity_param);
 	std::vector<LaneChange> detect_lane_changes_from_states(FullTrajectory trajectory_positions);
 	std::vector<LaneChange> detect_lane_changes_from_on_lane(FullTrajectory trajectory_positions);

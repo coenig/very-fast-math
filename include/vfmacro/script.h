@@ -40,9 +40,6 @@ static const std::string CONVERSION_POSTFIX = "<**";
 static const std::string BEGIN_COMMENT = "/*";
 static const std::string END_COMMENT = "*/";
 
-static const std::string DECL_BEG_TAG = "--declarations--";
-static const std::string DECL_END_TAG = "--declarations-end--";
-
 static const std::string START_TAG_FOR_NESTED_VARIABLES = "[~(~{";
 static const std::string END_TAG_FOR_NESTED_VARIABLES = "}~)~]";
 
@@ -73,10 +70,6 @@ static const std::string THIS_NAME = "this";
 static const std::string PREPROCESSOR_FIELD_NAME = "prep";
 static const std::string VARIABLE_DELIMITER = "=";
 static const char END_VALUE = ';';
-static const std::string ANIMATE_FIELD_NAME = "animate";
-static const std::string EXERCISE_FIELD_LONG_NAME = "exercise";
-static const std::string EXERCISE_FIELD_SHORT_NAME = "e";
-static const std::string NULL_VALUE = "n";
 static const std::string PREAMBLE_FOR_NON_SCRIPT_METHODS = "$$INFO-METHOD-RETURN-VALUE$$\n";
 static const std::string INSCRIPT_STANDARD_PARAMETER_PATTERN = "#n#";
 
@@ -382,13 +375,12 @@ public:
    /// </UL>
    ///
    /// @param codeRaw2  The code to parse (without a real parser though). Comments must have been removed already.
-   /// @param debugLevel     If 1, a debug script is created, if 2, preprocessors are included.
    /// @return  Debug code if requested, <code>null</code> otherwise.
-   std::string applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const int debugLevel);
+   void applyDeclarationsAndPreprocessors(const std::string& codeRaw2);
 
    virtual std::shared_ptr<Script> createThisObject(const std::shared_ptr<Script> repThis, const std::string repScrThis, const std::shared_ptr<Script> father) = 0;
    virtual void createInstanceFromScript(const std::string& code, std::shared_ptr<Script> father) = 0;
-   virtual std::shared_ptr<Script> copy() const;
+   std::shared_ptr<Script> copy() const;
    virtual std::shared_ptr<DummyRepresentable> toDummyIfApplicable();
 
    std::string getProcessedScript() const;
@@ -534,12 +526,9 @@ private:
    /// </BR>
    /// Non-inscript preprocessors are evaluated during declarations evaluation.
    ///
-   /// @param allowRegularScripts  If set to false, only plain-text scripts are
-   ///                             considered, the others ignored.
-   /// @param debug                If 1, a debug script is created, if 2, preprocessors are included.
    /// @return  Iff there has been a change on
    ///          {@link RepresentableDefault#processedScript}.
-   bool extractInscriptProcessors(std::map<std::string, std::shared_ptr<int>>& processed, const int debugLevel);
+   bool extractInscriptProcessors();
 
    /// Searches for plain-text parts <code>"@{ *PLAINTEXT/// }@"</code> in the
    /// script and replaces all symbols within them with placeholders, thereby
@@ -560,8 +549,6 @@ private:
    /// @return  The script without plain-text tags, and all symbols replaced
    ///          by placeholders.
    std::string inferPlaceholdersForPlainText(const std::string& script);
-
-   void resetDebugVars();
 
    /// <p>Plain-text tags mark regions that are not supposed to be subject to
    /// pre-processors or sub-scripts or declaration handling. Usually, they
@@ -609,49 +596,11 @@ private:
    ///                script.
    /// @return  The object-specific placeholder to replace the symbol with.
    std::string symbolToPlaceholder(const std::string& symbol);
-   
-   std::string finalizeDebugScript(const bool debug) const;
 
     /// Finds all potential variables, i.e., all substrings that stand left
     /// of a "=", start with an alphabetic character and contain only
     /// alphanumeric characters.
    void findAllVariables();
-
-    /// Set beginTag or endTag to null if the whole code consists of
-    /// name-value pairs.
-    ///
-    /// @return  Declaration field-value pairs in individual strings such as
-    ///          "foo", "bar".
-   std::vector<std::pair<std::string, std::string>> extractNVPairs(
-      const std::string& codeRaw,
-      char beginLiteral,
-      char endLiteral,
-      char endValue,
-      const std::string& beginTag,
-      const std::string& endTag);
-
-   void setDeclaredFields();
-
-   /// Retrieves the declarations from a script, meaning the actual
-   /// text block (excluding the tags), by keeping everything as is including
-   /// white spaces. Allows for recursive occurrences of begin and end tag
-   /// within the part to extract. I.e., returns</BR>
-   /// ((a + b) + c)</BR>
-   /// And not just</BR>
-   /// ((a + b)</BR>
-   /// if ( and ) are the tags. The top-level declarations part does not have
-   /// to be unique in the string, i.e., several declarations blocks can be
-   /// present, and their combined content will be returned.
-   ///
-   /// @param script      The script to cut declarations out from.
-   /// @param beginTag    The tag indicating the beginning of the declarations part.
-   /// @param endTag      The tag indicating the ending of the declarations part.
-   ///
-   /// @return The declarations, if any, empty string otherwise.
-   std::string getDeclarations(
-      std::string script,
-      std::string beginTag,
-      std::string endTag);
 
    std::string removePreprocessors(const std::string& script);
 
@@ -662,8 +611,6 @@ private:
    /// @return  The next position outside the preprocessor's method chain.
    int getNextNonInscriptPosition(const std::string& partAfter);
 
-   void setViaFakeReflections(const std::string& fieldName, const std::string& value);
-
    /// Adds a preprocessor to this representable.
    ///
    /// @param preprocessorScript  The preprocessor code containing a filename
@@ -672,7 +619,7 @@ private:
    /// @param hidden        Iff the preprocessor is hidden. For Latex, e.g.,
    ///                      preprocessors are used "inscript", hidden from
    ///                      the user.
-   void addPreprocessor(const std::string& preprocessorScript, const bool hidden);
+   void addPreprocessor(const std::string& preprocessorScript);
 
    /// Adds a preprocessor to this representable. Note that the preprocessor
    /// code has to be well-formatted - as opposed to the other method with
@@ -683,7 +630,7 @@ private:
    /// @param hidden        Iff the preprocessor is hidden. For Latex, e.g.,
    ///                      preprocessors are used "inscript", hidden from
    ///                      the user.
-   void addPreprocessor(const std::string& preprocessor, const std::string& filename, const bool hidden, const int indexOfMethodsPartBegin);
+   void addPreprocessor(const std::string& preprocessor, const std::string& filename, const int indexOfMethodsPartBegin);
 
    bool isVariable(const std::string& preprocessorScript);
 
@@ -695,21 +642,6 @@ private:
    /// @param script  The whole script.
    /// @return        All object-specific placeholders undone.
    std::string undoPlaceholdersForPlainText(const std::string& script);
-
-   /// DON'T USE THIS METHOD! In almost every case it's better to use
-   /// {@link #getScriptWithoutPrepAndDecl()} which outputs the same (if you
-   /// have a regular RepresentableDefault object and you initialized it
-   /// correctly), only by assuring that everything is correct with your
-   /// preprocessors.</BR>
-   /// </BR>
-   /// Cuts out the declaration part of the code. Note that declarations
-   /// may NOT occur more than once in a script.
-   /// </BR>
-   /// This method is for internal use and very special circumstances only.
-   ///
-   /// @param code  The script to cut declarations out from.
-   /// @return  The script without declarations.
-   std::string remDecl(const std::string& codeRaw);
 
    /// Removes all the tagged parts on the top level of the given string. More
    /// precisely, for tags "(", ")", the string:
@@ -731,8 +663,6 @@ private:
       const std::string& endTag,
       std::vector<std::string> ignoreBegTags,
       std::vector<std::string> ignoreEndTags);
-
-   void initializeScriptTree();
 
    /// @param string  A string, possibly containing arithmetic expressions.
    ///
@@ -759,8 +689,6 @@ private:
    ///          exists, -1 is returned and no side effects occur.
    int findNextInscriptPos();
 
-   void handleSingleDebugScript(const bool debug, const std::string& currScr, const int begSel, const int endSel, const bool includePreprocessors);
-
    /// Replaces a variable name, if any, with the correct script at the
    /// beginning of <code>chain</code>.
    ///
@@ -769,9 +697,6 @@ private:
    /// @return  The processed chain - can be equal to received chain.
    std::string processChain(const std::string& chain);
 
-   std::string getPreprocessorStringForDeclarations(const bool includeHidden, const bool includeAll);
-   bool isPreprocessorHidden(const std::string& name);
-   void adjustMaxLinesAndLineLengths(const std::string& str);
    std::string raiseAndGetQualifiedIdentifierName(const std::string& identifierName);
    std::string getQualifiedIdentifierName(const std::string& identifierName);
    std::string getUnqualifiedName(const std::string& qualifiedName);
@@ -808,42 +733,23 @@ private:
    std::set<std::string> SPECIAL_SYMBOLS{};
    std::map<std::string, std::string> PLACEHOLDER_MAPPING{};
    std::map<std::string, std::string> PLACEHOLDER_INVERSE_MAPPING{};
-   std::vector<std::string> IGNORE_BEG_TAGS_IN_DECL;
-   std::vector<std::string> IGNORE_END_TAGS_IN_DECL;
-   std::set<std::string> HIDDEN_PREPROCESSORS{};
    std::map<std::string, std::string> alltimePreprocessors{};
    std::map<std::string, int> identCounts{};
 
    std::string rawScript{};
    std::string processedScript{};
-   std::string preamble{};
-   std::string debugScript{};
-   std::string debugAnimateInstruction{};
-   int debugScriptCounter{ 1 };
    int starsIgnored{};
-   int maxHeight{};
-   int maxWidth{};
 
-   std::string field1{};
-   std::string field2{};
-   std::string field3{};
-
-   std::string animate{ THIS_NAME };
    std::map<std::string, int> methodPartBegins{};
   
-   std::shared_ptr<ScriptTree> scriptTree{};
-
    bool recalculatePreprocessors{ true };
-   long allOfIt{};
+   //long allOfIt{};
    int count{ 0 };
    static std::map<std::string, std::shared_ptr<Script>> knownChains; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
    static std::map<std::string, std::shared_ptr<Script>> knownReps; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
-   bool createScriptTree{ true };
 
    std::shared_ptr<DataPack> vfm_data_{};
    std::shared_ptr<FormulaParser> vfm_parser_{};
-
-   static bool ignorePreprocessorsAndAnimateOnce; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
 };
 
 class DummyRepresentable : public Script
@@ -854,12 +760,10 @@ public:
 
    //DummyRepresentable(const std::shared_ptr<Script> repToEmbed);
    inline DummyRepresentable(
-      const std::shared_ptr<Script> repToEmbed, 
       const std::shared_ptr<DataPack> data, 
       const std::shared_ptr<FormulaParser> parser)
-      : Script(data, parser), embeddedRep_{ repToEmbed } {}
+      : Script(data, parser) {}
 
-   std::shared_ptr<Script> copy() const override;
    std::shared_ptr<DummyRepresentable> toDummyIfApplicable() override;
 
    std::shared_ptr<Script> createThisObject(const std::shared_ptr<Script> repThis, const std::string repScrThis, const std::shared_ptr<Script> father) override;
@@ -916,15 +820,7 @@ public:
       return result;
    }
 
-   void setEmbeddedRep(const std::shared_ptr<Script> embeddedRep) {
-      embeddedRep_ = embeddedRep;
-   }
-
    std::shared_ptr<Script> getRepresentableAsPDF() {
-      if (embeddedRep_) {
-         return embeddedRep_;
-      }
-
       return shared_from_this();
    }
 
@@ -965,6 +861,8 @@ public:
    std::string exnot() { return std::to_string(!isBooleanTrue(getTagFreeRawScript()));}
 
    std::string space() { return " "; }
+   
+   std::string arclengthCubicBezierFromStreetTopology(const std::string& lane, const std::string& angle, const std::string& distance, const std::string& num_lanes);
 
    std::string forloop(const std::string& varname, const std::string& loop_vec)
    {
@@ -1154,11 +1052,6 @@ public:
       return makroPar;
    }
 
-   RepresentableAsPDF getEmbeddedRep() const
-   {
-      return embeddedRep_;
-   }
-
    std::string applyMethodString(const std::string& method_name, const std::vector<std::string>& parameters) override;
 
    static std::map<std::string, std::string> inscriptMethodDefinitions; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
@@ -1168,7 +1061,6 @@ public:
 private:
    void invokeMethod();
 
-   std::shared_ptr<Script> embeddedRep_{};
    std::vector<std::string> scriptSequence_{};
 };
 

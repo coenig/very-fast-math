@@ -1,0 +1,145 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<osm version='0.6' upload='false' generator='JOSM'>
+  <node id='-25478' action='modify' lat='48.99890849458' lon='9.29366741929' />
+  <node id='-25479' action='modify' lat='48.99897230013' lon='9.29365661332' />
+  <node id='-25480' action='modify' lat='48.99901956344' lon='9.29365301133' />
+  <node id='-25481' action='modify' lat='48.99906446355' lon='9.29367102128' />
+  <node id='-25482' action='modify' lat='48.99911172678' lon='9.2936998372' />
+  <node id='-25483' action='modify' lat='48.99916371627' lon='9.29374306108' />
+  <node id='-25484' action='modify' lat='48.99920152678' lon='9.29378988695' />
+  <node id='-25485' action='modify' lat='48.99924878988' lon='9.29381510088' />
+  <node id='-25486' action='modify' lat='48.99931968444' lon='9.29381870287' />
+  <node id='-25487' action='modify' lat='48.99937403687' lon='9.29378268297' />
+  <node id='-25488' action='modify' lat='48.99942838924' lon='9.29372865312' />
+  <node id='-25489' action='modify' lat='48.99948274155' lon='9.29369263322' />
+  <node id='-25490' action='modify' lat='48.99953236752' lon='9.29369623521' />
+  <node id='-25491' action='modify' lat='48.99960562482' lon='9.29372505113' />
+  <node id='-25492' action='modify' lat='48.99966234007' lon='9.29376107103' />
+  <node id='-25493' action='modify' lat='48.99970487646' lon='9.29379348894' />
+  <node id='-25494' action='modify' lat='48.99973323404' lon='9.29384751879' />
+  <node id='-25495' action='modify' lat='48.99976631786' lon='9.29390875262' />
+  <node id='-25521' action='modify' lat='48.99889313397' lon='9.29380969789' />
+  <node id='-25522' action='modify' lat='48.99895693954' lon='9.29379889192' />
+  <node id='-25523' action='modify' lat='48.99900420287' lon='9.29379528993' />
+  <node id='-25524' action='modify' lat='48.99904910299' lon='9.29381329988' />
+  <node id='-25525' action='modify' lat='48.99909636623' lon='9.2938421158' />
+  <node id='-25526' action='modify' lat='48.99914835575' lon='9.29388533968' />
+  <node id='-25527' action='modify' lat='48.99918616627' lon='9.29393216556' />
+  <node id='-25528' action='modify' lat='48.99923342938' lon='9.29395737949' />
+  <node id='-25529' action='modify' lat='48.99930432396' lon='9.29396098148' />
+  <node id='-25530' action='modify' lat='48.99935867641' lon='9.29392496158' />
+  <node id='-25531' action='modify' lat='48.9994130288' lon='9.29387093172' />
+  <node id='-25532' action='modify' lat='48.99946738112' lon='9.29383491182' />
+  <node id='-25533' action='modify' lat='48.99951700711' lon='9.29383851381' />
+  <node id='-25534' action='modify' lat='48.99959026443' lon='9.29386732973' />
+  <node id='-25535' action='modify' lat='48.99964697969' lon='9.29390334963' />
+  <node id='-25536' action='modify' lat='48.9996895161' lon='9.29393576755' />
+  <node id='-25537' action='modify' lat='48.99971787369' lon='9.2939897974' />
+  <node id='-25538' action='modify' lat='48.99975095752' lon='9.29405103123' />
+  <node id='1675' action='delete' version='1' lat='48.99903436316' lon='9.29407737811' />
+  <node id='1676' action='delete' version='1' lat='48.99961036314' lon='9.29407737811' />
+  <node id='1696' action='delete' version='1' lat='48.999743' lon='9.29377' />
+  <node id='1697' action='delete' version='1' lat='48.999455' lon='9.293031' />
+  <node id='1717' action='delete' version='1' lat='48.999185' lon='9.293037' />
+  <node id='1718' action='delete' version='1' lat='48.998896' lon='9.293776' />
+  <node id='1738' action='delete' version='1' lat='48.999185' lon='9.295197' />
+  <node id='1739' action='delete' version='1' lat='48.998897' lon='9.294458' />
+  <node id='1759' action='delete' version='1' lat='48.999743' lon='9.294464' />
+  <node id='1760' action='delete' version='1' lat='48.999455' lon='9.295203' />
+  <way id='-694' action='modify'>
+    <nd ref='-25478' />
+    <nd ref='-25479' />
+    <nd ref='-25480' />
+    <nd ref='-25481' />
+    <nd ref='-25482' />
+    <nd ref='-25483' />
+    <nd ref='-25484' />
+    <nd ref='-25485' />
+    <nd ref='-25486' />
+    <nd ref='-25487' />
+    <nd ref='-25488' />
+    <nd ref='-25489' />
+    <nd ref='-25490' />
+    <nd ref='-25491' />
+    <nd ref='-25492' />
+    <nd ref='-25493' />
+    <nd ref='-25494' />
+    <nd ref='-25495' />
+    <tag k="Painting::LineWidth" v="0.300000" />
+    <tag k="Painting::MarkingType" v="Solid" />
+    <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+    <tag k="Painting::SingleLineWidths" v="0.300000" />
+    <tag k="color" v="white" />
+    <tag k="subtype" v="solid" />
+    <tag k="type" v="line_thick" />
+    <tag k="width" v="0.300000" />
+  </way>
+  <way id='-715' action='modify'>
+    <nd ref='-25521' />
+    <nd ref='-25522' />
+    <nd ref='-25523' />
+    <nd ref='-25524' />
+    <nd ref='-25525' />
+    <nd ref='-25526' />
+    <nd ref='-25527' />
+    <nd ref='-25528' />
+    <nd ref='-25529' />
+    <nd ref='-25530' />
+    <nd ref='-25531' />
+    <nd ref='-25532' />
+    <nd ref='-25533' />
+    <nd ref='-25534' />
+    <nd ref='-25535' />
+    <nd ref='-25536' />
+    <nd ref='-25537' />
+    <nd ref='-25538' />
+    <tag k="Painting::LineWidth" v="0.300000" />
+    <tag k="Painting::MarkingType" v="Solid" />
+    <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+    <tag k="Painting::SingleLineWidths" v="0.300000" />
+    <tag k="color" v="white" />
+    <tag k="subtype" v="solid" />
+    <tag k="type" v="line_thick" />
+    <tag k="width" v="0.300000" />
+  </way>
+  <way id='-71511' action='modify'>
+    <nd ref='-25521' />
+    <nd ref='-25522' />
+    <nd ref='-25523' />
+    <nd ref='-25524' />
+    <nd ref='-25525' />
+    <nd ref='-25526' />
+    <nd ref='-25527' />
+    <nd ref='-25528' />
+    <nd ref='-25529' />
+    <nd ref='-25530' />
+    <nd ref='-25531' />
+    <nd ref='-25532' />
+    <nd ref='-25533' />
+    <nd ref='-25534' />
+    <nd ref='-25535' />
+    <nd ref='-25536' />
+    <nd ref='-25537' />
+    <nd ref='-25538' />
+    <tag k='type' v='road_link' />
+    <tag k="rl:meta:country_code" v="276" />
+    <tag k="rl:meta:is_controlled" v="false" />
+    <tag k="rl:meta:is_motorway" v="false" />
+    <tag k="rl:meta:is_separated_structurally" v="false" />
+    <tag k="rl:meta:is_urban" v="false" />
+    <tag k="rl:predecessors" v="" />
+    <tag k="rl:successors" v="" />
+    <tag k="rl:travel_direction" v="along" />
+    <tag k="rl:type" v="no_special" />
+  </way>
+  <relation id="1019" visible="true" version="1">
+    <member type="way" ref="-694" role="left" />
+    <member type="way" ref="-715" role="right" />
+    <tag k="location" v="nonurban" />
+    <tag k="rl:direction" v="along" />
+    <tag k="rl:id" v="-71511" />
+    <tag k="speed_limit" v="130.000000" />
+    <tag k="subtype" v="highway" />
+    <tag k="type" v="lanelet" />
+  </relation>
+</osm>
