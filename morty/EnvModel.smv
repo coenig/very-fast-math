@@ -1099,9 +1099,6 @@ DEFINE
 -- >>> Car 0 <<<
 
 
-INIT 
-   veh___609___.abs_pos >= 0 & veh___609___.abs_pos <= 50;
-
 DEFINE
    veh___609___.rel_pos := veh___609___.abs_pos - ego.abs_pos; -- relative position to ego in m (valid only if ego is on same section), rel_pos < 0 means the rear bumber of the other vehicle is behind the rear bumper of the ego
    veh___609___.next_abs_pos := veh___609___.abs_pos + next(veh___609___.v);
@@ -1192,9 +1189,6 @@ esac;
 
 -- >>> Car 1 <<<
 
-
-INIT 
-   veh___619___.abs_pos >= 0 & veh___619___.abs_pos <= 50;
 
 DEFINE
    veh___619___.rel_pos := veh___619___.abs_pos - ego.abs_pos; -- relative position to ego in m (valid only if ego is on same section), rel_pos < 0 means the rear bumber of the other vehicle is behind the rear bumper of the ego
@@ -1297,9 +1291,6 @@ INVAR -- Non-Ego cars may not "jump" over each other.
 	
 -- >>> Car 2 <<<
 
-
-INIT 
-   veh___629___.abs_pos >= 0 & veh___629___.abs_pos <= 50;
 
 DEFINE
    veh___629___.rel_pos := veh___629___.abs_pos - ego.abs_pos; -- relative position to ego in m (valid only if ego is on same section), rel_pos < 0 means the rear bumber of the other vehicle is behind the rear bumper of the ego
@@ -1413,9 +1404,6 @@ INVAR -- Non-Ego cars may not "jump" over each other.
 	
 -- >>> Car 3 <<<
 
-
-INIT 
-   veh___639___.abs_pos >= 0 & veh___639___.abs_pos <= 50;
 
 DEFINE
    veh___639___.rel_pos := veh___639___.abs_pos - ego.abs_pos; -- relative position to ego in m (valid only if ego is on same section), rel_pos < 0 means the rear bumber of the other vehicle is behind the rear bumper of the ego
@@ -1540,9 +1528,6 @@ INVAR -- Non-Ego cars may not "jump" over each other.
 	
 -- >>> Car 4 <<<
 
-
-INIT 
-   veh___649___.abs_pos >= 0 & veh___649___.abs_pos <= 50;
 
 DEFINE
    veh___649___.rel_pos := veh___649___.abs_pos - ego.abs_pos; -- relative position to ego in m (valid only if ego is on same section), rel_pos < 0 means the rear bumber of the other vehicle is behind the rear bumper of the ego
