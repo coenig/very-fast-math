@@ -59,18 +59,40 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
 --------------------------------------------------------
 
    -- TODO: Needs to be removed again
-   INIT outgoing_connection_0_of_section_0 = 1;
-   INIT outgoing_connection_1_of_section_0 = 3;
-   INIT outgoing_connection_2_of_section_0 = 5;
-   INIT outgoing_connection_0_of_section_2 = 3;
-   INIT outgoing_connection_1_of_section_2 = 5;
-   INIT outgoing_connection_2_of_section_2 = 7;
-   INIT outgoing_connection_0_of_section_4 = 1;
-   INIT outgoing_connection_1_of_section_4 = 7;
-   INIT outgoing_connection_2_of_section_4 = 5;
-   INIT outgoing_connection_0_of_section_6 = 7;
-   INIT outgoing_connection_1_of_section_6 = 1;
-   INIT outgoing_connection_2_of_section_6 = 3;
+   -- CROSSING
+   -- INIT outgoing_connection_0_of_section_0 = 1;
+   -- INIT outgoing_connection_1_of_section_0 = 3;
+   -- INIT outgoing_connection_2_of_section_0 = 5;
+   -- INIT outgoing_connection_0_of_section_2 = 3;
+   -- INIT outgoing_connection_1_of_section_2 = 5;
+   -- INIT outgoing_connection_2_of_section_2 = 7;
+   -- INIT outgoing_connection_0_of_section_4 = 1;
+   -- INIT outgoing_connection_1_of_section_4 = 7;
+   -- INIT outgoing_connection_2_of_section_4 = 5;
+   -- INIT outgoing_connection_0_of_section_6 = 7;
+   -- INIT outgoing_connection_1_of_section_6 = 1;
+   -- INIT outgoing_connection_2_of_section_6 = 3;
+   -- INIT section_0.angle = 0;
+   -- INIT section_1.angle = 90;
+   -- INIT section_2.angle = 270;
+   -- INIT section_3.angle = 0;
+   -- INIT section_4.angle = 180;
+   -- INIT section_5.angle = 270;
+   -- INIT section_6.angle = 90;
+   -- INIT section_7.angle = 180;
+   -- INIT section_4.source.y <= section_0.source.y - 6;
+   -- INIT section_1.source.x <= section_2.source.x - 6;
+   -- INIT veh___609___.is_on_sec_4 = 1;
+   -- INIT veh___609___.abs_pos = 0;
+   -- INIT veh___619___.is_on_sec_6 = 1;
+   -- INIT veh___619___.abs_pos = 0;
+   -- INIT veh___629___.is_on_sec_0 = 1;
+   -- INIT veh___629___.abs_pos = 0;
+   -- INIT veh___639___.is_on_sec_2 = 1;
+   -- INIT veh___639___.abs_pos = 0;
+   -- INIT section_0.drain.x = section_7.source.x;
+
+   -- ROUNDABOUT
    INIT section_0.angle = 0;
    INIT section_1.angle = 90;
    INIT section_2.angle = 270;
@@ -79,17 +101,27 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
    INIT section_5.angle = 270;
    INIT section_6.angle = 90;
    INIT section_7.angle = 180;
-   INIT section_4.source.y <= section_0.source.y - 6;
-   INIT section_1.source.x <= section_2.source.x - 6;
-   INIT veh___609___.is_on_sec_4 = 1;
-   INIT veh___609___.abs_pos = 0;
-   INIT veh___619___.is_on_sec_6 = 1;
-   INIT veh___619___.abs_pos = 0;
-   INIT veh___629___.is_on_sec_0 = 1;
-   INIT veh___629___.abs_pos = 0;
-   INIT veh___639___.is_on_sec_2 = 1;
-   INIT veh___639___.abs_pos = 0;
-   INIT section_0.drain.x = section_7.source.x;
+   INIT section_8.angle = 45;
+   INIT section_9.angle = 315;
+   INIT section_10.angle = 225;
+   INIT section_11.angle = 135;
+
+   INIT outgoing_connection_0_of_section_0 = 8;
+   INIT outgoing_connection_0_of_section_1 = -1;
+   INIT outgoing_connection_0_of_section_2 = 9;
+   INIT outgoing_connection_0_of_section_3 = -1;
+   INIT outgoing_connection_0_of_section_4 = 10;
+   INIT outgoing_connection_0_of_section_5 = -1;
+   INIT outgoing_connection_0_of_section_6 = 11;
+   INIT outgoing_connection_0_of_section_7 = -1;
+   INIT outgoing_connection_0_of_section_8 = 1;
+   INIT outgoing_connection_0_of_section_9 = 3;
+   INIT outgoing_connection_0_of_section_10 = 5;
+   INIT outgoing_connection_0_of_section_11 = 7;
+   INIT outgoing_connection_1_of_section_8 = 9;
+   INIT outgoing_connection_1_of_section_9 = 10;
+   INIT outgoing_connection_1_of_section_10 = 11;
+   INIT outgoing_connection_1_of_section_11 = 8;
    -- EO TODO: Needs to be removed again
 
    @{
