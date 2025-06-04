@@ -59,7 +59,20 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
 --------------------------------------------------------
 
    -- TODO: Needs to be removed again
-   -- CROSSING
+   --= CROSSING =--
+   -- "ANGLEGRANULARITY": "#{90}#",
+   -- "MAXDISTCONNECTIONS": "#{20}#",
+   -- "MAXOUTGOINGCONNECTIONS": "#{3}#",
+   -- "MINDISTCONNECTIONS": "#{10}#",
+   -- "EGOLESS": true,
+   -- "SECTIONSMAXLENGTH": "#{100}#",
+   -- "SECTIONSMINLENGTH": "#{50}#",
+   -- "SEGMENTS": "#{1}#",
+   -- "SEGMENTSMINLENGTH": 0,
+   -- "NUMLANES": "#{1}#"
+   -- "SECTIONS": "#{8}#"
+   -- "SPEC": "#{ (env.veh___609___.is_on_sec_1 == 0) || (env.veh___609___.abs_pos < 40) }#"
+
    -- INIT outgoing_connection_0_of_section_0 = 1;
    -- INIT outgoing_connection_1_of_section_0 = 3;
    -- INIT outgoing_connection_2_of_section_0 = 5;
@@ -92,7 +105,20 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
    -- INIT veh___639___.abs_pos = 0;
    -- INIT section_0.drain.x = section_7.source.x;
 
-   -- ROUNDABOUT
+   --= ROUNDABOUT =--
+   -- "ANGLEGRANULARITY": "#{45}#",
+   -- "MAXDISTCONNECTIONS": "#{20}#",
+   -- "MAXOUTGOINGCONNECTIONS": "#{2}#",
+   -- "MINDISTCONNECTIONS": "#{10}#",
+   -- "EGOLESS": true,
+   -- "SECTIONSMAXLENGTH": "#{50}#",
+   -- "SECTIONSMINLENGTH": "#{50}#",
+   -- "SEGMENTS": "#{1}#",
+   -- "SEGMENTSMINLENGTH": 0,
+   -- "NUMLANES": "#{1}#"
+   -- "SECTIONS": "#{12}#"
+   -- "SPEC": "#{ env.cnt < 0 }#"
+
    INIT section_0.angle = 0;
    INIT section_1.angle = 90;
    INIT section_2.angle = 270;
@@ -105,6 +131,15 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
    INIT section_9.angle = 315;
    INIT section_10.angle = 225;
    INIT section_11.angle = 135;
+
+   INIT section_7.source.y = section_0.source.y - 7;
+   INIT section_7.source.x = section_0.drain.x;
+   INIT section_3.source.y = section_4.source.y + 7;
+   INIT section_3.source.x = section_4.drain.x;
+   INIT section_6.drain.y = section_5.source.y;
+   INIT section_6.source.x = section_5.source.x - 7;
+   INIT section_1.source.y = section_2.drain.y;
+   INIT section_1.source.x = section_2.source.x - 7;
 
    INIT outgoing_connection_0_of_section_0 = 8;
    INIT outgoing_connection_0_of_section_1 = -1;
