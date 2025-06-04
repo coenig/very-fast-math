@@ -91,7 +91,7 @@ public:
    void loadJsonText();
    void saveJsonText();
    void setTitle();
-   void deletePreview(const std::string& path_generated, const bool actually_delete_gif); // ...or otherwise copy "waiting for" image.
+   void deleteMCOutputFromFolder(const std::string& path_generated, const bool actually_delete_gif); // ...or otherwise copy "waiting for" image.
    void evaluateFormulasInJSON(const nlohmann::json j_template);
    void preprocessAndRewriteJSONTemplate();
    nlohmann::json getJSON() const;
@@ -146,7 +146,7 @@ public:
    static void buttonSaveJSON(Fl_Widget* widget, void* data);
    static void buttonReloadJSON(Fl_Widget* widget, void* data);
    static void buttonCheckJSON(Fl_Widget* widget, void* data);
-   static void buttonDeleteCurrentPreview(Fl_Widget* widget, void* data);
+   static void buttonDeleteMCOutput(Fl_Widget* widget, void* data);
    static void buttonDeleteGenerated(Fl_Widget* widget, void* data);
    static void buttonDeleteTestCases(Fl_Widget* widget, void* data);
    static void buttonDeleteCached(Fl_Widget* widget, void* data);
@@ -173,7 +173,7 @@ private:
    Fl_Button* button_run_mc_and_preview_ = new Fl_Button(0, 300, 200, 30, "Run Model Checker...");
    Fl_Button* button_run_cex_ = new Fl_Button(0, 350, 200, 30, "Generate test cases...");
    Fl_Button* button_runtime_analysis_ = new Fl_Button(0, 400, 200, 30, "Runtime analysis");
-   Fl_Button* button_delete_current_preview_ = new Fl_Button(0, 490, 200, 30, "Delete unselected MC output!");
+   Fl_Button* button_delete_mc_output_ = new Fl_Button(0, 490, 200, 30, "Delete unselected MC output!");
    Fl_Button* button_delete_testcases_ = new Fl_Button(0, 520, 200, 30, "Delete unselected test cases!");
    Fl_Button* button_delete_generated_ = new Fl_Button(0, 550, 200, 30, "Delete unselected folders!");
    Fl_Button* button_delete_cached_ = new Fl_Button(0, 600, 200, 30, "Delete cache! <RM>");
