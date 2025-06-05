@@ -119,17 +119,15 @@ for global_counter in range(1000):
     
     action_list = []
     
-    eps = 0.1
+    eps = 2
     for i, el in enumerate(sum_vel_by_car):
         if abs(dpoints_y[i] - egos_y[i]) < eps:
             if sum_lan_by_car[i] < 0:
                 dpoints_y[i] += 4
             elif sum_lan_by_car[i] > 0:
                 dpoints_y[i] -= 4
-            accel = sum_vel_by_car[i] / 5
-        else:
-            accel = 0
-        
+                
+        accel = sum_vel_by_car[i] / 5
         angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 50) / 3.1415
         action_list.append([accel, angle])
     

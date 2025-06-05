@@ -2514,7 +2514,8 @@ VAR
 FROZENVAR
    ego.v : 0 .. 0; -- ego.max_vel;
 
-
+ASSIGN
+   next(ego.abs_pos) := ego.abs_pos + next(veh___609___.v);
 
 
 ---------------------------------------------------------------------

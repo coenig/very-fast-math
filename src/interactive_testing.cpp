@@ -1528,7 +1528,6 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    std::string input_str(input);
    auto cars = StaticHelper::split(input_str, ";");
    auto main_file = StaticHelper::readFile("./morty/main.tpl") + "\n";
-   int ego_pos = 0;
    int null_pos{};
 
    cars.erase(cars.end() - 1);
@@ -1552,10 +1551,10 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          x = std::max(std::min(x, std::numeric_limits<float>::max()), std::numeric_limits<float>::min());
          vx = std::max(std::min(vx, 70.0f), 0.0f);
 
-         main_file += "INIT env.veh___6" + std::to_string(i) + "9___.rel_pos = " + std::to_string((int)(x - ego_pos)) + ";\n";
+         main_file += "INIT env.veh___6" + std::to_string(i) + "9___.abs_pos = " + std::to_string((int)(x)) + ";\n";
          main_file += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx)) + ";\n";
 
-         if (i == 0) null_pos = (int) (x - ego_pos);
+         if (i == 0) null_pos = (int) (x);
 
          std::set<int> lanes{};
 
