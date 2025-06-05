@@ -34,8 +34,8 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
 
     }
     },
-    "simulation_frequency": 30,  # [Hz]
-    "policy_frequency": 1,  # [Hz]
+    "simulation_frequency": 60,  # [Hz]
+    "policy_frequency": 2,  # [Hz]
     "controlled_vehicles": 5,
     "vehicles_count": 0,
     "screen_width": 1500,
@@ -69,7 +69,6 @@ for global_counter in range(1000):
     for el in obs:
         if first:
             dpoints_y[i] = el[0][2]
-            first = False
             
         egos_y[i] = el[0][2]
         egos_headings[i] = el[0][5]
@@ -77,6 +76,8 @@ for global_counter in range(1000):
         for val in el[0]:
             input += str(val) + ","
         input += ";"
+        
+    first = False
     
     result = create_string_buffer(1000)
     #print(f"input: {input}")
@@ -114,8 +115,8 @@ for global_counter in range(1000):
             elif sum_lan_by_car[i] > 0:
                 dpoints_y[i] -= 4
 
-        angle = dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 150)
-        action_list.append([sum_vel_by_car[i] / 5, -min(max(angle, -1), 1) / 5])
+        angle = dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 20)
+        action_list.append([sum_vel_by_car[i] / 5, -angle / 5])
     
     #print(action_list_vel)
     #print(action_list_lane)
