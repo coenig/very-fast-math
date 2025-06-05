@@ -14,15 +14,25 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "longitudinal": True,
     "lateral": True,
     },
+#    "observation": {
+#        "type": "Kinematics",
+#        "absolute": True,
+#        "normalize": False,
+#        "see_behind": True,
+#        "clip": False,
+#        "order": "sorted"
+#    },
     "observation": {
+      "type": "MultiAgentObservation",
+      "observation_config": {
         "type": "Kinematics",
-        "absolute": True,
+        #        "absolute": True,
         "normalize": False,
-        "see_behind": True,
-        "clip": False
+
+    }
     },
-    "simulation_frequency": 15,  # [Hz]
-    "policy_frequency": 4,  # [Hz]
+    "simulation_frequency": 30,  # [Hz]
+    "policy_frequency": 2,  # [Hz]
     "controlled_vehicles": 5,
     "vehicles_count": 0,
     "screen_width": 1500,
@@ -56,9 +66,11 @@ for global_counter in range(1000):
     else:
         continue
 
+#    obs[0][1] = 0
+    
     input = ""
     for el in obs:
-        for val in el:
+        for val in el[0]:
             input += str(val) + ","
         input += ";"
     
@@ -69,7 +81,7 @@ for global_counter in range(1000):
     res_str = res.decode()    
     #print(f"result: {res_str}")
 
-    LOOKOUT_INTO_FUTURE = 2
+    LOOKOUT_INTO_FUTURE = 4
     sum_vel_by_car = []
     sum_lan_by_car = []
 
@@ -84,8 +96,8 @@ for global_counter in range(1000):
                     else:
                         sum_vel_by_car[i1] += float(el3)
                         
-    #print(f"summed velocity: {sum_vel_by_car}")
-    #print(f"summed lane: {sum_lan_by_car}")
+    print(f"summed velocity: {sum_vel_by_car}")
+    print(f"summed lane: {sum_lan_by_car}")
     
     action_list_vel = []
     action_list_lane = []
