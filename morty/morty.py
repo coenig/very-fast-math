@@ -34,7 +34,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
 
     }
     },
-    "simulation_frequency": 60,  # [Hz]
+    "simulation_frequency": 30,  # [Hz]
     "policy_frequency": 2,  # [Hz]
     "controlled_vehicles": 5,
     "vehicles_count": 0,
@@ -44,7 +44,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "show_trajectories": True,
 })
 
-env.reset(seed=42)
+env.reset(seed=41)
 
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
@@ -89,19 +89,31 @@ for global_counter in range(1000):
     sum_vel_by_car = []
     sum_lan_by_car = []
 
+    lanes = ""
+    accels = ""
+
     for i1, el1 in enumerate(res_str.split(';')):
         sum_lan_by_car.append(0)
         sum_vel_by_car.append(0)
+        lanes += "\n"
+        accels += "\n"
         for i2, el2 in enumerate(el1.split('|')):
             for i3, el3 in enumerate(el2.split(',')):
                 if el3:
                     if i2 == 1:
+                        lanes += "   " + el3
                         if i3 == 1:
                             sum_lan_by_car[i1] += float(el3)
                     else:
+                        accels += "   " + el3
                         if i3 == 0:
                             sum_vel_by_car[i1] += float(el3)
-                        
+
+    with open("lanes.txt", "w") as text_file:
+        text_file.write(lanes)
+    with open("accels.txt", "w") as text_file:
+        text_file.write(accels)
+
     print(f"summed velocity: {sum_vel_by_car}")
     print(f"summed lane: {sum_lan_by_car}")
     
@@ -114,9 +126,12 @@ for global_counter in range(1000):
                 dpoints_y[i] += 4
             elif sum_lan_by_car[i] > 0:
                 dpoints_y[i] -= 4
-
-        angle = dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 20)
-        action_list.append([sum_vel_by_car[i] / 5, -angle / 5])
+            accel = sum_vel_by_car[i] / 5
+        else:
+            accel = 0
+        
+        angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 50) / 3.1415
+        action_list.append([accel, angle])
     
     #print(action_list_vel)
     #print(action_list_lane)
