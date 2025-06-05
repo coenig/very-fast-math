@@ -8,11 +8,13 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "action": {
         "type": "MultiAgentAction",
         "action_config": {
-            "type": "DiscreteMetaAction",
-            "target_speeds": [0, 5, 10, 15, 20, 25, 30],
+            "type": "ContinuousAction",
+            "acceleration_range": [-5, 5],
+            "steering_range": [-1, 1],
+            "speed_range": [0, 30],
+            "longitudinal": True,
+            "lateral": True,
         },
-    "longitudinal": True,
-    "lateral": True,
     },
 #    "observation": {
 #        "type": "Kinematics",
@@ -47,26 +49,13 @@ morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
 morty_lib.morty.restype = c_char_p
     
-LANE_LEFT = 0
-IDLE = 1
-LANE_RIGHT = 2
-FASTER = 3
-SLOWER = 4
 
-action_lane = (IDLE, IDLE, IDLE, IDLE, IDLE)
-action_vel = (IDLE, IDLE, IDLE, IDLE, IDLE)
+action = ([0, 0], [0, 0], [0, 0], [0, 0], [0, 0])
 
 for global_counter in range(1000):
     env.render()
     
-    if global_counter % 2 == 0:
-        obs, reward, done, truncated, info = env.step(action_lane)
-    elif global_counter % 2 == 1:
-        obs, reward, done, truncated, info = env.step(action_vel)
-    else:
-        continue
-
-#    obs[0][1] = 0
+    obs, reward, done, truncated, info = env.step(action)
     
     input = ""
     for el in obs:
@@ -100,26 +89,19 @@ for global_counter in range(1000):
     print(f"summed velocity: {sum_vel_by_car}")
     print(f"summed lane: {sum_lan_by_car}")
     
-    action_list_vel = []
-    action_list_lane = []
+    action_list = []
         
     for i, el in enumerate(sum_vel_by_car):
-        if sum_lan_by_car[i] < 0:
-            action_list_lane.append(LANE_RIGHT)
-        elif sum_lan_by_car[i] > 0:
-            action_list_lane.append(LANE_LEFT)
-        else:
-            action_list_lane.append(IDLE)
-            
-        if sum_vel_by_car[i] > 0:
-            action_list_vel.append(FASTER)
-        elif sum_vel_by_car[i] < 0:
-            action_list_vel.append(SLOWER)
-        else:
-            action_list_vel.append(IDLE)
+        # if sum_lan_by_car[i] < 0:
+        #     action_list_lane.append(0)
+        # elif sum_lan_by_car[i] > 0:
+        #     action_list_lane.append(0)
+        # else:
+        #     action_list_lane.append(0)
+
+        action_list.append([sum_vel_by_car[i], 0])            
     
     #print(action_list_vel)
     #print(action_list_lane)
     
-    action_vel = tuple(action_list_vel)
-    action_lane = tuple(action_list_lane)
+    action = tuple(action_list)
