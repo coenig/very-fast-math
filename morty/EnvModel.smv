@@ -246,10 +246,10 @@ DEFINE
     --      5. leave_src_lane_latest_after <= complete_lane_change_latest_after
     --      5. abort_lane_change_complete_latest_after <= complete_lane_change_latest_after
 
-    leave_src_lane_earliest_after := 1;             -- earliest point in time where the vehicle may cross the lane border, i.e., after this transition the vehicle occupies two lanes 
-    leave_src_lane_latest_after := 5;
+    leave_src_lane_earliest_after := 0;             -- earliest point in time where the vehicle may cross the lane border, i.e., after this transition the vehicle occupies two lanes 
+    leave_src_lane_latest_after := 0;
     complete_lane_change_earliest_after := 1;       -- earliest point in time where the vehicle is entirely on its target lane, i.e., after this transition the vehicle only occupies one lane
-    complete_lane_change_latest_after := 7;
+    complete_lane_change_latest_after := 1;
     abort_lane_change_complete_earliest_after := 1; -- earliest point in time where the vehicle is entirely back on its source lane after a lane change abort
     abort_lane_change_complete_latest_after := 3;
     min_time_between_lcs := 1;                      -- after finisihing one lc, how much time needs to pass before the next one may be started
@@ -259,21 +259,12 @@ DEFINE
     a_min := -5;
     a_max := 5;
     min_dist_long := -1;                            -- the minimum distance kept by other vehicle to preceding ego, we use -1 meaning one meter behind
-    veh_length := 16;                                -- we assume a vehicle length of 5m for distance calculation to the front
+    veh_length := 5;                                -- we assume a vehicle length of 5m for distance calculation to the front
     max_vel := 70;
 
     ego.max_vel := 34; -- Leave this even in ego-less mode.
 
 
-    params.turn_signal_duration := 2; -- turn signals will be on for this amount of time -- TODO: Connection via vfm-aka not working, has to be investigated.
-    -- total lc duration shall be 5 s according to code documentation
-    -- src lane is left 1s or 2s after end of turn signal duration, tgt lane is reached after 5s
-    ego.leave_src_lane_earliest_after := 1 + params.turn_signal_duration;  -- 1 s after end of turn signal duration
-    ego.leave_src_lane_latest_after := 2 + params.turn_signal_duration;    -- 2 s after end of turn signal duration
-    ego.complete_lane_change_earliest_after := 2 + params.turn_signal_duration;
-    ego.complete_lane_change_latest_after := 2 + params.turn_signal_duration;
-    -- it seems that there is no parameter given for the duration of the abort, assume same duration to roll back that it took to get to the current pos
-    ego.min_time_between_lcs := 2;                      -- after finisihing one lc, how much time needs to pass before the next one may be started
 
     max_ego_visibility_range := 250;                      --how far can the ego sensors see? Vehicles being further away than this cannot be detected and will not be considered
 

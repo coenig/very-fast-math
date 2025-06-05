@@ -81,7 +81,6 @@ for global_counter in range(1000):
     res_str = res.decode()    
     #print(f"result: {res_str}")
 
-    LOOKOUT_INTO_FUTURE = 4
     sum_vel_by_car = []
     sum_lan_by_car = []
 
@@ -90,11 +89,13 @@ for global_counter in range(1000):
         sum_vel_by_car.append(0)
         for i2, el2 in enumerate(el1.split('|')):
             for i3, el3 in enumerate(el2.split(',')):
-                if el3 and i3 < LOOKOUT_INTO_FUTURE:
+                if el3:
                     if i2 == 1:
-                        sum_lan_by_car[i1] += float(el3)
+                        if i3 == 1:
+                            sum_lan_by_car[i1] += float(el3)
                     else:
-                        sum_vel_by_car[i1] += float(el3)
+                        if i3 == 0:
+                            sum_vel_by_car[i1] += float(el3)
                         
     print(f"summed velocity: {sum_vel_by_car}")
     print(f"summed lane: {sum_lan_by_car}")
