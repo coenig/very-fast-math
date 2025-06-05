@@ -2,7 +2,7 @@ import gymnasium
 import highway_env
 from matplotlib import pyplot as plt
 from ctypes import *
-
+import math
 
 env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "action": {
@@ -27,6 +27,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "observation": {
       "type": "MultiAgentObservation",
       "observation_config": {
+        "features": ["presence", "x", "y", "vx", "vy", "heading"],
         "type": "Kinematics",
         #        "absolute": True,
         "normalize": False,
@@ -34,7 +35,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     }
     },
     "simulation_frequency": 30,  # [Hz]
-    "policy_frequency": 2,  # [Hz]
+    "policy_frequency": 1,  # [Hz]
     "controlled_vehicles": 5,
     "vehicles_count": 0,
     "screen_width": 1500,
@@ -51,14 +52,28 @@ morty_lib.morty.restype = c_char_p
     
 
 action = ([0, 0], [0, 0], [0, 0], [0, 0], [0, 0])
+dpoints_y = [0, 0, 0, 0, 0, 0]
+egos_y = [0, 0, 0, 0, 0, 0]
+egos_headings = [0, 0, 0, 0, 0, 0]
 
+def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
+    return heading - math.atan((dpoint_y - ego_y) / ddist)
+
+first = True
 for global_counter in range(1000):
     env.render()
-    
     obs, reward, done, truncated, info = env.step(action)
     
     input = ""
+    i = 0
     for el in obs:
+        if first:
+            dpoints_y[i] = el[0][2]
+            first = False
+            
+        egos_y[i] = el[0][2]
+        egos_headings[i] = el[0][5]
+        i = i + 1
         for val in el[0]:
             input += str(val) + ","
         input += ";"
@@ -90,16 +105,17 @@ for global_counter in range(1000):
     print(f"summed lane: {sum_lan_by_car}")
     
     action_list = []
-        
+    
+    eps = 0.1
     for i, el in enumerate(sum_vel_by_car):
-        # if sum_lan_by_car[i] < 0:
-        #     action_list_lane.append(0)
-        # elif sum_lan_by_car[i] > 0:
-        #     action_list_lane.append(0)
-        # else:
-        #     action_list_lane.append(0)
+        if abs(dpoints_y[i] - egos_y[i]) < eps:
+            if sum_lan_by_car[i] < 0:
+                dpoints_y[i] += 4
+            elif sum_lan_by_car[i] > 0:
+                dpoints_y[i] -= 4
 
-        action_list.append([sum_vel_by_car[i], 0])            
+        angle = dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 150)
+        action_list.append([sum_vel_by_car[i] / 5, -min(max(angle, -1), 1) / 5])
     
     #print(action_list_vel)
     #print(action_list_lane)
