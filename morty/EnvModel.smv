@@ -375,6 +375,66 @@ INIT section_0_segment_0_min_lane = 0 & section_0_segment_0_max_lane = 3; -- Mak
 --  <== EO Segments
 --------------------------------------------------------
 
+INVAR veh___609___.do_lane_change ->
+     (
+        ((veh___619___.rel_pos > veh___609___.rel_pos) -> (veh___619___.v >= veh___609___.v)) &
+        ((veh___629___.rel_pos > veh___609___.rel_pos) -> (veh___629___.v >= veh___609___.v)) &
+        ((veh___639___.rel_pos > veh___609___.rel_pos) -> (veh___639___.v >= veh___609___.v)) &
+        ((veh___649___.rel_pos > veh___609___.rel_pos) -> (veh___649___.v >= veh___609___.v)) &
+        ((veh___619___.rel_pos < veh___609___.rel_pos) -> (veh___619___.v <= veh___609___.v)) &
+        ((veh___629___.rel_pos < veh___609___.rel_pos) -> (veh___629___.v <= veh___609___.v)) &
+        ((veh___639___.rel_pos < veh___609___.rel_pos) -> (veh___639___.v <= veh___609___.v)) &
+        ((veh___649___.rel_pos < veh___609___.rel_pos) -> (veh___649___.v <= veh___609___.v))
+     );
+
+INVAR veh___619___.do_lane_change ->
+     (
+        ((veh___609___.rel_pos > veh___619___.rel_pos) -> (veh___609___.v >= veh___619___.v)) &
+        ((veh___629___.rel_pos > veh___619___.rel_pos) -> (veh___629___.v >= veh___619___.v)) &
+        ((veh___639___.rel_pos > veh___619___.rel_pos) -> (veh___639___.v >= veh___619___.v)) &
+        ((veh___649___.rel_pos > veh___619___.rel_pos) -> (veh___649___.v >= veh___619___.v)) &
+        ((veh___609___.rel_pos < veh___619___.rel_pos) -> (veh___609___.v <= veh___619___.v)) &
+        ((veh___629___.rel_pos < veh___619___.rel_pos) -> (veh___629___.v <= veh___619___.v)) &
+        ((veh___639___.rel_pos < veh___619___.rel_pos) -> (veh___639___.v <= veh___619___.v)) &
+        ((veh___649___.rel_pos < veh___619___.rel_pos) -> (veh___649___.v <= veh___619___.v))
+     );
+
+INVAR veh___629___.do_lane_change ->
+     (
+        ((veh___619___.rel_pos > veh___629___.rel_pos) -> (veh___619___.v >= veh___629___.v)) &
+        ((veh___609___.rel_pos > veh___629___.rel_pos) -> (veh___609___.v >= veh___629___.v)) &
+        ((veh___639___.rel_pos > veh___629___.rel_pos) -> (veh___639___.v >= veh___629___.v)) &
+        ((veh___649___.rel_pos > veh___629___.rel_pos) -> (veh___649___.v >= veh___629___.v)) &
+        ((veh___619___.rel_pos < veh___629___.rel_pos) -> (veh___619___.v <= veh___629___.v)) &
+        ((veh___609___.rel_pos < veh___629___.rel_pos) -> (veh___609___.v <= veh___629___.v)) &
+        ((veh___639___.rel_pos < veh___629___.rel_pos) -> (veh___639___.v <= veh___629___.v)) &
+        ((veh___649___.rel_pos < veh___629___.rel_pos) -> (veh___649___.v <= veh___629___.v))
+     );
+
+INVAR veh___639___.do_lane_change ->
+     (
+        ((veh___619___.rel_pos > veh___639___.rel_pos) -> (veh___619___.v >= veh___639___.v)) &
+        ((veh___629___.rel_pos > veh___639___.rel_pos) -> (veh___629___.v >= veh___639___.v)) &
+        ((veh___609___.rel_pos > veh___639___.rel_pos) -> (veh___609___.v >= veh___639___.v)) &
+        ((veh___649___.rel_pos > veh___639___.rel_pos) -> (veh___649___.v >= veh___639___.v)) &
+        ((veh___619___.rel_pos < veh___639___.rel_pos) -> (veh___619___.v <= veh___639___.v)) &
+        ((veh___629___.rel_pos < veh___639___.rel_pos) -> (veh___629___.v <= veh___639___.v)) &
+        ((veh___609___.rel_pos < veh___639___.rel_pos) -> (veh___609___.v <= veh___639___.v)) &
+        ((veh___649___.rel_pos < veh___639___.rel_pos) -> (veh___649___.v <= veh___639___.v))
+     );
+
+INVAR veh___649___.do_lane_change ->
+     (
+        ((veh___619___.rel_pos > veh___649___.rel_pos) -> (veh___619___.v >= veh___649___.v)) &
+        ((veh___629___.rel_pos > veh___649___.rel_pos) -> (veh___629___.v >= veh___649___.v)) &
+        ((veh___639___.rel_pos > veh___649___.rel_pos) -> (veh___639___.v >= veh___649___.v)) &
+        ((veh___609___.rel_pos > veh___649___.rel_pos) -> (veh___609___.v >= veh___649___.v)) &
+        ((veh___619___.rel_pos < veh___649___.rel_pos) -> (veh___619___.v <= veh___649___.v)) &
+        ((veh___629___.rel_pos < veh___649___.rel_pos) -> (veh___629___.v <= veh___649___.v)) &
+        ((veh___639___.rel_pos < veh___649___.rel_pos) -> (veh___639___.v <= veh___649___.v)) &
+        ((veh___609___.rel_pos < veh___649___.rel_pos) -> (veh___609___.v <= veh___649___.v))
+     );
+
    
    FROZENVAR
          section_0_segment_0_pos_begin : integer;
