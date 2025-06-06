@@ -35,16 +35,16 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     }
     },
     "simulation_frequency": 30,  # [Hz]
-    "policy_frequency": 2,  # [Hz]
+    "policy_frequency": 1,  # [Hz]
     "controlled_vehicles": 5,
     "vehicles_count": 0,
     "screen_width": 1500,
     "screen_height": 500,
-    "scaling": 4.5,
+    "scaling": 3.5,
     "show_trajectories": True,
 })
 
-env.reset(seed=41)
+env.reset(seed=43)
 
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
@@ -102,7 +102,7 @@ for global_counter in range(1000):
                 if el3:
                     if i2 == 1:
                         lanes += "   " + el3
-                        if i3 == 1:
+                        if i3 == 2:
                             sum_lan_by_car[i1] += float(el3)
                     else:
                         accels += "   " + el3
@@ -119,16 +119,18 @@ for global_counter in range(1000):
     
     action_list = []
     
-    eps = 2
+    eps = 0.2
     for i, el in enumerate(sum_vel_by_car):
         if abs(dpoints_y[i] - egos_y[i]) < eps:
             if sum_lan_by_car[i] < 0:
-                dpoints_y[i] += 4
+                dpoints_y[i] += 2
             elif sum_lan_by_car[i] > 0:
-                dpoints_y[i] -= 4
-                
+                dpoints_y[i] -= 2
+        
+        dpoints_y[i] = max(min(dpoints_y[i], 12), 0)
+        
         accel = sum_vel_by_car[i] / 5
-        angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 50) / 3.1415
+        angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 45) / 3.1415
         action_list.append([accel, angle])
     
     #print(action_list_vel)

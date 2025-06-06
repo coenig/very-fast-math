@@ -57,6 +57,26 @@ INVARSPEC !(TRUE
  & env.veh___619___.abs_pos > env.veh___629___.abs_pos 
  & env.veh___629___.abs_pos > env.veh___639___.abs_pos 
  & env.veh___639___.abs_pos > env.veh___649___.abs_pos
- );
+ & abs(env.veh___619___.abs_pos - env.veh___609___.abs_pos) > 8
+ & abs(env.veh___629___.abs_pos - env.veh___609___.abs_pos) > 8
+ & abs(env.veh___639___.abs_pos - env.veh___609___.abs_pos) > 8
+ & abs(env.veh___649___.abs_pos - env.veh___609___.abs_pos) > 8
+ & abs(env.veh___609___.abs_pos - env.veh___619___.abs_pos) > 8
+ & abs(env.veh___629___.abs_pos - env.veh___619___.abs_pos) > 8
+ & abs(env.veh___639___.abs_pos - env.veh___619___.abs_pos) > 8
+ & abs(env.veh___649___.abs_pos - env.veh___619___.abs_pos) > 8
+ & abs(env.veh___609___.abs_pos - env.veh___629___.abs_pos) > 8
+ & abs(env.veh___619___.abs_pos - env.veh___629___.abs_pos) > 8
+ & abs(env.veh___639___.abs_pos - env.veh___629___.abs_pos) > 8
+ & abs(env.veh___649___.abs_pos - env.veh___629___.abs_pos) > 8
+ & abs(env.veh___609___.abs_pos - env.veh___639___.abs_pos) > 8
+ & abs(env.veh___619___.abs_pos - env.veh___639___.abs_pos) > 8
+ & abs(env.veh___629___.abs_pos - env.veh___639___.abs_pos) > 8
+ & abs(env.veh___649___.abs_pos - env.veh___639___.abs_pos) > 8
+ & abs(env.veh___609___.abs_pos - env.veh___649___.abs_pos) > 8
+ & abs(env.veh___619___.abs_pos - env.veh___649___.abs_pos) > 8
+ & abs(env.veh___629___.abs_pos - env.veh___649___.abs_pos) > 8
+ & abs(env.veh___639___.abs_pos - env.veh___649___.abs_pos) > 8
+);
 --EO-SPEC-STUFF
 

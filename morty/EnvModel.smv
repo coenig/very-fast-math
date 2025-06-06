@@ -248,8 +248,8 @@ DEFINE
 
     leave_src_lane_earliest_after := 0;             -- earliest point in time where the vehicle may cross the lane border, i.e., after this transition the vehicle occupies two lanes 
     leave_src_lane_latest_after := 0;
-    complete_lane_change_earliest_after := 1;       -- earliest point in time where the vehicle is entirely on its target lane, i.e., after this transition the vehicle only occupies one lane
-    complete_lane_change_latest_after := 1;
+    complete_lane_change_earliest_after := 2;       -- earliest point in time where the vehicle is entirely on its target lane, i.e., after this transition the vehicle only occupies one lane
+    complete_lane_change_latest_after := 2;
     abort_lane_change_complete_earliest_after := 1; -- earliest point in time where the vehicle is entirely back on its source lane after a lane change abort
     abort_lane_change_complete_latest_after := 3;
     min_time_between_lcs := 1;                      -- after finisihing one lc, how much time needs to pass before the next one may be started
