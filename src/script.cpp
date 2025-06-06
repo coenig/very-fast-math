@@ -213,7 +213,6 @@ bool Script::extractInscriptProcessors()
    processedScript = partBefore + placeholderFinal + partAfter;
    changed = true;
 
-   processPendingVars();
    count++;
 
    bool nested_call = extractInscriptProcessors();
@@ -290,34 +289,7 @@ std::string Script::checkForPlainTextTags(const std::string& script)
    return script2;
 }
 
-void Script::processPendingVars() 
-{
-   int indexOfVar = processedScript.find(VAR_BEG_TAG);
-
-   if (indexOfVar < 0) {
-      return;
-   }
-
-   std::string varPart = *StaticHelper::extractFirstSubstringLevelwise(processedScript, VAR_BEG_TAG, VAR_END_TAG, indexOfVar);
-   int lengthOfVar = varPart.length() + VAR_BEG_TAG.length() + VAR_END_TAG.length();
-   std::string partBefore = processedScript.substr(0, indexOfVar);
-   std::string partAfter = processedScript.substr(indexOfVar + lengthOfVar);
-   std::string varVal = processChain(varPart);
-
-   if (varVal != varPart) {
-      std::string placeholder_for_inscript = placeholderForInscript(varPart, varVal, 1, true);
-      processedScript =
-         partBefore
-         + placeholder_for_inscript // TODO: true?? 
-         + partAfter;
-   }
-
-   processPendingVars();
-}
-
 std::string Script::processChain(const std::string& chain) {
-   processPreprocessors();
-
    for (const auto& k1_pair : alltimePreprocessors) {
       std::string k1 = k1_pair.first;
       std::string k = getUnqualifiedName(k1);
@@ -529,12 +501,12 @@ RepresentableAsPDF Script::applyMethodChain(const RepresentableAsPDF original, c
       newRep = applyMethod(newRep, methodSignature);
 
       if (newRep->toDummyIfApplicable()) {
-         //addNote(
-         //   "Plain text method call: "
-         //   + methodSignature
-         //   + " (results in '"
-         //   + StaticHelper::replaceAll(newRep->getRawScript(), PREAMBLE_FOR_NON_SCRIPT_METHODS, "")
-         //   + "')");
+         addNote(
+            "Plain text method call: "
+            + methodSignature
+            + " (results in '"
+            + StaticHelper::replaceAll(newRep->getRawScript(), PREAMBLE_FOR_NON_SCRIPT_METHODS, "")
+            + "')");
       }
       else {
          addError(
@@ -1123,53 +1095,7 @@ bool Script::isVariable(const std::string& preprocessorScript)
 
 std::map<std::string, std::string> Script::getPreprocessors() 
 {
-   processPreprocessors();
    return alltimePreprocessors;
-}
-
-void Script::processPreprocessors()
-{
-   while (recalculatePreprocessors && !alltimePreprocessors.empty()) { // Do it as often as necessary.
-      resetTime();
-      recalculatePreprocessors = false;
-
-      for (const auto& s : alltimePreprocessors) {
-         processPreprocessor(s.first);
-      }
-
-      std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-
-      long thatsIt = measureElapsedTime("processing " + std::to_string(alltimePreprocessors.size()) + " preprocessors");
-   }
-}
-
-void Script::processPreprocessor(const std::string& rawName)
-{
-   std::string name = rawName;
-   std::string code = alltimePreprocessors.at(name);
-   int nextPoint1 = StaticHelper::indexOfOnTopLevel(code, { "." }, 0, START_TAG_FOR_NESTED_VARIABLES, END_TAG_FOR_NESTED_VARIABLES);
-   int nextPoint2 = StaticHelper::indexOfOnTopLevel(code, { "." }, 0, INSCR_BEG_TAG, INSCR_END_TAG);
-
-   if (nextPoint1 < 0 || nextPoint1 != nextPoint2) {
-      nextPoint1 = code.length();
-   }
-
-   std::string objectName = StaticHelper::replaceAll(StaticHelper::replaceAll(code.substr(0, nextPoint1), INSCR_BEG_TAG, ""), INSCR_END_TAG, "");
-   std::string rest = code.substr(nextPoint1);
-
-   if (alltimePreprocessors.count(objectName)) {
-      std::string original = alltimePreprocessors.at(objectName);
-      std::string newChain = original + rest;
-      addNote("Preprocessors -- changing from '" + alltimePreprocessors.at(name) + "' to '" + newChain + "'.");
-      alltimePreprocessors[name] = newChain;
-
-      if (methodPartBegins.count(original)) {
-         int mBeg = methodPartBegins.at(original);
-         methodPartBegins[newChain] = mBeg;
-      }
-
-      recalculatePreprocessors = true;
-   }
 }
 
 std::string Script::raiseAndGetQualifiedIdentifierName(const std::string& identifierName) 
@@ -1297,8 +1223,6 @@ void Script::addPreprocessor(const std::string& preprocessor, const std::string&
 
       methodPartBegins.insert({ StaticHelper::trimAndReturn(preprocessor), indexOfMethodsPartBegin - leftTrim });
    }
-
-   recalculatePreprocessors = true;
 }
 
 std::string Script::removePreprocessors(const std::string& script)
@@ -1566,7 +1490,6 @@ RepresentableAsPDF vfm::macro::Script::copy() const
    copy_script->rawScript = rawScript;
    copy_script->processedScript = processedScript;
    copy_script->methodPartBegins = methodPartBegins;
-   copy_script->recalculatePreprocessors = recalculatePreprocessors;
    copy_script->count = count;
 
    return copy_script;

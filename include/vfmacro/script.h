@@ -702,18 +702,6 @@ private:
    std::string getUnqualifiedName(const std::string& qualifiedName);
    std::map<std::string, std::string> getPreprocessors();
 
-   /// Replaces a possible variable name at the beginning with the actual
-   /// preprocessor code.
-   void processPreprocessor(const std::string& rawName);
-
-   /// Replaces all variable names with the actual code to process.
-   /// For example, if x1=this.min, y1=x1.sim becomes y1=this.min.sim.</BR>
-   /// </BR>
-   /// Note: Pretty sure, this method can be done more efficiently. However,
-   /// it's really micro-management - better focus on other efficiency issues.
-   void processPreprocessors();
-
-   void processPendingVars();
    std::string replaceIdentAtBeginningOfChain(const std::string& chain, const std::string& k, const std::string& varVal, int mbeg);
 
    /// If the script is embedded in plain text tags, replace all symbols with
@@ -733,7 +721,6 @@ private:
    std::set<std::string> SPECIAL_SYMBOLS{};
    std::map<std::string, std::string> PLACEHOLDER_MAPPING{};
    std::map<std::string, std::string> PLACEHOLDER_INVERSE_MAPPING{};
-   std::map<std::string, std::string> alltimePreprocessors{};
    std::map<std::string, int> identCounts{};
 
    std::string rawScript{};
@@ -742,11 +729,10 @@ private:
 
    std::map<std::string, int> methodPartBegins{};
   
-   bool recalculatePreprocessors{ true };
-   //long allOfIt{};
    int count{ 0 };
    static std::map<std::string, std::shared_ptr<Script>> knownChains; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
    static std::map<std::string, std::shared_ptr<Script>> knownReps; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
+   std::map<std::string, std::string> alltimePreprocessors{};
 
    std::shared_ptr<DataPack> vfm_data_{};
    std::shared_ptr<FormulaParser> vfm_parser_{};

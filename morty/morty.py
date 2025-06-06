@@ -3,7 +3,6 @@ import highway_env
 from matplotlib import pyplot as plt
 from ctypes import *
 
-HACKING_CONSTANT = 4
 
 env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "action": {
@@ -23,7 +22,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         "clip": False
     },
     "simulation_frequency": 15,  # [Hz]
-    "policy_frequency": HACKING_CONSTANT,  # [Hz]
+    "policy_frequency": 4,  # [Hz]
     "controlled_vehicles": 5,
     "vehicles_count": 0,
     "screen_width": 1500,
@@ -32,7 +31,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "show_trajectories": True,
 })
 
-env.reset(seed=1)
+env.reset(seed=42)
 
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
@@ -44,7 +43,6 @@ LANE_RIGHT = 2
 FASTER = 3
 SLOWER = 4
 
-action_idle = (IDLE, IDLE, IDLE, IDLE, IDLE)
 action_lane = (IDLE, IDLE, IDLE, IDLE, IDLE)
 action_vel = (IDLE, IDLE, IDLE, IDLE, IDLE)
 
@@ -65,11 +63,11 @@ for global_counter in range(1000):
         input += ";"
     
     result = create_string_buffer(1000)
-    print(input)
+    #print(f"input: {input}")
     res = morty_lib.morty(input.encode('utf-8'), result, sizeof(result))
     
     res_str = res.decode()    
-    print(res_str)
+    #print(f"result: {res_str}")
 
     LOOKOUT_INTO_FUTURE = 2
     sum_vel_by_car = []
@@ -86,8 +84,8 @@ for global_counter in range(1000):
                     else:
                         sum_vel_by_car[i1] += float(el3)
                         
-    print(sum_vel_by_car)
-    print(sum_lan_by_car)
+    #print(f"summed velocity: {sum_vel_by_car}")
+    #print(f"summed lane: {sum_lan_by_car}")
     
     action_list_vel = []
     action_list_lane = []
@@ -107,12 +105,8 @@ for global_counter in range(1000):
         else:
             action_list_vel.append(IDLE)
     
-    print(action_list_vel)
-    print(action_list_lane)
+    #print(action_list_vel)
+    #print(action_list_lane)
     
     action_vel = tuple(action_list_vel)
     action_lane = tuple(action_list_lane)
-
-#plt.imshow(env.render())
-#plt.show()
-env
