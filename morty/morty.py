@@ -34,8 +34,8 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
 
     }
     },
-    "simulation_frequency": 30,  # [Hz]
-    "policy_frequency": 1,  # [Hz]
+    "simulation_frequency": 60,  # [Hz]
+    "policy_frequency": 2,  # [Hz]
     "controlled_vehicles": 5,
     "vehicles_count": 0,
     "screen_width": 1500,
@@ -44,7 +44,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "show_trajectories": True,
 })
 
-env.reset(seed=43)
+env.reset(seed=34)
 
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
