@@ -44,7 +44,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "show_trajectories": True,
 })
 
-env.reset(seed=34)
+env.reset(seed=26)
 
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
@@ -53,6 +53,7 @@ morty_lib.morty.restype = c_char_p
 
 action = ([0, 0], [0, 0], [0, 0], [0, 0], [0, 0])
 dpoints_y = [0, 0, 0, 0, 0, 0]
+egos_x = [0, 0, 0, 0, 0, 0]
 egos_y = [0, 0, 0, 0, 0, 0]
 egos_headings = [0, 0, 0, 0, 0, 0]
 
@@ -70,13 +71,18 @@ for global_counter in range(1000):
         if first:
             dpoints_y[i] = el[0][2]
             
+        egos_x[i] = el[0][1]
         egos_y[i] = el[0][2]
         egos_headings[i] = el[0][5]
         i = i + 1
         for val in el[0]:
             input += str(val) + ","
         input += ";"
-        
+    
+    if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
+        print("DONE")
+        exit()
+    
     first = False
     
     result = create_string_buffer(1000)
