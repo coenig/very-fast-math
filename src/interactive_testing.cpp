@@ -1558,7 +1558,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
 
          std::set<int> lanes{};
 
-         static constexpr float EPS{ 1 };
+         static constexpr float EPS{ 1.2 };
 
          if (y < 4 - EPS) lanes.insert(3);
          if (y > 0 + EPS && y < 8 - EPS) lanes.insert(2);
