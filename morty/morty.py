@@ -9,7 +9,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         "type": "MultiAgentAction",
         "action_config": {
             "type": "ContinuousAction",
-            "acceleration_range": [-4, 4],
+            "acceleration_range": [-5, 5],
             "steering_range": [-1, 1],
             "speed_range": [0, 30],
             "longitudinal": True,
@@ -35,7 +35,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     }
     },
     "simulation_frequency": 30,  # [Hz]
-    "policy_frequency": 2,  # [Hz]
+    "policy_frequency": 1,  # [Hz]
     "controlled_vehicles": 5,
     "vehicles_count": 0,
     "screen_width": 1500,
