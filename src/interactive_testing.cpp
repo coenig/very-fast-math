@@ -1529,6 +1529,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    auto cars = StaticHelper::split(input_str, ";");
    auto main_file = StaticHelper::readFile("./morty/main.tpl") + "\n";
    int ego_pos = 0;
+   int null_pos{};
 
    cars.erase(cars.end() - 1);
 
@@ -1554,6 +1555,8 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          main_file += "INIT env.veh___6" + std::to_string(i) + "9___.rel_pos = " + std::to_string((int)(x - ego_pos)) + ";\n";
          main_file += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx)) + ";\n";
 
+         if (i == 0) null_pos = (int) (x - ego_pos);
+
          std::set<int> lanes{};
 
          static constexpr float EPS{ 1 };
@@ -1573,6 +1576,8 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          }
       }
    }
+
+   main_file += "INIT env.ego.abs_pos = " + std::to_string(null_pos) + ";\n";
 
    StaticHelper::writeTextToFile(main_file, "./morty/main.smv");
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");

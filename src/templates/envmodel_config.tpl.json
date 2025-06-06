@@ -58,7 +58,7 @@
       "SECTIONSMINLENGTH": "#{50}#",
       "SEGMENTS": "#{1}#",
       "SEGMENTSMINLENGTH": 0,
-      "SPEC": "#{ env.cnt < 0 }#",
+      "SPEC": "#{ env.veh___609___.is_on_sec_1 == 0 || env.veh___609___.abs_pos < 20 }#",
       "ShowLOG": true,
       "TIMESCALING": "#{1000}#",
       "_BP_INCLUDES_FILE_PATH": "../src/examples/ego_less/vfm-includes.txt",
