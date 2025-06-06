@@ -9,7 +9,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         "type": "MultiAgentAction",
         "action_config": {
             "type": "ContinuousAction",
-            "acceleration_range": [-5, 5],
+            "acceleration_range": [-4, 4],
             "steering_range": [-1, 1],
             "speed_range": [0, 30],
             "longitudinal": True,
@@ -35,7 +35,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     }
     },
     "simulation_frequency": 30,  # [Hz]
-    "policy_frequency": 1,  # [Hz]
+    "policy_frequency": 2,  # [Hz]
     "controlled_vehicles": 5,
     "vehicles_count": 0,
     "screen_width": 1500,
@@ -130,7 +130,7 @@ for global_counter in range(1000):
         dpoints_y[i] = max(min(dpoints_y[i], 12), 0)
         
         accel = sum_vel_by_car[i] / 5
-        angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 45) / 3.1415
+        angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 50) / 3.1415
         action_list.append([accel, angle])
     
     #print(action_list_vel)
