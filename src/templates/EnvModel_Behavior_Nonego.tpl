@@ -95,18 +95,23 @@ esac;
 }@*.for[[j], 1, @{NUMLANES - 1}@.eval]}@**.for[[i], 0, @{NONEGOS - 1}@.eval].nil
 
 @{
-   INVAR (veh___6[i]9___.abs_pos < section_0_segment_0_pos_begin) -> 
-   (veh___6[i]9___.on_lane_min >= section_0_segment_0_min_lane & veh___6[i]9___.on_lane_max <= section_0_segment_0_max_lane);
+@{
+   INVAR veh___6[i]9___.on_straight_section = [sec]
+   -> ((veh___6[i]9___.abs_pos < section_[sec]_segment_0_pos_begin) -> 
+   (veh___6[i]9___.on_lane_min >= section_[sec]_segment_0_min_lane & veh___6[i]9___.on_lane_max <= section_[sec]_segment_0_max_lane));
 
    @{
-   INVAR (veh___6[i]9___.abs_pos >= section_0_segment_[num]_pos_begin & veh___6[i]9___.abs_pos < section_0_segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
-   (veh___6[i]9___.on_lane_min >= section_0_segment_[num]_min_lane & veh___6[i]9___.on_lane_max <= section_0_segment_[num]_max_lane);
+   INVAR veh___6[i]9___.on_straight_section = [sec]
+   -> ((veh___6[i]9___.abs_pos >= section_[sec]_segment_[num]_pos_begin & veh___6[i]9___.abs_pos < section_[sec]_segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
+   (veh___6[i]9___.on_lane_min >= section_[sec]_segment_[num]_min_lane & veh___6[i]9___.on_lane_max <= section_[sec]_segment_[num]_max_lane));
    }@*.for[[num], 0, @{SEGMENTS - 2}@.eval]
 
-   INVAR (veh___6[i]9___.abs_pos >= section_0_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin) -> 
-   (veh___6[i]9___.on_lane_min >= section_0_segment_@{SEGMENTS - 1}@.eval[0]_min_lane & veh___6[i]9___.on_lane_max <= section_0_segment_@{SEGMENTS - 1}@.eval[0]_max_lane);
+   INVAR veh___6[i]9___.on_straight_section = [sec]
+   -> ((veh___6[i]9___.abs_pos >= section_[sec]_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin) -> 
+   (veh___6[i]9___.on_lane_min >= section_[sec]_segment_@{SEGMENTS - 1}@.eval[0]_min_lane & veh___6[i]9___.on_lane_max <= section_[sec]_segment_@{SEGMENTS - 1}@.eval[0]_max_lane));
 
 }@**.for[[i], 0, @{NONEGOS - 1}@.eval]
+}@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 -- EO Make sure non-egos do not drive on the GREEN.
 
