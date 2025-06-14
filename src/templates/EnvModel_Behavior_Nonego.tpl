@@ -69,6 +69,7 @@ VAR
 DEFINE
 
 -- Make sure non-egos do not drive on the GREEN.
+
 @{
 veh___6[i]9___.on_lane_min := case
    @{veh___6[i]9___.lane_b[j] : [j];
@@ -106,6 +107,9 @@ esac;
    (veh___6[i]9___.on_lane_min >= section_0_segment_@{SEGMENTS - 1}@.eval[0]_min_lane & veh___6[i]9___.on_lane_max <= section_0_segment_@{SEGMENTS - 1}@.eval[0]_max_lane);
 
 }@**.for[[i], 0, @{NONEGOS - 1}@.eval]
+
+-- EO Make sure non-egos do not drive on the GREEN.
+
 
 DEFINE
 
