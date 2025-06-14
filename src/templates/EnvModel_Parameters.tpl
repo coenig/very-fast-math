@@ -15,6 +15,7 @@
 @{SECTIONS}@******.defaultValue[3]               -- Number of straight road SECTIONS which form a road network
 @{SECTIONSMAXLENGTH}@******.defaultValue[150]
 @{SECTIONSMINLENGTH}@******.defaultValue[50]
+@{ALLOW_ZEROLENGTH_SECTIONS}@******.defaultValue[true]
 @{ANGLEGRANULARITY}@******.defaultValue[45]      -- Only every n-th angle (DEG) can be used between two sections at connection points (zero degrees is straight ahead)
 @{MAXOUTGOINGCONNECTIONS}@******.defaultValue[3] -- Maximum number of successors a straight road may have
 @{MINDISTCONNECTIONS}@******.defaultValue[20]    -- The minimal "X" variable when going from the drain of one road to the source of a connected one
