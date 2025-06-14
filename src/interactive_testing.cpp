@@ -7,6 +7,7 @@
 
 #include "testing/interactive_testing.h"
 #include "gui/gui.h"
+#include "model_checking/cex_processing/mc_visualization_launchers.h"
 
 #include <stdio.h>
 #include <string>
@@ -1527,7 +1528,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    std::string input_str(input);
    auto cars = StaticHelper::split(input_str, ";");
    auto main_file = StaticHelper::readFile("./morty/main.tpl") + "\n";
-   int ego_pos = 0;
+   int null_pos{};
 
    cars.erase(cars.end() - 1);
 
@@ -1550,8 +1551,10 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          x = std::max(std::min(x, std::numeric_limits<float>::max()), std::numeric_limits<float>::min());
          vx = std::max(std::min(vx, 70.0f), 0.0f);
 
-         main_file += "INIT env.veh___6" + std::to_string(i) + "9___.rel_pos = " + std::to_string((int)(x - ego_pos)) + ";\n";
+         main_file += "INIT env.veh___6" + std::to_string(i) + "9___.abs_pos = " + std::to_string((int)(x)) + ";\n";
          main_file += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx)) + ";\n";
+
+         if (i == 0) null_pos = (int) (x);
 
          std::set<int> lanes{};
 
@@ -1573,10 +1576,34 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
       }
    }
 
+   main_file += "INIT env.ego.abs_pos = " + std::to_string(null_pos) + ";\n";
+
    StaticHelper::writeTextToFile(main_file, "./morty/main.smv");
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
    auto traces{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt") };
    MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
+
+   if (!trace.empty()) {
+      static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF = static_cast<mc::trajectory_generator::LiveSimGenerator::LiveSimType>(
+         mc::trajectory_generator::LiveSimGenerator::LiveSimType::birdseye
+         | mc::trajectory_generator::LiveSimGenerator::LiveSimType::incremental_image_output
+         );
+
+      mc::trajectory_generator::VisualizationScales gen_config_non_smooth{};
+      gen_config_non_smooth.x_scaling = 1;
+      gen_config_non_smooth.duration_scale = 1;
+      gen_config_non_smooth.frames_per_second_gif = 0;
+      gen_config_non_smooth.frames_per_second_osc = 0;
+      gen_config_non_smooth.gif_duration_scale = 1;
+
+      mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
+         trace,
+         ".",
+         "preview2",
+         SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
+         {},
+         gen_config_non_smooth, "preview 2");
+   }
 
    std::vector<VarValsFloat> deltas{};
    std::set<std::string> variables{};

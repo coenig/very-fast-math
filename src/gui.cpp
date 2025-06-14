@@ -204,7 +204,7 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
    button_check_json_->callback(buttonCheckJSON, this);
    button_delete_generated_->callback(buttonDeleteGenerated, this);
    button_delete_testcases_->callback(buttonDeleteTestCases, this);
-   button_delete_current_preview_->callback(buttonDeleteCurrentPreview, this);
+   button_delete_mc_output_->callback(buttonDeleteMCOutput, this);
    button_delete_cached_->callback(buttonDeleteCached, this);
    button_delete_cached_->tooltip("Use right click if you really want to delete cache");
    button_run_mc_and_preview_->callback(buttonRunMCAndPreview, this);
@@ -481,7 +481,7 @@ void MCScene::activateMCButtons(const bool active, const ButtonClass which)
       if (which == ButtonClass::DeleteButtons || which == ButtonClass::All) {
          button_delete_generated_->activate();
          button_delete_testcases_->activate();
-         button_delete_current_preview_->activate();
+         button_delete_mc_output_->activate();
          button_delete_cached_->activate();
       }
    }
@@ -496,7 +496,7 @@ void MCScene::activateMCButtons(const bool active, const ButtonClass which)
       if (which == ButtonClass::DeleteButtons || which == ButtonClass::All) {
          button_delete_generated_->deactivate();
          button_delete_testcases_->deactivate();
-         button_delete_current_preview_->deactivate();
+         button_delete_mc_output_->deactivate();
          button_delete_cached_->deactivate();
       }
    }
@@ -1474,15 +1474,7 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
    std::string path_template{ mc_scene->getTemplateDir() };
 
    mc_scene->addNote("Running model checker and creating preview for folder '" + path_generated + "' (config: '" + config_name + "').");
-
-   StaticHelper::removeFileSafe(path_generated + "/" + "debug_trace_array.txt");
-   StaticHelper::removeFileSafe(path_generated + "/" + "debug_trace_array.smv");
-   StaticHelper::removeFileSafe(path_generated + "/" + "debug_trace_array_unscaled.smv");
-   StaticHelper::removeFileSafe(path_generated + "/" + "mc_runtimes.txt");
-   StaticHelper::removeFileSafe(path_generated + "/" + "prose_scenario_description.txt");
-   StaticHelper::removeAllFilesSafe(path_generated + "/" + "preview");
-   StaticHelper::removeAllFilesSafe(path_generated + "/" + "preview2");
-
+   mc_scene->deleteMCOutputFromFolder(path_generated, true);
    mc_scene->preprocessAndRewriteJSONTemplate();
 
    std::string main_smv{ StaticHelper::readFile(path_generated + "/main.smv") };
@@ -1532,7 +1524,7 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
    std::string prefix{ path_generated_base.filename().string() };
 
-   mc_scene->deletePreview(path_generated_base_str, false);
+   mc_scene->deleteMCOutputFromFolder(path_generated_base_str, true);
    std::vector<std::string> possibles{};
 
    for (const auto& entry : std::filesystem::directory_iterator(path_generated_base_parent)) {
@@ -1632,19 +1624,23 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }
 
-void MCScene::deletePreview(const std::string& path_generated, const bool actually_delete_gif) 
+void MCScene::deleteMCOutputFromFolder(const std::string& path_generated, const bool actually_delete_gif)
 {
-   std::string path_generated_preview{ path_generated + "/preview" };
-   std::string path_generated_preview2{ path_generated + "/preview2" };
+   //StaticHelper::removeFileSafe(path_generated + "/" + "main.smv"); // Do NOT remove main.smv. It only gets changed at this point.
+
+
+   std::string path_result{ path_generated + "/debug_trace_array.txt" };
+   std::string path_runtimes{ path_generated + "/mc_runtimes.txt" };
+   std::string path_script{ path_generated + "/" + "script.cmd" };
+
    std::string path_prose_description{ path_generated + "/" + PROSE_DESC_NAME };
    std::string path_planner_smv{ path_generated + "/planner.cpp_combined.k2.smv" };
-   std::string path_result{ path_generated + "/debug_trace_array.txt" };
+   std::string path_generated_preview{ path_generated + "/preview" };
 
    if (actually_delete_gif) {
+      for (int i = 0; i < 100; i++) StaticHelper::removeAllFilesSafe(path_generated + "/" + std::to_string(i));
       addNote("Deleting folder '" + path_generated_preview + "'.");
       StaticHelper::removeAllFilesSafe(path_generated_preview);
-      addNote("Deleting folder '" + path_generated_preview2 + "'.");
-      StaticHelper::removeAllFilesSafe(path_generated_preview2);
    }
    else {
       addNote("Overwriting folder '" + path_generated_preview + "'.");
@@ -1664,6 +1660,16 @@ void MCScene::deletePreview(const std::string& path_generated, const bool actual
    if (std::filesystem::exists(path_result)) {
       addNote("Deleting file '" + path_result + "'.");
       StaticHelper::removeFileSafe(path_result);
+   }
+
+   if (std::filesystem::exists(path_runtimes)) {
+      addNote("Deleting file '" + path_runtimes + "'.");
+      StaticHelper::removeFileSafe(path_runtimes);
+   }
+
+   if (std::filesystem::exists(path_script)) {
+      addNote("Deleting file '" + path_script + "'.");
+      StaticHelper::removeFileSafe(path_script);
    }
 
    for (auto& sec : se_controllers_) {
@@ -1976,7 +1982,7 @@ void vfm::MCScene::resetParserAndData()
    parser_->addnuSMVOperators(TLType::LTL);
 }
 
-void deleteCurrentPreview(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
+void deleteMCOutput(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
    std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
@@ -1988,12 +1994,12 @@ void deleteCurrentPreview(MCScene* mc_scene) // Free function that actually does
       std::string possible{ entry.path().filename().string() };
       if (std::filesystem::is_directory(entry) && possible != prefix && StaticHelper::stringStartsWith(possible, prefix)) {
          if (!StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(possible, SecOptionLocalItemEnum::selected_job))) {
-            mc_scene->deletePreview(entry.path().string(), true);
+            mc_scene->deleteMCOutputFromFolder(entry.path().string(), true);
          }
       }
    }
 
-   mc_scene->deletePreview(path_generated_base_str, false);
+   mc_scene->deleteMCOutputFromFolder(path_generated_base_str, false);
    mc_scene->resetParserAndData();
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }
@@ -2082,11 +2088,11 @@ void deleteCached(MCScene* mc_scene) // Free function that actually does it, ran
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }
 
-void MCScene::buttonDeleteCurrentPreview(Fl_Widget* widget, void* data)
+void MCScene::buttonDeleteMCOutput(Fl_Widget* widget, void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
    mc_scene->showAllBBGroups(false);
-   std::thread t{ deleteCurrentPreview, mc_scene };
+   std::thread t{ deleteMCOutput, mc_scene };
    t.detach();
 }
 
@@ -2200,7 +2206,7 @@ void MCScene::onGroupClickBM(Fl_Widget* widget, void* data)
          other.selected_ = false;
       }
 
-      controller->mc_scene_->deletePreview(controller->mc_scene_->getGeneratedDir(), false);
+      controller->mc_scene_->deleteMCOutputFromFolder(controller->mc_scene_->getGeneratedDir(), false);
 
       return;
    }
