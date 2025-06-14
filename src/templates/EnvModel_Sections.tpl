@@ -167,11 +167,17 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
             section_[sec]_segment_[seg]_max_lane : integer;
          }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
    
-         @{section_[sec]_end}@*.scalingVariable[distance] : @{SECTIONSMINLENGTH}@.eval[0] .. @{SECTIONSMAXLENGTH}@.eval[0];
+         @{section_[sec]_end}@*.scalingVariable[distance] : 
+            @{@(0)@@(@{SECTIONSMINLENGTH}@.eval[0])@}@.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] .. @{SECTIONSMAXLENGTH}@.eval[0]; -- This is essentially the length of the section.
 
          section_[sec].source.x : integer;
          section_[sec].source.y : integer;
          section_[sec].angle_raw : 0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
+
+      @{
+      INIT section_[sec]_end = 0                               -- Allow straight sections with zero length.
+         | section_[sec]_end >= @{SECTIONSMINLENGTH}@.eval[0];
+      }@.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval]
 
       DEFINE 
          section_[sec].angle := section_[sec].angle_raw * @{ANGLEGRANULARITY}@.eval[0];
