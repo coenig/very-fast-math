@@ -2,90 +2,65 @@ import gymnasium
 import highway_env
 from matplotlib import pyplot as plt
 from ctypes import *
-import math
+
 
 env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "action": {
         "type": "MultiAgentAction",
         "action_config": {
-            "type": "ContinuousAction",
-            "acceleration_range": [-5, 5],
-            "steering_range": [-1, 1],
-            "speed_range": [0, 30],
-            "longitudinal": True,
-            "lateral": True,
+            "type": "DiscreteMetaAction",
+            "target_speeds": [0, 5, 10, 15, 20, 25, 30],
         },
+    "longitudinal": True,
+    "lateral": True,
     },
-#    "observation": {
-#        "type": "Kinematics",
-#        "absolute": True,
-#        "normalize": False,
-#        "see_behind": True,
-#        "clip": False,
-#        "order": "sorted"
-#    },
     "observation": {
-      "type": "MultiAgentObservation",
-      "observation_config": {
-        "features": ["presence", "x", "y", "vx", "vy", "heading"],
         "type": "Kinematics",
-        #        "absolute": True,
+        "absolute": True,
         "normalize": False,
-
-    }
+        "see_behind": True,
+        "clip": False
     },
-    "simulation_frequency": 60,  # [Hz]
-    "policy_frequency": 2,  # [Hz]
+    "simulation_frequency": 15,  # [Hz]
+    "policy_frequency": 4,  # [Hz]
     "controlled_vehicles": 5,
     "vehicles_count": 0,
     "screen_width": 1500,
     "screen_height": 500,
-    "scaling": 3.5,
+    "scaling": 4.5,
     "show_trajectories": True,
 })
 
-env.reset(seed=24)
-# GOOD: 24, 30, 32, 39, 40, 42, 43
-# BAD : 25-29, 31, 33-38, 41, 44, 45
+env.reset(seed=42)
 
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
 morty_lib.morty.restype = c_char_p
     
+LANE_LEFT = 0
+IDLE = 1
+LANE_RIGHT = 2
+FASTER = 3
+SLOWER = 4
 
-action = ([0, 0], [0, 0], [0, 0], [0, 0], [0, 0])
-dpoints_y = [0, 0, 0, 0, 0, 0]
-egos_x = [0, 0, 0, 0, 0, 0]
-egos_y = [0, 0, 0, 0, 0, 0]
-egos_headings = [0, 0, 0, 0, 0, 0]
+action_lane = (IDLE, IDLE, IDLE, IDLE, IDLE)
+action_vel = (IDLE, IDLE, IDLE, IDLE, IDLE)
 
-def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
-    return heading - math.atan((dpoint_y - ego_y) / ddist)
-
-first = True
 for global_counter in range(1000):
     env.render()
-    obs, reward, done, truncated, info = env.step(action)
     
+    if global_counter % 2 == 0:
+        obs, reward, done, truncated, info = env.step(action_lane)
+    elif global_counter % 2 == 1:
+        obs, reward, done, truncated, info = env.step(action_vel)
+    else:
+        continue
+
     input = ""
-    i = 0
     for el in obs:
-        if first:
-            dpoints_y[i] = el[0][2]
-            
-        egos_x[i] = el[0][1]
-        egos_y[i] = el[0][2]
-        egos_headings[i] = el[0][5]
-        i = i + 1
-        for val in el[0]:
+        for val in el:
             input += str(val) + ","
         input += ";"
-    
-    if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
-        print("DONE")
-        exit()
-    
-    first = False
     
     result = create_string_buffer(1000)
     #print(f"input: {input}")
@@ -94,54 +69,44 @@ for global_counter in range(1000):
     res_str = res.decode()    
     #print(f"result: {res_str}")
 
+    LOOKOUT_INTO_FUTURE = 2
     sum_vel_by_car = []
     sum_lan_by_car = []
-
-    lanes = ""
-    accels = ""
 
     for i1, el1 in enumerate(res_str.split(';')):
         sum_lan_by_car.append(0)
         sum_vel_by_car.append(0)
-        lanes += "\n"
-        accels += "\n"
         for i2, el2 in enumerate(el1.split('|')):
             for i3, el3 in enumerate(el2.split(',')):
-                if el3:
+                if el3 and i3 < LOOKOUT_INTO_FUTURE:
                     if i2 == 1:
-                        lanes += "   " + el3
-                        if i3 == 2:
-                            sum_lan_by_car[i1] += float(el3)
+                        sum_lan_by_car[i1] += float(el3)
                     else:
-                        accels += "   " + el3
-                        if i3 == 0:
-                            sum_vel_by_car[i1] += float(el3)
-
-    with open("lanes.txt", "w") as text_file:
-        text_file.write(lanes)
-    with open("accels.txt", "w") as text_file:
-        text_file.write(accels)
-
-    print(f"summed velocity: {sum_vel_by_car}")
-    print(f"summed lane: {sum_lan_by_car}")
+                        sum_vel_by_car[i1] += float(el3)
+                        
+    #print(f"summed velocity: {sum_vel_by_car}")
+    #print(f"summed lane: {sum_lan_by_car}")
     
-    action_list = []
-    
-    eps = 0.2
+    action_list_vel = []
+    action_list_lane = []
+        
     for i, el in enumerate(sum_vel_by_car):
-        if abs(dpoints_y[i] - egos_y[i]) < eps:
-            if sum_lan_by_car[i] < 0:
-                dpoints_y[i] += 2
-            elif sum_lan_by_car[i] > 0:
-                dpoints_y[i] -= 2
-        
-        dpoints_y[i] = max(min(dpoints_y[i], 12), 0)
-        
-        accel = sum_vel_by_car[i] / 5
-        angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 50) / 3.1415
-        action_list.append([accel, angle])
+        if sum_lan_by_car[i] < 0:
+            action_list_lane.append(LANE_RIGHT)
+        elif sum_lan_by_car[i] > 0:
+            action_list_lane.append(LANE_LEFT)
+        else:
+            action_list_lane.append(IDLE)
+            
+        if sum_vel_by_car[i] > 0:
+            action_list_vel.append(FASTER)
+        elif sum_vel_by_car[i] < 0:
+            action_list_vel.append(SLOWER)
+        else:
+            action_list_vel.append(IDLE)
     
     #print(action_list_vel)
     #print(action_list_lane)
     
-    action = tuple(action_list)
+    action_vel = tuple(action_list_vel)
+    action_lane = tuple(action_list_lane)
