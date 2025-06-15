@@ -313,7 +313,7 @@ ASSIGN
        @{
          next(veh___6[i]9___.is_on_sec_[sec2]) := case
              @{@{
-                @{veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 1;}@.if[@{[sec] != [sec2]}@.eval]
+                @{@{section_[sec2]_end > 0 &}@.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 1;}@.if[@{[sec] != [sec2]}@.eval]
              }@*.for[[lane], 0, @{NUMLANES - 1}@.eval]
           }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
              veh___6[i]9___.is_on_sec_[sec2] = 1 & veh___6[i]9___.next_abs_pos > section_[sec2]_end : 0;
@@ -322,20 +322,29 @@ ASSIGN
        }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
     
     -- ## Future pos is curved junction ##
+    -- TODO: There is quite some double code between the "{0, 1}" cases. It might be more efficient to merge them into a single case.
        @{@{
              @{
                 next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) := case
+                   -- Regular switch from end of straight section to one of subsequential junctions.
                    @{
                       veh___6[i]9___.is_on_sec_[sec] = 1 & outgoing_connection_[con]_of_section_[sec] = [sec2] & veh___6[i]9___.next_abs_pos > section_[sec]_end : {0, 1};
                    }@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval]
-                   @{
-                      veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 0;
-                   }@*.for[[lane], 0, @{NUMLANES - 1}@.eval]
-                   TRUE : veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2];
+
+                    -- Jump over "zero-length" sections.
+                   @{@{
+                      @{
+                      veh___6[i]9___.is_traversing_from_sec_[sec3]_to_sec_[sec] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec3]_to_sec_[sec]_on_lane_[lane]
+                          & section_[sec]_end = 0 & (@{outgoing_connection_[con]_of_section_[sec] = 0}@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval, 1, |]) : {0, 1};
+                      }@.if[@{[sec3] != [sec]}@.eval]
+                   }@**.for[[sec3], 0, @{SECTIONS - 1}@.eval]
+                      veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 0; -- Leave this junction when passed over the end.
+                   }@***.for[[lane], 0, @{NUMLANES - 1}@.eval]
+                   TRUE : veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]; -- Stay on this junction as long as not passed over the end.
                 esac;
              }@.if[@{[sec] != [sec2]}@.eval]
-             }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
-       }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+             }@****.for[[sec], 0, @{SECTIONS - 1}@.eval]
+       }@*****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
 
     @{
        @{
