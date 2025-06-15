@@ -20,7 +20,6 @@ using namespace macro;
 ScriptTree::ScriptTree() : ScriptTree(nullptr) {}
 ScriptTree::ScriptTree(std::shared_ptr<ScriptTree> father) : Failable("ScriptTree"), father_{ father } {}
 std::map<std::string, RepresentableAsPDF> Script::knownChains{};
-std::map<std::string, RepresentableAsPDF> Script::knownReps{};
 std::map<std::string, std::string> Script::knownPreprocessors{};
 std::map<std::string, std::vector<std::string>> Script::list_data_{};
 
@@ -82,8 +81,6 @@ void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2)
 
    processedScript = evaluateAll(processedScript, EXPR_BEG_TAG_BEFORE, EXPR_END_TAG_BEFORE);
 
-   findAllVariables();
-
    extractInscriptProcessors(); // Process all inscript preprocessors.
 
    processedScript = undoPlaceholdersForPlainText(processedScript); // Undo placeholder securing.
@@ -95,23 +92,6 @@ void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2)
 std::string vfm::macro::Script::getProcessedScript() const
 {
    return processedScript;
-}
-
-std::string Script::findVarName(const std::string script, int& begin) const
-{
-   int original_begin = begin;
-   auto tokens = StaticHelper::tokenize(script, *SingletonFormulaParser::getLightInstance(), begin, 1, true);
-
-   if (!tokens || tokens->empty()) {
-      addError("Variable name not found at position '" + std::to_string(original_begin) + "' in script '" + script + "'.");
-      return "#INVALID";
-   }
-
-   std::string var_name = tokens->at(0);
-
-   begin = original_begin - var_name.length();
-
-   return var_name;
 }
 
 bool Script::extractInscriptProcessors()
@@ -282,42 +262,25 @@ std::string Script::placeholderForInscript(
    }
 }
 
+int iii{};
+int jjj{};
+
 RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const std::string& chain, RepresentableAsPDF father)
 {
    std::string processedChain{ StaticHelper::trimAndReturn(chain) };
    std::string processedRaw{ processedChain };
-   RepresentableAsPDF repThis{};
 
    if (knownChains.count(processedRaw)) {
+      std::cout << "CACHED (" << processedRaw.size() << "): " << iii++ << " --- " << processedRaw << std::endl;
       return knownChains.at(processedRaw);
    }
 
-   if (knownReps.count(repScrThis)) {
-      repThis = knownReps.at(repScrThis);
-   }
-   else if (repScrThis.empty()) {
-      repThis = nullptr;
-   }
-   else {
-      repThis = createThisObject(nullptr, repScrThis, father);
-      knownReps[repScrThis] = repThis;
-   }
+   std::cout << "REGULAR (" << processedRaw.size() <<  "): " << jjj++ << std::endl;
 
    RepresentableAsPDF repToProcess{};
    std::shared_ptr<int> methodBegin = methodPartBegins.count(processedRaw) ? std::make_shared<int>(methodPartBegins.at(processedRaw)) : nullptr;
 
-   if (StaticHelper::stringStartsWith(processedChain, THIS_NAME)) {
-      if (!repThis) {
-         addError("Cannot apply methods to \"this\", no reference representable given.");
-      }
-
-      repToProcess = repThis->copy();
-
-      //ignorePreprocessorsAndAnimateOnce();
-      repToProcess = createThisObject(repToProcess, repScrThis, father);
-      processedChain = processedChain.substr(THIS_NAME.length());
-   }
-   else if (StaticHelper::stringStartsWith(processedChain, INSCR_BEG_TAG)
+   if (StaticHelper::stringStartsWith(processedChain, INSCR_BEG_TAG)
       && (!methodBegin
          || StaticHelper::findMatchingEndTagLevelwise(
             processedChain,
@@ -377,7 +340,7 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
    addFailableChild(repToProcess, "");
 
    if (StaticHelper::isEmptyExceptWhiteSpaces(processedChain)) {
-      knownChains[processedRaw] = repToProcess;
+      if (processedRaw.size() < 50) knownChains[processedRaw] = repToProcess;
       return repToProcess;
    }
 
@@ -390,7 +353,7 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
    }
 
    RepresentableAsPDF apply_method_chain = applyMethodChain(repToProcess, methodSignaturesArray);
-   knownChains[processedRaw] = apply_method_chain;
+   if (processedRaw.size() < 50) knownChains[processedRaw] = apply_method_chain;
    return apply_method_chain;
 }
 
@@ -1350,23 +1313,6 @@ int nextIndex(const std::string& script, const int current_index)
    return -1;
 }
 
-void Script::findAllVariables()
-{
-   int indexOf = nextIndex(processedScript, 0);
-
-   while (indexOf > 0) {
-      int index_of_dummy = indexOf - 1;
-      
-      std::string var_name = findVarName(processedScript, index_of_dummy);
-
-      if (!var_name.empty() && StaticHelper::isAlphaNumericOrUnderscore(var_name) && StaticHelper::isAlpha(StaticHelper::makeString(var_name.at(0)))) {
-         addError("THE SUPPORT FOR VARIABLES HAS BEEN ABANDONED. Found possible variable named '" + var_name + "' at position " + std::to_string(index_of_dummy) + " in script of length " + std::to_string(processedScript.size()) + ".");
-      }
-
-      indexOf = nextIndex(processedScript, indexOf + 1);
-   }
-}
-
 std::string vfm::macro::Script::getRawScript() const
 {
    return rawScript;
@@ -1654,7 +1600,6 @@ std::string vfm::macro::Script::processScript(
    knownPreprocessors.clear();
    list_data_.clear();
    knownChains.clear();
-   knownReps.clear();
    DummyRepresentable::inscriptMethodDefinitions.clear();
    DummyRepresentable::inscriptMethodParNums.clear();
    DummyRepresentable::inscriptMethodParPatterns.clear();

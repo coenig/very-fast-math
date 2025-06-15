@@ -66,7 +66,6 @@ static const std::string EXPR_END_TAG_AFTER = "}~";
 static const std::string EXPR_BEG_TAG_BEFORE = "~{{";
 static const std::string EXPR_END_TAG_BEFORE = "}}~";
 
-static const std::string THIS_NAME = "this";
 static const std::string PREPROCESSOR_FIELD_NAME = "prep";
 static const std::string VARIABLE_DELIMITER = "=";
 static const char END_VALUE = ';';
@@ -513,8 +512,6 @@ private:
    ///          variable).
    std::shared_ptr<Script> evaluateChain(const std::string& repScrThis, const std::string& chain, std::shared_ptr<Script> father);
 
-   std::string findVarName(const std::string script, int& begin) const;
-
    /// Goes through the current version of
    /// {@link RepresentableDefault#processedScript} and replaces
    /// all inscript preprocessor parts with their resulting
@@ -594,11 +591,6 @@ private:
    ///                script.
    /// @return  The object-specific placeholder to replace the symbol with.
    std::string symbolToPlaceholder(const std::string& symbol);
-
-    /// Finds all potential variables, i.e., all substrings that stand left
-    /// of a "=", start with an alphabetic character and contain only
-    /// alphanumeric characters.
-   void findAllVariables();
 
    std::string removePreprocessors(const std::string& script);
 
@@ -717,7 +709,6 @@ private:
   
    int count{ 0 };
    static std::map<std::string, std::shared_ptr<Script>> knownChains; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
-   static std::map<std::string, std::shared_ptr<Script>> knownReps; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
 
    std::shared_ptr<DataPack> vfm_data_{};
    std::shared_ptr<FormulaParser> vfm_parser_{};
