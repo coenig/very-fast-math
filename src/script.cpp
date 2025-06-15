@@ -28,8 +28,6 @@ std::map<std::string, std::string> DummyRepresentable::inscriptMethodDefinitions
 std::map<std::string, int> DummyRepresentable::inscriptMethodParNums{};
 std::map<std::string, std::string> DummyRepresentable::inscriptMethodParPatterns{};
 
-std::set<std::string> Script::VARIABLES_MAYBE{};
-
 
 vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser)
    : Failable("ScriptMacro"), vfm_data_(data), vfm_parser_(parser)
@@ -133,46 +131,10 @@ bool Script::extractInscriptProcessors()
    int lengthOfPreprocessor = preprocessorScript.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length();
    std::string partBefore = processedScript.substr(0, indexOfPrep);
    std::string partAfter = processedScript.substr(indexOfPrep + lengthOfPreprocessor);
-   int indexOfSeparator = preprocessorScript.find("|");
-
-   int scaleLength = 0;
-   if (indexOfSeparator >= 0) {
-      std::string scaleStr = preprocessorScript.substr(0, indexOfSeparator);
-      if (StaticHelper::isParsableAsFloat(scaleStr)) { // Scale defined.
-         scaleLength = scaleStr.length() + 1;
-         scale = ::atof(scaleStr.c_str());
-         preprocessorScript = StaticHelper::trimAndReturn(preprocessorScript.substr(indexOfSeparator + 1));
-      }
-   }
 
    bool hidden = true;
    int declLength = 0;
    int qualifiedDelta = 0;
-   if (indexOfPrep > 1 && processedScript.at(indexOfPrep - 1) == ASSIGNMENT_OPERATOR) {
-      //int indexOfFNBegin = RegExIndexer.lastIndexOf(partBefore, "\\W", partBefore.length() - 1);
-      int indexOfFNBegin = partBefore.length() - 2;
-
-      identifierName = findVarName(partBefore, indexOfFNBegin);
-      identifierName = raiseAndGetQualifiedIdentifierName(identifierName);
-      declLength = partBefore.length() - indexOfFNBegin - 1;
-      partBefore = partBefore.substr(0, indexOfFNBegin + 1);
-
-      std::string qualifiedIdentifierName = getQualifiedIdentifierName(preprocessorScript);
-      if (qualifiedIdentifierName != preprocessorScript) {
-         // The right side of the assignment has to be qualified.
-         qualifiedDelta = qualifiedIdentifierName.length() - preprocessorScript.length();
-         preprocessorScript = qualifiedIdentifierName;
-      }
-
-      if (getPreprocessors().count(identifierName)) {
-         /*
-          * If the identifier is re-assigned, known chains containing
-          * it have to be removed.
-          */
-
-         removeChainsContainingIdentifier(identifierName);
-      }
-   }
 
    int indexCurr = getNextNonInscriptPosition(partAfter);
    indexCurr = (std::min)(indexCurr, (int) partAfter.length());
@@ -186,27 +148,19 @@ bool Script::extractInscriptProcessors()
    // Store debug script.
    int begin = indexOfPrep - declLength;
 
-   // Check if the preprocessor is just an identifier name.
-   std::string trimmed = StaticHelper::trimAndReturn(preprocessorScript);
-   if (isVariable(trimmed)) {
-      placeholder_for_inscript = VAR_BEG_TAG + trimmed + VAR_END_TAG; // TODO: Do we need this?
-      addPreprocessor(preprocessorScript, identifierName, methodPartBegin);
+   addPreprocessor(preprocessorScript, identifierName, methodPartBegin);
+
+   if (knownPreprocessors.count(preprocessorScript)) {
+      placeholder_for_inscript = knownPreprocessors.at(preprocessorScript);
    }
    else {
-      addPreprocessor(preprocessorScript, identifierName, methodPartBegin);
+      placeholder_for_inscript = placeholderForInscript(
+         identifierName,
+         preprocessorScript,
+         scale,
+         true);
 
-      if (knownPreprocessors.count(preprocessorScript)) {
-         placeholder_for_inscript = knownPreprocessors.at(preprocessorScript);
-      }
-      else {
-         placeholder_for_inscript = placeholderForInscript(
-            identifierName,
-            preprocessorScript,
-            scale,
-            true);
-
-         knownPreprocessors.insert({ preprocessorScript, placeholder_for_inscript });
-      }
+      knownPreprocessors.insert({ preprocessorScript, placeholder_for_inscript });
    }
 
    std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
@@ -352,10 +306,6 @@ std::string Script::placeholderForInscript(
    const double scale,
    const bool allowRegularScripts)
 {
-   if (isVariable(preprocessorScript)) {
-      return "";
-   }
-
    RepresentableAsPDF result = evaluateChain(removePreprocessors(rawScript), preprocessorScript, nullptr); // TODO nullptr?
 
    if (true/*DummyRepresentable.class.isAssignableFrom(result.getClass())*/) { // TODO: Only plain-text scripts allowed for now.
@@ -1088,11 +1038,6 @@ RepresentableAsPDF DummyRepresentable::createThisObject(const RepresentableAsPDF
    return repThis;
 }
 
-bool Script::isVariable(const std::string& preprocessorScript)
-{
-   return VARIABLES_MAYBE.count(preprocessorScript);
-}
-
 std::map<std::string, std::string> Script::getPreprocessors() 
 {
    return alltimePreprocessors;
@@ -1458,8 +1403,7 @@ void Script::findAllVariables()
       std::string var_name = findVarName(processedScript, index_of_dummy);
 
       if (!var_name.empty() && StaticHelper::isAlphaNumericOrUnderscore(var_name) && StaticHelper::isAlpha(StaticHelper::makeString(var_name.at(0)))) {
-         VARIABLES_MAYBE.insert(var_name);
-         addNote("Found possible variable named '" + var_name + "' at position " + std::to_string(index_of_dummy) + " in script of length " + std::to_string(processedScript.size()) + ".");
+         addError("THE SUPPORT FOR VARIABLES HAS BEEN ABANDONED. Found possible variable named '" + var_name + "' at position " + std::to_string(index_of_dummy) + " in script of length " + std::to_string(processedScript.size()) + ".");
       }
 
       indexOf = nextIndex(processedScript, indexOf + 1);
@@ -1758,7 +1702,6 @@ std::string vfm::macro::Script::processScript(
    DummyRepresentable::inscriptMethodDefinitions.clear();
    DummyRepresentable::inscriptMethodParNums.clear();
    DummyRepresentable::inscriptMethodParPatterns.clear();
-   VARIABLES_MAYBE.clear();
 
    auto s = std::make_shared<DummyRepresentable>(data ? data : std::make_shared<DataPack>(), parser ? parser : SingletonFormulaParser::getInstance());
    

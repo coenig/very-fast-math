@@ -410,8 +410,6 @@ public:
       const std::shared_ptr<FormulaParser> parser = nullptr,
       const std::shared_ptr<Failable> father_failable = nullptr);
 
-   static std::set<std::string> VARIABLES_MAYBE; // TODO: Made static for simplicity, but should be part of ind. script to allow scoped variables.
-
 protected:
    static std::map<std::string, std::string> knownPreprocessors; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
    static std::map<std::string, std::vector<std::string>> list_data_; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
@@ -631,8 +629,6 @@ private:
    ///                      preprocessors are used "inscript", hidden from
    ///                      the user.
    void addPreprocessor(const std::string& preprocessor, const std::string& filename, const int indexOfMethodsPartBegin);
-
-   bool isVariable(const std::string& preprocessorScript);
 
    /// Undoes the placeholder replacement for plain-text parts. As the placeholders
    /// were object-specific, we don't care about what has happened in the
@@ -862,11 +858,9 @@ public:
          processSequence(from_raw, loop_vec);
          return forloop(varname, loop_vec, to_raw);
       }
-      else if (VARIABLES_MAYBE.count(from_raw)) { // Assume empty sequence due to unresolved variable. TODO: Is this always correct?
-         return forloop(varname, std::vector<std::string>{}, to_raw);
+      else {
+         return forloop(varname, from_raw, to_raw, "1");
       }
-
-      return forloop(varname, from_raw, to_raw, "1");
    }
 
    std::string forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw, const std::string& step_raw) 
