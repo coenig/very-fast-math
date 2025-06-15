@@ -96,255 +96,6 @@ class DummyRepresentable;
 
 using RepresentableAsPDF = std::shared_ptr<Script>;
 
-class ScriptTree : public Failable, public std::enable_shared_from_this<ScriptTree> {
-public:
-   ScriptTree();
-   ScriptTree(std::shared_ptr<ScriptTree> father);
-
-   std::string getIdName() const {
-      return idName_;
-   }
-
-   void activateDebug() {
-      debug_ = true;
-   }
-
-   std::vector<std::shared_ptr<ScriptTree>> getChildren() const {
-      return children_;
-   }
-
-   std::shared_ptr<ScriptTree> getFather() const {
-      return father_.lock();
-   }
-
-   std::shared_ptr<int> getBeg() const {
-      return beg_;
-   }
-
-   std::shared_ptr<int> getEnd() const {
-      return end_;
-   }
-
-   void addScript(const std::string& scriptIdentifier, const std::string& script, const int beg, const int end) {
-      addScriptPrivate(scriptIdentifier, script, beg, end);
-   }
-
-   /// Adjusts all begins and ends starting at <code>oldEnd</code> or behind by
-   /// <code>delta</code>. Note that sub-script nodes may be shifted to the end
-   /// of the area of the higher-level script if its area shrinks from right to
-   /// left, as no information is stored which parts of the area (which the
-   /// sub-script area is part of) have been changed.</BR>
-   /// </BR>
-   /// For example: In <code>@{d@{x}@d}@</code>,  <code>x</code> will eventually
-   /// end up being being shifted to the end of the <code>dxd</code> area,
-   /// resulting in <code>x</code> being assigned the position <code>2-2</code>
-   /// (instead of <code>2-2</code>).</BR>
-   /// </BR>
-   /// Therefore, the script tree cannot replace the script, but it should only
-   /// be used for looking up the inscript preprocessor hierarchy defined by the
-   /// script.
-   ///
-   ///
-   /// @param oldEnd  The index, left of which no adjustments are necessary
-   ///                (except if an area shrinks over some of its sub-areas.
-   /// @param delta   The delta value to add to all parts right of
-   ///                <code>oldEnd</code>.
-   void shiftEnd(const int oldEnd, const int delta) {
-      shiftEnd(oldEnd, delta, (std::numeric_limits<int>::min)(), (std::numeric_limits<int>::max)());
-
-      if (debug_) {
-         //storeAsPDF();
-      }
-   }
-
-private:
-   int count_{0};
-   std::string EXCEPTION_EXPLANATION{};
-   std::string END_DIGRAPH = "}";
-   std::string BEGIN_DIGRAPH = "digraph G {";
-   std::string GRAPHVIZ_DOT_PREAMBLE = "dot:";
-
-    /// @param oldEnd  The index, left of which no adjustments are necessary 
-    ///                (except if an area shrinks over some of its sub-areas.
-    /// @param delta   The delta value to add to all parts right of 
-    ///                <code>oldEnd</code>.
-    /// @param min     The minimum given from the higher-level father.
-    /// @param max     The maximum given from the higher-level father.
-    void shiftEnd(const int oldEnd, const int delta, const int min, const int max) {
-        if (delta == 0) {
-            return;
-        }
-        
-        int myLength = *end_ - *beg_;
-        
-        if (*beg_ >= oldEnd) {
-            *beg_ += delta;
-        }
-        
-        if (*end_ >= oldEnd) {
-            *end_ += delta;
-        }
-        
-        if (*end_ > max) {
-            *end_ = max;
-            *beg_ = *end_ - myLength; 
-        }
-        
-        if (*beg_ < min) {
-            *beg_ = min;
-        }
-        
-        if (*beg_ > *end_) {
-            *beg_ = *end_ + 1;
-        }
-        
-        for (const auto s : children_) {
-            s->shiftEnd(oldEnd, delta, *beg_, *end_);
-        }
-    }
-
-   std::string createDOTExceptionNode(const std::string& exceptionDescription) 
-   {
-      return "exceptionNode" + std::to_string(count_++) + " [label=\"" + exceptionDescription + "\" shape=\"rectangle\" color=\"red\"];";
-   }
-
-   const std::string PREP_TREE_INFO = createDOTExceptionNode("Error in prep tree");
-
-   std::string errorNodes(const int beg, const int end) 
-   {
-      return PREP_TREE_INFO + "dgsezusi [label=\"" + std::to_string(beg) + "/" + std::to_string(end) + " ??\" color=\"red\"];";
-   }
-
-   std::string gvInner() {
-      std::string s = "";
-      std::string processedIDName = idName_.empty() ? "this" : idName_;
-      std::string safeNameFrom = StaticHelper::safeString(processedIDName);
-      std::string add = father_.lock() 
-         ? "='" + StaticHelper::replaceSpecialCharsHTML_G(script_) + "'" 
-         : " [" + std::to_string(*beg_) + "/" + std::to_string(*end_) + "]";
-
-      s += safeNameFrom + " [label=<" + "" + (processedIDName + add) + ">];\n";
-
-      for (int i = 0; i < children_.size(); i++) {
-         auto child = children_.at(i);
-         std::string safeNameTo = StaticHelper::safeString(child->idName_);
-         s += safeNameFrom + "->" + safeNameTo + " [label=\"" + std::to_string(*child->beg_) + "/" + std::to_string(*child->end_) + "\"];\n";
-         s += child->gvInner();
-      }
-
-      return s;
-   }
-
-   std::string getGraphvizTree(const std::shared_ptr<std::string> error) {
-      std::string s = GRAPHVIZ_DOT_PREAMBLE + "\n"
-         + BEGIN_DIGRAPH
-         + (error ? *error : std::string(""))
-         + gvInner()
-         + END_DIGRAPH;
-
-      return s;
-   }
-
-   std::shared_ptr<ScriptTree> findRoot() {
-      if (!father_.lock()) {
-         return shared_from_this();
-      }
-
-      return father_.lock()->findRoot();
-   }
-
-   std::vector<std::shared_ptr<ScriptTree>> traverseDepthFirst() {
-      std::vector<std::shared_ptr<ScriptTree>> list;
-      return traverseDepthFirst(list);
-   }
-
-   std::vector<std::shared_ptr<ScriptTree>> traverseDepthFirst(std::vector<std::shared_ptr<ScriptTree>> soFar) {
-      for (const auto& child : children_) {
-         child->traverseDepthFirst(soFar);
-      }
-
-      soFar.push_back(shared_from_this());
-      return soFar;
-   }
-
-   void addScriptPrivate(const std::string& scriptIdentifier, const std::string& script, const int beg, const int end) 
-   {
-      if (!beg_ || !end_) {
-         beg_ = std::make_shared<int>(beg);
-         end_ = std::make_shared<int>(end);
-      }
-
-      if (*beg_ == beg && *end_ == end) {
-         idName_ = scriptIdentifier;
-         script_ = StaticHelper::replaceAll(script, "\n", " ");
-      }
-      else if (*beg_ > beg || *end_ < end) {
-         std::string error_nodes = errorNodes(beg, end);
-         EXCEPTION_EXPLANATION = getGraphvizTree(std::make_shared<std::string>(error_nodes));
-         addError("Node range [" + std::to_string(*beg_) + "-" + std::to_string(*end_) + "] too narrow for requested range [" + std::to_string(beg) + "-" + std::to_string(end) + "].");
-      }
-      else {
-         int i;
-         for (i = 0; i < children_.size(); i++) {
-            std::shared_ptr<ScriptTree> n = children_.at(i);
-            if (*n->beg_ <= beg && *n->end_ >= end) { // Go down in child.
-               n->addScript(scriptIdentifier, script, beg, end);
-               return;
-            }
-            else if (*n->beg_ > end) { // Fit in gap.
-               if (i == 0 || *children_.at(i - 1)->end_ < beg) {
-                  break;
-               }
-            }
-            else if (beg <= *n->beg_ && beg <= *n->end_ && end >= *n->beg_ && end >= *n->end_) { // New node is father of (several) child(ren).
-               int storeBeg = i;
-               int storeEnd;
-               while (i < children_.size() && end >= *children_.at(i)->end_) {
-                  i++;
-               }
-               storeEnd = i - 1;
-
-               std::shared_ptr<ScriptTree> nNew = std::make_shared<ScriptTree>(shared_from_this());
-               nNew->addScript(scriptIdentifier, script, beg, end);
-
-               // Remove from direct children.
-               for (int j = storeBeg; j <= storeEnd; j++) {
-                  nNew->children_.push_back(children_.at(storeBeg));
-                  children_.erase(children_.begin() + storeBeg);
-               }
-
-               children_.insert(children_.begin() + storeBeg, nNew);
-
-               return;
-            }
-         }
-
-         if (i > 0 && *children_.at(i - 1)->end_ >= beg) {
-            std::string error_nodes = errorNodes(beg, end);
-            EXCEPTION_EXPLANATION = getGraphvizTree(std::make_shared<std::string>(error_nodes));
-
-            //StaticHelper::createImageFromGraphvizDot(EXCEPTION_EXPLANATION.substr(4), "error.dot");
-
-            addError("Cannot insert '" + script + "' interval [" + std::to_string(beg) + "-" + std::to_string(end) + "] into node tree " + getGraphvizTree(nullptr) + ".");
-         }
-
-         std::shared_ptr<ScriptTree> n = std::make_shared<ScriptTree>(shared_from_this());
-         n->addScript(scriptIdentifier, script, beg, end);
-         children_.insert(children_.begin() + i, n);
-      }
-
-      if (debug_) {
-         //storeAsPDF();
-      }
-   }
-
-   std::vector<std::shared_ptr<ScriptTree>> children_{};
-   std::weak_ptr<ScriptTree> father_{};
-   std::shared_ptr<int> beg_{}, end_{};
-   std::string idName_{};
-   std::string script_{};
-   bool debug_{ false };
-};
 
 class Script : public Failable, public std::enable_shared_from_this<Script> {
 public:
@@ -377,10 +128,9 @@ public:
    /// @return  Debug code if requested, <code>null</code> otherwise.
    void applyDeclarationsAndPreprocessors(const std::string& codeRaw2);
 
-   virtual std::shared_ptr<Script> createThisObject(const std::shared_ptr<Script> repThis, const std::string repScrThis, const std::shared_ptr<Script> father) = 0;
-   virtual void createInstanceFromScript(const std::string& code, std::shared_ptr<Script> father) = 0;
+   virtual std::shared_ptr<Script> createThisObject(const std::shared_ptr<Script> repThis, const std::string repScrThis) = 0;
+   virtual void createInstanceFromScript(const std::string& code) = 0;
    std::shared_ptr<Script> copy() const;
-   virtual std::shared_ptr<DummyRepresentable> toDummyIfApplicable();
 
    std::string getProcessedScript() const;
    std::string getRawScript() const;
@@ -396,7 +146,7 @@ public:
    /// @param father  The super representable of this script or {@code null}.
    ///
    /// @return  The rep instance.
-   std::shared_ptr<Script> repfactory_instanceFromScript(const std::string& script, const std::shared_ptr<Script> father);
+   std::shared_ptr<Script> repfactory_instanceFromScript(const std::string& script);
 
    bool isBooleanTrue(const std::string& bool_str)
    {
@@ -422,7 +172,6 @@ protected:
    /// thrown. If the method call contains a variable name in the beginning,
    /// <code>null</code> is returned.
    ///
-   /// @param filename             The name of the preprocessor.
    /// @param preprocessorScript   The script of the preprocessor.
    /// @param scale                The scale of the preprocessor, in case it
    ///                             creates an image.
@@ -434,7 +183,6 @@ protected:
    ///          a regular method call in the end requires the handling of
    ///          a specific rep such as LaTeX.
    std::string placeholderForInscript(
-      const std::string& filename, // Don't remove this - LaTeX needs it.
       const std::string& preprocessorScript,
       const double scale,
       const bool allowRegularScripts);
@@ -465,8 +213,7 @@ private:
    /// be careful, it's not as simple as it seems.
    static std::string createDummyrep(
       const std::string& processed,
-      RepresentableAsPDF repToProcess,
-      RepresentableAsPDF father);
+      RepresentableAsPDF repToProcess);
 
    /// In a String *EXPR*.m1[p11, p12, ...].m2[p21, p22, ...].m3[...]...
    /// extract the *EXPR* part. *EXPR* is determined by cutting off from position x
@@ -485,7 +232,7 @@ private:
    static std::string getConversionTag(const std::string& scriptWithoutComments);
    static std::vector<std::string> getMethodParametersWithTags(const std::string& conversionTag);
 
-   std::vector<std::string> getParametersFor(const std::vector<std::string>& rawPars, const RepresentableAsPDF this_rep, const RepresentableAsPDF father);
+   std::vector<std::string> getParametersFor(const std::vector<std::string>& rawPars, const RepresentableAsPDF this_rep);
    RepresentableAsPDF applyMethodChain(const RepresentableAsPDF original, const std::vector<std::string>& methodsToApply);
    std::vector<std::string> getMethodParameters(const std::string& conversionTag);
 
@@ -510,7 +257,7 @@ private:
    /// @return  A representable with the methods applied. Can return <code>null
    ///          </code> when the chain is not valid (e.g. when starting with a
    ///          variable).
-   std::shared_ptr<Script> evaluateChain(const std::string& repScrThis, const std::string& chain, std::shared_ptr<Script> father);
+   std::shared_ptr<Script> evaluateChain(const std::string& repScrThis, const std::string& chain);
 
    /// Goes through the current version of
    /// {@link RepresentableDefault#processedScript} and replaces
@@ -601,27 +348,6 @@ private:
    /// @return  The next position outside the preprocessor's method chain.
    int getNextNonInscriptPosition(const std::string& partAfter);
 
-   /// Adds a preprocessor to this representable.
-   ///
-   /// @param preprocessorScript  The preprocessor code containing a filename
-   ///                            to store the PDF in and the actual
-   ///                            preprocessor code.
-   /// @param hidden        Iff the preprocessor is hidden. For Latex, e.g.,
-   ///                      preprocessors are used "inscript", hidden from
-   ///                      the user.
-   void addPreprocessor(const std::string& preprocessorScript);
-
-   /// Adds a preprocessor to this representable. Note that the preprocessor
-   /// code has to be well-formatted - as opposed to the other method with
-   /// the same name which first cleans up the preprocessor code.
-   ///
-   /// @param preprocessor  Plain and cleaned preprocessor code.
-   /// @param filename      The filename to store the preprocessor in.
-   /// @param hidden        Iff the preprocessor is hidden. For Latex, e.g.,
-   ///                      preprocessors are used "inscript", hidden from
-   ///                      the user.
-   void addPreprocessor(const std::string& preprocessor, const std::string& filename, const int indexOfMethodsPartBegin);
-
    /// Undoes the placeholder replacement for plain-text parts. As the placeholders
    /// were object-specific, we don't care about what has happened in the
    /// meantime with the plain-text parts, but just replace all the
@@ -677,21 +403,12 @@ private:
    ///          exists, -1 is returned and no side effects occur.
    int findNextInscriptPos();
 
-   std::string raiseAndGetQualifiedIdentifierName(const std::string& identifierName);
-   std::string getQualifiedIdentifierName(const std::string& identifierName);
-   std::string getUnqualifiedName(const std::string& qualifiedName);
-
-   std::string replaceIdentAtBeginningOfChain(const std::string& chain, const std::string& k, const std::string& varVal, int mbeg);
-
    /// If the script is embedded in plain text tags, replace all symbols with
    /// placeholders, but leave plain-text tags for later.
    ///
    /// @param  script  The script to check.
    /// @return  The possibly processed script.
    std::string checkForPlainTextTags(const std::string& script);
-   std::vector<std::string> getAllQualifiedIdentifiers(const std::string& ident);
-   void removeChainsContainingIdentifier(const std::string& ident);
-   void removeChainsContainingQualifiedIdentifier(const std::string& qualIdent);
 
    /// Stores all symbols that are somehow restricted as they serve a special
    /// purpose. Caution: Don't count on this list to be really completely
@@ -699,16 +416,13 @@ private:
    std::set<std::string> SPECIAL_SYMBOLS{};
    std::map<std::string, std::string> PLACEHOLDER_MAPPING{};
    std::map<std::string, std::string> PLACEHOLDER_INVERSE_MAPPING{};
-   std::map<std::string, int> identCounts{};
 
    std::string rawScript{};
    std::string processedScript{};
-   int starsIgnored{};
 
-   std::map<std::string, int> methodPartBegins{};
+   std::map<std::string, int> method_part_begins_{};
   
-   int count{ 0 };
-   static std::map<std::string, std::shared_ptr<Script>> knownChains; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
+   std::map<std::string, std::shared_ptr<Script>> known_chains_{};
 
    std::shared_ptr<DataPack> vfm_data_{};
    std::shared_ptr<FormulaParser> vfm_parser_{};
@@ -726,9 +440,7 @@ public:
       const std::shared_ptr<FormulaParser> parser)
       : Script(data, parser) {}
 
-   std::shared_ptr<DummyRepresentable> toDummyIfApplicable() override;
-
-   std::shared_ptr<Script> createThisObject(const std::shared_ptr<Script> repThis, const std::string repScrThis, const std::shared_ptr<Script> father) override;
+   std::shared_ptr<Script> createThisObject(const std::shared_ptr<Script> repThis, const std::string repScrThis) override;
 
    /// Looks for a sequence of several chunks of
    /// <code>@(...)@@(...)@@(...)@</code> in the code and puts them into
@@ -765,7 +477,7 @@ public:
       processSequence(rest, script_sequence);
    }
 
-   void createInstanceFromScript(const std::string& code, std::shared_ptr<Script> father) override
+   void createInstanceFromScript(const std::string& code) override
    {
       setRawScript(StaticHelper::replaceAll(code, PREAMBLE_FOR_NON_SCRIPT_METHODS, "")); // Because applyScriptsAndPreprocessors is not called by Dummy.
       scriptSequence_.clear();
