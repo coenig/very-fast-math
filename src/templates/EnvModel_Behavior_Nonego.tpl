@@ -11,7 +11,6 @@ VAR
    }@**.if[@{EGOLESS}@.eval]
 
 	@{
-    -- XVarEnvModelCarNote=@{>>> Car [i] <<<}@***.id
 VAR
     veh___6[i]9___.do_lane_change : boolean;                   -- signal that a lane change is ongoing
     veh___6[i]9___.abort_lc : boolean;                         -- signal that an ongoing lane change is aborted
@@ -119,7 +118,7 @@ esac;
 DEFINE
 
 	@{
-    -- @{XVarEnvModelCarNote}@***.id
+    -- >>> Car [i] <<<
     veh___6[i]9___.lane_0 := veh___6[i]9___.lane_b0 @{& !veh___6[i]9___.lane_b[j]}@.for[[j], 1, @{NUMLANES - 1}@.eval];
     @{
     veh___6[i]9___.lane_@{[k]-1}@.eval[0][k] := @{@{!}@.if[@{[j] != [k] - 1 && [j] != [k]}@.eval]veh___6[i]9___.lane_b[j] }@*.for[[j], 0, @{NUMLANES - 1}@.eval, 1, &];
@@ -156,7 +155,7 @@ DEFINE
 
 
 @{
--- @{XVarEnvModelCarNote}@**.id
+-- >>> Car [i] <<<
 
 
 INIT 
@@ -199,7 +198,7 @@ INVAR -- Non-Ego cars may not "jump" over each other.
 
 
 @{
--- @{XVarEnvModelCarNote}@
+-- >>> Car [i] <<<
 ASSIGN
     init(veh___6[i]9___.time_since_last_lc) := min_time_between_lcs;       -- init with max value such that lane change is immediately allowed after start
     init(veh___6[i]9___.do_lane_change) := FALSE;
@@ -331,13 +330,15 @@ ASSIGN
                       veh___6[i]9___.is_on_sec_[sec] = 1 & outgoing_connection_[con]_of_section_[sec] = [sec2] & veh___6[i]9___.next_abs_pos > section_[sec]_end : {0, 1};
                    }@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval]
 
-                    -- Jump over "zero-length" sections.
-                   @{@{
+                   @{@{@{
+                      -- Jump over "zero-length" sections.
                       @{
                       veh___6[i]9___.is_traversing_from_sec_[sec3]_to_sec_[sec] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec3]_to_sec_[sec]_on_lane_[lane]
                           & section_[sec]_end = 0 & (@{outgoing_connection_[con]_of_section_[sec] = 0}@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval, 1, |]) : {0, 1};
                       }@.if[@{[sec3] != [sec]}@.eval]
                    }@**.for[[sec3], 0, @{SECTIONS - 1}@.eval]
+                   }@.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval]
+
                       veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 0; -- Leave this junction when passed over the end.
                    }@***.for[[lane], 0, @{NUMLANES - 1}@.eval]
                    TRUE : veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]; -- Stay on this junction as long as not passed over the end.
@@ -355,7 +356,7 @@ ASSIGN
 }@****.for[[i], @{STANDINGCARSUPTOID + 1}@.eval, @{NONEGOS - 1}@.eval]
 
 @{
--- @{XVarEnvModelCarNote}@
+-- >>> Car [i] <<<
 TRANS
     case
         -- the timer is within the interval where we may leave our source lane, we may transition to any neighbor lane but we do not have to (current lane is also allowed for next state)

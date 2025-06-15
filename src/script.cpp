@@ -174,11 +174,6 @@ bool Script::extractInscriptProcessors()
    return changed || nested_call;
 }
 
-std::string Script::getPreprocessorFromThis(const std::string& identifier) 
-{
-   return getPreprocessors().at(identifier);
-}
-
 void Script::removeChainsContainingIdentifier(const std::string& ident) 
 {
    for (const auto& c : getAllQualifiedIdentifiers(ident)) {
@@ -243,37 +238,6 @@ std::string Script::checkForPlainTextTags(const std::string& script)
    return script2;
 }
 
-std::string Script::processChain(const std::string& chain) {
-   for (const auto& k1_pair : alltimePreprocessors) {
-      std::string k1 = k1_pair.first;
-      std::string k = getUnqualifiedName(k1);
-      std::string varVal = alltimePreprocessors.at(getQualifiedIdentifierName(k));
-
-      //if (varVal.empty()) return ""; // TODO: Is that right? Capture the case that the result is actually empty.
-
-      int mbeg{};
-      if (methodPartBegins.count(varVal)) {
-         mbeg = methodPartBegins.at(varVal);
-      } else {
-         mbeg = varVal.length();
-      }
-
-      std::string first = replaceIdentAtBeginningOfChain(chain, k, varVal, mbeg);
-      if (!first.empty()) {
-         return first;
-      }
-
-      if (k1 != k) {
-         std::string second = replaceIdentAtBeginningOfChain(chain, k1, varVal, mbeg);
-         if (!second.empty()) {
-            return second;
-         }
-      }
-   }
-
-   return chain;
-}
-
 std::string Script::replaceIdentAtBeginningOfChain(const std::string& chain, const std::string& k, const std::string& varVal, int mbeg)
 {
    if (StaticHelper::stringStartsWith(chain, k + ".") || chain == k) {
@@ -320,7 +284,7 @@ std::string Script::placeholderForInscript(
 
 RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const std::string& chain, RepresentableAsPDF father)
 {
-   std::string processedChain{ processChain(StaticHelper::trimAndReturn(chain)) };
+   std::string processedChain{ StaticHelper::trimAndReturn(chain) };
    std::string processedRaw{ processedChain };
    RepresentableAsPDF repThis{};
 
@@ -1038,11 +1002,6 @@ RepresentableAsPDF DummyRepresentable::createThisObject(const RepresentableAsPDF
    return repThis;
 }
 
-std::map<std::string, std::string> Script::getPreprocessors() 
-{
-   return alltimePreprocessors;
-}
-
 std::string Script::raiseAndGetQualifiedIdentifierName(const std::string& identifierName) 
 {
    if (!StaticHelper::stringStartsWith(identifierName, PREFIX_FOR_TIMED_IDENTIFIERS)) {
@@ -1161,8 +1120,6 @@ void Script::addPreprocessor(const std::string& preprocessorScript)
 
 void Script::addPreprocessor(const std::string& preprocessor, const std::string& filename, const int indexOfMethodsPartBegin)
 {
-   alltimePreprocessors.insert({ filename, StaticHelper::trimAndReturn(preprocessor) });
-
    if (indexOfMethodsPartBegin != preprocessor.length() && indexOfMethodsPartBegin >= 0) {
       int leftTrim = preprocessor.size() - StaticHelper::ltrimAndReturn(preprocessor).size();
 
@@ -1429,7 +1386,6 @@ RepresentableAsPDF vfm::macro::Script::copy() const
    copy_script->SPECIAL_SYMBOLS = SPECIAL_SYMBOLS;
    copy_script->PLACEHOLDER_MAPPING = PLACEHOLDER_MAPPING;
    copy_script->PLACEHOLDER_INVERSE_MAPPING = PLACEHOLDER_INVERSE_MAPPING;
-   copy_script->alltimePreprocessors = alltimePreprocessors;
    copy_script->identCounts = identCounts;
    copy_script->rawScript = rawScript;
    copy_script->processedScript = processedScript;

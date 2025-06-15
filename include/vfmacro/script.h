@@ -685,18 +685,9 @@ private:
    ///          exists, -1 is returned and no side effects occur.
    int findNextInscriptPos();
 
-   /// Replaces a variable name, if any, with the correct script at the
-   /// beginning of <code>chain</code>.
-   ///
-   /// @param chain  The chain to process.
-   ///
-   /// @return  The processed chain - can be equal to received chain.
-   std::string processChain(const std::string& chain);
-
    std::string raiseAndGetQualifiedIdentifierName(const std::string& identifierName);
    std::string getQualifiedIdentifierName(const std::string& identifierName);
    std::string getUnqualifiedName(const std::string& qualifiedName);
-   std::map<std::string, std::string> getPreprocessors();
 
    std::string replaceIdentAtBeginningOfChain(const std::string& chain, const std::string& k, const std::string& varVal, int mbeg);
 
@@ -709,7 +700,6 @@ private:
    std::vector<std::string> getAllQualifiedIdentifiers(const std::string& ident);
    void removeChainsContainingIdentifier(const std::string& ident);
    void removeChainsContainingQualifiedIdentifier(const std::string& qualIdent);
-   std::string getPreprocessorFromThis(const std::string& identifier);
 
    /// Stores all symbols that are somehow restricted as they serve a special
    /// purpose. Caution: Don't count on this list to be really completely
@@ -728,7 +718,6 @@ private:
    int count{ 0 };
    static std::map<std::string, std::shared_ptr<Script>> knownChains; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
    static std::map<std::string, std::shared_ptr<Script>> knownReps; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
-   std::map<std::string, std::string> alltimePreprocessors{};
 
    std::shared_ptr<DataPack> vfm_data_{};
    std::shared_ptr<FormulaParser> vfm_parser_{};
