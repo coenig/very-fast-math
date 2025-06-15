@@ -17,18 +17,12 @@
 using namespace vfm;
 using namespace macro;
 
-ScriptTree::ScriptTree() : ScriptTree(nullptr) {}
-ScriptTree::ScriptTree(std::shared_ptr<ScriptTree> father) : Failable("ScriptTree"), father_{ father } {}
-std::map<std::string, RepresentableAsPDF> Script::knownChains{};
-std::map<std::string, RepresentableAsPDF> Script::knownReps{};
 std::map<std::string, std::string> Script::knownPreprocessors{};
 std::map<std::string, std::vector<std::string>> Script::list_data_{};
 
 std::map<std::string, std::string> DummyRepresentable::inscriptMethodDefinitions{};
 std::map<std::string, int> DummyRepresentable::inscriptMethodParNums{};
 std::map<std::string, std::string> DummyRepresentable::inscriptMethodParPatterns{};
-
-std::set<std::string> Script::VARIABLES_MAYBE{};
 
 
 vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser)
@@ -84,8 +78,6 @@ void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2)
 
    processedScript = evaluateAll(processedScript, EXPR_BEG_TAG_BEFORE, EXPR_END_TAG_BEFORE);
 
-   findAllVariables();
-
    extractInscriptProcessors(); // Process all inscript preprocessors.
 
    processedScript = undoPlaceholdersForPlainText(processedScript); // Undo placeholder securing.
@@ -99,23 +91,6 @@ std::string vfm::macro::Script::getProcessedScript() const
    return processedScript;
 }
 
-std::string Script::findVarName(const std::string script, int& begin) const
-{
-   int original_begin = begin;
-   auto tokens = StaticHelper::tokenize(script, *SingletonFormulaParser::getLightInstance(), begin, 1, true);
-
-   if (!tokens || tokens->empty()) {
-      addError("Variable name not found at position '" + std::to_string(original_begin) + "' in script '" + script + "'.");
-      return "#INVALID";
-   }
-
-   std::string var_name = tokens->at(0);
-
-   begin = original_begin - var_name.length();
-
-   return var_name;
-}
-
 bool Script::extractInscriptProcessors()
 {
    // Find next preprocessor.
@@ -127,52 +102,15 @@ bool Script::extractInscriptProcessors()
 
    bool changed = false;
    double scale = 1;
-   std::string identifierName = "u-" + std::to_string(count);
 
    std::string preprocessorScript = *StaticHelper::extractFirstSubstringLevelwise(processedScript, INSCR_BEG_TAG, INSCR_END_TAG, indexOfPrep);
    int lengthOfPreprocessor = preprocessorScript.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length();
    std::string partBefore = processedScript.substr(0, indexOfPrep);
    std::string partAfter = processedScript.substr(indexOfPrep + lengthOfPreprocessor);
-   int indexOfSeparator = preprocessorScript.find("|");
-
-   int scaleLength = 0;
-   if (indexOfSeparator >= 0) {
-      std::string scaleStr = preprocessorScript.substr(0, indexOfSeparator);
-      if (StaticHelper::isParsableAsFloat(scaleStr)) { // Scale defined.
-         scaleLength = scaleStr.length() + 1;
-         scale = ::atof(scaleStr.c_str());
-         preprocessorScript = StaticHelper::trimAndReturn(preprocessorScript.substr(indexOfSeparator + 1));
-      }
-   }
 
    bool hidden = true;
    int declLength = 0;
    int qualifiedDelta = 0;
-   if (indexOfPrep > 1 && processedScript.at(indexOfPrep - 1) == ASSIGNMENT_OPERATOR) {
-      //int indexOfFNBegin = RegExIndexer.lastIndexOf(partBefore, "\\W", partBefore.length() - 1);
-      int indexOfFNBegin = partBefore.length() - 2;
-
-      identifierName = findVarName(partBefore, indexOfFNBegin);
-      identifierName = raiseAndGetQualifiedIdentifierName(identifierName);
-      declLength = partBefore.length() - indexOfFNBegin - 1;
-      partBefore = partBefore.substr(0, indexOfFNBegin + 1);
-
-      std::string qualifiedIdentifierName = getQualifiedIdentifierName(preprocessorScript);
-      if (qualifiedIdentifierName != preprocessorScript) {
-         // The right side of the assignment has to be qualified.
-         qualifiedDelta = qualifiedIdentifierName.length() - preprocessorScript.length();
-         preprocessorScript = qualifiedIdentifierName;
-      }
-
-      if (getPreprocessors().count(identifierName)) {
-         /*
-          * If the identifier is re-assigned, known chains containing
-          * it have to be removed.
-          */
-
-         removeChainsContainingIdentifier(identifierName);
-      }
-   }
 
    int indexCurr = getNextNonInscriptPosition(partAfter);
    indexCurr = (std::min)(indexCurr, (int) partAfter.length());
@@ -186,88 +124,31 @@ bool Script::extractInscriptProcessors()
    // Store debug script.
    int begin = indexOfPrep - declLength;
 
-   // Check if the preprocessor is just an identifier name.
-   std::string trimmed = StaticHelper::trimAndReturn(preprocessorScript);
-   if (isVariable(trimmed)) {
-      placeholder_for_inscript = VAR_BEG_TAG + trimmed + VAR_END_TAG; // TODO: Do we need this?
-      addPreprocessor(preprocessorScript, identifierName, methodPartBegin);
+   if (methodPartBegin != preprocessorScript.length() && methodPartBegin >= 0) {
+      int leftTrim = preprocessorScript.size() - StaticHelper::ltrimAndReturn(preprocessorScript).size();
+
+      method_part_begins_.insert({ StaticHelper::trimAndReturn(preprocessorScript), methodPartBegin - leftTrim });
+   }
+
+   if (knownPreprocessors.count(preprocessorScript)) {
+      placeholder_for_inscript = knownPreprocessors.at(preprocessorScript);
    }
    else {
-      addPreprocessor(preprocessorScript, identifierName, methodPartBegin);
+      placeholder_for_inscript = placeholderForInscript(
+         preprocessorScript,
+         scale,
+         true);
 
-      if (knownPreprocessors.count(preprocessorScript)) {
-         placeholder_for_inscript = knownPreprocessors.at(preprocessorScript);
-      }
-      else {
-         placeholder_for_inscript = placeholderForInscript(
-            identifierName,
-            preprocessorScript,
-            scale,
-            true);
-
-         knownPreprocessors.insert({ preprocessorScript, placeholder_for_inscript });
-      }
+      knownPreprocessors.insert({ preprocessorScript, placeholder_for_inscript });
    }
 
    std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
    processedScript = partBefore + placeholderFinal + partAfter;
    changed = true;
 
-   count++;
-
    bool nested_call = extractInscriptProcessors();
 
    return changed || nested_call;
-}
-
-std::string Script::getPreprocessorFromThis(const std::string& identifier) 
-{
-   return getPreprocessors().at(identifier);
-}
-
-void Script::removeChainsContainingIdentifier(const std::string& ident) 
-{
-   for (const auto& c : getAllQualifiedIdentifiers(ident)) {
-      removeChainsContainingQualifiedIdentifier(c);
-   }
-}
-
-void Script::removeChainsContainingQualifiedIdentifier(const std::string& qualIdent) 
-{
-   std::string idName = qualIdent;
-
-   if (!(StaticHelper::stringStartsWith(qualIdent, INSCR_BEG_TAG)
-      && StaticHelper::stringEndsWith(qualIdent, INSCR_END_TAG))) {
-      idName = INSCR_BEG_TAG + idName + INSCR_END_TAG;
-   }
-
-   std::set<std::string> toRemove{};
-
-   for (const auto& chain : knownChains) {
-      if (StaticHelper::stringContains(chain.first, idName)) {
-         toRemove.insert(chain.first);
-      }
-   }
-
-   for (const auto& el : toRemove) {
-      knownChains.erase(el);
-   }
-}
-
-std::vector<std::string> Script::getAllQualifiedIdentifiers(const std::string& ident) 
-{
-   std::vector<std::string> idents{};
-
-   if (!StaticHelper::stringStartsWith(ident, PREFIX_FOR_TIMED_IDENTIFIERS)) {
-      idents.push_back(ident);
-      return idents;
-   }
-
-   for (int i = 0; i <= identCounts.at(ident); i++) {
-      idents.push_back(ident + QUALIFIED_IDENT_MARKER + std::to_string(i));
-   }
-
-   return idents;
 }
 
 std::string Script::checkForPlainTextTags(const std::string& script)
@@ -289,74 +170,12 @@ std::string Script::checkForPlainTextTags(const std::string& script)
    return script2;
 }
 
-std::string Script::processChain(const std::string& chain) {
-   for (const auto& k1_pair : alltimePreprocessors) {
-      std::string k1 = k1_pair.first;
-      std::string k = getUnqualifiedName(k1);
-      std::string varVal = alltimePreprocessors.at(getQualifiedIdentifierName(k));
-
-      //if (varVal.empty()) return ""; // TODO: Is that right? Capture the case that the result is actually empty.
-
-      int mbeg{};
-      if (methodPartBegins.count(varVal)) {
-         mbeg = methodPartBegins.at(varVal);
-      } else {
-         mbeg = varVal.length();
-      }
-
-      std::string first = replaceIdentAtBeginningOfChain(chain, k, varVal, mbeg);
-      if (!first.empty()) {
-         return first;
-      }
-
-      if (k1 != k) {
-         std::string second = replaceIdentAtBeginningOfChain(chain, k1, varVal, mbeg);
-         if (!second.empty()) {
-            return second;
-         }
-      }
-   }
-
-   return chain;
-}
-
-std::string Script::replaceIdentAtBeginningOfChain(const std::string& chain, const std::string& k, const std::string& varVal, int mbeg)
-{
-   if (StaticHelper::stringStartsWith(chain, k + ".") || chain == k) {
-      std::string newChain = varVal + chain.substr(k.length());
-      methodPartBegins.insert({ newChain, mbeg });
-      return newChain;
-   }
-   else if (StaticHelper::stringStartsWith(chain, INSCR_BEG_TAG + k + INSCR_END_TAG)) {
-      std::string newChain = varVal + chain.substr(INSCR_BEG_TAG.length() + k.length() + INSCR_END_TAG.length());
-      methodPartBegins.insert({ newChain, mbeg });
-      return newChain;
-   }
-   else {
-      return "";
-   }
-}
-
-std::string Script::getUnqualifiedName(const std::string& qualifiedName) 
-{
-   if (!StaticHelper::stringStartsWith(qualifiedName, PREFIX_FOR_TIMED_IDENTIFIERS)) {
-      return qualifiedName;
-   }
-
-   return StaticHelper::split(qualifiedName, QUALIFIED_IDENT_MARKER)[0];
-}
-
 std::string Script::placeholderForInscript(
-   const std::string& filename, // Don't remove this - LaTeX needs it.
    const std::string& preprocessorScript,
    const double scale,
    const bool allowRegularScripts)
 {
-   if (isVariable(preprocessorScript)) {
-      return "";
-   }
-
-   RepresentableAsPDF result = evaluateChain(removePreprocessors(rawScript), preprocessorScript, nullptr); // TODO nullptr?
+   RepresentableAsPDF result = evaluateChain(removePreprocessors(rawScript), preprocessorScript);
 
    if (true/*DummyRepresentable.class.isAssignableFrom(result.getClass())*/) { // TODO: Only plain-text scripts allowed for now.
       std::string replace;
@@ -368,42 +187,19 @@ std::string Script::placeholderForInscript(
    }
 }
 
-RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const std::string& chain, RepresentableAsPDF father)
+RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const std::string& chain)
 {
-   std::string processedChain{ processChain(StaticHelper::trimAndReturn(chain)) };
+   std::string processedChain{ StaticHelper::trimAndReturn(chain) };
    std::string processedRaw{ processedChain };
-   RepresentableAsPDF repThis{};
 
-   if (knownChains.count(processedRaw)) {
-      return knownChains.at(processedRaw);
-   }
-
-   if (knownReps.count(repScrThis)) {
-      repThis = knownReps.at(repScrThis);
-   }
-   else if (repScrThis.empty()) {
-      repThis = nullptr;
-   }
-   else {
-      repThis = createThisObject(nullptr, repScrThis, father);
-      knownReps[repScrThis] = repThis;
+   if (known_chains_.count(processedRaw)) {
+      return known_chains_.at(processedRaw);
    }
 
    RepresentableAsPDF repToProcess{};
-   std::shared_ptr<int> methodBegin = methodPartBegins.count(processedRaw) ? std::make_shared<int>(methodPartBegins.at(processedRaw)) : nullptr;
+   std::shared_ptr<int> methodBegin = method_part_begins_.count(processedRaw) ? std::make_shared<int>(method_part_begins_.at(processedRaw)) : nullptr;
 
-   if (StaticHelper::stringStartsWith(processedChain, THIS_NAME)) {
-      if (!repThis) {
-         addError("Cannot apply methods to \"this\", no reference representable given.");
-      }
-
-      repToProcess = repThis->copy();
-
-      //ignorePreprocessorsAndAnimateOnce();
-      repToProcess = createThisObject(repToProcess, repScrThis, father);
-      processedChain = processedChain.substr(THIS_NAME.length());
-   }
-   else if (StaticHelper::stringStartsWith(processedChain, INSCR_BEG_TAG)
+   if (StaticHelper::stringStartsWith(processedChain, INSCR_BEG_TAG)
       && (!methodBegin
          || StaticHelper::findMatchingEndTagLevelwise(
             processedChain,
@@ -416,11 +212,11 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
          0);
 
       if (!methodBegin) { // Possibly regular script.
-         repToProcess = repfactory_instanceFromScript(repPart, father);
+         repToProcess = repfactory_instanceFromScript(repPart);
 
          if (!repToProcess) { // String is no script, but plain expression.
             repToProcess = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
-            processedChain = createDummyrep(processedChain, repToProcess, father);
+            processedChain = createDummyrep(processedChain, repToProcess);
          }
          else {
             processedChain = processedChain.substr(repPart.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length());
@@ -428,7 +224,7 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
       }
       else { // Treat as plain text.
          repToProcess = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
-         repToProcess->createInstanceFromScript(INSCR_BEG_TAG + repPart + INSCR_END_TAG, father);
+         repToProcess->createInstanceFromScript(INSCR_BEG_TAG + repPart + INSCR_END_TAG);
          processedChain = processedRaw.substr(*methodBegin + 1);
       }
    }
@@ -436,23 +232,19 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
       if (methodBegin) { // String is script without delimiters, but with method calls.
          std::string script = processedRaw.substr(0, *methodBegin);
          processedChain = processedRaw.substr(*methodBegin + 1);
-         repToProcess = repfactory_instanceFromScript(script, father);
+         repToProcess = repfactory_instanceFromScript(script);
 
          if (!repToProcess) { // String is no script, but plain expression.
             repToProcess = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
-            repToProcess->createInstanceFromScript(script, father);
-            //                    processed = createDummyrep(processed, repToProcess);
-         }
-         else {
-            //                    processed = "";
+            repToProcess->createInstanceFromScript(script);
          }
       }
       else { // Assume whole string is expression without method calls.
-         repToProcess = repfactory_instanceFromScript(processedChain, father);
+         repToProcess = repfactory_instanceFromScript(processedChain);
 
          if (!repToProcess) { // String is no script, but plain expression.
             repToProcess = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
-            processedChain = createDummyrep(processedChain, repToProcess, father);
+            processedChain = createDummyrep(processedChain, repToProcess);
          }
          else {
             processedChain = "";
@@ -463,7 +255,7 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
    addFailableChild(repToProcess, "");
 
    if (StaticHelper::isEmptyExceptWhiteSpaces(processedChain)) {
-      knownChains[processedRaw] = repToProcess;
+      if (processedRaw.size() < 50) known_chains_[processedRaw] = repToProcess;
       return repToProcess;
    }
 
@@ -476,7 +268,10 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
    }
 
    RepresentableAsPDF apply_method_chain = applyMethodChain(repToProcess, methodSignaturesArray);
-   knownChains[processedRaw] = apply_method_chain;
+   if (processedRaw.size() < 50) known_chains_[processedRaw] = apply_method_chain;
+
+   addNote("Currently " + std::to_string(known_chains_.size()) + " known chains and " + std::to_string(method_part_begins_.size()) + " method part begins.");
+
    return apply_method_chain;
 }
 
@@ -499,23 +294,6 @@ RepresentableAsPDF Script::applyMethodChain(const RepresentableAsPDF original, c
 
    for (const auto& methodSignature : methodsToApply) {
       newRep = applyMethod(newRep, methodSignature);
-
-      if (newRep->toDummyIfApplicable()) {
-         addNote(
-            "Plain text method call: "
-            + methodSignature
-            + " (results in '"
-            + StaticHelper::replaceAll(newRep->getRawScript(), PREAMBLE_FOR_NON_SCRIPT_METHODS, "")
-            + "')");
-      }
-      else {
-         addError(
-            "Regular method call (NOT SUPPORTED!): "
-            + methodSignature
-            + " (results in "
-            + newRep->getRawScript()
-            + ")");
-      }
    }
 
    return newRep;
@@ -531,10 +309,10 @@ RepresentableAsPDF Script::applyMethod(const RepresentableAsPDF rep, const std::
    std::string methodName = StaticHelper::split(conversionTag, "[")[0];
    std::vector<std::string> pars = getMethodParameters(conversionTag);
 
-   std::vector<std::string> actualParameters = getParametersFor(pars, rep, nullptr); // TODO: nullptr??
+   std::vector<std::string> actualParameters = getParametersFor(pars, rep);
    std::string newScript = rep->applyMethodString(methodName, actualParameters);
 
-   return repfactory_instanceFromScript(newScript, nullptr); // TODO: nullptr??
+   return repfactory_instanceFromScript(newScript);
 }
 
 std::string fromBooltoString(const bool b)
@@ -970,20 +748,14 @@ std::vector<std::string> Script::getMethodParametersWithTags(const std::string& 
    return pars;
 }
 
-std::vector<std::string> Script::getParametersFor(const std::vector<std::string>& rawPars, const RepresentableAsPDF this_rep, const RepresentableAsPDF father)
+std::vector<std::string> Script::getParametersFor(const std::vector<std::string>& rawPars, const RepresentableAsPDF this_rep)
 {
    std::vector<std::string> parameters;
    parameters.resize(rawPars.size());
 
    for (int i = 0; i < rawPars.size(); i++) {
-      RepresentableAsPDF processedPar = evaluateChain(removePreprocessors(this_rep->getRawScript()), rawPars[i], father);
-
-      if (processedPar->toDummyIfApplicable()) {
-         parameters[i] = StaticHelper::replaceAll(processedPar->getRawScript(), PREAMBLE_FOR_NON_SCRIPT_METHODS, "");
-      }
-      else {
-         addError("Parameter " + rawPars[i] + " could not be evaluated.");
-      }
+      RepresentableAsPDF processedPar = evaluateChain(removePreprocessors(this_rep->getRawScript()), rawPars[i]);
+      parameters[i] = StaticHelper::replaceAll(processedPar->getRawScript(), PREAMBLE_FOR_NON_SCRIPT_METHODS, "");
    }
 
    bool stdValBool = false;
@@ -1077,58 +849,15 @@ std::string Script::getConversionTag(const std::string& scriptWithoutComments)
    return conversionTag;
 }
 
-RepresentableAsPDF DummyRepresentable::createThisObject(const RepresentableAsPDF repThis, const std::string repScrThis, const RepresentableAsPDF father) {
+RepresentableAsPDF DummyRepresentable::createThisObject(const RepresentableAsPDF repThis, const std::string repScrThis) {
    if (!repThis) {
       auto repThis_copy = std::make_shared<DummyRepresentable>(getData(), getParser());
       addFailableChild(repThis_copy, "");
-      repThis_copy->createInstanceFromScript(repScrThis, father);
+      repThis_copy->createInstanceFromScript(repScrThis);
       return repThis_copy;
    }
 
    return repThis;
-}
-
-bool Script::isVariable(const std::string& preprocessorScript)
-{
-   return VARIABLES_MAYBE.count(preprocessorScript);
-}
-
-std::map<std::string, std::string> Script::getPreprocessors() 
-{
-   return alltimePreprocessors;
-}
-
-std::string Script::raiseAndGetQualifiedIdentifierName(const std::string& identifierName) 
-{
-   if (!StaticHelper::stringStartsWith(identifierName, PREFIX_FOR_TIMED_IDENTIFIERS)) {
-      return identifierName;
-   }
-
-   if (!identCounts.count(identifierName)) {
-      identCounts.insert({ identifierName, 0 });
-   }
-   else {
-      identCounts.insert({ identifierName, identCounts.at(identifierName) + 1 });
-   }
-
-   return getQualifiedIdentifierName(identifierName);
-}
-
-std::string Script::getQualifiedIdentifierName(const std::string& identifierName) 
-{
-   if (!StaticHelper::stringStartsWith(identifierName, PREFIX_FOR_TIMED_IDENTIFIERS)) {
-      return identifierName;
-   }
-
-   if (StaticHelper::stringStartsWith(identifierName, "u-")) {
-      return identifierName;
-   }
-
-   if (!identCounts.count(identifierName)) {
-      return identifierName;
-   }
-
-   return identifierName + QUALIFIED_IDENT_MARKER + std::to_string(identCounts.at(identifierName));
 }
 
 int Script::findNextInscriptPos()
@@ -1137,8 +866,6 @@ int Script::findNextInscriptPos()
    while (StaticHelper::stringContains(processedScript, INSCR_END_TAG + s + INSCR_PRIORITY_SYMB)) {
       s += INSCR_PRIORITY_SYMB;
    }
-
-   starsIgnored = s.length();
 
    int pos = processedScript.find(INSCR_END_TAG + s);
    int count = 0;               // Because we start on an end tag.
@@ -1204,25 +931,6 @@ std::string Script::removeTaggedPartsOnTopLevel(
 std::string Script::undoPlaceholdersForPlainText(const std::string& script)
 {
    return replacePlaceholders(script, false);
-}
-
-void Script::addPreprocessor(const std::string& preprocessorScript) 
-{
-   int indexOf = preprocessorScript.find(VARIABLE_DELIMITER);
-   std::string datnam = StaticHelper::removeWhiteSpace(preprocessorScript.substr(0, indexOf));
-   std::string plainPreprocessor = StaticHelper::trimAndReturn(preprocessorScript.substr(indexOf + 1));
-   addPreprocessor(plainPreprocessor, datnam, StaticHelper::indexOfOnTopLevel(plainPreprocessor, { METHOD_CHAIN_SEPARATOR }, 0, INSCR_BEG_TAG, INSCR_END_TAG));
-}
-
-void Script::addPreprocessor(const std::string& preprocessor, const std::string& filename, const int indexOfMethodsPartBegin)
-{
-   alltimePreprocessors.insert({ filename, StaticHelper::trimAndReturn(preprocessor) });
-
-   if (indexOfMethodsPartBegin != preprocessor.length() && indexOfMethodsPartBegin >= 0) {
-      int leftTrim = preprocessor.size() - StaticHelper::ltrimAndReturn(preprocessor).size();
-
-      methodPartBegins.insert({ StaticHelper::trimAndReturn(preprocessor), indexOfMethodsPartBegin - leftTrim });
-   }
 }
 
 std::string Script::removePreprocessors(const std::string& script)
@@ -1448,24 +1156,6 @@ int nextIndex(const std::string& script, const int current_index)
    return -1;
 }
 
-void Script::findAllVariables()
-{
-   int indexOf = nextIndex(processedScript, 0);
-
-   while (indexOf > 0) {
-      int index_of_dummy = indexOf - 1;
-      
-      std::string var_name = findVarName(processedScript, index_of_dummy);
-
-      if (!var_name.empty() && StaticHelper::isAlphaNumericOrUnderscore(var_name) && StaticHelper::isAlpha(StaticHelper::makeString(var_name.at(0)))) {
-         VARIABLES_MAYBE.insert(var_name);
-         addNote("Found possible variable named '" + var_name + "' at position " + std::to_string(index_of_dummy) + " in script of length " + std::to_string(processedScript.size()) + ".");
-      }
-
-      indexOf = nextIndex(processedScript, indexOf + 1);
-   }
-}
-
 std::string vfm::macro::Script::getRawScript() const
 {
    return rawScript;
@@ -1485,40 +1175,27 @@ RepresentableAsPDF vfm::macro::Script::copy() const
    copy_script->SPECIAL_SYMBOLS = SPECIAL_SYMBOLS;
    copy_script->PLACEHOLDER_MAPPING = PLACEHOLDER_MAPPING;
    copy_script->PLACEHOLDER_INVERSE_MAPPING = PLACEHOLDER_INVERSE_MAPPING;
-   copy_script->alltimePreprocessors = alltimePreprocessors;
-   copy_script->identCounts = identCounts;
    copy_script->rawScript = rawScript;
    copy_script->processedScript = processedScript;
-   copy_script->methodPartBegins = methodPartBegins;
-   copy_script->count = count;
+   copy_script->method_part_begins_ = method_part_begins_;
 
    return copy_script;
 }
 
-std::shared_ptr<DummyRepresentable> vfm::macro::Script::toDummyIfApplicable()
-{
-   return nullptr;
-}
-
-std::shared_ptr<DummyRepresentable> vfm::macro::DummyRepresentable::toDummyIfApplicable()
-{
-   return std::dynamic_pointer_cast<DummyRepresentable>(this->shared_from_this());
-}
-
-RepresentableAsPDF vfm::macro::Script::repfactory_instanceFromScript(const std::string& script, const RepresentableAsPDF father)
+RepresentableAsPDF vfm::macro::Script::repfactory_instanceFromScript(const std::string& script)
 {
    std::shared_ptr<DummyRepresentable> dummy = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
    addFailableChild(dummy, "");
-   dummy->createInstanceFromScript(script, father);
+   dummy->createInstanceFromScript(script);
    return dummy;
 }
 
-std::string vfm::macro::Script::createDummyrep(const std::string& processed_raw, RepresentableAsPDF repToProcess, RepresentableAsPDF father)
+std::string vfm::macro::Script::createDummyrep(const std::string& processed_raw, RepresentableAsPDF repToProcess)
 {
    std::string processed;
-   repToProcess->createInstanceFromScript(processed, father);
+   repToProcess->createInstanceFromScript(processed);
    std::string extract_expression_part = extractExpressionPart(processed);
-   repToProcess->createInstanceFromScript(extract_expression_part, father);
+   repToProcess->createInstanceFromScript(extract_expression_part);
 
    processed = processed.substr(extract_expression_part.length());
 
@@ -1753,12 +1430,9 @@ std::string vfm::macro::Script::processScript(
 {
    knownPreprocessors.clear();
    list_data_.clear();
-   knownChains.clear();
-   knownReps.clear();
    DummyRepresentable::inscriptMethodDefinitions.clear();
    DummyRepresentable::inscriptMethodParNums.clear();
    DummyRepresentable::inscriptMethodParPatterns.clear();
-   VARIABLES_MAYBE.clear();
 
    auto s = std::make_shared<DummyRepresentable>(data ? data : std::make_shared<DataPack>(), parser ? parser : SingletonFormulaParser::getInstance());
    
