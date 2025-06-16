@@ -445,6 +445,9 @@ private:
    static std::map<std::string, std::string> inscriptMethodParPatterns; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
 
    static std::map<std::string, std::vector<std::string>> list_data_; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
+
+   static int cache_hits_;
+   static int cache_misses_;
 };
 
 } // macro

@@ -27,6 +27,8 @@ std::map<std::string, std::string> Script::inscriptMethodParPatterns{};
 std::set<std::string> Script::SPECIAL_SYMBOLS{};
 std::map<std::string, std::string> Script::PLACEHOLDER_MAPPING{};
 std::map<std::string, std::string> Script::PLACEHOLDER_INVERSE_MAPPING{};
+int Script::cache_hits_{};
+int Script::cache_misses_{};
 
 
 vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser)
@@ -94,6 +96,7 @@ void Script::extractInscriptProcessors()
 {
    // Find next preprocessor.
    int indexOfPrep = findNextInscriptPos();
+   int i{};
 
    while (indexOfPrep >= 0) {
       std::string preprocessorScript = *StaticHelper::extractFirstSubstringLevelwise(processed_script_, INSCR_BEG_TAG, INSCR_END_TAG, indexOfPrep);
@@ -114,9 +117,11 @@ void Script::extractInscriptProcessors()
       auto trimmed = StaticHelper::trimAndReturn(preprocessorScript);
 
       if (method_part_begins_.count(trimmed)) {
+         cache_hits_++;
          placeholder_for_inscript = method_part_begins_.at(trimmed).second;
       }
       else {
+         cache_misses_++;
          int leftTrim = preprocessorScript.size() - StaticHelper::ltrimAndReturn(preprocessorScript).size();
 
          method_part_begins_.insert({
@@ -132,6 +137,16 @@ void Script::extractInscriptProcessors()
       std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
       processed_script_ = partBefore + placeholderFinal + partAfter;
       indexOfPrep = findNextInscriptPos();
+
+      if (i++ % 100 == 0) {
+         addNote(""
+            + std::to_string(known_chains_.size()) + " known_chains_; "
+            + std::to_string(method_part_begins_.size()) + " method_part_begins_; "
+            + std::to_string(list_data_.size()) + " list_data_; "
+            + std::to_string(processed_script_.size()) + " script size; "
+            + std::to_string(cache_hits_) + "/" + std::to_string(cache_misses_) + " cache hits/misses; "
+         );
+      }
    }
 }
 
@@ -160,8 +175,11 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
    std::string processedRaw{ processedChain };
 
    if (known_chains_.count(processedRaw)) {
+      cache_hits_++;
       return known_chains_.at(processedRaw);
    }
+
+   cache_misses_++;
 
    RepresentableAsPDF repToProcess{};
    std::shared_ptr<int> methodBegin = method_part_begins_.count(processedRaw) ? std::make_shared<int>(method_part_begins_.at(processedRaw).first) : nullptr;
@@ -236,12 +254,6 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
 
    RepresentableAsPDF apply_method_chain = applyMethodChain(repToProcess, methodSignaturesArray);
    if (processedRaw.size() < 50) known_chains_[processedRaw] = apply_method_chain;
-
-   addNote("Currently " 
-      + std::to_string(known_chains_.size()) + " known_chains_ and " 
-      + std::to_string(method_part_begins_.size()) + " method_part_begins_ and "
-      + std::to_string(list_data_.size()) + " list_data_ and "
-      + ".");
 
    return apply_method_chain;
 }
@@ -1552,6 +1564,8 @@ std::string vfm::macro::Script::processScript(
    inscriptMethodParPatterns.clear();
    PLACEHOLDER_MAPPING.clear();
    PLACEHOLDER_INVERSE_MAPPING.clear();
+   cache_hits_ = 0;
+   cache_misses_ = 0;
 
    auto s = std::make_shared<Script>(data ? data : std::make_shared<DataPack>(), parser ? parser : SingletonFormulaParser::getInstance());
    
