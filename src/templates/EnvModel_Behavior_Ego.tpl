@@ -48,7 +48,7 @@ VAR
 
 @{
     #ERROR: ASSIGN structure for gaps not supported anymore since 2024-06-20.
-}@.if[@{NONEGOS <= THRESHOLD_FOR_USING_ASSIGNS_IN_GAP_STRUCTURE}@.eval]
+}@******.if[@{NONEGOS <= THRESHOLD_FOR_USING_ASSIGNS_IN_GAP_STRUCTURE}@.eval]
 
 INVAR tar_dir = ActionDir____LEFT; -- TODO: This is only needed as interface towards BP. Remove when better solution comes up.
 
@@ -100,7 +100,7 @@ INVAR (ego.abs_pos < section_0_segment_0_pos_begin) ->
    }@*.for[[num], 0, @{SEGMENTS - 2}@.eval]
    INVAR (ego.abs_pos >= section_0_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin) -> 
    (ego.on_lane_min >= section_0_segment_@{SEGMENTS - 1}@.eval[0]_min_lane & ego.on_lane_max <= section_0_segment_@{SEGMENTS - 1}@.eval[0]_max_lane);
-}@.if[@{KEEP_EGO_FROM_GREEN}@.eval]
+}@******.if[@{KEEP_EGO_FROM_GREEN}@.eval]
 
 DEFINE
 -- Schematic for ego.right_of_veh_*_lane
@@ -208,8 +208,8 @@ crash := FALSE@{@{}@.space| ego.crash_with_veh_[i]}@*.for[[i], 0, @{NONEGOS - 1}
 blamable_crash := FALSE@{@{}@.space| ego.blamable_crash_with_veh_[i]}@*.for[[i], 0, @{NONEGOS - 1}@.eval];
 
 -- TODO: Formerly INVAR, and "=" instead of ":=" - Check if this is correct!
-ego.has_close_vehicle_on_left_left_lane := (FALSE @{@{ | ego.close_to_vehicle_[i]_on_left_left_lane}@.for[[i], 0, @{NONEGOS - 1}@.eval, 1]}@*.if[@{FARMERGINGCARS}@.eval]);     -- For some reason the "FALSE |"...
-ego.has_close_vehicle_on_right_right_lane := (FALSE @{@{ | ego.close_to_vehicle_[i]_on_right_right_lane}@.for[[i], 0, @{NONEGOS - 1}@.eval, 1]}@*.if[@{FARMERGINGCARS}@.eval]); -- ...seems to be crucial for runtime.
+ego.has_close_vehicle_on_left_left_lane := (FALSE @{@{ | ego.close_to_vehicle_[i]_on_left_left_lane}@.for[[i], 0, @{NONEGOS - 1}@.eval, 1]}@******.if[@{FARMERGINGCARS}@.eval]);     -- For some reason the "FALSE |"...
+ego.has_close_vehicle_on_right_right_lane := (FALSE @{@{ | ego.close_to_vehicle_[i]_on_right_right_lane}@.for[[i], 0, @{NONEGOS - 1}@.eval, 1]}@******.if[@{FARMERGINGCARS}@.eval]); -- ...seems to be crucial for runtime.
 
 @{
 -- check that chosen long acceleration of other vehicle is indeed safe
@@ -246,7 +246,7 @@ INIT ego_lane_single;
 @{
 INVAR
     (!(ego.abCond_full & ego.mode = ActionType____LANE_FOLLOWING));  -- only abort when a lane change is ongoing
-}@.if[@{ABORTREVOKE}@.eval]
+}@******.if[@{ABORTREVOKE}@.eval]
 
 INVAR
     (0 <= ego.v & ego.v <= ego.max_vel) &
@@ -276,7 +276,7 @@ ASSIGN
     init(ego.gaps___619___.v_front) := max_vel; -- Max velocity is indicator of empty gap to the front, 0, to the rear.
     init(ego.gaps___629___.v_front) := max_vel; -- Max velocity is indicator of empty gap to the front, 0, to the rear.
     init(ego.gaps___629___.turn_signals_front) := ActionDir____CENTER; 
-}@.if[@{NONEGOS <= THRESHOLD_FOR_USING_ASSIGNS_IN_GAP_STRUCTURE}@.eval]
+}@******.if[@{NONEGOS <= THRESHOLD_FOR_USING_ASSIGNS_IN_GAP_STRUCTURE}@.eval]
 
     init(ego.lc_direction) := ActionDir____CENTER;
     init(ego.mode) := ActionType____LANE_FOLLOWING;
@@ -305,7 +305,7 @@ INVAR
 
 INVAR
     ego_pressured_from_ahead_on_right_lane -> (ego.gaps___629___.a_front > veh_length - ego.gaps___629___.s_dist_front - ego.gaps___629___.v_front + ego.v + a_min);
-}@.if[@{BRAKEINHIBITION}@.eval]
+}@******.if[@{BRAKEINHIBITION}@.eval]
 
 DEFINE
    @{allowed_ego_a_front_center}@*.scalingVariable[acceleration] := max(min( ego.gaps___619___.s_dist_front + ego.gaps___619___.v_front + ego.gaps___619___.a_front - ego.v - ego.following_dist, ego.max_accel), ego.min_accel);
@@ -330,12 +330,12 @@ DEFINE
 VAR
    @{ego.a}@*.scalingVariable[acceleration] : integer;
    )@
-}@.if[@{LONGCONTROL}@.eval]
+}@******.if[@{LONGCONTROL}@.eval]
 
 @{
 -- Prohibit continuing LC in case of abort condition already active.
 TRANS (next(ego.mode = ActionType____LANECHANGE_ABORT) | ego.mode = ActionType____LANECHANGE_ABORT | next(ego.abCond_full) | ego.abCond_full) -> (!ego_lane_move_up & !ego_lane_move_down);
-}@.if[@{ABORTREVOKE}@.eval]
+}@******.if[@{ABORTREVOKE}@.eval]
 
 ASSIGN
     @{possible_lc_modes=@{
@@ -353,7 +353,7 @@ ASSIGN
     next(ego.mode) := case
     @{
         (FALSE @{| ego.mode = ActionType____LANECHANGE_[DIR]}@.for[[DIR], possible_lc_modes]) & (ego.abCond_full | next(ego.abCond_full)): ActionType____LANECHANGE_ABORT;
-    }@.if[@{!ABORTREVOKE}@.eval]
+    }@******.if[@{!ABORTREVOKE}@.eval]
         @{ego.mode = ActionType____LANE_FOLLOWING & ego.flCond_full: ActionType____LANECHANGE_LEFT;}@.if[@{LEFTLC}@.eval]
         @{ego.mode = ActionType____LANE_FOLLOWING & ego.slCond_full: ActionType____LANECHANGE_RIGHT;}@.if[@{RIGHTLC}@.eval]
         @{ego.mode = ActionType____LANECHANGE_LEFT & ego_timer = ego.complete_lane_change_latest_after: ActionType____LANE_FOLLOWING;}@.if[@{LEFTLC}@.eval]
@@ -362,7 +362,7 @@ ASSIGN
         @{ego.mode = ActionType____LANECHANGE_RIGHT & ego_timer >= ego.complete_lane_change_earliest_after  & ego_timer < ego.complete_lane_change_latest_after : {ActionType____LANE_FOLLOWING, ActionType____LANECHANGE_RIGHT};}@.if[@{RIGHTLC}@.eval]
     @{
         (FALSE @{| ego.mode = ActionType____LANECHANGE_[DIR]}@.for[[DIR], possible_lc_modes]) & ego.abCond_full: ActionType____LANECHANGE_ABORT;
-    }@.if[@{ABORTREVOKE}@.eval]
+    }@******.if[@{ABORTREVOKE}@.eval]
         ego.mode = ActionType____LANECHANGE_ABORT & ego_timer = 0: ActionType____LANE_FOLLOWING;
         TRUE: ego.mode;
     esac;
@@ -592,7 +592,7 @@ INVAR
 @{(((ego.gaps___629___.s_dist_rear = -veh___6[i]9___.rel_pos - veh_length) & ego.left_of_veh_[i]_lane) <-> ego.gaps___629___.i_agent_rear = [i]) & 
 }@.for[[i], 0, @{NONEGOS - 1}@.eval]
 TRUE;
-}@.if[@{CALCULATE_RIGHT_GAP_REAR}@.eval]
+}@******.if[@{CALCULATE_RIGHT_GAP_REAR}@.eval]
 
 INVAR -1 <= ego.gaps___609___.i_agent_front & ego.gaps___609___.i_agent_front <= @{NONEGOS - 1}@.eval[0];
 INVAR -1 <= ego.gaps___619___.i_agent_front & ego.gaps___619___.i_agent_front <= @{NONEGOS - 1}@.eval[0];
@@ -661,7 +661,7 @@ DEFINE
 
 	}@**.for[[k], 0, 2]
 )@
-}@.if[@{NONEGOS <= THRESHOLD_FOR_USING_ASSIGNS_IN_GAP_STRUCTURE}@.eval]
+}@******.if[@{NONEGOS <= THRESHOLD_FOR_USING_ASSIGNS_IN_GAP_STRUCTURE}@.eval]
 
 --------------------------------------------------------
 -- End: Gap Structure
@@ -675,7 +675,7 @@ DEFINE
 TRANS (next(ego.left_of_veh_[i]_lane)  & next(veh___6[i]9___.rel_pos) >= -veh_length & next(veh___6[i]9___.rel_pos) <= veh_length) -> !veh___6[i]9___.lane_move_up;
 TRANS (next(ego.right_of_veh_[i]_lane) & next(veh___6[i]9___.rel_pos) >= -veh_length & next(veh___6[i]9___.rel_pos) <= veh_length) -> !veh___6[i]9___.lane_move_down;
 }@.for[[i], 0, @{NONEGOS - 1}@.eval]
-}@.if[@{DOUBLEMERGEPROTECTION}@.eval]
+}@******.if[@{DOUBLEMERGEPROTECTION}@.eval]
 
 --------------------------------------------------------
 -- Standing cars
@@ -691,16 +691,16 @@ TRANS next(veh___6[i]9___.lane_b@{[j]}@.eval[0]) = veh___6[i]9___.lane_b@{[j]}@.
 
 @{@{
    next(ego_lane_b[j]) := ego_lane_b[j];
-}@*.for[[j], 0, @{NUMLANES - 1}@.eval]}@**.if[@{KEEPEGOFIXEDTOLANE}@.eval]
+}@*.for[[j], 0, @{NUMLANES - 1}@.eval]}@******.if[@{KEEPEGOFIXEDTOLANE}@.eval]
 
 
 @{
 @{EnvModel_DummyBP.tpl}@.include
-}@.if[@{VIPER}@.eval]
+}@******.if[@{VIPER}@.eval]
 
 @{EnvModel_Debug.tpl}@.include
 
-}@**.if[@{!(EGOLESS)}@.eval]
+}@******.if[@{!(EGOLESS)}@.eval]
 
 ---------------------------------------------------------------------
 -- Here comes logic which is independent of EGO-less or EGO-full mode
@@ -717,7 +717,7 @@ VAR
 
    @{ego.abs_pos}@*.scalingVariable[distance] : integer;
 
-@{FROZENVAR}@**.if[@{(EGOLESS)}@.eval]
+@{FROZENVAR}@******.if[@{(EGOLESS)}@.eval]
    @{ego.v}@*.scalingVariable[velocity] : 0 .. @{2}@.velocityWorldToEnvModelConst; -- ego.max_vel;
 
 INIT ego.abs_pos = 0;

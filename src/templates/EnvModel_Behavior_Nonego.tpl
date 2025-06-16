@@ -8,7 +8,7 @@
    @{
 VAR
       ego.a : 0..0;  -- Mock EGO interface...
-   }@**.if[@{EGOLESS}@.eval]
+   }@******.if[@{EGOLESS}@.eval]
 
 	@{
 VAR
@@ -146,7 +146,7 @@ DEFINE
    @{################# FORMERLY: veh___6[i]9___.same_lane_as_veh_[j] := ((veh___6[i]9___.lane_b1 & veh___6[j]9___.lane_b1) | (veh___6[i]9___.lane_b2 & veh___6[j]9___.lane_b2) | (veh___6[i]9___.lane_b3 & veh___6[j]9___.lane_b3)); ###################}@.nil
 	@{
    veh___6[i]9___.same_lane_as_veh_[k] := (FALSE
-      @{| ((veh___6[k]9___.lane_b[j] & veh___6[i]9___.lane_b[j]) @{) --}@**.if[@{EGOLESS}@.eval]  @{& !(veh___6[k]9___.lane_b@{[j]-1}@.eval[0] & veh___6[i]9___.lane_b@{[j]+1}@.eval[0]) & !(veh___6[k]9___.lane_b@{[j]+1}@.eval[0] & veh___6[i]9___.lane_b@{[j]-1}@.eval[0])}@.if[@{[j] > 0 && [j] < NUMLANES - 1}@.eval] )
+      @{| ((veh___6[k]9___.lane_b[j] & veh___6[i]9___.lane_b[j]) @{) --}@******.if[@{EGOLESS}@.eval]  @{& !(veh___6[k]9___.lane_b@{[j]-1}@.eval[0] & veh___6[i]9___.lane_b@{[j]+1}@.eval[0]) & !(veh___6[k]9___.lane_b@{[j]+1}@.eval[0] & veh___6[i]9___.lane_b@{[j]-1}@.eval[0])}@.if[@{[j] > 0 && [j] < NUMLANES - 1}@.eval] )
       }@*.for[[j], 0, @{NUMLANES - 1}@.eval]
    );
    }@**.for[[k], 0, @{[i]}@.sub[1]]
@@ -209,7 +209,7 @@ ASSIGN
     init(veh___6[i]9___.prev_rel_pos) := 0;
     init(veh___6[i]9___.prev_abs_pos) := 0;
     -- init(veh___6[i]9___.v) := @{MAXSPEEDNONEGO / 2}@.velocityWorldToEnvModelConst;
-    @{init(veh___6[i]9___.a) := 0;}@**.if[@{!(EGOLESS)}@.eval]
+    @{init(veh___6[i]9___.a) := 0;}@******.if[@{!(EGOLESS)}@.eval]
     init(veh___6[i]9___.turn_signals) := ActionDir____CENTER;
     init(veh___6[i]9___.lc_leave_src_lane) := FALSE;
 
@@ -362,15 +362,15 @@ TRANS
         -- the timer is within the interval where we may leave our source lane, we may transition to any neighbor lane but we do not have to (current lane is also allowed for next state)
         veh___6[i]9___.lc_timer >= leave_src_lane_earliest_after & veh___6[i]9___.lc_timer < leave_src_lane_latest_after & veh___6[i]9___.lane_single & !veh___6[i]9___.abort_lc & !next(veh___6[i]9___.abort_lc): 
         case 
-            veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max @{& !(ego.left_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@**.if[@{!(EGOLESS)}@.eval] : next(veh___6[i]9___.change_lane_now) = 0 ? veh___6[i]9___.lane_unchanged : veh___6[i]9___.lane_move_up;
-            veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min @{& !(ego.right_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@**.if[@{!(EGOLESS)}@.eval] : next(veh___6[i]9___.change_lane_now) = 0 ? veh___6[i]9___.lane_unchanged : veh___6[i]9___.lane_move_down;
+            veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max @{& !(ego.left_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@******.if[@{!(EGOLESS)}@.eval] : next(veh___6[i]9___.change_lane_now) = 0 ? veh___6[i]9___.lane_unchanged : veh___6[i]9___.lane_move_up;
+            veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min @{& !(ego.right_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@******.if[@{!(EGOLESS)}@.eval] : next(veh___6[i]9___.change_lane_now) = 0 ? veh___6[i]9___.lane_unchanged : veh___6[i]9___.lane_move_down;
             TRUE : veh___6[i]9___.lane_unchanged;
         esac;
         -- at the latest point in time, we need to leave the source lane if we have not already
         veh___6[i]9___.lc_timer = leave_src_lane_latest_after & veh___6[i]9___.lane_single: 
         case
-                veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max @{& !(ego.left_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@**.if[@{!(EGOLESS)}@.eval] : veh___6[i]9___.lane_move_up; 
-                veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min @{& !(ego.right_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@**.if[@{!(EGOLESS)}@.eval] : veh___6[i]9___.lane_move_down;
+                veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max @{& !(ego.left_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@******.if[@{!(EGOLESS)}@.eval] : veh___6[i]9___.lane_move_up; 
+                veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min @{& !(ego.right_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@******.if[@{!(EGOLESS)}@.eval] : veh___6[i]9___.lane_move_down;
                 TRUE : veh___6[i]9___.lane_unchanged;
         esac;
         -- lane change is finished in the next step (time conditions are checked at do_lane_change), set state to target lane (we must be on two lanes right now)
