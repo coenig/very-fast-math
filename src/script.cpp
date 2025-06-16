@@ -17,7 +17,6 @@
 using namespace vfm;
 using namespace macro;
 
-std::map<std::string, std::string> Script::known_preprocessors_{};
 std::map<std::string, std::shared_ptr<Script>> Script::known_chains_{};
 std::map<std::string, std::vector<std::string>> Script::list_data_{};
 
@@ -64,7 +63,6 @@ vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shar
    SPECIAL_SYMBOLS.insert(PREPROCESSOR_FIELD_NAME);
    SPECIAL_SYMBOLS.insert(VARIABLE_DELIMITER);
    SPECIAL_SYMBOLS.insert(StaticHelper::makeString(END_VALUE));
-   SPECIAL_SYMBOLS.insert(PREAMBLE_FOR_NON_SCRIPT_METHODS);
    SPECIAL_SYMBOLS.insert(NOP_SYMBOL);
 }
 
@@ -92,26 +90,19 @@ std::string vfm::macro::Script::getProcessedScript() const
    return processed_script_;
 }
 
-bool Script::extractInscriptProcessors()
+void Script::extractInscriptProcessors()
 {
    // Find next preprocessor.
    int indexOfPrep = findNextInscriptPos();
 
    if (indexOfPrep < 0) {
-      return false; // No preprocessor tags.
+      return; // No preprocessor tags.
    }
-
-   bool changed = false;
-   double scale = 1;
 
    std::string preprocessorScript = *StaticHelper::extractFirstSubstringLevelwise(processed_script_, INSCR_BEG_TAG, INSCR_END_TAG, indexOfPrep);
    int lengthOfPreprocessor = preprocessorScript.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length();
    std::string partBefore = processed_script_.substr(0, indexOfPrep);
    std::string partAfter = processed_script_.substr(indexOfPrep + lengthOfPreprocessor);
-
-   bool hidden = true;
-   int declLength = 0;
-   int qualifiedDelta = 0;
 
    int indexCurr = getNextNonInscriptPosition(partAfter);
    indexCurr = (std::min)(indexCurr, (int) partAfter.length());
@@ -122,37 +113,27 @@ bool Script::extractInscriptProcessors()
    preprocessorScript = preprocessorScript + methods;
    std::string placeholder_for_inscript{};
 
-   // Store debug script.
-   int begin = indexOfPrep - declLength;
+   int begin = indexOfPrep;
 
-   if (methodPartBegin != preprocessorScript.length() && methodPartBegin >= 0) {
+   if (method_part_begins_.count(preprocessorScript)) {
+      placeholder_for_inscript = method_part_begins_.at(preprocessorScript).second;
+   }
+   else {
+      placeholder_for_inscript = placeholderForInscript(preprocessorScript);
+
+      //if (methodPartBegin != preprocessorScript.length() && methodPartBegin >= 0) { // TODO: Do we need this??
       int leftTrim = preprocessorScript.size() - StaticHelper::ltrimAndReturn(preprocessorScript).size();
 
-      method_part_begins_.insert({ StaticHelper::trimAndReturn(preprocessorScript), methodPartBegin - leftTrim });
-   }
-   else {
-      addError("");
-   }
-
-   if (known_preprocessors_.count(preprocessorScript)) {
-      placeholder_for_inscript = known_preprocessors_.at(preprocessorScript);
-   }
-   else {
-      placeholder_for_inscript = placeholderForInscript(
-         preprocessorScript,
-         scale,
-         true);
-
-      known_preprocessors_.insert({ preprocessorScript, placeholder_for_inscript });
+      method_part_begins_.insert({ 
+         StaticHelper::trimAndReturn(preprocessorScript), 
+         { methodPartBegin - leftTrim, placeholder_for_inscript } 
+      });
    }
 
    std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
    processed_script_ = partBefore + placeholderFinal + partAfter;
-   changed = true;
 
-   bool nested_call = extractInscriptProcessors();
-
-   return changed || nested_call;
+   extractInscriptProcessors();
 }
 
 std::string Script::checkForPlainTextTags(const std::string& script)
@@ -174,21 +155,10 @@ std::string Script::checkForPlainTextTags(const std::string& script)
    return script2;
 }
 
-std::string Script::placeholderForInscript(
-   const std::string& preprocessorScript,
-   const double scale,
-   const bool allowRegularScripts)
+std::string Script::placeholderForInscript(const std::string& preprocessorScript)
 {
    RepresentableAsPDF result = evaluateChain(removePreprocessors(raw_script_), preprocessorScript);
-
-   if (true/*DummyRepresentable.class.isAssignableFrom(result.getClass())*/) { // TODO: Only plain-text scripts allowed for now.
-      std::string replace;
-      replace = StaticHelper::replaceAll(result->getRawScript(), PREAMBLE_FOR_NON_SCRIPT_METHODS, "");
-      return replace;
-   }
-   else { // Regular script. Expansion allowed ==> null.
-      return allowRegularScripts ? "" : preprocessorScript;
-   }
+   return result->getRawScript();
 }
 
 RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const std::string& chain)
@@ -201,7 +171,7 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
    }
 
    RepresentableAsPDF repToProcess{};
-   std::shared_ptr<int> methodBegin = method_part_begins_.count(processedRaw) ? std::make_shared<int>(method_part_begins_.at(processedRaw)) : nullptr;
+   std::shared_ptr<int> methodBegin = method_part_begins_.count(processedRaw) ? std::make_shared<int>(method_part_begins_.at(processedRaw).first) : nullptr;
 
    if (StaticHelper::stringStartsWith(processedChain, INSCR_BEG_TAG)
       && (!methodBegin
@@ -277,7 +247,6 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
    addNote("Currently " 
       + std::to_string(known_chains_.size()) + " known_chains_ and " 
       + std::to_string(method_part_begins_.size()) + " method_part_begins_ and "
-      + std::to_string(known_preprocessors_.size()) + " known_preprocessors_ and "
       + std::to_string(list_data_.size()) + " list_data_ and "
       + ".");
 
@@ -950,7 +919,7 @@ std::vector<std::string> Script::getParametersFor(const std::vector<std::string>
 
    for (int i = 0; i < rawPars.size(); i++) {
       RepresentableAsPDF processedPar = evaluateChain(removePreprocessors(this_rep->getRawScript()), rawPars[i]);
-      parameters[i] = StaticHelper::replaceAll(processedPar->getRawScript(), PREAMBLE_FOR_NON_SCRIPT_METHODS, "");
+      parameters[i] = processedPar->getRawScript();
    }
 
    bool stdValBool = false;
@@ -1635,7 +1604,7 @@ void Script::processSequence(const std::string& code, std::vector<std::string>& 
 
 void Script::createInstanceFromScript(const std::string& code)
 {
-   setRawScript(StaticHelper::replaceAll(code, PREAMBLE_FOR_NON_SCRIPT_METHODS, "")); // Because applyScriptsAndPreprocessors is not called by Dummy.
+   setRawScript(code);
    scriptSequence_.clear();
    processSequence(code, scriptSequence_);
 }
@@ -1661,7 +1630,6 @@ std::string vfm::macro::Script::processScript(
    const std::shared_ptr<FormulaParser> parser,
    const std::shared_ptr<Failable> father_failable)
 {
-   known_preprocessors_.clear();
    list_data_.clear();
    known_chains_.clear();
    inscriptMethodDefinitions.clear();

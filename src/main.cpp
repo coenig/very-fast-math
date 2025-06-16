@@ -16,6 +16,7 @@
 #include "gui/gui.h"
 #include "simulation/road_graph.h"
 #include "geometry/bezier_functions.h"
+#include "vfmacro/script.h"
 // #include "examples/fct_enumdefinitions.h" // TODO: This does not work on Linux (needed for replayCounterExample).
 
 using namespace vfm;
@@ -26,6 +27,10 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
+   std::string s{ "@{testying}@.for[i, 1, 5]" };
+   std::cout << vfm::macro::Script::processScript(s);
+   termnate();
+
    //auto traces = StaticHelper::extractMCTracesFromNusmvFile("../examples/gp_config_sections=5/debug_trace_array.txt");
    //std::shared_ptr<RoadGraph> r{ mc::trajectory_generator::VisualizationLaunchers::getRoadGraphTopologyFrom(traces.at(0)) };
    //std::cout << r->generateOSM()->serializeBlock() << std::endl;
