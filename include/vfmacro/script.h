@@ -146,20 +146,11 @@ public:
    /// @return  The rep instance.
    std::shared_ptr<Script> repfactory_instanceFromScript(const std::string& script);
 
-   bool isBooleanTrue(const std::string& bool_str)
-   {
-      return StaticHelper::isBooleanTrue(bool_str);
-   }
-
    static std::string processScript(
       const std::string& text,
       const std::shared_ptr<DataPack> data = nullptr, 
       const std::shared_ptr<FormulaParser> parser = nullptr,
       const std::shared_ptr<Failable> father_failable = nullptr);
-
-protected:
-   static std::map<std::string, std::string> known_preprocessors_; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
-   static std::map<std::string, std::vector<std::string>> list_data_; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
 
    /// Creates a placeholder for an inscript method call. If the result is a
    /// plain text (as opposed to an image), the result itself is the placeholder.
@@ -213,67 +204,10 @@ protected:
    /// <code>scriptSequence</code>.
    ///
    /// @param code  The raw code to process.
-   void processSequence(const std::string& code, std::vector<std::string>& script_sequence) {
-      std::string processed{ StaticHelper::trimAndReturn(code) };
-
-      if (StaticHelper::isEmptyExceptWhiteSpaces(code)) {
-         return;
-      }
-
-      std::string rest{};
-
-      if (StaticHelper::stringStartsWith(processed, BEGIN_TAG_IN_SEQUENCE)
-         && StaticHelper::stringEndsWith(processed, END_TAG_IN_SEQUENCE)) {
-         // Sequence of scripts given.
-         int indexTo{ StaticHelper::findMatchingEndTagLevelwise(
-            processed, BEGIN_TAG_IN_SEQUENCE, END_TAG_IN_SEQUENCE, 0) };
-         rest = processed.substr(indexTo + END_TAG_IN_SEQUENCE.length());
-         processed = processed.substr(BEGIN_TAG_IN_SEQUENCE.length(), indexTo - BEGIN_TAG_IN_SEQUENCE.length());
-         //processSequence(processed, script_sequence);
-      }
-      //else {
-
-      std::string proc{ processed };
-
-      if (StaticHelper::stringStartsWith(proc, INSCR_BEG_TAG) && StaticHelper::stringEndsWith(proc, INSCR_END_TAG)) {
-         proc = proc.substr(INSCR_BEG_TAG.length(), proc.length() - INSCR_END_TAG.length() - INSCR_BEG_TAG.length());
-      }
-
-      script_sequence.push_back(proc);
-      processSequence(rest, script_sequence);
-   }
-
-   void createInstanceFromScript(const std::string& code)
-   {
-      setRawScript(StaticHelper::replaceAll(code, PREAMBLE_FOR_NON_SCRIPT_METHODS, "")); // Because applyScriptsAndPreprocessors is not called by Dummy.
-      scriptSequence_.clear();
-      processSequence(code, scriptSequence_);
-   }
-
-   std::string createScriptFromInstance() {
-      std::string result = "";
-
-      for (const auto& s : scriptSequence_) {
-         result += BEGIN_TAG_IN_SEQUENCE + s + END_TAG_IN_SEQUENCE;
-      }
-
-      return result;
-   }
-
-   std::shared_ptr<Script> getRepresentableAsPDF() {
-      return shared_from_this();
-   }
-
-   std::string evalItAll(const std::string& n1Str, const std::string& n2Str, const std::function<float(float n1, float n2)> eval) {
-      if (!StaticHelper::isParsableAsFloat(n1Str) || !StaticHelper::isParsableAsFloat(n2Str)) {
-         addError("Operand '" + n1Str + "' and/or '" + n2Str + "' cannot be parsed to float/int.");
-         return "0";
-      }
-
-      float n1 = std::stof(n1Str);
-      float n2 = std::stof(n2Str);
-      return std::to_string(eval(n1, n2));
-   }
+   void processSequence(const std::string& code, std::vector<std::string>& script_sequence);
+   void createInstanceFromScript(const std::string& code);
+   std::shared_ptr<Script> getRepresentableAsPDF();
+   std::string evalItAll(const std::string& n1Str, const std::string& n2Str, const std::function<float(float n1, float n2)> eval);
 
    /// Retrieves the raw script, but without any <code>@{</code> or <code>@{</code>.
    /// Can be used to get the constant <code>2</code> from raw script
@@ -281,9 +215,7 @@ protected:
    /// tags.
    ///
    /// @return  The raw script without any inscript tags.
-   std::string getTagFreeRawScript() {
-      return StaticHelper::replaceManyTimes(getRawScript(), { INSCR_BEG_TAG, INSCR_END_TAG }, { "", "" });
-   }
+   std::string getTagFreeRawScript();
 
    std::string sethard(const std::string& value) { known_preprocessors_[getTagFreeRawScript()] = value; return value; }
    std::string exsmeq(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a <= b; }); }
@@ -298,198 +230,23 @@ protected:
    std::string exdiv(const std::string& num) { return evalItAll(getTagFreeRawScript(), num, [](float a, float b) { return a / b; }); }
    std::string expow(const std::string& num) { return evalItAll(getTagFreeRawScript(), num, [](float a, float b) { return std::pow(a, b); }); }
    std::string exmod(const std::string& num) { return evalItAll(getTagFreeRawScript(), num, [](float a, float b) { return (int) a % (int) b; }); }
-   std::string exnot() { return std::to_string(!isBooleanTrue(getTagFreeRawScript()));}
-
+   std::string exnot() { return std::to_string(!StaticHelper::isBooleanTrue(getTagFreeRawScript()));}
    std::string space() { return " "; }
-   
+
    std::string arclengthCubicBezierFromStreetTopology(const std::string& lane, const std::string& angle, const std::string& distance, const std::string& num_lanes);
-
-   std::string forloop(const std::string& varname, const std::string& loop_vec)
-   {
-      return forloop(varname, loop_vec, "");
-   }
-
-   std::string forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw) 
-   {
-      if (from_raw.empty() || StaticHelper::stringStartsWith(from_raw, BEGIN_TAG_IN_SEQUENCE)) { // Regular sequence @()@@()@...
-         std::vector<std::string> loop_vec{};
-         processSequence(from_raw, loop_vec);
-         return forloop(varname, loop_vec, to_raw);
-      }
-      else {
-         return forloop(varname, from_raw, to_raw, "1");
-      }
-   }
-
-   std::string forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw, const std::string& step_raw) 
-   {
-      return forloop(varname, from_raw, to_raw, step_raw, "");
-   }
-
-   std::string forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw, const std::string& step_raw, const std::string& inner_separator) 
-   {
-      if (!StaticHelper::isParsableAsFloat(from_raw) || !StaticHelper::isParsableAsFloat(to_raw) || !StaticHelper::isParsableAsFloat(step_raw)) {
-         addError("At least one of the loop limits '" + from_raw + "' and '" + to_raw + "' and/or the step '" + step_raw + "' is not a number.");
-      }
-
-      int from = std::stoi(from_raw);
-      int to = std::stoi(to_raw);
-      int step = std::stoi(step_raw);
-
-      bool increasing = step >= 0;
-      bool decreasing = !increasing;
-
-      std::vector<std::string> loop_vec{};
-
-      for (int i = from; (increasing && i <= to) || (decreasing && i >= to); i += step) {
-         loop_vec.push_back(std::to_string(i));
-      }
-
-      return forloop(varname, loop_vec, inner_separator);
-   }
-
-   std::string forloop(const std::string& varname, const std::vector<std::string>& loop_vec, const std::string& inner_separator) {
-      std::string loopedVal = "";
-      bool first{ true };
-
-      for (const auto& i : loop_vec) {
-         std::string currVal = StaticHelper::replaceAll(getRawScript(), varname, i);
-         loopedVal += (!first ? StaticHelper::replaceAll(inner_separator, varname, i) : "") + currVal;
-         first = false;
-      }
-
-      return loopedVal;
-   }
-
-   std::string ifChoice(const std::string bool_str) 
-   {
-      bool boolVal{isBooleanTrue(bool_str)};
-
-      int count = scriptSequence_.size();
-
-      if (count > 2) { // Error case 1.
-         addError(std::to_string(count) + " objects given to IF clause in '" + getRawScript() + "'.");
-         return "#INVALID";
-      }
-      //else if (bool_str != "false" && bool_str != "true" && bool_str != "0" && bool_str != "1") { // Error case 2.
-      //   addError("'" + bool_str + "' is not a Boolean value.");
-      //}
-      else if (boolVal) { // True case.
-         return count > 0 ? scriptSequence_.at(0) : "";
-      }
-      else { // False case.
-         if (scriptSequence_.size() < 2) { // No ELSE case defined.
-            return "";
-         }
-         else {
-            return scriptSequence_.at(1);
-         }
-      }
-   }
-
-   std::string element(const std::string& num_str) 
-   {
-      if (!StaticHelper::isParsableAsFloat(num_str)) {
-         addError("Sequence index '" + num_str + "' cannot be parsed to float/int.");
-         return "#INVALID";
-      }
-
-      int num = std::stof(num_str);
-
-      if (num < scriptSequence_.size()) {
-         return scriptSequence_.at(num);
-      }
-
-      addError("Element with index " + std::to_string(num) + " not available in sequence of length " + std::to_string(scriptSequence_.size()));
-      return "#INVALID";
-   }
-
-   float stringToFloat(const std::string& str)
-   {
-      if (StaticHelper::isParsableAsFloat(str)) {
-         return std::stof(str);
-      }
-      else {
-         addError("String '" + str + "' is not parsable as float.");
-         return std::numeric_limits<float>::quiet_NaN();
-      }
-   }
-
-   std::string substring(const std::string& beg, const std::string& end) 
-   {
-      float begin{ stringToFloat(beg) };
-      float ending{ stringToFloat(end) };
-
-      if (std::isnan(begin) || std::isnan(ending)) {
-         addError("Either begin '" + beg + "' or end '" + end + "' not parsable as int for substr function.");
-         return "#INVALID";
-      }
-      else {
-         return getRawScript().substr(begin, ending);
-      }
-   }
-
-   std::string newMethod(const std::string& methodName, const std::string& numPars) 
-   {
-      return newMethodD(methodName, numPars, INSCRIPT_STANDARD_PARAMETER_PATTERN);
-   }
-
-   std::string newMethodD(const std::string& methodName, const std::string& numPars, const std::string& parameterPattern) 
-   {
-      if (inscriptMethodDefinitions.count(methodName)) {
-         addError("Dynamic method '" + methodName + "' already exists.");
-         return "";
-      }
-
-      if (!StaticHelper::isParsableAsFloat(numPars)) {
-         addError("Parameter number '" + numPars + "' in definition of dynamic method '" + methodName + "' not parsable as float/int.");
-         return "";
-      }
-
-      inscriptMethodDefinitions.insert({ methodName, getRawScript() });
-      inscriptMethodParNums.insert({ methodName, (int) std::stof(numPars) });
-      inscriptMethodParPatterns.insert({ methodName, parameterPattern });
-
-      addNote("New method '" + methodName + "' with " 
-         + std::to_string(inscriptMethodParNums.at(methodName)) + " parameters defined as '" 
-         + inscriptMethodDefinitions.at(methodName) + "'. Parameter pattern: '" + parameterPattern + "'.");
-
-      return "";
-   }
-
-   std::string executeCommand(const std::string& methodName, const std::vector<std::string>& pars) 
-   {
-      std::string methodBody = inscriptMethodDefinitions.at(methodName);
-      std::string pattern = inscriptMethodParPatterns.at(methodName);
-
-      int numRepl = pars.size() + 1;
-      std::vector<std::string> searchList{};
-      std::vector<std::string> replacementList{};
-
-      searchList.resize(numRepl);
-      replacementList.resize(numRepl);
-
-      searchList[0] = makroPattern(0, pattern);
-      replacementList[0] = getRawScript();
-
-      for (int i = 1; i < numRepl; i++) {
-         searchList[i] = makroPattern(i, pattern);
-         replacementList[i] = pars[i - 1];
-      }
-
-      return StaticHelper::replaceManyTimes(methodBody, searchList, replacementList);
-   }
-
-   std::string makroPattern(const int i, const std::string& pattern) 
-   {
-      if (StaticHelper::replaceAll(pattern, "n", "").size() != pattern.length() - 1) {
-         addError("Malformed makro parameter pattern pattern '" + pattern + "' does not contain exactly one 'n'.");
-      }
-
-      std::string makroPar = StaticHelper::replaceAll(pattern, "n", std::to_string(i));
-      return makroPar;
-   }
-
+   std::string forloop(const std::string& varname, const std::string& loop_vec);
+   std::string forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw);
+   std::string forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw, const std::string& step_raw);
+   std::string forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw, const std::string& step_raw, const std::string& inner_separator);
+   std::string forloop(const std::string& varname, const std::vector<std::string>& loop_vec, const std::string& inner_separator);
+   std::string ifChoice(const std::string bool_str);
+   std::string element(const std::string& num_str);
+   float stringToFloat(const std::string& str);
+   std::string substring(const std::string& beg, const std::string& end);
+   std::string newMethod(const std::string& methodName, const std::string& numPars);
+   std::string newMethodD(const std::string& methodName, const std::string& numPars, const std::string& parameterPattern);
+   std::string executeCommand(const std::string& methodName, const std::vector<std::string>& pars);
+   std::string makroPattern(const int i, const std::string& pattern);
    std::string applyMethodString(const std::string& method_name, const std::vector<std::string>& parameters);
 
 private:
@@ -692,19 +449,14 @@ private:
    /// @return  The possibly processed script.
    std::string checkForPlainTextTags(const std::string& script);
 
-   std::string rawScript{};
-   std::string processedScript{};
-
+   std::string raw_script_{};
+   std::string processed_script_{};
    std::map<std::string, int> method_part_begins_{};
-
-   static std::map<std::string, std::shared_ptr<Script>> known_chains_;
-
    std::shared_ptr<DataPack> vfm_data_{};
    std::shared_ptr<FormulaParser> vfm_parser_{};
-
-   void invokeMethod();
-
    std::vector<std::string> scriptSequence_{};
+
+   static std::map<std::string, std::shared_ptr<Script>> known_chains_;
 
    /// Stores all symbols that are somehow restricted as they serve a special
    /// purpose. Caution: Don't count on this list to be really completely
@@ -716,6 +468,9 @@ private:
    static std::map<std::string, std::string> inscriptMethodDefinitions; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
    static std::map<std::string, int> inscriptMethodParNums;             // TODO: no static! Should belong to some base class belonging to a single expansion "session".
    static std::map<std::string, std::string> inscriptMethodParPatterns; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
+
+   static std::map<std::string, std::string> known_preprocessors_; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
+   static std::map<std::string, std::vector<std::string>> list_data_; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
 };
 
 } // macro
