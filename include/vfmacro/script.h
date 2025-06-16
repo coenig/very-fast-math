@@ -69,7 +69,6 @@ static const std::string EXPR_END_TAG_BEFORE = "}}~";
 static const std::string PREPROCESSOR_FIELD_NAME = "prep";
 static const std::string VARIABLE_DELIMITER = "=";
 static const char END_VALUE = ';';
-static const std::string PREAMBLE_FOR_NON_SCRIPT_METHODS = "$$INFO-METHOD-RETURN-VALUE$$\n";
 static const std::string INSCRIPT_STANDARD_PARAMETER_PATTERN = "#n#";
 
  /// Only for internal usage, this symbol is removed from the script
@@ -162,19 +161,11 @@ public:
    /// <code>null</code> is returned.
    ///
    /// @param preprocessorScript   The script of the preprocessor.
-   /// @param scale                The scale of the preprocessor, in case it
-   ///                             creates an image.
-   /// @param allowRegularScripts  In the declarations part regular scripts should
-   ///                             not be expanded, so the script itself is
-   ///                             returned in this case.
    ///
    /// @return  A placeholder, the plain-text result or <code>null</code> if
    ///          a regular method call in the end requires the handling of
    ///          a specific rep such as LaTeX.
-   std::string placeholderForInscript(
-      const std::string& preprocessorScript,
-      const double scale,
-      const bool allowRegularScripts);
+   std::string placeholderForInscript(const std::string& preprocessorScript);
 
    std::string simplifyExpression(const std::string& expression);
 
@@ -217,7 +208,7 @@ public:
    /// @return  The raw script without any inscript tags.
    std::string getTagFreeRawScript();
 
-   std::string sethard(const std::string& value) { known_preprocessors_[getTagFreeRawScript()] = value; return value; }
+   std::string sethard(const std::string& value) { method_part_begins_[getTagFreeRawScript()].second = value; return value; }
    std::string exsmeq(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a <= b; }); }
    std::string exsm(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a < b; }); }
    std::string exgreq(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a >= b; }); }
@@ -309,7 +300,7 @@ private:
    ///
    /// @return  Iff there has been a change on
    ///          {@link RepresentableDefault#processedScript}.
-   bool extractInscriptProcessors();
+   void extractInscriptProcessors();
 
    /// Searches for plain-text parts <code>"@{ *PLAINTEXT/// }@"</code> in the
    /// script and replaces all symbols within them with placeholders, thereby
@@ -451,7 +442,7 @@ private:
 
    std::string raw_script_{};
    std::string processed_script_{};
-   std::map<std::string, int> method_part_begins_{};
+   std::map<std::string, std::pair<int, std::string>> method_part_begins_{};
    std::shared_ptr<DataPack> vfm_data_{};
    std::shared_ptr<FormulaParser> vfm_parser_{};
    std::vector<std::string> scriptSequence_{};
@@ -469,7 +460,6 @@ private:
    static std::map<std::string, int> inscriptMethodParNums;             // TODO: no static! Should belong to some base class belonging to a single expansion "session".
    static std::map<std::string, std::string> inscriptMethodParPatterns; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
 
-   static std::map<std::string, std::string> known_preprocessors_; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
    static std::map<std::string, std::vector<std::string>> list_data_; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
 };
 
