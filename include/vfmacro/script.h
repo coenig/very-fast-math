@@ -151,22 +151,6 @@ public:
       const std::shared_ptr<FormulaParser> parser = nullptr,
       const std::shared_ptr<Failable> father_failable = nullptr);
 
-   /// Creates a placeholder for an inscript method call. If the result is a
-   /// plain text (as opposed to an image), the result itself is the placeholder.
-   /// If it's an image, the empty string "" is returned. Representables
-   /// that allow images as inscript preprocessors have to override this method
-   /// and "do something" when the empty string occurs. (If <code>
-   /// allowRegularMethodCalls</code> is <code>false</code>, an exception is
-   /// thrown. If the method call contains a variable name in the beginning,
-   /// <code>null</code> is returned.
-   ///
-   /// @param preprocessorScript   The script of the preprocessor.
-   ///
-   /// @return  A placeholder, the plain-text result or <code>null</code> if
-   ///          a regular method call in the end requires the handling of
-   ///          a specific rep such as LaTeX.
-   std::string placeholderForInscript(const std::string& preprocessorScript);
-
    std::string simplifyExpression(const std::string& expression);
 
    enum class SyntaxFormat {

@@ -114,20 +114,22 @@ void Script::extractInscriptProcessors()
    std::string placeholder_for_inscript{};
 
    int begin = indexOfPrep;
+   auto trimmed = StaticHelper::trimAndReturn(preprocessorScript);
 
-   if (method_part_begins_.count(preprocessorScript)) {
-      placeholder_for_inscript = method_part_begins_.at(preprocessorScript).second;
+   if (method_part_begins_.count(trimmed)) {
+      placeholder_for_inscript = method_part_begins_.at(trimmed).second;
    }
    else {
-      placeholder_for_inscript = placeholderForInscript(preprocessorScript);
-
-      //if (methodPartBegin != preprocessorScript.length() && methodPartBegin >= 0) { // TODO: Do we need this??
       int leftTrim = preprocessorScript.size() - StaticHelper::ltrimAndReturn(preprocessorScript).size();
 
-      method_part_begins_.insert({ 
-         StaticHelper::trimAndReturn(preprocessorScript), 
-         { methodPartBegin - leftTrim, placeholder_for_inscript } 
-      });
+      method_part_begins_.insert({
+         trimmed,
+         { methodPartBegin - leftTrim, placeholder_for_inscript }
+         });
+
+      RepresentableAsPDF result = evaluateChain(removePreprocessors(raw_script_), preprocessorScript);
+      placeholder_for_inscript = result->getRawScript();
+      method_part_begins_[trimmed].second = placeholder_for_inscript;
    }
 
    std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
@@ -153,12 +155,6 @@ std::string Script::checkForPlainTextTags(const std::string& script)
    }
 
    return script2;
-}
-
-std::string Script::placeholderForInscript(const std::string& preprocessorScript)
-{
-   RepresentableAsPDF result = evaluateChain(removePreprocessors(raw_script_), preprocessorScript);
-   return result->getRawScript();
 }
 
 RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const std::string& chain)
