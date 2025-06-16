@@ -23,6 +23,7 @@ std::map<std::string, std::vector<std::string>> Script::list_data_{};
 std::map<std::string, std::string> DummyRepresentable::inscriptMethodDefinitions{};
 std::map<std::string, int> DummyRepresentable::inscriptMethodParNums{};
 std::map<std::string, std::string> DummyRepresentable::inscriptMethodParPatterns{};
+std::map<std::string, std::shared_ptr<Script>> Script::known_chains_{};
 
 
 vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser)
@@ -1430,6 +1431,7 @@ std::string vfm::macro::Script::processScript(
 {
    knownPreprocessors.clear();
    list_data_.clear();
+   known_chains_.clear();
    DummyRepresentable::inscriptMethodDefinitions.clear();
    DummyRepresentable::inscriptMethodParNums.clear();
    DummyRepresentable::inscriptMethodParPatterns.clear();

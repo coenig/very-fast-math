@@ -177,7 +177,7 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
       @{
       INIT section_[sec]_end = 0                               -- Allow straight sections with zero length.
          | section_[sec]_end >= @{SECTIONSMINLENGTH}@.eval[0];
-      }@.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval]
+      }@.if[@{ALLOW_ZEROLENGTH_SECTIONS}@******.eval]
 
       DEFINE 
          section_[sec].angle := section_[sec].angle_raw * @{ANGLEGRANULARITY}@.eval[0];
