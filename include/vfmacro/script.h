@@ -422,7 +422,7 @@ private:
 
    std::map<std::string, int> method_part_begins_{};
   
-   std::map<std::string, std::shared_ptr<Script>> known_chains_{};
+   static std::map<std::string, std::shared_ptr<Script>> known_chains_;
 
    std::shared_ptr<DataPack> vfm_data_{};
    std::shared_ptr<FormulaParser> vfm_parser_{};

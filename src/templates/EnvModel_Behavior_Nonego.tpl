@@ -312,7 +312,7 @@ ASSIGN
        @{
          next(veh___6[i]9___.is_on_sec_[sec2]) := case
              @{@{
-                @{@{section_[sec2]_end > 0 &}@.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 1;}@.if[@{[sec] != [sec2]}@.eval]
+                @{@{section_[sec2]_end > 0 &}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 1;}@.if[@{[sec] != [sec2]}@.eval]
              }@*.for[[lane], 0, @{NUMLANES - 1}@.eval]
           }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
              veh___6[i]9___.is_on_sec_[sec2] = 1 & veh___6[i]9___.next_abs_pos > section_[sec2]_end : 0;
@@ -337,7 +337,7 @@ ASSIGN
                           & section_[sec]_end = 0 & (@{outgoing_connection_[con]_of_section_[sec] = 0}@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval, 1, |]) : {0, 1};
                       }@.if[@{[sec3] != [sec]}@.eval]
                    }@**.for[[sec3], 0, @{SECTIONS - 1}@.eval]
-                   }@.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval]
+                   }@.if[@{ALLOW_ZEROLENGTH_SECTIONS}@******.eval]
 
                       veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 0; -- Leave this junction when passed over the end.
                    }@***.for[[lane], 0, @{NUMLANES - 1}@.eval]
