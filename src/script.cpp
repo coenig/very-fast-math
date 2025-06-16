@@ -95,47 +95,44 @@ void Script::extractInscriptProcessors()
    // Find next preprocessor.
    int indexOfPrep = findNextInscriptPos();
 
-   if (indexOfPrep < 0) {
-      return; // No preprocessor tags.
+   while (indexOfPrep >= 0) {
+      std::string preprocessorScript = *StaticHelper::extractFirstSubstringLevelwise(processed_script_, INSCR_BEG_TAG, INSCR_END_TAG, indexOfPrep);
+      int lengthOfPreprocessor = preprocessorScript.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length();
+      std::string partBefore = processed_script_.substr(0, indexOfPrep);
+      std::string partAfter = processed_script_.substr(indexOfPrep + lengthOfPreprocessor);
+
+      int indexCurr = getNextNonInscriptPosition(partAfter);
+      indexCurr = (std::min)(indexCurr, (int)partAfter.length());
+
+      std::string methods = partAfter.substr(0, indexCurr);
+      partAfter = partAfter.substr(indexCurr);
+      int methodPartBegin = preprocessorScript.length();
+      preprocessorScript = preprocessorScript + methods;
+      std::string placeholder_for_inscript{};
+
+      int begin = indexOfPrep;
+      auto trimmed = StaticHelper::trimAndReturn(preprocessorScript);
+
+      if (method_part_begins_.count(trimmed)) {
+         placeholder_for_inscript = method_part_begins_.at(trimmed).second;
+      }
+      else {
+         int leftTrim = preprocessorScript.size() - StaticHelper::ltrimAndReturn(preprocessorScript).size();
+
+         method_part_begins_.insert({
+            trimmed,
+            { methodPartBegin - leftTrim, placeholder_for_inscript }
+            });
+
+         RepresentableAsPDF result = evaluateChain(removePreprocessors(raw_script_), preprocessorScript);
+         placeholder_for_inscript = result->getRawScript();
+         method_part_begins_[trimmed].second = placeholder_for_inscript;
+      }
+
+      std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
+      processed_script_ = partBefore + placeholderFinal + partAfter;
+      indexOfPrep = findNextInscriptPos();
    }
-
-   std::string preprocessorScript = *StaticHelper::extractFirstSubstringLevelwise(processed_script_, INSCR_BEG_TAG, INSCR_END_TAG, indexOfPrep);
-   int lengthOfPreprocessor = preprocessorScript.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length();
-   std::string partBefore = processed_script_.substr(0, indexOfPrep);
-   std::string partAfter = processed_script_.substr(indexOfPrep + lengthOfPreprocessor);
-
-   int indexCurr = getNextNonInscriptPosition(partAfter);
-   indexCurr = (std::min)(indexCurr, (int) partAfter.length());
-
-   std::string methods = partAfter.substr(0, indexCurr);
-   partAfter = partAfter.substr(indexCurr);
-   int methodPartBegin = preprocessorScript.length();
-   preprocessorScript = preprocessorScript + methods;
-   std::string placeholder_for_inscript{};
-
-   int begin = indexOfPrep;
-   auto trimmed = StaticHelper::trimAndReturn(preprocessorScript);
-
-   if (method_part_begins_.count(trimmed)) {
-      placeholder_for_inscript = method_part_begins_.at(trimmed).second;
-   }
-   else {
-      int leftTrim = preprocessorScript.size() - StaticHelper::ltrimAndReturn(preprocessorScript).size();
-
-      method_part_begins_.insert({
-         trimmed,
-         { methodPartBegin - leftTrim, placeholder_for_inscript }
-         });
-
-      RepresentableAsPDF result = evaluateChain(removePreprocessors(raw_script_), preprocessorScript);
-      placeholder_for_inscript = result->getRawScript();
-      method_part_begins_[trimmed].second = placeholder_for_inscript;
-   }
-
-   std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
-   processed_script_ = partBefore + placeholderFinal + partAfter;
-
-   extractInscriptProcessors();
 }
 
 std::string Script::checkForPlainTextTags(const std::string& script)
@@ -918,80 +915,6 @@ std::vector<std::string> Script::getParametersFor(const std::vector<std::string>
       parameters[i] = processedPar->getRawScript();
    }
 
-   bool stdValBool = false;
-   int stdValNum = 5;
-   int i = 0;
-
-   //try {
-   //   for (Parameter par : m.getParameters()) {
-   //      Object stdVal = par.getType().equals(Boolean.class)
-   //         || par.getType().equals(Boolean.TYPE)
-   //         ? stdValBool
-   //         : stdValNum;
-   //      stdVal = par.getType().equals(String.class) ? "string" : stdVal;
-   //      String methodDescription =
-   //         "Value for "
-   //         + par.getType()
-   //         + " parameter '"
-   //         + par.getName()
-   //         + "' (method "
-   //         + m.getName()
-   //         + ")";
-
-   //      if (mw.getMethodDescription() != null) {
-   //         methodDescription = mw.getMethodDescription();
-   //      }
-
-   //      String t;
-
-   //      if (parameters == null) {
-   //         t = GeneralDialog.getStringFromUser(
-   //            methodDescription,
-   //            stdVal + "",
-   //            "$$" + m.getName() + "--" + par.getName() + "$$");
-   //      }
-   //      else {
-   //         t = parameters[i];
-   //      }
-
-   //      if (t == null) {
-   //         return null;
-   //      }
-
-   //      if (par.getType().equals(Boolean.class) || par.getType().equals(Boolean.TYPE)) {
-   //         t = isStringTrue(t) ? "true" : "false";
-   //         list[i] = Boolean.parseBoolean(t);
-   //      }
-   //      else
-   //         if (par.getType().equals(Double.class) || par.getType().equals(Double.TYPE)) {
-   //            list[i] = Double.parseDouble(t);
-   //         }
-   //         else
-   //            if (par.getType().equals(Float.class) || par.getType().equals(Float.TYPE)) {
-   //               list[i] = Float.parseFloat(t);
-   //            }
-   //            else
-   //               if (par.getType().equals(Integer.class) || par.getType().equals(Integer.TYPE)) {
-   //                  list[i] = Integer.parseInt(t);
-   //               }
-   //               else
-   //                  if (par.getType().equals(Long.class) || par.getType().equals(Long.TYPE)) {
-   //                     list[i] = Long.parseLong(t);
-   //                  }
-   //                  else
-   //                     if (par.getType().equals(String.class)) {
-   //                        list[i] = t;
-   //                     }
-
-   //      i++;
-   //   }
-   //}
-   //catch (NumberFormatException e) {
-   //   GlobalVariables.getParameters().logWarning(
-   //      "Method invokation failed for method '"
-   //      + m.getName() + "' due to the following exception: " + e.getMessage());
-   //}
-
    return parameters;
 }
 
@@ -1107,10 +1030,6 @@ std::string Script::removePreprocessors(const std::string& script)
       int indexOf2 = preprocessorScript.find("|");
 
       if (indexOf2 >= 0) {
-         /*
-          * Causes trouble if a preprocessors starts with "*doubleVal*|".
-          * But how likely is that... Or... Let's just forbid it :-)
-          */
          std::string scaleStr = preprocessorScript.substr(0, indexOf2);
          if (StaticHelper::isParsableAsFloat(scaleStr)) {
             preprocessorScript = StaticHelper::trimAndReturn(preprocessorScript.substr(indexOf2 + 1));
