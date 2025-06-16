@@ -17,13 +17,17 @@
 using namespace vfm;
 using namespace macro;
 
-std::map<std::string, std::string> Script::knownPreprocessors{};
+std::map<std::string, std::string> Script::known_preprocessors_{};
+std::map<std::string, std::shared_ptr<Script>> Script::known_chains_{};
 std::map<std::string, std::vector<std::string>> Script::list_data_{};
 
 std::map<std::string, std::string> DummyRepresentable::inscriptMethodDefinitions{};
 std::map<std::string, int> DummyRepresentable::inscriptMethodParNums{};
 std::map<std::string, std::string> DummyRepresentable::inscriptMethodParPatterns{};
-std::map<std::string, std::shared_ptr<Script>> Script::known_chains_{};
+
+std::set<std::string> Script::SPECIAL_SYMBOLS{};
+std::map<std::string, std::string> Script::PLACEHOLDER_MAPPING{};
+std::map<std::string, std::string> Script::PLACEHOLDER_INVERSE_MAPPING{};
 
 
 vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser)
@@ -130,9 +134,12 @@ bool Script::extractInscriptProcessors()
 
       method_part_begins_.insert({ StaticHelper::trimAndReturn(preprocessorScript), methodPartBegin - leftTrim });
    }
+   else {
+      addError("");
+   }
 
-   if (knownPreprocessors.count(preprocessorScript)) {
-      placeholder_for_inscript = knownPreprocessors.at(preprocessorScript);
+   if (known_preprocessors_.count(preprocessorScript)) {
+      placeholder_for_inscript = known_preprocessors_.at(preprocessorScript);
    }
    else {
       placeholder_for_inscript = placeholderForInscript(
@@ -140,7 +147,7 @@ bool Script::extractInscriptProcessors()
          scale,
          true);
 
-      knownPreprocessors.insert({ preprocessorScript, placeholder_for_inscript });
+      known_preprocessors_.insert({ preprocessorScript, placeholder_for_inscript });
    }
 
    std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
@@ -271,7 +278,12 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
    RepresentableAsPDF apply_method_chain = applyMethodChain(repToProcess, methodSignaturesArray);
    if (processedRaw.size() < 50) known_chains_[processedRaw] = apply_method_chain;
 
-   addNote("Currently " + std::to_string(known_chains_.size()) + " known chains and " + std::to_string(method_part_begins_.size()) + " method part begins.");
+   addNote("Currently " 
+      + std::to_string(known_chains_.size()) + " known_chains_ and " 
+      + std::to_string(method_part_begins_.size()) + " method_part_begins_ and "
+      + std::to_string(known_preprocessors_.size()) + " known_preprocessors_ and "
+      + std::to_string(list_data_.size()) + " list_data_ and "
+      + ".");
 
    return apply_method_chain;
 }
@@ -1173,9 +1185,6 @@ RepresentableAsPDF vfm::macro::Script::copy() const
 
    addFailableChild(copy_script, "");
 
-   copy_script->SPECIAL_SYMBOLS = SPECIAL_SYMBOLS;
-   copy_script->PLACEHOLDER_MAPPING = PLACEHOLDER_MAPPING;
-   copy_script->PLACEHOLDER_INVERSE_MAPPING = PLACEHOLDER_INVERSE_MAPPING;
    copy_script->rawScript = rawScript;
    copy_script->processedScript = processedScript;
    copy_script->method_part_begins_ = method_part_begins_;
@@ -1429,12 +1438,14 @@ std::string vfm::macro::Script::processScript(
    const std::shared_ptr<FormulaParser> parser,
    const std::shared_ptr<Failable> father_failable)
 {
-   knownPreprocessors.clear();
+   known_preprocessors_.clear();
    list_data_.clear();
    known_chains_.clear();
    DummyRepresentable::inscriptMethodDefinitions.clear();
    DummyRepresentable::inscriptMethodParNums.clear();
    DummyRepresentable::inscriptMethodParPatterns.clear();
+   Script::PLACEHOLDER_MAPPING.clear();
+   Script::PLACEHOLDER_INVERSE_MAPPING.clear();
 
    auto s = std::make_shared<DummyRepresentable>(data ? data : std::make_shared<DataPack>(), parser ? parser : SingletonFormulaParser::getInstance());
    

@@ -160,7 +160,7 @@ public:
       const std::shared_ptr<Failable> father_failable = nullptr);
 
 protected:
-   static std::map<std::string, std::string> knownPreprocessors; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
+   static std::map<std::string, std::string> known_preprocessors_; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
    static std::map<std::string, std::vector<std::string>> list_data_; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
 
    /// Creates a placeholder for an inscript method call. If the result is a
@@ -413,9 +413,9 @@ private:
    /// Stores all symbols that are somehow restricted as they serve a special
    /// purpose. Caution: Don't count on this list to be really completely
    /// exhaustive. I.e., look at the code now and then for pending changes.
-   std::set<std::string> SPECIAL_SYMBOLS{};
-   std::map<std::string, std::string> PLACEHOLDER_MAPPING{};
-   std::map<std::string, std::string> PLACEHOLDER_INVERSE_MAPPING{};
+   static std::set<std::string> SPECIAL_SYMBOLS;
+   static std::map<std::string, std::string> PLACEHOLDER_MAPPING;
+   static std::map<std::string, std::string> PLACEHOLDER_INVERSE_MAPPING;
 
    std::string rawScript{};
    std::string processedScript{};
@@ -519,7 +519,7 @@ public:
       return StaticHelper::replaceManyTimes(getRawScript(), { INSCR_BEG_TAG, INSCR_END_TAG }, { "", "" });
    }
 
-   std::string sethard(const std::string& value) { knownPreprocessors[getTagFreeRawScript()] = value; return value; }
+   std::string sethard(const std::string& value) { known_preprocessors_[getTagFreeRawScript()] = value; return value; }
    std::string exsmeq(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a <= b; }); }
    std::string exsm(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a < b; }); }
    std::string exgreq(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a >= b; }); }
