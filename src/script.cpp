@@ -21,9 +21,9 @@ std::map<std::string, std::string> Script::known_preprocessors_{};
 std::map<std::string, std::shared_ptr<Script>> Script::known_chains_{};
 std::map<std::string, std::vector<std::string>> Script::list_data_{};
 
-std::map<std::string, std::string> DummyRepresentable::inscriptMethodDefinitions{};
-std::map<std::string, int> DummyRepresentable::inscriptMethodParNums{};
-std::map<std::string, std::string> DummyRepresentable::inscriptMethodParPatterns{};
+std::map<std::string, std::string> Script::inscriptMethodDefinitions{};
+std::map<std::string, int> Script::inscriptMethodParNums{};
+std::map<std::string, std::string> Script::inscriptMethodParPatterns{};
 
 std::set<std::string> Script::SPECIAL_SYMBOLS{};
 std::map<std::string, std::string> Script::PLACEHOLDER_MAPPING{};
@@ -223,7 +223,7 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
          repToProcess = repfactory_instanceFromScript(repPart);
 
          if (!repToProcess) { // String is no script, but plain expression.
-            repToProcess = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
+            repToProcess = std::make_shared<Script>(vfm_data_, vfm_parser_);
             processedChain = createDummyrep(processedChain, repToProcess);
          }
          else {
@@ -231,7 +231,7 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
          }
       }
       else { // Treat as plain text.
-         repToProcess = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
+         repToProcess = std::make_shared<Script>(vfm_data_, vfm_parser_);
          repToProcess->createInstanceFromScript(INSCR_BEG_TAG + repPart + INSCR_END_TAG);
          processedChain = processedRaw.substr(*methodBegin + 1);
       }
@@ -243,7 +243,7 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
          repToProcess = repfactory_instanceFromScript(script);
 
          if (!repToProcess) { // String is no script, but plain expression.
-            repToProcess = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
+            repToProcess = std::make_shared<Script>(vfm_data_, vfm_parser_);
             repToProcess->createInstanceFromScript(script);
          }
       }
@@ -251,7 +251,7 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
          repToProcess = repfactory_instanceFromScript(processedChain);
 
          if (!repToProcess) { // String is no script, but plain expression.
-            repToProcess = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
+            repToProcess = std::make_shared<Script>(vfm_data_, vfm_parser_);
             processedChain = createDummyrep(processedChain, repToProcess);
          }
          else {
@@ -339,7 +339,7 @@ float deg2Rad(const float deg)
    return deg * PI / 180;
 }
 
-std::string DummyRepresentable::arclengthCubicBezierFromStreetTopology(
+std::string Script::arclengthCubicBezierFromStreetTopology(
    const std::string& lane_str, const std::string& angle_str, const std::string& distance_str, const std::string& num_lanes_str)
 {
    if (!StaticHelper::isParsableAsInt(lane_str)) addError("Lane '" + lane_str + "' is not parsable as int in 'arclengthCubicBezierFromStreetTopology'.");
@@ -382,7 +382,7 @@ std::string DummyRepresentable::arclengthCubicBezierFromStreetTopology(
       ;
 }
 
-std::string DummyRepresentable::applyMethodString(const std::string& method_name, const std::vector<std::string>& parameters)
+std::string Script::applyMethodString(const std::string& method_name, const std::vector<std::string>& parameters)
 {
    if (method_name == "for" && parameters.size() == 2) return forloop(parameters.at(0), parameters.at(1));
    else if (method_name == "for" && parameters.size() == 3) return forloop(parameters.at(0), parameters.at(1), parameters.at(2));
@@ -862,17 +862,6 @@ std::string Script::getConversionTag(const std::string& scriptWithoutComments)
    return conversionTag;
 }
 
-RepresentableAsPDF DummyRepresentable::createThisObject(const RepresentableAsPDF repThis, const std::string repScrThis) {
-   if (!repThis) {
-      auto repThis_copy = std::make_shared<DummyRepresentable>(getData(), getParser());
-      addFailableChild(repThis_copy, "");
-      repThis_copy->createInstanceFromScript(repScrThis);
-      return repThis_copy;
-   }
-
-   return repThis;
-}
-
 int Script::findNextInscriptPos()
 {
    std::string s{};
@@ -1181,7 +1170,7 @@ void vfm::macro::Script::setRawScript(const std::string& script)
 
 RepresentableAsPDF vfm::macro::Script::copy() const
 {
-   auto copy_script = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
+   auto copy_script = std::make_shared<Script>(vfm_data_, vfm_parser_);
 
    addFailableChild(copy_script, "");
 
@@ -1194,7 +1183,7 @@ RepresentableAsPDF vfm::macro::Script::copy() const
 
 RepresentableAsPDF vfm::macro::Script::repfactory_instanceFromScript(const std::string& script)
 {
-   std::shared_ptr<DummyRepresentable> dummy = std::make_shared<DummyRepresentable>(vfm_data_, vfm_parser_);
+   std::shared_ptr<Script> dummy = std::make_shared<Script>(vfm_data_, vfm_parser_);
    addFailableChild(dummy, "");
    dummy->createInstanceFromScript(script);
    return dummy;
@@ -1441,13 +1430,13 @@ std::string vfm::macro::Script::processScript(
    known_preprocessors_.clear();
    list_data_.clear();
    known_chains_.clear();
-   DummyRepresentable::inscriptMethodDefinitions.clear();
-   DummyRepresentable::inscriptMethodParNums.clear();
-   DummyRepresentable::inscriptMethodParPatterns.clear();
+   Script::inscriptMethodDefinitions.clear();
+   Script::inscriptMethodParNums.clear();
+   Script::inscriptMethodParPatterns.clear();
    Script::PLACEHOLDER_MAPPING.clear();
    Script::PLACEHOLDER_INVERSE_MAPPING.clear();
 
-   auto s = std::make_shared<DummyRepresentable>(data ? data : std::make_shared<DataPack>(), parser ? parser : SingletonFormulaParser::getInstance());
+   auto s = std::make_shared<Script>(data ? data : std::make_shared<DataPack>(), parser ? parser : SingletonFormulaParser::getInstance());
    
    if (father_failable) {
       father_failable->addFailableChild(s);

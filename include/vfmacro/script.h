@@ -128,8 +128,6 @@ public:
    /// @return  Debug code if requested, <code>null</code> otherwise.
    void applyDeclarationsAndPreprocessors(const std::string& codeRaw2);
 
-   virtual std::shared_ptr<Script> createThisObject(const std::shared_ptr<Script> repThis, const std::string repScrThis) = 0;
-   virtual void createInstanceFromScript(const std::string& code) = 0;
    std::shared_ptr<Script> copy() const;
 
    std::string getProcessedScript() const;
@@ -207,240 +205,8 @@ protected:
    std::shared_ptr<FormulaParser> getParser() const;
    std::string getMyPath() const;
 
-private:
-
-   /// If you try to avoid assigning the parameter,
-   /// be careful, it's not as simple as it seems.
-   static std::string createDummyrep(
-      const std::string& processed,
-      RepresentableAsPDF repToProcess);
-
-   /// In a String *EXPR*.m1[p11, p12, ...].m2[p21, p22, ...].m3[...]...
-   /// extract the *EXPR* part. *EXPR* is determined by cutting off from position x
-   /// which is the position of the first dot "." after which only alpha-numeric
-   /// characters, white space, dots or parts in brackets "[" and "]" occur.
-   ///
-   /// @param chain  The string to extract from.
-   ///
-   /// @return  The expression part (the whole string if there are no dots or
-   ///          brackets).
-   static std::string extractExpressionPart(const std::string& chain2);
-
-   static std::string overwriteBrackets(const std::string& s);
-   static std::string singleCharSeq(const char c, const int length);
-   static std::vector<std::string> getMethodSinaturesFromChain(const std::string& chainRest);
-   static std::string getConversionTag(const std::string& scriptWithoutComments);
-   static std::vector<std::string> getMethodParametersWithTags(const std::string& conversionTag);
-
-   std::vector<std::string> getParametersFor(const std::vector<std::string>& rawPars, const RepresentableAsPDF this_rep);
-   RepresentableAsPDF applyMethodChain(const RepresentableAsPDF original, const std::vector<std::string>& methodsToApply);
-   std::vector<std::string> getMethodParameters(const std::string& conversionTag);
-
-   /// @param rep              The representable to apply the method to.
-   /// @param methodSignature  The method internal name + parameters.
-   ///
-   /// @return  A new representable with the method applied.Note that rep
-   /// can be changed in the process.
-   RepresentableAsPDF applyMethod(const RepresentableAsPDF rep, const std::string & methodSignature);
-
-   virtual std::string applyMethodString(const std::string& method_name, const std::vector<std::string>& parameters) = 0;
-
-   /// Evaluates a single chain of conversion method applications to a script.
-   ///
-   /// @param repScrThis  The representable script to be considered "this". Can be
-   ///                    {@code null} if chain does not begin with "this".
-   /// @param chain       The method chain to apply as: "*script*.m1.m2.m3.m4..."
-   ///                    where *script* is a script enclosed in @{ ... }@
-   ///                    or "this", and m1, m2, ... are method signatures.
-   /// @param father      The rep {@code this} is a sub-script of.
-   ///
-   /// @return  A representable with the methods applied. Can return <code>null
-   ///          </code> when the chain is not valid (e.g. when starting with a
-   ///          variable).
-   std::shared_ptr<Script> evaluateChain(const std::string& repScrThis, const std::string& chain);
-
-   /// Goes through the current version of
-   /// {@link RepresentableDefault#processedScript} and replaces
-   /// all inscript preprocessor parts with their resulting
-   /// expanded value. In this process, chains are evaluated, possibly
-   /// leading to the evaluation of new scripts and recursive calls of this
-   /// method.</BR>
-   /// </BR>
-   /// Non-inscript preprocessors are evaluated during declarations evaluation.
-   ///
-   /// @return  Iff there has been a change on
-   ///          {@link RepresentableDefault#processedScript}.
-   bool extractInscriptProcessors();
-
-   /// Searches for plain-text parts <code>"@{ *PLAINTEXT/// }@"</code> in the
-   /// script and replaces all symbols within them with placeholders, thereby
-   /// also removing the surrounding tags.<BR/>
-   /// <BR/>
-   /// Note that there is no nesting of plain-text tags, meaning that
-   /// <p><code>"@{ text "@{ more text}@"  }@"</code></p>
-   /// will yield only one plain-text part
-   /// <p><code>text "@{ more text</code></p>
-   /// where the inside opening tag will get replaced by a placeholder and
-   /// re-introduced later, while the extra outside closing tag will be
-   /// removed for good leaving a trailing opening tag. In short:
-   /// Don't do that!
-   ///
-   /// @param script  A normal script.
-   /// @param deletePlainTextTags  Iff the plain text tags are to be removed from
-   ///                             (or else left to remain in) the script.
-   /// @return  The script without plain-text tags, and all symbols replaced
-   ///          by placeholders.
-   std::string inferPlaceholdersForPlainText(const std::string& script);
-
-   /// <p>Plain-text tags mark regions that are not supposed to be subject to
-   /// pre-processors or sub-scripts or declaration handling. Usually, they
-   /// are read during first processing in
-   /// {@link RepresentableDefault#applyDeclarationsAndPreprocessors(String)}
-   /// and deleted afterward to avoid any side effects during the actual
-   /// code translation by the specific lower-level Representable. Therefore,
-   /// the default return value of this method is {@code true}. However,
-   /// it may be desireable to keep the plain-text tags in the code and remove
-   /// them on the lower level, to be able to identify them later if the
-   /// script has to be translated another time.</p>
-   /// <p>This is, at implementation
-   /// time of this method, only the case for {@link LaTeX} scripts. (There,
-   /// the tags are just not cared about during translation as they do not
-   /// hurt, and finally removed by {@link LaTeXPDF} after a possible second
-   /// translation run.)</p>
-   ///
-   /// @return  Iff the plain-text tags should be removed after the application
-   ///          of pre-processors and declarations (or else kept in the code
-   ///          for later use).
-   bool removePlaintextTagsAfterPreprocessorApplication() const;
-
-   /// Replaces all symbols in a string with the according placeholders or vice versa.
-   ///
-   /// @param toReplace  The string to process.
-   /// @param to         Iff the replacement goes in the direction:
-   ///                   symbols ==TO==> placeholders (or else:
-   ///                   symbols <=FROM= placeholders).
-   /// @return  The string with replaced symbols or placeholders.
-   std::string replacePlaceholders(const std::string& toReplace, const bool to);
-
-   /// @param symbolList       This list is filled with all symbols that have to be replaced.
-   /// @param placeholderList  This list is filled with the according object-specific placeholders.
-   void fillLists(std::vector<std::string>& symbolList, std::vector<std::string>& placeholderList);
-
-   void putPlaceholderMapping(const char symbolName);
-   void putPlaceholderMapping(const std::string& symbolName);
-
-   /// @param placeholder  The object - specific placeholder in a plain - text
-   /// section of the script.
-   /// @return  The original symbol.
-   std::string placeholderToSymbol(const std::string& placeholder);
-
-   /// @param symbol  A symbol to be ignored in a plain-text section of the
-   ///                script.
-   /// @return  The object-specific placeholder to replace the symbol with.
-   std::string symbolToPlaceholder(const std::string& symbol);
-
-   std::string removePreprocessors(const std::string& script);
-
-   /// Returns the next position which is after the complete method chain of
-   /// the preprocessor.
-   ///
-   /// @param partAfter  The part AFTER the preprocessor base script.
-   /// @return  The next position outside the preprocessor's method chain.
-   int getNextNonInscriptPosition(const std::string& partAfter);
-
-   /// Undoes the placeholder replacement for plain-text parts. As the placeholders
-   /// were object-specific, we don't care about what has happened in the
-   /// meantime with the plain-text parts, but just replace all the
-   /// placeholders belonging to {@code this} object.
-   ///
-   /// @param script  The whole script.
-   /// @return        All object-specific placeholders undone.
-   std::string undoPlaceholdersForPlainText(const std::string& script);
-
-   /// Removes all the tagged parts on the top level of the given string. More
-   /// precisely, for tags "(", ")", the string:
-   /// "((test) more test) still testing (not (quite) finished); (almost (there))."
-   /// will yield:
-   /// " still testing ; ." Note that all tags will be removed - this makes a
-   /// difference for malformed strings, such as "(test))" which will NOT
-   /// yield ")", but "".
-   ///
-   /// @param code           The string to remove tagged parts from.
-   /// @param beginTag       The begin tag.
-   /// @param endTag         The end tag.
-   /// @param ignoreBegTags  List of tags to ignore in between.
-   /// @param ignoreEndTags  List of tags to ignore in between.
-   /// @return  The string without tagged parts.
-   std::string removeTaggedPartsOnTopLevel(
-      const std::string& code,
-      const std::string& beginTag,
-      const std::string& endTag,
-      std::vector<std::string> ignoreBegTags,
-      std::vector<std::string> ignoreEndTags);
-
-   /// @param string  A string, possibly containing arithmetic expressions.
-   ///
-   /// @return  The string with each expression replaced by its evaluation.
-   std::string evaluateAll(const std::string& string, const std::string& opening_tag, const std::string& closing_tag);
-
-   /// Finds the inner-most, left-most inscript preprocessor position, by
-   /// preferring more <code>*</code> symbols in the end over less.</BR>
-   /// </BR>
-   /// For example:
-   /// <UL>
-   /// <LI><code>.@{.@{.}@.}@.@{.}@.</code> will return 4.</LI>
-   /// <LI><code>.@{.@{.}@.}@.@{.}@*.</code> will return 13.</LI>
-   /// <LI><code>.@{.@{.}@.}@*.@{.}@*.</code> will return 1.</LI>
-   /// <LI><code>.@{.@{.}@.}@*.@{.}@*.</code> will return 1.</LI>
-   /// <LI><code>.@{.@{.}@.}@*.@{.}@*.@{.}@**</code> will return 21.</LI>
-   /// <LI><code>.@{.@{.}@*.}@*.@{.}@*.</code> will return 4.</LI>
-   /// </UL>
-   /// As a side effect, the extra <code>@</code> symbols of the end tag
-   /// matching the returned begin tag position are deleted from
-   /// processedScript.
-   ///
-   /// @return  The next inscript begin tag position. If no such position
-   ///          exists, -1 is returned and no side effects occur.
-   int findNextInscriptPos();
-
-   /// If the script is embedded in plain text tags, replace all symbols with
-   /// placeholders, but leave plain-text tags for later.
-   ///
-   /// @param  script  The script to check.
-   /// @return  The possibly processed script.
-   std::string checkForPlainTextTags(const std::string& script);
-
-   /// Stores all symbols that are somehow restricted as they serve a special
-   /// purpose. Caution: Don't count on this list to be really completely
-   /// exhaustive. I.e., look at the code now and then for pending changes.
-   static std::set<std::string> SPECIAL_SYMBOLS;
-   static std::map<std::string, std::string> PLACEHOLDER_MAPPING;
-   static std::map<std::string, std::string> PLACEHOLDER_INVERSE_MAPPING;
-
-   std::string rawScript{};
-   std::string processedScript{};
-
-   std::map<std::string, int> method_part_begins_{};
-  
-   static std::map<std::string, std::shared_ptr<Script>> known_chains_;
-
-   std::shared_ptr<DataPack> vfm_data_{};
-   std::shared_ptr<FormulaParser> vfm_parser_{};
-};
-
-class DummyRepresentable : public Script
-{
-public:
    const std::string BEGIN_TAG_IN_SEQUENCE = "@(";
    const std::string END_TAG_IN_SEQUENCE = ")@";
-
-   //DummyRepresentable(const std::shared_ptr<Script> repToEmbed);
-   inline DummyRepresentable(
-      const std::shared_ptr<DataPack> data, 
-      const std::shared_ptr<FormulaParser> parser)
-      : Script(data, parser) {}
-
-   std::shared_ptr<Script> createThisObject(const std::shared_ptr<Script> repThis, const std::string repScrThis) override;
 
    /// Looks for a sequence of several chunks of
    /// <code>@(...)@@(...)@@(...)@</code> in the code and puts them into
@@ -477,7 +243,7 @@ public:
       processSequence(rest, script_sequence);
    }
 
-   void createInstanceFromScript(const std::string& code) override
+   void createInstanceFromScript(const std::string& code)
    {
       setRawScript(StaticHelper::replaceAll(code, PREAMBLE_FOR_NON_SCRIPT_METHODS, "")); // Because applyScriptsAndPreprocessors is not called by Dummy.
       scriptSequence_.clear();
@@ -724,16 +490,232 @@ public:
       return makroPar;
    }
 
-   std::string applyMethodString(const std::string& method_name, const std::vector<std::string>& parameters) override;
+   std::string applyMethodString(const std::string& method_name, const std::vector<std::string>& parameters);
+
+private:
+   /// If you try to avoid assigning the parameter,
+   /// be careful, it's not as simple as it seems.
+   static std::string createDummyrep(
+      const std::string& processed,
+      RepresentableAsPDF repToProcess);
+
+   /// In a String *EXPR*.m1[p11, p12, ...].m2[p21, p22, ...].m3[...]...
+   /// extract the *EXPR* part. *EXPR* is determined by cutting off from position x
+   /// which is the position of the first dot "." after which only alpha-numeric
+   /// characters, white space, dots or parts in brackets "[" and "]" occur.
+   ///
+   /// @param chain  The string to extract from.
+   ///
+   /// @return  The expression part (the whole string if there are no dots or
+   ///          brackets).
+   static std::string extractExpressionPart(const std::string& chain2);
+
+   static std::string overwriteBrackets(const std::string& s);
+   static std::string singleCharSeq(const char c, const int length);
+   static std::vector<std::string> getMethodSinaturesFromChain(const std::string& chainRest);
+   static std::string getConversionTag(const std::string& scriptWithoutComments);
+   static std::vector<std::string> getMethodParametersWithTags(const std::string& conversionTag);
+
+   std::vector<std::string> getParametersFor(const std::vector<std::string>& rawPars, const RepresentableAsPDF this_rep);
+   RepresentableAsPDF applyMethodChain(const RepresentableAsPDF original, const std::vector<std::string>& methodsToApply);
+   std::vector<std::string> getMethodParameters(const std::string& conversionTag);
+
+   /// @param rep              The representable to apply the method to.
+   /// @param methodSignature  The method internal name + parameters.
+   ///
+   /// @return  A new representable with the method applied.Note that rep
+   /// can be changed in the process.
+   RepresentableAsPDF applyMethod(const RepresentableAsPDF rep, const std::string& methodSignature);
+
+   /// Evaluates a single chain of conversion method applications to a script.
+   ///
+   /// @param repScrThis  The representable script to be considered "this". Can be
+   ///                    {@code null} if chain does not begin with "this".
+   /// @param chain       The method chain to apply as: "*script*.m1.m2.m3.m4..."
+   ///                    where *script* is a script enclosed in @{ ... }@
+   ///                    or "this", and m1, m2, ... are method signatures.
+   /// @param father      The rep {@code this} is a sub-script of.
+   ///
+   /// @return  A representable with the methods applied. Can return <code>null
+   ///          </code> when the chain is not valid (e.g. when starting with a
+   ///          variable).
+   std::shared_ptr<Script> evaluateChain(const std::string& repScrThis, const std::string& chain);
+
+   /// Goes through the current version of
+   /// {@link RepresentableDefault#processedScript} and replaces
+   /// all inscript preprocessor parts with their resulting
+   /// expanded value. In this process, chains are evaluated, possibly
+   /// leading to the evaluation of new scripts and recursive calls of this
+   /// method.</BR>
+   /// </BR>
+   /// Non-inscript preprocessors are evaluated during declarations evaluation.
+   ///
+   /// @return  Iff there has been a change on
+   ///          {@link RepresentableDefault#processedScript}.
+   bool extractInscriptProcessors();
+
+   /// Searches for plain-text parts <code>"@{ *PLAINTEXT/// }@"</code> in the
+   /// script and replaces all symbols within them with placeholders, thereby
+   /// also removing the surrounding tags.<BR/>
+   /// <BR/>
+   /// Note that there is no nesting of plain-text tags, meaning that
+   /// <p><code>"@{ text "@{ more text}@"  }@"</code></p>
+   /// will yield only one plain-text part
+   /// <p><code>text "@{ more text</code></p>
+   /// where the inside opening tag will get replaced by a placeholder and
+   /// re-introduced later, while the extra outside closing tag will be
+   /// removed for good leaving a trailing opening tag. In short:
+   /// Don't do that!
+   ///
+   /// @param script  A normal script.
+   /// @param deletePlainTextTags  Iff the plain text tags are to be removed from
+   ///                             (or else left to remain in) the script.
+   /// @return  The script without plain-text tags, and all symbols replaced
+   ///          by placeholders.
+   std::string inferPlaceholdersForPlainText(const std::string& script);
+
+   /// <p>Plain-text tags mark regions that are not supposed to be subject to
+   /// pre-processors or sub-scripts or declaration handling. Usually, they
+   /// are read during first processing in
+   /// {@link RepresentableDefault#applyDeclarationsAndPreprocessors(String)}
+   /// and deleted afterward to avoid any side effects during the actual
+   /// code translation by the specific lower-level Representable. Therefore,
+   /// the default return value of this method is {@code true}. However,
+   /// it may be desireable to keep the plain-text tags in the code and remove
+   /// them on the lower level, to be able to identify them later if the
+   /// script has to be translated another time.</p>
+   /// <p>This is, at implementation
+   /// time of this method, only the case for {@link LaTeX} scripts. (There,
+   /// the tags are just not cared about during translation as they do not
+   /// hurt, and finally removed by {@link LaTeXPDF} after a possible second
+   /// translation run.)</p>
+   ///
+   /// @return  Iff the plain-text tags should be removed after the application
+   ///          of pre-processors and declarations (or else kept in the code
+   ///          for later use).
+   bool removePlaintextTagsAfterPreprocessorApplication() const;
+
+   /// Replaces all symbols in a string with the according placeholders or vice versa.
+   ///
+   /// @param toReplace  The string to process.
+   /// @param to         Iff the replacement goes in the direction:
+   ///                   symbols ==TO==> placeholders (or else:
+   ///                   symbols <=FROM= placeholders).
+   /// @return  The string with replaced symbols or placeholders.
+   std::string replacePlaceholders(const std::string& toReplace, const bool to);
+
+   /// @param symbolList       This list is filled with all symbols that have to be replaced.
+   /// @param placeholderList  This list is filled with the according object-specific placeholders.
+   void fillLists(std::vector<std::string>& symbolList, std::vector<std::string>& placeholderList);
+
+   void putPlaceholderMapping(const char symbolName);
+   void putPlaceholderMapping(const std::string& symbolName);
+
+   /// @param placeholder  The object - specific placeholder in a plain - text
+   /// section of the script.
+   /// @return  The original symbol.
+   std::string placeholderToSymbol(const std::string& placeholder);
+
+   /// @param symbol  A symbol to be ignored in a plain-text section of the
+   ///                script.
+   /// @return  The object-specific placeholder to replace the symbol with.
+   std::string symbolToPlaceholder(const std::string& symbol);
+
+   std::string removePreprocessors(const std::string& script);
+
+   /// Returns the next position which is after the complete method chain of
+   /// the preprocessor.
+   ///
+   /// @param partAfter  The part AFTER the preprocessor base script.
+   /// @return  The next position outside the preprocessor's method chain.
+   int getNextNonInscriptPosition(const std::string& partAfter);
+
+   /// Undoes the placeholder replacement for plain-text parts. As the placeholders
+   /// were object-specific, we don't care about what has happened in the
+   /// meantime with the plain-text parts, but just replace all the
+   /// placeholders belonging to {@code this} object.
+   ///
+   /// @param script  The whole script.
+   /// @return        All object-specific placeholders undone.
+   std::string undoPlaceholdersForPlainText(const std::string& script);
+
+   /// Removes all the tagged parts on the top level of the given string. More
+   /// precisely, for tags "(", ")", the string:
+   /// "((test) more test) still testing (not (quite) finished); (almost (there))."
+   /// will yield:
+   /// " still testing ; ." Note that all tags will be removed - this makes a
+   /// difference for malformed strings, such as "(test))" which will NOT
+   /// yield ")", but "".
+   ///
+   /// @param code           The string to remove tagged parts from.
+   /// @param beginTag       The begin tag.
+   /// @param endTag         The end tag.
+   /// @param ignoreBegTags  List of tags to ignore in between.
+   /// @param ignoreEndTags  List of tags to ignore in between.
+   /// @return  The string without tagged parts.
+   std::string removeTaggedPartsOnTopLevel(
+      const std::string& code,
+      const std::string& beginTag,
+      const std::string& endTag,
+      std::vector<std::string> ignoreBegTags,
+      std::vector<std::string> ignoreEndTags);
+
+   /// @param string  A string, possibly containing arithmetic expressions.
+   ///
+   /// @return  The string with each expression replaced by its evaluation.
+   std::string evaluateAll(const std::string& string, const std::string& opening_tag, const std::string& closing_tag);
+
+   /// Finds the inner-most, left-most inscript preprocessor position, by
+   /// preferring more <code>*</code> symbols in the end over less.</BR>
+   /// </BR>
+   /// For example:
+   /// <UL>
+   /// <LI><code>.@{.@{.}@.}@.@{.}@.</code> will return 4.</LI>
+   /// <LI><code>.@{.@{.}@.}@.@{.}@*.</code> will return 13.</LI>
+   /// <LI><code>.@{.@{.}@.}@*.@{.}@*.</code> will return 1.</LI>
+   /// <LI><code>.@{.@{.}@.}@*.@{.}@*.</code> will return 1.</LI>
+   /// <LI><code>.@{.@{.}@.}@*.@{.}@*.@{.}@**</code> will return 21.</LI>
+   /// <LI><code>.@{.@{.}@*.}@*.@{.}@*.</code> will return 4.</LI>
+   /// </UL>
+   /// As a side effect, the extra <code>@</code> symbols of the end tag
+   /// matching the returned begin tag position are deleted from
+   /// processedScript.
+   ///
+   /// @return  The next inscript begin tag position. If no such position
+   ///          exists, -1 is returned and no side effects occur.
+   int findNextInscriptPos();
+
+   /// If the script is embedded in plain text tags, replace all symbols with
+   /// placeholders, but leave plain-text tags for later.
+   ///
+   /// @param  script  The script to check.
+   /// @return  The possibly processed script.
+   std::string checkForPlainTextTags(const std::string& script);
+
+   std::string rawScript{};
+   std::string processedScript{};
+
+   std::map<std::string, int> method_part_begins_{};
+
+   static std::map<std::string, std::shared_ptr<Script>> known_chains_;
+
+   std::shared_ptr<DataPack> vfm_data_{};
+   std::shared_ptr<FormulaParser> vfm_parser_{};
+
+   void invokeMethod();
+
+   std::vector<std::string> scriptSequence_{};
+
+   /// Stores all symbols that are somehow restricted as they serve a special
+   /// purpose. Caution: Don't count on this list to be really completely
+   /// exhaustive. I.e., look at the code now and then for pending changes.
+   static std::set<std::string> SPECIAL_SYMBOLS;
+   static std::map<std::string, std::string> PLACEHOLDER_MAPPING;
+   static std::map<std::string, std::string> PLACEHOLDER_INVERSE_MAPPING;
 
    static std::map<std::string, std::string> inscriptMethodDefinitions; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
    static std::map<std::string, int> inscriptMethodParNums;             // TODO: no static! Should belong to some base class belonging to a single expansion "session".
    static std::map<std::string, std::string> inscriptMethodParPatterns; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
-
-private:
-   void invokeMethod();
-
-   std::vector<std::string> scriptSequence_{};
 };
 
 } // macro
