@@ -38,7 +38,7 @@
 
    @{
 INIT 0 = @{section_[sec]_segment_0_pos_begin}@*.scalingVariable[distance];
-INIT section_[sec]_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin < section_[sec]_end;
+INIT section_[sec]_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin <= section_[sec]_end;
 @{
 INIT section_[sec]_segment_[num]_pos_begin + @{SEGMENTSMINLENGTH}@.distanceWorldToEnvModelConst < section_[sec]_segment_@{[num] + 1}@.eval[0]_pos_begin;
 INIT abs(section_[sec]_segment_[num]_min_lane - section_[sec]_segment_@{[num] + 1}@.eval[0]_min_lane) <= 1;
