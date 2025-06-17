@@ -247,7 +247,13 @@ void vfm::mc::trajectory_generator::LiveSimGenerator::equipRoadGraphWithCars(
          r->findSectionWithID(on_straight_section)->getMyRoad().addOther(veh);
       }
       else if (traversion_from >= 0 && traversion_to >= 0) {
-         r->findSectionWithID(traversion_from)->addNonegoOnCrossingTowards(traversion_to, veh);
+         const auto from_section = r->findSectionWithID(traversion_from);
+         if (from_section) {
+            from_section->addNonegoOnCrossingTowards(traversion_to, veh);
+         }
+         else {
+            addError("Cannot place car on connection from sec '" + std::to_string(traversion_from) + "' to sec '" + std::to_string(traversion_to) + "' because the origin section does not exist.");
+         }
       }
       else {
          addError("Car '" + vehicle_name + "' is placed neither on a straight section nor on a junction.");

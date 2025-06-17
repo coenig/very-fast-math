@@ -233,7 +233,9 @@ std::shared_ptr<RoadGraph> vfm::RoadGraph::findFirstSectionWithProperty(const st
 
 std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithID(const int id)
 {
-   return findFirstSectionWithProperty([id](const std::shared_ptr<RoadGraph> r) -> bool { return id == r->getID(); });
+   return findFirstSectionWithProperty([id](const std::shared_ptr<RoadGraph> r) -> bool { 
+      return id == r->getID(); 
+   });
 }
 
 std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithCar(const int car_id)
