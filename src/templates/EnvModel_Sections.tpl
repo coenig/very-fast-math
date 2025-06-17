@@ -162,7 +162,7 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
    -- "ANGLEGRANULARITY": "#{90}#",
    -- "MAXDISTCONNECTIONS": "#{20}#",
    -- "MAXOUTGOINGCONNECTIONS": "#{2}#",
-   -- "MINDISTCONNECTIONS": "#{10}#",
+   -- "MINDISTCONNECTIONS": "#{5}#",
    -- "EGOLESS": true,
    -- "SECTIONSMAXLENGTH": "#{50}#",
    -- "SECTIONSMINLENGTH": "#{50}#",
@@ -189,6 +189,14 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
    INIT section_14.angle = 180;
    INIT section_15.angle = 90;
 
+   INIT section_0_end != 0;
+   INIT section_1_end != 0;
+   INIT section_2_end != 0;
+   INIT section_3_end != 0;
+   INIT section_4_end != 0;
+   INIT section_5_end != 0;
+   INIT section_6_end != 0;
+   INIT section_7_end != 0;
    INIT section_8_end = 0;
    INIT section_9_end = 0;
    INIT section_10_end = 0;
@@ -198,14 +206,14 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
    INIT section_14_end = 0;
    INIT section_15_end = 0;
 
-   INIT section_7.source.y = section_0.source.y - 7;
-   INIT section_7.source.x = section_0.drain.x;
-   INIT section_3.source.y = section_4.source.y + 7;
-   INIT section_3.source.x = section_4.drain.x;
-   INIT section_6.drain.y = section_5.source.y;
-   INIT section_6.source.x = section_5.source.x - 7;
-   INIT section_1.source.y = section_2.drain.y;
-   INIT section_1.source.x = section_2.source.x - 7;
+   -- INIT section_7.source.x = section_0.drain.x;
+   -- INIT section_3.source.x = section_4.drain.x;
+   -- INIT section_6.drain.y = section_5.source.y;
+   -- INIT section_2.drain.y = section_1.source.y;
+   INIT section_7.source.y <= section_0.source.y - 5;
+   INIT section_3.source.y >= section_4.source.y + 5;
+   INIT section_6.source.x <= section_5.source.x - 5;
+   INIT section_1.source.x <= section_2.source.x - 5;
 
    INIT outgoing_connection_0_of_section_0 = 8;
    INIT outgoing_connection_0_of_section_1 = -1;
