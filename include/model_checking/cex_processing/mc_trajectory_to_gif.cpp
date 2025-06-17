@@ -187,7 +187,9 @@ std::shared_ptr<RoadGraph> LiveSimGenerator::getRoadGraphTopologyFrom(const MCTr
          std::stof(first_state.at("section_" + std::to_string(sec) + ".source.x")),
          std::stof(first_state.at("section_" + std::to_string(sec) + ".source.y")) });
 
-      road_graphs[sec]->setAngle(2.0 * 3.1415 * std::stof(first_state.at("section_" + std::to_string(sec) + ".angle")) / 360.0);
+      auto angle_raw = std::stof(first_state.at("section_" + std::to_string(sec) + ".angle"));
+      auto angle = 2.0 * 3.1415 * angle_raw / 360.0;
+      road_graphs[sec]->setAngle(angle);
       road_graphs[sec]->setMyRoad(lane_structure);
    }
 

@@ -758,6 +758,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    const auto future_positions_of_others = lane_structure.getFuturePositionsOfOthers();
    const auto road_length = infinite_road ? 300 : lane_structure.getLength();
    const auto road_begin = infinite_road ? -300 : 0;
+   const auto fix_for_connections = !road_length;
 
    int min_lane = lane_structure.isValid() ? 0 : -1;
    int max_lane = lane_structure.isValid() ? lane_structure.getNumLanes() - 1 : -1;
@@ -940,8 +941,8 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    // Drains and sources.
    const auto bottom = tl_orig.y + br_orig.y - tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
    const auto top = tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
-   const auto left = road_begin - ego_rel_pos;
-   const auto right = left + road_length;
+   const auto left = road_begin - ego_rel_pos - fix_for_connections;
+   const auto right = left + road_length + fix_for_connections;
    const auto bottom_right_corner = Vec2D{ right, bottom };
    const auto bottom_left_corner  = Vec2D{ left, bottom };
    const auto top_right_corner    = Vec2D{ right, top };
