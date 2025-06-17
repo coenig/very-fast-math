@@ -356,7 +356,14 @@ ASSIGN
 }@****.for[[i], @{STANDINGCARSUPTOID + 1}@.eval, @{NONEGOS - 1}@.eval]
 
 @{
+
 -- >>> Car [i] <<<
+@{-- Don't start on zero-length section
+@{
+   INIT section_[sec]_end = 0 -> veh___6[i]9___.is_on_sec_[sec] = 0;
+}@*.for[[sec], 0, @{SECTIONS - 1}@.eval]
+}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval]
+
 TRANS
     case
         -- the timer is within the interval where we may leave our source lane, we may transition to any neighbor lane but we do not have to (current lane is also allowed for next state)
@@ -390,7 +397,7 @@ TRANS
         TRUE: veh___6[i]9___.lane_unchanged;                                      -- hold current value in all other cases
     esac;
 
-}@.for[[i], 0, @{NONEGOS - 1}@.eval]
+}@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 --------------------------------------------------------
 -- End: Non-ego Spec 
