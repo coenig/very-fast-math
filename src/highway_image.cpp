@@ -394,8 +394,9 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
    const std::shared_ptr<CarPars> ego_raw,
    const Vec2D& tl_orig,
    const Vec2D& br_orig,
-   const bool infinite_road, 
+   const bool infinite_road,
    const Vec2D& dim,
+   const bool infinitesimal_road,
    std::vector<ConnectorPolygonEnding>& connections)
 {
    auto ego = ego_raw ? *ego_raw : CarPars{};
@@ -469,7 +470,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
       doShoulder(min_lane, false, is_last_shoulder, is_last_last_shoulder, last_one, { br_orig.x, last_one.y }, false, last_arc_length);
 
       float temp_x2{ br_orig.x };
-      if (!overpaint.points_.empty() && overpaint.points_.back().x >= br_orig.x) {
+      if (infinite_road && !overpaint.points_.empty() && overpaint.points_.back().x >= br_orig.x) {
          temp_x2 = overpaint.points_.back().x + 1;
       }
 
@@ -477,9 +478,11 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
 
       // Drains and sources.
       // Assuming we do "min_lane = true" first.
+      Vec2D fix{ (float) infinitesimal_road, 0 };
+      
       if (min_lane) { // TOP
-         auto top_right_corner = (*overpaint.points_.rbegin());
-         auto top_left_corner  = (*overpaint.points_.begin());
+         auto top_right_corner = (*overpaint.points_.rbegin()) + fix;
+         auto top_left_corner  = (*overpaint.points_.begin()) - fix;
          auto top_right_second = (*(overpaint.points_.rbegin() + 1));
          auto top_left_second  = (*(overpaint.points_.begin() + 1));
 
@@ -551,8 +554,8 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          }
       }
       else { // BOTTOM
-         auto bottom_right_corner = (*overpaint.points_.rbegin());
-         auto bottom_left_corner  = (*overpaint.points_.begin());
+         auto bottom_right_corner = (*overpaint.points_.rbegin()) + fix;
+         auto bottom_left_corner  = (*overpaint.points_.begin()) - fix;
          auto bottom_right_second = (*(overpaint.points_.rbegin() + 1));
          auto bottom_left_second  = (*(overpaint.points_.begin() + 1));
 
@@ -815,7 +818,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 
    if (mode == RoadDrawingMode::road || mode == RoadDrawingMode::both) {
       removeNonExistentLanesAndMarkShoulders(
-         lane_structure, ego, { road_begin - ego_rel_pos, tl_orig.y }, { road_length - ego_rel_pos, br_orig.y }, infinite_road, dim, res);
+         lane_structure, ego, { road_begin - ego_rel_pos, tl_orig.y }, { road_length - ego_rel_pos, br_orig.y }, infinite_road, dim, fix_for_connections, res);
    }
 
    if (mode == RoadDrawingMode::cars || mode == RoadDrawingMode::both) {
