@@ -44,6 +44,8 @@ VAR
       INVAR (veh___6[i]9___.traversion_from != -1 | veh___6[i]9___.traversion_from != -1) -> veh___6[i]9___.on_straight_section = -1;
       INVAR veh___6[i]9___.traversion_from = -1 <-> veh___6[i]9___.traversion_to = -1;
 
+      INIT veh___6[i]9___.traversion_from = -1; -- TODO: For now non-egos start on straight roads; there is no constraint prohibiting them being placed beyond the end of the arc.
+
       @{
          VAR veh___6[i]9___.is_on_sec_[sec2] : 0..1;
          INVAR (veh___6[i]9___.is_on_sec_[sec2] = 1) <-> (veh___6[i]9___.on_straight_section = [sec2]);
