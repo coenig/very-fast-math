@@ -481,10 +481,10 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
       Vec2D fix{ (float) infinitesimal_road, 0 };
       
       if (min_lane) { // TOP
-         auto top_right_corner = (*overpaint.points_.rbegin()) + fix;
-         auto top_left_corner  = (*overpaint.points_.begin()) - fix;
-         auto top_right_second = (*(overpaint.points_.rbegin() + 1));
-         auto top_left_second  = (*(overpaint.points_.begin() + 1));
+         auto top_right_corner = (*overpaint.points_.rbegin());
+         auto top_left_corner  = (*overpaint.points_.begin());
+         auto top_right_second = (*(overpaint.points_.rbegin() + 1)) - fix;
+         auto top_left_second  = (*(overpaint.points_.begin() + 1)) + fix;
 
          if (!getHighwayTranslator()->is3D()) {
             top_right_corner.add({ 0, ego.car_lane_ });
@@ -554,10 +554,10 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          }
       }
       else { // BOTTOM
-         auto bottom_right_corner = (*overpaint.points_.rbegin()) + fix;
-         auto bottom_left_corner  = (*overpaint.points_.begin()) - fix;
-         auto bottom_right_second = (*(overpaint.points_.rbegin() + 1));
-         auto bottom_left_second  = (*(overpaint.points_.begin() + 1));
+         auto bottom_right_corner = (*overpaint.points_.rbegin());
+         auto bottom_left_corner  = (*overpaint.points_.begin());
+         auto bottom_right_second = (*(overpaint.points_.rbegin() + 1)) - fix;
+         auto bottom_left_second  = (*(overpaint.points_.begin() + 1)) + fix;
 
          if (!getHighwayTranslator()->is3D()) {
             bottom_right_corner.add({ 0, ego.car_lane_ });
@@ -942,10 +942,11 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    //rectangle(road_begin - ego_rel_pos, tl_orig_one_below_y, road_length, br_orig.y - tl_orig.y, BLACK, false);
 
    // Drains and sources.
+   const Vec2D fix{ (float) fix_for_connections, 0 };
    const auto bottom = tl_orig.y + br_orig.y - tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
    const auto top = tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
-   const auto left = road_begin - ego_rel_pos - fix_for_connections;
-   const auto right = left + road_length + fix_for_connections;
+   const auto left = road_begin - ego_rel_pos;
+   const auto right = left + road_length;
    const auto bottom_right_corner = Vec2D{ right, bottom };
    const auto bottom_left_corner  = Vec2D{ left, bottom };
    const auto top_right_corner    = Vec2D{ right, top };
@@ -959,7 +960,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 
    res.insert(res.begin(), ConnectorPolygonEnding{
       ConnectorPolygonEnding::Side::drain,
-      Lin2D{ middle_right, middle_left }, // Outgoing
+      Lin2D{ middle_right, middle_left - fix }, // Outgoing
       bottom_left_corner.distance(top_left_corner) * 3.75f,
       std::make_shared<Color>(GRASS_COLOR),
       0,
@@ -967,7 +968,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 
    res.insert(res.begin(), ConnectorPolygonEnding{
       ConnectorPolygonEnding::Side::source,
-      Lin2D{ middle_left, middle_right }, // Incoming
+      Lin2D{ middle_left, middle_right + fix }, // Incoming
       bottom_left_corner.distance(top_left_corner) * 3.75f,
       std::make_shared<Color>(GRASS_COLOR),
       0,
