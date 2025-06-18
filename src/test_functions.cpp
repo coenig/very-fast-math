@@ -239,11 +239,9 @@ const auto TEST_SCRIPT_EXPANSION = [](const std::set<std::set<std::string>>& ope
 @{@{
 @(#0#)@
 @(@{@{@{#0#}@*.sub[1].fib}@*}@.add[@{#0#}@*.sub[2].fib])@
-}@**.if[this.smeq[#0#, 1]]}@***.newMethod[fib, 0]
+}@**.if[@{}@.smeq[#0#, 1]]}@***.newMethod[fib, 0]
 
-@{var1=@{~{@{$}@.fib \0}~}@}@.nil
-@{var2=@{var1}@}@.nil
-@{var2}@
+~{@{$}@.fib \0}~
 )", "$", std::to_string(rand1));
 
    std::string test_string2 = StaticHelper::replaceAll(R"(
@@ -251,18 +249,18 @@ const auto TEST_SCRIPT_EXPANSION = [](const std::set<std::set<std::string>>& ope
 @(#0#)@
 @(@{#0#.fibfast}@.sethard[
 @{@{@{@{#0#}@*.sub[1]}@*.fibfast}@*}@.add[@{@{#0#}@*.sub[2]}@*.fibfast]])@
-}@**.if[this.smeq[#0#, 1]]}@***.newMethod[fibfast, 0]
+}@**.if[@{}@.smeq[#0#, 1]]}@***.newMethod[fibfast, 0]
 
-@{var1=@{~{@{$}@.fibfast \0}~}@}@.nil
-@{var2=@{var1}@}@.nil
-@{var2}@
+~{@{$}@.fibfast \0}~
 )", "$", std::to_string(rand2));
 
+   macro::Script::clearStaticData();
    std::shared_ptr<macro::Script> s1 = std::make_shared<macro::Script>(nullptr, nullptr);
    if (!print) s1->setOutputLevels(ErrorLevelEnum::error, ErrorLevelEnum::error);
    s1->applyDeclarationsAndPreprocessors(test_string1);
    std::string result1 = StaticHelper::trimAndReturn(s1->getProcessedScript());
 
+   macro::Script::clearStaticData();
    std::shared_ptr<macro::Script> s2 = std::make_shared<macro::Script>(nullptr, nullptr);
    if (!print) s2->setOutputLevels(ErrorLevelEnum::error, ErrorLevelEnum::error);
    s2->applyDeclarationsAndPreprocessors(test_string2);
@@ -275,11 +273,14 @@ const auto TEST_SCRIPT_EXPANSION = [](const std::set<std::set<std::string>>& ope
    bool fine = !error1 && !error2 && result1 == expected1 && result2 == expected2;
 
    if (print && fine) {
-      Failable::getSingleton()->addNote("Fibonacci scripts expanded correctly to fib(" + std::to_string(rand1) + ") = " + expected1 + " / fibfast(" + std::to_string(rand2) + ") = " + expected2 + ".");
+      Failable::getSingleton()->addNote("Fibonacci scripts expanded correctly to fib(" 
+         + std::to_string(rand1) + ") = " + expected1 + " / fibfast(" + std::to_string(rand2) + ") = " + expected2 + ".");
    }
 
    if (!fine) {
-      Failable::getSingleton()->addError("Fibonacci scripts did not expand correctly to fib(" + std::to_string(rand1) + ") = " + expected1 + " / fibfast(" + std::to_string(rand2) + ") = " + expected2 + " . Instead the result was: " + result1 + " / " + result2 + ".");
+      Failable::getSingleton()->addError("Fibonacci scripts did not expand correctly to fib(" 
+         + std::to_string(rand1) + ") = " + expected1 + " / fibfast(" + std::to_string(rand2) + ") = " + expected2 
+         + " . Instead the result was: " + result1 + " / " + result2 + ".");
    }
 
    return fine;

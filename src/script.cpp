@@ -122,12 +122,20 @@ void Script::extractInscriptProcessors()
       }
       else {
          cache_misses_++;
-         int leftTrim = preprocessorScript.size() - StaticHelper::ltrimAndReturn(preprocessorScript).size();
+         if (methodPartBegin != preprocessorScript.length() && methodPartBegin >= 0) { // TODO: Do we need this??
+            int leftTrim = preprocessorScript.size() - StaticHelper::ltrimAndReturn(preprocessorScript).size();
 
-         method_part_begins_.insert({
-            trimmed,
-            { methodPartBegin - leftTrim, placeholder_for_inscript }
-            });
+            method_part_begins_.insert({
+               trimmed,
+               { methodPartBegin - leftTrim, placeholder_for_inscript }
+               });
+         }
+         else {
+            method_part_begins_.insert({
+               trimmed,
+               { -1, placeholder_for_inscript }
+               });
+         }
 
          RepresentableAsPDF result = evaluateChain(removePreprocessors(raw_script_), preprocessorScript);
          placeholder_for_inscript = result->getRawScript();
@@ -182,7 +190,9 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
    cache_misses_++;
 
    RepresentableAsPDF repToProcess{};
-   std::shared_ptr<int> methodBegin = method_part_begins_.count(processedRaw) ? std::make_shared<int>(method_part_begins_.at(processedRaw).first) : nullptr;
+   std::shared_ptr<int> methodBegin = method_part_begins_.count(processedRaw) && method_part_begins_.at(processedRaw).first >= 0
+      ? std::make_shared<int>(method_part_begins_.at(processedRaw).first) 
+      : nullptr;
 
    if (StaticHelper::stringStartsWith(processedChain, INSCR_BEG_TAG)
       && (!methodBegin
@@ -1551,11 +1561,7 @@ std::string Script::getTagFreeRawScript() {
    return StaticHelper::replaceManyTimes(getRawScript(), { INSCR_BEG_TAG, INSCR_END_TAG }, { "", "" });
 }
 
-std::string vfm::macro::Script::processScript(
-   const std::string& text,
-   const std::shared_ptr<DataPack> data,
-   const std::shared_ptr<FormulaParser> parser,
-   const std::shared_ptr<Failable> father_failable)
+void vfm::macro::Script::clearStaticData()
 {
    list_data_.clear();
    known_chains_.clear();
@@ -1566,6 +1572,15 @@ std::string vfm::macro::Script::processScript(
    PLACEHOLDER_INVERSE_MAPPING.clear();
    cache_hits_ = 0;
    cache_misses_ = 0;
+}
+
+std::string vfm::macro::Script::processScript(
+   const std::string& text,
+   const std::shared_ptr<DataPack> data,
+   const std::shared_ptr<FormulaParser> parser,
+   const std::shared_ptr<Failable> father_failable)
+{
+   clearStaticData();
 
    auto s = std::make_shared<Script>(data ? data : std::make_shared<DataPack>(), parser ? parser : SingletonFormulaParser::getInstance());
    
