@@ -27,7 +27,7 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   //std::string s{ "@{testying}@.for[i, 1, 5]" };
+   //std::string s{ "@{@{testying}@.for[i, 1, 5]}@.setScriptVar[ass]; @{ass}@.scriptVar; @{ass}@.scriptVar; @{ass}@.scriptVar; @{ass}@.scriptVar" };
    //std::cout << vfm::macro::Script::processScript(s);
    //termnate();
 
