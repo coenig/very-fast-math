@@ -87,7 +87,13 @@ public:
    /// <returns>The result.</returns>
    std::vector<std::pair<std::string, std::string>> getAllFormulasFromJSON(const nlohmann::json json);
 
-   std::pair<std::string, std::string> getSpec(const std::string& config);
+   /// <summary>
+   /// Retrieves the SPEC from a given config. 
+   /// </summary>
+   /// <param name="config">The config, which can be JSON_TEMPLATE_DENOTER.</param>
+   /// <param name="any_non_template">If config != JSON_TEMPLATE_DENOTER, retrieves just any SPEC, not necessarily the one from the specified config.</param>
+   /// <returns></returns>
+   std::pair<std::string, std::string> getSpec(const std::string& config, const bool any_non_template = false);
    void loadJsonText();
    void saveJsonText();
    void setTitle();
