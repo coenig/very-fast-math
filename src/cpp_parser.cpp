@@ -1403,8 +1403,9 @@ bool CppParser::parseNativeEnvModel(const std::string& program)
          if (!datatype_run) {
             addDebug("Found   variable '" + name + "' of type '" + type + "' (cpp type '" + StaticHelper::trimAndReturn(cpp_type->toString()) + "') in native env model.");
 
-            applyDefines(name, type); // TODO: Doing this for every variable individually is inefficient, but for now who cares...
-            applyInits(name);
+            addDebug("WARNING: Omitting defines and inits!");
+            //applyDefines(name, type); // TODO: Doing this for every variable individually is inefficient, but for now who cares...
+            //applyInits(name);
 
             if (type == "integer") {
                static const std::string MAX_VAL_STR = std::to_string(1);

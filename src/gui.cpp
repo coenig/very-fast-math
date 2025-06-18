@@ -202,9 +202,12 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
    button_reload_json_->callback(buttonReloadJSON, this);
    button_save_json_->callback(buttonSaveJSON, this);
    button_check_json_->callback(buttonCheckJSON, this);
-   button_delete_generated_->callback(buttonDeleteGenerated, this);
-   button_delete_testcases_->callback(buttonDeleteTestCases, this);
    button_delete_mc_output_->callback(buttonDeleteMCOutput, this);
+   button_delete_mc_output_->tooltip("Use right click if you really want to delete selected MC output and preview");
+   button_delete_testcases_->callback(buttonDeleteTestCases, this);
+   button_delete_testcases_->tooltip("Use right click if you really want to delete selected test case data");
+   button_delete_generated_->callback(buttonDeleteGenerated, this);
+   button_delete_generated_->tooltip("Use right click if you really want to delete selected generated folders");
    button_delete_cached_->callback(buttonDeleteCached, this);
    button_delete_cached_->tooltip("Use right click if you really want to delete cache");
    button_run_mc_and_preview_->callback(buttonRunMCAndPreview, this);
@@ -474,7 +477,7 @@ void MCScene::activateMCButtons(const bool active, const ButtonClass which)
       if (which == ButtonClass::RunButtons || which == ButtonClass::All) {
          button_run_parser_->activate();
          button_run_cex_->activate();
-         button_run_mc_and_preview_->activate();
+         //button_run_mc_and_preview_->activate();
          button_runtime_analysis_->activate();
       }
 
@@ -489,7 +492,7 @@ void MCScene::activateMCButtons(const bool active, const ButtonClass which)
       if (which == ButtonClass::RunButtons || which == ButtonClass::All) {
          button_run_parser_->deactivate();
          button_run_cex_->deactivate();
-         button_run_mc_and_preview_->deactivate();
+         //button_run_mc_and_preview_->deactivate();
          button_runtime_analysis_->deactivate();
       }
 
@@ -539,7 +542,7 @@ std::vector<std::pair<std::string, std::string>> MCScene::getAllFormulasFromJSON
    return result;
 }
 
-std::pair<std::string, std::string> MCScene::getSpec(const std::string& config)
+std::pair<std::string, std::string> MCScene::getSpec(const std::string& config, const bool any)
 {
    const std::string file_name{ config == JSON_TEMPLATE_DENOTER ? json_tpl_filename_ : FILE_NAME_JSON };
 
@@ -548,7 +551,7 @@ std::pair<std::string, std::string> MCScene::getSpec(const std::string& config)
       nlohmann::json j = nlohmann::json::parse(json_text);
 
       for (auto& [key_config, value_config] : j.items()) {
-         if (key_config == config) {
+         if (any || key_config == config) {
             for (auto& [key, value] : value_config.items()) {
                if (key == "SPEC" || StaticHelper::stringStartsWith(key, "BB")) {
                   return { key, value };
@@ -1492,7 +1495,7 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
    main_smv = StaticHelper::removeMultiLineComments(main_smv, SPEC_BEGIN, SPEC_END);
    main_smv += SPEC_BEGIN + "\n";
    
-   auto spec_pair = mc_scene->getSpec(config_name);
+   auto spec_pair = mc_scene->getSpec("any", true);
    main_smv += spec_pair.second + "\n";
    main_smv += SPEC_END + "\n";
 
@@ -1993,7 +1996,7 @@ void deleteMCOutput(MCScene* mc_scene) // Free function that actually does it, r
    for (const auto& entry : std::filesystem::directory_iterator(path_generated_base_parent)) {
       std::string possible{ entry.path().filename().string() };
       if (std::filesystem::is_directory(entry) && possible != prefix && StaticHelper::stringStartsWith(possible, prefix)) {
-         if (!StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(possible, SecOptionLocalItemEnum::selected_job))) {
+         if (StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(possible, SecOptionLocalItemEnum::selected_job))) {
             mc_scene->deleteMCOutputFromFolder(entry.path().string(), true);
          }
       }
@@ -2015,7 +2018,7 @@ void deleteTestCases(MCScene* mc_scene) // Free function that actually does it, 
    for (const auto& entry : std::filesystem::directory_iterator(path_generated_base_parent)) {
       std::string possible{ entry.path().filename().string() };
       if (std::filesystem::is_directory(entry) && possible != prefix && StaticHelper::stringStartsWith(possible, prefix)) {
-         if (!StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(possible, SecOptionLocalItemEnum::selected_job))) { // Delete only unselected.
+         if (StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(possible, SecOptionLocalItemEnum::selected_job))) { // Delete only selected.
             std::vector<std::string> folders{
                entry.path().string() + "/cex-birdseye",
                entry.path().string() + "/cex-cockpit-only",
@@ -2060,7 +2063,7 @@ void deleteFolders(MCScene* mc_scene) // Free function that actually does it, ra
                   StaticHelper::removeAllFilesSafe(path_generated + "/preview");
                   StaticHelper::removeAllFilesSafe(path_generated + "/prose_scenario_description.txt");
                }
-               else if (!StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(possibly_to_delete, SecOptionLocalItemEnum::selected_job))) {
+               else if (StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(possibly_to_delete, SecOptionLocalItemEnum::selected_job))) {
                   mc_scene->addNote("Deleting folder '" + path_generated + "'.");
 
                   StaticHelper::removeAllFilesSafe(path_generated, false);
@@ -2092,24 +2095,39 @@ void MCScene::buttonDeleteMCOutput(Fl_Widget* widget, void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
    mc_scene->showAllBBGroups(false);
-   std::thread t{ deleteMCOutput, mc_scene };
-   t.detach();
+   if (Fl::event_button() == FL_RIGHT_MOUSE) { // Only delete on right-click.
+      std::thread t{ deleteMCOutput, mc_scene };
+      t.detach();
+   }
+   else {
+      mc_scene->addNote("DOING NOTHING! Use right button if you really want to execute the delete.");
+   }
 }
 
 void MCScene::buttonDeleteTestCases(Fl_Widget* widget, void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
    mc_scene->showAllBBGroups(false);
-   std::thread t{ deleteTestCases, mc_scene };
-   t.detach();
+   if (Fl::event_button() == FL_RIGHT_MOUSE) { // Only delete on right-click.
+      std::thread t{ deleteTestCases, mc_scene };
+      t.detach();
+   }
+   else {
+      mc_scene->addNote("DOING NOTHING! Use right button if you really want to execute the delete.");
+   }
 }
 
 void MCScene::buttonDeleteGenerated(Fl_Widget* widget, void* data)
 {
    const auto mc_scene{ static_cast<MCScene*>(data) };
    mc_scene->showAllBBGroups(false);
-   std::thread t{ deleteFolders, mc_scene };
-   t.detach();
+   if (Fl::event_button() == FL_RIGHT_MOUSE) { // Only delete on right-click.
+      std::thread t{ deleteFolders, mc_scene };
+      t.detach();
+   }
+   else {
+      mc_scene->addNote("DOING NOTHING! Use right button if you really want to execute the delete.");
+   }
 }
 
 void vfm::MCScene::buttonDeleteCached(Fl_Widget* widget, void* data)
@@ -2122,7 +2140,7 @@ void vfm::MCScene::buttonDeleteCached(Fl_Widget* widget, void* data)
       t.detach();
    }
    else {
-      mc_scene->addNote("DOING NOTHING! Use right button if you really want to delete the cache.");
+      mc_scene->addNote("DOING NOTHING! Use right button if you really want to execute the delete.");
    }
 }
 

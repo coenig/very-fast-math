@@ -394,8 +394,9 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
    const std::shared_ptr<CarPars> ego_raw,
    const Vec2D& tl_orig,
    const Vec2D& br_orig,
-   const bool infinite_road, 
+   const bool infinite_road,
    const Vec2D& dim,
+   const bool infinitesimal_road,
    std::vector<ConnectorPolygonEnding>& connections)
 {
    auto ego = ego_raw ? *ego_raw : CarPars{};
@@ -469,7 +470,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
       doShoulder(min_lane, false, is_last_shoulder, is_last_last_shoulder, last_one, { br_orig.x, last_one.y }, false, last_arc_length);
 
       float temp_x2{ br_orig.x };
-      if (!overpaint.points_.empty() && overpaint.points_.back().x >= br_orig.x) {
+      if (infinite_road && !overpaint.points_.empty() && overpaint.points_.back().x >= br_orig.x) {
          temp_x2 = overpaint.points_.back().x + 1;
       }
 
@@ -477,11 +478,13 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
 
       // Drains and sources.
       // Assuming we do "min_lane = true" first.
+      Vec2D fix{ (float) infinitesimal_road, 0 };
+      
       if (min_lane) { // TOP
          auto top_right_corner = (*overpaint.points_.rbegin());
          auto top_left_corner  = (*overpaint.points_.begin());
-         auto top_right_second = (*(overpaint.points_.rbegin() + 1));
-         auto top_left_second  = (*(overpaint.points_.begin() + 1));
+         auto top_right_second = (*(overpaint.points_.rbegin() + 1)) - fix;
+         auto top_left_second  = (*(overpaint.points_.begin() + 1)) + fix;
 
          if (!getHighwayTranslator()->is3D()) {
             top_right_corner.add({ 0, ego.car_lane_ });
@@ -553,8 +556,8 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
       else { // BOTTOM
          auto bottom_right_corner = (*overpaint.points_.rbegin());
          auto bottom_left_corner  = (*overpaint.points_.begin());
-         auto bottom_right_second = (*(overpaint.points_.rbegin() + 1));
-         auto bottom_left_second  = (*(overpaint.points_.begin() + 1));
+         auto bottom_right_second = (*(overpaint.points_.rbegin() + 1)) - fix;
+         auto bottom_left_second  = (*(overpaint.points_.begin() + 1)) + fix;
 
          if (!getHighwayTranslator()->is3D()) {
             bottom_right_corner.add({ 0, ego.car_lane_ });
@@ -758,6 +761,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    const auto future_positions_of_others = lane_structure.getFuturePositionsOfOthers();
    const auto road_length = infinite_road ? 300 : lane_structure.getLength();
    const auto road_begin = infinite_road ? -300 : 0;
+   const auto fix_for_connections = !road_length;
 
    int min_lane = lane_structure.isValid() ? 0 : -1;
    int max_lane = lane_structure.isValid() ? lane_structure.getNumLanes() - 1 : -1;
@@ -814,7 +818,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 
    if (mode == RoadDrawingMode::road || mode == RoadDrawingMode::both) {
       removeNonExistentLanesAndMarkShoulders(
-         lane_structure, ego, { road_begin - ego_rel_pos, tl_orig.y }, { road_length - ego_rel_pos, br_orig.y }, infinite_road, dim, res);
+         lane_structure, ego, { road_begin - ego_rel_pos, tl_orig.y }, { road_length - ego_rel_pos, br_orig.y }, infinite_road, dim, fix_for_connections, res);
    }
 
    if (mode == RoadDrawingMode::cars || mode == RoadDrawingMode::both) {
@@ -938,6 +942,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    //rectangle(road_begin - ego_rel_pos, tl_orig_one_below_y, road_length, br_orig.y - tl_orig.y, BLACK, false);
 
    // Drains and sources.
+   const Vec2D fix{ (float) fix_for_connections, 0 };
    const auto bottom = tl_orig.y + br_orig.y - tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
    const auto top = tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
    const auto left = road_begin - ego_rel_pos;
@@ -955,7 +960,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 
    res.insert(res.begin(), ConnectorPolygonEnding{
       ConnectorPolygonEnding::Side::drain,
-      Lin2D{ middle_right, middle_left }, // Outgoing
+      Lin2D{ middle_right, middle_left - fix }, // Outgoing
       bottom_left_corner.distance(top_left_corner) * 3.75f,
       std::make_shared<Color>(GRASS_COLOR),
       0,
@@ -963,7 +968,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 
    res.insert(res.begin(), ConnectorPolygonEnding{
       ConnectorPolygonEnding::Side::source,
-      Lin2D{ middle_left, middle_right }, // Incoming
+      Lin2D{ middle_left, middle_right + fix }, // Incoming
       bottom_left_corner.distance(top_left_corner) * 3.75f,
       std::make_shared<Color>(GRASS_COLOR),
       0,
@@ -1252,12 +1257,12 @@ void vfm::HighwayImage::paintRoadGraph(
                               float arc_length{ bezier::arcLength(1, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) / norm_length_a };
                               float rel{ nonego.car_rel_pos_ / arc_length };
 
-                              if (rel >= 0 && rel <= 1) {
-                                 Vec2D p{ bezier::pointAtRatio(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
-                                 Vec2D dir{ bezier::B_prime(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
-                                 plotCar2D(3, p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
-                                 //plotCar3D(p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
-                              }
+                              rel = std::max(0.0f, std::min(1.0f, rel));
+
+                              Vec2D p{ bezier::pointAtRatio(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
+                              Vec2D dir{ bezier::B_prime(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
+                              plotCar2D(3, p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
+                              //plotCar3D(p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
                            }
                         }
                      }

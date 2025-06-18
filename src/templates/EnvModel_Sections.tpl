@@ -38,7 +38,7 @@
 
    @{
 INIT 0 = @{section_[sec]_segment_0_pos_begin}@*.scalingVariable[distance];
-INIT section_[sec]_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin < section_[sec]_end;
+INIT section_[sec]_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin <= section_[sec]_end;
 @{
 INIT section_[sec]_segment_[num]_pos_begin + @{SEGMENTSMINLENGTH}@.distanceWorldToEnvModelConst < section_[sec]_segment_@{[num] + 1}@.eval[0]_pos_begin;
 INIT abs(section_[sec]_segment_[num]_min_lane - section_[sec]_segment_@{[num] + 1}@.eval[0]_min_lane) <= 1;
@@ -105,7 +105,7 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
    -- INIT veh___639___.abs_pos = 0;
    -- INIT section_0.drain.x = section_7.source.x;
 
-   --= ROUNDABOUT =--
+   --= ROUNDABOUT with straight sections =--
    -- "ANGLEGRANULARITY": "#{45}#",
    -- "MAXDISTCONNECTIONS": "#{20}#",
    -- "MAXOUTGOINGCONNECTIONS": "#{2}#",
@@ -119,44 +119,126 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
    -- "SECTIONS": "#{12}#"
    -- "SPEC": "#{ env.cnt < 0 }#"
 
-   INIT section_0.angle = 0;
-   INIT section_1.angle = 90;
-   INIT section_2.angle = 270;
-   INIT section_3.angle = 0;
-   INIT section_4.angle = 180;
-   INIT section_5.angle = 270;
-   INIT section_6.angle = 90;
-   INIT section_7.angle = 180;
-   INIT section_8.angle = 45;
-   INIT section_9.angle = 315;
-   INIT section_10.angle = 225;
-   INIT section_11.angle = 135;
+   -- INIT section_0.angle = 0;
+   -- INIT section_1.angle = 90;
+   -- INIT section_2.angle = 270;
+   -- INIT section_3.angle = 0;
+   -- INIT section_4.angle = 180;
+   -- INIT section_5.angle = 270;
+   -- INIT section_6.angle = 90;
+   -- INIT section_7.angle = 180;
+   -- INIT section_8.angle = 45;
+   -- INIT section_9.angle = 315;
+   -- INIT section_10.angle = 225;
+   -- INIT section_11.angle = 135;
+    
+   -- INIT section_7.source.y = section_0.source.y - 7;
+   -- INIT section_7.source.x = section_0.drain.x;
+   -- INIT section_3.source.y = section_4.source.y + 7;
+   -- INIT section_3.source.x = section_4.drain.x;
+   -- INIT section_6.drain.y = section_5.source.y;
+   -- INIT section_6.source.x = section_5.source.x - 7;
+   -- INIT section_1.source.y = section_2.drain.y;
+   -- INIT section_1.source.x = section_2.source.x - 7;
+   
+   -- INIT outgoing_connection_0_of_section_0 = 8;
+   -- INIT outgoing_connection_0_of_section_1 = -1;
+   -- INIT outgoing_connection_0_of_section_2 = 9;
+   -- INIT outgoing_connection_0_of_section_3 = -1;
+   -- INIT outgoing_connection_0_of_section_4 = 10;
+   -- INIT outgoing_connection_0_of_section_5 = -1;
+   -- INIT outgoing_connection_0_of_section_6 = 11;
+   -- INIT outgoing_connection_0_of_section_7 = -1;
+   -- INIT outgoing_connection_0_of_section_8 = 1;
+   -- INIT outgoing_connection_0_of_section_9 = 3;
+   -- INIT outgoing_connection_0_of_section_10 = 5;
+   -- INIT outgoing_connection_0_of_section_11 = 7;
+   -- INIT outgoing_connection_1_of_section_8 = 9;
+   -- INIT outgoing_connection_1_of_section_9 = 10;
+   -- INIT outgoing_connection_1_of_section_10 = 11;
+   -- INIT outgoing_connection_1_of_section_11 = 8;
 
-   INIT section_7.source.y = section_0.source.y - 7;
-   INIT section_7.source.x = section_0.drain.x;
-   INIT section_3.source.y = section_4.source.y + 7;
-   INIT section_3.source.x = section_4.drain.x;
-   INIT section_6.drain.y = section_5.source.y;
-   INIT section_6.source.x = section_5.source.x - 7;
-   INIT section_1.source.y = section_2.drain.y;
-   INIT section_1.source.x = section_2.source.x - 7;
+   --= "Round" ROUNDABOUT =--
+   -- "ANGLEGRANULARITY": "#{90}#",
+   -- "MAXDISTCONNECTIONS": "#{20}#",
+   -- "MAXOUTGOINGCONNECTIONS": "#{2}#",
+   -- "MINDISTCONNECTIONS": "#{5}#",
+   -- "EGOLESS": true,
+   -- "SECTIONSMAXLENGTH": "#{50}#",
+   -- "SECTIONSMINLENGTH": "#{50}#",
+   -- "SEGMENTS": "#{1}#",
+   -- "SEGMENTSMINLENGTH": 0,
+   -- "NUMLANES": "#{1}#"
+   -- "SECTIONS": "#{16}#"
+   -- "SPEC": "#{ env.cnt < 0 }#"
 
-   INIT outgoing_connection_0_of_section_0 = 8;
-   INIT outgoing_connection_0_of_section_1 = -1;
-   INIT outgoing_connection_0_of_section_2 = 9;
-   INIT outgoing_connection_0_of_section_3 = -1;
-   INIT outgoing_connection_0_of_section_4 = 10;
-   INIT outgoing_connection_0_of_section_5 = -1;
-   INIT outgoing_connection_0_of_section_6 = 11;
-   INIT outgoing_connection_0_of_section_7 = -1;
-   INIT outgoing_connection_0_of_section_8 = 1;
-   INIT outgoing_connection_0_of_section_9 = 3;
-   INIT outgoing_connection_0_of_section_10 = 5;
-   INIT outgoing_connection_0_of_section_11 = 7;
-   INIT outgoing_connection_1_of_section_8 = 9;
-   INIT outgoing_connection_1_of_section_9 = 10;
-   INIT outgoing_connection_1_of_section_10 = 11;
-   INIT outgoing_connection_1_of_section_11 = 8;
+--   INIT section_0.angle = 0;
+--   INIT section_1.angle = 90;
+--   INIT section_2.angle = 270;
+--   INIT section_3.angle = 0;
+--   INIT section_4.angle = 180;
+--   INIT section_5.angle = 270;
+--   INIT section_6.angle = 90;
+--   INIT section_7.angle = 180;
+--   INIT section_8.angle = 90;
+--   INIT section_9.angle = 0;
+--   INIT section_10.angle = 0;
+--   INIT section_11.angle = 270;
+--   INIT section_12.angle = 270;
+--   INIT section_13.angle = 180;
+--   INIT section_14.angle = 180;
+--   INIT section_15.angle = 90;
+--
+--   INIT section_0_end != 0;
+--   INIT section_1_end != 0;
+--   INIT section_2_end != 0;
+--   INIT section_3_end != 0;
+--   INIT section_4_end != 0;
+--   INIT section_5_end != 0;
+--   INIT section_6_end != 0;
+--   INIT section_7_end != 0;
+--   INIT section_8_end = 0;
+--   INIT section_9_end = 0;
+--   INIT section_10_end = 0;
+--   INIT section_11_end = 0;
+--   INIT section_12_end = 0;
+--   INIT section_13_end = 0;
+--   INIT section_14_end = 0;
+--   INIT section_15_end = 0;
+--
+--   -- INIT section_7.source.x = section_0.drain.x;
+--   -- INIT section_3.source.x = section_4.drain.x;
+--   -- INIT section_6.drain.y = section_5.source.y;
+--   -- INIT section_2.drain.y = section_1.source.y;
+--   INIT section_7.source.y <= section_0.source.y - 5;
+--   INIT section_3.source.y >= section_4.source.y + 5;
+--   INIT section_6.source.x <= section_5.source.x - 5;
+--   INIT section_1.source.x <= section_2.source.x - 5;
+--
+--   INIT outgoing_connection_0_of_section_0 = 8;
+--   INIT outgoing_connection_0_of_section_1 = -1;
+--   INIT outgoing_connection_0_of_section_2 = 10;
+--   INIT outgoing_connection_0_of_section_3 = -1;
+--   INIT outgoing_connection_0_of_section_4 = 12;
+--   INIT outgoing_connection_0_of_section_5 = -1;
+--   INIT outgoing_connection_0_of_section_6 = 14;
+--   INIT outgoing_connection_0_of_section_7 = -1;
+--   INIT outgoing_connection_0_of_section_8 = 9;
+--   INIT outgoing_connection_0_of_section_9 = 10;
+--   INIT outgoing_connection_0_of_section_10 = 11;
+--   INIT outgoing_connection_0_of_section_11 = 12;
+--   INIT outgoing_connection_0_of_section_12 = 13;
+--   INIT outgoing_connection_0_of_section_13 = 14;
+--   INIT outgoing_connection_0_of_section_14 = 15;
+--   INIT outgoing_connection_0_of_section_15 = 8;
+----   INIT outgoing_connection_1_of_section_8 = -1;
+--   INIT outgoing_connection_1_of_section_9 = 1;
+----   INIT outgoing_connection_1_of_section_10 = -1;
+--   INIT outgoing_connection_1_of_section_11 = 3;
+----   INIT outgoing_connection_1_of_section_12 = -1;
+--   INIT outgoing_connection_1_of_section_13 = 5;
+----   INIT outgoing_connection_1_of_section_14 = -1;
+--   INIT outgoing_connection_1_of_section_15 = 7;
    -- EO TODO: Needs to be removed again
 
    @{
@@ -167,11 +249,17 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
             section_[sec]_segment_[seg]_max_lane : integer;
          }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
    
-         @{section_[sec]_end}@*.scalingVariable[distance] : @{SECTIONSMINLENGTH}@.eval[0] .. @{SECTIONSMAXLENGTH}@.eval[0];
+         @{section_[sec]_end}@*.scalingVariable[distance] : 
+            @{@(0)@@(@{SECTIONSMINLENGTH}@.eval[0])@}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] .. @{SECTIONSMAXLENGTH}@.eval[0]; -- This is essentially the length of the section.
 
          section_[sec].source.x : integer;
          section_[sec].source.y : integer;
          section_[sec].angle_raw : 0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
+
+      @{
+      INIT section_[sec]_end = 0                               -- Allow straight sections with zero length.
+         | section_[sec]_end >= @{SECTIONSMINLENGTH}@.eval[0];
+      }@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval]
 
       DEFINE 
          section_[sec].angle := section_[sec].angle_raw * @{ANGLEGRANULARITY}@.eval[0];

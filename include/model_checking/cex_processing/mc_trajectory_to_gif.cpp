@@ -187,7 +187,9 @@ std::shared_ptr<RoadGraph> LiveSimGenerator::getRoadGraphTopologyFrom(const MCTr
          std::stof(first_state.at("section_" + std::to_string(sec) + ".source.x")),
          std::stof(first_state.at("section_" + std::to_string(sec) + ".source.y")) });
 
-      road_graphs[sec]->setAngle(2.0 * 3.1415 * std::stof(first_state.at("section_" + std::to_string(sec) + ".angle")) / 360.0);
+      auto angle_raw = std::stof(first_state.at("section_" + std::to_string(sec) + ".angle"));
+      auto angle = 2.0 * 3.1415 * angle_raw / 360.0;
+      road_graphs[sec]->setAngle(angle);
       road_graphs[sec]->setMyRoad(lane_structure);
    }
 
@@ -247,7 +249,13 @@ void vfm::mc::trajectory_generator::LiveSimGenerator::equipRoadGraphWithCars(
          r->findSectionWithID(on_straight_section)->getMyRoad().addOther(veh);
       }
       else if (traversion_from >= 0 && traversion_to >= 0) {
-         r->findSectionWithID(traversion_from)->addNonegoOnCrossingTowards(traversion_to, veh);
+         const auto from_section = r->findSectionWithID(traversion_from);
+         if (from_section) {
+            from_section->addNonegoOnCrossingTowards(traversion_to, veh);
+         }
+         else {
+            addError("Cannot place car on connection from sec '" + std::to_string(traversion_from) + "' to sec '" + std::to_string(traversion_to) + "' because the origin section does not exist.");
+         }
       }
       else {
          addError("Car '" + vehicle_name + "' is placed neither on a straight section nor on a junction.");
