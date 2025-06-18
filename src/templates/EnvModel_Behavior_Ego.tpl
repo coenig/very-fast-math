@@ -338,10 +338,10 @@ TRANS (next(ego.mode = ActionType____LANECHANGE_ABORT) | ego.mode = ActionType__
 }@******.if[@{ABORTREVOKE}@.eval]
 
 ASSIGN
-    @{possible_lc_modes=@{
+    @{
     @{@(@(LEFT)@)@}@*.if[@{LEFTLC}@.eval]
     @{@(@(RIGHT)@)@}@*.if[@{RIGHTLC}@.eval]
-    }@}@.nil
+    }@.setScriptVar[possible_lc_modes]
 
     next(ego.lc_direction) := case
         @{ego.mode = ActionType____LANE_FOLLOWING & ego.flCond_full: ActionDir____LEFT;}@.if[@{LEFTLC}@.eval]
@@ -352,7 +352,7 @@ ASSIGN
 
     next(ego.mode) := case
     @{
-        (FALSE @{| ego.mode = ActionType____LANECHANGE_[DIR]}@.for[[DIR], possible_lc_modes]) & (ego.abCond_full | next(ego.abCond_full)): ActionType____LANECHANGE_ABORT;
+        (FALSE @{| ego.mode = ActionType____LANECHANGE_[DIR]}@.for[[DIR], @{possible_lc_modes}@.scriptVar]) & (ego.abCond_full | next(ego.abCond_full)): ActionType____LANECHANGE_ABORT;
     }@******.if[@{!ABORTREVOKE}@.eval]
         @{ego.mode = ActionType____LANE_FOLLOWING & ego.flCond_full: ActionType____LANECHANGE_LEFT;}@.if[@{LEFTLC}@.eval]
         @{ego.mode = ActionType____LANE_FOLLOWING & ego.slCond_full: ActionType____LANECHANGE_RIGHT;}@.if[@{RIGHTLC}@.eval]
@@ -361,25 +361,25 @@ ASSIGN
         @{ego.mode = ActionType____LANECHANGE_LEFT & ego_timer >= ego.complete_lane_change_earliest_after  & ego_timer < ego.complete_lane_change_latest_after : {ActionType____LANE_FOLLOWING, ActionType____LANECHANGE_LEFT};}@.if[@{LEFTLC}@.eval]
         @{ego.mode = ActionType____LANECHANGE_RIGHT & ego_timer >= ego.complete_lane_change_earliest_after  & ego_timer < ego.complete_lane_change_latest_after : {ActionType____LANE_FOLLOWING, ActionType____LANECHANGE_RIGHT};}@.if[@{RIGHTLC}@.eval]
     @{
-        (FALSE @{| ego.mode = ActionType____LANECHANGE_[DIR]}@.for[[DIR], possible_lc_modes]) & ego.abCond_full: ActionType____LANECHANGE_ABORT;
+        (FALSE @{| ego.mode = ActionType____LANECHANGE_[DIR]}@.for[[DIR], @{possible_lc_modes}@.scriptVar]) & ego.abCond_full: ActionType____LANECHANGE_ABORT;
     }@******.if[@{ABORTREVOKE}@.eval]
         ego.mode = ActionType____LANECHANGE_ABORT & ego_timer = 0: ActionType____LANE_FOLLOWING;
         TRUE: ego.mode;
     esac;
 
     next(ego_timer) := case                                                                 -- IMPORTANT: Order of cases is exploitet here!!
-        ego_timer = -1 & ego.mode = ActionType____LANE_FOLLOWING & (FALSE @{| next(ego.mode) = ActionType____LANECHANGE_[DIR]}@.for[[DIR], possible_lc_modes]) : 0;         -- on the rising edge, set time to 0 and activate
+        ego_timer = -1 & ego.mode = ActionType____LANE_FOLLOWING & (FALSE @{| next(ego.mode) = ActionType____LANECHANGE_[DIR]}@.for[[DIR], @{possible_lc_modes}@.scriptVar]) : 0;         -- on the rising edge, set time to 0 and activate
         ego_timer >= 0 & next(ego.mode) = ActionType____LANE_FOLLOWING: -1;                                  -- deactivate counter once lane change is complete 
-        ego_timer >= 0 & (FALSE @{| ego.mode = ActionType____LANECHANGE_[DIR]}@.for[[DIR], possible_lc_modes]) & next(ego.mode) = ActionType____LANECHANGE_ABORT & ego_timer >= params.turn_signal_duration: ego_timer - params.turn_signal_duration; -- going back takes the same time as going forward, but do not use turn signal duration for abort
+        ego_timer >= 0 & (FALSE @{| ego.mode = ActionType____LANECHANGE_[DIR]}@.for[[DIR], @{possible_lc_modes}@.scriptVar]) & next(ego.mode) = ActionType____LANECHANGE_ABORT & ego_timer >= params.turn_signal_duration: ego_timer - params.turn_signal_duration; -- going back takes the same time as going forward, but do not use turn signal duration for abort
         ego_timer > 0 & ego.mode = ActionType____LANECHANGE_ABORT: ego_timer - 1;                        -- count down back to zero while aborting
         ego_timer >= 0 & ego_timer < ego.complete_lane_change_latest_after : ego_timer + 1;   -- while we are still changing lanes, increment counter
         TRUE: ego_timer;                                                                     -- keep counter at its value in all other cases
     esac;
 
     next(ego.time_since_last_lc) := case
-        (@{ego.mode = ActionType____LANECHANGE_[DIR] | }@.for[[DIR], possible_lc_modes] ego.mode = ActionType____LANECHANGE_ABORT) & next(ego.mode) = ActionType____LANE_FOLLOWING : 0;            -- activate timer when lane change finishes
+        (@{ego.mode = ActionType____LANECHANGE_[DIR] | }@.for[[DIR], @{possible_lc_modes}@.scriptVar] ego.mode = ActionType____LANECHANGE_ABORT) & next(ego.mode) = ActionType____LANE_FOLLOWING : 0;            -- activate timer when lane change finishes
         ego.time_since_last_lc >= 0 & ego.time_since_last_lc < min_time_between_lcs: ego.time_since_last_lc + 1;    -- increment until threshold is reached, saturate at the threshold (-> else condition)
-        ego.mode = ActionType____LANE_FOLLOWING & (FALSE @{| next(ego.mode) = ActionType____LANECHANGE_[DIR]}@.for[[DIR], possible_lc_modes]): -1;           -- deactivate timer when new lane change starts
+        ego.mode = ActionType____LANE_FOLLOWING & (FALSE @{| next(ego.mode) = ActionType____LANECHANGE_[DIR]}@.for[[DIR], @{possible_lc_modes}@.scriptVar]): -1;           -- deactivate timer when new lane change starts
         TRUE: ego.time_since_last_lc;                                           -- this clause also keeps the var at max value once the max value has been reached
     esac;
 

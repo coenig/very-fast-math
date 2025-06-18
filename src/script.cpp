@@ -647,6 +647,30 @@ std::string Script::applyMethodString(const std::string& method_name, const std:
    else if (method_name == "timestamp" && parameters.size() == 0) { return StaticHelper::timeStamp(); }
    
    else if (method_name == "mypath" && parameters.size() == 0) { return getMyPath(); }
+   else if (method_name == "setScriptVar" && parameters.size() == 1) {
+      std::string varname{ parameters.at(0) };
+
+      if (list_data_.count(varname)) {
+         std::string error{ "Variable '" + varname + "' has already been declared." };
+         addError(error);
+         return "#" + error + "#";
+      }
+
+      list_data_[varname] = { getRawScript() };
+
+      return "";
+   }
+   else if (method_name == "scriptVar" && parameters.size() == 0) {
+      std::string varname{ getRawScript() };
+
+      if (!list_data_.count(varname)) {
+         std::string error{ "Variable '" + varname + "' has not been declared." };
+         addError(error);
+         return "#" + error + "#";
+      }
+
+      return list_data_.at(varname).at(0);
+   }
 
    else if (method_name == "include" && parameters.size() == 0) {
       std::string filepath{ StaticHelper::absPath(getMyPath()) + "/" + getRawScript() };
