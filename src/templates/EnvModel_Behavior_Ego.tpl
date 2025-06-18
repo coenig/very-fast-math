@@ -436,7 +436,7 @@ TRANS
 
 DEFINE
 @{
--- @{XVarEnvModelCarNote}@
+    -- >>> Car [i] <<<
     veh___6[i]9___.is_visible := abs(veh___6[i]9___.rel_pos) <= max_ego_visibility_range;
     veh___6[i]9___.is_in_front := veh___6[i]9___.rel_pos >= 0;
     veh___6[i]9___.is_behind := veh___6[i]9___.rel_pos < 0;
@@ -445,31 +445,6 @@ DEFINE
 	
 }@.for[[i], 0, @{NONEGOS - 1}@.eval]
 
-@{
-GENERATE FOR GAP0:
-          XVarGap0vfront=@{true}@***.id
-      XVarGap0sdistfront=@{true}@***.id
-XVarGap0turnsignalsfront=@{true}@***.id
-           XVarGap0vrear=@{true}@***.id
-       XVarGap0sdistrear=@{true}@***.id
-          XVarGap0afront=@{true}@***.id
-
-GENERATE FOR GAP1:
-          XVarGap1vfront=@{true}@***.id
-      XVarGap1sdistfront=@{true}@***.id
-XVarGap1turnsignalsfront=@{false}@***.id
-           XVarGap1vrear=@{true}@***.id
-       XVarGap1sdistrear=@{false}@***.id
-          XVarGap1afront=@{true}@***.id
-
-GENERATE FOR GAP2:
-          XVarGap2vfront=@{true}@***.id
-      XVarGap2sdistfront=@{true}@***.id
-XVarGap2turnsignalsfront=@{true}@***.id
-           XVarGap2vrear=@{true}@***.id
-       XVarGap2sdistrear=@{false}@***.id
-          XVarGap2afront=@{true}@***.id
-}@.nil
 
 @{
 @( 
@@ -485,6 +460,7 @@ XVarGap2turnsignalsfront=@{true}@***.id
 -- s_dist_rear is the one negated rel_pos closest to us, if any; if not, the only remaining possible value is max_ego_visibility_range + 1.
 -- i_agent_rear is the agent id of the car with the resp. s_dist_rear, if it is on the correct lane. Should there be no such car, the only remaining value is empty_gap_indicator.
 
+@{@(
 -- GAPS[0] ==> Left of Ego
 -- FRONT
 INVAR
@@ -519,8 +495,11 @@ INVAR
 @{(((ego.gaps___609___.s_dist_rear = -veh___6[i]9___.rel_pos - veh_length) & ego.right_of_veh_[i]_lane) <-> ego.gaps___609___.i_agent_rear = [i]) & 
 }@.for[[i], 0, @{NONEGOS - 1}@.eval]
 TRUE;
+)@
+@(INVAR ego.gaps___609___.i_agent_rear = -1 & ego.gaps___609___.i_agent_front = -1;)@
+}@******.if[@{CALCULATE_LEFT_GAP}@.eval]
 
-
+@{@(
 -- GAPS[1] ==> On Ego lane
 -- FRONT
 INVAR
@@ -555,8 +534,12 @@ INVAR
 @{(((ego.gaps___619___.s_dist_rear = -veh___6[i]9___.rel_pos - veh_length) & ego.same_lane_as_veh_[i]) <-> ego.gaps___619___.i_agent_rear = [i]) & 
 }@.for[[i], 0, @{NONEGOS - 1}@.eval]
 TRUE;
+)@
+@(INVAR ego.gaps___619___.i_agent_rear = -1 & ego.gaps___619___.i_agent_front = -1;)@
+}@******.if[@{CALCULATE_CENTER_GAP}@.eval]
 
 
+@{@(
 -- GAPS[2] ==> Right of Ego
 -- FRONT
 INVAR
@@ -592,7 +575,11 @@ INVAR
 @{(((ego.gaps___629___.s_dist_rear = -veh___6[i]9___.rel_pos - veh_length) & ego.left_of_veh_[i]_lane) <-> ego.gaps___629___.i_agent_rear = [i]) & 
 }@.for[[i], 0, @{NONEGOS - 1}@.eval]
 TRUE;
-}@******.if[@{CALCULATE_RIGHT_GAP_REAR}@.eval]
+}@*****.if[@{CALCULATE_RIGHT_GAP_REAR}@.eval]
+)@
+@(INVAR ego.gaps___629___.i_agent_rear = -1 & ego.gaps___629___.i_agent_front = -1;)@
+}@******.if[@{CALCULATE_RIGHT_GAP}@.eval]
+
 
 INVAR -1 <= ego.gaps___609___.i_agent_front & ego.gaps___609___.i_agent_front <= @{NONEGOS - 1}@.eval[0];
 INVAR -1 <= ego.gaps___619___.i_agent_front & ego.gaps___619___.i_agent_front <= @{NONEGOS - 1}@.eval[0];

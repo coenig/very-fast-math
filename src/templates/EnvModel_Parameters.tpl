@@ -39,6 +39,10 @@
 @{MAXACCELNONEGO}@*******.defaultValue[6]
 @{MAXEGOVISRANGE}@*******.defaultValue[250]
 @{CLOSEFRONTDIST}@*******.defaultValue[10]
+@{CALCULATE_LEFT_GAP}@*******.defaultValue[true]
+@{CALCULATE_CENTER_GAP}@*******.defaultValue[true]
+@{CALCULATE_RIGHT_GAP}@*******.defaultValue[true]
+@{CALCULATE_RIGHT_GAP_REAR}@*******.defaultValue[true] -- Flag to leave out the rear/right gap when not needed, even when right gap is calculated.
 @{LONGDISTMAX}@*******.defaultValue[300]         -- This is the max distance to the front and back of ego.
 @{INITPOSRANGENONEGOS}@*******.defaultValue[50]  -- Range to front where non-egos can be positioned initially. (TODO: Should be replaced by length of resp. section.)
 @{CLOSETOEGOPAR}@*******.defaultValue[80]
@@ -53,7 +57,6 @@
 @{FARMERGINGCARS}@*******.defaultValue[false]
 @{ABORTREVOKE}@*******.defaultValue[false]
 @{KEEP_EGO_FROM_GREEN}@*******.defaultValue[true]   -- Makes sure, ego never leaves the lanes.
-@{CALCULATE_RIGHT_GAP_REAR}@*******.defaultValue[true] -- Flag to leave out the rear/right gap when not needed.
 
 -- Special purpose parameters.
 @{FEASIBILITY}@*******.defaultValue[true] -- Includes defines needed for the ACA4.1 Fesibility study.
