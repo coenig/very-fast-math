@@ -179,9 +179,9 @@ private:
    Fl_Button* button_run_mc_and_preview_ = new Fl_Button(0, 300, 200, 30, "Run Model Checker...");
    Fl_Button* button_run_cex_ = new Fl_Button(0, 350, 200, 30, "Generate test cases...");
    Fl_Button* button_runtime_analysis_ = new Fl_Button(0, 400, 200, 30, "Runtime analysis");
-   Fl_Button* button_delete_mc_output_ = new Fl_Button(0, 490, 200, 30, "Delete unselected MC output!");
-   Fl_Button* button_delete_testcases_ = new Fl_Button(0, 520, 200, 30, "Delete unselected test cases!");
-   Fl_Button* button_delete_generated_ = new Fl_Button(0, 550, 200, 30, "Delete unselected folders!");
+   Fl_Button* button_delete_mc_output_ = new Fl_Button(0, 490, 200, 30, "Delete selected MC output! <RM>");
+   Fl_Button* button_delete_testcases_ = new Fl_Button(0, 520, 200, 30, "Delete selected test cases! <RM>");
+   Fl_Button* button_delete_generated_ = new Fl_Button(0, 550, 200, 30, "Delete selected folders! <RM>");
    Fl_Button* button_delete_cached_ = new Fl_Button(0, 600, 200, 30, "Delete cache! <RM>");
    Fl_Text_Buffer* json_buffer_ = new Fl_Text_Buffer();;
    Fl_Text_Editor* json_input_ = new Fl_Text_Editor(230, 250, 410, 380);
