@@ -16,7 +16,6 @@
 #include "gui/gui.h"
 #include "simulation/road_graph.h"
 #include "geometry/bezier_functions.h"
-#include "vfmacro/script.h"
 // #include "examples/fct_enumdefinitions.h" // TODO: This does not work on Linux (needed for replayCounterExample).
 
 using namespace vfm;
