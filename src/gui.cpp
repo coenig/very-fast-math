@@ -474,7 +474,7 @@ void MCScene::activateMCButtons(const bool active, const ButtonClass which)
       if (which == ButtonClass::RunButtons || which == ButtonClass::All) {
          button_run_parser_->activate();
          button_run_cex_->activate();
-         button_run_mc_and_preview_->activate();
+         //button_run_mc_and_preview_->activate();
          button_runtime_analysis_->activate();
       }
 
@@ -489,7 +489,7 @@ void MCScene::activateMCButtons(const bool active, const ButtonClass which)
       if (which == ButtonClass::RunButtons || which == ButtonClass::All) {
          button_run_parser_->deactivate();
          button_run_cex_->deactivate();
-         button_run_mc_and_preview_->deactivate();
+         //button_run_mc_and_preview_->deactivate();
          button_runtime_analysis_->deactivate();
       }
 
@@ -539,7 +539,7 @@ std::vector<std::pair<std::string, std::string>> MCScene::getAllFormulasFromJSON
    return result;
 }
 
-std::pair<std::string, std::string> MCScene::getSpec(const std::string& config)
+std::pair<std::string, std::string> MCScene::getSpec(const std::string& config, const bool any)
 {
    const std::string file_name{ config == JSON_TEMPLATE_DENOTER ? json_tpl_filename_ : FILE_NAME_JSON };
 
@@ -548,7 +548,7 @@ std::pair<std::string, std::string> MCScene::getSpec(const std::string& config)
       nlohmann::json j = nlohmann::json::parse(json_text);
 
       for (auto& [key_config, value_config] : j.items()) {
-         if (key_config == config) {
+         if (any || key_config == config) {
             for (auto& [key, value] : value_config.items()) {
                if (key == "SPEC" || StaticHelper::stringStartsWith(key, "BB")) {
                   return { key, value };
@@ -1492,7 +1492,7 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
    main_smv = StaticHelper::removeMultiLineComments(main_smv, SPEC_BEGIN, SPEC_END);
    main_smv += SPEC_BEGIN + "\n";
    
-   auto spec_pair = mc_scene->getSpec(config_name);
+   auto spec_pair = mc_scene->getSpec("any", true);
    main_smv += spec_pair.second + "\n";
    main_smv += SPEC_END + "\n";
 
