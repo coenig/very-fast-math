@@ -8,10 +8,9 @@
    @{
 VAR
       ego.a : 0..0;  -- Mock EGO interface...
-   }@**.if[@{EGOLESS}@.eval]
+   }@******.if[@{EGOLESS}@.eval]
 
 	@{
-    -- XVarEnvModelCarNote=@{>>> Car [i] <<<}@***.id
 VAR
     veh___6[i]9___.do_lane_change : boolean;                   -- signal that a lane change is ongoing
     veh___6[i]9___.abort_lc : boolean;                         -- signal that an ongoing lane change is aborted
@@ -44,6 +43,8 @@ VAR
       INVAR veh___6[i]9___.on_straight_section = -1 -> (veh___6[i]9___.traversion_from != -1 & veh___6[i]9___.traversion_from != -1);
       INVAR (veh___6[i]9___.traversion_from != -1 | veh___6[i]9___.traversion_from != -1) -> veh___6[i]9___.on_straight_section = -1;
       INVAR veh___6[i]9___.traversion_from = -1 <-> veh___6[i]9___.traversion_to = -1;
+
+      INIT veh___6[i]9___.traversion_from = -1; -- TODO: For now non-egos start on straight roads; there is no constraint prohibiting them being placed beyond the end of the arc.
 
       @{
          VAR veh___6[i]9___.is_on_sec_[sec2] : 0..1;
@@ -95,18 +96,23 @@ esac;
 }@*.for[[j], 1, @{NUMLANES - 1}@.eval]}@**.for[[i], 0, @{NONEGOS - 1}@.eval].nil
 
 @{
-   INVAR (veh___6[i]9___.abs_pos < section_0_segment_0_pos_begin) -> 
-   (veh___6[i]9___.on_lane_min >= section_0_segment_0_min_lane & veh___6[i]9___.on_lane_max <= section_0_segment_0_max_lane);
+@{
+   INVAR veh___6[i]9___.on_straight_section = [sec]
+   -> ((veh___6[i]9___.abs_pos < section_[sec]_segment_0_pos_begin) -> 
+   (veh___6[i]9___.on_lane_min >= section_[sec]_segment_0_min_lane & veh___6[i]9___.on_lane_max <= section_[sec]_segment_0_max_lane));
 
    @{
-   INVAR (veh___6[i]9___.abs_pos >= section_0_segment_[num]_pos_begin & veh___6[i]9___.abs_pos < section_0_segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
-   (veh___6[i]9___.on_lane_min >= section_0_segment_[num]_min_lane & veh___6[i]9___.on_lane_max <= section_0_segment_[num]_max_lane);
+   INVAR veh___6[i]9___.on_straight_section = [sec]
+   -> ((veh___6[i]9___.abs_pos >= section_[sec]_segment_[num]_pos_begin & veh___6[i]9___.abs_pos < section_[sec]_segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
+   (veh___6[i]9___.on_lane_min >= section_[sec]_segment_[num]_min_lane & veh___6[i]9___.on_lane_max <= section_[sec]_segment_[num]_max_lane));
    }@*.for[[num], 0, @{SEGMENTS - 2}@.eval]
 
-   INVAR (veh___6[i]9___.abs_pos >= section_0_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin) -> 
-   (veh___6[i]9___.on_lane_min >= section_0_segment_@{SEGMENTS - 1}@.eval[0]_min_lane & veh___6[i]9___.on_lane_max <= section_0_segment_@{SEGMENTS - 1}@.eval[0]_max_lane);
+   INVAR veh___6[i]9___.on_straight_section = [sec]
+   -> ((veh___6[i]9___.abs_pos >= section_[sec]_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin) -> 
+   (veh___6[i]9___.on_lane_min >= section_[sec]_segment_@{SEGMENTS - 1}@.eval[0]_min_lane & veh___6[i]9___.on_lane_max <= section_[sec]_segment_@{SEGMENTS - 1}@.eval[0]_max_lane));
 
 }@**.for[[i], 0, @{NONEGOS - 1}@.eval]
+}@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 -- EO Make sure non-egos do not drive on the GREEN.
 
@@ -114,7 +120,7 @@ esac;
 DEFINE
 
 	@{
-    -- @{XVarEnvModelCarNote}@***.id
+    -- >>> Car [i] <<<
     veh___6[i]9___.lane_0 := veh___6[i]9___.lane_b0 @{& !veh___6[i]9___.lane_b[j]}@.for[[j], 1, @{NUMLANES - 1}@.eval];
     @{
     veh___6[i]9___.lane_@{[k]-1}@.eval[0][k] := @{@{!}@.if[@{[j] != [k] - 1 && [j] != [k]}@.eval]veh___6[i]9___.lane_b[j] }@*.for[[j], 0, @{NUMLANES - 1}@.eval, 1, &];
@@ -142,7 +148,7 @@ DEFINE
    @{################# FORMERLY: veh___6[i]9___.same_lane_as_veh_[j] := ((veh___6[i]9___.lane_b1 & veh___6[j]9___.lane_b1) | (veh___6[i]9___.lane_b2 & veh___6[j]9___.lane_b2) | (veh___6[i]9___.lane_b3 & veh___6[j]9___.lane_b3)); ###################}@.nil
 	@{
    veh___6[i]9___.same_lane_as_veh_[k] := (FALSE
-      @{| ((veh___6[k]9___.lane_b[j] & veh___6[i]9___.lane_b[j]) @{) --}@**.if[@{EGOLESS}@.eval]  @{& !(veh___6[k]9___.lane_b@{[j]-1}@.eval[0] & veh___6[i]9___.lane_b@{[j]+1}@.eval[0]) & !(veh___6[k]9___.lane_b@{[j]+1}@.eval[0] & veh___6[i]9___.lane_b@{[j]-1}@.eval[0])}@.if[@{[j] > 0 && [j] < NUMLANES - 1}@.eval] )
+      @{| ((veh___6[k]9___.lane_b[j] & veh___6[i]9___.lane_b[j]) @{) --}@******.if[@{EGOLESS}@.eval]  @{& !(veh___6[k]9___.lane_b@{[j]-1}@.eval[0] & veh___6[i]9___.lane_b@{[j]+1}@.eval[0]) & !(veh___6[k]9___.lane_b@{[j]+1}@.eval[0] & veh___6[i]9___.lane_b@{[j]-1}@.eval[0])}@.if[@{[j] > 0 && [j] < NUMLANES - 1}@.eval] )
       }@*.for[[j], 0, @{NUMLANES - 1}@.eval]
    );
    }@**.for[[k], 0, @{[i]}@.sub[1]]
@@ -151,7 +157,7 @@ DEFINE
 
 
 @{
--- @{XVarEnvModelCarNote}@**.id
+-- >>> Car [i] <<<
 
 
 INIT 
@@ -194,7 +200,7 @@ INVAR -- Non-Ego cars may not "jump" over each other.
 
 
 @{
--- @{XVarEnvModelCarNote}@
+-- >>> Car [i] <<<
 ASSIGN
     init(veh___6[i]9___.time_since_last_lc) := min_time_between_lcs;       -- init with max value such that lane change is immediately allowed after start
     init(veh___6[i]9___.do_lane_change) := FALSE;
@@ -205,7 +211,7 @@ ASSIGN
     init(veh___6[i]9___.prev_rel_pos) := 0;
     init(veh___6[i]9___.prev_abs_pos) := 0;
     -- init(veh___6[i]9___.v) := @{MAXSPEEDNONEGO / 2}@.velocityWorldToEnvModelConst;
-    @{init(veh___6[i]9___.a) := 0;}@**.if[@{!(EGOLESS)}@.eval]
+    @{init(veh___6[i]9___.a) := 0;}@******.if[@{!(EGOLESS)}@.eval]
     init(veh___6[i]9___.turn_signals) := ActionDir____CENTER;
     init(veh___6[i]9___.lc_leave_src_lane) := FALSE;
 
@@ -308,7 +314,7 @@ ASSIGN
        @{
          next(veh___6[i]9___.is_on_sec_[sec2]) := case
              @{@{
-                @{veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 1;}@.if[@{[sec] != [sec2]}@.eval]
+                @{@{section_[sec2]_end > 0 &}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 1;}@.if[@{[sec] != [sec2]}@.eval]
              }@*.for[[lane], 0, @{NUMLANES - 1}@.eval]
           }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
              veh___6[i]9___.is_on_sec_[sec2] = 1 & veh___6[i]9___.next_abs_pos > section_[sec2]_end : 0;
@@ -317,20 +323,31 @@ ASSIGN
        }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
     
     -- ## Future pos is curved junction ##
+    -- TODO: There is quite some double code between the "{0, 1}" cases. It might be more efficient to merge them into a single case.
        @{@{
              @{
                 next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) := case
+                   -- Regular switch from end of straight section to one of subsequential junctions.
                    @{
                       veh___6[i]9___.is_on_sec_[sec] = 1 & outgoing_connection_[con]_of_section_[sec] = [sec2] & veh___6[i]9___.next_abs_pos > section_[sec]_end : {0, 1};
                    }@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval]
-                   @{
-                      veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 0;
-                   }@*.for[[lane], 0, @{NUMLANES - 1}@.eval]
-                   TRUE : veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2];
+
+                   @{@{@{
+                      -- Jump over "zero-length" sections.
+                      @{
+                      veh___6[i]9___.is_traversing_from_sec_[sec3]_to_sec_[sec] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec3]_to_sec_[sec]_on_lane_[lane]
+                          & section_[sec]_end = 0 & (@{outgoing_connection_[con]_of_section_[sec] = 0}@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval, 1, |]) : {0, 1};
+                      }@.if[@{[sec3] != [sec]}@.eval]
+                   }@**.for[[sec3], 0, @{SECTIONS - 1}@.eval]
+                   }@.if[@{ALLOW_ZEROLENGTH_SECTIONS}@******.eval]
+
+                      veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 0; -- Leave this junction when passed over the end.
+                   }@***.for[[lane], 0, @{NUMLANES - 1}@.eval]
+                   TRUE : veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]; -- Stay on this junction as long as not passed over the end.
                 esac;
              }@.if[@{[sec] != [sec2]}@.eval]
-             }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
-       }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+             }@****.for[[sec], 0, @{SECTIONS - 1}@.eval]
+       }@*****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
 
     @{
        @{
@@ -341,21 +358,28 @@ ASSIGN
 }@****.for[[i], @{STANDINGCARSUPTOID + 1}@.eval, @{NONEGOS - 1}@.eval]
 
 @{
--- @{XVarEnvModelCarNote}@
+
+-- >>> Car [i] <<<
+@{-- Don't start on zero-length section
+@{
+   INIT section_[sec]_end = 0 -> veh___6[i]9___.is_on_sec_[sec] = 0;
+}@*.for[[sec], 0, @{SECTIONS - 1}@.eval]
+}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval]
+
 TRANS
     case
         -- the timer is within the interval where we may leave our source lane, we may transition to any neighbor lane but we do not have to (current lane is also allowed for next state)
         veh___6[i]9___.lc_timer >= leave_src_lane_earliest_after & veh___6[i]9___.lc_timer < leave_src_lane_latest_after & veh___6[i]9___.lane_single & !veh___6[i]9___.abort_lc & !next(veh___6[i]9___.abort_lc): 
         case 
-            veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max @{& !(ego.left_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@**.if[@{!(EGOLESS)}@.eval] : next(veh___6[i]9___.change_lane_now) = 0 ? veh___6[i]9___.lane_unchanged : veh___6[i]9___.lane_move_up;
-            veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min @{& !(ego.right_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@**.if[@{!(EGOLESS)}@.eval] : next(veh___6[i]9___.change_lane_now) = 0 ? veh___6[i]9___.lane_unchanged : veh___6[i]9___.lane_move_down;
+            veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max @{& !(ego.left_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@******.if[@{!(EGOLESS)}@.eval] : next(veh___6[i]9___.change_lane_now) = 0 ? veh___6[i]9___.lane_unchanged : veh___6[i]9___.lane_move_up;
+            veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min @{& !(ego.right_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@******.if[@{!(EGOLESS)}@.eval] : next(veh___6[i]9___.change_lane_now) = 0 ? veh___6[i]9___.lane_unchanged : veh___6[i]9___.lane_move_down;
             TRUE : veh___6[i]9___.lane_unchanged;
         esac;
         -- at the latest point in time, we need to leave the source lane if we have not already
         veh___6[i]9___.lc_timer = leave_src_lane_latest_after & veh___6[i]9___.lane_single: 
         case
-                veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max @{& !(ego.left_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@**.if[@{!(EGOLESS)}@.eval] : veh___6[i]9___.lane_move_up; 
-                veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min @{& !(ego.right_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@**.if[@{!(EGOLESS)}@.eval] : veh___6[i]9___.lane_move_down;
+                veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max @{& !(ego.left_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@******.if[@{!(EGOLESS)}@.eval] : veh___6[i]9___.lane_move_up; 
+                veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min @{& !(ego.right_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@******.if[@{!(EGOLESS)}@.eval] : veh___6[i]9___.lane_move_down;
                 TRUE : veh___6[i]9___.lane_unchanged;
         esac;
         -- lane change is finished in the next step (time conditions are checked at do_lane_change), set state to target lane (we must be on two lanes right now)
@@ -375,7 +399,7 @@ TRANS
         TRUE: veh___6[i]9___.lane_unchanged;                                      -- hold current value in all other cases
     esac;
 
-}@.for[[i], 0, @{NONEGOS - 1}@.eval]
+}@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 --------------------------------------------------------
 -- End: Non-ego Spec 

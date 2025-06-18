@@ -288,7 +288,7 @@ bool VisualizationLaunchers::quickGenerateGIFs(
       gen_config_smooth.frames_per_second_gif = 40;
       gen_config_smooth.frames_per_second_osc = 40;
 
-      if (true || !trace.at(0).second.count("env.section_1_segment_0_pos_begin")) {
+      if (/*true ||*/ !trace.at(0).second.count("env.section_1_segment_0_pos_begin")) {
          // TODO: For now we can skip generating preview GIF for multi-section scenes with the surrounding IF because it's very expensive due to hard-coded large image size.
          // Needs to be fixed by reducing image size to what is actually needed. (Plus some other intelligent stuff.)
          VisualizationLaunchers::interpretAndGenerate(
