@@ -192,8 +192,8 @@ DEFINE
 	ego.blamable_crash_with_veh_[i] := ego.same_lane_as_veh_[i] & (veh___6[i]9___.rel_pos >= 0 & veh___6[i]9___.rel_pos <= veh_length);
 
    ego_pressured_by_vehicle_[i] := ego.same_lane_as_veh_[i] 
-        | (veh___6[i]9___.lc_direction = ActionDir____RIGHT & ego.right_of_veh_[i]_lane & veh___6[i]9___.change_lane_now = 1)
-        | (veh___6[i]9___.lc_direction = ActionDir____LEFT & ego.left_of_veh_[i]_lane & veh___6[i]9___.change_lane_now = 1);
+        | (veh___6[i]9___.lc_direction = ActionDir____RIGHT & ego.right_of_veh_[i]_lane @{ & veh___6[i]9___.change_lane_now = 1}@******.if[@{!SIMPLE_LC}@.eval])
+        | (veh___6[i]9___.lc_direction = ActionDir____LEFT & ego.left_of_veh_[i]_lane   @{ & veh___6[i]9___.change_lane_now = 1}@******.if[@{!SIMPLE_LC}@.eval]);
 
 ego_pressured_by_vehicle_[i]_from_behind := ego_pressured_by_vehicle_[i] & (veh___6[i]9___.prev_rel_pos < 0);
 
@@ -630,9 +630,11 @@ DEFINE
 
     @{
     ego.gaps___6[k]9___.turn_signals_front := case
+        @{
 	     @{
         ego.gaps___6[k]9___.i_agent_front = [i] : veh___6[i]9___.turn_signals;
         }@*.for[[i], @{NONEGOS - 1}@.eval, 0, -1]
+        }@******.if[@{!SIMPLE_LC}@.eval]
         TRUE : ActionDir____CENTER;
     esac;
     }@.if[XVarGap[k]turnsignalsfront]
