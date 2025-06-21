@@ -14,6 +14,8 @@ VAR
 VAR
 @{
 @(
+   @{veh___6[i]9___.time_since_last_lc}@*.scalingVariable[time] : 0..min_time_between_lcs;
+   veh___6[i]9___.lc_direction : {ActionDir____LEFT, ActionDir____CENTER, ActionDir____RIGHT};
 )@
 @(
    @{veh___6[i]9___.time_since_last_lc}@*.scalingVariable[time] : -1..min_time_between_lcs;        -- enough time has expired since the last lc happened
@@ -64,8 +66,15 @@ VAR
 
    
    @{
-   INVAR @{veh___6[i]9___.is_on_sec_[sec]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval, 1, +]
-      @{@{@{+ veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]}@.if[@{[sec] != [sec2]}@.eval]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval]}@**.for[[sec2], 0, @{SECTIONS - 1}@.eval] = 1;
+      INVAR @{veh___6[i]9___.is_on_sec_[sec]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval, 1, +]
+         @{@{@{+ veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]}@.if[@{[sec] != [sec2]}@.eval]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval]}@**.for[[sec2], 0, @{SECTIONS - 1}@.eval] = 1;
+
+      @{
+         INVAR veh___6[i]9___.time_since_last_lc < min_time_between_lcs -> veh___6[i]9___.lc_direction = ActionDir____CENTER;
+         TRANS veh___6[i]9___.lane_unchanged <-> veh___6[i]9___.lc_direction = ActionDir____CENTER;
+         TRANS veh___6[i]9___.lane_move_down <-> veh___6[i]9___.lc_direction = ActionDir____RIGHT;
+         TRANS veh___6[i]9___.lane_move_up   <-> veh___6[i]9___.lc_direction = ActionDir____LEFT;
+      }@******.if[@{SIMPLE_LC}@.eval]
 
 	}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
 
@@ -206,7 +215,9 @@ INVAR -- Non-Ego cars may not "jump" over each other.
 -- >>> Car [i] <<<
 ASSIGN
 @{
-@()@
+@(
+    init(veh___6[i]9___.time_since_last_lc) := 0;
+)@
 @(
     init(veh___6[i]9___.time_since_last_lc) := min_time_between_lcs;       -- init with max value such that lane change is immediately allowed after start
     init(veh___6[i]9___.do_lane_change) := FALSE;
@@ -224,7 +235,12 @@ ASSIGN
     @{init(veh___6[i]9___.a) := 0;}@******.if[@{!(EGOLESS)}@.eval]
 
 @{
-@()@
+@(
+   next(veh___6[i]9___.time_since_last_lc) := case
+      veh___6[i]9___.lc_direction = ActionDir____CENTER : veh___6[i]9___.time_since_last_lc + 1;
+      TRUE : 0;
+   esac;
+)@
 @(
     next(veh___6[i]9___.do_lane_change) := 
 	    case 
@@ -376,8 +392,6 @@ ASSIGN
 }@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval]
 
 @{
-@()@
-@(
 TRANS
     case
         -- the timer is within the interval where we may leave our source lane, we may transition to any neighbor lane but we do not have to (current lane is also allowed for next state)
@@ -410,8 +424,7 @@ TRANS
         esac;
         TRUE: veh___6[i]9___.lane_unchanged;                                      -- hold current value in all other cases
     esac;
-)@
-}@******.if[@{SIMPLE_LC}@.eval]
+}@******.if[@{!SIMPLE_LC}@.eval]
 
 }@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 

@@ -5,7 +5,8 @@
 ------------------------------------------
 
 DEFINE
-    ---------------- Begin of lc parameterization -----------------
+    ---------------- Begin of non-ego lc parameterization -----------------
+@{
 
     -- IMPORTANT: The following constraints must be satisfied such that the model works as intended:
     --      1. leave_src_lane_latest >= 1
@@ -21,9 +22,12 @@ DEFINE
     @{complete_lane_change_latest_after}@*.timeWorldToEnvModelDef[7];
     @{abort_lane_change_complete_earliest_after}@*.timeWorldToEnvModelDef[1]; -- earliest point in time where the vehicle is entirely back on its source lane after a lane change abort
     @{abort_lane_change_complete_latest_after}@*.timeWorldToEnvModelDef[3];
-    @{min_time_between_lcs}@*.timeWorldToEnvModelDef[1];                      -- after finisihing one lc, how much time needs to pass before the next one may be started
 
----------------- End of lc parameterization -----------------
+}@******.if[@{!SIMPLE_LC}@.eval]
+
+    @{min_time_between_lcs}@*.timeWorldToEnvModelDef[2];                      -- after finisihing one lc, how much time needs to pass before the next one may be started
+---------------- End of non-ego lc parameterization -----------------
+
 
     @{a_min}@*.accelerationWorldToEnvModelDef[MINACCELNONEGO];
     @{a_max}@*.accelerationWorldToEnvModelDef[MAXACCELNONEGO];
