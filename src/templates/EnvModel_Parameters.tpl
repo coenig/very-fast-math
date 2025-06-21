@@ -48,6 +48,7 @@
 @{CLOSETOEGOPAR}@*******.defaultValue[80]
 @{TIMESCALING}@*******.defaultValue[1000]        -- nondimensionalization constant for time, in milliseconds
 @{DISTANCESCALING}@*******.defaultValue[1000]    -- nondimensionalization constant for distance, in millimeters
+@{SIMPLE_LC}@*******.defaultValue[true]          -- true: Allow non-egos to switch a "half-lane" if time_since_last_lc has passed; false: Christian's version
 
 -- Parameters for "skipping" of CEXs.
 @{DOUBLEMERGEPROTECTION}@*******.defaultValue[true] -- Prohibits non-ego LCs when in danger of a double-merge

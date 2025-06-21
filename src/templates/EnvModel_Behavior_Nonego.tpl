@@ -12,13 +12,19 @@ VAR
 
 	@{
 VAR
+@{
+@(
+   @{veh___6[i]9___.time_since_last_lc}@*.scalingVariable[time] : -1..min_time_between_lcs;        -- enough time has expired since the last lc happened
+)@
+@(
     veh___6[i]9___.do_lane_change : boolean;                   -- signal that a lane change is ongoing
     veh___6[i]9___.abort_lc : boolean;                         -- signal that an ongoing lane change is aborted
     veh___6[i]9___.lc_direction : {ActionDir____LEFT, ActionDir____CENTER, ActionDir____RIGHT};         -- the direction in which the lane change takes place
     veh___6[i]9___.turn_signals : {ActionDir____LEFT, ActionDir____CENTER, ActionDir____RIGHT};         -- the direction in which the turn signals are set
     @{veh___6[i]9___.lc_timer}@*.scalingVariable[time] : -1..complete_lane_change_latest_after;     -- timer such that the lc does eventually finish
-    @{veh___6[i]9___.time_since_last_lc}@*.scalingVariable[time] : -1..min_time_between_lcs;        -- enough time has expired since the last lc happened
     veh___6[i]9___.change_lane_now : 0..1;                     -- variable for the non-deterministic choice whether we now change the lane
+)@
+}@******.if[@{SIMPLE_LC}@.eval]
 
     @{veh___6[i]9___.abs_pos}@*.scalingVariable[distance] : integer; -- absolute position on current section (invalid if in between sections)
     @{veh___6[i]9___.prev_abs_pos}@*.scalingVariable[distance] : integer;
@@ -29,9 +35,6 @@ VAR
     @{
     veh___6[i]9___.lane_b[j] : boolean;
     }@.for[[j], 0, @{NUMLANES - 1}@.eval]
-
-    -- auxialiary variables required for property evaluation
-    veh___6[i]9___.lc_leave_src_lane : boolean; -- probably superfluous meanwhile
 
     -- TODO: Assigning sections to cars MIGHT be more efficient the other way around,
     -- i.e., having logic for the three integer variables and calculating the bools from that.
@@ -213,7 +216,6 @@ ASSIGN
     -- init(veh___6[i]9___.v) := @{MAXSPEEDNONEGO / 2}@.velocityWorldToEnvModelConst;
     @{init(veh___6[i]9___.a) := 0;}@******.if[@{!(EGOLESS)}@.eval]
     init(veh___6[i]9___.turn_signals) := ActionDir____CENTER;
-    init(veh___6[i]9___.lc_leave_src_lane) := FALSE;
 
     next(veh___6[i]9___.do_lane_change) := 
 	    case 
@@ -247,11 +249,6 @@ ASSIGN
         -- when the lane change is finished, set back to none
         veh___6[i]9___.do_lane_change = TRUE & next(veh___6[i]9___.do_lane_change) = FALSE : ActionDir____CENTER;
         TRUE: veh___6[i]9___.lc_direction;
-    esac;
-
-    next(veh___6[i]9___.lc_leave_src_lane) := case
-        veh___6[i]9___.lane_single & next(veh___6[i]9___.lane_crossing): TRUE;
-        TRUE: FALSE;
     esac;
 
     next(veh___6[i]9___.turn_signals) := case
