@@ -44,7 +44,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "show_trajectories": True,
 })
 
-env.reset(seed=24)
+env.reset(seed=42)
 # GOOD: 24, 30, 32, 39, 40, 42, 43
 # BAD : 25-29, 31, 33-38, 41, 44, 45
 
