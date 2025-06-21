@@ -224,7 +224,7 @@ public:
    std::string makroPattern(const int i, const std::string& pattern);
    std::string applyMethodString(const std::string& method_name, const std::vector<std::string>& parameters);
 
-   static void vfm::macro::Script::clearStaticData();
+   static void clearStaticData();
 
 private:
    /// If you try to avoid assigning the parameter,
