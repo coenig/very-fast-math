@@ -14,9 +14,9 @@ VAR
 VAR
 @{
 @(
-   @{veh___6[i]9___.time_since_last_lc}@*.scalingVariable[time] : -1..min_time_between_lcs;        -- enough time has expired since the last lc happened
 )@
 @(
+   @{veh___6[i]9___.time_since_last_lc}@*.scalingVariable[time] : -1..min_time_between_lcs;        -- enough time has expired since the last lc happened
     veh___6[i]9___.do_lane_change : boolean;                   -- signal that a lane change is ongoing
     veh___6[i]9___.abort_lc : boolean;                         -- signal that an ongoing lane change is aborted
     veh___6[i]9___.lc_direction : {ActionDir____LEFT, ActionDir____CENTER, ActionDir____RIGHT};         -- the direction in which the lane change takes place
@@ -205,18 +205,27 @@ INVAR -- Non-Ego cars may not "jump" over each other.
 @{
 -- >>> Car [i] <<<
 ASSIGN
+@{
+@()@
+@(
     init(veh___6[i]9___.time_since_last_lc) := min_time_between_lcs;       -- init with max value such that lane change is immediately allowed after start
     init(veh___6[i]9___.do_lane_change) := FALSE;
     init(veh___6[i]9___.abort_lc) := FALSE;
     init(veh___6[i]9___.lc_direction) := ActionDir____CENTER;
     init(veh___6[i]9___.lc_timer) := -1;
     init(veh___6[i]9___.change_lane_now) := 0;
+    init(veh___6[i]9___.turn_signals) := ActionDir____CENTER;
+)@
+}@******.if[@{SIMPLE_LC}@.eval]
+
     init(veh___6[i]9___.prev_rel_pos) := 0;
     init(veh___6[i]9___.prev_abs_pos) := 0;
     -- init(veh___6[i]9___.v) := @{MAXSPEEDNONEGO / 2}@.velocityWorldToEnvModelConst;
     @{init(veh___6[i]9___.a) := 0;}@******.if[@{!(EGOLESS)}@.eval]
-    init(veh___6[i]9___.turn_signals) := ActionDir____CENTER;
 
+@{
+@()@
+@(
     next(veh___6[i]9___.do_lane_change) := 
 	    case 
         veh___6[i]9___.do_lane_change = FALSE & veh___6[i]9___.time_since_last_lc >= min_time_between_lcs: {TRUE, FALSE};
@@ -280,7 +289,10 @@ ASSIGN
         veh___6[i]9___.lc_timer >= 0: {0, 1};      -- choose non-deterministically that we either do change or do not change the lane now
         TRUE: 0;
     esac;
-	
+)@
+}@******.if[@{SIMPLE_LC}@.eval]
+
+
     -- update position (directly feed-through new velocity)
     next(veh___6[i]9___.prev_rel_pos) := veh___6[i]9___.rel_pos;
     next(veh___6[i]9___.prev_abs_pos) := veh___6[i]9___.abs_pos;
@@ -363,6 +375,9 @@ ASSIGN
 }@*.for[[sec], 0, @{SECTIONS - 1}@.eval]
 }@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval]
 
+@{
+@()@
+@(
 TRANS
     case
         -- the timer is within the interval where we may leave our source lane, we may transition to any neighbor lane but we do not have to (current lane is also allowed for next state)
@@ -395,6 +410,8 @@ TRANS
         esac;
         TRUE: veh___6[i]9___.lane_unchanged;                                      -- hold current value in all other cases
     esac;
+)@
+}@******.if[@{SIMPLE_LC}@.eval]
 
 }@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 
