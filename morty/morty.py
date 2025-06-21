@@ -100,6 +100,8 @@ for global_counter in range(1000):
     lanes = ""
     accels = ""
 
+    LANE_CHANGE_DURATION = 4
+
     for i1, el1 in enumerate(res_str.split(';')):
         sum_lan_by_car.append(0)
         sum_vel_by_car.append(0)
@@ -110,7 +112,7 @@ for global_counter in range(1000):
                 if el3:
                     if i2 == 1:
                         lanes += "   " + el3
-                        if i3 == 2:
+                        if i3 == LANE_CHANGE_DURATION:
                             sum_lan_by_car[i1] += float(el3)
                     else:
                         accels += "   " + el3
@@ -127,7 +129,7 @@ for global_counter in range(1000):
     
     action_list = []
     
-    eps = 0.2
+    eps = 0.4
     for i, el in enumerate(sum_vel_by_car):
         if abs(dpoints_y[i] - egos_y[i]) < eps:
             if sum_lan_by_car[i] < 0:
