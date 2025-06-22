@@ -15,7 +15,6 @@ VAR
 @{
 @(
    @{veh___6[i]9___.time_since_last_lc}@*.scalingVariable[time] : 0..min_time_between_lcs;
-   veh___6[i]9___.lc_direction : {ActionDir____LEFT, ActionDir____CENTER, ActionDir____RIGHT};
 )@
 @(
    @{veh___6[i]9___.time_since_last_lc}@*.scalingVariable[time] : -1..min_time_between_lcs;        -- enough time has expired since the last lc happened
@@ -70,10 +69,7 @@ VAR
          @{@{@{+ veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]}@.if[@{[sec] != [sec2]}@.eval]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval]}@**.for[[sec2], 0, @{SECTIONS - 1}@.eval] = 1;
 
       @{
-         INVAR veh___6[i]9___.time_since_last_lc < min_time_between_lcs -> veh___6[i]9___.lc_direction = ActionDir____CENTER;
-         TRANS veh___6[i]9___.lane_unchanged <-> veh___6[i]9___.lc_direction = ActionDir____CENTER;
-         TRANS veh___6[i]9___.lane_move_down <-> veh___6[i]9___.lc_direction = ActionDir____RIGHT;
-         TRANS veh___6[i]9___.lane_move_up   <-> veh___6[i]9___.lc_direction = ActionDir____LEFT;
+         TRANS veh___6[i]9___.time_since_last_lc < min_time_between_lcs -> veh___6[i]9___.lane_unchanged;
       }@******.if[@{SIMPLE_LC}@.eval]
 
 	}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
@@ -173,7 +169,7 @@ DEFINE
 
 
 INIT 
-   veh___6[i]9___.abs_pos >= 0 & veh___6[i]9___.abs_pos <= @{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst;
+   veh___6[i]9___.abs_pos >= 0 & veh___6[i]9___.abs_pos <= @{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst; -- TODO: Should be replaced by length of resp. section.
 
 DEFINE
    veh___6[i]9___.rel_pos := veh___6[i]9___.abs_pos - ego.abs_pos; -- relative position to ego in m (valid only if ego is on same section), rel_pos < 0 means the rear bumber of the other vehicle is behind the rear bumper of the ego
@@ -237,7 +233,7 @@ ASSIGN
 @{
 @(
    next(veh___6[i]9___.time_since_last_lc) := case
-      veh___6[i]9___.lc_direction = ActionDir____CENTER : veh___6[i]9___.time_since_last_lc + 1;
+      veh___6[i]9___.lane_unchanged : veh___6[i]9___.time_since_last_lc + 1;
       TRUE : 0;
    esac;
 )@
