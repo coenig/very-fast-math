@@ -41,7 +41,6 @@ DEFINE
     @{ego.following_dist}@*.scalingVariable[distance] := max(@{2}@.timeWorldToEnvModelConst * ego.v, ego.min_dist_long);  -- dynamic following distance according to 2s rule (= THW)
     @{ego.min_accel}@*.accelerationWorldToEnvModelDef[MINACCELEGO];
     @{ego.max_accel}@*.accelerationWorldToEnvModelDef[MAXACCELEGO];
-}@**.if[@{!(EGOLESS)}@.eval]
 
     @{params.turn_signal_duration}@*.timeWorldToEnvModelDef[2]; -- turn signals will be on for this amount of time -- TODO: Connection via vfm-aka not working, has to be investigated.
     -- total lc duration shall be 5 s according to code documentation
@@ -56,6 +55,7 @@ DEFINE
     @{max_ego_visibility_range}@*.distanceWorldToEnvModelDef[MAXEGOVISRANGE];                      --how far can the ego sensors see? Vehicles being further away than this cannot be detected and will not be considered
 
     empty_gap_indicator := -1; --Counterpart to i_FREE_LANE in Viper, could be AKA-d but for now should be fine to have twice.
+}@**.if[@{!(EGOLESS)}@.eval]
 --------------------------------------------------------
 -- End: Constants and common definitions
 --------------------------------------------------------
