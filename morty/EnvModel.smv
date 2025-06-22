@@ -1630,7 +1630,7 @@ ASSIGN
 
 
    next(veh___609___.time_since_last_lc) := case
-      veh___609___.lc_direction = ActionDir____CENTER : veh___609___.time_since_last_lc + 1;
+      veh___609___.lane_unchanged : veh___609___.time_since_last_lc + 1;
       TRUE : 0;
    esac;
 
@@ -1698,7 +1698,7 @@ ASSIGN
 
 
    next(veh___619___.time_since_last_lc) := case
-      veh___619___.lc_direction = ActionDir____CENTER : veh___619___.time_since_last_lc + 1;
+      veh___619___.lane_unchanged : veh___619___.time_since_last_lc + 1;
       TRUE : 0;
    esac;
 
@@ -1766,7 +1766,7 @@ ASSIGN
 
 
    next(veh___629___.time_since_last_lc) := case
-      veh___629___.lc_direction = ActionDir____CENTER : veh___629___.time_since_last_lc + 1;
+      veh___629___.lane_unchanged : veh___629___.time_since_last_lc + 1;
       TRUE : 0;
    esac;
 
@@ -1834,7 +1834,7 @@ ASSIGN
 
 
    next(veh___639___.time_since_last_lc) := case
-      veh___639___.lc_direction = ActionDir____CENTER : veh___639___.time_since_last_lc + 1;
+      veh___639___.lane_unchanged : veh___639___.time_since_last_lc + 1;
       TRUE : 0;
    esac;
 
@@ -1902,7 +1902,7 @@ ASSIGN
 
 
    next(veh___649___.time_since_last_lc) := case
-      veh___649___.lc_direction = ActionDir____CENTER : veh___649___.time_since_last_lc + 1;
+      veh___649___.lane_unchanged : veh___649___.time_since_last_lc + 1;
       TRUE : 0;
    esac;
 
