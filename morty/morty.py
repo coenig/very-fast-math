@@ -16,14 +16,6 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
             "lateral": True,
         },
     },
-#    "observation": {
-#        "type": "Kinematics",
-#        "absolute": True,
-#        "normalize": False,
-#        "see_behind": True,
-#        "clip": False,
-#        "order": "sorted"
-#    },
     "observation": {
       "type": "MultiAgentObservation",
       "observation_config": {
@@ -31,8 +23,7 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         "type": "Kinematics",
         #        "absolute": True,
         "normalize": False,
-
-    }
+      }
     },
     "simulation_frequency": 60,  # [Hz]
     "policy_frequency": 2,  # [Hz]
@@ -54,10 +45,10 @@ morty_lib.morty.restype = c_char_p
     
 
 action = ([0, 0], [0, 0], [0, 0], [0, 0], [0, 0])
-dpoints_y = [0, 0, 0, 0, 0, 0]
-egos_x = [0, 0, 0, 0, 0, 0]
-egos_y = [0, 0, 0, 0, 0, 0]
-egos_headings = [0, 0, 0, 0, 0, 0]
+dpoints_y = [0, 0, 0, 0, 0, 0]     # The lateral position of the points the cars head towards
+egos_x = [0, 0, 0, 0, 0, 0]        # Long pos of cars in m.
+egos_y = [0, 0, 0, 0, 0, 0]        # Lat pos of cars in m.
+egos_headings = [0, 0, 0, 0, 0, 0] # Angle rel. to long axis in rad.
 
 def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
     return heading - math.atan((dpoint_y - ego_y) / ddist)
@@ -69,15 +60,15 @@ for global_counter in range(1000):
     
     input = ""
     i = 0
-    for el in obs:
+    for el in obs: # Use only el[0] because it contains the abs values from the resp. car's perspective.
         if first:
-            dpoints_y[i] = el[0][2]
+            dpoints_y[i] = el[0][2] # Set desired lateral position to the actual position in the first step.
             
         egos_x[i] = el[0][1]
         egos_y[i] = el[0][2]
         egos_headings[i] = el[0][5]
         i = i + 1
-        for val in el[0]:
+        for val in el[0]: # Generate input for model checker.
             input += str(val) + ","
         input += ";"
     
@@ -87,12 +78,12 @@ for global_counter in range(1000):
     
     first = False
     
-    result = create_string_buffer(1000)
-    #print(f"input: {input}")
+    #### MODEL CHECKER CALL ####
+    result = create_string_buffer(10000)
     res = morty_lib.morty(input.encode('utf-8'), result, sizeof(result))
-    
     res_str = res.decode()    
     #print(f"result: {res_str}")
+    #### EO MODEL CHECKER CALL ####
 
     sum_vel_by_car = []
     sum_lan_by_car = []
@@ -100,7 +91,7 @@ for global_counter in range(1000):
     lanes = ""
     accels = ""
 
-    LANE_CHANGE_DURATION = 4
+    LANE_CHANGE_DURATION = 3
 
     for i1, el1 in enumerate(res_str.split(';')):
         sum_lan_by_car.append(0)
@@ -129,7 +120,7 @@ for global_counter in range(1000):
     
     action_list = []
     
-    eps = 0.4
+    eps = 0.1
     for i, el in enumerate(sum_vel_by_car):
         if abs(dpoints_y[i] - egos_y[i]) < eps:
             if sum_lan_by_car[i] < 0:
@@ -140,7 +131,7 @@ for global_counter in range(1000):
         dpoints_y[i] = max(min(dpoints_y[i], 12), 0)
         
         accel = sum_vel_by_car[i] / 5
-        angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 50) / 3.1415
+        angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 50) / 2
         action_list.append([accel, angle])
     
     #print(action_list_vel)
