@@ -48,6 +48,7 @@ action = ([0, 0], [0, 0], [0, 0], [0, 0], [0, 0])
 dpoints_y = [0, 0, 0, 0, 0, 0]     # The lateral position of the points the cars head towards
 egos_x = [0, 0, 0, 0, 0, 0]        # Long pos of cars in m.
 egos_y = [0, 0, 0, 0, 0, 0]        # Lat pos of cars in m.
+egos_v = [0, 0, 0, 0, 0, 0]        # Long vel of cars in m/s.
 egos_headings = [0, 0, 0, 0, 0, 0] # Angle rel. to long axis in rad.
 
 def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
@@ -66,6 +67,7 @@ for global_counter in range(1000):
             
         egos_x[i] = el[0][1]
         egos_y[i] = el[0][2]
+        egos_v[i] = el[0][3]
         egos_headings[i] = el[0][5]
         i = i + 1
         for val in el[0]: # Generate input for model checker.
@@ -120,7 +122,7 @@ for global_counter in range(1000):
     
     action_list = []
     
-    eps = 0.1
+    eps = 0.3
     for i, el in enumerate(sum_vel_by_car):
         if abs(dpoints_y[i] - egos_y[i]) < eps:
             if sum_lan_by_car[i] < 0:
@@ -131,7 +133,7 @@ for global_counter in range(1000):
         dpoints_y[i] = max(min(dpoints_y[i], 12), 0)
         
         accel = sum_vel_by_car[i] / 5
-        angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 50) / 2
+        angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 50 - egos_v[i]) / 3.1415
         action_list.append([accel, angle])
     
     #print(action_list_vel)
