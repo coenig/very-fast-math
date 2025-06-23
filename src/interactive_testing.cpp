@@ -1522,6 +1522,31 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 
 // --- EO remaining comments from main.cpp ---
 
+void generatePreviewsForMorty(const MCTrace& trace)
+{
+   if (!trace.empty()) {
+      static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF = static_cast<mc::trajectory_generator::LiveSimGenerator::LiveSimType>(
+         mc::trajectory_generator::LiveSimGenerator::LiveSimType::birdseye
+         | mc::trajectory_generator::LiveSimGenerator::LiveSimType::incremental_image_output
+         );
+
+      mc::trajectory_generator::VisualizationScales gen_config_non_smooth{};
+      gen_config_non_smooth.x_scaling = 1;
+      gen_config_non_smooth.duration_scale = 1;
+      gen_config_non_smooth.frames_per_second_gif = 0;
+      gen_config_non_smooth.frames_per_second_osc = 0;
+      gen_config_non_smooth.gif_duration_scale = 1;
+
+      mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
+         trace,
+         ".",
+         "preview2",
+         SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
+         {},
+         gen_config_non_smooth, "preview 2");
+   }
+}
+
 extern "C"
 char* morty(const char* input, char* result, size_t resultMaxLength)
 {
@@ -1577,33 +1602,22 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    }
 
    main_file += "INIT env.ego.abs_pos = " + std::to_string(null_pos) + ";\n";
+   auto main_file_dummy = StaticHelper::removeMultiLineComments(main_file, "--SPEC-STUFF", "--EO-SPEC-STUFF");
+   main_file_dummy += "INVARSPEC env.cnt < 0;";
+
+   StaticHelper::writeTextToFile(main_file_dummy, "./morty/main.smv");
+   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
+   auto traces_dummy{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt") };
+   MCTrace trace_dummy = traces_dummy.empty() ? MCTrace{} : traces_dummy.at(0);
+
+   generatePreviewsForMorty(trace_dummy); // First preview in case there is no CEX for the actual run.
 
    StaticHelper::writeTextToFile(main_file, "./morty/main.smv");
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
    auto traces{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt") };
    MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
 
-   if (!trace.empty()) {
-      static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF = static_cast<mc::trajectory_generator::LiveSimGenerator::LiveSimType>(
-         mc::trajectory_generator::LiveSimGenerator::LiveSimType::birdseye
-         | mc::trajectory_generator::LiveSimGenerator::LiveSimType::incremental_image_output
-         );
-
-      mc::trajectory_generator::VisualizationScales gen_config_non_smooth{};
-      gen_config_non_smooth.x_scaling = 1;
-      gen_config_non_smooth.duration_scale = 1;
-      gen_config_non_smooth.frames_per_second_gif = 0;
-      gen_config_non_smooth.frames_per_second_osc = 0;
-      gen_config_non_smooth.gif_duration_scale = 1;
-
-      mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
-         trace,
-         ".",
-         "preview2",
-         SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
-         {},
-         gen_config_non_smooth, "preview 2");
-   }
+   generatePreviewsForMorty(trace); // Actual preview in case everything went fine.
 
    std::vector<VarValsFloat> deltas{};
    std::set<std::string> variables{};
