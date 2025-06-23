@@ -1583,17 +1583,15 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
 
          std::set<int> lanes{};
 
-         static constexpr float EPS{ 1 };
+         static constexpr float EPS{ 1.3 }; // Corridor around middle of lane that is considered exactly on the lane (outside is between lanes). EPS = 1 treats "on lane" and "between lanes" symmetrically, EPS = 2 would be all "on lane".
 
-         if (y < 4 - EPS) lanes.insert(3);
-         if (y > 0 + EPS && y < 8 - EPS) lanes.insert(2);
-         if (y > 4 + EPS && y < 12 - EPS) lanes.insert(1);
-         if (y > 8 + EPS) lanes.insert(0);
-
-         //if (y < 4) lanes.insert(3);
-         //if (y > 0 && y < 8) lanes.insert(2);
-         //if (y > 4 && y < 12) lanes.insert(1);
-         //if (y > 8) lanes.insert(0);
+         if (                      y < 0 + EPS) lanes.insert(3);
+         else if (y >=  0 + EPS && y < 4 - EPS) { lanes.insert(3); lanes.insert(2); }
+         else if (y >=  4 - EPS && y < 4 + EPS) lanes.insert(2);
+         else if (y >=  4 + EPS && y < 8 - EPS) { lanes.insert(2); lanes.insert(1); }
+         else if (y >=  8 - EPS && y < 8 + EPS) lanes.insert(1);
+         else if (y >=  8 + EPS && y < 12 - EPS) { lanes.insert(1); lanes.insert(0); }
+         else if (y >= 12 - EPS              ) lanes.insert(0);
 
          for (int lane = 0; lane <= 3; lane++) {
             main_file += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
