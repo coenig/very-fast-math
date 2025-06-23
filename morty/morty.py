@@ -4,6 +4,7 @@ from matplotlib import pyplot as plt
 from ctypes import *
 import math
 from pathlib import Path
+import shutil
 
 env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "action": {
@@ -32,13 +33,13 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "vehicles_count": 0,
     "screen_width": 1500,
     "screen_height": 500,
-    "scaling": 3.5,
+    "scaling": 5,
     "show_trajectories": True,
 })
 
-env.reset(seed=42)
-# GOOD: 24, 30, 32, 39, 40, 42, 43
-# BAD : 25-29, 31, 33-38, 41, 44, 45
+env.reset(seed=43)
+# GOOD: 41, 42, 43
+# BAD : 
 
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
@@ -46,7 +47,9 @@ morty_lib.morty.restype = c_char_p
     
 
 action = ([0, 0], [0, 0], [0, 0], [0, 0], [0, 0])
-dpoints_y = [0, 0, 0, 0, 0, 0]     # The lateral position of the points the cars head towards
+dpoints_y = [0, 0, 0, 0, 0, 0]     # The lateral position of the points the cars head towards.
+dpoints_delta = [0, 0, 0, 0, 0, 0] # The direction we're currently moving towards, laterally.
+lc_time = [0, 0, 0, 0, 0, 0]       # Time the current lc is taking, abort if too long. Needed to better approximate MC behavior.
 egos_x = [0, 0, 0, 0, 0, 0]        # Long pos of cars in m.
 egos_y = [0, 0, 0, 0, 0, 0]        # Lat pos of cars in m.
 egos_v = [0, 0, 0, 0, 0, 0]        # Long vel of cars in m/s.
@@ -57,9 +60,6 @@ def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
 
 first = True
 for global_counter in range(1000):
-    for p in Path("./preview2").glob("preview2*.png"):
-        p.unlink()
-    
     env.render()
     obs, reward, done, truncated, info = env.step(action)
     
@@ -85,6 +85,10 @@ for global_counter in range(1000):
     first = False
     
     #### MODEL CHECKER CALL ####
+    src = Path("./morty/waiting.png")
+    for dst in Path("./preview2").glob("preview2*.png"):
+        shutil.copyfile(src, dst) # Overwrite existing previews to illustrate which ones are newly created.
+    
     result = create_string_buffer(10000)
     res = morty_lib.morty(input.encode('utf-8'), result, sizeof(result))
     res_str = res.decode()    
@@ -126,13 +130,26 @@ for global_counter in range(1000):
     
     action_list = []
     
-    eps = 0.4
+    MAXTIME_FOR_LC = 5
+    
+    eps = 0.6
     for i, el in enumerate(sum_vel_by_car):
+        lc_time[i] += 1
+        
         if abs(dpoints_y[i] - egos_y[i]) < eps:
+            lc_time[i] = 0
+            
             if sum_lan_by_car[i] < 0:
-                dpoints_y[i] += 2
+                dpoints_delta[i] = 2
+                dpoints_y[i] += dpoints_delta[i]
             elif sum_lan_by_car[i] > 0:
-                dpoints_y[i] -= 2
+                dpoints_delta[i] = -2
+                dpoints_y[i] += dpoints_delta[i]
+        
+        if lc_time[i] > MAXTIME_FOR_LC and dpoints_delta[i] != 0:
+            dpoints_y[i] -= dpoints_delta[i] # Go back to source lane if taking too long.
+            dpoints_delta[i] = 0 # Don't care about cases with no ongoing LC since delta is zero, then.
+            lc_time[i] = 0
         
         dpoints_y[i] = max(min(dpoints_y[i], 12), 0)
         
