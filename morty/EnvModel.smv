@@ -244,7 +244,7 @@ DEFINE
     ---------------- Begin of non-ego lc parameterization -----------------
 
 
-    min_time_between_lcs := 4;                      -- after finisihing one lc, how much time needs to pass before the next one may be started
+    min_time_between_lcs := 3;                      -- after finisihing one lc, how much time needs to pass before the next one may be started
 ---------------- End of non-ego lc parameterization -----------------
 
 
@@ -617,26 +617,31 @@ INIT ego.on_section = 0;
           = 1;
 
       TRANS veh___609___.time_since_last_lc < min_time_between_lcs -> veh___609___.lane_unchanged;
+      TRANS veh___609___.lane_unchanged | veh___609___.lane_move_down | veh___609___.lane_move_up;
 
 	INVAR veh___619___.is_on_sec_0
           = 1;
 
       TRANS veh___619___.time_since_last_lc < min_time_between_lcs -> veh___619___.lane_unchanged;
+      TRANS veh___619___.lane_unchanged | veh___619___.lane_move_down | veh___619___.lane_move_up;
 
 	INVAR veh___629___.is_on_sec_0
           = 1;
 
       TRANS veh___629___.time_since_last_lc < min_time_between_lcs -> veh___629___.lane_unchanged;
+      TRANS veh___629___.lane_unchanged | veh___629___.lane_move_down | veh___629___.lane_move_up;
 
 	INVAR veh___639___.is_on_sec_0
           = 1;
 
       TRANS veh___639___.time_since_last_lc < min_time_between_lcs -> veh___639___.lane_unchanged;
+      TRANS veh___639___.lane_unchanged | veh___639___.lane_move_down | veh___639___.lane_move_up;
 
 	INVAR veh___649___.is_on_sec_0
           = 1;
 
       TRANS veh___649___.time_since_last_lc < min_time_between_lcs -> veh___649___.lane_unchanged;
+      TRANS veh___649___.lane_unchanged | veh___649___.lane_move_down | veh___649___.lane_move_up;
 
 	
 
