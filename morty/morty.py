@@ -3,6 +3,7 @@ import highway_env
 from matplotlib import pyplot as plt
 from ctypes import *
 import math
+from pathlib import Path
 
 env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "action": {
@@ -56,6 +57,9 @@ def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
 
 first = True
 for global_counter in range(1000):
+    for p in Path("./preview2").glob("preview2*.png"):
+        p.unlink()
+    
     env.render()
     obs, reward, done, truncated, info = env.step(action)
     
@@ -122,7 +126,7 @@ for global_counter in range(1000):
     
     action_list = []
     
-    eps = 0.3
+    eps = 0.4
     for i, el in enumerate(sum_vel_by_car):
         if abs(dpoints_y[i] - egos_y[i]) < eps:
             if sum_lan_by_car[i] < 0:
@@ -133,7 +137,7 @@ for global_counter in range(1000):
         dpoints_y[i] = max(min(dpoints_y[i], 12), 0)
         
         accel = sum_vel_by_car[i] / 5
-        angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 50 - egos_v[i]) / 3.1415
+        angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 50 - egos_v[i]) / 6.1415
         action_list.append([accel, angle])
     
     #print(action_list_vel)

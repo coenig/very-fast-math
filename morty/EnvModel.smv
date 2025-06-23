@@ -619,6 +619,13 @@ INIT ego.on_section = 0;
       TRANS veh___609___.time_since_last_lc < min_time_between_lcs -> veh___609___.lane_unchanged;
       TRANS veh___609___.lane_unchanged | veh___609___.lane_move_down | veh___609___.lane_move_up;
 
+      TRANS 
+        (veh___609___.lane_unchanged | veh___619___.lane_unchanged)
+      & (veh___619___.lane_unchanged | veh___629___.lane_unchanged)
+      & (veh___629___.lane_unchanged | veh___639___.lane_unchanged)
+      & (veh___639___.lane_unchanged | veh___649___.lane_unchanged)
+      ;
+
 	INVAR veh___619___.is_on_sec_0
           = 1;
 
@@ -1635,7 +1642,7 @@ ASSIGN
 
 
    next(veh___609___.time_since_last_lc) := case
-      veh___609___.lane_unchanged : veh___609___.time_since_last_lc + 1;
+      veh___609___.time_since_last_lc < min_time_between_lcs : veh___609___.time_since_last_lc + 1;
       TRUE : 0;
    esac;
 
@@ -1703,7 +1710,7 @@ ASSIGN
 
 
    next(veh___619___.time_since_last_lc) := case
-      veh___619___.lane_unchanged : veh___619___.time_since_last_lc + 1;
+      veh___619___.time_since_last_lc < min_time_between_lcs : veh___619___.time_since_last_lc + 1;
       TRUE : 0;
    esac;
 
@@ -1771,7 +1778,7 @@ ASSIGN
 
 
    next(veh___629___.time_since_last_lc) := case
-      veh___629___.lane_unchanged : veh___629___.time_since_last_lc + 1;
+      veh___629___.time_since_last_lc < min_time_between_lcs : veh___629___.time_since_last_lc + 1;
       TRUE : 0;
    esac;
 
@@ -1839,7 +1846,7 @@ ASSIGN
 
 
    next(veh___639___.time_since_last_lc) := case
-      veh___639___.lane_unchanged : veh___639___.time_since_last_lc + 1;
+      veh___639___.time_since_last_lc < min_time_between_lcs : veh___639___.time_since_last_lc + 1;
       TRUE : 0;
    esac;
 
@@ -1907,7 +1914,7 @@ ASSIGN
 
 
    next(veh___649___.time_since_last_lc) := case
-      veh___649___.lane_unchanged : veh___649___.time_since_last_lc + 1;
+      veh___649___.time_since_last_lc < min_time_between_lcs : veh___649___.time_since_last_lc + 1;
       TRUE : 0;
    esac;
 
