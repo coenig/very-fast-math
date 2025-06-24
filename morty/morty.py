@@ -49,11 +49,12 @@ good_ones = []
 def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
     return heading - math.atan((dpoint_y - ego_y) / ddist)
 
+open('./morty/results.txt', 'w').close()
 for seedo in range(1, 100):
-    with open("demofile.txt", "a") as f:
-        f.write(' '.join(str(x) for x in good_ones) + '\n')
+    with open("./morty/results.txt", "a") as f:
+        f.write("(" + good_ones.count() + ") " + ' '.join(str(x) for x in good_ones) + '\n')
 
-    env.reset(seed=seedo)
+    env.reset(seed=seedo * 19)
 
     action = ([0, 0], [0, 0], [0, 0], [0, 0], [0, 0])
     dpoints_y = [0, 0, 0, 0, 0, 0]     # The lateral position of the points the cars head towards.
@@ -63,6 +64,7 @@ for seedo in range(1, 100):
     egos_y = [0, 0, 0, 0, 0, 0]        # Lat pos of cars in m.
     egos_v = [0, 0, 0, 0, 0, 0]        # Long vel of cars in m/s.
     egos_headings = [0, 0, 0, 0, 0, 0] # Angle rel. to long axis in rad.
+    cex_count = 0
 
     first = True
     for global_counter in range(100):
@@ -84,7 +86,7 @@ for seedo in range(1, 100):
                 input += str(val) + ","
             input += ";"
         
-        input += "$$$1.31$$$false"
+        input += "$$$1.29$$$false$$$0.3"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE")
@@ -100,6 +102,8 @@ for seedo in range(1, 100):
         
         if res_str == "|;|;|;|;|;":
             print("No CEX found")
+            if cex_count > 5: # Allow up to five times being blind per run.
+                break
         
         #print(f"result: {res_str}")
         #### EO MODEL CHECKER CALL ####
@@ -139,9 +143,9 @@ for seedo in range(1, 100):
         
         action_list = []
         
-        MAXTIME_FOR_LC = 4
+        MAXTIME_FOR_LC = 5
         
-        eps = 2
+        eps = 1
         for i, el in enumerate(sum_vel_by_car):
             lc_time[i] += 1
             

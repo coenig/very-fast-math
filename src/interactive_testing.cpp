@@ -1561,6 +1561,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    const std::string input_str{ vec[0] };
    const float EPS{ std::stof(vec[1]) };  // Corridor around middle of lane that is considered exactly on the lane (outside is between lanes). EPS = 1 treats "on lane" and "between lanes" symmetrically, EPS = 2 would be all "on lane".
    const bool debug{ StaticHelper::isBooleanTrue(vec[2]) };
+   const float HEAD_CONST{ std::stof(vec[3]) };  // Corridor around middle of lane that is considered exactly on the lane (outside is between lanes). EPS = 1 treats "on lane" and "between lanes" symmetrically, EPS = 2 would be all "on lane".
 
    auto cars = StaticHelper::split(input_str, ";");
    auto main_file = StaticHelper::readFile("./morty/main.tpl") + "\n";
@@ -1594,7 +1595,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          if (i == 0) null_pos = (int) (x);
 
          std::set<int> lanes{};
-         float heading_factor{ -heading * vx / 3 };
+         float heading_factor{ -heading * vx * HEAD_CONST };
 
          if (                                y < 0 +  EPS + heading_factor) lanes.insert(3);
          else if (y >=  0 + EPS + heading_factor && y < 4 -  EPS + heading_factor) { lanes.insert(3); lanes.insert(2); }
