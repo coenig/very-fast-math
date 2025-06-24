@@ -90,7 +90,7 @@ for seedo in range(1, 100):
                 input += str(val) + ","
             input += ";"
         
-        input += "$$$1.2$$$false$$$5"
+        input += "$$$1.35$$$false$$$0.5"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE")
@@ -119,7 +119,7 @@ for seedo in range(1, 100):
         lanes = ""
         accels = ""
 
-        LANE_CHANGE_DURATION = 4
+        LANE_CHANGE_DURATION = 3
 
         for i1, el1 in enumerate(res_str.split(';')):
             sum_lan_by_car.append(0)
@@ -150,7 +150,7 @@ for seedo in range(1, 100):
         
         MAXTIME_FOR_LC = 5
         
-        eps = 1.1
+        eps = 1
         for i, el in enumerate(sum_vel_by_car):
             lc_time[i] += 1
             

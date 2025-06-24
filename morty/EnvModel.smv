@@ -244,7 +244,7 @@ DEFINE
     ---------------- Begin of non-ego lc parameterization -----------------
 
 
-    min_time_between_lcs := 4;                      -- after finisihing one lc, how much time needs to pass before the next one may be started
+    min_time_between_lcs := 3;                      -- after finisihing one lc, how much time needs to pass before the next one may be started
 ---------------- End of non-ego lc parameterization -----------------
 
 
