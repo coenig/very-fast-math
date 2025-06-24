@@ -1525,6 +1525,12 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 void generatePreviewsForMorty(const MCTrace& trace)
 {
    if (!trace.empty()) {
+      auto src = std::filesystem::path("./morty/waiting.png");
+      auto dest_path = "./preview2";
+      for (const auto& entry : std::filesystem::directory_iterator(dest_path))
+         if (StaticHelper::stringContains(entry.path().string(), ".png"))
+            std::filesystem::copy_file(src, entry.path(), std::filesystem::copy_options::overwrite_existing);
+
       static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF = static_cast<mc::trajectory_generator::LiveSimGenerator::LiveSimType>(
          mc::trajectory_generator::LiveSimGenerator::LiveSimType::birdseye
          | mc::trajectory_generator::LiveSimGenerator::LiveSimType::incremental_image_output
@@ -1550,7 +1556,11 @@ void generatePreviewsForMorty(const MCTrace& trace)
 extern "C"
 char* morty(const char* input, char* result, size_t resultMaxLength)
 {
-   std::string input_str(input);
+   const std::string input_str_full{ input };
+   const auto vec = StaticHelper::split(input_str_full, "$$$");
+   const std::string input_str{ vec[0] };
+   const float EPS{ std::stof(vec[1]) };  // Corridor around middle of lane that is considered exactly on the lane (outside is between lanes). EPS = 1 treats "on lane" and "between lanes" symmetrically, EPS = 2 would be all "on lane".
+
    auto cars = StaticHelper::split(input_str, ";");
    auto main_file = StaticHelper::readFile("./morty/main.tpl") + "\n";
    int null_pos{};
@@ -1572,6 +1582,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          float y{ std::stof(data[2]) };
          float vx{ std::stof(data[3]) };
          float vy{ std::stof(data[4]) };
+         float heading{ std::stof(data[5]) };
 
          x = std::max(std::min(x, std::numeric_limits<float>::max()), std::numeric_limits<float>::min());
          vx = std::max(std::min(vx, 70.0f), 0.0f);
@@ -1582,16 +1593,15 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          if (i == 0) null_pos = (int) (x);
 
          std::set<int> lanes{};
+         float heading_factor{ -heading * vx / 3 };
 
-         static constexpr float EPS{ 1.3 }; // Corridor around middle of lane that is considered exactly on the lane (outside is between lanes). EPS = 1 treats "on lane" and "between lanes" symmetrically, EPS = 2 would be all "on lane".
-
-         if (                      y < 0 + EPS) lanes.insert(3);
-         else if (y >=  0 + EPS && y < 4 - EPS) { lanes.insert(3); lanes.insert(2); }
-         else if (y >=  4 - EPS && y < 4 + EPS) lanes.insert(2);
-         else if (y >=  4 + EPS && y < 8 - EPS) { lanes.insert(2); lanes.insert(1); }
-         else if (y >=  8 - EPS && y < 8 + EPS) lanes.insert(1);
-         else if (y >=  8 + EPS && y < 12 - EPS) { lanes.insert(1); lanes.insert(0); }
-         else if (y >= 12 - EPS              ) lanes.insert(0);
+         if (                                y < 0 +  EPS + heading_factor) lanes.insert(3);
+         else if (y >=  0 + EPS + heading_factor && y < 4 -  EPS + heading_factor) { lanes.insert(3); lanes.insert(2); }
+         else if (y >=  4 - EPS + heading_factor && y < 4 +  EPS + heading_factor) lanes.insert(2);
+         else if (y >=  4 + EPS + heading_factor && y < 8 -  EPS + heading_factor) { lanes.insert(2); lanes.insert(1); }
+         else if (y >=  8 - EPS + heading_factor && y < 8 +  EPS + heading_factor) lanes.insert(1);
+         else if (y >=  8 + EPS + heading_factor && y < 12 - EPS + heading_factor) { lanes.insert(1); lanes.insert(0); }
+         else if (y >= 12 - EPS + heading_factor) lanes.insert(0);
 
          for (int lane = 0; lane <= 3; lane++) {
             main_file += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";

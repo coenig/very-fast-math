@@ -251,7 +251,7 @@ DEFINE
     a_min := -5;
     a_max := 5;
     min_dist_long := -1;                            -- the minimum distance kept by other vehicle to preceding ego, we use -1 meaning one meter behind
-    veh_length := 5;                                -- we assume a vehicle length of 5m for distance calculation to the front
+    veh_length := 6;                                -- we assume a vehicle length of 5m for distance calculation to the front
     max_vel := 70;
 
     ego.max_vel := 34; -- Leave this even in ego-less mode.
@@ -629,25 +629,25 @@ INIT ego.on_section = 0;
 	INVAR veh___619___.is_on_sec_0
           = 1;
 
-      TRANS veh___619___.time_since_last_lc < min_time_between_lcs | veh___609___.v < 10 -> veh___619___.lane_unchanged;
+      TRANS veh___619___.time_since_last_lc < min_time_between_lcs | veh___619___.v < 10 -> veh___619___.lane_unchanged;
       TRANS veh___619___.lane_unchanged | veh___619___.lane_move_down | veh___619___.lane_move_up;
 
 	INVAR veh___629___.is_on_sec_0
           = 1;
 
-      TRANS veh___629___.time_since_last_lc < min_time_between_lcs | veh___609___.v < 10 -> veh___629___.lane_unchanged;
+      TRANS veh___629___.time_since_last_lc < min_time_between_lcs | veh___629___.v < 10 -> veh___629___.lane_unchanged;
       TRANS veh___629___.lane_unchanged | veh___629___.lane_move_down | veh___629___.lane_move_up;
 
 	INVAR veh___639___.is_on_sec_0
           = 1;
 
-      TRANS veh___639___.time_since_last_lc < min_time_between_lcs | veh___609___.v < 10 -> veh___639___.lane_unchanged;
+      TRANS veh___639___.time_since_last_lc < min_time_between_lcs | veh___639___.v < 10 -> veh___639___.lane_unchanged;
       TRANS veh___639___.lane_unchanged | veh___639___.lane_move_down | veh___639___.lane_move_up;
 
 	INVAR veh___649___.is_on_sec_0
           = 1;
 
-      TRANS veh___649___.time_since_last_lc < min_time_between_lcs | veh___609___.v < 10 -> veh___649___.lane_unchanged;
+      TRANS veh___649___.time_since_last_lc < min_time_between_lcs | veh___649___.v < 10 -> veh___649___.lane_unchanged;
       TRANS veh___649___.lane_unchanged | veh___649___.lane_move_down | veh___649___.lane_move_up;
 
 	
@@ -1580,6 +1580,42 @@ square_of_veh_v_4 := case
    
    TRUE: 4900;
 esac;
+
+-- DEFINE veh___609___.same_lane_as_veh_1 := veh___619___.same_lane_as_veh_0;
+-- DEFINE veh___609___.same_lane_as_veh_2 := veh___629___.same_lane_as_veh_0;
+-- DEFINE veh___609___.same_lane_as_veh_3 := veh___639___.same_lane_as_veh_0;
+-- DEFINE veh___609___.same_lane_as_veh_4 := veh___649___.same_lane_as_veh_0;
+-- DEFINE veh___619___.same_lane_as_veh_2 := veh___629___.same_lane_as_veh_1;
+-- DEFINE veh___619___.same_lane_as_veh_3 := veh___639___.same_lane_as_veh_1;
+-- DEFINE veh___619___.same_lane_as_veh_4 := veh___649___.same_lane_as_veh_1;
+-- DEFINE veh___629___.same_lane_as_veh_3 := veh___639___.same_lane_as_veh_2;
+-- DEFINE veh___629___.same_lane_as_veh_4 := veh___649___.same_lane_as_veh_2;
+-- DEFINE veh___639___.same_lane_as_veh_4 := veh___649___.same_lane_as_veh_3;
+
+-- INVAR (veh___609___.same_lane_as_veh_1 & veh___609___.abs_pos < veh___619___.abs_pos & veh___619___.abs_pos - veh___609___.abs_pos < 10) -> (veh___609___.v < veh___619___.v + 5);
+-- INVAR (veh___609___.same_lane_as_veh_2 & veh___609___.abs_pos < veh___629___.abs_pos & veh___629___.abs_pos - veh___609___.abs_pos < 10) -> (veh___609___.v < veh___629___.v + 5);
+-- INVAR (veh___609___.same_lane_as_veh_3 & veh___609___.abs_pos < veh___639___.abs_pos & veh___639___.abs_pos - veh___609___.abs_pos < 10) -> (veh___609___.v < veh___639___.v + 5);
+-- INVAR (veh___609___.same_lane_as_veh_4 & veh___609___.abs_pos < veh___649___.abs_pos & veh___649___.abs_pos - veh___609___.abs_pos < 10) -> (veh___609___.v < veh___649___.v + 5);
+
+-- INVAR (veh___619___.same_lane_as_veh_0 & veh___619___.abs_pos < veh___609___.abs_pos & veh___609___.abs_pos - veh___619___.abs_pos < 10) -> (veh___619___.v < veh___609___.v + 5);
+-- INVAR (veh___619___.same_lane_as_veh_2 & veh___619___.abs_pos < veh___629___.abs_pos & veh___629___.abs_pos - veh___619___.abs_pos < 10) -> (veh___619___.v < veh___629___.v + 5);
+-- INVAR (veh___619___.same_lane_as_veh_3 & veh___619___.abs_pos < veh___639___.abs_pos & veh___639___.abs_pos - veh___619___.abs_pos < 10) -> (veh___619___.v < veh___639___.v + 5);
+-- INVAR (veh___619___.same_lane_as_veh_4 & veh___619___.abs_pos < veh___649___.abs_pos & veh___649___.abs_pos - veh___619___.abs_pos < 10) -> (veh___619___.v < veh___649___.v + 5);
+
+-- INVAR (veh___629___.same_lane_as_veh_0 & veh___629___.abs_pos < veh___609___.abs_pos & veh___609___.abs_pos - veh___629___.abs_pos < 10) -> (veh___629___.v < veh___609___.v + 5);
+-- INVAR (veh___629___.same_lane_as_veh_1 & veh___629___.abs_pos < veh___619___.abs_pos & veh___619___.abs_pos - veh___629___.abs_pos < 10) -> (veh___629___.v < veh___619___.v + 5);
+-- INVAR (veh___629___.same_lane_as_veh_3 & veh___629___.abs_pos < veh___639___.abs_pos & veh___639___.abs_pos - veh___629___.abs_pos < 10) -> (veh___629___.v < veh___639___.v + 5);
+-- INVAR (veh___629___.same_lane_as_veh_4 & veh___629___.abs_pos < veh___649___.abs_pos & veh___649___.abs_pos - veh___629___.abs_pos < 10) -> (veh___629___.v < veh___649___.v + 5);
+
+-- INVAR (veh___639___.same_lane_as_veh_0 & veh___639___.abs_pos < veh___609___.abs_pos & veh___609___.abs_pos - veh___639___.abs_pos < 10) -> (veh___639___.v < veh___609___.v + 5);
+-- INVAR (veh___639___.same_lane_as_veh_1 & veh___639___.abs_pos < veh___619___.abs_pos & veh___619___.abs_pos - veh___639___.abs_pos < 10) -> (veh___639___.v < veh___619___.v + 5);
+-- INVAR (veh___639___.same_lane_as_veh_2 & veh___639___.abs_pos < veh___629___.abs_pos & veh___629___.abs_pos - veh___639___.abs_pos < 10) -> (veh___639___.v < veh___629___.v + 5);
+-- INVAR (veh___639___.same_lane_as_veh_4 & veh___639___.abs_pos < veh___649___.abs_pos & veh___649___.abs_pos - veh___639___.abs_pos < 10) -> (veh___639___.v < veh___649___.v + 5);
+
+-- INVAR (veh___649___.same_lane_as_veh_0 & veh___649___.abs_pos < veh___609___.abs_pos & veh___609___.abs_pos - veh___649___.abs_pos < 10) -> (veh___649___.v < veh___609___.v + 5);
+-- INVAR (veh___649___.same_lane_as_veh_1 & veh___649___.abs_pos < veh___619___.abs_pos & veh___619___.abs_pos - veh___649___.abs_pos < 10) -> (veh___649___.v < veh___619___.v + 5);
+-- INVAR (veh___649___.same_lane_as_veh_2 & veh___649___.abs_pos < veh___629___.abs_pos & veh___629___.abs_pos - veh___649___.abs_pos < 10) -> (veh___649___.v < veh___629___.v + 5);
+-- INVAR (veh___649___.same_lane_as_veh_3 & veh___649___.abs_pos < veh___639___.abs_pos & veh___639___.abs_pos - veh___649___.abs_pos < 10) -> (veh___649___.v < veh___639___.v + 5);
 
 DEFINE veh_4_and_veh_0_on_same_seclet := 
 veh___649___.on_straight_section = veh___609___.on_straight_section & veh___649___.traversion_from = veh___609___.traversion_from & veh___649___.traversion_to = veh___609___.traversion_to;

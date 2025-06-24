@@ -37,9 +37,9 @@ env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "show_trajectories": True,
 })
 
-env.reset(seed=43)
-# GOOD: 41, 42, 43
-# BAD : 
+env.reset(seed=34)
+# GOOD: 36, 38, 39, 41, 42
+# BAD : 37, 40
 
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
@@ -78,6 +78,8 @@ for global_counter in range(1000):
             input += str(val) + ","
         input += ";"
     
+    input += "$$$1.3"
+    
     if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
         print("DONE")
         exit()
@@ -85,13 +87,13 @@ for global_counter in range(1000):
     first = False
     
     #### MODEL CHECKER CALL ####
-    src = Path("./morty/waiting.png")
-    for dst in Path("./preview2").glob("preview2*.png"):
-        shutil.copyfile(src, dst) # Overwrite existing previews to illustrate which ones are newly created.
-    
     result = create_string_buffer(10000)
     res = morty_lib.morty(input.encode('utf-8'), result, sizeof(result))
-    res_str = res.decode()    
+    res_str = res.decode()
+    
+    if res_str == "|;|;|;|;|;":
+        print("No CEX found")
+    
     #print(f"result: {res_str}")
     #### EO MODEL CHECKER CALL ####
 
@@ -132,7 +134,7 @@ for global_counter in range(1000):
     
     MAXTIME_FOR_LC = 5
     
-    eps = 0.6
+    eps = 2
     for i, el in enumerate(sum_vel_by_car):
         lc_time[i] += 1
         
@@ -154,7 +156,7 @@ for global_counter in range(1000):
         dpoints_y[i] = max(min(dpoints_y[i], 12), 0)
         
         accel = sum_vel_by_car[i] / 5
-        angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 50 - egos_v[i]) / 6.1415
+        angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + egos_v[i]) / 3.1415
         action_list.append([accel, angle])
     
     #print(action_list_vel)
