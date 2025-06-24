@@ -1560,6 +1560,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    const auto vec = StaticHelper::split(input_str_full, "$$$");
    const std::string input_str{ vec[0] };
    const float EPS{ std::stof(vec[1]) };  // Corridor around middle of lane that is considered exactly on the lane (outside is between lanes). EPS = 1 treats "on lane" and "between lanes" symmetrically, EPS = 2 would be all "on lane".
+   const bool debug{ StaticHelper::isBooleanTrue(vec[2]) };
 
    auto cars = StaticHelper::split(input_str, ";");
    auto main_file = StaticHelper::readFile("./morty/main.tpl") + "\n";
@@ -1613,19 +1614,23 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    auto main_file_dummy = StaticHelper::removeMultiLineComments(main_file, "--SPEC-STUFF", "--EO-SPEC-STUFF");
    main_file_dummy += "INVARSPEC env.cnt < 0;";
 
-   StaticHelper::writeTextToFile(main_file_dummy, "./morty/main.smv");
-   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
-   auto traces_dummy{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt") };
-   MCTrace trace_dummy = traces_dummy.empty() ? MCTrace{} : traces_dummy.at(0);
+   if (debug) {
+      StaticHelper::writeTextToFile(main_file_dummy, "./morty/main.smv");
+      test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
+      auto traces_dummy{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt") };
+      MCTrace trace_dummy = traces_dummy.empty() ? MCTrace{} : traces_dummy.at(0);
 
-   generatePreviewsForMorty(trace_dummy); // First preview in case there is no CEX for the actual run.
+      generatePreviewsForMorty(trace_dummy); // First preview in case there is no CEX for the actual run.
+   }
 
    StaticHelper::writeTextToFile(main_file, "./morty/main.smv");
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
    auto traces{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt") };
    MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
 
-   generatePreviewsForMorty(trace); // Actual preview in case everything went fine.
+   if (debug) {
+      generatePreviewsForMorty(trace); // Actual preview in case everything went fine.
+   }
 
    std::vector<VarValsFloat> deltas{};
    std::set<std::string> variables{};
