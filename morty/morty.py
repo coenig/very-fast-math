@@ -50,6 +50,9 @@ def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
     return heading - math.atan((dpoint_y - ego_y) / ddist)
 
 for seedo in range(1, 100):
+    with open("demofile.txt", "a") as f:
+        f.write(' '.join(str(x) for x in good_ones) + '\n')
+
     env.reset(seed=seedo)
 
     action = ([0, 0], [0, 0], [0, 0], [0, 0], [0, 0])
@@ -81,13 +84,11 @@ for seedo in range(1, 100):
                 input += str(val) + ","
             input += ";"
         
-        input += "$$$1.3$$$false"
+        input += "$$$1.31$$$false"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE")
             good_ones.append(seedo)
-            with open("demofile.txt", "a") as f:
-                f.write(' '.join(str(x) for x in good_ones) + '\n')
             break
         
         first = False
@@ -138,7 +139,7 @@ for seedo in range(1, 100):
         
         action_list = []
         
-        MAXTIME_FOR_LC = 5
+        MAXTIME_FOR_LC = 4
         
         eps = 2
         for i, el in enumerate(sum_vel_by_car):
