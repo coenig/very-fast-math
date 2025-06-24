@@ -87,7 +87,7 @@ for seedo in range(1, 100):
                 input += str(val) + ","
             input += ";"
         
-        input += "$$$1.35$$$false$$$0.5"
+        input += "$$$1.3$$$false$$$1"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE")
@@ -103,7 +103,7 @@ for seedo in range(1, 100):
         
         if res_str == "|;|;|;|;|;":
             print("No CEX found")
-            if nocex_count > 5: # Allow up to five times being blind per run.
+            if nocex_count > 10: # Allow up to this many times being blind per run.
                 break
             nocex_count += 1
         
@@ -116,7 +116,7 @@ for seedo in range(1, 100):
         lanes = ""
         accels = ""
 
-        LANE_CHANGE_DURATION = 3
+        LANE_CHANGE_DURATION = 4
 
         for i1, el1 in enumerate(res_str.split(';')):
             sum_lan_by_car.append(0)
@@ -169,7 +169,7 @@ for seedo in range(1, 100):
             dpoints_y[i] = max(min(dpoints_y[i], 12), 0)
             
             accel = sum_vel_by_car[i] / 5
-            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + egos_v[i]) / 3.1415
+            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i]) / 3.1415
             action_list.append([accel, angle])
         
         #print(action_list_vel)

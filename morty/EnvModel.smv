@@ -244,14 +244,14 @@ DEFINE
     ---------------- Begin of non-ego lc parameterization -----------------
 
 
-    min_time_between_lcs := 3;                      -- after finisihing one lc, how much time needs to pass before the next one may be started
+    min_time_between_lcs := 4;                      -- after finisihing one lc, how much time needs to pass before the next one may be started
 ---------------- End of non-ego lc parameterization -----------------
 
 
     a_min := -5;
     a_max := 5;
     min_dist_long := -1;                            -- the minimum distance kept by other vehicle to preceding ego, we use -1 meaning one meter behind
-    veh_length := 6;                                -- we assume a vehicle length of 5m for distance calculation to the front
+    veh_length := 5;                                -- we assume a vehicle length of 5m for distance calculation to the front
     max_vel := 70;
 
     ego.max_vel := 34; -- Leave this even in ego-less mode.
