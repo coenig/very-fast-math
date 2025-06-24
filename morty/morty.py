@@ -6,14 +6,16 @@ import math
 from pathlib import Path
 import shutil
 
+ACCEL_RANGE = 5
+
 env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
     "action": {
         "type": "MultiAgentAction",
         "action_config": {
             "type": "ContinuousAction",
-            "acceleration_range": [-5, 5],
+            "acceleration_range": [-ACCEL_RANGE, ACCEL_RANGE],
             "steering_range": [-1, 1],
-            "speed_range": [0, 30],
+            "speed_range": [0, 70],
             "longitudinal": True,
             "lateral": True,
         },
@@ -52,8 +54,9 @@ def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
 
 open('./morty/results.txt', 'w').close()
 for seedo in range(1, 100):
-    with open("./morty/results.txt", "a") as f:
-        f.write("(" + str(len(good_ones)) + ") " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
+    if seedo > 1:
+        with open("./morty/results.txt", "a") as f:
+            f.write("(" + str(100 * len(good_ones) / (seedo - 1)) + "%) " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
 
     env.reset(seed=seedo * 19)
 
@@ -87,7 +90,7 @@ for seedo in range(1, 100):
                 input += str(val) + ","
             input += ";"
         
-        input += "$$$1.3$$$false$$$1"
+        input += "$$$1.2$$$false$$$5"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE")
@@ -147,7 +150,7 @@ for seedo in range(1, 100):
         
         MAXTIME_FOR_LC = 5
         
-        eps = 1
+        eps = 1.1
         for i, el in enumerate(sum_vel_by_car):
             lc_time[i] += 1
             
@@ -168,7 +171,7 @@ for seedo in range(1, 100):
             
             dpoints_y[i] = max(min(dpoints_y[i], 12), 0)
             
-            accel = sum_vel_by_car[i] / 5
+            accel = sum_vel_by_car[i] * 5/3 / ACCEL_RANGE
             angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i]) / 3.1415
             action_list.append([accel, angle])
         
