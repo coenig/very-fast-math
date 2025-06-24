@@ -45,6 +45,7 @@ morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
 morty_lib.morty.restype = c_char_p
     
 good_ones = []
+nocex_count = 0
 
 def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
     return heading - math.atan((dpoint_y - ego_y) / ddist)
@@ -52,7 +53,7 @@ def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
 open('./morty/results.txt', 'w').close()
 for seedo in range(1, 100):
     with open("./morty/results.txt", "a") as f:
-        f.write("(" + good_ones.count() + ") " + ' '.join(str(x) for x in good_ones) + '\n')
+        f.write("(" + str(len(good_ones)) + ") " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
 
     env.reset(seed=seedo * 19)
 
@@ -64,7 +65,7 @@ for seedo in range(1, 100):
     egos_y = [0, 0, 0, 0, 0, 0]        # Lat pos of cars in m.
     egos_v = [0, 0, 0, 0, 0, 0]        # Long vel of cars in m/s.
     egos_headings = [0, 0, 0, 0, 0, 0] # Angle rel. to long axis in rad.
-    cex_count = 0
+    nocex_count = 0
 
     first = True
     for global_counter in range(100):
@@ -86,7 +87,7 @@ for seedo in range(1, 100):
                 input += str(val) + ","
             input += ";"
         
-        input += "$$$1.29$$$false$$$0.3"
+        input += "$$$1.35$$$false$$$0.5"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE")
@@ -102,8 +103,9 @@ for seedo in range(1, 100):
         
         if res_str == "|;|;|;|;|;":
             print("No CEX found")
-            if cex_count > 5: # Allow up to five times being blind per run.
+            if nocex_count > 5: # Allow up to five times being blind per run.
                 break
+            nocex_count += 1
         
         #print(f"result: {res_str}")
         #### EO MODEL CHECKER CALL ####
