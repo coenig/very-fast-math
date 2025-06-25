@@ -6,6 +6,8 @@ import math
 from pathlib import Path
 import shutil
 
+# Best so far:
+# ACCEL_RANGE = 5
 ACCEL_RANGE = 5
 
 morty_lib = CDLL('./lib/libvfm.so')
@@ -55,7 +57,7 @@ for seedo in range(1, 100):
         "show_trajectories": True,
     })
 
-    env.reset(seed=seedo * 19)
+    env.reset(seed=seedo * 19) # Use some factor due to (unproven) suspicion that close-by seeds lead to similar starting positions.
 
     action = ([0, 0], [0, 0], [0, 0], [0, 0], [0, 0])
     dpoints_y = [0, 0, 0, 0, 0, 0]     # The lateral position of the points the cars head towards.
@@ -87,10 +89,12 @@ for seedo in range(1, 100):
                 input += str(val) + ","
             input += ";"
         
-        input += "$$$1.3$$$false$$$0.45"
+        # Best so far: 
+        # input += "$$$1.35$$$false$$$0.5"
+        input += "$$$1.35$$$false$$$0.5"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
-            print("DONE")
+            print("DONE") # Completion condition for position reversal SPEC.
             good_ones.append(seedo)
             break
         
@@ -103,7 +107,7 @@ for seedo in range(1, 100):
         
         if res_str == "|;|;|;|;|;":
             print("No CEX found")
-            if nocex_count > 10: # Allow up to this many times being blind per run.
+            if nocex_count > 100: # Allow up to this many times being blind per run.
                 break
             nocex_count += 1
         
@@ -116,7 +120,9 @@ for seedo in range(1, 100):
         lanes = ""
         accels = ""
 
-        LANE_CHANGE_DURATION = 3
+        # Best so far:
+        # LANE_CHANGE_DURATION = 3
+        LANE_CHANGE_DURATION = 3 # Has to match EnvModel.smv ==> min_time_between_lcs
 
         for i1, el1 in enumerate(res_str.split(';')):
             sum_lan_by_car.append(0)
@@ -145,6 +151,8 @@ for seedo in range(1, 100):
         
         action_list = []
         
+        # Best so far:
+        # MAXTIME_FOR_LC = 5
         MAXTIME_FOR_LC = 5
         
         eps = 1
@@ -168,8 +176,11 @@ for seedo in range(1, 100):
             
             dpoints_y[i] = max(min(dpoints_y[i], 12), 0)
             
-            accel = sum_vel_by_car[i] * 5/3 / ACCEL_RANGE
-            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i]) / 3.1415
+            accel = sum_vel_by_car[i] * 5/3 / ACCEL_RANGE # 5/3 is the factor from EnvModel ==> a_min/a_max to ACCEL_RANGE, a discrepancy accounting for highway-env adjusting acceleration smoothly while the MC only does it once/s.
+
+            # Best so far:
+            # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i]) / 3.1415
+            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i]) / 3.1415 # Magic constants, just eat them ;)
             action_list.append([accel, angle])
         
         #print(action_list_vel)
