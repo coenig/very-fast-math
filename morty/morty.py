@@ -90,7 +90,9 @@ for seedo in range(1, 100):
             input += ";"
         
         # Best so far: 
-        # input += "$$$1.35$$$false$$$0.5"
+        # input += "$$$1.35$$$false$$$0.5" (64 successful)
+        # input += "$$$1.35$$$false$$$0.55" (57 successful)
+        # input += "$$$1.3$$$false$$$0.45" (56 successful)
         input += "$$$1.35$$$false$$$0.55"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
