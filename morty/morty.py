@@ -8,40 +8,6 @@ import shutil
 
 ACCEL_RANGE = 5
 
-env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
-    "action": {
-        "type": "MultiAgentAction",
-        "action_config": {
-            "type": "ContinuousAction",
-            "acceleration_range": [-ACCEL_RANGE, ACCEL_RANGE],
-            "steering_range": [-1, 1],
-            "speed_range": [0, 70],
-            "longitudinal": True,
-            "lateral": True,
-        },
-    },
-    "observation": {
-      "type": "MultiAgentObservation",
-      "observation_config": {
-        "features": ["presence", "x", "y", "vx", "vy", "heading"],
-        "type": "Kinematics",
-        #        "absolute": True,
-        "normalize": False,
-      }
-    },
-    "simulation_frequency": 60,  # [Hz]
-    "policy_frequency": 2,  # [Hz]
-    "controlled_vehicles": 5,
-    "vehicles_count": 0,
-    "screen_width": 1500,
-    "screen_height": 500,
-    "scaling": 5,
-    "show_trajectories": True,
-})
-
-# GOOD: 36, 38, 39, 41, 42
-# BAD : 37, 40
-
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
 morty_lib.morty.restype = c_char_p
@@ -57,6 +23,37 @@ for seedo in range(1, 100):
     if seedo > 1:
         with open("./morty/results.txt", "a") as f:
             f.write("(" + str(100 * len(good_ones) / (seedo - 1)) + "%) " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
+
+    env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
+        "action": {
+            "type": "MultiAgentAction",
+            "action_config": {
+                "type": "ContinuousAction",
+                "acceleration_range": [-ACCEL_RANGE, ACCEL_RANGE],
+                "steering_range": [-1, 1],
+                "speed_range": [0, 70],
+                "longitudinal": True,
+                "lateral": True,
+            },
+        },
+        "observation": {
+        "type": "MultiAgentObservation",
+        "observation_config": {
+            "features": ["presence", "x", "y", "vx", "vy", "heading"],
+            "type": "Kinematics",
+            #        "absolute": True,
+            "normalize": False,
+        }
+        },
+        "simulation_frequency": 60,  # [Hz]
+        "policy_frequency": 2,  # [Hz]
+        "controlled_vehicles": 5,
+        "vehicles_count": 0,
+        "screen_width": 1500,
+        "screen_height": 500,
+        "scaling": 5,
+        "show_trajectories": True,
+    })
 
     env.reset(seed=seedo * 19)
 
@@ -90,7 +87,7 @@ for seedo in range(1, 100):
                 input += str(val) + ","
             input += ";"
         
-        input += "$$$1.35$$$false$$$0.5"
+        input += "$$$1.3$$$false$$$0.45"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE")
