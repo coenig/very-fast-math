@@ -93,7 +93,7 @@ for seedo in range(1, 100):
         # --- Above this line, we need to possibly add 1 to the successful runs (I assume), depending on the last exp being successful or not. This is due to the premature file-write of the results.
         # input += "$$$1.35$$$false$$$0.5125" (61 successful)
         # input += "$$$1.35$$$false$$$0.4875" (61 successful)
-        input += "$$$1.35$$$false$$$0.4875"
+        input += "$$$1.35$$$false$$$0.50625"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE") # Completion condition for position reversal SPEC.
@@ -191,6 +191,6 @@ for seedo in range(1, 100):
         action = tuple(action_list)
 
     with open("./morty/results.txt", "a") as f:
-        f.write("(" + str(len(good_ones)) + "%) " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
+        f.write("(" + str(len(good_ones)) + ") " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
 
 print(good_ones)
