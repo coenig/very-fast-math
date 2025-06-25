@@ -91,7 +91,7 @@ for seedo in range(1, 100):
         
         # Best so far: 
         # input += "$$$1.35$$$false$$$0.5"
-        input += "$$$1.35$$$false$$$0.5"
+        input += "$$$1.35$$$false$$$0.55"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE") # Completion condition for position reversal SPEC.
@@ -107,7 +107,7 @@ for seedo in range(1, 100):
         
         if res_str == "|;|;|;|;|;":
             print("No CEX found")
-            if nocex_count > 100: # Allow up to this many times being blind per run.
+            if nocex_count > 10: # Allow up to this many times being blind per run. (If in doubt: 10)
                 break
             nocex_count += 1
         
