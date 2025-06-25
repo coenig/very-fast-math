@@ -91,7 +91,9 @@ for seedo in range(1, 100):
         # input += "$$$1.3$$$false$$$0.45" (56 successful)
         # input += "$$$1.35$$$false$$$0.525" (58 successful)
         # --- Above this line, we need to possibly add 1 to the successful runs (I assume), depending on the last exp being successful or not. This is due to the premature file-write of the results.
-        input += "$$$1.35$$$false$$$0.5125"
+        # input += "$$$1.35$$$false$$$0.5125" (61 successful)
+        # input += "$$$1.35$$$false$$$0.4875" (61 successful)
+        input += "$$$1.35$$$false$$$0.4875"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE") # Completion condition for position reversal SPEC.
@@ -180,7 +182,7 @@ for seedo in range(1, 100):
 
             # Best so far:
             # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i]) / 3.1415
-            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i]) / 3.1415 # Magic constants, just eat them ;)
+            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i]) / 3.1415 # Magic constants, get over it ;)
             action_list.append([accel, angle])
         
         #print(action_list_vel)
@@ -189,6 +191,6 @@ for seedo in range(1, 100):
         action = tuple(action_list)
 
     with open("./morty/results.txt", "a") as f:
-        f.write("(" + str(100 * len(good_ones) / seedo) + "%) " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
+        f.write("(" + str(len(good_ones)) + "%) " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
 
 print(good_ones)
