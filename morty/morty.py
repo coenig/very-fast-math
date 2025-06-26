@@ -97,7 +97,8 @@ for seedo in range(1, 101):
         # --- Above this line we had actually only 99 runs since I got Python's "range" function wrong.
         # input += "$$$1.34$$$false$$$0.50625" (55 successful)
         # input += "$$$1.36$$$false$$$0.50625" (66 successful)
-        input += "$$$1.36$$$false$$$0.5125"
+        # input += "$$$1.36$$$false$$$0.5125" (64 successful)
+        input += "$$$1.36$$$false$$$0.5"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE") # Completion condition for position reversal SPEC.
