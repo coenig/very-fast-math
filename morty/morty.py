@@ -103,6 +103,7 @@ for seedo in range(1, 101):
         # input += "$$$1.36$$$false$$$0.50625" (36/64 successful, then some segfault) <<< accel +/- 2 on MC side.
         # input += "$$$1.365$$$false$$$0.50625" (22/39 successful)
         # input += "$$$1.36$$$false$$$0.50625" (50 successful) <<< eps = 1.1
+        # input += "$$$1.36$$$false$$$0.50625" (61 successful) <<< eps = 0.9
         input += "$$$1.36$$$false$$$0.50625"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
@@ -165,9 +166,9 @@ for seedo in range(1, 101):
         
         # Best so far:
         # MAXTIME_FOR_LC = 5
-        MAXTIME_FOR_LC = 5
+        MAXTIME_FOR_LC = 4
         
-        eps = 0.9
+        eps = 1
         for i, el in enumerate(sum_vel_by_car):
             lc_time[i] += 1
             
