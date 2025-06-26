@@ -53,7 +53,7 @@ for seedo in range(1, 101):
         "show_trajectories": True,
     })
 
-    env.reset(seed=seedo * 17) # Use some factor due to (unproven) suspicion that close-by seeds lead to similar starting positions.
+    env.reset(seed=seedo * 19) # Use some factor due to (unproven) suspicion that close-by seeds lead to similar starting positions.
 
     action = ([0, 0], [0, 0], [0, 0], [0, 0], [0, 0])
     dpoints_y = [0, 0, 0, 0, 0, 0]     # The lateral position of the points the cars head towards.
@@ -166,7 +166,7 @@ for seedo in range(1, 101):
         # MAXTIME_FOR_LC = 5
         MAXTIME_FOR_LC = 5
         
-        eps = 1
+        eps = 1.1
         for i, el in enumerate(sum_vel_by_car):
             lc_time[i] += 1
             
