@@ -98,7 +98,10 @@ for seedo in range(1, 101):
         # input += "$$$1.34$$$false$$$0.50625" (55 successful)
         # input += "$$$1.36$$$false$$$0.50625" (66 successful)
         # input += "$$$1.36$$$false$$$0.5125" (64 successful)
-        input += "$$$1.36$$$false$$$0.5"
+        # input += "$$$1.36$$$false$$$0.5" (62 successful)
+        # input += "$$$1.37$$$false$$$0.5" (33/64 successful, then some segfault) <<< accel +/- 2 on MC side.
+        # input += "$$$1.36$$$false$$$0.50625" (36/64 successful, then some segfault) <<< accel +/- 2 on MC side.
+        input += "$$$1.365$$$false$$$0.50625"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE") # Completion condition for position reversal SPEC.
