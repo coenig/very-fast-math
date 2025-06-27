@@ -29,7 +29,7 @@ for seedo in range(1, 101):
                 "type": "ContinuousAction",
                 "acceleration_range": [-ACCEL_RANGE, ACCEL_RANGE],
                 "steering_range": [-1, 1],
-                "speed_range": [0, 70],
+                "speed_range": [0, 30],
                 "longitudinal": True,
                 "lateral": True,
             },
@@ -43,8 +43,8 @@ for seedo in range(1, 101):
             "normalize": False,
         }
         },
-        "simulation_frequency": 60,  # [Hz] ==> Best combination so far (for unknown reason)...
-        "policy_frequency": 2,  # [Hz]      ==> ...is 60/2. Goal: get it to work with 30/1.
+        "simulation_frequency": 60,  # [Hz]
+        "policy_frequency": 2,  # [Hz]
         "controlled_vehicles": 5,
         "vehicles_count": 0,
         "screen_width": 1500,
@@ -108,6 +108,8 @@ for seedo in range(1, 101):
         # input += "$$$1.36$$$false$$$0.50625" (66 successful) <<< MAXTIME_FOR_LC = 6
         # input += "$$$1.36$$$false$$$0.50625" (67 successful) <<< MAXTIME_FOR_LC = 60 [Assumption: this mechanism doesn't lead to improvement]
         # input += "$$$1.36$$$false$$$0.50625" (60 successful) <<< ACCEL_RANGE = 6
+        # input += "$$$1.36$$$false$$$0.50625" (53 successful) <<< LANE_CHANGE_DURATION = 2; 7 + 1.7 * egos_v[i]
+        # input += "$$$1.36$$$false$$$0.50625" (50 successful) <<< maxspeed set to 30
         input += "$$$1.36$$$false$$$0.50625"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
@@ -139,7 +141,7 @@ for seedo in range(1, 101):
 
         # Best so far:
         # LANE_CHANGE_DURATION = 3
-        LANE_CHANGE_DURATION = 2 # Has to match EnvModel.smv ==> min_time_between_lcs
+        LANE_CHANGE_DURATION = 3 # Has to match EnvModel.smv ==> min_time_between_lcs
 
         for i1, el1 in enumerate(res_str.split(';')):
             sum_lan_by_car.append(0)
@@ -169,7 +171,7 @@ for seedo in range(1, 101):
         action_list = []
         
         # Best so far:
-        # MAXTIME_FOR_LC = 60
+        # MAXTIME_FOR_LC = 5
         MAXTIME_FOR_LC = 60
         
         eps = 1
@@ -193,11 +195,11 @@ for seedo in range(1, 101):
             
             dpoints_y[i] = max(min(dpoints_y[i], 12), 0)
             
-            accel = sum_vel_by_car[i] * ACCEL_RANGE / 3 / ACCEL_RANGE # Factor from EnvModel (resolves to "/ a_min" which should be equal to ACCEL_RANGE when policy_frequency = 1Hz).
+            accel = sum_vel_by_car[i] * 5/3 / ACCEL_RANGE # 5/3 is the factor from EnvModel ==> a_min/a_max to ACCEL_RANGE, a discrepancy accounting for highway-env adjusting acceleration smoothly while the MC only does it once/s.
 
             # Best so far:
             # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i]) / 3.1415
-            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 7 + 1.7 * egos_v[i]) / 3.1415 # Magic constants, get over it ;)
+            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i]) / 3.1415 # Magic constants, get over it ;)
             action_list.append([accel, angle])
         
         #print(action_list_vel)
