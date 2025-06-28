@@ -29,7 +29,7 @@ for seedo in range(1, 101):
                 "type": "ContinuousAction",
                 "acceleration_range": [-ACCEL_RANGE, ACCEL_RANGE],
                 "steering_range": [-1, 1],
-                "speed_range": [0, 30],
+                "speed_range": [0, 70], # Best so far: [0, 70]. Don't forget to adjust EnvModel.smv ==> max_vel
                 "longitudinal": True,
                 "lateral": True,
             },
@@ -110,7 +110,8 @@ for seedo in range(1, 101):
         # input += "$$$1.36$$$false$$$0.50625" (60 successful) <<< ACCEL_RANGE = 6
         # input += "$$$1.36$$$false$$$0.50625" (53 successful) <<< LANE_CHANGE_DURATION = 2; 7 + 1.7 * egos_v[i]
         # input += "$$$1.36$$$false$$$0.50625" (50 successful) <<< maxspeed set to 30
-        input += "$$$1.36$$$false$$$0.50625"
+        # input += "$$$1.37$$$false$$$0.50625" (64 successful)
+        input += "$$$1.365$$$false$$$0.50625"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE") # Completion condition for position reversal SPEC.
@@ -171,7 +172,7 @@ for seedo in range(1, 101):
         action_list = []
         
         # Best so far:
-        # MAXTIME_FOR_LC = 5
+        # MAXTIME_FOR_LC = 60
         MAXTIME_FOR_LC = 60
         
         eps = 1
