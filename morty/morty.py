@@ -111,6 +111,7 @@ for seedo in range(1, 101):
         # input += "$$$1.36$$$false$$$0.50625" (53 successful) <<< LANE_CHANGE_DURATION = 2; 7 + 1.7 * egos_v[i]
         # input += "$$$1.36$$$false$$$0.50625" (50 successful) <<< maxspeed set to 30
         # input += "$$$1.37$$$false$$$0.50625" (64 successful)
+        # input += "$$$1.365$$$false$$$0.50625" (64 successful)
         input += "$$$1.365$$$false$$$0.50625"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
