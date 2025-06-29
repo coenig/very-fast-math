@@ -121,7 +121,8 @@ for seedo in range(1, 101):
         # input += "$$$1.36125$$$false$$$0.5046875" (66 successful)
         # input += "$$$1.36125$$$false$$$0.50546875" (66 successful)
         # input += "$$$1.36125$$$false$$$0.507" (67 successful)
-        input += "$$$1.36125$$$false$$$0.507"
+        # input += "$$$1.36125$$$false$$$0.506625" (68 successful)
+        input += "$$$1.36125$$$false$$$0.506625"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE") # Completion condition for position reversal SPEC.
