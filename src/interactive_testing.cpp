@@ -1595,7 +1595,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          if (i == 0) null_pos = (int) (x);
 
          std::set<int> lanes{};
-         float heading_factor{ -heading * vx * HEAD_CONST };
+         float heading_factor{ vy * HEAD_CONST };
 
          if (                                y < 0 +  EPS + heading_factor) lanes.insert(3);
          else if (y >=  0 + EPS + heading_factor && y < 4 -  EPS + heading_factor) { lanes.insert(3); lanes.insert(2); }
