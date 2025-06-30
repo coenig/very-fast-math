@@ -132,7 +132,8 @@ for seedo in range(1, 101):
         # input += "$$$1$$$false$$$-0.6" (~52% successful at 58)
         # input += "$$$1$$$false$$$-0.4" (64 successful)
         # input += "$$$1$$$false$$$-0.45" (59 successful)
-        input += "$$$1$$$false$$$-0.45"
+        # input += "$$$1$$$false$$$-0.3" (59 successful)
+        input += "$$$1$$$false$$$-0.3"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE") # Completion condition for position reversal SPEC.
