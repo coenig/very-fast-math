@@ -169,7 +169,7 @@ DEFINE
 
 
 INIT 
-   veh___6[i]9___.abs_pos >= 0 & veh___6[i]9___.abs_pos <= @{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst; -- TODO: Should be replaced by length of resp. section.
+   veh___6[i]9___.abs_pos >= @{@(0)@@(@{-INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst)@}@******.if[@{SECTIONS > 1}@.eval] & veh___6[i]9___.abs_pos <= @{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst; -- TODO: Should be replaced by length of resp. section.
 
 DEFINE
    veh___6[i]9___.rel_pos := veh___6[i]9___.abs_pos - ego.abs_pos; -- relative position to ego in m (valid only if ego is on same section), rel_pos < 0 means the rear bumber of the other vehicle is behind the rear bumper of the ego
