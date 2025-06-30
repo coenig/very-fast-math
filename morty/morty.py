@@ -17,6 +17,9 @@ morty_lib.morty.restype = c_char_p
 good_ones = []
 nocex_count = 0
 
+def min_max_curr(successful_so_far, failed_so_far, max_to_expect)
+
+
 def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
     return heading - math.atan((dpoint_y - ego_y) / ddist)
 
@@ -137,7 +140,8 @@ for seedo in range(1, 101):
         # input += "$$$1$$$false$$$-0.475" (59 successful)
         # input += "$$$1$$$false$$$-0.525" (~51% successful at 60)
         # input += "$$$1$$$false$$$-0.525" (~55% successful at 51)
-        input += "$$$1$$$false$$$-0.525"
+        # input += "$$$1$$$false$$$-0.5125" (63 successful)
+        input += "$$$1$$$false$$$-0.5125"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE") # Completion condition for position reversal SPEC.
