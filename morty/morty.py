@@ -127,8 +127,8 @@ for seedo in range(1, 101):
         # --- Above this line: old algorithm for heading correction in interactive_testing.cpp
         # input += "$$$1$$$false$$$-0.52" (65 successful)
         # input += "$$$1$$$false$$$-0.50690625" (68 successful; but without "blind" catching)
-        # input += "$$$1$$$false$$$-0.5" (65 succesful)
         # --- Above this line: seedo * 19
+        # input += "$$$1$$$false$$$-0.5" (65 succesful)
         input += "$$$1$$$false$$$-0.5"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
