@@ -126,7 +126,8 @@ for seedo in range(1, 101):
         # input += "$$$1.36125$$$false$$$0.50690625" (68 successful)
         # --- Above this line: old algorithm for heading correction in interactive_testing.cpp
         # input += "$$$1$$$false$$$-0.52" (65 successful)
-        input += "$$$1$$$false$$$-0.52"
+        # input += "$$$1$$$false$$$-0.50690625" (68 successful)
+        input += "$$$1$$$false$$$-0.50690625"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE") # Completion condition for position reversal SPEC.
@@ -142,7 +143,7 @@ for seedo in range(1, 101):
         
         if res_str == "|;|;|;|;|;":
             print("No CEX found")
-            if nocex_count > 10: # Allow up to this many times being blind per run. (If in doubt: 10)
+            if nocex_count > 100: # Allow up to this many times being blind per run. (If in doubt: 10)
                 break
             nocex_count += 1
         
