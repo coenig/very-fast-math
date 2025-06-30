@@ -136,6 +136,7 @@ for seedo in range(1, 101):
         # input += "$$$1$$$false$$$-0.55" (61 successful)
         # input += "$$$1$$$false$$$-0.475" (59 successful)
         # input += "$$$1$$$false$$$-0.525" (~51% successful at 60)
+        # input += "$$$1$$$false$$$-0.525" (~55% successful at 51)
         input += "$$$1$$$false$$$-0.525"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
