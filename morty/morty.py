@@ -23,7 +23,7 @@ def min_max_curr(successful_so_far, done_so_far, max_to_expect):
     percent = 100 * successful_so_far / done_so_far
     min_good = 100 * successful_so_far / max_to_expect
     max_good = 100 * (max_to_expect - done_so_far + successful_so_far) / max_to_expect
-    return str(min_good) + "% <= " + str(percent) + "% <= " + str(max_good) + "%"
+    return str(round(min_good, 0)) + "% <= " + str(round(percent, 0)) + "% <= " + str(round(max_good, 0)) + "%"
 
 def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
     return heading - math.atan((dpoint_y - ego_y) / ddist)
@@ -147,7 +147,8 @@ for seedo in range(0, MAX_EXPs):
         # input += "$$$1$$$false$$$-0.525" (~55% successful at 51)
         # input += "$$$1$$$false$$$-0.5125" (63 successful)
         # input += "$$$1$$$false$$$-0.50625" (60 successful)
-        input += "$$$1$$$false$$$-0.50625"
+        # input += "$$$1$$$false$$$-0.5" (64 successful)
+        input += "$$$1$$$false$$$-0.5"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE") # Completion condition for position reversal SPEC.
