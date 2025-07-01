@@ -10,6 +10,8 @@ import shutil
 # ACCEL_RANGE = 5
 ACCEL_RANGE = 5
 
+MAX_EXPs = 100
+
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
 morty_lib.morty.restype = c_char_p
@@ -17,14 +19,17 @@ morty_lib.morty.restype = c_char_p
 good_ones = []
 nocex_count = 0
 
-def min_max_curr(successful_so_far, failed_so_far, max_to_expect)
-
+def min_max_curr(successful_so_far, done_so_far, max_to_expect):
+    percent = 100 * successful_so_far / done_so_far
+    min_good = 100 * successful_so_far / max_to_expect
+    max_good = 100 * (max_to_expect - done_so_far + successful_so_far) / max_to_expect
+    return str(min_good) + "% <= " + str(percent) + "% <= " + str(max_good) + "%"
 
 def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
     return heading - math.atan((dpoint_y - ego_y) / ddist)
 
 open('./morty/results.txt', 'w').close()
-for seedo in range(1, 101):
+for seedo in range(0, MAX_EXPs):
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         "action": {
             "type": "MultiAgentAction",
@@ -141,7 +146,8 @@ for seedo in range(1, 101):
         # input += "$$$1$$$false$$$-0.525" (~51% successful at 60)
         # input += "$$$1$$$false$$$-0.525" (~55% successful at 51)
         # input += "$$$1$$$false$$$-0.5125" (63 successful)
-        input += "$$$1$$$false$$$-0.5125"
+        # input += "$$$1$$$false$$$-0.50625" (60 successful)
+        input += "$$$1$$$false$$$-0.50625"
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE") # Completion condition for position reversal SPEC.
@@ -239,6 +245,6 @@ for seedo in range(1, 101):
         action = tuple(action_list)
 
     with open("./morty/results.txt", "a") as f:
-        f.write("(" + str(100 * len(good_ones) / seedo) + "%) " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
+        f.write("{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
 
 print(good_ones)
