@@ -1207,7 +1207,7 @@ void MCScene::refreshRarely(void* data)
       sec.adjustWidgetsAppearances();
    }
 
-   mc_scene->checkbox_json_visible_->position(mc_scene->box_->x(), mc_scene->window_->h() - 120);
+   mc_scene->checkbox_json_visible_->position(mc_scene->box_->x(), mc_scene->window_->h() - INTERPRETER_TERMINAL_HEIGHT - 20);
 
    // Make sure we don't override a recent user click on the checkbox.
    // TODO: Just realized that this breaks the idea of only reflecting the stored state on disc. 

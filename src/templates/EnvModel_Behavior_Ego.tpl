@@ -192,8 +192,8 @@ DEFINE
 	ego.blamable_crash_with_veh_[i] := ego.same_lane_as_veh_[i] & (veh___6[i]9___.rel_pos >= 0 & veh___6[i]9___.rel_pos <= veh_length);
 
    ego_pressured_by_vehicle_[i] := ego.same_lane_as_veh_[i] 
-        | (veh___6[i]9___.lc_direction = ActionDir____RIGHT & ego.right_of_veh_[i]_lane @{ & veh___6[i]9___.change_lane_now = 1}@******.if[@{!SIMPLE_LC}@.eval])
-        | (veh___6[i]9___.lc_direction = ActionDir____LEFT & ego.left_of_veh_[i]_lane   @{ & veh___6[i]9___.change_lane_now = 1}@******.if[@{!SIMPLE_LC}@.eval]);
+        @{| (veh___6[i]9___.lc_direction = ActionDir____RIGHT & ego.right_of_veh_[i]_lane & veh___6[i]9___.change_lane_now = 1
+        | (veh___6[i]9___.lc_direction = ActionDir____LEFT & ego.left_of_veh_[i]_lane   & veh___6[i]9___.change_lane_now = 1}@******.if[@{!SIMPLE_LC}@.eval];
 
 ego_pressured_by_vehicle_[i]_from_behind := ego_pressured_by_vehicle_[i] & (veh___6[i]9___.prev_rel_pos < 0);
 
@@ -378,7 +378,7 @@ ASSIGN
 
     next(ego.time_since_last_lc) := case
         (@{ego.mode = ActionType____LANECHANGE_[DIR] | }@.for[[DIR], @{possible_lc_modes}@.scriptVar] ego.mode = ActionType____LANECHANGE_ABORT) & next(ego.mode) = ActionType____LANE_FOLLOWING : 0;            -- activate timer when lane change finishes
-        ego.time_since_last_lc >= 0 & ego.time_since_last_lc < min_time_between_lcs: ego.time_since_last_lc + 1;    -- increment until threshold is reached, saturate at the threshold (-> else condition)
+        ego.time_since_last_lc >= 0 & ego.time_since_last_lc < ego.min_time_between_lcs: ego.time_since_last_lc + 1;    -- increment until threshold is reached, saturate at the threshold (-> else condition)
         ego.mode = ActionType____LANE_FOLLOWING & (FALSE @{| next(ego.mode) = ActionType____LANECHANGE_[DIR]}@.for[[DIR], @{possible_lc_modes}@.scriptVar]): -1;           -- deactivate timer when new lane change starts
         TRUE: ego.time_since_last_lc;                                           -- this clause also keeps the var at max value once the max value has been reached
     esac;
