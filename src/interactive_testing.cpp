@@ -1563,6 +1563,8 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    const bool DEBUG{ StaticHelper::isBooleanTrue(vec[2]) };
    const float HEAD_CONST{ std::stof(vec[3]) };  // Heading of car in rad.
    const int SEED{ std::stoi(vec[4]) };  // The current seed this run is part of on Python side.
+   const bool CRASH{ StaticHelper::isBooleanTrue(vec[5]) };
+   const int ITERATION{ std::stoi(vec[6]) };  // The iteration within the current seed on Python side.
 
    auto cars = StaticHelper::split(input_str, ";");
    auto main_file = StaticHelper::readFile("./morty/main.tpl") + "\n";
@@ -1635,7 +1637,13 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    auto traces{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt") };
    MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
 
-   StaticHelper::writeTextToFile(std::to_string(SEED) + ";" + std::to_string(trace.size()) + ";" + std::to_string(runtime), "./morty/morty_mc_results.txt", true);
+   StaticHelper::writeTextToFile(
+      std::to_string(SEED) + ";" 
+      + std::to_string(trace.size() / 2) + ";" 
+      + std::to_string(runtime) + ";"
+      + std::to_string(CRASH) + ";"
+      + std::to_string(ITERATION) + ";"
+      + "\n", "./morty/morty_mc_results.txt", true);
 
    if (DEBUG) {
       generatePreviewsForMorty(trace); // Actual preview in case everything went fine.
