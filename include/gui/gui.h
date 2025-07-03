@@ -45,6 +45,7 @@ static float TIMEOUT_SOMETIMES{ 2 };
 static std::string REGEX_PATTERN_BB_NAMES                      { "[a-zA-Z0-9_]+" };
 static std::string REGEX_PATTERN_BB_PARAMETERS                 { "[a-zA-Z0-9_,\\s]*" };
 static std::string REGEX_PATTERN_BB_DECLARATION_WITH_PARAMETERS{ "[a-zA-Z0-9_,\\s()]+" };
+static constexpr int INTERPRETER_TERMINAL_HEIGHT{ 150 };
 
 static bool detached_run_running{ false };
 
