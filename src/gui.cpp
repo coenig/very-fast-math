@@ -192,7 +192,14 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
    addOrChangeErrorOrOutputStream(*ADDITIONAL_LOGGING_PIPE, false);
    addFailableChild(Failable::getSingleton(GUI_NAME + "_Related"), "");
 
-   logging_output_and_interpreter_ = new InterpreterTerminal(data_, parser_, 10, 300, window_->w(), 90);
+   logging_output_and_interpreter_ = new InterpreterTerminal(data_, parser_, 10, 300, window_->w(), INTERPRETER_TERMINAL_HEIGHT);
+   addNotePlain("wubba lubba dub dub\n         ___                       ");
+   addNotePlain("  __  __|_  )      ____ _____      ");
+   addNotePlain(" |  \\/  |/ /  ___ |  _ \\_   _|   _ ");
+   addNotePlain(" | |\\/| /___|/ _ \\| |_) || || | | |");
+   addNotePlain(" | |  | |   | (_) |  _ < | || |_| |");
+   addNotePlain(" |_|  |_|    \\___/|_| \\_\\|_| \\__, |");
+   addNotePlain("                             |___/ ");
    addNote("Terminal initialized.");
 
    window_->resizable(window_);
@@ -1225,7 +1232,7 @@ void MCScene::refreshRarely(void* data)
       mc_scene->button_check_json_->hide();
    }
 
-   mc_scene->logging_output_and_interpreter_->position(mc_scene->box_->x(), mc_scene->window_->h() - 100);
+   mc_scene->logging_output_and_interpreter_->position(mc_scene->box_->x(), mc_scene->window_->h() - INTERPRETER_TERMINAL_HEIGHT);
 
    if (mc_scene->getValueForJSONKeyAsString("ShowLOG", JSON_TEMPLATE_DENOTER) == "true")
    {

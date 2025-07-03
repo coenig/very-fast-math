@@ -132,6 +132,14 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
    INIT section_10.angle = 225;
    INIT section_11.angle = 135;
     
+   INIT section_0_end != 0;
+   INIT section_1_end != 0;
+   INIT section_2_end != 0;
+   INIT section_3_end != 0;
+   INIT section_4_end != 0;
+   INIT section_5_end != 0;
+   INIT section_6_end != 0;
+   INIT section_7_end != 0;
    INIT section_8_end = 0;
    INIT section_9_end = 0;
    INIT section_10_end = 0;
