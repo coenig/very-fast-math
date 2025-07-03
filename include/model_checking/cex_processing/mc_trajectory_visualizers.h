@@ -45,7 +45,7 @@ public:
 	{};
 
 	// Generate the final OSC file
-	std::string generate(std::string scenario_name, bool control_ego, std::string prerequisites = "");
+	std::string generate(std::string scenario_name, bool control_ego);
 	std::string generate_as_csv();
 
 private:

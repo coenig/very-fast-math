@@ -18,7 +18,7 @@ using namespace mc;
 using namespace trajectory_generator;
 
 
-std::string OSCgenerator::generate(std::string scenario_name, bool control_ego, std::string prerequisites)
+std::string OSCgenerator::generate(std::string scenario_name, bool control_ego)
 {
 	std::replace(scenario_name.begin(), scenario_name.end(), '.', '_'); // replace all '.' to '_'
 	std::replace(scenario_name.begin(), scenario_name.end(), '-', '_'); // replace all '-' to '_'
@@ -30,13 +30,14 @@ std::string OSCgenerator::generate(std::string scenario_name, bool control_ego, 
 
 # Prerequisites
 # Import map and helper nodes/subscenarios
-import "StraightThreeLaneHighwayRQ36.osm"
 import "../../../vehicle/system_cuts.osc"
 import "../../scenario_blocks/cufu/aca_hands_on.osc"
 import "../../scenario_blocks/map_agnostic/scenario_blocks.osc"
 
 # Main Scenario
 scenario )" << scenario_name << R"(:
+  # Map
+  scenario_map: map = map(map_file: "StraightThreeLaneHighwayRQ36.osm")
 
   # Vehicles
   ego: ego_vehicle_pace  # replace with specific vehicle type if necessary
