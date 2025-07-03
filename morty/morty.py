@@ -10,14 +10,13 @@ import shutil
 # ACCEL_RANGE = 5
 ACCEL_RANGE = 5
 
-MAX_EXPs = 100
+MAX_EXPs = 1000
 
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
 morty_lib.morty.restype = c_char_p
     
 good_ones = []
-nocex_count = 0
 
 def min_max_curr(successful_so_far, done_so_far, max_to_expect):
     percent = 100 * successful_so_far / done_so_far
@@ -28,7 +27,9 @@ def min_max_curr(successful_so_far, done_so_far, max_to_expect):
 def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
     return heading - math.atan((dpoint_y - ego_y) / ddist)
 
-open('./morty/results.txt', 'w').close()
+open('./morty/results.txt', 'w').close()          # Delete old results from Python side
+open('./morty/morty_mc_results.txt', 'w').close() # Delete old results from MC side (these are a super set of the above)
+
 for seedo in range(0, MAX_EXPs):
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         "action": {
@@ -72,6 +73,7 @@ for seedo in range(0, MAX_EXPs):
     egos_v = [0, 0, 0, 0, 0, 0]        # Long vel of cars in m/s.
     egos_headings = [0, 0, 0, 0, 0, 0] # Angle rel. to long axis in rad.
     nocex_count = 0
+    crashed_count = 0
 
     first = True
     for global_counter in range(100):
@@ -93,6 +95,14 @@ for seedo in range(0, MAX_EXPs):
                 input += str(val) + ","
             input += ";"
         
+        crashed = info["crashed"]
+        
+        if crashed:
+            crashed_count += 1
+        
+        if crashed_count > 100: # Allow these many crashes per run.
+            break
+
         # Best so far: 
         # input += "$$$1.35$$$false$$$0.5" (64 successful)
         # input += "$$$1.35$$$false$$$0.55" (57 successful)
@@ -148,7 +158,7 @@ for seedo in range(0, MAX_EXPs):
         # input += "$$$1$$$false$$$-0.5125" (63 successful)
         # input += "$$$1$$$false$$$-0.50625" (60 successful)
         # input += "$$$1$$$false$$$-0.5" (64 successful)
-        input += "$$$1$$$false$$$-0.5"
+        input += "$$$1$$$false$$$-0.5$$$" + str(seedo) + "$$$" + str(crashed) + "$$$" + str(global_counter)
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE") # Completion condition for position reversal SPEC.
@@ -164,10 +174,10 @@ for seedo in range(0, MAX_EXPs):
         
         if res_str == "|;|;|;|;|;":
             print("No CEX found")
-            if nocex_count > 10: # Allow up to this many times being blind per run. (If in doubt: 10)
+            if nocex_count > 100: # Allow up to this many times being blind per run. (If in doubt: 10)
                 break
             nocex_count += 1
-        
+
         #print(f"result: {res_str}")
         #### EO MODEL CHECKER CALL ####
 
