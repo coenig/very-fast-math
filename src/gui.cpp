@@ -193,7 +193,7 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
    addFailableChild(Failable::getSingleton(GUI_NAME + "_Related"), "");
 
    logging_output_and_interpreter_ = new InterpreterTerminal(data_, parser_, 10, 300, window_->w(), INTERPRETER_TERMINAL_HEIGHT);
-   addNotePlain("wubba lubba dub dub");
+   addNotePlain(RICK);
    addNotePlain(MORTY_ASCII_ART);
    addNote("Terminal initialized.");
 
