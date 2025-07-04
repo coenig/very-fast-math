@@ -34,6 +34,7 @@ const std::string BEGIN_TAG_TIMESCALING_DESCRIPTIONS{ "-- SCALING DESCRIPTIONS" 
 const std::string END_TAG_TIMESCALING_DESCRIPTIONS{ "-- EO SCALING DESCRIPTIONS" };
 const std::string TIMESCALING_FILENAME{ "scaling_info.txt" };
 
+const std::string RICK{ "wubba lubba dub dub" };
 const std::string MORTY_ASCII_ART{R"(         ___                       
   __  __|_  )      ____ _____      
  |  \/  |/ /  ___ |  _ \_   _|   _ 
