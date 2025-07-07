@@ -1635,7 +1635,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    auto traces{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt") };
    MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
 
-   StaticHelper::writeTextToFile(std::to_string(SEED) + ";" + std::to_string(trace.size()) + ";" + std::to_string(runtime), "./morty_mc_results.txt", true);
+   StaticHelper::writeTextToFile(std::to_string(SEED) + ";" + std::to_string(trace.size()) + ";" + std::to_string(runtime), "./morty/morty_mc_results.txt", true);
 
    if (DEBUG) {
       generatePreviewsForMorty(trace); // Actual preview in case everything went fine.
