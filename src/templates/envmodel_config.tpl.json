@@ -39,7 +39,7 @@
       "ALLOW_ZEROLENGTH_SECTIONS": false,
       "ANGLEGRANULARITY": "#{360}#",
       "BMC_CNT": 100,
-      "BMC_NUMBER_OF_CEXS": 1,
+      "BMC_NUMBER_OF_CEXS": 10,
       "BRAKEINHIBITION": false,
       "CALCULATE_CENTER_GAP": true,
       "CALCULATE_LEFT_GAP": false,
