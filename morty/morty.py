@@ -5,6 +5,16 @@ from ctypes import *
 import math
 from pathlib import Path
 import shutil
+import argparse
+
+parser = argparse.ArgumentParser(
+                    prog='morty',
+                    description='Model Checking based planning',
+                    epilog='Bye!')
+parser.add_argument('-o', '--output')
+args = parser.parse_args()
+
+output_folder = "./morty/" if args.output is None else args.output + "/"
 
 # Best so far:
 # ACCEL_RANGE = 5
@@ -27,8 +37,8 @@ def min_max_curr(successful_so_far, done_so_far, max_to_expect):
 def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
     return heading - math.atan((dpoint_y - ego_y) / ddist)
 
-open('./morty/results.txt', 'w').close()          # Delete old results from Python side
-open('./morty/morty_mc_results.txt', 'w').close() # Delete old results from MC side (these are a super set of the above)
+open(f'{output_folder}results.txt', 'w').close()          # Delete old results from Python side
+open(f'{output_folder}morty_mc_results.txt', 'w').close() # Delete old results from MC side (these are a super set of the above)
 
 for seedo in range(0, MAX_EXPs):
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
@@ -208,9 +218,9 @@ for seedo in range(0, MAX_EXPs):
                             if i3 == 0:
                                 sum_vel_by_car[i1] += float(el3)
 
-        with open("lanes.txt", "w") as text_file:
+        with open(f"{output_folder}lanes.txt", "w") as text_file:
             text_file.write(lanes)
-        with open("accels.txt", "w") as text_file:
+        with open(f"{output_folder}accels.txt", "w") as text_file:
             text_file.write(accels)
 
         print(f"summed velocity: {sum_vel_by_car}")
@@ -255,7 +265,7 @@ for seedo in range(0, MAX_EXPs):
         
         action = tuple(action_list)
 
-    with open("./morty/results.txt", "a") as f:
+    with open(f"{output_folder}results.txt", "a") as f:
         f.write("{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
 
 print(good_ones)
