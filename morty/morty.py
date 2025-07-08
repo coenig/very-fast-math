@@ -22,7 +22,7 @@ def min_max_curr(successful_so_far, done_so_far, max_to_expect):
     percent = 100 * successful_so_far / done_so_far
     min_good = 100 * successful_so_far / max_to_expect
     max_good = 100 * (max_to_expect - done_so_far + successful_so_far) / max_to_expect
-    return str(round(min_good, 0)) + "% <= " + str(round(percent, 0)) + "% <= " + str(round(max_good, 0)) + "%"
+    return str(round(min_good, 1)) + "% <= " + str(round(percent, 1)) + "% <= " + str(round(max_good, 1)) + "%"
 
 def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
     return heading - math.atan((dpoint_y - ego_y) / ddist)
