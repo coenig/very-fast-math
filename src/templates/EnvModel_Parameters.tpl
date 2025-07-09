@@ -37,6 +37,8 @@
 @{MAXACCELEGO}@*******.defaultValue[2]
 @{MINACCELNONEGO}@*******.defaultValue[-8]
 @{MAXACCELNONEGO}@*******.defaultValue[6]
+@{MIN_TIME_BETWEEN_LANECHANGES}@*******.defaultValue[2]
+@{VEHICLE_LENGTH}@*******.defaultValue[5]
 @{MAXEGOVISRANGE}@*******.defaultValue[250]
 @{CLOSEFRONTDIST}@*******.defaultValue[10]
 @{CALCULATE_LEFT_GAP}@*******.defaultValue[true]

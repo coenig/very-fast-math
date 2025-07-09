@@ -25,14 +25,14 @@ DEFINE
 
 }@******.if[@{!SIMPLE_LC}@.eval]
 
-    @{min_time_between_lcs}@*.timeWorldToEnvModelDef[2];                      -- after finisihing one lc, how much time needs to pass before the next one may be started
+    @{min_time_between_lcs}@*.timeWorldToEnvModelDef[MIN_TIME_BETWEEN_LANECHANGES]; -- after finisihing one lc, how much time needs to pass before the next one may be started
 ---------------- End of non-ego lc parameterization -----------------
 
 
     @{a_min}@*.accelerationWorldToEnvModelDef[MINACCELNONEGO];
     @{a_max}@*.accelerationWorldToEnvModelDef[MAXACCELNONEGO];
     @{min_dist_long}@*.distanceWorldToEnvModelDef[-1];                            -- the minimum distance kept by other vehicle to preceding ego, we use -1 meaning one meter behind
-    @{veh_length}@*.distanceWorldToEnvModelDef[5];                                -- we assume a vehicle length of 5m for distance calculation to the front
+    @{veh_length}@*.distanceWorldToEnvModelDef[VEHICLE_LENGTH];                   -- we assume a vehicle length of 5m for distance calculation to the front
     @{max_vel}@*.velocityWorldToEnvModelDef[MAXSPEEDNONEGO];
 
     @{ego.max_vel}@*.velocityWorldToEnvModelDef[MAXSPEEDEGO]; -- Leave this even in ego-less mode.

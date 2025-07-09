@@ -250,7 +250,7 @@ INVAR
 
 INVAR
     (0 <= ego.v & ego.v <= ego.max_vel) &
-    (@{max(HARDBRAKEPREVENTION, MINACCELEGO)}@.accelerationWorldToEnvModelConst <= ego.a & ego.a <= ego.max_accel);
+    (ego.min_accel <= ego.a & ego.a <= ego.max_accel);
 
 INVAR
     (ego.gaps___609___.s_dist_front >= 0 & ego.gaps___609___.s_dist_front <= max_ego_visibility_range + 1) &
