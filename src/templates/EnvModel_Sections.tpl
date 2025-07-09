@@ -58,7 +58,9 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
 --  <== EO Segments
 --------------------------------------------------------
 
+-------------------------------------
    -- TODO: Needs to be removed again
+-------------------------------------
    --= CROSSING =--
    -- "ANGLEGRANULARITY": "#{90}#",
    -- "MAXDISTCONNECTIONS": "#{20}#",
@@ -252,7 +254,25 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
 --   INIT outgoing_connection_1_of_section_13 = 5;
 ----   INIT outgoing_connection_1_of_section_14 = -1;
 --   INIT outgoing_connection_1_of_section_15 = 7;
+
+--= For Stop&Go =--
+@{
+INIT veh___6[i]9___.lane_single;
+INIT veh___6[i]9___.v <= ego.v + 3;
+INVAR veh___6[i]9___.rel_pos >= -30 & veh___6[i]9___.rel_pos < 50;
+
+INIT ego.same_lane_as_veh_0 & veh___609___.rel_pos > 0;
+INIT ego.same_lane_as_veh_1 & veh___619___.rel_pos > 0;
+INIT ego.same_lane_as_veh_2 & veh___629___.rel_pos > 0;
+INIT ego.same_lane_as_veh_3 & veh___639___.rel_pos > 0;
+INIT ego.same_lane_as_veh_4 & veh___649___.rel_pos > 0;
+
+}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
+INIT ego_lane_0;
+
+----------------------------------------
    -- EO TODO: Needs to be removed again
+----------------------------------------
 
    @{
       FROZENVAR
