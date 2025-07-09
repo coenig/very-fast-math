@@ -11,16 +11,22 @@ parser = argparse.ArgumentParser(
                     prog='morty',
                     description='Model Checking based planning',
                     epilog='Bye!')
-parser.add_argument('-o', '--output')
+parser.add_argument('-o', '--output', default="./morty")
+parser.add_argument('-n', '--num_runs', default=1000)
+parser.add_argument('-s', '--steps_per_run', default=100)
+parser.add_argument('-a', '--heading_adaptation', default=-0.5)
+parser.add_argument('-b', '--allow_blind_steps', default=100)
+parser.add_argument('-c', '--allow_crashed_steps', default=100)
+parser.add_argument('-d', '--debug', default=True)
 args = parser.parse_args()
 
-output_folder = "./morty/" if args.output is None else args.output + "/"
+output_folder = args.output + "/"
 
 # Best so far:
 # ACCEL_RANGE = 5
 ACCEL_RANGE = 5
 
-MAX_EXPs = 1000
+MAX_EXPs = args.num_runs
 
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
@@ -86,7 +92,7 @@ for seedo in range(0, MAX_EXPs):
     crashed_count = 0
 
     first = True
-    for global_counter in range(100):
+    for global_counter in range(args.steps_per_run):
         env.render()
         obs, reward, done, truncated, info = env.step(action)
         
@@ -110,65 +116,10 @@ for seedo in range(0, MAX_EXPs):
         if crashed:
             crashed_count += 1
         
-        if crashed_count > 100: # Allow these many crashes per run.
+        if crashed_count > args.allow_crashed_steps: # Allow these many crashes per run.
             break
 
-        # Best so far: 
-        # input += "$$$1.35$$$false$$$0.5" (64 successful)
-        # input += "$$$1.35$$$false$$$0.55" (57 successful)
-        # input += "$$$1.3$$$false$$$0.45" (56 successful)
-        # input += "$$$1.35$$$false$$$0.525" (58 successful)
-        # --- Above this line, we need to possibly add 1 to the successful runs (I assume), depending on the last exp being successful or not. This is due to the premature file-write of the results.
-        # input += "$$$1.35$$$false$$$0.5125" (61 successful)
-        # input += "$$$1.35$$$false$$$0.4875" (61 successful)
-        # input += "$$$1.35$$$false$$$0.50625" (65 successful)
-        # --- Above this line we had actually only 99 runs since I got Python's "range" function wrong.
-        # input += "$$$1.34$$$false$$$0.50625" (55 successful)
-        # input += "$$$1.36$$$false$$$0.50625" (66 successful)
-        # input += "$$$1.36$$$false$$$0.5125" (64 successful)
-        # input += "$$$1.36$$$false$$$0.5" (62 successful)
-        # input += "$$$1.37$$$false$$$0.5" (33/64 successful, then some segfault) <<< accel +/- 2 on MC side.
-        # input += "$$$1.36$$$false$$$0.50625" (36/64 successful, then some segfault) <<< accel +/- 2 on MC side.
-        # input += "$$$1.365$$$false$$$0.50625" (22/39 successful)
-        # input += "$$$1.36$$$false$$$0.50625" (50 successful) <<< eps = 1.1
-        # input += "$$$1.36$$$false$$$0.50625" (61 successful) <<< eps = 0.9
-        # input += "$$$1.36$$$false$$$0.50625" (61 successful) <<< MAXTIME_FOR_LC = 4
-        # input += "$$$1.36$$$false$$$0.50625" (66 successful) <<< MAXTIME_FOR_LC = 6
-        # input += "$$$1.36$$$false$$$0.50625" (67 successful) <<< MAXTIME_FOR_LC = 60 [Assumption: this mechanism doesn't lead to improvement]
-        # input += "$$$1.36$$$false$$$0.50625" (60 successful) <<< ACCEL_RANGE = 6
-        # input += "$$$1.36$$$false$$$0.50625" (53 successful) <<< LANE_CHANGE_DURATION = 2; 7 + 1.7 * egos_v[i]
-        # input += "$$$1.36$$$false$$$0.50625" (50 successful) <<< maxspeed set to 30
-        # input += "$$$1.37$$$false$$$0.50625" (64 successful)
-        # input += "$$$1.365$$$false$$$0.50625" (64 successful)
-        # input += "$$$1.3625$$$false$$$0.50625" (63 successful)
-        # input += "$$$1.36125$$$false$$$0.50625" (68 successful)
-        # input += "$$$1.360625$$$false$$$0.50625" (67 successful)
-        # input += "$$$1.36125$$$false$$$0.5125" (66 successful)
-        # input += "$$$1.36125$$$false$$$0.5" (64 successful)
-        # input += "$$$1.36125$$$false$$$0.503125" (64 successful)
-        # input += "$$$1.36125$$$false$$$0.5046875" (66 successful)
-        # input += "$$$1.36125$$$false$$$0.50546875" (66 successful)
-        # input += "$$$1.36125$$$false$$$0.507" (67 successful)
-        # input += "$$$1.36125$$$false$$$0.506625" (68 successful)
-        # input += "$$$1.36125$$$false$$$0.5068125" (68 successful)
-        # input += "$$$1.36125$$$false$$$0.50690625" (68 successful)
-        # --- Above this line: old algorithm for heading correction in interactive_testing.cpp
-        # input += "$$$1$$$false$$$-0.52" (65 successful)
-        # input += "$$$1$$$false$$$-0.50690625" (68 successful; but without "blind" catching)
-        # --- Above this line: seedo * 19
-        # input += "$$$1$$$false$$$-0.5" (65 succesful)
-        # input += "$$$1$$$false$$$-0.6" (~52% successful at 58)
-        # input += "$$$1$$$false$$$-0.4" (64 successful)
-        # input += "$$$1$$$false$$$-0.45" (59 successful)
-        # input += "$$$1$$$false$$$-0.3" (59 successful)
-        # input += "$$$1$$$false$$$-0.55" (61 successful)
-        # input += "$$$1$$$false$$$-0.475" (59 successful)
-        # input += "$$$1$$$false$$$-0.525" (~51% successful at 60)
-        # input += "$$$1$$$false$$$-0.525" (~55% successful at 51)
-        # input += "$$$1$$$false$$$-0.5125" (63 successful)
-        # input += "$$$1$$$false$$$-0.50625" (60 successful)
-        # input += "$$$1$$$false$$$-0.5" (64 successful)
-        input += "$$$1$$$false$$$-0.5$$$" + str(seedo) + "$$$" + str(crashed) + "$$$" + str(global_counter)
+        input += "$$$1$$$" + str(args.debug) + "$$$" + str(args.heading_adaptation) + "$$$" + str(seedo) + "$$$" + str(crashed) + "$$$" + str(global_counter) + "$$$" + output_folder
         
         if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
             print("DONE") # Completion condition for position reversal SPEC.
@@ -184,7 +135,7 @@ for seedo in range(0, MAX_EXPs):
         
         if res_str == "|;|;|;|;|;":
             print("No CEX found")
-            if nocex_count > 100: # Allow up to this many times being blind per run. (If in doubt: 10)
+            if nocex_count > args.allow_blind_steps: # Allow up to this many times being blind per run. (If in doubt: 10)
                 break
             nocex_count += 1
 
@@ -267,5 +218,5 @@ for seedo in range(0, MAX_EXPs):
 
     with open(f"{output_folder}results.txt", "a") as f:
         f.write("{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
-
+    
 print(good_ones)

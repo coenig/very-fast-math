@@ -1522,11 +1522,12 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 
 // --- EO remaining comments from main.cpp ---
 
-void generatePreviewsForMorty(const MCTrace& trace)
+void generatePreviewsForMorty(const MCTrace& trace, const std::string& output_path)
 {
    if (!trace.empty()) {
       auto src = std::filesystem::path("./morty/waiting.png");
-      auto dest_path = "./preview2";
+      auto dest_path = output_path + "preview2";
+      StaticHelper::createDirectoriesSafe(dest_path);
       for (const auto& entry : std::filesystem::directory_iterator(dest_path))
          if (StaticHelper::stringContains(entry.path().string(), ".png"))
             std::filesystem::copy_file(src, entry.path(), std::filesystem::copy_options::overwrite_existing);
@@ -1545,7 +1546,7 @@ void generatePreviewsForMorty(const MCTrace& trace)
 
       mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
          trace,
-         ".",
+         output_path,
          "preview2",
          SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
          {},
@@ -1565,6 +1566,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    const int SEED{ std::stoi(vec[4]) };  // The current seed this run is part of on Python side.
    const bool CRASH{ StaticHelper::isBooleanTrue(vec[5]) };
    const int ITERATION{ std::stoi(vec[6]) };  // The iteration within the current seed on Python side.
+   const std::string OUTPUT_PATH{ vec[7] };
 
    auto cars = StaticHelper::split(input_str, ";");
    auto main_file = StaticHelper::readFile("./morty/main.tpl") + "\n";
@@ -1624,7 +1626,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
       auto traces_dummy{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt") };
       MCTrace trace_dummy = traces_dummy.empty() ? MCTrace{} : traces_dummy.at(0);
 
-      generatePreviewsForMorty(trace_dummy); // First preview in case there is no CEX for the actual run.
+      generatePreviewsForMorty(trace_dummy, OUTPUT_PATH); // First preview in case there is no CEX for the actual run.
    }
 
    StaticHelper::writeTextToFile(main_file, "./morty/main.smv");
@@ -1643,10 +1645,10 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
       + std::to_string(runtime) + ";"
       + std::to_string(CRASH) + ";"
       + std::to_string(ITERATION) + ";"
-      + "\n", "./morty/morty_mc_results.txt", true);
+      + "\n", OUTPUT_PATH + "morty_mc_results.txt", true);
 
    if (DEBUG) {
-      generatePreviewsForMorty(trace); // Actual preview in case everything went fine.
+      generatePreviewsForMorty(trace, OUTPUT_PATH); // Actual preview in case everything went fine.
    }
 
    std::vector<VarValsFloat> deltas{};
