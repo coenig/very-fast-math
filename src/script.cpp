@@ -814,7 +814,9 @@ std::string Script::applyMethodString(const std::string& method_name, const std:
       return applyMethodString(method_name, { appended });
    }
 
-   else if (inscriptMethodDefinitions.count(method_name) && inscriptMethodParNums.at(method_name) == parameters.size()) return executeCommand(method_name, parameters);
+   else if (inscriptMethodDefinitions.count(method_name) && inscriptMethodParNums.at(method_name) == parameters.size()) {
+      return executeCommand(method_name, parameters);
+   }
 
    std::string pars{ "'" + getRawScript() + "' (self)"};
    for (const auto& s : parameters) {

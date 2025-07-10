@@ -1760,6 +1760,17 @@ nlohmann::json MCScene::instanceFromTemplate(
                      }
                   }
 
+                  // Special treatment: check if format is "-(NUM)" for some float NUM and replace with "-NUM".
+                  // TODO: Should vfm serialize negative numbers - or all negative terms - to "-NUM" right away?
+                  std::string val_str_tmp{ StaticHelper::removeWhiteSpace(val_str) };
+                  if (StaticHelper::stringStartsWith(val_str_tmp, "-(") && StaticHelper::stringEndsWith(val_str_tmp, ")")) {
+                     std::string middle_part = val_str_tmp.substr(2);
+                     middle_part = middle_part.substr(0, middle_part.size() - 1);
+                     if (StaticHelper::isParsableAsFloat(middle_part)) {
+                        val_str = "-" + middle_part;
+                     }
+                  }
+
                   if (StaticHelper::isParsableAsFloat(val_str)) {
                      float num{ std::stof(val_str) };
                      if (StaticHelper::isFloatInteger(num)) {
