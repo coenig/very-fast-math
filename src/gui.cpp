@@ -192,7 +192,9 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
    addOrChangeErrorOrOutputStream(*ADDITIONAL_LOGGING_PIPE, false);
    addFailableChild(Failable::getSingleton(GUI_NAME + "_Related"), "");
 
-   logging_output_and_interpreter_ = new InterpreterTerminal(data_, parser_, 10, 300, window_->w(), 90);
+   logging_output_and_interpreter_ = new InterpreterTerminal(data_, parser_, 10, 300, window_->w(), INTERPRETER_TERMINAL_HEIGHT);
+   addNotePlain(RICK);
+   addNotePlain(MORTY_ASCII_ART);
    addNote("Terminal initialized.");
 
    window_->resizable(window_);
@@ -1200,7 +1202,7 @@ void MCScene::refreshRarely(void* data)
       sec.adjustWidgetsAppearances();
    }
 
-   mc_scene->checkbox_json_visible_->position(mc_scene->box_->x(), mc_scene->window_->h() - 120);
+   mc_scene->checkbox_json_visible_->position(mc_scene->box_->x(), mc_scene->window_->h() - INTERPRETER_TERMINAL_HEIGHT - 20);
 
    // Make sure we don't override a recent user click on the checkbox.
    // TODO: Just realized that this breaks the idea of only reflecting the stored state on disc. 
@@ -1225,7 +1227,7 @@ void MCScene::refreshRarely(void* data)
       mc_scene->button_check_json_->hide();
    }
 
-   mc_scene->logging_output_and_interpreter_->position(mc_scene->box_->x(), mc_scene->window_->h() - 100);
+   mc_scene->logging_output_and_interpreter_->position(mc_scene->box_->x(), mc_scene->window_->h() - INTERPRETER_TERMINAL_HEIGHT);
 
    if (mc_scene->getValueForJSONKeyAsString("ShowLOG", JSON_TEMPLATE_DENOTER) == "true")
    {
@@ -1755,6 +1757,17 @@ nlohmann::json MCScene::instanceFromTemplate(
 
                      if (key == "SPEC") {
                         val_str = std::string(is_ltl ? "LTLSPEC " : "INVARSPEC ") + val_str + ";";
+                     }
+                  }
+
+                  // Special treatment: check if format is "-(NUM)" for some float NUM and replace with "-NUM".
+                  // TODO: Should vfm serialize negative numbers - or all negative terms - to "-NUM" right away?
+                  std::string val_str_tmp{ StaticHelper::removeWhiteSpace(val_str) };
+                  if (StaticHelper::stringStartsWith(val_str_tmp, "-(") && StaticHelper::stringEndsWith(val_str_tmp, ")")) {
+                     std::string middle_part = val_str_tmp.substr(2);
+                     middle_part = middle_part.substr(0, middle_part.size() - 1);
+                     if (StaticHelper::isParsableAsFloat(middle_part)) {
+                        val_str = "-" + middle_part;
                      }
                   }
 

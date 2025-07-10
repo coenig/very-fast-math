@@ -1522,10 +1522,52 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 
 // --- EO remaining comments from main.cpp ---
 
+void generatePreviewsForMorty(const MCTrace& trace, const std::string& output_path)
+{
+   if (!trace.empty()) {
+      auto src = std::filesystem::path("./morty/waiting.png");
+      auto dest_path = output_path + "preview2";
+      StaticHelper::createDirectoriesSafe(dest_path);
+      for (const auto& entry : std::filesystem::directory_iterator(dest_path))
+         if (StaticHelper::stringContains(entry.path().string(), ".png"))
+            std::filesystem::copy_file(src, entry.path(), std::filesystem::copy_options::overwrite_existing);
+
+      static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF = static_cast<mc::trajectory_generator::LiveSimGenerator::LiveSimType>(
+         mc::trajectory_generator::LiveSimGenerator::LiveSimType::birdseye
+         | mc::trajectory_generator::LiveSimGenerator::LiveSimType::incremental_image_output
+         );
+
+      mc::trajectory_generator::VisualizationScales gen_config_non_smooth{};
+      gen_config_non_smooth.x_scaling = 1;
+      gen_config_non_smooth.duration_scale = 1;
+      gen_config_non_smooth.frames_per_second_gif = 0;
+      gen_config_non_smooth.frames_per_second_osc = 0;
+      gen_config_non_smooth.gif_duration_scale = 1;
+
+      mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
+         trace,
+         output_path,
+         "preview2",
+         SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
+         {},
+         gen_config_non_smooth, "preview 2");
+   }
+}
+
 extern "C"
 char* morty(const char* input, char* result, size_t resultMaxLength)
 {
-   std::string input_str(input);
+   const std::string input_str_full{ input };
+   const auto vec = StaticHelper::split(input_str_full, "$$$");
+   const std::string input_str{ vec[0] };
+   const float EPS{ std::stof(vec[1]) };  // Corridor around middle of lane that is considered exactly on the lane (outside is between lanes). EPS = 1 treats "on lane" and "between lanes" symmetrically, EPS = 2 would be all "on lane".
+   const bool DEBUG{ StaticHelper::isBooleanTrue(vec[2]) };
+   const float HEAD_CONST{ std::stof(vec[3]) };  // Heading of car in rad.
+   const int SEED{ std::stoi(vec[4]) };  // The current seed this run is part of on Python side.
+   const bool CRASH{ StaticHelper::isBooleanTrue(vec[5]) };
+   const int ITERATION{ std::stoi(vec[6]) };  // The iteration within the current seed on Python side.
+   const std::string OUTPUT_PATH{ vec[7] };
+
    auto cars = StaticHelper::split(input_str, ";");
    auto main_file = StaticHelper::readFile("./morty/main.tpl") + "\n";
    int null_pos{};
@@ -1547,6 +1589,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          float y{ std::stof(data[2]) };
          float vx{ std::stof(data[3]) };
          float vy{ std::stof(data[4]) };
+         float heading{ std::stof(data[5]) };
 
          x = std::max(std::min(x, std::numeric_limits<float>::max()), std::numeric_limits<float>::min());
          vx = std::max(std::min(vx, 70.0f), 0.0f);
@@ -1557,18 +1600,15 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          if (i == 0) null_pos = (int) (x);
 
          std::set<int> lanes{};
+         float heading_factor{ vy * HEAD_CONST };
 
-         static constexpr float EPS{ 1 };
-
-         if (y < 4 - EPS) lanes.insert(3);
-         if (y > 0 + EPS && y < 8 - EPS) lanes.insert(2);
-         if (y > 4 + EPS && y < 12 - EPS) lanes.insert(1);
-         if (y > 8 + EPS) lanes.insert(0);
-
-         //if (y < 4) lanes.insert(3);
-         //if (y > 0 && y < 8) lanes.insert(2);
-         //if (y > 4 && y < 12) lanes.insert(1);
-         //if (y > 8) lanes.insert(0);
+         if (                                y < 0 +  EPS + heading_factor) lanes.insert(3);
+         else if (y >=  0 + EPS + heading_factor && y < 4 -  EPS + heading_factor) { lanes.insert(3); lanes.insert(2); }
+         else if (y >=  4 - EPS + heading_factor && y < 4 +  EPS + heading_factor) lanes.insert(2);
+         else if (y >=  4 + EPS + heading_factor && y < 8 -  EPS + heading_factor) { lanes.insert(2); lanes.insert(1); }
+         else if (y >=  8 - EPS + heading_factor && y < 8 +  EPS + heading_factor) lanes.insert(1);
+         else if (y >=  8 + EPS + heading_factor && y < 12 - EPS + heading_factor) { lanes.insert(1); lanes.insert(0); }
+         else if (y >= 12 - EPS + heading_factor) lanes.insert(0);
 
          for (int lane = 0; lane <= 3; lane++) {
             main_file += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
@@ -1577,32 +1617,38 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    }
 
    main_file += "INIT env.ego.abs_pos = " + std::to_string(null_pos) + ";\n";
+   auto main_file_dummy = StaticHelper::removeMultiLineComments(main_file, "--SPEC-STUFF", "--EO-SPEC-STUFF");
+   main_file_dummy += "INVARSPEC env.cnt < 0;";
+
+   if (DEBUG) {
+      StaticHelper::writeTextToFile(main_file_dummy, "./morty/main.smv");
+      test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
+      auto traces_dummy{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt") };
+      MCTrace trace_dummy = traces_dummy.empty() ? MCTrace{} : traces_dummy.at(0);
+
+      generatePreviewsForMorty(trace_dummy, OUTPUT_PATH); // First preview in case there is no CEX for the actual run.
+   }
 
    StaticHelper::writeTextToFile(main_file, "./morty/main.smv");
+
+   std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now(); // Note that this measured time should be largely overestimated...
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
+   std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();   // ...since the run does many things (like initialization) every time which could be optimized.
+   auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count();
+
    auto traces{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt") };
    MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
 
-   if (!trace.empty()) {
-      static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF = static_cast<mc::trajectory_generator::LiveSimGenerator::LiveSimType>(
-         mc::trajectory_generator::LiveSimGenerator::LiveSimType::birdseye
-         | mc::trajectory_generator::LiveSimGenerator::LiveSimType::incremental_image_output
-         );
+   StaticHelper::writeTextToFile(
+      std::to_string(SEED) + ";" 
+      + std::to_string(trace.size() / 2) + ";" 
+      + std::to_string(runtime) + ";"
+      + std::to_string(CRASH) + ";"
+      + std::to_string(ITERATION) + ";"
+      + "\n", OUTPUT_PATH + "morty_mc_results.txt", true);
 
-      mc::trajectory_generator::VisualizationScales gen_config_non_smooth{};
-      gen_config_non_smooth.x_scaling = 1;
-      gen_config_non_smooth.duration_scale = 1;
-      gen_config_non_smooth.frames_per_second_gif = 0;
-      gen_config_non_smooth.frames_per_second_osc = 0;
-      gen_config_non_smooth.gif_duration_scale = 1;
-
-      mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
-         trace,
-         ".",
-         "preview2",
-         SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
-         {},
-         gen_config_non_smooth, "preview 2");
+   if (DEBUG) {
+      generatePreviewsForMorty(trace, OUTPUT_PATH); // Actual preview in case everything went fine.
    }
 
    std::vector<VarValsFloat> deltas{};

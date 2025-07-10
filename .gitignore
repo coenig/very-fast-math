@@ -94,3 +94,9 @@ bazel-vfm
 /.vs/VSWorkspaceState.json
 /.vs/*.json
 *.tmp
+
+accels.txt
+examples/previews/
+lanes.txt
+preview2/
+velocities.txt

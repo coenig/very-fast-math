@@ -58,9 +58,7 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
 --  <== EO Segments
 --------------------------------------------------------
 
--------------------------------------
    -- TODO: Needs to be removed again
--------------------------------------
    --= CROSSING =--
    -- "ANGLEGRANULARITY": "#{90}#",
    -- "MAXDISTCONNECTIONS": "#{20}#",
@@ -107,7 +105,7 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
    -- INIT veh___639___.abs_pos = 0;
    -- INIT section_0.drain.x = section_7.source.x;
 
-   --= ROUNDABOUT with straight sections which can be made ROUND by the below tweak with zero-length sections =--
+   --= ROUNDABOUT with straight sections =--
    -- "ANGLEGRANULARITY": "#{45}#",
    -- "MAXDISTCONNECTIONS": "#{20}#",
    -- "MAXOUTGOINGCONNECTIONS": "#{2}#",
@@ -121,57 +119,44 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
    -- "SECTIONS": "#{12}#"
    -- "SPEC": "#{ env.cnt < 0 }#"
 
---   INIT section_0.angle = 0;
---   INIT section_1.angle = 90;
---   INIT section_2.angle = 270;
---   INIT section_3.angle = 0;
---   INIT section_4.angle = 180;
---   INIT section_5.angle = 270;
---   INIT section_6.angle = 90;
---   INIT section_7.angle = 180;
---   INIT section_8.angle = 45;
---   INIT section_9.angle = 315;
---   INIT section_10.angle = 225;
---   INIT section_11.angle = 135;
---    
---   INIT section_0_end != 0; -- Include this to get ROUND roundabout.
---   INIT section_1_end != 0;
---   INIT section_2_end != 0;
---   INIT section_3_end != 0;
---   INIT section_4_end != 0;
---   INIT section_5_end != 0;
---   INIT section_6_end != 0;
---   INIT section_7_end != 0;
---   INIT section_8_end = 0;
---   INIT section_9_end = 0;
---   INIT section_10_end = 0;
---   INIT section_11_end = 0;
---   
---   INIT section_7.source.y = section_0.source.y - 7;
---    INIT section_7.source.x = section_0.drain.x;
---    INIT section_3.source.y = section_4.source.y + 7;
---    INIT section_3.source.x = section_4.drain.x;
---    INIT section_6.drain.y = section_5.source.y;
---    INIT section_6.source.x = section_5.source.x - 7;
---    INIT section_1.source.y = section_2.drain.y;
---    INIT section_1.source.x = section_2.source.x - 7;
---   
---    INIT outgoing_connection_0_of_section_0 = 8;
---    INIT outgoing_connection_0_of_section_1 = -1;
---    INIT outgoing_connection_0_of_section_2 = 9;
---    INIT outgoing_connection_0_of_section_3 = -1;
---    INIT outgoing_connection_0_of_section_4 = 10;
---    INIT outgoing_connection_0_of_section_5 = -1;
---    INIT outgoing_connection_0_of_section_6 = 11;
---    INIT outgoing_connection_0_of_section_7 = -1;
---    INIT outgoing_connection_0_of_section_8 = 1;
---    INIT outgoing_connection_0_of_section_9 = 3;
---    INIT outgoing_connection_0_of_section_10 = 5;
---    INIT outgoing_connection_0_of_section_11 = 7;
---    INIT outgoing_connection_1_of_section_8 = 9;
---    INIT outgoing_connection_1_of_section_9 = 10;
---    INIT outgoing_connection_1_of_section_10 = 11;
---    INIT outgoing_connection_1_of_section_11 = 8;
+   -- INIT section_0.angle = 0;
+   -- INIT section_1.angle = 90;
+   -- INIT section_2.angle = 270;
+   -- INIT section_3.angle = 0;
+   -- INIT section_4.angle = 180;
+   -- INIT section_5.angle = 270;
+   -- INIT section_6.angle = 90;
+   -- INIT section_7.angle = 180;
+   -- INIT section_8.angle = 45;
+   -- INIT section_9.angle = 315;
+   -- INIT section_10.angle = 225;
+   -- INIT section_11.angle = 135;
+    
+   -- INIT section_7.source.y = section_0.source.y - 7;
+   -- INIT section_7.source.x = section_0.drain.x;
+   -- INIT section_3.source.y = section_4.source.y + 7;
+   -- INIT section_3.source.x = section_4.drain.x;
+   -- INIT section_6.drain.y = section_5.source.y;
+   -- INIT section_6.source.x = section_5.source.x - 7;
+   -- INIT section_1.source.y = section_2.drain.y;
+   -- INIT section_1.source.x = section_2.source.x - 7;
+   
+   -- INIT outgoing_connection_0_of_section_0 = 8;
+   -- INIT outgoing_connection_0_of_section_1 = -1;
+   -- INIT outgoing_connection_0_of_section_2 = 9;
+   -- INIT outgoing_connection_0_of_section_3 = -1;
+   -- INIT outgoing_connection_0_of_section_4 = 10;
+   -- INIT outgoing_connection_0_of_section_5 = -1;
+   -- INIT outgoing_connection_0_of_section_6 = 11;
+   -- INIT outgoing_connection_0_of_section_7 = -1;
+   -- INIT outgoing_connection_0_of_section_8 = 1;
+   -- INIT outgoing_connection_0_of_section_9 = 3;
+   -- INIT outgoing_connection_0_of_section_10 = 5;
+   -- INIT outgoing_connection_0_of_section_11 = 7;
+   -- INIT outgoing_connection_1_of_section_8 = 9;
+   -- INIT outgoing_connection_1_of_section_9 = 10;
+   -- INIT outgoing_connection_1_of_section_10 = 11;
+   -- INIT outgoing_connection_1_of_section_11 = 8;
 
    --= "Round" ROUNDABOUT =--
    -- "ANGLEGRANULARITY": "#{90}#",
@@ -254,23 +239,7 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
 --   INIT outgoing_connection_1_of_section_13 = 5;
 ----   INIT outgoing_connection_1_of_section_14 = -1;
 --   INIT outgoing_connection_1_of_section_15 = 7;
-
---= For Stop&Go =--
-@{
-INIT veh___6[i]9___.lane_single;
-INIT veh___6[i]9___.v <= ego.v + 3;
-INVAR veh___6[i]9___.rel_pos >= -30 & veh___6[i]9___.rel_pos < 50;
-}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
-INIT ego.same_lane_as_veh_0 & veh___609___.rel_pos > 0;
-INIT ego.same_lane_as_veh_1 & veh___619___.rel_pos > 0;
-INIT ego.same_lane_as_veh_2 & veh___629___.rel_pos > 0;
-INIT ego.same_lane_as_veh_3 & veh___639___.rel_pos > 0;
-INIT ego.same_lane_as_veh_4 & veh___649___.rel_pos > 0;
-INIT ego_lane_0;
-
-----------------------------------------
    -- EO TODO: Needs to be removed again
-----------------------------------------
 
    @{
       FROZENVAR
