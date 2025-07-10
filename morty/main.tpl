@@ -52,11 +52,16 @@ DEFINE
 --SPEC-STUFF
 --INVARSPEC !(env.cnt >= 5 & env.veh___609___.v > 10 & env.veh___619___.v = 5 & env.veh___629___.v = 5 & env.veh___639___.v = 5 & env.veh___649___.v = 5);
 --INVARSPEC !(env.cnt >= 5);
-INVARSPEC !(TRUE
+INVARSPEC !(env.veh___609___.abs_pos - env.veh___649___.abs_pos < 50
  & env.veh___609___.abs_pos > env.veh___619___.abs_pos 
  & env.veh___619___.abs_pos > env.veh___629___.abs_pos 
  & env.veh___629___.abs_pos > env.veh___639___.abs_pos 
  & env.veh___639___.abs_pos > env.veh___649___.abs_pos
+-- & env.veh___609___.v > 10
+-- & env.veh___619___.v > 10
+-- & env.veh___629___.v > 10
+-- & env.veh___639___.v > 10
+-- & env.veh___649___.v > 10
 );
 --EO-SPEC-STUFF
 
