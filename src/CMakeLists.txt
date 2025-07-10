@@ -109,6 +109,7 @@ set(VFM_MAIN_SOURCES
    ../include/model_checking/cex_processing/mc_trajectory_config_helpers.cpp
    ../include/model_checking/cex_processing/mc_trajectory_to_gif.cpp
    ../include/model_checking/cex_processing/mc_trajectory_to_osc.cpp
+   ../include/model_checking/cex_processing/mc_trajectory_to_vtd.cpp
    ../include/model_checking/cex_processing/mc_visualization_launchers.cpp
    smv_module.cpp
    smv_module_elements.cpp
