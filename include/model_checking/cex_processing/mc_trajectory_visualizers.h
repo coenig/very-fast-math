@@ -65,6 +65,21 @@ private:
 	int m_current_indentations{ 0 };
 };
 
+/// @brief Class to generate a VTD scenario from a MC CEX trace
+class VTDgenerator : public Failable
+{
+public:
+	VTDgenerator(const MCinterpretedTrace interpreted_trace) : Failable("Visu_VTD"),
+		m_interpreted_trace(interpreted_trace)
+	{};
+
+	std::string generate();
+
+private:
+	const MCinterpretedTrace m_interpreted_trace;
+
+};
+
 
 /// \brief This generates GIFs and images of the vehicle trajectories from an interpreted MC Trace.
 class LiveSimGenerator : public Failable

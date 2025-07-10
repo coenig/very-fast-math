@@ -431,6 +431,20 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
       csv_file_with_ego << csv_with_ego;
       csv_file_with_ego.close();
    }
+
+   const bool generate_vtd{true};
+   if (generate_vtd)
+   {
+      MCinterpretedTrace interpreted_trace_vtd = interpreted_trace.clone();
+      VTDgenerator vtd_gen{interpreted_trace_vtd};
+
+      const std::string vtd_scenario_txt = vtd_gen.generate();
+
+      std::ofstream file_vtd_scenario(out_path + "_vtd.xml");
+      file_vtd_scenario << vtd_scenario_txt;
+      file_vtd_scenario.close();
+   }
+
    if (generate_gif)
    {
       interpreted_trace.applyInterpolation(settings.duration_scale * config.m_default_step_time * settings.frames_per_second_gif * settings.gif_duration_scale, trace);
