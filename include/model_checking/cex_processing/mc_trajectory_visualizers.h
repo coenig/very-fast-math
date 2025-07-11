@@ -84,14 +84,14 @@ public:
 
 private:
 	std::string generatePlayers();
-	std::string generatePlayer(std::string name, double speed, Vector3 pos);
+	std::string generatePlayer(std::string vehicle_name, double speed, int object_index);
 
 	std::string generatePlayerActions();
-	std::string generatePlayerAction(std::string name);
-	std::string generateSpeedChangeAction(std::string name, double rate, double target, double time);
+	std::string generatePlayerAction(std::string vehicle_name);
+	std::string generateSpeedChangeAction(std::string vehicle_name, std::string name, double x, double rate, double target, double time);
 
 	std::string generateMovingObjectsControl();
-	std::string generatePolylinePathShape(std::string name, std::vector<Vector3> waypoints);
+	std::string generatePolylinePathShape(std::string vehicle_name, int object_index);
 
 	const MCinterpretedTrace m_interpreted_trace;
 
