@@ -51,7 +51,7 @@ R"(<?xml version="1.0" encoding="UTF-8"?>
 	<MovingObjectsControl>
 		)"
 		<< objects_control <<
- R"(<MovingObjectsControl/>
+ R"(</MovingObjectsControl>
 	<LightSigns/>
 	<Selections/>
 </Scenario>
@@ -64,28 +64,31 @@ std::string VTDgenerator::generatePlayers()
 {
 	std::string players{};
 
+	int object_index{0};
 	for (auto& vehicle_name : m_interpreted_trace.getVehicleNames())
 	{
 		const trajectory_generator::FullTrajectory& trajectory = m_interpreted_trace.getVehicleTrajectory(vehicle_name);
-		// TODO: get abs pos not rel pos!
-		players += generatePlayer(vehicle_name, trajectory.front().second.at(PossibleParameter::vel_x), 
-			Vector3{trajectory.front().second.at(PossibleParameter::pos_x), trajectory.front().second.at(PossibleParameter::pos_y), 0.0});
+
+		players += generatePlayer(vehicle_name, trajectory.front().second.at(PossibleParameter::vel_x), object_index++);
 	}
-		
 		
 	return players;
 }
 
-std::string VTDgenerator::generatePlayer(std::string name, double speed, Vector3 pos)
+std::string VTDgenerator::generatePlayer(std::string vehicle_name, double speed, int object_index)
 {
-	std::string control = (name == "ego") ? "external" : "internal";
+	std::string control{(vehicle_name == "ego") ? "external" : "internal"};
+
+	const trajectory_generator::FullTrajectory& trajectory = m_interpreted_trace.getVehicleTrajectory(vehicle_name);
+	const double pathTargetS{trajectory.back().second.at(PossibleParameter::pos_x) - trajectory.front().second.at(PossibleParameter::pos_x)};
 
 	std::string player{
 	 R"(<Player>
-			<Description Driver="DefaultDriver" Control=")" + control + R"(" AdaptDriverToVehicleType="true" Type="AlfaRomeo_Brera_10_BiancoSpino" Name=")" + name + R"("/>
+			<Description Driver="DefaultDriver" Control=")" + control + R"(" AdaptDriverToVehicleType="true" Type="AlfaRomeo_Brera_10_BiancoSpino" Name=")" + vehicle_name + R"("/>
 			<Init>
 				<Speed Value=")" + std::to_string(speed) + R"("/>
-				<PosAbsolute X=")" + std::to_string(pos.x) + R"(" Y=")" + std::to_string(pos.y) + R"(" Z="0.0" Direction="0.0" AlignToRoad="true"/>
+				<PosPathShape/>
+                <PathShapeRef StartS="0.1" EndAction="continue" TargetS=")" + std::to_string(pathTargetS) + R"(" PathShapeId=")" + std::to_string(object_index) + R"("/>
 			</Init>
 		</Player>
 		)"};
@@ -105,30 +108,31 @@ std::string VTDgenerator::generatePlayerActions()
 	return player_actions;
 }
 
-std::string VTDgenerator::generatePlayerAction(std::string name)
+std::string VTDgenerator::generatePlayerAction(std::string vehicle_name)
 {
-	const trajectory_generator::FullTrajectory& trajectory = m_interpreted_trace.getVehicleTrajectory(name);
+	const trajectory_generator::FullTrajectory& trajectory = m_interpreted_trace.getVehicleTrajectory(vehicle_name);
 
 	std::string action{};
 
+	const double x = trajectory[0].second.at(PossibleParameter::pos_x);
 	for(const auto& trajectory_position : trajectory)
 	{
-		double time = trajectory_position.first;
-		double rate = 0.0; // TODO: get rate from trajectory
-		double target = trajectory_position.second.at(PossibleParameter::vel_x); // TODO: get target from trajectory
+		const double time = trajectory_position.first;
+		const double rate = 5.0; // TODO: get rate from trajectory
+		const double target = trajectory_position.second.at(PossibleParameter::vel_x);
 
-		action += generateSpeedChangeAction("speed_change" + std::to_string((int)time), rate, target, time);
+		action += generateSpeedChangeAction(vehicle_name, "speed_change" + std::to_string((int)time), x, rate, target, time);
 	}
 
 	std::string player_action{
-	 R"(<PlayerActions Player=")" + name + R"(">
+	 R"(<PlayerActions Player=")" + vehicle_name + R"(">
 		)" + action + R"(</PlayerActions>
 		)"};
 
 	return player_action;
 }
 
-std::string VTDgenerator::generateSpeedChangeAction(std::string name, double rate, double target, double time)
+std::string VTDgenerator::generateSpeedChangeAction(std::string vehicle_name, std::string name, double x, double rate, double target, double time)
 {
 	std::string speed_change_action{
 	 R"(<SpeedChange Rate=")" + std::to_string(rate) + R"(" Target=")" + std::to_string(target) + R"(" ExecutionTimes="1" ActiveOnEnter="true" DelayTime=")" + std::to_string(time) + R"("/>)"
@@ -136,7 +140,7 @@ std::string VTDgenerator::generateSpeedChangeAction(std::string name, double rat
 
 	std::string action{
 	 R"(	<Action Name=")" + name + R"(">
-				<PosAbsolute CounterID="" CounterComp="COMP_EQ" Radius="5.0000000000000000e+00" X="1.1665091323852539e+02" Y="-1.9857120513916016e+00" NetDist="false" CounterVal="0" Pivot="Ego"/>
+				<PosAbsolute CounterID="" CounterComp="COMP_EQ" Radius="5.0000000000000000e+00" X=")" + std::to_string(x) + R"(" Y="-1.9857120513916016e+00" NetDist="false" CounterVal="0" Pivot=")" + vehicle_name + R"("/>
 				)" + speed_change_action + R"(
 			</Action>
 		)"};	
@@ -146,11 +150,36 @@ std::string VTDgenerator::generateSpeedChangeAction(std::string name, double rat
 
 std::string VTDgenerator::generateMovingObjectsControl()
 {
-	return "\n\t";
+	std::string path_shapes{};
+
+	int object_index{0};
+	for (auto& vehicle_name : m_interpreted_trace.getVehicleNames())
+	{
+		path_shapes += generatePolylinePathShape(vehicle_name, object_index++);
+	}
+
+	return path_shapes;
 }
 
-std::string VTDgenerator::generatePolylinePathShape(std::string name, std::vector<Vector3> waypoints)
+std::string VTDgenerator::generatePolylinePathShape(std::string vehicle_name, int object_index)
 {
-	return "";
+	const trajectory_generator::FullTrajectory& trajectory = m_interpreted_trace.getVehicleTrajectory(vehicle_name);
+
+	std::string waypoints{};
+	for(const auto& waypoint : trajectory)
+	{
+		const double x{waypoint.second.at(PossibleParameter::pos_x)}; // TODO: get abs pos
+		const double y{waypoint.second.at(PossibleParameter::pos_y) -1.75};
+		waypoints += R"(<Waypoint X=")" + std::to_string(x) + R"(" Y=")" + std::to_string(y) + R"(" Options="0x00000000" Z="0.0" Weight="1.0" Yaw="0.0" Pitch="0.0" Roll="0.0"/>
+			)";
+	}
+
+	std::string path_shape{
+	 R"(<PathShape ShapeId=")" + std::to_string(object_index) + R"(" ShapeType="polyline" Closed="false" Name="PathShape)" + std::to_string(object_index) + R"(">
+			)" + waypoints + 
+		R"(</PathShape>
+		)"};
+
+	return path_shape;
 }
 
