@@ -35,6 +35,13 @@ namespace mc {
 namespace trajectory_generator {
 
 
+struct Vector3
+{
+	double x;
+	double y;
+	double z;
+};
+
 /// \brief This generates an OSC for simulation file based on the vehicle trajectories from an interpreted MC Trace.
 class OSCgenerator : public Failable
 {
@@ -76,6 +83,16 @@ public:
 	std::string generate();
 
 private:
+	std::string generatePlayers();
+	std::string generatePlayer(std::string name, double speed, Vector3 pos);
+
+	std::string generatePlayerActions();
+	std::string generatePlayerAction(std::string name);
+	std::string generateSpeedChangeAction(std::string name, double rate, double target, double time);
+
+	std::string generateMovingObjectsControl();
+	std::string generatePolylinePathShape(std::string name, std::vector<Vector3> waypoints);
+
 	const MCinterpretedTrace m_interpreted_trace;
 
 };
@@ -156,12 +173,6 @@ private:
       const std::shared_ptr<RoadGraph> road_graph);
 };
 
-struct Vector3
-{
-	double x;
-	double y;
-	double z;
-};
 
 } // trajectory_generator
 } // mc
