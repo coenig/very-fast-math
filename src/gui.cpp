@@ -479,7 +479,7 @@ void MCScene::activateMCButtons(const bool active, const ButtonClass which)
       if (which == ButtonClass::RunButtons || which == ButtonClass::All) {
          button_run_parser_->activate();
          button_run_cex_->activate();
-         //button_run_mc_and_preview_->activate();
+         button_run_mc_and_preview_->activate();
          button_runtime_analysis_->activate();
       }
 
@@ -494,7 +494,7 @@ void MCScene::activateMCButtons(const bool active, const ButtonClass which)
       if (which == ButtonClass::RunButtons || which == ButtonClass::All) {
          button_run_parser_->deactivate();
          button_run_cex_->deactivate();
-         //button_run_mc_and_preview_->deactivate();
+         button_run_mc_and_preview_->deactivate();
          button_runtime_analysis_->deactivate();
       }
 
