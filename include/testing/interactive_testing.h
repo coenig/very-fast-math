@@ -21,7 +21,7 @@
 namespace vfm {
 namespace test {
 
-constexpr int MAX_THREADS{ 8 };
+constexpr int MAX_THREADS{ 16 };
 
 enum class EnvModelCachedMode {
    use_cached_if_available,
