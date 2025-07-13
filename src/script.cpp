@@ -645,9 +645,8 @@ std::string Script::applyMethodString(const std::string& method_name, const std:
    else if (method_name == "writeTextToFile" && parameters.size() == 1) { StaticHelper::writeTextToFile(getRawScript(), parameters.at(0)); return getRawScript(); }
    else if (method_name == "writeTextToFile" && parameters.size() == 2) { StaticHelper::writeTextToFile(getRawScript(), parameters.at(0), StaticHelper::isBooleanTrue(parameters.at(1))); return getRawScript(); }
    else if (method_name == "timestamp" && parameters.size() == 0) { return StaticHelper::timeStamp(); }
-   else if (method_name == "morty" && parameters.size() == 0) { return MORTY_ASCII_ART; }
-   else if (method_name == "morty" && parameters.size() == 1) { auto rep = parameters.at(0) + " ";  return StaticHelper::replaceAll(rep + MORTY_ASCII_ART, "\n", "\n" + rep); }
-   else if (method_name == "rick" && parameters.size() == 0) { return RICK; }
+   else if (method_name == "morty" && parameters.size() == 0) { auto rep = getRawScript(); return StaticHelper::replaceAll(rep + MORTY_ASCII_ART, "\n", "\n" + rep); }
+   else if (method_name == "rick" && parameters.size() == 0) { return getRawScript() + RICK; }
 
    else if (method_name == "mypath" && parameters.size() == 0) { return getMyPath(); }
    else if (method_name == "setScriptVar" && parameters.size() == 1) {
