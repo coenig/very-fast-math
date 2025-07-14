@@ -88,7 +88,7 @@ private:
 
 	std::string generatePlayerActions();
 	std::string generatePlayerAction(std::string vehicle_name);
-	std::string generateSpeedChangeAction(std::string vehicle_name, std::string name, double x, double rate, double target, double time);
+	std::string generateSpeedChangeAction(std::string vehicle_name, std::string name, double x, double y, TrajectoryPosition trajectory_position);
 
 	std::string generateMovingObjectsControl();
 	std::string generatePolylinePathShape(std::string vehicle_name, int object_index);
