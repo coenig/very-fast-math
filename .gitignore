@@ -1,7 +1,7 @@
 # Prerequisites
 *.d
 *.user
-/.vscode
+#/.vscode
 /.vs
 /lib/**/*
 
@@ -41,6 +41,7 @@
 
 # Generated documents
 *.json
+!.vscode/launch.json
 !src/templates/*.tpl.json
 *.pdf
 *.dot
