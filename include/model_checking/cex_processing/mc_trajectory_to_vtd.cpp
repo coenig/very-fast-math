@@ -115,13 +115,10 @@ std::string VTDgenerator::generatePlayerAction(std::string vehicle_name)
 	std::string action{};
 
 	const double x = trajectory[0].second.at(PossibleParameter::pos_x);
+	const double y = trajectory[0].second.at(PossibleParameter::pos_y) - 1.75;
 	for(const auto& trajectory_position : trajectory)
 	{
-		const double time = trajectory_position.first;
-		const double rate = 5.0; // TODO: get rate from trajectory
-		const double target = trajectory_position.second.at(PossibleParameter::vel_x);
-
-		action += generateSpeedChangeAction(vehicle_name, "speed_change" + std::to_string((int)time), x, rate, target, time);
+		action += generateSpeedChangeAction(vehicle_name, "speed_change" + std::to_string((int)trajectory_position.first), x, y, trajectory_position);
 	}
 
 	std::string player_action{
@@ -132,15 +129,19 @@ std::string VTDgenerator::generatePlayerAction(std::string vehicle_name)
 	return player_action;
 }
 
-std::string VTDgenerator::generateSpeedChangeAction(std::string vehicle_name, std::string name, double x, double rate, double target, double time)
+std::string VTDgenerator::generateSpeedChangeAction(std::string vehicle_name, std::string name, double x, double y, TrajectoryPosition trajectory_position)
 {
+	const double time = trajectory_position.first;
+	const double rate = 5.0; // TODO: get rate from trajectory?
+	const double target = trajectory_position.second.at(PossibleParameter::vel_x);
+
 	std::string speed_change_action{
 	 R"(<SpeedChange Rate=")" + std::to_string(rate) + R"(" Target=")" + std::to_string(target) + R"(" ExecutionTimes="1" ActiveOnEnter="true" DelayTime=")" + std::to_string(time) + R"("/>)"
 	};
 
 	std::string action{
 	 R"(	<Action Name=")" + name + R"(">
-				<PosAbsolute CounterID="" CounterComp="COMP_EQ" Radius="5.0000000000000000e+00" X=")" + std::to_string(x) + R"(" Y="-1.9857120513916016e+00" NetDist="false" CounterVal="0" Pivot=")" + vehicle_name + R"("/>
+				<PosAbsolute CounterID="" CounterComp="COMP_EQ" Radius="5.0000000000000000e+00" X=")" + std::to_string(x) + R"(" Y=")" + std::to_string(y) + R"(" NetDist="false" CounterVal="0" Pivot=")" + vehicle_name + R"("/>
 				)" + speed_change_action + R"(
 			</Action>
 		)"};	
@@ -168,7 +169,7 @@ std::string VTDgenerator::generatePolylinePathShape(std::string vehicle_name, in
 	std::string waypoints{};
 	for(const auto& waypoint : trajectory)
 	{
-		const double x{waypoint.second.at(PossibleParameter::pos_x)}; // TODO: get abs pos
+		const double x{waypoint.second.at(PossibleParameter::pos_x)};
 		const double y{waypoint.second.at(PossibleParameter::pos_y) -1.75};
 		waypoints += R"(<Waypoint X=")" + std::to_string(x) + R"(" Y=")" + std::to_string(y) + R"(" Options="0x00000000" Z="0.0" Weight="1.0" Yaw="0.0" Pitch="0.0" Roll="0.0"/>
 			)";
