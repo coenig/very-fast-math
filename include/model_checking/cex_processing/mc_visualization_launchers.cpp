@@ -408,13 +408,8 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
       MCinterpretedTrace interpreted_trace_osc = interpreted_trace.clone();
       interpreted_trace_osc.applyInterpolation(settings.duration_scale * config.m_default_step_time * settings.frames_per_second_osc, trace);
 
-      std::string header =
-         "# Imports config file and scenario file"
-         "\nimport \"StraightThreeLaneHighwayRQ36.osm\""
-         "\nimport \"../../../vehicle/system_cuts.osc\"";
-
-      std::string osc_without_ego = OSCgenerator(interpreted_trace_osc).generate(final_name, false, header);
-      std::string osc_with_ego = OSCgenerator(interpreted_trace_osc).generate(final_name, true, header);
+      std::string osc_without_ego = OSCgenerator(interpreted_trace_osc).generate(final_name, false);
+      std::string osc_with_ego = OSCgenerator(interpreted_trace_osc).generate(final_name, true);
       std::string csv_with_ego = OSCgenerator(interpreted_trace_osc).generate_as_csv();
 
       std::cout << "OSC WITH EGO: \n" << osc_with_ego << std::endl;
