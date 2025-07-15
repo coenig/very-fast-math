@@ -18,18 +18,16 @@ using namespace mc;
 using namespace trajectory_generator;
 
 
-std::string VTDgenerator::generate() const
+std::string VTDgenerator::generate()
 {
 	std::stringstream vtd_text{};
 
-	const std::string layout{R"(<Layout Database="../Databases/dummy.opt.osgb" File="../Databases/dummy.xodr"/>
-	)"};
+	const std::string layout{generateLayout()};
 	const std::string players{generatePlayers()};
 	const std::string player_actions{generatePlayerActions()};
 	const std::string objects_control{generateMovingObjectsControl()};
 
 	// main scenario block
-	// TODO: what about road topology? dummy.xodr ok? set 1/2/3 lane straight road?
 	vtd_text << 
 R"(<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Scenario>
@@ -58,6 +56,35 @@ R"(<?xml version="1.0" encoding="UTF-8"?>
 )";
 
 	return vtd_text.str();
+}
+
+std::string VTDgenerator::generateLayout()
+{
+	std::string layout{};
+
+	// TODO: get num lanes from CEX
+	const int num_lanes{2};
+
+	if(num_lanes == 2)
+	{
+		layout = R"(<Layout Database="../Databases/dummy.opt.osgb" File="../Databases/dummy.xodr"/>
+	)";
+		m_lane_offset_x = 20.0;
+		m_lane_offset_y = -1.75;
+	}
+	else if(num_lanes == 3)
+	{
+		layout = R"(<Layout Database="../Databases/SR_3L_BML.opt.osgb" File="../Databases/SR_3L_BML.xodr"/>
+	)";
+		m_lane_offset_x = -70.0;
+		m_lane_offset_y = 21.0;
+	}
+	else
+	{
+		assert(false && "invalid number of lanes!\n");
+	}
+
+	return layout;
 }
 
 std::string VTDgenerator::generatePlayers() const
@@ -116,8 +143,8 @@ std::string VTDgenerator::generatePlayerAction(const std::string& vehicle_name) 
 
 	Waypoint waypoint{};
 	// get x/y from start position for ALL actions, arbitrated with delay time
-	waypoint.x = trajectory[0].second.at(PossibleParameter::pos_x);
-	waypoint.y = trajectory[0].second.at(PossibleParameter::pos_y) - 1.75;
+	waypoint.x = trajectory[0].second.at(PossibleParameter::pos_x) + m_lane_offset_x;
+	waypoint.y = trajectory[0].second.at(PossibleParameter::pos_y) + m_lane_offset_y;
 
 	for(int i=1; i<trajectory.size(); ++i)
 	{
@@ -175,8 +202,8 @@ std::string VTDgenerator::generatePolylinePathShape(const std::string& vehicle_n
 	std::string waypoints{};
 	for(const auto& waypoint : trajectory)
 	{
-		const double x{waypoint.second.at(PossibleParameter::pos_x)};
-		const double y{waypoint.second.at(PossibleParameter::pos_y) -1.75};
+		const double x{waypoint.second.at(PossibleParameter::pos_x) + m_lane_offset_x};
+		const double y{waypoint.second.at(PossibleParameter::pos_y) + m_lane_offset_y};
 		waypoints += R"(<Waypoint X=")" + std::to_string(x) + R"(" Y=")" + std::to_string(y) + R"(" Options="0x00000000" Z="0.0" Weight="1.0" Yaw="0.0" Pitch="0.0" Roll="0.0"/>
 			)";
 	}
