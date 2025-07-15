@@ -63,7 +63,7 @@ std::string VTDgenerator::generateLayout()
 	std::string layout{};
 
 	// TODO: get num lanes from CEX
-	const int num_lanes{2};
+	const int num_lanes{3};
 
 	if(num_lanes == 2)
 	{
