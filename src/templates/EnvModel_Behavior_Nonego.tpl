@@ -190,13 +190,19 @@ square_of_veh_v_[i] := case
    TRUE: @{@{MAXSPEEDNONEGO}@***.velocityWorldToEnvModelConst ** 2}@.eval[0];
 esac;
 
-@{
+veh___6[i]9___.v_kmh := (veh___6[i]9___.v * 36) / 10;
 
+veh___6[i]9___.halber_tacho := case
+   veh___6[i]9___.v_kmh <= 50 : veh___6[i]9___.v; -- TODO: Is this correct when considering scaling? (I think it should be.)
+   TRUE : veh___6[i]9___.v_kmh / 2;
+esac;
+
+@{
 DEFINE veh_[i]_and_veh_[j]_on_same_seclet := 
 veh___6[i]9___.on_straight_section = veh___6[j]9___.on_straight_section & veh___6[i]9___.traversion_from = veh___6[j]9___.traversion_from & veh___6[i]9___.traversion_to = veh___6[j]9___.traversion_to;
 
 INVAR -- Non-Ego cars may not collide.
-    veh_[i]_and_veh_[j]_on_same_seclet -> (veh___6[i]9___.same_lane_as_veh_[j] -> (abs(veh___6[j]9___.abs_pos - veh___6[i]9___.abs_pos) > veh_length));
+    veh_[i]_and_veh_[j]_on_same_seclet -> (veh___6[i]9___.same_lane_as_veh_[j] -> (abs(veh___6[j]9___.abs_pos - veh___6[i]9___.abs_pos) > (veh_length + veh___6[i]9___.halber_tacho * @{SAFETY_DISTANCE_FACTOR_NONEGO}@.eval[0])));
 
 INVAR -- Non-Ego cars may not "jump" over each other.
     veh_[i]_and_veh_[j]_on_same_seclet -> (
