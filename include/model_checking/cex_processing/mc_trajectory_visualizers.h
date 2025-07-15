@@ -73,6 +73,13 @@ private:
 };
 
 /// @brief Class to generate a VTD scenario from a MC CEX trace
+/// The VTD proprietary scenario XML format is used as it seems way simpler than the OSC 1 XML format.
+/// We basically just create:
+/// - "Player" elements with initial speed and assigned "PathShape"
+/// - "PathShape" polylines, only x/y waypoints are set, yaw angle seems to be interpolated by VTD
+/// - "PlayerActions" speed changes with absolute trigger point
+/// The speed changes are all triggered at the initial position but activated with different delay times
+/// according to the CEX trajectory.
 class VTDgenerator : public Failable
 {
 public:
@@ -80,7 +87,7 @@ public:
 		m_interpreted_trace(interpreted_trace)
 	{};
 
-	std::string generate();
+	std::string generate() const;
 
 	struct Waypoint{
 		double x{};
@@ -91,18 +98,17 @@ public:
 	};
 
 private:
-	std::string generatePlayers();
-	std::string generatePlayer(std::string vehicle_name, double speed, int object_index);
+	std::string generatePlayers() const;
+	std::string generatePlayer(const std::string& vehicle_name, const double speed, const int object_index) const;
 
-	std::string generatePlayerActions();
-	std::string generatePlayerAction(std::string vehicle_name);
-	std::string generateSpeedChangeAction(std::string vehicle_name, std::string name, Waypoint waypoint);
+	std::string generatePlayerActions() const;
+	std::string generatePlayerAction(const std::string& vehicle_name) const;
+	std::string generateSpeedChangeAction(const std::string& vehicle_name, const std::string& name, const Waypoint& waypoint) const;
 
-	std::string generateMovingObjectsControl();
-	std::string generatePolylinePathShape(std::string vehicle_name, int object_index);
+	std::string generateMovingObjectsControl() const;
+	std::string generatePolylinePathShape(const std::string& vehicle_name, const int object_index) const;
 
 	const MCinterpretedTrace m_interpreted_trace;
-
 };
 
 
