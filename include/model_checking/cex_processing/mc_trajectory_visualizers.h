@@ -75,6 +75,7 @@ private:
 /// @brief Class to generate a VTD scenario from a MC CEX trace
 /// The VTD proprietary scenario XML format is used as it seems way simpler than the OSC 1 XML format.
 /// We basically just create:
+/// - "Layout" predefined straight highway road with n lanes
 /// - "Player" elements with initial speed and assigned "PathShape"
 /// - "PathShape" polylines, only x/y waypoints are set, yaw angle seems to be interpolated by VTD
 /// - "PlayerActions" speed changes with absolute trigger point
@@ -87,8 +88,9 @@ public:
 		m_interpreted_trace(interpreted_trace)
 	{};
 
-	std::string generate() const;
+	std::string generate();
 
+private:
 	struct Waypoint{
 		double x{};
 		double y{};
@@ -97,7 +99,8 @@ public:
 		double time{};
 	};
 
-private:
+	std::string generateLayout();
+
 	std::string generatePlayers() const;
 	std::string generatePlayer(const std::string& vehicle_name, const double speed, const int object_index) const;
 
@@ -109,6 +112,10 @@ private:
 	std::string generatePolylinePathShape(const std::string& vehicle_name, const int object_index) const;
 
 	const MCinterpretedTrace m_interpreted_trace;
+
+	// x/y offset to compensate different map origins
+	double m_lane_offset_x{0.0};
+	double m_lane_offset_y{0.0};
 };
 
 
