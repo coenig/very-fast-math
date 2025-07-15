@@ -6,12 +6,8 @@
 /// @file
 
 #include "model_checking/cex_processing/mc_trajectory_visualizers.h"
-#include "simulation/env2d_simple.h"
-#include "geometry/gif_writer.h"
 
 #include <sstream>
-#include <iomanip>
-#include <thread>
 
 using namespace vfm;
 using namespace mc;
