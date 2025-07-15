@@ -114,11 +114,20 @@ std::string VTDgenerator::generatePlayerAction(std::string vehicle_name)
 
 	std::string action{};
 
-	const double x = trajectory[0].second.at(PossibleParameter::pos_x);
-	const double y = trajectory[0].second.at(PossibleParameter::pos_y) - 1.75;
-	for(const auto& trajectory_position : trajectory)
+	Waypoint waypoint{};
+	// get x/y from start position for ALL actions, arbitrated with delay time
+	waypoint.x = trajectory[0].second.at(PossibleParameter::pos_x);
+	waypoint.y = trajectory[0].second.at(PossibleParameter::pos_y) - 1.75;
+
+	for(int i=1; i<trajectory.size(); ++i)
 	{
-		action += generateSpeedChangeAction(vehicle_name, "speed_change" + std::to_string((int)trajectory_position.first), x, y, trajectory_position);
+		const auto& trajectory_position{trajectory.at(i-1)};
+		waypoint.time = trajectory_position.first;
+		waypoint.v_target = trajectory.at(i).second.at(PossibleParameter::vel_x);
+		const double v_old_target{trajectory_position.second.at(PossibleParameter::vel_x)};
+		waypoint.v_rate = std::abs(waypoint.v_target - v_old_target); // use acc_x instead?
+
+		action += generateSpeedChangeAction(vehicle_name, "speed_change" + std::to_string((int)waypoint.time), waypoint);
 	}
 
 	std::string player_action{
@@ -129,19 +138,15 @@ std::string VTDgenerator::generatePlayerAction(std::string vehicle_name)
 	return player_action;
 }
 
-std::string VTDgenerator::generateSpeedChangeAction(std::string vehicle_name, std::string name, double x, double y, TrajectoryPosition trajectory_position)
+std::string VTDgenerator::generateSpeedChangeAction(std::string vehicle_name, std::string name, Waypoint waypoint)
 {
-	const double time = trajectory_position.first;
-	const double rate = 5.0; // TODO: get rate from trajectory?
-	const double target = trajectory_position.second.at(PossibleParameter::vel_x);
-
 	std::string speed_change_action{
-	 R"(<SpeedChange Rate=")" + std::to_string(rate) + R"(" Target=")" + std::to_string(target) + R"(" ExecutionTimes="1" ActiveOnEnter="true" DelayTime=")" + std::to_string(time) + R"("/>)"
+	 R"(<SpeedChange Rate=")" + std::to_string(waypoint.v_rate) + R"(" Target=")" + std::to_string(waypoint.v_target) + R"(" ExecutionTimes="1" ActiveOnEnter="true" DelayTime=")" + std::to_string(waypoint.time) + R"("/>)"
 	};
 
 	std::string action{
 	 R"(	<Action Name=")" + name + R"(">
-				<PosAbsolute CounterID="" CounterComp="COMP_EQ" Radius="5.0000000000000000e+00" X=")" + std::to_string(x) + R"(" Y=")" + std::to_string(y) + R"(" NetDist="false" CounterVal="0" Pivot=")" + vehicle_name + R"("/>
+				<PosAbsolute CounterID="" CounterComp="COMP_EQ" Radius="5.0000000000000000e+00" X=")" + std::to_string(waypoint.x) + R"(" Y=")" + std::to_string(waypoint.y) + R"(" NetDist="false" CounterVal="0" Pivot=")" + vehicle_name + R"("/>
 				)" + speed_change_action + R"(
 			</Action>
 		)"};	
