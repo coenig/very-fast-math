@@ -82,13 +82,21 @@ public:
 
 	std::string generate();
 
+	struct Waypoint{
+		double x{};
+		double y{};
+		double v_rate{}; // aka acceleration
+		double v_target{}; // target velocity
+		double time{};
+	};
+
 private:
 	std::string generatePlayers();
 	std::string generatePlayer(std::string vehicle_name, double speed, int object_index);
 
 	std::string generatePlayerActions();
 	std::string generatePlayerAction(std::string vehicle_name);
-	std::string generateSpeedChangeAction(std::string vehicle_name, std::string name, double x, double y, TrajectoryPosition trajectory_position);
+	std::string generateSpeedChangeAction(std::string vehicle_name, std::string name, Waypoint waypoint);
 
 	std::string generateMovingObjectsControl();
 	std::string generatePolylinePathShape(std::string vehicle_name, int object_index);
