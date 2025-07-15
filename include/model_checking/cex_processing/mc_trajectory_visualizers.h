@@ -34,13 +34,7 @@ namespace vfm {
 namespace mc {
 namespace trajectory_generator {
 
-
-struct Vector3
-{
-	double x;
-	double y;
-	double z;
-};
+	
 
 /// \brief This generates an OSC for simulation file based on the vehicle trajectories from an interpreted MC Trace.
 class OSCgenerator : public Failable
