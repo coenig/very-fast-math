@@ -260,7 +260,7 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
 INIT veh___6[i]9___.lane_single;
 INIT veh___6[i]9___.v <= ego.v + 3;
 INVAR veh___6[i]9___.rel_pos >= -33 & veh___6[i]9___.rel_pos < @{17 + 70 / 3 * NONEGOS}@.eval[0];
-TRANS abs(next(veh___6[i]9___.a) - veh___6[i]9___.a) <= 2;
+TRANS abs(next(veh___6[i]9___.a) - veh___6[i]9___.a) <= 1;
 @{INIT ego.same_lane_as_veh_[i] & veh___6[i]9___.rel_pos > 0;}@.if[@{[i] < 5 && [i] < 2 * NONEGOS / 3}@.eval]
 }@***.for[[i], 0, @{NONEGOS - 1}@.eval]
 INIT ego_lane_0;

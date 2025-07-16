@@ -1341,10 +1341,10 @@ void MCScene::refreshRarely(void* data)
    Fl::repeat_timeout(TIMEOUT_RARE, refreshRarely, data);
 }
 
-std::pair<std::vector<std::string>, std::vector<std::string>> getCommonAndUniqueStrings(
+std::pair<std::set<std::string>, std::set<std::string>> getCommonAndUniqueStrings(
    const std::vector<std::set<std::string>>& sets) {
-   std::vector<std::string> commonStrings{};
-   std::vector<std::string> uniqueStrings{};
+   std::set<std::string> commonStrings{};
+   std::set<std::string> uniqueStrings{};
 
    if (sets.empty()) return { {}, {} };
 
@@ -1358,7 +1358,7 @@ std::pair<std::vector<std::string>, std::vector<std::string>> getCommonAndUnique
          }
       }
       if (isCommon) {
-         commonStrings.push_back(str);
+         commonStrings.insert(str);
       }
    }
 
@@ -1372,7 +1372,7 @@ std::pair<std::vector<std::string>, std::vector<std::string>> getCommonAndUnique
             }
          }
          if (!isCommon) {
-            uniqueStrings.push_back(str);
+            uniqueStrings.insert(str);
          }
       }
    }
