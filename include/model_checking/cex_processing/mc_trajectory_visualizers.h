@@ -34,6 +34,7 @@ namespace vfm {
 namespace mc {
 namespace trajectory_generator {
 
+	
 
 /// \brief This generates an OSC for simulation file based on the vehicle trajectories from an interpreted MC Trace.
 class OSCgenerator : public Failable
@@ -45,7 +46,7 @@ public:
 	{};
 
 	// Generate the final OSC file
-	std::string generate(std::string scenario_name, bool control_ego, std::string prerequisites = "");
+	std::string generate(std::string scenario_name, bool control_ego);
 	std::string generate_as_csv();
 
 private:
@@ -63,6 +64,52 @@ private:
 
 	const MCinterpretedTrace m_interpreted_trace;
 	int m_current_indentations{ 0 };
+};
+
+/// @brief Class to generate a VTD scenario from a MC CEX trace
+/// The VTD proprietary scenario XML format is used as it seems way simpler than the OSC 1 XML format.
+/// We basically just create:
+/// - "Layout" predefined straight highway road with n lanes
+/// - "Player" elements with initial speed and assigned "PathShape"
+/// - "PathShape" polylines, only x/y waypoints are set, yaw angle seems to be interpolated by VTD
+/// - "PlayerActions" speed changes with absolute trigger point
+/// The speed changes are all triggered at the initial position but activated with different delay times
+/// according to the CEX trajectory.
+class VTDgenerator : public Failable
+{
+public:
+	VTDgenerator(const MCinterpretedTrace interpreted_trace) : Failable("Visu_VTD"),
+		m_interpreted_trace(interpreted_trace)
+	{};
+
+	std::string generate();
+
+private:
+	struct Waypoint{
+		double x{};
+		double y{};
+		double v_rate{}; // aka acceleration
+		double v_target{}; // target velocity
+		double time{};
+	};
+
+	std::string generateLayout();
+
+	std::string generatePlayers() const;
+	std::string generatePlayer(const std::string& vehicle_name, const double speed, const int object_index) const;
+
+	std::string generatePlayerActions() const;
+	std::string generatePlayerAction(const std::string& vehicle_name) const;
+	std::string generateSpeedChangeAction(const std::string& vehicle_name, const std::string& name, const Waypoint& waypoint) const;
+
+	std::string generateMovingObjectsControl() const;
+	std::string generatePolylinePathShape(const std::string& vehicle_name, const int object_index) const;
+
+	const MCinterpretedTrace m_interpreted_trace;
+
+	// x/y offset to compensate different map origins
+	double m_lane_offset_x{0.0};
+	double m_lane_offset_y{0.0};
 };
 
 
@@ -141,12 +188,6 @@ private:
       const std::shared_ptr<RoadGraph> road_graph);
 };
 
-struct Vector3
-{
-	double x;
-	double y;
-	double z;
-};
 
 } // trajectory_generator
 } // mc
