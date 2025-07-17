@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
    //      30, 31, 32, 33, 34, 35, 36, 37, 38, 39,
    //      40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
    //   }, 
-   //   "../examples/gp_config_lanes=2_nonegos=1_segments=1", 
+   //   "C:/eig/git/exp-vfm/CEXs/2025_07_Delivery_AI_Planner/16th_batch_S_G_too_many_LC/gp_config_lanes=2_nonegos=10_segments=2", 
    //   "debug_trace_array",
    //   CexTypeEnum::smv,
    //   false, false, false);
