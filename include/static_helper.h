@@ -165,6 +165,44 @@ const auto VECTOR_COUNTER_IS_ALL_ZERO = [](const std::vector<int>& instance_vec)
    return true;
    };
 
+template<class T>
+class MapVector { // A special mock implementation of a map which preserves insertion order, using a vector.
+public:
+
+   T* at(const std::string& str)
+   {
+      for (auto& s : groups_) {
+         if (s.first == str) return &s.second;
+      }
+
+      return nullptr;
+   }
+
+   void insert(const std::pair<std::string, T>& el)
+   {
+      if (!count(el.first)) {
+         groups_.push_back(el);
+      }
+   }
+
+   bool count(const std::string& el_name) const
+   {
+      return const_cast<BBGroupsMap*>(this)->at(el_name);
+   }
+
+   void erase(const std::string& el_name)
+   {
+      for (int i = 0; i < groups_.size(); i++) {
+         if (groups_[i].first == el_name) {
+            groups_.erase(groups_.begin() + i);
+            return;
+         }
+      }
+   }
+
+   std::vector<std::pair<std::string, T>> groups_{};
+};
+
 class ThreadPool {
 public:
    ThreadPool(int numThreads) : stop(false) 
