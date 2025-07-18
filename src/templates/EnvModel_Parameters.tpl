@@ -39,7 +39,7 @@
 @{MAXACCELNONEGO}@*******.defaultValue[6]
 @{MIN_TIME_BETWEEN_LANECHANGES}@*******.defaultValue[2]
 @{VEHICLE_LENGTH}@*******.defaultValue[5]
-@{SAFETY_DISTANCE_FACTOR_NONEGO}@*******.defaultValue[0.2] -- The factor to multiply the "halber Tacho" safety distance with (one decimal precision).
+@{SAFETY_DISTANCE_FACTOR_NONEGO}@*******.defaultValue[0.4] -- The factor to multiply the "halber Tacho" safety distance with (one decimal precision).
 @{MAXEGOVISRANGE}@*******.defaultValue[250]
 @{CLOSEFRONTDIST}@*******.defaultValue[10]
 @{CALCULATE_LEFT_GAP}@*******.defaultValue[true]
