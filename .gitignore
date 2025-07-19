@@ -96,8 +96,12 @@ bazel-vfm
 /.vs/*.json
 *.tmp
 
+# Morty stuff
 accels.txt
 examples/previews/
 lanes.txt
 preview2/
 velocities.txt
+morty/morty_mc_results.txt
+morty/results.txt
+morty/main.tpl
