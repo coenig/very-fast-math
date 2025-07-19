@@ -57,10 +57,31 @@ SPECS.append(f"""INVARSPEC !(env.veh___609___.on_lane_max = env.veh___619___.on_
 );
 """) # 3: All cars at max one lane width apart in lateral direction.
 
+TARGET_DIST = 20 # Target distance for the next spec.
+TARGET_VEL_LOW = 10 # Target velocity for the next spec, lower bound.
+TARGET_VEL_HIGH = 20 # Target velocity for the next spec, upper bound.
+SPECS.append(f"""INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos - {TARGET_DIST}
+ & env.veh___619___.abs_pos >= env.veh___629___.abs_pos - {TARGET_DIST}
+ & env.veh___629___.abs_pos >= env.veh___639___.abs_pos - {TARGET_DIST}
+ & env.veh___639___.abs_pos >= env.veh___649___.abs_pos - {TARGET_DIST}
+ & env.veh___609___.abs_pos <= env.veh___619___.abs_pos
+ & env.veh___619___.abs_pos <= env.veh___629___.abs_pos
+ & env.veh___629___.abs_pos <= env.veh___639___.abs_pos
+ & env.veh___639___.abs_pos <= env.veh___649___.abs_pos
+ & env.veh___609___.v <= {TARGET_VEL_LOW}
+ & env.veh___619___.v <= {TARGET_VEL_LOW}
+ & env.veh___629___.v <= {TARGET_VEL_LOW}
+ & env.veh___639___.v <= {TARGET_VEL_LOW}
+ & env.veh___649___.v >= {TARGET_VEL_HIGH}
+);
+""") # 4: All cars within 5 m from each other.
+
 SUCC_CONDS.append(lambda: egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0])
 SUCC_CONDS.append(lambda: egos_v[0] < 1 and egos_v[1] < 1 and egos_v[2] < 1 and egos_v[3] < 1 and egos_v[4] < 1)
 SUCC_CONDS.append(lambda: abs(egos_v[0] - TARGET_VEL) < 1 and abs(egos_v[1] - TARGET_VEL) < 1 and abs(egos_v[2] - TARGET_VEL) < 1 and abs(egos_v[3] - TARGET_VEL) < 1 and abs(egos_v[4] - TARGET_VEL) < 1)
 SUCC_CONDS.append(lambda: maxDifferenceArray(egos_y[:-1]) < 4)
+SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[1] - TARGET_DIST and egos_x[1] >= egos_x[2] - TARGET_DIST and egos_x[2] >= egos_x[3] - TARGET_DIST and egos_x[3] >= egos_x[4] - TARGET_DIST
+                  and egos_v[0] <= TARGET_VEL_LOW and egos_v[1] <= TARGET_VEL_LOW and egos_v[2] <= TARGET_VEL_LOW and egos_v[3] <= TARGET_VEL_LOW and egos_v[4] >= TARGET_VEL_HIGH)
 
 parser = argparse.ArgumentParser(
                     prog='morty',
@@ -73,7 +94,7 @@ parser.add_argument('-a', '--heading_adaptation', default=-0.5)
 parser.add_argument('-b', '--allow_blind_steps', default=100)
 parser.add_argument('-c', '--allow_crashed_steps', default=100)
 parser.add_argument('-d', '--debug', default=False)
-parser.add_argument('-e', '--exp_num', default=3)
+parser.add_argument('-e', '--exp_num', default=4)
 args = parser.parse_args()
 
 output_folder = args.output + "/"
