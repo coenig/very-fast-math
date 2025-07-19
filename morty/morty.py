@@ -22,7 +22,7 @@ VAR
 
 """
 
-SPECS = []      # Predefined specs as checked in the experiments.
+SPECS = []      # Predefined specs as checked in the experiments. (Collision freedom is implicit.)
 SUCC_CONDS = [] # Conditions determining success of the specs.
 
 SPECS.append(r"""INVARSPEC !(env.veh___609___.abs_pos - env.veh___649___.abs_pos < 50
@@ -55,7 +55,7 @@ SPECS.append(f"""INVARSPEC !(env.veh___609___.on_lane_max = env.veh___619___.on_
  & env.veh___629___.on_lane_max = env.veh___639___.on_lane_max
  & env.veh___639___.on_lane_max = env.veh___649___.on_lane_max
 );
-""") # 3: All cars at similar lateral position.
+""") # 3: All cars at max one lane width apart in lateral direction.
 
 SUCC_CONDS.append(lambda: egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0])
 SUCC_CONDS.append(lambda: egos_v[0] < 1 and egos_v[1] < 1 and egos_v[2] < 1 and egos_v[3] < 1 and egos_v[4] < 1)
