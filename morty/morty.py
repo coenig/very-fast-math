@@ -22,8 +22,8 @@ VAR
 
 """
 
-SPECS = []
-SUCC_CONDS = []
+SPECS = []      # Predefined specs as checked in the experiments.
+SUCC_CONDS = [] # Conditions determining success of the specs.
 
 SPECS.append(r"""INVARSPEC !(env.veh___609___.abs_pos - env.veh___649___.abs_pos < 50
  & env.veh___609___.abs_pos > env.veh___619___.abs_pos 
@@ -33,7 +33,16 @@ SPECS.append(r"""INVARSPEC !(env.veh___609___.abs_pos - env.veh___649___.abs_pos
 );
 """)
 
+SPECS.append(r"""INVARSPEC env.veh___609___.v = 0
+ & env.veh___619___.v = 0
+ & env.veh___629___.v = 0
+ & env.veh___639___.v = 0
+ & env.veh___649___.v = 0
+);
+""")
+
 SUCC_CONDS.append(lambda: egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0])
+SUCC_CONDS.append(lambda: egos_v[0] == 0 and egos_v[1] == 0 and egos_v[2] == 0 and egos_v[3] == 0 and egos_v[4] == 0)
 
 parser = argparse.ArgumentParser(
                     prog='morty',
