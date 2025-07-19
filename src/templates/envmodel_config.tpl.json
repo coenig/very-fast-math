@@ -74,7 +74,7 @@
       "SECTIONSMINLENGTH": "#{200}#",
       "SEGMENTS": "#{segments}#",
       "SEGMENTSMINLENGTH": 50,
-      "SPEC": "#{ G(!((env.veh___629___.v > 10) && F((env.veh___629___.v == 0) && F((env.veh___629___.v > 10) && F((env.veh___629___.v == 0 && F(env.ego.v == 0))))))) }#",
+      "SPEC": "#{ G(!((env.ego.v > 10) && F((env.ego.v == 0) && F((env.ego.v > 10) && F((env.ego.v == 0)))))) }#",
       "ShowLOG": true,
       "TIMESCALING": "#{1000}#",
       "VEHICLE_LENGTH": "#{vehlen}#",
