@@ -259,10 +259,11 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
 @{
 INIT veh___6[i]9___.lane_single;
 INIT veh___6[i]9___.v <= ego.v + 3;
-INVAR veh___6[i]9___.rel_pos < @{17 + 110 / 3 * NONEGOS}@.eval[0];
+INVAR veh___6[i]9___.rel_pos < @{17 + 70 / 3 * NONEGOS}@.eval[0];
 -- TRANS abs(next(veh___6[i]9___.a) - veh___6[i]9___.a) <= 1;
 -- @{INIT ego.same_lane_as_veh_[i] & veh___6[i]9___.rel_pos > 0;}@.if[@{[i] < 5 && [i] < 2 * NONEGOS / 3}@.eval]
-INIT ego.same_lane_as_veh_[i] & veh___6[i]9___.rel_pos > 0;
+INIT -- ego.same_lane_as_veh_[i] & 
+    veh___6[i]9___.rel_pos > 0;
 
 @{
 INVAR veh___6@{[i]-1}@.eval[0]9___.rel_pos < veh___6[i]9___.rel_pos;
@@ -273,6 +274,10 @@ ASSIGN next(veh___6@{[i]-1}@.eval[0]9___.a) := veh___6[i]9___.a;
 INIT ego_lane_0;
 
 INVAR ego.gaps___619___.i_agent_front = 0;
+
+INVAR section_0_segment_0_min_lane = section_0_segment_1_min_lane;
+INVAR section_0_segment_1_min_lane = section_0_segment_2_min_lane;
+INVAR section_0_segment_2_max_lane = 0;
 
 ----------------------------------------
    -- EO TODO: Needs to be removed again
