@@ -7,6 +7,34 @@ from pathlib import Path
 import shutil
 import argparse
 
+MAIN_TEMPLATE = r"""#include "planner.cpp_combined.k2.smv"
+#include "EnvModel.smv"
+
+MODULE Globals
+VAR
+"loc" : boolean;
+
+MODULE main
+VAR
+  globals : Globals; 
+  env : EnvModel;
+  planner : "checkLCConditionsFastLane"(globals);
+
+"""
+
+SPECS = []
+SUCC_CONDS = []
+
+SPECS.append(r"""INVARSPEC !(env.veh___609___.abs_pos - env.veh___649___.abs_pos < 50
+ & env.veh___609___.abs_pos > env.veh___619___.abs_pos 
+ & env.veh___619___.abs_pos > env.veh___629___.abs_pos 
+ & env.veh___629___.abs_pos > env.veh___639___.abs_pos 
+ & env.veh___639___.abs_pos > env.veh___649___.abs_pos
+);
+""")
+
+SUCC_CONDS.append(lambda: egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0])
+
 parser = argparse.ArgumentParser(
                     prog='morty',
                     description='Model Checking based planning',
@@ -18,6 +46,7 @@ parser.add_argument('-a', '--heading_adaptation', default=-0.5)
 parser.add_argument('-b', '--allow_blind_steps', default=100)
 parser.add_argument('-c', '--allow_crashed_steps', default=100)
 parser.add_argument('-d', '--debug', default=True)
+parser.add_argument('-e', '--exp_num', default=0)
 args = parser.parse_args()
 
 output_folder = args.output + "/"
@@ -45,6 +74,9 @@ def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
 
 open(f'{output_folder}results.txt', 'w').close()          # Delete old results from Python side
 open(f'{output_folder}morty_mc_results.txt', 'w').close() # Delete old results from MC side (these are a super set of the above)
+
+with open(f'{output_folder}main.tpl', "w") as text_file:
+    text_file.write(MAIN_TEMPLATE + SPECS[args.exp_num])
 
 for seedo in range(0, MAX_EXPs):
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
@@ -121,7 +153,7 @@ for seedo in range(0, MAX_EXPs):
 
         input += "$$$1$$$" + str(args.debug) + "$$$" + str(args.heading_adaptation) + "$$$" + str(seedo) + "$$$" + str(crashed) + "$$$" + str(global_counter) + "$$$" + output_folder
         
-        if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
+        if SUCC_CONDS[args.exp_num]():
             print("DONE") # Completion condition for position reversal SPEC.
             good_ones.append(seedo)
             break
