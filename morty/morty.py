@@ -31,7 +31,7 @@ SPECS.append(r"""INVARSPEC !(env.veh___609___.abs_pos - env.veh___649___.abs_pos
  & env.veh___629___.abs_pos > env.veh___639___.abs_pos 
  & env.veh___639___.abs_pos > env.veh___649___.abs_pos
 );
-""")
+""") # 0: Reversed order of cars, i.e. the first car is the one with the highest abs_pos.
 
 SPECS.append(r"""INVARSPEC !(env.veh___609___.v = 0
  & env.veh___619___.v = 0
@@ -39,10 +39,20 @@ SPECS.append(r"""INVARSPEC !(env.veh___609___.v = 0
  & env.veh___639___.v = 0
  & env.veh___649___.v = 0
 );
-""")
+""") # 1: All cars stopped.
+
+TARGET_VEL = 50 # Target velocity for the next spec.
+SPECS.append(f"""INVARSPEC !(env.veh___609___.v = {TARGET_VEL}
+ & env.veh___619___.v = {TARGET_VEL}
+ & env.veh___629___.v = {TARGET_VEL}
+ & env.veh___639___.v = {TARGET_VEL}
+ & env.veh___649___.v = {TARGET_VEL}
+);
+""") # 2: All cars at target velocity.
 
 SUCC_CONDS.append(lambda: egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0])
 SUCC_CONDS.append(lambda: egos_v[0] < 1 and egos_v[1] < 1 and egos_v[2] < 1 and egos_v[3] < 1 and egos_v[4] < 1)
+SUCC_CONDS.append(lambda: abs(egos_v[0] - TARGET_VEL) < 1 and abs(egos_v[1] - TARGET_VEL) < 1 and abs(egos_v[2] - TARGET_VEL) < 1 and abs(egos_v[3] - TARGET_VEL) < 1 and abs(egos_v[4] - TARGET_VEL) < 1)
 
 parser = argparse.ArgumentParser(
                     prog='morty',
@@ -55,7 +65,7 @@ parser.add_argument('-a', '--heading_adaptation', default=-0.5)
 parser.add_argument('-b', '--allow_blind_steps', default=100)
 parser.add_argument('-c', '--allow_crashed_steps', default=100)
 parser.add_argument('-d', '--debug', default=False)
-parser.add_argument('-e', '--exp_num', default=1)
+parser.add_argument('-e', '--exp_num', default=2)
 args = parser.parse_args()
 
 output_folder = args.output + "/"
