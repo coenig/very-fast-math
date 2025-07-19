@@ -1663,20 +1663,23 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
 
    std::string res{};
 
-   for (int i = 0; i < cars.size(); i++) {
-      for (const auto& delta : deltas) {
-         res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.v")) + ",";
-      }
-      
-      res += "|";
+   if (trace.size() == 2) {
+      res = "FINISHED";
+   } else {
+      for (int i = 0; i < cars.size(); i++) {
+         for (const auto& delta : deltas) {
+            res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.v")) + ",";
+         }
+         
+         res += "|";
 
-      for (const auto& delta : deltas) {
-         res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.on_lane")) + ",";
-      }
+         for (const auto& delta : deltas) {
+            res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.on_lane")) + ",";
+         }
 
-      res += ";";
+         res += ";";
+      }
    }
-
    //for (int i = 0; i < cars.size(); i++) {
    //   auto d_ol = delta_ol.at("veh___6" + std::to_string(i) + "9___.on_lane");
    //   auto d_ve = delta_ve.at("veh___6" + std::to_string(i) + "9___.v");

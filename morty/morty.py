@@ -50,9 +50,17 @@ SPECS.append(f"""INVARSPEC !(env.veh___609___.v = {TARGET_VEL}
 );
 """) # 2: All cars at target velocity.
 
+SPECS.append(f"""INVARSPEC !(env.veh___609___.on_lane_max = env.veh___619___.on_lane_max
+ & env.veh___619___.on_lane_max = env.veh___629___.on_lane_max
+ & env.veh___629___.on_lane_max = env.veh___639___.on_lane_max
+ & env.veh___639___.on_lane_max = env.veh___649___.on_lane_max
+);
+""") # 3: All cars at similar lateral position.
+
 SUCC_CONDS.append(lambda: egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0])
 SUCC_CONDS.append(lambda: egos_v[0] < 1 and egos_v[1] < 1 and egos_v[2] < 1 and egos_v[3] < 1 and egos_v[4] < 1)
 SUCC_CONDS.append(lambda: abs(egos_v[0] - TARGET_VEL) < 1 and abs(egos_v[1] - TARGET_VEL) < 1 and abs(egos_v[2] - TARGET_VEL) < 1 and abs(egos_v[3] - TARGET_VEL) < 1 and abs(egos_v[4] - TARGET_VEL) < 1)
+SUCC_CONDS.append(lambda: maxDifferenceArray(egos_y[:-1]) < 4)
 
 parser = argparse.ArgumentParser(
                     prog='morty',
@@ -65,7 +73,7 @@ parser.add_argument('-a', '--heading_adaptation', default=-0.5)
 parser.add_argument('-b', '--allow_blind_steps', default=100)
 parser.add_argument('-c', '--allow_crashed_steps', default=100)
 parser.add_argument('-d', '--debug', default=False)
-parser.add_argument('-e', '--exp_num', default=2)
+parser.add_argument('-e', '--exp_num', default=3)
 args = parser.parse_args()
 
 output_folder = args.output + "/"
@@ -90,6 +98,14 @@ def min_max_curr(successful_so_far, done_so_far, max_to_expect):
 
 def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
     return heading - math.atan((dpoint_y - ego_y) / ddist)
+
+
+def maxDifferenceArray(A):
+    maxDiff = -1
+    for i in range(len(A)):
+        for j in range(len(A)):
+            maxDiff = max(maxDiff, abs(A[j] - A[i]))
+    return maxDiff
 
 open(f'{output_folder}results.txt', 'w').close()          # Delete old results from Python side
 open(f'{output_folder}morty_mc_results.txt', 'w').close() # Delete old results from MC side (these are a super set of the above)
@@ -172,17 +188,23 @@ for seedo in range(0, MAX_EXPs):
 
         input += "$$$1$$$" + str(args.debug) + "$$$" + str(args.heading_adaptation) + "$$$" + str(seedo) + "$$$" + str(crashed) + "$$$" + str(global_counter) + "$$$" + output_folder
         
-        if SUCC_CONDS[args.exp_num]():
-            print("DONE") # Completion condition for position reversal SPEC.
-            good_ones.append(seedo)
-            break
-        
         first = False
         
         #### MODEL CHECKER CALL ####
         result = create_string_buffer(10000)
         res = morty_lib.morty(input.encode('utf-8'), result, sizeof(result))
         res_str = res.decode()
+        
+        # We check both the MC result and the success condition to determine if we are done. Reason:
+        # The MC result alone is not sufficient because the MC cares only about the SPEC being satisfied in the last step.
+        # Here we check AFTER the last step, a situation which is not guaranteed to have a solution, as well, so we might
+        # get a false negative. Checking only the success condition would be possible; we add the additional
+        # MC check to make it easier to implement new SPECs. Then, a first impression is possible even
+        # if no success condition is given or if it is not implemented in a precise way. 
+        if res_str == "FINISHED" or SUCC_CONDS[args.exp_num]():
+            print("DONE")
+            good_ones.append(seedo)            
+            break
         
         if res_str == "|;|;|;|;|;":
             print("No CEX found")
