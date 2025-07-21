@@ -93,8 +93,8 @@ parser.add_argument('-s', '--steps_per_run', default=100)
 parser.add_argument('-a', '--heading_adaptation', default=-0.5)
 parser.add_argument('-b', '--allow_blind_steps', default=100)
 parser.add_argument('-c', '--allow_crashed_steps', default=100)
-parser.add_argument('-d', '--debug', default=False)
-parser.add_argument('-e', '--exp_num', default=4)
+parser.add_argument('-d', '--debug', default=True)
+parser.add_argument('-e', '--exp_num', default=0)
 args = parser.parse_args()
 
 output_folder = args.output + "/"
