@@ -74,7 +74,7 @@ SPECS.append(f"""INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_po
  & env.veh___639___.v <= {TARGET_VEL_LOW}
  & env.veh___649___.v >= {TARGET_VEL_HIGH}
 );
-""") # 4: All cars within 5 m from each other.
+""") # 4: All cars longitudinally close to each other, one drives faster.
 
 SUCC_CONDS.append(lambda: egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0])
 SUCC_CONDS.append(lambda: egos_v[0] < 1 and egos_v[1] < 1 and egos_v[2] < 1 and egos_v[3] < 1 and egos_v[4] < 1)
