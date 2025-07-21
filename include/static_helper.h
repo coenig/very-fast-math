@@ -187,7 +187,7 @@ public:
 
    bool count(const std::string& el_name) const
    {
-      return const_cast<BBGroupsMap*>(this)->at(el_name);
+      return const_cast<MapVector*>(this)->at(el_name);
    }
 
    void erase(const std::string& el_name)

@@ -253,6 +253,8 @@ bool VisualizationLaunchers::quickGenerateGIFs(
    }
 
    for (int index : cex_nums_to_generate) {
+      if (index >= traces.size()) continue;
+
       auto& trace = traces.at(index);
       const std::string path{ path_base + std::to_string(index) + "/"};
 
