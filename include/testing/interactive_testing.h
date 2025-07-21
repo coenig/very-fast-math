@@ -88,7 +88,8 @@ void convenienceArtifactRunHardcoded(
    const std::string& env_model_template_path = "../src/templates/" + ENVMODEL_TEMPLATE_FILENAME,
    const std::string& vfm_includes_file_path = "../src/examples/bp/prototype/motion_planning/rule_based_planning/vfm-includes-viper.txt",
    const std::string& cache_dir = "./tmp",
-   const std::string& path_to_external_folder = "../external/");
+   const std::string& path_to_external_folder = "../external/",
+   const std::string& root_dir = ".");
 
 std::map<std::string, std::string> retrieveEnvModelDefinitionFromJSON(const std::string json_file, const EnvModelCachedMode cached_mode);
 

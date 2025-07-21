@@ -823,33 +823,34 @@ void vfm::test::convenienceArtifactRunHardcoded(
    const std::string& env_model_template_path,
    const std::string& vfm_includes_file_path,
    const std::string& cache_dir,
-   const std::string& path_to_external_folder)
+   const std::string& path_to_external_folder,
+   const std::string& root_dir)
 {
    std::vector<std::string> executions{};
 
 #ifdef _WIN32
    if (exec == MCExecutionType::all || exec == MCExecutionType::parser_and_mc || exec == MCExecutionType::parser) {
-      executions.push_back("./vfm.exe --mode parser --env-model-json-file " + json_config_path + " --env-model-template-file " + env_model_template_path + " --planner-include-file " + vfm_includes_file_path + " --targetdir " + target_directory + "/" + " --chache-dir " + cache_dir);
+      executions.push_back("./vfm.exe --mode parser --env-model-json-file " + json_config_path + " --env-model-template-file " + env_model_template_path + " --planner-include-file " + vfm_includes_file_path + " --targetdir " + target_directory + "/" + " --rootdir " + root_dir + " --chache-dir " + cache_dir);
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::parser_and_mc || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::mc) {
-      executions.push_back("./vfm.exe --mode mc --targetdir " + target_directory + " --path-to-kratos " + path_to_external_folder + "/win32/kratos.exe --path-to-cpp " + path_to_external_folder + "/win32/cpp.exe --path-to-nuxmv " + path_to_external_folder + "/win32/nuXmv.exe");
+      executions.push_back("./vfm.exe --mode mc --targetdir " + target_directory + " --rootdir " + root_dir + " --path-to-kratos " + path_to_external_folder + "/win32/kratos.exe --path-to-cpp " + path_to_external_folder + "/win32/cpp.exe --path-to-nuxmv " + path_to_external_folder + "/win32/nuXmv.exe");
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::cex) {
-      executions.push_back("./vfm.exe --mode cex --targetdir " + target_directory + " --rootdir .");
+      executions.push_back("./vfm.exe --mode cex --targetdir " + target_directory + " --rootdir " + root_dir);
    }
 #elif __linux__ 
    if (exec == MCExecutionType::all || exec == MCExecutionType::parser_and_mc || exec == MCExecutionType::parser) {
-      executions.push_back("./vfm --mode parser --env-model-json-file " + json_config_path + " --env-model-template-file " + env_model_template_path + " --planner-include-file " + vfm_includes_file_path + " --targetdir " + target_directory + "/" + " --chache-dir " + cache_dir);
+      executions.push_back("./vfm --mode parser --env-model-json-file " + json_config_path + " --env-model-template-file " + env_model_template_path + " --planner-include-file " + vfm_includes_file_path + " --targetdir " + target_directory + "/" + " --rootdir " + root_dir + " --chache-dir " + cache_dir);
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::parser_and_mc || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::mc) {
-      executions.push_back("./vfm --mode mc --targetdir " + target_directory + " --path-to-kratos " + path_to_external_folder + "/linux64/kratos --path-to-nuxmv " + path_to_external_folder + "/linux64/nuXmv");
+      executions.push_back("./vfm --mode mc --targetdir " + target_directory + " --rootdir " + root_dir + " --path-to-kratos " + path_to_external_folder + "/linux64/kratos --path-to-nuxmv " + path_to_external_folder + "/linux64/nuXmv");
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::cex) {
-      executions.push_back("./vfm --mode cex --targetdir " + target_directory + " --rootdir .");
+      executions.push_back("./vfm --mode cex --targetdir " + target_directory + " --rootdir " + root_dir));
    }
 #endif
 
@@ -1567,6 +1568,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    const bool CRASH{ StaticHelper::isBooleanTrue(vec[5]) };
    const int ITERATION{ std::stoi(vec[6]) };  // The iteration within the current seed on Python side.
    const std::string OUTPUT_PATH{ vec[7] };
+   const std::string ROOT_DIR{ vec[8] }; // "." or "/", depending on weather we have an absolute ar a relative path.
 
    auto cars = StaticHelper::split(input_str, ";");
    auto main_file = StaticHelper::readFile(OUTPUT_PATH + "main.tpl") + "\n";
@@ -1622,7 +1624,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
 
    if (DEBUG) {
       StaticHelper::writeTextToFile(main_file_dummy, OUTPUT_PATH + "main.smv");
-      test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, OUTPUT_PATH, "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
+      test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, OUTPUT_PATH, "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external", ROOT_DIR);
       auto traces_dummy{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_PATH + "debug_trace_array.txt") };
       MCTrace trace_dummy = traces_dummy.empty() ? MCTrace{} : traces_dummy.at(0);
 
@@ -1632,7 +1634,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    StaticHelper::writeTextToFile(main_file, OUTPUT_PATH + "main.smv");
 
    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now(); // Note that this measured time should be largely overestimated...
-   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, OUTPUT_PATH, "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
+   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, OUTPUT_PATH, "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external", ROOT_DIR);
    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();   // ...since the run does many things (like initialization) every time which could be optimized.
    auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count();
 
