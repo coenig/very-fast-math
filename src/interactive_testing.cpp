@@ -1569,7 +1569,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    const std::string OUTPUT_PATH{ vec[7] };
 
    auto cars = StaticHelper::split(input_str, ";");
-   auto main_file = StaticHelper::readFile("./morty/main.tpl") + "\n";
+   auto main_file = StaticHelper::readFile(OUTPUT_PATH + "main.tpl") + "\n";
    int null_pos{};
 
    cars.erase(cars.end() - 1);
@@ -1621,22 +1621,22 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    main_file_dummy += "INVARSPEC env.cnt < 0;";
 
    if (DEBUG) {
-      StaticHelper::writeTextToFile(main_file_dummy, "./morty/main.smv");
-      test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
-      auto traces_dummy{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt") };
+      StaticHelper::writeTextToFile(main_file_dummy, OUTPUT_PATH + "main.smv");
+      test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, OUTPUT_PATH, "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
+      auto traces_dummy{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_PATH + "debug_trace_array.txt") };
       MCTrace trace_dummy = traces_dummy.empty() ? MCTrace{} : traces_dummy.at(0);
 
       generatePreviewsForMorty(trace_dummy, OUTPUT_PATH); // First preview in case there is no CEX for the actual run.
    }
 
-   StaticHelper::writeTextToFile(main_file, "./morty/main.smv");
+   StaticHelper::writeTextToFile(main_file, OUTPUT_PATH + "main.smv");
 
    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now(); // Note that this measured time should be largely overestimated...
-   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, "./morty", "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
+   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, OUTPUT_PATH, "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external");
    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();   // ...since the run does many things (like initialization) every time which could be optimized.
    auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count();
 
-   auto traces{ StaticHelper::extractMCTracesFromNusmvFile("./morty/debug_trace_array.txt") };
+   auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_PATH + "debug_trace_array.txt") };
    MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
 
    StaticHelper::writeTextToFile(
