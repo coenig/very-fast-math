@@ -1622,9 +1622,14 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    auto main_file_dummy = StaticHelper::removeMultiLineComments(main_file, "--SPEC-STUFF", "--EO-SPEC-STUFF");
    main_file_dummy += "INVARSPEC env.cnt < 0;";
 
+   const std::string path_to_external_folder{ ROOT_DIR == "." 
+      ? "./external" 
+      : "/vfm/external" // Hard-coded for the "docker" case. If not in docker, relative path needs to be given. This is not pretty, but for now the simplest solution.
+   };
+
    if (DEBUG) {
       StaticHelper::writeTextToFile(main_file_dummy, OUTPUT_PATH + "main.smv");
-      test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, OUTPUT_PATH, "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external", ROOT_DIR);
+      test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, OUTPUT_PATH, "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", path_to_external_folder, ROOT_DIR);
       auto traces_dummy{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_PATH + "debug_trace_array.txt") };
       MCTrace trace_dummy = traces_dummy.empty() ? MCTrace{} : traces_dummy.at(0);
 
@@ -1634,7 +1639,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    StaticHelper::writeTextToFile(main_file, OUTPUT_PATH + "main.smv");
 
    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now(); // Note that this measured time should be largely overestimated...
-   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, OUTPUT_PATH, "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", "./external", ROOT_DIR);
+   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, OUTPUT_PATH, "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", path_to_external_folder, ROOT_DIR);
    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();   // ...since the run does many things (like initialization) every time which could be optimized.
    auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count();
 
