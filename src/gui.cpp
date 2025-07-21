@@ -1168,21 +1168,23 @@ void MCScene::refreshRarely(void* data)
    mc_scene->progress_detector_.placeProgressImage(path_template, packages, mc_scene->se_controllers_, path_generated_base_parent);
 
    // Auto-select if only one run available.
-   int num{ 0 };
+   // TODO: Do we want this? It's quite annyoing in most cases...
+   //int num{ 0 };
 
-   for (auto& sec : mc_scene->se_controllers_) {
-      if (sec.hasPreview() && sec.hasEnvmodel()) {
-         num++;
-      }
-   }
+   //for (auto& sec : mc_scene->se_controllers_) {
+   //   if (sec.hasPreview() && sec.hasEnvmodel()) {
+   //      num++;
+   //   }
+   //}
 
-   if (num == 1) {
-      for (auto& sec : mc_scene->se_controllers_) {
-         if (sec.hasPreview() && sec.hasEnvmodel()) {
-            sec.tryToSelectController();
-         }
-      }
-   }
+   //if (num == 1) {
+   //   for (auto& sec : mc_scene->se_controllers_) {
+   //      if (sec.hasPreview() && sec.hasEnvmodel()) {
+   //         sec.tryToSelectController();
+   //      }
+   //   }
+   //}
+   // EO auto-select if only one run available.
 
    for (auto& sec : mc_scene->se_controllers_) {
       if (sec.hasPreview()) {

@@ -39,7 +39,7 @@
 @{MAXACCELNONEGO}@*******.defaultValue[6]
 @{MIN_TIME_BETWEEN_LANECHANGES}@*******.defaultValue[2]
 @{VEHICLE_LENGTH}@*******.defaultValue[5]
-@{SAFETY_DISTANCE_FACTOR_NONEGO}@*******.defaultValue[0.2] -- The factor to multiply the "halber Tacho" safety distance with (one decimal precision).
+@{SAFETY_DISTANCE_FACTOR_NONEGO}@*******.defaultValue[0.4] -- The factor to multiply the "halber Tacho" safety distance with (one decimal precision).
 @{MAXEGOVISRANGE}@*******.defaultValue[250]
 @{CLOSEFRONTDIST}@*******.defaultValue[10]
 @{CALCULATE_LEFT_GAP}@*******.defaultValue[true]
@@ -51,7 +51,7 @@
 @{CLOSETOEGOPAR}@*******.defaultValue[80]
 @{TIMESCALING}@*******.defaultValue[1000]        -- nondimensionalization constant for time, in milliseconds
 @{DISTANCESCALING}@*******.defaultValue[1000]    -- nondimensionalization constant for distance, in millimeters
-@{SIMPLE_LC}@*******.defaultValue[true]          -- true: Allow non-egos to switch a "half-lane" if time_since_last_lc has passed; false: Christian's version
+@{SIMPLE_LC}@*******.defaultValue[false]         -- true: Allow non-egos to switch a "half-lane" if time_since_last_lc has passed; false: Christian's version
 
 -- Parameters for "skipping" of CEXs.
 @{DOUBLEMERGEPROTECTION}@*******.defaultValue[true] -- Prohibits non-ego LCs when in danger of a double-merge

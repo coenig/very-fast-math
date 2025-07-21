@@ -3,21 +3,106 @@ import highway_env
 from matplotlib import pyplot as plt
 from ctypes import *
 import math
-from pathlib import Path
+import os
 import shutil
 import argparse
+
+MAIN_TEMPLATE = r"""#include "planner.cpp_combined.k2.smv"
+#include "EnvModel.smv"
+
+MODULE Globals
+VAR
+"loc" : boolean;
+
+MODULE main
+VAR
+  globals : Globals; 
+  env : EnvModel;
+  planner : "checkLCConditionsFastLane"(globals);
+
+"""
+
+SPECS = []      # Predefined specs as checked in the experiments. (Collision freedom is implicit.)
+SUCC_CONDS = [] # Conditions determining success of the specs.
+
+SPECS.append(r"""INVARSPEC !(env.veh___609___.v = 0
+ & env.veh___619___.v = 0
+ & env.veh___629___.v = 0
+ & env.veh___639___.v = 0
+ & env.veh___649___.v = 0
+);
+""") # 0: All cars stopped.
+
+TARGET_VEL = 50 # Target velocity for the next spec.
+SPECS.append(f"""INVARSPEC !(env.veh___609___.v = {TARGET_VEL}
+ & env.veh___619___.v = {TARGET_VEL}
+ & env.veh___629___.v = {TARGET_VEL}
+ & env.veh___639___.v = {TARGET_VEL}
+ & env.veh___649___.v = {TARGET_VEL}
+);
+""") # 1: All cars at target velocity.
+
+SPECS.append(f"""INVARSPEC !(env.veh___609___.on_lane_max = env.veh___619___.on_lane_max
+ & env.veh___619___.on_lane_max = env.veh___629___.on_lane_max
+ & env.veh___629___.on_lane_max = env.veh___639___.on_lane_max
+ & env.veh___639___.on_lane_max = env.veh___649___.on_lane_max
+);
+""") # 2: All cars at max one lane width apart in lateral direction.
+
+TARGET_DIST = 20 # Target distance for the next spec.
+TARGET_VEL_LOW = 10 # Target velocity for the next spec, lower bound.
+TARGET_VEL_HIGH = 20 # Target velocity for the next spec, upper bound.
+SPECS.append(f"""INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos - {TARGET_DIST}
+ & env.veh___619___.abs_pos >= env.veh___629___.abs_pos - {TARGET_DIST}
+ & env.veh___629___.abs_pos >= env.veh___639___.abs_pos - {TARGET_DIST}
+ & env.veh___639___.abs_pos >= env.veh___649___.abs_pos - {TARGET_DIST}
+ & env.veh___609___.abs_pos <= env.veh___619___.abs_pos
+ & env.veh___619___.abs_pos <= env.veh___629___.abs_pos
+ & env.veh___629___.abs_pos <= env.veh___639___.abs_pos
+ & env.veh___639___.abs_pos <= env.veh___649___.abs_pos
+ & env.veh___609___.v <= {TARGET_VEL_LOW}
+ & env.veh___619___.v <= {TARGET_VEL_LOW}
+ & env.veh___629___.v <= {TARGET_VEL_LOW}
+ & env.veh___639___.v <= {TARGET_VEL_LOW}
+ & env.veh___649___.v >= {TARGET_VEL_HIGH}
+);
+""") # 3: All cars longitudinally close to each other, one drives faster.
+
+SPECS.append(r"""INVARSPEC !(env.veh___609___.abs_pos - env.veh___649___.abs_pos < 50
+ & env.veh___609___.abs_pos > env.veh___619___.abs_pos 
+ & env.veh___619___.abs_pos > env.veh___629___.abs_pos 
+ & env.veh___629___.abs_pos > env.veh___639___.abs_pos 
+ & env.veh___639___.abs_pos > env.veh___649___.abs_pos
+);
+""") # 4: Reversed order of cars, i.e. the first car is the one with the highest abs_pos.
+
+SUCC_CONDS.append(lambda: egos_v[0] < 1 and egos_v[1] < 1 and egos_v[2] < 1 and egos_v[3] < 1 and egos_v[4] < 1)
+SUCC_CONDS.append(lambda: abs(egos_v[0] - TARGET_VEL) < 1 and abs(egos_v[1] - TARGET_VEL) < 1 and abs(egos_v[2] - TARGET_VEL) < 1 and abs(egos_v[3] - TARGET_VEL) < 1 and abs(egos_v[4] - TARGET_VEL) < 1)
+SUCC_CONDS.append(lambda: maxDifferenceArray(egos_y[:-1]) < 4)
+SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[1] - TARGET_DIST and egos_x[1] >= egos_x[2] - TARGET_DIST and egos_x[2] >= egos_x[3] - TARGET_DIST and egos_x[3] >= egos_x[4] - TARGET_DIST
+                  and egos_v[0] <= TARGET_VEL_LOW and egos_v[1] <= TARGET_VEL_LOW and egos_v[2] <= TARGET_VEL_LOW and egos_v[3] <= TARGET_VEL_LOW and egos_v[4] >= TARGET_VEL_HIGH)
+SUCC_CONDS.append(lambda: egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0])
 
 parser = argparse.ArgumentParser(
                     prog='morty',
                     description='Model Checking based planning',
                     epilog='Bye!')
-parser.add_argument('-o', '--output', default="./morty")
-parser.add_argument('-n', '--num_runs', default=1000)
-parser.add_argument('-s', '--steps_per_run', default=100)
-parser.add_argument('-a', '--heading_adaptation', default=-0.5)
-parser.add_argument('-b', '--allow_blind_steps', default=100)
-parser.add_argument('-c', '--allow_crashed_steps', default=100)
-parser.add_argument('-d', '--debug', default=True)
+parser.add_argument('-o', '--output', default="./morty", type=str,
+                    help='Output folder for the results.')
+parser.add_argument('-n', '--num_runs', default=1000, type=int,
+                    help='Number of runs to perform per experiment. Default: 1000')
+parser.add_argument('-s', '--steps_per_run', default=100, type=int,
+                    help='Maximum number of steps until the SPEC must be fulfilled. Default: 100')
+parser.add_argument('-a', '--heading_adaptation', default=-0.5, type=float,
+                    help='How much the heading of the cars is used to adapt their lateral position (see MC code for details). Default: -0.5')
+parser.add_argument('-b', '--allow_blind_steps', default=100, type=int,
+                    help='How many times the MC is allowed to be blind (no CEX) before the run is aborted. Default: 100')
+parser.add_argument('-c', '--allow_crashed_steps', default=100, type=int,
+                    help='How many steps with crashes are allowed before the run is aborted. Default: 100')
+parser.add_argument('-d', '--debug', default=True, type=bool,
+                    help='Enable writing images in each step to see what the MC thinks. Default: True')
+parser.add_argument('-e', '--exp_num', default=0, type=int, choices=range(len(SPECS)),
+                    help='Experiment id to run. Choose from 0 to {}'.format(len(SPECS)-1))
 args = parser.parse_args()
 
 output_folder = args.output + "/"
@@ -43,8 +128,24 @@ def min_max_curr(successful_so_far, done_so_far, max_to_expect):
 def dpoint_following_angle(dpoint_y, ego_y, heading, ddist):
     return heading - math.atan((dpoint_y - ego_y) / ddist)
 
+
+def maxDifferenceArray(A):
+    maxDiff = -1
+    for i in range(len(A)):
+        for j in range(len(A)):
+            maxDiff = max(maxDiff, abs(A[j] - A[i]))
+    return maxDiff
+
 open(f'{output_folder}results.txt', 'w').close()          # Delete old results from Python side
 open(f'{output_folder}morty_mc_results.txt', 'w').close() # Delete old results from MC side (these are a super set of the above)
+
+with open(f'{output_folder}main.tpl', "w") as text_file:
+    text_file.write(MAIN_TEMPLATE + SPECS[args.exp_num])
+
+if not os.path.samefile(output_folder, "./morty/"):
+    shutil.copyfile("./morty/EnvModel.smv", output_folder + "EnvModel.smv")
+    shutil.copyfile("./morty/planner.cpp_combined.k2", output_folder + "planner.cpp_combined.k2")
+    shutil.copyfile("./morty/script.cmd", output_folder + "script.cmd")
 
 for seedo in range(0, MAX_EXPs):
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
@@ -119,12 +220,7 @@ for seedo in range(0, MAX_EXPs):
         if crashed_count > args.allow_crashed_steps: # Allow these many crashes per run.
             break
 
-        input += "$$$1$$$" + str(args.debug) + "$$$" + str(args.heading_adaptation) + "$$$" + str(seedo) + "$$$" + str(crashed) + "$$$" + str(global_counter) + "$$$" + output_folder
-        
-        if egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0]:
-            print("DONE") # Completion condition for position reversal SPEC.
-            good_ones.append(seedo)
-            break
+        input += "$$$1$$$" + str(args.debug) + "$$$" + str(args.heading_adaptation) + "$$$" + str(seedo) + "$$$" + str(crashed) + "$$$" + str(global_counter) + "$$$" + output_folder + "$$$" + ("/" if output_folder[0] == "/" else ".")
         
         first = False
         
@@ -132,6 +228,17 @@ for seedo in range(0, MAX_EXPs):
         result = create_string_buffer(10000)
         res = morty_lib.morty(input.encode('utf-8'), result, sizeof(result))
         res_str = res.decode()
+        
+        # We check both the MC result and the success condition to determine if we are done. Reason:
+        # The MC result alone is not sufficient because the MC cares only about the SPEC being satisfied in the last step.
+        # Here we check AFTER the last step, a situation which is not guaranteed to have a solution, as well, so we might
+        # get a false negative. Checking only the success condition would be possible; we add the additional
+        # MC check to make it easier to implement new SPECs. Then, a first impression is possible even
+        # if no success condition is given or if it is not implemented in a precise way. 
+        if res_str == "FINISHED" or SUCC_CONDS[args.exp_num]():
+            print("DONE")
+            good_ones.append(seedo)            
+            break
         
         if res_str == "|;|;|;|;|;":
             print("No CEX found")
