@@ -850,7 +850,7 @@ void vfm::test::convenienceArtifactRunHardcoded(
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::cex) {
-      executions.push_back("./vfm --mode cex --targetdir " + target_directory + " --rootdir " + root_dir));
+      executions.push_back("./vfm --mode cex --targetdir " + target_directory + " --rootdir " + root_dir);
    }
 #endif
 

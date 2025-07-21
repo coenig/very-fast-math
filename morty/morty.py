@@ -207,7 +207,7 @@ for seedo in range(0, MAX_EXPs):
         if crashed_count > args.allow_crashed_steps: # Allow these many crashes per run.
             break
 
-        input += "$$$1$$$" + str(args.debug) + "$$$" + str(args.heading_adaptation) + "$$$" + str(seedo) + "$$$" + str(crashed) + "$$$" + str(global_counter) + "$$$" + output_folder
+        input += "$$$1$$$" + str(args.debug) + "$$$" + str(args.heading_adaptation) + "$$$" + str(seedo) + "$$$" + str(crashed) + "$$$" + str(global_counter) + "$$$" + output_folder + "$$$" + ("/" if output_folder[0] == "/" else ".")
         
         first = False
         
