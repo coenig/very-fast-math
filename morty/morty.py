@@ -25,21 +25,13 @@ VAR
 SPECS = []      # Predefined specs as checked in the experiments. (Collision freedom is implicit.)
 SUCC_CONDS = [] # Conditions determining success of the specs.
 
-SPECS.append(r"""INVARSPEC !(env.veh___609___.abs_pos - env.veh___649___.abs_pos < 50
- & env.veh___609___.abs_pos > env.veh___619___.abs_pos 
- & env.veh___619___.abs_pos > env.veh___629___.abs_pos 
- & env.veh___629___.abs_pos > env.veh___639___.abs_pos 
- & env.veh___639___.abs_pos > env.veh___649___.abs_pos
-);
-""") # 0: Reversed order of cars, i.e. the first car is the one with the highest abs_pos.
-
 SPECS.append(r"""INVARSPEC !(env.veh___609___.v = 0
  & env.veh___619___.v = 0
  & env.veh___629___.v = 0
  & env.veh___639___.v = 0
  & env.veh___649___.v = 0
 );
-""") # 1: All cars stopped.
+""") # 0: All cars stopped.
 
 TARGET_VEL = 50 # Target velocity for the next spec.
 SPECS.append(f"""INVARSPEC !(env.veh___609___.v = {TARGET_VEL}
@@ -48,14 +40,14 @@ SPECS.append(f"""INVARSPEC !(env.veh___609___.v = {TARGET_VEL}
  & env.veh___639___.v = {TARGET_VEL}
  & env.veh___649___.v = {TARGET_VEL}
 );
-""") # 2: All cars at target velocity.
+""") # 1: All cars at target velocity.
 
 SPECS.append(f"""INVARSPEC !(env.veh___609___.on_lane_max = env.veh___619___.on_lane_max
  & env.veh___619___.on_lane_max = env.veh___629___.on_lane_max
  & env.veh___629___.on_lane_max = env.veh___639___.on_lane_max
  & env.veh___639___.on_lane_max = env.veh___649___.on_lane_max
 );
-""") # 3: All cars at max one lane width apart in lateral direction.
+""") # 2: All cars at max one lane width apart in lateral direction.
 
 TARGET_DIST = 20 # Target distance for the next spec.
 TARGET_VEL_LOW = 10 # Target velocity for the next spec, lower bound.
@@ -74,14 +66,22 @@ SPECS.append(f"""INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_po
  & env.veh___639___.v <= {TARGET_VEL_LOW}
  & env.veh___649___.v >= {TARGET_VEL_HIGH}
 );
-""") # 4: All cars longitudinally close to each other, one drives faster.
+""") # 3: All cars longitudinally close to each other, one drives faster.
 
-SUCC_CONDS.append(lambda: egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0])
+SPECS.append(r"""INVARSPEC !(env.veh___609___.abs_pos - env.veh___649___.abs_pos < 50
+ & env.veh___609___.abs_pos > env.veh___619___.abs_pos 
+ & env.veh___619___.abs_pos > env.veh___629___.abs_pos 
+ & env.veh___629___.abs_pos > env.veh___639___.abs_pos 
+ & env.veh___639___.abs_pos > env.veh___649___.abs_pos
+);
+""") # 4: Reversed order of cars, i.e. the first car is the one with the highest abs_pos.
+
 SUCC_CONDS.append(lambda: egos_v[0] < 1 and egos_v[1] < 1 and egos_v[2] < 1 and egos_v[3] < 1 and egos_v[4] < 1)
 SUCC_CONDS.append(lambda: abs(egos_v[0] - TARGET_VEL) < 1 and abs(egos_v[1] - TARGET_VEL) < 1 and abs(egos_v[2] - TARGET_VEL) < 1 and abs(egos_v[3] - TARGET_VEL) < 1 and abs(egos_v[4] - TARGET_VEL) < 1)
 SUCC_CONDS.append(lambda: maxDifferenceArray(egos_y[:-1]) < 4)
 SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[1] - TARGET_DIST and egos_x[1] >= egos_x[2] - TARGET_DIST and egos_x[2] >= egos_x[3] - TARGET_DIST and egos_x[3] >= egos_x[4] - TARGET_DIST
                   and egos_v[0] <= TARGET_VEL_LOW and egos_v[1] <= TARGET_VEL_LOW and egos_v[2] <= TARGET_VEL_LOW and egos_v[3] <= TARGET_VEL_LOW and egos_v[4] >= TARGET_VEL_HIGH)
+SUCC_CONDS.append(lambda: egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0])
 
 parser = argparse.ArgumentParser(
                     prog='morty',
