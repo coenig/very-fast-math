@@ -3,7 +3,7 @@ import highway_env
 from matplotlib import pyplot as plt
 from ctypes import *
 import math
-from pathlib import Path
+import os
 import shutil
 import argparse
 
@@ -133,6 +133,11 @@ open(f'{output_folder}morty_mc_results.txt', 'w').close() # Delete old results f
 
 with open(f'{output_folder}main.tpl', "w") as text_file:
     text_file.write(MAIN_TEMPLATE + SPECS[args.exp_num])
+
+if not os.path.samefile(output_folder, "./morty/"):
+    shutil.copyfile("./morty/EnvModel.smv", output_folder + "EnvModel.smv")
+    shutil.copyfile("./morty/planner.cpp_combined.k2", output_folder + "planner.cpp_combined.k2")
+    shutil.copyfile("./morty/script.cmd", output_folder + "script.cmd")
 
 for seedo in range(0, MAX_EXPs):
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
