@@ -99,8 +99,8 @@ parser.add_argument('-b', '--allow_blind_steps', default=100, type=int,
                     help='How many times the MC is allowed to be blind (no CEX) before the run is aborted. Default: 100')
 parser.add_argument('-c', '--allow_crashed_steps', default=100, type=int,
                     help='How many steps with crashes are allowed before the run is aborted. Default: 100')
-parser.add_argument('-d', '--debug', default=True, type=bool,
-                    help='Enable writing images in each step to see what the MC thinks. Default: True')
+parser.add_argument('-d', '--debug', default=0, type=int,
+                    help='Enable writing images in each step to see what the MC thinks (0 or 1). Default: 0')
 parser.add_argument('-e', '--exp_num', default=0, type=int, choices=range(len(SPECS)),
                     help='Experiment id to run. Choose from 0 to {}'.format(len(SPECS)-1))
 args = parser.parse_args()
