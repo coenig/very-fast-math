@@ -1,4 +1,5 @@
 import gymnasium
+from gymnasium.wrappers import RecordVideo
 import highway_env
 from matplotlib import pyplot as plt
 from ctypes import *
@@ -6,6 +7,7 @@ import math
 import os
 import shutil
 import argparse
+from typing import List
 
 MAIN_TEMPLATE = r"""#include "planner.cpp_combined.k2.smv"
 #include "EnvModel.smv"
@@ -103,9 +105,12 @@ parser.add_argument('-d', '--debug', default=0, type=int,
                     help='Enable writing images in each step to see what the MC thinks (0 or 1). Default: 0')
 parser.add_argument('-e', '--exp_num', default=0, type=int, choices=range(len(SPECS)),
                     help='Experiment id to run. Choose from 0 to {}'.format(len(SPECS)-1))
+parser.add_argument('--record_video', action='store_true',
+                    help='Record a video of the run. Default: False')
 args = parser.parse_args()
 
 output_folder = args.output + "/"
+
 
 # Best so far:
 # ACCEL_RANGE = 5
@@ -174,12 +179,17 @@ for seedo in range(0, MAX_EXPs):
         "controlled_vehicles": 5,
         "vehicles_count": 0,
         "screen_width": 1500,
-        "screen_height": 500,
+        "screen_height": 200,
         "scaling": 5,
         "show_trajectories": True,
     })
 
-    env.reset(seed=seedo) # Use some factor due to (unproven) suspicion that close-by seeds lead to similar starting positions.
+    env.reset(seed=seedo)
+    if args.record_video:
+        env = RecordVideo(env, video_folder="videos", name_prefix=f"vid_{seedo}",
+                    episode_trigger=lambda e: True)  # record all episodes
+        env.unwrapped.set_record_video_wrapper(env)
+        env.start_video_recorder()
 
     action = ([0, 0], [0, 0], [0, 0], [0, 0], [0, 0])
     dpoints_y = [0, 0, 0, 0, 0, 0]     # The lateral position of the points the cars head towards.
@@ -325,5 +335,8 @@ for seedo in range(0, MAX_EXPs):
 
     with open(f"{output_folder}results.txt", "a") as f:
         f.write("{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
+
+    if args.record_video:
+        env.close_video_recorder()
     
 print(good_ones)
