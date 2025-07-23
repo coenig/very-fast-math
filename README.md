@@ -21,10 +21,10 @@ Thank you for using
 ### MC-generated road network and traffic situation
 <img src="examples/cex.gif" width="1000" />
 
-### Ultra-cooperative driving: live steering of fleet by model checker
+### Ultra-cooperative driving: live steering a fleet by model checker
 <img src="examples/ucd_example.gif" width="1000" />
 
-Steered by the MC, the fleet provably* obeys a given SPEC (in this case: invert ordering of cars without colliding). Entrance: `morty/morty.py`. (* given a whole bunch of assumtions :wink:)
+Steered by the MC, a fleet of cars provably* obeys a given SPEC, in this case: invert ordering of cars without colliding. Entrance file: `morty/morty.py`. (* given a whole bunch of assumtions :wink:)
 
 ## How to build
 `vfm` is implemented in `C++` and can be built with CMake (stable) or Bazel (experimental). With CMake, proceed as follows:
