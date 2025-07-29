@@ -108,6 +108,8 @@ parser.add_argument('-e', '--exp_num', default=0, type=int, choices=range(len(SP
                     help='Experiment id to run. Choose from 0 to {}'.format(len(SPECS)-1))
 parser.add_argument('--record_video', action='store_true',
                     help='Record a video of the run. Default: False')
+parser.add_argument('--detailed_archive', action='store_true',
+                    help='Stores detailed archive of the run in a subfolder. Default: False')
 args = parser.parse_args()
 
 output_folder = args.output + "/"
@@ -157,11 +159,12 @@ if not os.path.samefile(output_folder, "./morty/"):
 
 
 def archive(seedo, global_counter):
-    archive_path = f'{output_folder}../detailed_results/run_{seedo}/iteration_{global_counter}/'
-    if not os.path.exists(archive_path):
-        os.makedirs(archive_path)
-    open(f'{output_folder}mc_runtimes.txt', 'w').close() # Delete "mc_runtimes.txt" which is not used in this context.
-    distutils.dir_util.copy_tree(output_folder, archive_path)
+    if args.detailed_archive:
+        archive_path = f'{output_folder}../detailed_results/run_{seedo}/iteration_{global_counter}/'
+        if not os.path.exists(archive_path):
+            os.makedirs(archive_path)
+        open(f'{output_folder}mc_runtimes.txt', 'w').close() # Delete "mc_runtimes.txt" which is not used in this context.
+        distutils.dir_util.copy_tree(output_folder, archive_path)
 
 for seedo in range(0, MAX_EXPs):
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
