@@ -2033,7 +2033,7 @@ std::string StaticHelper::readFile(const std::string& path, const bool from_utf1
          std::codecvt_utf8_utf16<char16_t>, char16_t>{}.to_bytes(u16);
    }
    else {
-      std::ifstream input(path);
+      std::ifstream input{ path };
 
       if (input.good()) {
          std::stringstream sstr;

@@ -1515,8 +1515,20 @@ std::vector<float> vfm::DataPack::getVfmMemory() const
 void vfm::DataPack::addStringToDataPack(const std::string& string_raw, const std::string& var_name)
 {
    std::string string{ string_raw };
+   int address = -1;
+
+   if (isDeclared(var_name)) {
+      auto old_string = printHeap(var_name, "");
+
+      if (old_string == string) return;
+
+      if (string.size() == old_string.size()) {
+         address = getSingleVal(var_name);
+      }
+   }
+
    string.push_back('\0');
-   int address = reserveHeap(string.size());
+   address = address < 0 ? reserveHeap(string.size()) : address;
 
    for (int i = 0; i < string.size(); i++) {
       setHeapLocation(address + i, (float)string[i]);
