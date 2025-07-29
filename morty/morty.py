@@ -1,4 +1,5 @@
 import gymnasium
+from gymnasium.wrappers import RecordVideo
 import highway_env
 from matplotlib import pyplot as plt
 from ctypes import *
@@ -6,6 +7,8 @@ import math
 import os
 import shutil
 import argparse
+from typing import List
+import distutils.dir_util
 
 MAIN_TEMPLATE = r"""#include "planner.cpp_combined.k2.smv"
 #include "EnvModel.smv"
@@ -103,9 +106,14 @@ parser.add_argument('-d', '--debug', default=0, type=int,
                     help='Enable writing images in each step to see what the MC thinks (0 or 1). Default: 0')
 parser.add_argument('-e', '--exp_num', default=0, type=int, choices=range(len(SPECS)),
                     help='Experiment id to run. Choose from 0 to {}'.format(len(SPECS)-1))
+parser.add_argument('--record_video', action='store_true',
+                    help='Record a video of the run. Default: False')
+parser.add_argument('--detailed_archive', action='store_true',
+                    help='Stores detailed archive of the run in a subfolder. Default: False')
 args = parser.parse_args()
 
 output_folder = args.output + "/"
+
 
 # Best so far:
 # ACCEL_RANGE = 5
@@ -138,6 +146,8 @@ def maxDifferenceArray(A):
 
 open(f'{output_folder}results.txt', 'w').close()          # Delete old results from Python side
 open(f'{output_folder}morty_mc_results.txt', 'w').close() # Delete old results from MC side (these are a super set of the above)
+# if os.path.exists(f"{output_folder}../detailed_results"):
+#     distutils.dir_util.remove_tree(f"{output_folder}../detailed_results") # Delete old detailed results
 
 with open(f'{output_folder}main.tpl', "w") as text_file:
     text_file.write(MAIN_TEMPLATE + SPECS[args.exp_num])
@@ -146,6 +156,15 @@ if not os.path.samefile(output_folder, "./morty/"):
     shutil.copyfile("./morty/EnvModel.smv", output_folder + "EnvModel.smv")
     shutil.copyfile("./morty/planner.cpp_combined.k2", output_folder + "planner.cpp_combined.k2")
     shutil.copyfile("./morty/script.cmd", output_folder + "script.cmd")
+
+
+def archive(seedo, global_counter):
+    if args.detailed_archive:
+        archive_path = f'{output_folder}../detailed_results/run_{seedo}/iteration_{global_counter}/'
+        if not os.path.exists(archive_path):
+            os.makedirs(archive_path)
+        open(f'{output_folder}mc_runtimes.txt', 'w').close() # Delete "mc_runtimes.txt" which is not used in this context.
+        distutils.dir_util.copy_tree(output_folder, archive_path)
 
 for seedo in range(0, MAX_EXPs):
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
@@ -174,12 +193,17 @@ for seedo in range(0, MAX_EXPs):
         "controlled_vehicles": 5,
         "vehicles_count": 0,
         "screen_width": 1500,
-        "screen_height": 500,
+        "screen_height": 200,
         "scaling": 5,
         "show_trajectories": True,
     })
-
-    env.reset(seed=seedo) # Use some factor due to (unproven) suspicion that close-by seeds lead to similar starting positions.
+        
+    env.reset(seed=seedo)
+    if args.record_video:
+        env = RecordVideo(env, video_folder="videos", name_prefix=f"vid_{seedo}",
+                    episode_trigger=lambda e: True)  # record all episodes
+        env.unwrapped.set_record_video_wrapper(env)
+        env.start_video_recorder()
 
     action = ([0, 0], [0, 0], [0, 0], [0, 0], [0, 0])
     dpoints_y = [0, 0, 0, 0, 0, 0]     # The lateral position of the points the cars head towards.
@@ -196,7 +220,7 @@ for seedo in range(0, MAX_EXPs):
     for global_counter in range(args.steps_per_run):
         env.render()
         obs, reward, done, truncated, info = env.step(action)
-        
+
         input = ""
         i = 0
         for el in obs: # Use only el[0] because it contains the abs values from the resp. car's perspective.
@@ -212,12 +236,15 @@ for seedo in range(0, MAX_EXPs):
                 input += str(val) + ","
             input += ";"
         
-        crashed = info["crashed"]
+        crashed = False # Check if any car has crashed.
+        for vehicle in env.unwrapped.road.vehicles:
+            crashed = crashed or vehicle.crashed
         
         if crashed:
             crashed_count += 1
         
         if crashed_count > args.allow_crashed_steps: # Allow these many crashes per run.
+            archive(seedo, global_counter)
             break
 
         input += "$$$1$$$" + str(args.debug) + "$$$" + str(args.heading_adaptation) + "$$$" + str(seedo) + "$$$" + str(crashed) + "$$$" + str(global_counter) + "$$$" + output_folder + "$$$" + ("/" if output_folder[0] == "/" else ".")
@@ -237,12 +264,14 @@ for seedo in range(0, MAX_EXPs):
         # if no success condition is given or if it is not implemented in a precise way. 
         if res_str == "FINISHED" or SUCC_CONDS[args.exp_num]():
             print("DONE")
-            good_ones.append(seedo)            
+            good_ones.append(seedo)
+            archive(seedo, global_counter)
             break
         
         if res_str == "|;|;|;|;|;":
             print("No CEX found")
             if nocex_count > args.allow_blind_steps: # Allow up to this many times being blind per run. (If in doubt: 10)
+                archive(seedo, global_counter)
                 break
             nocex_count += 1
 
@@ -322,8 +351,12 @@ for seedo in range(0, MAX_EXPs):
         #print(action_list_lane)
         
         action = tuple(action_list)
-
+        archive(seedo, global_counter)
+        
     with open(f"{output_folder}results.txt", "a") as f:
         f.write("{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
+
+    if args.record_video:
+        env.close_video_recorder()
     
 print(good_ones)
