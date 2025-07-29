@@ -625,7 +625,7 @@ void vfm::MCScene::putJSONIntoDataPack(const std::string& json_config)
             for (auto& [key, value] : value_config.items()) {
                if (value.is_string()) {
                   std::string val_str = StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "");
-                  //data_->addStringToDataPack(val_str, key); // TODO: Currently leads to heap overflow. Need to overwrite instead of append.
+                  data_->addStringToDataPack(val_str, key);
                }
                else {
                   data_->addOrSetSingleVal(key, value);
@@ -1013,7 +1013,6 @@ void MCScene::checkboxJSONVisibleCallback(Fl_Widget* widget, void* data)
 void MCScene::refreshRarely(void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
-   mc_scene->putJSONIntoDataPack();
 
    std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
 
@@ -1479,6 +1478,8 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
 {
    std::string path_generated{ StaticHelper::replaceAll(path_generated_raw, "\\", "/") };
    std::string path_template{ mc_scene->getTemplateDir() };
+
+   mc_scene->putJSONIntoDataPack(config_name);
 
    mc_scene->addNote("Running model checker and creating preview for folder '" + path_generated + "' (config: '" + config_name + "').");
    mc_scene->deleteMCOutputFromFolder(path_generated, true);
@@ -1953,15 +1954,19 @@ void vfm::MCScene::preprocessAndRewriteJSONTemplate()
    setTitle();
 }
 
-void MCScene::buttonSaveJSON(Fl_Widget* widget, void* data) {
+void MCScene::buttonSaveJSON(Fl_Widget* widget, void* data) 
+{
    auto mc_scene{ static_cast<MCScene*>(data) };
+   mc_scene->putJSONIntoDataPack();
    mc_scene->showAllBBGroups(false);
    mc_scene->saveJsonText();
 
 }
 
-void MCScene::buttonReloadJSON(Fl_Widget* widget, void* data) {
+void MCScene::buttonReloadJSON(Fl_Widget* widget, void* data) 
+{
    auto mc_scene{ static_cast<MCScene*>(data) };
+   mc_scene->putJSONIntoDataPack();
    mc_scene->evaluateFormulasInJSON(mc_scene->getJSON());
 
    mc_scene->showAllBBGroups(false);
@@ -1976,7 +1981,8 @@ void MCScene::buttonReloadJSON(Fl_Widget* widget, void* data) {
    mc_scene->bb_groups_.clear();
 }
 
-void MCScene::buttonCheckJSON(Fl_Widget* widget, void* data) {
+void MCScene::buttonCheckJSON(Fl_Widget* widget, void* data) 
+{
    auto mc_scene{ static_cast<MCScene*>(data) };
    std::string json_text{ mc_scene->json_input_->buffer()->text() };
 
