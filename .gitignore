@@ -95,6 +95,7 @@ bazel-vfm
 /.vs/VSWorkspaceState.json
 /.vs/*.json
 *.tmp
+detailed_results
 
 # Morty stuff
 accels.txt
