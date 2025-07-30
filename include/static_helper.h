@@ -650,6 +650,7 @@ public:
    static std::string wrapOnLineLength(const std::string& text_raw, const size_t max_line_length);
    static std::string wrap(const std::string& text_raw, const size_t max_line_length, const std::set<std::string>& additionally_wrap_before = {}, const std::set<std::string>& additionally_wrap_after = {});
    static std::string replaceAll(std::string str, const std::string& from, const std::string& to);
+   static std::string replaceAllCounting(std::string str, const std::string& from, const int start_at = 0); /// A $$$ $$$ $$$ ==> A 001 002 003
    static std::string replaceAllRegex(const std::string& str, const std::string& from_regex, const std::string& to_regex);
 
    static bool isParsableAsFloat(const std::string& float_string);

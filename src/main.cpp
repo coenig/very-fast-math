@@ -26,9 +26,7 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-//   std::string s{ R"(@{
-//LTLSPEC test;
-//}@.replaceAll[LTLSPEC, @"{LTLSPEC NAME spec :=}"@]
+//   std::string s{ R"(@{$ $ $ $ $, $ $ $ $ $, $ $ $ $ $, $ $ $ $ $, $ $ $ $ $}@.replaceAllCounting[$]
 //)" };
 //   
 //   std::cout << macro::Script::processScript(s) << std::endl;
