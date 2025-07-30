@@ -80,7 +80,7 @@ TRANS env.ego.abCond_full = planner."abCond.cond26_all_conditions_fulfilled_raw"
 
 --SPEC-STUFF
 -- Don't change the wording of the above line and its corresponding closing line! It's used to detect the SPEC part
--- to be able to replace just it when running the MC without re-generating the EnvModel.
+-- to be able to replace just it when running the MC without re-generating the EnvModel. It's also used for UCD.
 
 @{
 @{
