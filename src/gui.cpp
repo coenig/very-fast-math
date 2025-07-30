@@ -1961,7 +1961,6 @@ void vfm::MCScene::preprocessAndRewriteJSONTemplate()
 void MCScene::buttonSaveJSON(Fl_Widget* widget, void* data) 
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
-   mc_scene->putJSONIntoDataPack();
    mc_scene->showAllBBGroups(false);
    mc_scene->saveJsonText();
 
