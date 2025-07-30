@@ -8,6 +8,7 @@
 #include "gui/gui.h"
 #include "gui/process_helper.h"
 #include "model_checking/results_analysis.h"
+#include "vfmacro/script.h"
 
 #ifdef _WIN32
    #include <windows.h>
@@ -1480,6 +1481,7 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
    std::string path_template{ mc_scene->getTemplateDir() };
 
    mc_scene->putJSONIntoDataPack(config_name);
+   mc_scene->putJSONIntoDataPack();
 
    mc_scene->addNote("Running model checker and creating preview for folder '" + path_generated + "' (config: '" + config_name + "').");
    mc_scene->deleteMCOutputFromFolder(path_generated, true);
@@ -1487,8 +1489,8 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
 
    std::string main_smv{ StaticHelper::readFile(path_generated + "/main.smv") };
 
-   mc_scene->putJSONIntoDataPack();
    std::string script_template{ StaticHelper::readFile(mc_scene->getTemplateDir() + "/script.tpl") };
+   std::string main_template{ StaticHelper::readFile(mc_scene->getTemplateDir() + "/main.tpl") };
    std::string generated_script{ CppParser::generateScript(script_template, mc_scene->data_, mc_scene->parser_) };
    StaticHelper::writeTextToFile(generated_script, path_generated + "/script.cmd");
 
@@ -1499,9 +1501,11 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
 
    main_smv = StaticHelper::removeMultiLineComments(main_smv, SPEC_BEGIN, SPEC_END);
    main_smv += SPEC_BEGIN + "\n";
-   
-   auto spec_pair = mc_scene->getSpec("any", true);
-   main_smv += spec_pair.second + "\n";
+
+   auto spec_part = StaticHelper::removePartsOutsideOf(main_template, SPEC_BEGIN, SPEC_END);
+   spec_part = vfm::macro::Script::processScript(spec_part, mc_scene->data_, mc_scene->parser_);
+   //auto spec_pair = mc_scene->getSpec("any", true);
+   main_smv += spec_part + "\n";
    main_smv += SPEC_END + "\n";
 
    StaticHelper::writeTextToFile(main_smv, path_generated + "/main.smv");
