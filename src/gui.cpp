@@ -1480,8 +1480,8 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
    std::string path_generated{ StaticHelper::replaceAll(path_generated_raw, "\\", "/") };
    std::string path_template{ mc_scene->getTemplateDir() };
 
-   mc_scene->putJSONIntoDataPack(config_name);
    mc_scene->putJSONIntoDataPack();
+   mc_scene->putJSONIntoDataPack(config_name);
 
    mc_scene->addNote("Running model checker and creating preview for folder '" + path_generated + "' (config: '" + config_name + "').");
    mc_scene->deleteMCOutputFromFolder(path_generated, true);
