@@ -78,13 +78,13 @@ TRANS env.ego.flCond_full = planner."flCond.cond26_all_conditions_fulfilled_raw"
 TRANS env.ego.abCond_full = planner."abCond.cond26_all_conditions_fulfilled_raw";
 
 
---SPEC-STUFFF
-
--- Don't change the wording of the above line and its corresponding closing line!
+--SPEC-STUFF
+-- Don't change the wording of the above line and its corresponding closing line! It's used to detect the SPEC part
+-- to be able to replace just it when running the MC without re-generating the EnvModel.
 DEFINE
-@{BB1}@.printHeap
-@{BB2}@.printHeap
-@{BB3}@.printHeap
+@{#01}@.printHeap
+@{#02}@.printHeap
+@{#03}@.printHeap
 
 @{SPEC}@.printHeap -- Specification from envmodel_config.json.
 
