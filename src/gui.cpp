@@ -1480,12 +1480,12 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
    std::string path_generated{ StaticHelper::replaceAll(path_generated_raw, "\\", "/") };
    std::string path_template{ mc_scene->getTemplateDir() };
 
-   mc_scene->putJSONIntoDataPack();
-   mc_scene->putJSONIntoDataPack(config_name);
-
    mc_scene->addNote("Running model checker and creating preview for folder '" + path_generated + "' (config: '" + config_name + "').");
    mc_scene->deleteMCOutputFromFolder(path_generated, true);
    mc_scene->preprocessAndRewriteJSONTemplate();
+
+   mc_scene->putJSONIntoDataPack();
+   mc_scene->putJSONIntoDataPack(config_name);
 
    std::string main_smv{ StaticHelper::readFile(path_generated + "/main.smv") };
 
@@ -1762,7 +1762,7 @@ nlohmann::json MCScene::instanceFromTemplate(
                         + new_inner 
                         + after_without_bracket;
 
-                     if (key == "SPEC") {
+                     if (StaticHelper::stringStartsWith(key, "SPEC")) {
                         val_str = std::string(is_ltl ? "LTLSPEC " : "INVARSPEC ") + val_str + ";";
                      }
                   }
