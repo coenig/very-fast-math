@@ -81,12 +81,15 @@ TRANS env.ego.abCond_full = planner."abCond.cond26_all_conditions_fulfilled_raw"
 --SPEC-STUFF
 -- Don't change the wording of the above line and its corresponding closing line! It's used to detect the SPEC part
 -- to be able to replace just it when running the MC without re-generating the EnvModel.
-DEFINE
-@{#01}@.printHeap
-@{#02}@.printHeap
-@{#03}@.printHeap
 
-@{SPEC}@.printHeap -- Specification from envmodel_config.json.
+
+@{
+@{SPEC}@.printHeap
+@{
+   @{@{SPEC[i]}@.printHeap}@*.if[@{SPEC[i]}@.vfm_variable_declared]
+}@**.for[[i], 0, 100]
+}@***.@{@(replaceAll[LTLSPEC, @"{LTLSPEC NAME spec :=}"@])@@(id)@}@****.if[@{SCENGEN_MODE}@.eval]
+
 
 --EO-SPEC-STUFF
 )@

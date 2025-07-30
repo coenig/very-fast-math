@@ -1172,6 +1172,7 @@ std::string Script::inferPlaceholdersForPlainText(const std::string& script)
       inner = script2.substr(indexOf + PLAIN_TEXT_BEGIN_TAG.length(), indexOf2 - (indexOf + PLAIN_TEXT_BEGIN_TAG.length()));
       after = script2.substr(indexOf2 + PLAIN_TEXT_END_TAG.length());
 
+      putPlaceholderMapping(inner);
       snippets.push_back(StaticHelper::replaceAll(StaticHelper::replaceAll(before, PLAIN_TEXT_BEGIN_TAG, ""), PLAIN_TEXT_END_TAG, ""));
       snippets.push_back(b + StaticHelper::replaceAll(StaticHelper::replaceAll(replacePlaceholders(inner, true), PLAIN_TEXT_BEGIN_TAG, ""), PLAIN_TEXT_END_TAG, "") + e);
 
