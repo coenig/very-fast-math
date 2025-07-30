@@ -620,6 +620,8 @@ std::string Script::applyMethodString(const std::string& method_name, const std:
    else if (method_name == "removeBlankLines" && parameters.size() == 0) return StaticHelper::removeBlankLines(getRawScript());
    else if (method_name == "wrap" && parameters.size() == 1) return StaticHelper::wrap(getRawScript(), stringToFloat(parameters.at(0)));
    else if (method_name == "replaceAll" && parameters.size() == 2) return StaticHelper::replaceAll(getRawScript(), parameters.at(0), parameters.at(1));
+   else if (method_name == "replaceAllCounting" && parameters.size() == 1) return StaticHelper::replaceAllCounting(getRawScript(), parameters.at(0));
+   else if (method_name == "replaceAllCounting" && parameters.size() == 2) return StaticHelper::replaceAllCounting(getRawScript(), parameters.at(0), std::stof(parameters.at(1)));
    else if (method_name == "replaceAllRegex" && parameters.size() == 2) return StaticHelper::replaceAllRegex(getRawScript(), parameters.at(0), parameters.at(1));
    else if (method_name == "isParsableAsFloat" && parameters.size() == 0) return fromBooltoString(StaticHelper::isParsableAsFloat(getRawScript()));
    else if (method_name == "isParsableAsInt" && parameters.size() == 0) return fromBooltoString(StaticHelper::isParsableAsInt(getRawScript()));
