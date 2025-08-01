@@ -116,8 +116,8 @@ output_folder = args.output + "/"
 
 
 # Best so far:
-# ACCEL_RANGE = 5
-ACCEL_RANGE = 5
+# ACCEL_RANGE = 6
+ACCEL_RANGE = 6
 
 MAX_EXPs = args.num_runs
 
@@ -340,7 +340,9 @@ for seedo in range(0, MAX_EXPs):
             
             dpoints_y[i] = max(min(dpoints_y[i], 12), 0)
             
-            accel = sum_vel_by_car[i] * 5/3 / ACCEL_RANGE # 5/3 is the factor from EnvModel ==> a_min/a_max to ACCEL_RANGE, a discrepancy accounting for highway-env adjusting acceleration smoothly while the MC only does it once/s.
+            # Best so far:
+            # accel = sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
+            accel = sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
 
             # Best so far:
             # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i]) / 3.1415
