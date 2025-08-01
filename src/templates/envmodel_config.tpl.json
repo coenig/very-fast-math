@@ -73,7 +73,7 @@
       "SEGMENTS": "#{segments}#",
       "SEGMENTSMINLENGTH": 50,
       "SIMPLE_LC": true,
-      "SPEC": "#{ G(env.cnt > 0) }#",
+      "SPEC": "#{ G(env.cnt >= 0) }#",
       "SPEC1": "#{ (F(env.cnt == 1)) }#",
       "SPEC2": "#{ (F(env.cnt == 2)) }#",
       "SPEC3": "#{ (F(env.cnt == 3)) }#",
