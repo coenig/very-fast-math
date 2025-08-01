@@ -8,6 +8,7 @@
 #include "gui/gui.h"
 #include "gui/process_helper.h"
 #include "model_checking/results_analysis.h"
+#include "vfmacro/script.h"
 
 #ifdef _WIN32
    #include <windows.h>
@@ -625,7 +626,7 @@ void vfm::MCScene::putJSONIntoDataPack(const std::string& json_config)
             for (auto& [key, value] : value_config.items()) {
                if (value.is_string()) {
                   std::string val_str = StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "");
-                  //data_->addStringToDataPack(val_str, key); // TODO: Currently leads to heap overflow. Need to overwrite instead of append.
+                  data_->addStringToDataPack(val_str, key);
                }
                else {
                   data_->addOrSetSingleVal(key, value);
@@ -1013,7 +1014,6 @@ void MCScene::checkboxJSONVisibleCallback(Fl_Widget* widget, void* data)
 void MCScene::refreshRarely(void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
-   mc_scene->putJSONIntoDataPack();
 
    std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
 
@@ -1484,10 +1484,13 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
    mc_scene->deleteMCOutputFromFolder(path_generated, true);
    mc_scene->preprocessAndRewriteJSONTemplate();
 
+   mc_scene->putJSONIntoDataPack();
+   mc_scene->putJSONIntoDataPack(config_name);
+
    std::string main_smv{ StaticHelper::readFile(path_generated + "/main.smv") };
 
-   mc_scene->putJSONIntoDataPack();
    std::string script_template{ StaticHelper::readFile(mc_scene->getTemplateDir() + "/script.tpl") };
+   std::string main_template{ StaticHelper::readFile(mc_scene->getTemplateDir() + "/main.tpl") };
    std::string generated_script{ CppParser::generateScript(script_template, mc_scene->data_, mc_scene->parser_) };
    StaticHelper::writeTextToFile(generated_script, path_generated + "/script.cmd");
 
@@ -1498,9 +1501,11 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
 
    main_smv = StaticHelper::removeMultiLineComments(main_smv, SPEC_BEGIN, SPEC_END);
    main_smv += SPEC_BEGIN + "\n";
-   
-   auto spec_pair = mc_scene->getSpec("any", true);
-   main_smv += spec_pair.second + "\n";
+
+   auto spec_part = StaticHelper::removePartsOutsideOf(main_template, SPEC_BEGIN, SPEC_END);
+   spec_part = vfm::macro::Script::processScript(spec_part, mc_scene->data_, mc_scene->parser_);
+   //auto spec_pair = mc_scene->getSpec("any", true);
+   main_smv += spec_part + "\n";
    main_smv += SPEC_END + "\n";
 
    StaticHelper::writeTextToFile(main_smv, path_generated + "/main.smv");
@@ -1757,7 +1762,7 @@ nlohmann::json MCScene::instanceFromTemplate(
                         + new_inner 
                         + after_without_bracket;
 
-                     if (key == "SPEC") {
+                     if (StaticHelper::stringStartsWith(key, "SPEC")) {
                         val_str = std::string(is_ltl ? "LTLSPEC " : "INVARSPEC ") + val_str + ";";
                      }
                   }
@@ -1953,15 +1958,18 @@ void vfm::MCScene::preprocessAndRewriteJSONTemplate()
    setTitle();
 }
 
-void MCScene::buttonSaveJSON(Fl_Widget* widget, void* data) {
+void MCScene::buttonSaveJSON(Fl_Widget* widget, void* data) 
+{
    auto mc_scene{ static_cast<MCScene*>(data) };
    mc_scene->showAllBBGroups(false);
    mc_scene->saveJsonText();
 
 }
 
-void MCScene::buttonReloadJSON(Fl_Widget* widget, void* data) {
+void MCScene::buttonReloadJSON(Fl_Widget* widget, void* data) 
+{
    auto mc_scene{ static_cast<MCScene*>(data) };
+   mc_scene->putJSONIntoDataPack();
    mc_scene->evaluateFormulasInJSON(mc_scene->getJSON());
 
    mc_scene->showAllBBGroups(false);
@@ -1976,7 +1984,8 @@ void MCScene::buttonReloadJSON(Fl_Widget* widget, void* data) {
    mc_scene->bb_groups_.clear();
 }
 
-void MCScene::buttonCheckJSON(Fl_Widget* widget, void* data) {
+void MCScene::buttonCheckJSON(Fl_Widget* widget, void* data) 
+{
    auto mc_scene{ static_cast<MCScene*>(data) };
    std::string json_text{ mc_scene->json_input_->buffer()->text() };
 

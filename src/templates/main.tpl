@@ -16,8 +16,6 @@ VAR
 @(
 
 cnt : integer;
-INIT cnt = 0;
-TRANS next(cnt) = cnt + 1;
 
 TRANS next(env.input.m_gpFunktionsstatusGetriggerterFsw.m_value) = planner."gpFunktionsstatusGetriggerterFsw.m_value";
 -- TRANS next(env.input.m_gpFunktionsstatusGetriggerterFsw.m_valueLastCycle) = planner."gpFunktionsstatusGetriggerterFsw.m_valueLastCycle";
@@ -80,28 +78,19 @@ TRANS env.ego.flCond_full = planner."flCond.cond26_all_conditions_fulfilled_raw"
 TRANS env.ego.abCond_full = planner."abCond.cond26_all_conditions_fulfilled_raw";
 
 
--- Specs follow here
-DEFINE
 --SPEC-STUFF
-@{BB1}@.printHeap
-@{BB2}@.printHeap
-@{BB3}@.printHeap
+-- Don't change the wording of the above line and its corresponding closing line! It's used to detect the SPEC part
+-- to be able to replace just it when running the MC without re-generating the EnvModel. It's also used for UCD.
 
-@{SPEC}@.printHeap -- Specification from envmodel_config.json.
+@{
+@{
+@{SPEC}@.printHeap
+@{
+   @{@{SPEC[i]}@.printHeap}@*.if[@{SPEC[i]}@.vfm_variable_declared]
+}@**.for[[i], 0, 100]
+}@.@{@(replaceAll[LTLSPEC, @"{LTLSPEC NAME }"@spec$$$$$@"{ :=}"@])@@(id)@}@*.if[@{SCENGEN_MODE}@.eval]
+}@.replaceAllCounting[$$$$$]
+
 --EO-SPEC-STUFF
-
-
---INVARSPEC cnt < 10 | abs(env.veh___609___.rel_pos) >= 10 | abs(env.veh___619___.rel_pos) >= 10 | abs(env.veh___629___.rel_pos) >= 10;
---INVARSPEC env.ego_timer < 1;
-
---INVARSPEC env.ego_timer <= next(env.ego_timer) | aborted;
---CTLSPEC AG(cnt = 0);
-
---INVARSPEC !planner."abCond.cond26_all_conditions_fulfilled_raw";
---INVARSPEC !lane_change_aborted | env.ego_lane_crossing;
---INVARSPEC !env.blamable_crash;
-
---INVARSPEC !env.ego_lane_b4;
---INVARSPEC env.ego.abs_pos >= env.segment_1_pos_begin & env.ego.abs_pos < env.segment_2_pos_begin & env.segment_1_min_lane > 0 -> !env.ego_lane_b0;
 )@
 }@*.if[@{EM_LESS}@.eval]

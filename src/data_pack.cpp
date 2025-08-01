@@ -1515,8 +1515,22 @@ std::vector<float> vfm::DataPack::getVfmMemory() const
 void vfm::DataPack::addStringToDataPack(const std::string& string_raw, const std::string& var_name)
 {
    std::string string{ string_raw };
+   int address = -1;
+
+   if (isDeclared(var_name)) {
+      bool same_length_as_old;
+      bool same_as_old;
+      isStringAtAdressWhichComparesTo(var_name, string, same_length_as_old, same_as_old);
+
+      if (same_as_old) return;
+
+      if (same_length_as_old) { // TODO: This is still dangerous, might override variables until, by accident, a \0 is found. Should be sufficiently improbable, for now.
+         address = getSingleVal(var_name);
+      }
+   }
+
    string.push_back('\0');
-   int address = reserveHeap(string.size());
+   address = address < 0 ? reserveHeap(string.size()) : address;
 
    for (int i = 0; i < string.size(); i++) {
       setHeapLocation(address + i, (float)string[i]);
@@ -1538,6 +1552,39 @@ std::string vfm::DataPack::printHeap(const std::string& varname, const std::stri
    return StaticHelper::replaceAll(str, "\\n", "\n");
 }
 
+void vfm::DataPack::isStringAtAdressWhichComparesTo(const std::string& address_var, const std::string& comp_string, bool& same_length, bool& same)
+{
+   if (!isDeclared(address_var) || getSingleVal(address_var) < 0 || getSingleVal(address_var) >= VFM_HEAP_SIZE) {
+      same_length = false;
+      same = false;
+      return;
+   }
+
+   same_length = true;
+   same = true;
+
+   std::string str{};
+   int i = getSingleVal(address_var);
+
+   for (; getVfmMemory()[i] != 0; i++) {
+      str += (char)getVfmMemory()[i];
+      if (str.size() > comp_string.size()) {
+         same_length = false;
+         same = false;
+         return;
+      }
+   }
+
+   if (str.size() != comp_string.size()) {
+      same_length = false;
+      same = false;
+      return; // Fail fast.
+   }
+
+   if (str != comp_string) {
+      same = false;
+   }
+}
 
 void vfm::DataPack::resetPrivateVarsRecursiveLevels()
 {

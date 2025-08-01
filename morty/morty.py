@@ -79,12 +79,17 @@ SPECS.append(r"""INVARSPEC !(env.veh___609___.abs_pos - env.veh___649___.abs_pos
 );
 """) # 4: Reversed order of cars, i.e. the first car is the one with the highest abs_pos.
 
+SPECS.append(r"""INVARSPEC TRUE;""") # 5: Benchmark 1.
+SPECS.append(r"""INVARSPEC FALSE;""") # 6: Benchmark 1.
+
 SUCC_CONDS.append(lambda: egos_v[0] < 1 and egos_v[1] < 1 and egos_v[2] < 1 and egos_v[3] < 1 and egos_v[4] < 1)
 SUCC_CONDS.append(lambda: abs(egos_v[0] - TARGET_VEL) < 1 and abs(egos_v[1] - TARGET_VEL) < 1 and abs(egos_v[2] - TARGET_VEL) < 1 and abs(egos_v[3] - TARGET_VEL) < 1 and abs(egos_v[4] - TARGET_VEL) < 1)
 SUCC_CONDS.append(lambda: maxDifferenceArray(egos_y[:-1]) < 4)
 SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[1] - TARGET_DIST and egos_x[1] >= egos_x[2] - TARGET_DIST and egos_x[2] >= egos_x[3] - TARGET_DIST and egos_x[3] >= egos_x[4] - TARGET_DIST
                   and egos_v[0] <= TARGET_VEL_LOW and egos_v[1] <= TARGET_VEL_LOW and egos_v[2] <= TARGET_VEL_LOW and egos_v[3] <= TARGET_VEL_LOW and egos_v[4] >= TARGET_VEL_HIGH)
 SUCC_CONDS.append(lambda: egos_x[4] < egos_x[3] and egos_x[3] < egos_x[2] and egos_x[2] < egos_x[1] and egos_x[1] < egos_x[0])
+SUCC_CONDS.append(lambda: True)
+SUCC_CONDS.append(lambda: True)
 
 parser = argparse.ArgumentParser(
                     prog='morty',
