@@ -7,6 +7,7 @@ import math
 import os
 import shutil
 import argparse
+import numpy as np
 from typing import List
 import distutils.dir_util
 
@@ -80,7 +81,7 @@ SPECS.append(r"""INVARSPEC !(env.veh___609___.abs_pos - env.veh___649___.abs_pos
 """) # 4: Reversed order of cars, i.e. the first car is the one with the highest abs_pos.
 
 SPECS.append(r"""INVARSPEC TRUE;""") # 5: Benchmark 1.
-SPECS.append(r"""INVARSPEC FALSE;""") # 6: Benchmark 1.
+SPECS.append(r"""INVARSPEC FALSE;""") # 6: Benchmark 2.
 
 SUCC_CONDS.append(lambda: egos_v[0] < 1 and egos_v[1] < 1 and egos_v[2] < 1 and egos_v[3] < 1 and egos_v[4] < 1)
 SUCC_CONDS.append(lambda: abs(egos_v[0] - TARGET_VEL) < 1 and abs(egos_v[1] - TARGET_VEL) < 1 and abs(egos_v[2] - TARGET_VEL) < 1 and abs(egos_v[3] - TARGET_VEL) < 1 and abs(egos_v[4] - TARGET_VEL) < 1)
@@ -204,6 +205,11 @@ for seedo in range(0, MAX_EXPs):
     })
         
     env.reset(seed=seedo)
+
+    np.random.seed(seedo)
+    for vehicle in env.unwrapped.controlled_vehicles:
+        vehicle.speed = np.random.uniform(20, 30)  
+
     if args.record_video:
         env = RecordVideo(env, video_folder="videos", name_prefix=f"vid_{seedo}",
                     episode_trigger=lambda e: True)  # record all episodes
