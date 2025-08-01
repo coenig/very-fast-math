@@ -256,6 +256,8 @@ INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @
 --   INIT outgoing_connection_1_of_section_15 = 7;
 
 --= For Stop&Go =--
+-- Remove nil from generator to activate.
+@{
 @{
 INIT veh___6[i]9___.lane_single;
 INIT veh___6[i]9___.v <= ego.v + 3;
@@ -278,6 +280,8 @@ INVAR ego.gaps___619___.i_agent_front = 0;
 INVAR section_0_segment_0_min_lane = section_0_segment_1_min_lane;
 INVAR section_0_segment_1_min_lane = section_0_segment_2_min_lane;
 INVAR section_0_segment_2_max_lane = 0;
+}@.nil
+
 
 ----------------------------------------
    -- EO TODO: Needs to be removed again

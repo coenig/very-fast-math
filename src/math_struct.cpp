@@ -1718,8 +1718,8 @@ void MathStruct::serialize(
 {
    insertNewlineIfNecessary(style, os, indent, line_len);
 
-   if (style == SerializationStyle::nusmv && !const_cast<MathStruct*>(this)->isCompoundOperator() && MetaRule::consists_purely_of_numbers(const_cast<MathStruct*>(this)->shared_from_this())) {
-      os << const_cast<MathStruct*>(this)->constEval();
+   if (style == SerializationStyle::nusmv && !const_cast<MathStruct*>(this)->isCompoundOperator() && MetaRule::has_no_sideeffects(const_cast<MathStruct*>(this)->shared_from_this()) && MetaRule::consists_purely_of_numbers(const_cast<MathStruct*>(this)->shared_from_this())) {
+      os << const_cast<MathStruct*>(this)->constEval(); // TODO: For the M²oRTy building blocks, this behavior is actually undesired. Not sure how to resolve...
       return;
    }
 

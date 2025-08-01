@@ -1604,13 +1604,31 @@ std::string StaticHelper::getFileNameFromPathWithoutExt(const std::string& path)
 }
 
 
-std::string StaticHelper::replaceAll(std::string str, const std::string& from, const std::string& to) {
+std::string StaticHelper::replaceAll(std::string str, const std::string& from, const std::string& to) 
+{
     size_t start_pos = 0;
     while((start_pos = str.find(from, start_pos)) != std::string::npos) {
         str.replace(start_pos, from.length(), to);
         start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
     }
     return str;
+}
+
+std::string vfm::StaticHelper::replaceAllCounting(std::string str, const std::string& from, const int start_at)
+{
+   size_t start_pos = 0;
+   int i = start_at;
+
+   while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+      if (std::to_string(i).size() > from.size()) {
+         i = 0; // Do it modulo size.
+      }
+
+      str.replace(start_pos, from.length(), zeroPaddedNumStr(i, from.length()));
+      start_pos += from.length(); // Handles case where 'to' is a substring of 'from'
+      i++;
+   }
+   return str;
 }
 
 std::string vfm::StaticHelper::replaceAllRegex(const std::string& str, const std::string& from_regex, const std::string& to_regex)
@@ -2033,7 +2051,7 @@ std::string StaticHelper::readFile(const std::string& path, const bool from_utf1
          std::codecvt_utf8_utf16<char16_t>, char16_t>{}.to_bytes(u16);
    }
    else {
-      std::ifstream input(path);
+      std::ifstream input{ path };
 
       if (input.good()) {
          std::stringstream sstr;
