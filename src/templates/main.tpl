@@ -87,7 +87,7 @@ TRANS env.ego.abCond_full = planner."abCond.cond26_all_conditions_fulfilled_raw"
 @{SPEC}@.printHeap
 @{
    @{@{SPEC[i]}@.printHeap}@*.if[@{SPEC[i]}@.vfm_variable_declared]
-}@**.for[[i], 0, 100]
+}@**.for[[i], 0, 100].if[@{SCENGEN_MODE}@.eval]
 }@.@{@(replaceAll[LTLSPEC, @"{LTLSPEC NAME }"@spec$$$$$@"{ :=}"@])@@(id)@}@*.if[@{SCENGEN_MODE}@.eval]
 }@.replaceAllCounting[$$$$$]
 
