@@ -19,6 +19,16 @@
    #pragma comment(lib, "wbemuuid.lib")
    #include <Windows.h>
 #elif __linux__
+
+   #include <iostream>
+   #include <filesystem>
+   #include <fstream>
+   #include <string>
+   #include <regex>
+   #include <csignal>
+
+   namespace fs = std::filesystem;
+
 #else
 #endif
 
@@ -54,13 +64,33 @@ public:
       }
 
 #elif __linux__
-      addError("TODO: No unix implementation for killByPID() available.");
+      if (kill(pid, SIGTERM) == 0) {
+         addNote("Process with ID " + std::to_string(pid) + " killed successfully.");
+      } else {
+         addError("Failed to kill process with ID " + std::to_string(pid) + ".");
+      }
+
 #else
       addError("TODO: No implementation for killByPID() available.");
 #endif
 
       return res;
    }
+
+#if __linux__
+   
+   bool containsSubstring(const std::string& filepath, const std::string& substring) {
+      std::ifstream file(filepath, std::ios::in | std::ios::binary);
+      if (!file.is_open()) return false;
+
+      std::string content((std::istreambuf_iterator<char>(file)),
+                           std::istreambuf_iterator<char>());
+
+      return content.find(substring) != std::string::npos;
+   }
+
+#endif
+
 
    inline std::set<int> getPIDs(const std::string& command_line_str)
    {
@@ -199,8 +229,25 @@ public:
       pLoc->Release();
       pEnumerator->Release();
       CoUninitialize();
+
 #elif __linux__
-      addError("TODO: No unix implementation for getPIDs() available.");
+      // in linux the processes can be found in /proc with their call command in /proc/$PID/cmdline
+      // loop over all processes cmdline strings and search for "command_line_str"
+      std::regex pid_regex("^[0-9]+$");
+
+      for (const auto& entry : fs::directory_iterator("/proc")) {
+         if (!entry.is_directory()) continue;
+
+         std::string dirname = entry.path().filename().string();
+         if (!std::regex_match(dirname, pid_regex)) continue;
+
+         std::string cmdline_path = entry.path().string() + "/cmdline";
+         if (containsSubstring(cmdline_path, command_line_str)) {
+               const int pid = std::stoi(dirname);
+               pids.insert(pid);
+         }
+      }
+
 #else
       addError("TODO: No implementation for getPIDs() available.");
 #endif
