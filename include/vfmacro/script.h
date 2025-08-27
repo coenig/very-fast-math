@@ -20,6 +20,8 @@
 namespace vfm {
 namespace macro {
 
+static constexpr int MAXIMUM_STRING_SIZE_TO_CACHE{ 50 }; // Too large strings hit rarely but take up lots of space. (TODO: is 50 a good guess?)
+
 static const std::string MY_PATH_VARNAME{ "MY_PATH" };
 
 static const std::string PREFIX_FOR_TIMED_IDENTIFIERS = "TT";
@@ -71,6 +73,13 @@ static const std::string VARIABLE_DELIMITER = "=";
 static const char END_VALUE = ';';
 static const std::string INSCRIPT_STANDARD_PARAMETER_PATTERN = "#n#";
 
+// Methods which
+// * either can have different evaluations for the same body and parameters (e.g., eval, which depends on the data pack),
+// * or which have side effects which need to be performed every time (e.g., KILLPIDs).
+static const std::set<std::string> UNCACHABLE_METHODS{
+   "include", "eval", "PIDs", "KILLPIDs", "scriptVar", "setScriptVar", "executeCommand",
+   "vfmheap", "vfmdata", "vfmfunc", "sethard" };
+
  /// Only for internal usage, this symbol is removed from the script
  /// after the translation process is terminated.
 const std::string NOP_SYMBOL = ":$N~O~P$:";
@@ -95,6 +104,11 @@ class DummyRepresentable;
 
 using RepresentableAsPDF = std::shared_ptr<Script>;
 
+struct MethodPartBegin {
+   int method_part_begin_{};
+   std::string result_{};
+   bool cachable_{};
+};
 
 class Script : public Failable, public std::enable_shared_from_this<Script> {
 public:
@@ -192,7 +206,7 @@ public:
    /// @return  The raw script without any inscript tags.
    std::string getTagFreeRawScript();
 
-   std::string sethard(const std::string& value) { method_part_begins_[getTagFreeRawScript()].second = value; return value; }
+   std::string sethard(const std::string& value) { method_part_begins_[getTagFreeRawScript()].result_ = value; return value; }
    std::string exsmeq(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a <= b; }); }
    std::string exsm(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a < b; }); }
    std::string exgreq(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a >= b; }); }
@@ -424,7 +438,8 @@ private:
 
    std::string raw_script_{};
    std::string processed_script_{};
-   std::map<std::string, std::pair<int, std::string>> method_part_begins_{};
+
+   std::map<std::string, MethodPartBegin> method_part_begins_{};
    std::shared_ptr<DataPack> vfm_data_{};
    std::shared_ptr<FormulaParser> vfm_parser_{};
    std::vector<std::string> scriptSequence_{};
