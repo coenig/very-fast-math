@@ -285,13 +285,8 @@ INVAR section_0_segment_2_max_lane = 0;
 
 --= General "Section" Stuff =--
 @{
-    -- INIT outgoing_connection_0_of_section_[sec] != outgoing_connection_1_of_section_[sec]; -- If we want to have at least one outgoing connection for all roads.
-
-    @{ -- Make all sections connect.
-    INVAR 
-    @{ outgoing_connection_0_of_section_[sec2] = [sec] }@.for[[sec2], 0, @{[sec]}@.sub[1], 1, |];
-    }@.if[@{[sec] > 0}@.eval]
-}@******.for[[sec], 0, @{SECTIONS - 1}@.eval]
+    INVAR outgoing_connection_0_of_section_[sec] = @{[sec] + 1}@.eval[0]; -- Make all sections connect.
+}@******.for[[sec], 0, @{SECTIONS - 2}@.eval]
 
 
 ----------------------------------------

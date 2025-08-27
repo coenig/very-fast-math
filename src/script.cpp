@@ -162,7 +162,7 @@ void Script::extractInscriptProcessors()
       processed_script_ = partBefore + placeholderFinal + partAfter;
       indexOfPrep = findNextInscriptPos();
 
-      if (i++ % 1 == 0) {
+      if (i++ % 100 == 0) {
          addNote(""
             + std::to_string(known_chains_.size()) + " known_chains_; "
             + std::to_string(method_part_begins_.size()) + " method_part_begins_; "
