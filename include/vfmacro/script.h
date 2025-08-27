@@ -263,8 +263,6 @@ private:
 
    /// Evaluates a single chain of conversion method applications to a script.
    ///
-   /// @param repScrThis  The representable script to be considered "this". Can be
-   ///                    {@code null} if chain does not begin with "this".
    /// @param chain       The method chain to apply as: "*script*.m1.m2.m3.m4..."
    ///                    where *script* is a script enclosed in @{ ... }@
    ///                    or "this", and m1, m2, ... are method signatures.
@@ -273,7 +271,7 @@ private:
    /// @return  A representable with the methods applied. Can return <code>null
    ///          </code> when the chain is not valid (e.g. when starting with a
    ///          variable).
-   std::shared_ptr<Script> evaluateChain(const std::string& repScrThis, const std::string& chain);
+   std::shared_ptr<Script> evaluateChain(const std::string& chain);
 
    /// Goes through the current version of
    /// {@link RepresentableDefault#processedScript} and replaces
@@ -354,8 +352,6 @@ private:
    ///                script.
    /// @return  The object-specific placeholder to replace the symbol with.
    std::string symbolToPlaceholder(const std::string& symbol);
-
-   std::string removePreprocessors(const std::string& script);
 
    /// Returns the next position which is after the complete method chain of
    /// the preprocessor.

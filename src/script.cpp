@@ -116,13 +116,13 @@ void Script::extractInscriptProcessors()
       int begin = indexOfPrep;
       auto trimmed = StaticHelper::trimAndReturn(preprocessorScript);
 
-      if (method_part_begins_.count(trimmed)) {
+      if (false && method_part_begins_.count(trimmed)) { // TODO: This cache is too progressive.
          cache_hits_++;
          placeholder_for_inscript = method_part_begins_.at(trimmed).second;
       }
       else {
          cache_misses_++;
-         if (methodPartBegin != preprocessorScript.length() && methodPartBegin >= 0) { // TODO: Do we need this??
+         if (methodPartBegin != preprocessorScript.length() && methodPartBegin >= 0) {
             int leftTrim = preprocessorScript.size() - StaticHelper::ltrimAndReturn(preprocessorScript).size();
 
             method_part_begins_.insert({
@@ -137,7 +137,7 @@ void Script::extractInscriptProcessors()
                });
          }
 
-         RepresentableAsPDF result = evaluateChain(removePreprocessors(raw_script_), preprocessorScript);
+         RepresentableAsPDF result = evaluateChain(preprocessorScript);
          placeholder_for_inscript = result->getRawScript();
          method_part_begins_[trimmed].second = placeholder_for_inscript;
       }
@@ -177,7 +177,7 @@ std::string Script::checkForPlainTextTags(const std::string& script)
    return script2;
 }
 
-RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const std::string& chain)
+RepresentableAsPDF Script::evaluateChain(const std::string& chain)
 {
    std::string processedChain{ StaticHelper::trimAndReturn(chain) };
    std::string processedRaw{ processedChain };
@@ -963,7 +963,7 @@ std::vector<std::string> Script::getParametersFor(const std::vector<std::string>
    parameters.resize(rawPars.size());
 
    for (int i = 0; i < rawPars.size(); i++) {
-      RepresentableAsPDF processedPar = evaluateChain(removePreprocessors(this_rep->getRawScript()), rawPars[i]);
+      RepresentableAsPDF processedPar = evaluateChain(rawPars[i]);
       parameters[i] = processedPar->getRawScript();
    }
 
@@ -1055,53 +1055,6 @@ std::string Script::removeTaggedPartsOnTopLevel(
 std::string Script::undoPlaceholdersForPlainText(const std::string& script)
 {
    return replacePlaceholders(script, false);
-}
-
-std::string Script::removePreprocessors(const std::string& script)
-{
-   std::string newScript = script;
-
-   while (StaticHelper::stringContains(newScript, INSCR_END_TAG + INSCR_PRIORITY_SYMB)) {
-      newScript = StaticHelper::replaceAll(newScript, INSCR_END_TAG + INSCR_PRIORITY_SYMB, INSCR_END_TAG);
-   }
-
-   int indexOf = newScript.find(INSCR_BEG_TAG);
-
-   while (indexOf >= 0) {
-      auto processed = StaticHelper::extractFirstSubstringLevelwise(newScript, INSCR_BEG_TAG, INSCR_END_TAG, indexOf);
-
-      if (!processed) return "#Error in script processing. No matching pair of '" + INSCR_BEG_TAG + "' and '" + INSCR_END_TAG + "'.";
-
-      std::string preprocessorScript = *processed;
-
-      int lengthOfPreprocessor = preprocessorScript.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length();
-      std::string partBefore = newScript.substr(0, indexOf);
-      std::string partAfter = newScript.substr(indexOf + lengthOfPreprocessor);
-
-      // Scale defined.
-      int indexOf2 = preprocessorScript.find("|");
-
-      if (indexOf2 >= 0) {
-         std::string scaleStr = preprocessorScript.substr(0, indexOf2);
-         if (StaticHelper::isParsableAsFloat(scaleStr)) {
-            preprocessorScript = StaticHelper::trimAndReturn(preprocessorScript.substr(indexOf2 + 1));
-         }
-      }
-
-      if (indexOf > 1 && newScript.at(indexOf - 1) == ASSIGNMENT_OPERATOR) {
-         int indexOfFilenamebegin = partBefore.length() - 1;
-         while (indexOfFilenamebegin > 0 && !std::isspace(partBefore.at(indexOfFilenamebegin))) indexOfFilenamebegin--;
-         partBefore = partBefore.substr(0, indexOfFilenamebegin + 1);
-      }
-
-      int indexCurr = getNextNonInscriptPosition(partAfter);
-      indexCurr = (std::min)(indexCurr, (int) partAfter.length());
-      partAfter = partAfter.substr(indexCurr);
-      newScript = partBefore + partAfter;
-      indexOf = newScript.find(INSCR_BEG_TAG);
-   }
-
-   return newScript;
 }
 
 int Script::getNextNonInscriptPosition(const std::string& partAfter) 
