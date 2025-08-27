@@ -283,6 +283,17 @@ INVAR section_0_segment_2_max_lane = 0;
 }@.nil
 
 
+--= General "Section" Stuff =--
+@{
+    -- INIT outgoing_connection_0_of_section_[sec] != outgoing_connection_1_of_section_[sec]; -- If we want to have at least one outgoing connection for all roads.
+
+    @{ -- Make all sections connect.
+    INVAR 
+    @{ outgoing_connection_0_of_section_[sec2] = [sec] }@.for[[sec2], 0, @{[sec]}@.sub[1], 1, |];
+    }@.if[@{[sec] > 0}@.eval]
+}@******.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
+
 ----------------------------------------
    -- EO TODO: Needs to be removed again
 ----------------------------------------
@@ -327,28 +338,21 @@ INVAR section_0_segment_2_max_lane = 0;
       section_[sec].drain.x := section_[sec].source.x + (section_[sec]_end * cos_of_section_[sec]_angle) / 100;
       section_[sec].drain.y := section_[sec].source.y + (section_[sec]_end * sin_of_section_[sec]_angle) / 100;
  
-      -- INIT outgoing_connection_0_of_section_[sec] != outgoing_connection_1_of_section_[sec]; -- If we want to have at least one outgoing connection for all roads.
+      @{
+      FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1..@{SECTIONS - 1}@.eval[0];
+      INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Don't connect to self.
 
-         @{
-            FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1..@{SECTIONS - 1}@.eval[0];
-            INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Don't connect to self.
+      @{
+          @{
+              FROZENVAR dist_[con]_of_section_[sec]_to_[sec2] : @{MINDISTCONNECTIONS}@.eval[0] .. @{MAXDISTCONNECTIONS}@.eval[0];
 
-            @{
-               @{
-                  FROZENVAR dist_[con]_of_section_[sec]_to_[sec2] : @{MINDISTCONNECTIONS}@.eval[0] .. @{MAXDISTCONNECTIONS}@.eval[0];
-
-                  INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> (
-                       (section_[sec2].source.x = section_[sec].drain.x + (dist_[con]_of_section_[sec]_to_[sec2] * (cos_of_section_[sec]_angle + cos_of_section_[sec2]_angle)) / 100)
-                     & (section_[sec2].source.y = section_[sec].drain.y + (dist_[con]_of_section_[sec]_to_[sec2] * (sin_of_section_[sec]_angle + sin_of_section_[sec2]_angle)) / 100)
-                  );
-               }@.if[@{ [sec] != [sec2] }@.eval]
-            }@*.for[[sec2], 0, @{SECTIONS - 1}@.eval]
-         }@**.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
-
-         @{ -- TODO: Comment in to make all sections connect.
-         -- INVAR 
-            @{ -- outgoing_connection_0_of_section_[sec2] = [sec] }@.for[[sec2], 0, @{[sec]}@.sub[1], 1, |];
-         }@.if[@{[sec] > 0}@.eval]
+              INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> (
+                  (section_[sec2].source.x = section_[sec].drain.x + (dist_[con]_of_section_[sec]_to_[sec2] * (cos_of_section_[sec]_angle + cos_of_section_[sec2]_angle)) / 100)
+                  & (section_[sec2].source.y = section_[sec].drain.y + (dist_[con]_of_section_[sec]_to_[sec2] * (sin_of_section_[sec]_angle + sin_of_section_[sec2]_angle)) / 100)
+              );
+          }@.if[@{ [sec] != [sec2] }@.eval]
+      }@*.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+      }@**.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
 
       @{
          INIT @{ vec(section_[sec].source.x; section_[sec].source.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
