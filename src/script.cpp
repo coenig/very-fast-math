@@ -92,6 +92,16 @@ std::string vfm::macro::Script::getProcessedScript() const
    return processed_script_;
 }
 
+bool isCachable(const std::string& method_chain)
+{
+   bool cachable{ true };
+
+   for (const auto& method : StaticHelper::split(method_chain, ".")) {
+   }
+
+   return cachable;
+}
+
 void Script::extractInscriptProcessors()
 {
    // Find next preprocessor.
@@ -116,37 +126,38 @@ void Script::extractInscriptProcessors()
       int begin = indexOfPrep;
       auto trimmed = StaticHelper::trimAndReturn(preprocessorScript);
 
-      if (false && method_part_begins_.count(trimmed)) { // TODO: This cache is too progressive.
+      if (method_part_begins_.count(trimmed) && method_part_begins_.at(trimmed).cachable_) { // TODO: Avoid multiple accesses to map.
          cache_hits_++;
-         placeholder_for_inscript = method_part_begins_.at(trimmed).second;
+         placeholder_for_inscript = method_part_begins_.at(trimmed).result_;
       }
       else {
          cache_misses_++;
+
          if (methodPartBegin != preprocessorScript.length() && methodPartBegin >= 0) {
             int leftTrim = preprocessorScript.size() - StaticHelper::ltrimAndReturn(preprocessorScript).size();
 
             method_part_begins_.insert({
                trimmed,
-               { methodPartBegin - leftTrim, placeholder_for_inscript }
+               { methodPartBegin - leftTrim, placeholder_for_inscript, isCachable(methods) }
                });
          }
          else {
             method_part_begins_.insert({
                trimmed,
-               { -1, placeholder_for_inscript }
+               { -1, placeholder_for_inscript, isCachable(methods) }
                });
          }
 
          RepresentableAsPDF result = evaluateChain(preprocessorScript);
          placeholder_for_inscript = result->getRawScript();
-         method_part_begins_[trimmed].second = placeholder_for_inscript;
+         method_part_begins_[trimmed].result_ = placeholder_for_inscript;
       }
 
       std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
       processed_script_ = partBefore + placeholderFinal + partAfter;
       indexOfPrep = findNextInscriptPos();
 
-      if (i++ % 100 == 0) {
+      if (i++ % 1 == 0) {
          addNote(""
             + std::to_string(known_chains_.size()) + " known_chains_; "
             + std::to_string(method_part_begins_.size()) + " method_part_begins_; "
@@ -190,8 +201,8 @@ RepresentableAsPDF Script::evaluateChain(const std::string& chain)
    cache_misses_++;
 
    RepresentableAsPDF repToProcess{};
-   std::shared_ptr<int> methodBegin = method_part_begins_.count(processedRaw) && method_part_begins_.at(processedRaw).first >= 0
-      ? std::make_shared<int>(method_part_begins_.at(processedRaw).first) 
+   std::shared_ptr<int> methodBegin = method_part_begins_.count(processedRaw) && method_part_begins_.at(processedRaw).method_part_begin_ >= 0
+      ? std::make_shared<int>(method_part_begins_.at(processedRaw).method_part_begin_)
       : nullptr;
 
    if (StaticHelper::stringStartsWith(processedChain, INSCR_BEG_TAG)
@@ -249,13 +260,15 @@ RepresentableAsPDF Script::evaluateChain(const std::string& chain)
 
    addFailableChild(repToProcess, "");
 
+   bool chachable{ isCachable(processedChain) && processedRaw.size() <= MAXIMUM_STRING_SIZE_TO_CACHE };
+
    if (StaticHelper::isEmptyExceptWhiteSpaces(processedChain)) {
-      if (processedRaw.size() < 50) known_chains_[processedRaw] = repToProcess;
+      if (chachable) known_chains_[processedRaw] = repToProcess;
       return repToProcess;
    }
 
    std::vector<std::string> methodSignatures = getMethodSinaturesFromChain(processedChain);
-   std::vector<std::string> methodSignaturesArray{};
+   std::vector<std::string> methodSignaturesArray{}; // TODO: Why this copy??
    methodSignaturesArray.resize(methodSignatures.size());
 
    for (int i = 0; i < methodSignatures.size(); i++) {
@@ -263,7 +276,7 @@ RepresentableAsPDF Script::evaluateChain(const std::string& chain)
    }
 
    RepresentableAsPDF apply_method_chain = applyMethodChain(repToProcess, methodSignaturesArray);
-   if (processedRaw.size() < 50) known_chains_[processedRaw] = apply_method_chain;
+   if (chachable) known_chains_[processedRaw] = apply_method_chain;
 
    return apply_method_chain;
 }
