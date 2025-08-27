@@ -246,7 +246,13 @@ void vfm::mc::trajectory_generator::LiveSimGenerator::equipRoadGraphWithCars(
       };
 
       if (on_straight_section >= 0) {
-         r->findSectionWithID(on_straight_section)->getMyRoad().addOther(veh);
+         auto rg = r->findSectionWithID(on_straight_section);
+         if (rg) {
+            rg->getMyRoad().addOther(veh);
+         }
+         else {
+            addError("Vehicle '" + std::to_string(vehicle_index) + "' will not be painted since it is on section '" + std::to_string(on_straight_section) + "' which is not reachable from the current setion '" + std::to_string(r->getID()) + "'. (Note that sections unconnected to the main road graph are currently not considered.)");
+         }
       }
       else if (traversion_from >= 0 && traversion_to >= 0) {
          const auto from_section = r->findSectionWithID(traversion_from);
