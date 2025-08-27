@@ -264,7 +264,7 @@ private:
    static std::string getConversionTag(const std::string& scriptWithoutComments);
    static std::vector<std::string> getMethodParametersWithTags(const std::string& conversionTag);
 
-   std::vector<std::string> getParametersFor(const std::vector<std::string>& rawPars, const RepresentableAsPDF this_rep);
+   std::vector<std::string> getParametersFor(const std::vector<std::string>& rawPars);
    RepresentableAsPDF applyMethodChain(const RepresentableAsPDF original, const std::vector<std::string>& methodsToApply);
    std::vector<std::string> getMethodParameters(const std::string& conversionTag);
 

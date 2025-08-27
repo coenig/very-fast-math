@@ -92,14 +92,18 @@ std::string vfm::macro::Script::getProcessedScript() const
    return processed_script_;
 }
 
-bool isCachable(const std::string& method_chain)
+bool isCachable(const std::vector<std::string>& method_chain)
 {
-   bool cachable{ true };
+   for (const auto& method : method_chain) {
+      const size_t par_begin{ method.find("[") };
+      const std::string method_w_o_pars{ par_begin == std::string::npos ? method : method.substr(0, par_begin) };
 
-   for (const auto& method : StaticHelper::split(method_chain, ".")) {
+      if (UNCACHABLE_METHODS.count(method_w_o_pars)) {
+         return false;
+      }
    }
 
-   return cachable;
+   return true;
 }
 
 void Script::extractInscriptProcessors()
@@ -132,19 +136,20 @@ void Script::extractInscriptProcessors()
       }
       else {
          cache_misses_++;
+         std::vector<std::string> methodSignaturesArray = getMethodSinaturesFromChain(methods); // TODO: Done twice for each subscript. Is this expensive?
 
          if (methodPartBegin != preprocessorScript.length() && methodPartBegin >= 0) {
             int leftTrim = preprocessorScript.size() - StaticHelper::ltrimAndReturn(preprocessorScript).size();
 
             method_part_begins_.insert({
                trimmed,
-               { methodPartBegin - leftTrim, placeholder_for_inscript, isCachable(methods) }
+               { methodPartBegin - leftTrim, placeholder_for_inscript, isCachable(methodSignaturesArray) }
                });
          }
          else {
             method_part_begins_.insert({
                trimmed,
-               { -1, placeholder_for_inscript, isCachable(methods) }
+               { -1, placeholder_for_inscript, isCachable(methodSignaturesArray) }
                });
          }
 
@@ -260,20 +265,20 @@ RepresentableAsPDF Script::evaluateChain(const std::string& chain)
 
    addFailableChild(repToProcess, "");
 
-   bool chachable{ isCachable(processedChain) && processedRaw.size() <= MAXIMUM_STRING_SIZE_TO_CACHE };
+   std::vector<std::string> methodSignaturesArray = getMethodSinaturesFromChain(processedChain);
+   bool chachable{ isCachable(methodSignaturesArray) && processedRaw.size() <= MAXIMUM_STRING_SIZE_TO_CACHE };
 
    if (StaticHelper::isEmptyExceptWhiteSpaces(processedChain)) {
       if (chachable) known_chains_[processedRaw] = repToProcess;
       return repToProcess;
    }
 
-   std::vector<std::string> methodSignatures = getMethodSinaturesFromChain(processedChain);
-   std::vector<std::string> methodSignaturesArray{}; // TODO: Why this copy??
-   methodSignaturesArray.resize(methodSignatures.size());
+   //std::vector<std::string> methodSignaturesArray{}; // TODO: Why this copy??
+   //methodSignaturesArray.resize(methodSignatures.size());
 
-   for (int i = 0; i < methodSignatures.size(); i++) {
-      methodSignaturesArray[i] = methodSignatures.at(i);
-   }
+   //for (int i = 0; i < methodSignatures.size(); i++) {
+   //   methodSignaturesArray[i] = methodSignatures.at(i);
+   //}
 
    RepresentableAsPDF apply_method_chain = applyMethodChain(repToProcess, methodSignaturesArray);
    if (chachable) known_chains_[processedRaw] = apply_method_chain;
@@ -315,7 +320,7 @@ RepresentableAsPDF Script::applyMethod(const RepresentableAsPDF rep, const std::
    std::string methodName = StaticHelper::split(conversionTag, "[")[0];
    std::vector<std::string> pars = getMethodParameters(conversionTag);
 
-   std::vector<std::string> actualParameters = getParametersFor(pars, rep);
+   std::vector<std::string> actualParameters = getParametersFor(pars);
    std::string newScript = rep->applyMethodString(methodName, actualParameters);
 
    return repfactory_instanceFromScript(newScript);
@@ -970,7 +975,7 @@ std::vector<std::string> Script::getMethodParametersWithTags(const std::string& 
    return pars;
 }
 
-std::vector<std::string> Script::getParametersFor(const std::vector<std::string>& rawPars, const RepresentableAsPDF this_rep)
+std::vector<std::string> Script::getParametersFor(const std::vector<std::string>& rawPars)
 {
    std::vector<std::string> parameters;
    parameters.resize(rawPars.size());
