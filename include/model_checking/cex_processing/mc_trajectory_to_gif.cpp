@@ -316,9 +316,8 @@ void LiveSimGenerator::generate(
       extra_var_vals.insert({ "ego.gaps___619___.i_agent_front", std::to_string(current_ego.second.at(PossibleParameter::gap_1_i_agent_front))});
       extra_var_vals.insert({ "ego.gaps___629___.i_agent_front", std::to_string(current_ego.second.at(PossibleParameter::gap_2_i_agent_front))});
       extra_var_vals.insert({ "ego.gaps___609___.i_agent_rear", std::to_string(current_ego.second.at(PossibleParameter::gap_0_i_agent_rear))});
-      //extra_var_vals.insert({ "ego.gaps___619___.i_agent_rear", std::to_string(current_ego.second.at(PossibleParameter::gap_1_i_agent_rear))});
-      //extra_var_vals.insert({ "ego.gaps___629___.i_agent_rear", std::to_string(current_ego.second.at(PossibleParameter::gap_2_i_agent_rear))});
-      // TODO: Above 2 currently not used.
+      extra_var_vals.insert({ "ego.gaps___619___.i_agent_rear", std::to_string(current_ego.second.at(PossibleParameter::gap_1_i_agent_rear))});
+      extra_var_vals.insert({ "ego.gaps___629___.i_agent_rear", std::to_string(current_ego.second.at(PossibleParameter::gap_2_i_agent_rear))});
 
       // Provide data for other vehicles
       for (const auto& vehicle_name : vehicle_names_without_ego)
