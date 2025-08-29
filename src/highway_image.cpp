@@ -533,7 +533,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             auto top_left_second_lane = top_left_second;
             top_right_corner_lane.add({ 0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5) });
             top_right_second_lane.add({ 0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5) });
-            top_left_corner_lane.add({  0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5) });
+            top_left_corner_lane.add({  0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5 - lane_structure.getSegments().at(0).getMinLane() / 2) });
             top_left_second_lane.add({  0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5) });
 
             connections.insert(connections.begin(), ConnectorPolygonEnding{
