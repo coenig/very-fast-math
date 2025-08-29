@@ -51,7 +51,7 @@ INIT section_[sec]_segment_[num]_min_lane >= 0;
 INIT section_[sec]_segment_[num]_max_lane <= @{(NUMLANES - 1)}@.eval[0];
 }@.for[[num], 0, @{SEGMENTS - 1}@.eval]
 
-INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -- Make sure we always have a drivable lane at the start. TODO: Make flexible.
+-- INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -- Make sure we always have a drivable lane at the start. TODO: Make flexible.
 }@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 --------------------------------------------------------
@@ -285,8 +285,15 @@ INVAR section_0_segment_2_max_lane = 0;
 
 --= General "Section" Stuff =--
 @{
-    INVAR outgoing_connection_0_of_section_[sec] = @{[sec] + 1}@.eval[0]; -- Make all sections connect.
+   -- INVAR outgoing_connection_0_of_section_[sec] = @{[sec] + 1}@.eval[0]; -- Make all sections connect.
 }@******.for[[sec], 0, @{SECTIONS - 2}@.eval]
+
+INVAR ego.v = 0;
+INIT veh___609___.is_on_sec_0 = 1;
+INIT veh___609___.abs_pos = 10;
+INIT veh___609___.lane_1;
+INIT ego_lane_0;
+INIT section_1_segment_0_max_lane = section_1_segment_0_min_lane;
 
 
 ----------------------------------------
