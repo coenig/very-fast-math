@@ -1498,13 +1498,25 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
 
    static const std::string SPEC_BEGIN{ "--SPEC-STUFF" };
    static const std::string SPEC_END{ "--EO-SPEC-STUFF" };
+   static const std::string ADDONS_BEGIN{ "--ADDONS" };
+   static const std::string ADDONS_END{ "--EO-ADDONS" };
+   mc_scene->data_->addStringToDataPack(mc_scene->getTemplateDir(), macro::MY_PATH_VARNAME); // Set the script processors home path (for the case it's not already been set during EnvModel generation).
 
+   // ADDONS
+   main_smv = StaticHelper::removeMultiLineComments(main_smv, ADDONS_BEGIN, ADDONS_END);
+   main_smv += ADDONS_BEGIN + "\n";
+
+   auto addons_part = StaticHelper::removePartsOutsideOf(main_template, ADDONS_BEGIN, ADDONS_END);
+   addons_part = vfm::macro::Script::processScript(addons_part, mc_scene->data_, mc_scene->parser_);
+   main_smv += addons_part + "\n";
+   main_smv += ADDONS_END + "\n";
+
+   // SPEC (TODO: double code!)
    main_smv = StaticHelper::removeMultiLineComments(main_smv, SPEC_BEGIN, SPEC_END);
    main_smv += SPEC_BEGIN + "\n";
 
    auto spec_part = StaticHelper::removePartsOutsideOf(main_template, SPEC_BEGIN, SPEC_END);
    spec_part = vfm::macro::Script::processScript(spec_part, mc_scene->data_, mc_scene->parser_);
-   //auto spec_pair = mc_scene->getSpec("any", true);
    main_smv += spec_part + "\n";
    main_smv += SPEC_END + "\n";
 
