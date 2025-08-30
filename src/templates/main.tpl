@@ -77,14 +77,14 @@ TRANS next(lane_change_aborted) = ((lane_change_aborted | planner."abCond.cond26
 TRANS env.ego.flCond_full = planner."flCond.cond26_all_conditions_fulfilled_raw";
 TRANS env.ego.abCond_full = planner."abCond.cond26_all_conditions_fulfilled_raw";
 
---ADDONS
--- Don't change the wording of the above line and its corresponding closing line!
-@{main_addons.tpl}@********.include
---EO-ADDONS
 
 --SPEC-STUFF
 -- Don't change the wording of the above line and its corresponding closing line! It's used to detect the SPEC part
 -- to be able to replace just it when running the MC without re-generating the EnvModel. It's also used for UCD.
+
+--ADDONS
+@{main_addons.tpl}@********.include
+--EO-ADDONS
 
 @{
 @{
