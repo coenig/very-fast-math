@@ -484,8 +484,7 @@ std::string Script::newMethod(const std::string& methodName, const std::string& 
 std::string Script::newMethodD(const std::string& methodName, const std::string& numPars, const std::string& parameterPattern)
 {
    if (getScriptData().inscriptMethodDefinitions.count(methodName)) {
-      addError("Dynamic method '" + methodName + "' already exists.");
-      return "";
+      addWarning("Dynamic method '" + methodName + "' already exists. I will override it.");
    }
 
    if (!StaticHelper::isParsableAsFloat(numPars)) {
