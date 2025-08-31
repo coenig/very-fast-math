@@ -159,9 +159,17 @@ public:
    /// @return  The rep instance.
    std::shared_ptr<Script> repfactory_instanceFromScript(const std::string& script);
 
+   enum class DataPreparation {
+      copy_data_pack_before_run, // Creates a copy of the data pack and works on that. I.e., you won't see the changes in the original data pack if something is altered by the script. Typically needed to make thread-safe.
+      reset_script_data_before_run, // Typically desired, unless you want to re-use dynamic methods, cache etc. over multiple sessions.
+      both,
+      none
+   };
+
    static std::string processScript(
       const std::string& text,
-      const std::shared_ptr<DataPack> data = nullptr, 
+      const DataPreparation data_prep,
+      const std::shared_ptr<DataPack> data_raw = nullptr, 
       const std::shared_ptr<FormulaParser> parser = nullptr,
       const std::shared_ptr<Failable> father_failable = nullptr);
 

@@ -1541,10 +1541,24 @@ std::string Script::getTagFreeRawScript() {
 
 std::string vfm::macro::Script::processScript(
    const std::string& text,
-   const std::shared_ptr<DataPack> data,
+   const DataPreparation data_prep,
+   const std::shared_ptr<DataPack> data_raw,
    const std::shared_ptr<FormulaParser> parser,
    const std::shared_ptr<Failable> father_failable)
 {
+   auto data = data_raw;
+
+   if (data) {
+      if (data_prep == DataPreparation::copy_data_pack_before_run || data_prep == DataPreparation::both) {
+         data = std::make_shared<DataPack>();
+         data->initializeValuesBy(data_raw);
+      }
+
+      if (data_prep == DataPreparation::reset_script_data_before_run || data_prep == DataPreparation::both) {
+         data->getScriptData().reset();
+      }
+   }
+
    auto s = std::make_shared<Script>(data, parser);
    
    if (father_failable) {
