@@ -61,7 +61,7 @@
       "MINACCELEGO": "#{minaccelego}#",
       "MINACCELNONEGO": "#{minaccel}#",
       "MINDISTCONNECTIONS": "#{35}#",
-      "MIN_TIME_BETWEEN_LANECHANGES": 100,
+      "MIN_TIME_BETWEEN_LANECHANGES": 333,
       "NONEGOS": "#{nonegos}#",
       "NUMLANES": "#{lanes}#",
       "SCENGEN_EXISTENTIAL_PROPERTIES": "1-9",
