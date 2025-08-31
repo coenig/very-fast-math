@@ -238,8 +238,6 @@ public:
    std::string makroPattern(const int i, const std::string& pattern);
    std::string applyMethodString(const std::string& method_name, const std::vector<std::string>& parameters);
 
-   static void clearStaticData();
-
 private:
    /// If you try to avoid assigning the parameter,
    /// be careful, it's not as simple as it seems.
@@ -429,6 +427,8 @@ private:
    ///          exists, -1 is returned and no side effects occur.
    int findNextInscriptPos();
 
+   ScriptData& getScriptData();
+
    /// If the script is embedded in plain text tags, replace all symbols with
    /// placeholders, but leave plain-text tags for later.
    ///
@@ -443,24 +443,6 @@ private:
    std::shared_ptr<DataPack> vfm_data_{};
    std::shared_ptr<FormulaParser> vfm_parser_{};
    std::vector<std::string> scriptSequence_{};
-
-   static std::map<std::string, std::shared_ptr<Script>> known_chains_;
-
-   /// Stores all symbols that are somehow restricted as they serve a special
-   /// purpose. Caution: Don't count on this list to be really completely
-   /// exhaustive. I.e., look at the code now and then for pending changes.
-   static std::set<std::string> SPECIAL_SYMBOLS;
-   static std::map<std::string, std::string> PLACEHOLDER_MAPPING;
-   static std::map<std::string, std::string> PLACEHOLDER_INVERSE_MAPPING;
-
-   static std::map<std::string, std::string> inscriptMethodDefinitions; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
-   static std::map<std::string, int> inscriptMethodParNums;             // TODO: no static! Should belong to some base class belonging to a single expansion "session".
-   static std::map<std::string, std::string> inscriptMethodParPatterns; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
-
-   static std::map<std::string, std::vector<std::string>> list_data_; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
-
-   static int cache_hits_;
-   static int cache_misses_;
 };
 
 } // macro

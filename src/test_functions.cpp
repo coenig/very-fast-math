@@ -230,10 +230,10 @@ const auto TEST_FIXED_SIMPL = [](const std::set<std::set<std::string>>& operator
 
 const auto TEST_SCRIPT_EXPANSION = [](const std::set<std::set<std::string>>& operators, std::shared_ptr<DataPack> d, const int seed, const int max, const bool print)
 {
-   static const std::array<int, 21> FIBS{ 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765 };// , 10946, 17711, 28657, 46368, 75025, 121393, 196418, 317811, 514229, 832040 };
+   static const std::array<int, 31> FIBS{ 0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765, 10946, 17711, 28657, 46368, 75025, 121393, 196418, 317811, 514229, 832040 };
    std::srand(seed);
    int rand1 = std::rand() % (max - 0 + 1) + 0;
-   int rand2 = rand1 * 13 % FIBS.size(); // Don't do too large numbers since it gets slow at some point. fibfast(20) is still very fast, though.
+   int rand2 = std::rand() % FIBS.size();
 
    std::string test_string1 = StaticHelper::replaceAll(R"(
 @{@{
@@ -254,13 +254,11 @@ const auto TEST_SCRIPT_EXPANSION = [](const std::set<std::set<std::string>>& ope
 ~{@{$}@.fibfast \0}~
 )", "$", std::to_string(rand2));
 
-   macro::Script::clearStaticData();
    std::shared_ptr<macro::Script> s1 = std::make_shared<macro::Script>(nullptr, nullptr);
    if (!print) s1->setOutputLevels(ErrorLevelEnum::error, ErrorLevelEnum::error);
    s1->applyDeclarationsAndPreprocessors(test_string1);
    std::string result1 = StaticHelper::trimAndReturn(s1->getProcessedScript());
 
-   macro::Script::clearStaticData();
    std::shared_ptr<macro::Script> s2 = std::make_shared<macro::Script>(nullptr, nullptr);
    if (!print) s2->setOutputLevels(ErrorLevelEnum::error, ErrorLevelEnum::error);
    s2->applyDeclarationsAndPreprocessors(test_string2);
@@ -378,8 +376,8 @@ static const std::vector<TestCase> TEST_CASES{
    /* 8  */ TestCase{"FSM FAN-OUT",           TEST_FANNING,            0,         4,    {},                                  {},           {},                   "", id}, // Deprecated
    /* 9  */ TestCase{"EARLEY RECOGNIZING",    TEST_EARLEY_R,           5,         5,    NO_VARS,                             {},           {},                   "Warnings", count},
    /* 10 */ TestCase{"EARLEY PARSING",        TEST_EARLEY_P,           5,         2,    NO_VARS,                             {},           {},                   "Warnings", count},
-   /* 11 */ TestCase{"GENERAL EVALUATION",    TEST_EVAL,               50,       -1,   {},                                  {},           {},                   "Formulas tested", count},
-   /* 12 */ TestCase{"SCRIPT_EXPANSION",      TEST_SCRIPT_EXPANSION,   100,       8,    {},                                  {},           {},                   "",         id},
+   /* 11 */ TestCase{"GENERAL EVALUATION",    TEST_EVAL,               50,       -1,    {},                                  {},           {},                   "Formulas tested", count},
+   /* 12 */ TestCase{"SCRIPT_EXPANSION",      TEST_SCRIPT_EXPANSION,   20,        8,    {},                                  {},           {},                   "",         id},
    /* 13 */ TestCase{"FIXED_SIMPLIFICATION",  TEST_FIXED_SIMPL,        1,        -1,    {},                                  {},           {},                   "",         id},
 };
 //////// EO TEST CASE DESCRIPTIONS /////////

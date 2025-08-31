@@ -16,13 +16,13 @@
 #include "dat_src_arr_as_readonly_random_access_file.h"
 #include "dat_src_arr_as_string.h"
 #include "dat_src_arr_as_float_vector.h"
+#include "vfmacro/script.h"
 #include <sstream>
 #include <algorithm>
 #include <cassert>
 #include <sys/stat.h>
 #include <string>
 #include <iostream>
-#include <sstream>
 #include <vector>
 #include <memory>
 #include <cctype>
@@ -855,6 +855,8 @@ void DataPack::reset()
    addAssociationFunctionToExternalValue(DEFAULT_ASSOCIATION_FUNCTION(external_bool_addresses), AssociationType::Bool);
 #endif
 
+   script_data_.reset();
+
    addOrSetSingleVal("true", 1);
 }
 
@@ -933,6 +935,13 @@ void DataPack::initializeValuesBy(const DataPack& other)
       }
    }
 #endif
+
+   script_data_ = other.script_data_;
+   script_data_.known_chains_.clear(); // TODO: Make this cleaner with copy constructors in ScriptData and Script.
+
+   for (const auto& other_known_chain : other.script_data_.known_chains_) {
+      script_data_.known_chains_.insert({ other_known_chain.first, other_known_chain.second->copy() });
+   }
 }
 
 void vfm::DataPack::initializeValuesBy(const std::shared_ptr<DataPack> other)
@@ -1589,6 +1598,11 @@ void vfm::DataPack::isStringAtAdressWhichComparesTo(const std::string& address_v
 void vfm::DataPack::resetPrivateVarsRecursiveLevels()
 {
    private_vars_recursive_levels_.clear();
+}
+
+ScriptData& vfm::DataPack::getScriptData()
+{
+   return script_data_;
 }
 
 std::shared_ptr<DataPack> DataPack::instance_;
