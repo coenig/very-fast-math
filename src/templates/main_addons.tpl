@@ -239,7 +239,6 @@ INVAR section_0_segment_2_max_lane = 0;
 
 -- @{NUMLANES}@.eval[0] Lanes.
 
-INVAR env.ego.v = 0;
 INIT env.section_2.angle = 0;
 INIT env.section_1.angle = 45;
 INIT env.veh___609___.is_on_sec_0 = 1;
