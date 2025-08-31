@@ -45,7 +45,7 @@
    INIT veh___639___.is_on_sec_2 = 1;
    INIT veh___639___.abs_pos = 0;
    INIT section_0.drain.x = section_7.source.x;
-}@.nil
+}@***********.nil
 
    --= ROUNDABOUT with straight sections which can be made ROUND by the below tweak with zero-length sections =--
    -- Remove nil from generator to activate.
@@ -114,7 +114,7 @@
    INIT outgoing_connection_1_of_section_9 = 10;
    INIT outgoing_connection_1_of_section_10 = 11;
    INIT outgoing_connection_1_of_section_11 = 8;
-}@.nil
+}@***********.nil
 
 
    --= "Round" ROUNDABOUT =--
@@ -200,7 +200,7 @@
    INIT outgoing_connection_1_of_section_13 = 5;
 --   INIT outgoing_connection_1_of_section_14 = -1;
    INIT outgoing_connection_1_of_section_15 = 7;
-}@.nil
+}@***********.nil
 
    --= For Stop&Go =--
    -- Remove nil from generator to activate.
@@ -227,13 +227,17 @@ INVAR ego.gaps___619___.i_agent_front = 0;
 INVAR section_0_segment_0_min_lane = section_0_segment_1_min_lane;
 INVAR section_0_segment_1_min_lane = section_0_segment_2_min_lane;
 INVAR section_0_segment_2_max_lane = 0;
-}@.nil
+}@***********.nil
 
 
    --= General "Section" Stuff =--
 @{
+@{
    -- INVAR outgoing_connection_0_of_section_[sec] = @{[sec] + 1}@.eval[0]; -- Make all sections connect.
 }@******.for[[sec], 0, @{SECTIONS - 2}@.eval]
+}@***********.nil
+
+-- @{NUMLANES}@.eval[0] Lanes.
 
 INVAR env.ego.v = 0;
 INIT env.section_2.angle = 0;
@@ -244,5 +248,5 @@ INIT env.veh___609___.abs_pos = 10;
 INIT env.veh___619___.abs_pos = 10;
 INIT env.ego_lane_0;
 INIT env.section_1_segment_0_max_lane = 0;
-INIT env.section_0_segment_0_max_lane = 3;
+INIT env.section_0_segment_0_max_lane = @{NUMLANES - 1}@.eval[0];
 INIT env.section_0_segment_1_min_lane = 0;

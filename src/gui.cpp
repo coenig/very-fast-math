@@ -1480,38 +1480,42 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
    std::string path_generated{ StaticHelper::replaceAll(path_generated_raw, "\\", "/") };
    std::string path_template{ mc_scene->getTemplateDir() };
 
-   mc_scene->addNote("Running model checker and creating preview for folder '" + path_generated + "' (config: '" + config_name + "').");
-   mc_scene->deleteMCOutputFromFolder(path_generated, true);
-   mc_scene->preprocessAndRewriteJSONTemplate();
+   {
+      std::lock_guard<std::mutex> lock{ mc_scene->main_file_mutex_ };
 
-   mc_scene->putJSONIntoDataPack();
-   mc_scene->putJSONIntoDataPack(config_name);
+      mc_scene->addNote("Running model checker and creating preview for folder '" + path_generated + "' (config: '" + config_name + "').");
+      mc_scene->deleteMCOutputFromFolder(path_generated, true);
+      mc_scene->preprocessAndRewriteJSONTemplate();
 
-   std::string main_smv{ StaticHelper::readFile(path_generated + "/main.smv") };
+      mc_scene->putJSONIntoDataPack();
+      mc_scene->putJSONIntoDataPack(config_name);
 
-   std::string script_template{ StaticHelper::readFile(mc_scene->getTemplateDir() + "/script.tpl") };
-   std::string main_template{ StaticHelper::readFile(mc_scene->getTemplateDir() + "/main.tpl") };
-   std::string generated_script{ CppParser::generateScript(script_template, mc_scene->data_, mc_scene->parser_) };
-   StaticHelper::writeTextToFile(generated_script, path_generated + "/script.cmd");
+      std::string main_smv{ StaticHelper::readFile(path_generated + "/main.smv") };
 
-   mc_scene->addNote("Created script.cmd with the following content:\n" + StaticHelper::readFile(path_generated + "/script.cmd") + "<EOF>");
+      std::string script_template{ StaticHelper::readFile(mc_scene->getTemplateDir() + "/script.tpl") };
+      std::string main_template{ StaticHelper::readFile(mc_scene->getTemplateDir() + "/main.tpl") };
+      std::string generated_script{ CppParser::generateScript(script_template, mc_scene->data_, mc_scene->parser_) };
+      StaticHelper::writeTextToFile(generated_script, path_generated + "/script.cmd");
 
-   static const std::string SPEC_BEGIN{ "--SPEC-STUFF" };
-   static const std::string SPEC_END{ "--EO-SPEC-STUFF" };
-   static const std::string ADDONS_BEGIN{ "--ADDONS" };
-   static const std::string ADDONS_END{ "--EO-ADDONS" };
-   mc_scene->data_->addStringToDataPack(mc_scene->getTemplateDir(), macro::MY_PATH_VARNAME); // Set the script processors home path (for the case it's not already been set during EnvModel generation).
+      mc_scene->addNote("Created script.cmd with the following content:\n" + StaticHelper::readFile(path_generated + "/script.cmd") + "<EOF>");
 
-   // Re-generate SPEC stuff.
-   main_smv = StaticHelper::removeMultiLineComments(main_smv, SPEC_BEGIN, SPEC_END);
-   main_smv += SPEC_BEGIN + "\n";
+      static const std::string SPEC_BEGIN{ "--SPEC-STUFF" };
+      static const std::string SPEC_END{ "--EO-SPEC-STUFF" };
+      static const std::string ADDONS_BEGIN{ "--ADDONS" };
+      static const std::string ADDONS_END{ "--EO-ADDONS" };
+      mc_scene->data_->addStringToDataPack(mc_scene->getTemplateDir(), macro::MY_PATH_VARNAME); // Set the script processors home path (for the case it's not already been set during EnvModel generation).
 
-   auto spec_part = StaticHelper::removePartsOutsideOf(main_template, SPEC_BEGIN, SPEC_END);
-   spec_part = vfm::macro::Script::processScript(spec_part, macro::Script::DataPreparation::both, mc_scene->data_, mc_scene->parser_);
-   main_smv += spec_part + "\n";
-   main_smv += SPEC_END + "\n";
+      // Re-generate SPEC stuff.
+      main_smv = StaticHelper::removeMultiLineComments(main_smv, SPEC_BEGIN, SPEC_END);
+      main_smv += SPEC_BEGIN + "\n";
 
-   StaticHelper::writeTextToFile(main_smv, path_generated + "/main.smv");
+      auto spec_part = StaticHelper::removePartsOutsideOf(main_template, SPEC_BEGIN, SPEC_END);
+      spec_part = vfm::macro::Script::processScript(spec_part, macro::Script::DataPreparation::both, mc_scene->data_, mc_scene->parser_);
+      main_smv += spec_part + "\n";
+      main_smv += SPEC_END + "\n";
+
+      StaticHelper::writeTextToFile(main_smv, path_generated + "/main.smv");
+   }
 
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, path_generated, "FAKE_PATH_NOT_USED", path_template, "FAKE_PATH_NOT_USED", mc_scene->getCachedDir(), mc_scene->path_to_external_folder_);
    mc_scene->generatePreview(path_generated, 0);
