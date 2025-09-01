@@ -34,6 +34,34 @@ enum class ArrayMode
    chars_random_access_file
 };
 
+namespace macro {
+   class Script;
+}
+
+struct ScriptData {
+   std::map<std::string, std::shared_ptr<macro::Script>> known_chains_{};
+   std::map<std::string, std::string> PLACEHOLDER_MAPPING{};
+   std::map<std::string, std::string> PLACEHOLDER_INVERSE_MAPPING{};
+   std::map<std::string, std::string> inscriptMethodDefinitions{};
+   std::map<std::string, int> inscriptMethodParNums{};
+   std::map<std::string, std::string> inscriptMethodParPatterns{};
+   std::map<std::string, std::vector<std::string>> list_data_{};
+   int cache_hits_{ 0 };
+   int cache_misses_{ 0 };
+
+   void reset() {
+      known_chains_.clear();
+      PLACEHOLDER_MAPPING.clear();
+      PLACEHOLDER_INVERSE_MAPPING.clear();
+      inscriptMethodDefinitions.clear();
+      inscriptMethodParNums.clear();
+      inscriptMethodParPatterns.clear();
+      list_data_.clear();
+      cache_hits_ = 0;
+      cache_misses_ = 0;
+   }
+};
+
 constexpr int INITIAL_ARRAY_CAPACITY = 1000;
 const std::string CODE_FOR_ERROR_VAR_NAME = "";
 
@@ -217,6 +245,7 @@ public:
 
    void resetPrivateVarsRecursiveLevels();
 
+   ScriptData& getScriptData();
 
 #ifndef DISALLOW_EXTERNAL_ASSOCIATIONS
    // The mechanism for associating heap cells to external variables can be relatively expensive.
@@ -349,6 +378,8 @@ private:
    std::set<std::string> hidden_vars_{};
 
    mutable std::vector<std::shared_ptr<std::vector<std::shared_ptr<Term>>>> stack_terms_for_meta_{};
+
+   ScriptData script_data_{};
 
    void setArrayAt(const std::string& arr_name, const int& index, const float& val) const;
    void registerArray(const std::string& name, const std::shared_ptr<DataSrcArray>& dt);

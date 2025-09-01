@@ -193,6 +193,7 @@ private:
    Fl_Multiline_Input* scene_description_ = new Fl_Multiline_Input(1000, 250, 400, 300, "Scene description:");
    std::mutex parser_mutex_{};
    std::mutex refresh_mutex_{};
+   std::mutex main_file_mutex_{};
    std::mutex formula_evaluation_mutex_{};
    std::mutex preview_filesystem_mutex_{};
 

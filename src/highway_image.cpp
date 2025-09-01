@@ -478,7 +478,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
 
       // Drains and sources.
       // Assuming we do "min_lane = true" first.
-      Vec2D fix{ (float) infinitesimal_road, 0 };
+      Vec2D fix{ (float) infinitesimal_road, 0 }; // For zero-lengh sections.
       
       if (min_lane) { // TOP
          auto top_right_corner = (*overpaint.points_.rbegin());
@@ -531,10 +531,12 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             auto top_right_second_lane = top_right_second;
             auto top_left_corner_lane = top_left_corner;
             auto top_left_second_lane = top_left_second;
-            top_right_corner_lane.add({ 0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5) });
-            top_right_second_lane.add({ 0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5) });
-            top_left_corner_lane.add({  0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5) });
-            top_left_second_lane.add({  0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5) });
+            const auto adjustment_for_missing_lanes_drain = lane_structure.getSegments().rbegin()->second.getMinLane() / 2;
+            const auto adjustment_for_missing_lanes_source = lane_structure.getSegments().begin()->second.getMinLane() / 2;
+            top_right_corner_lane.add({ 0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5 - adjustment_for_missing_lanes_drain) });
+            top_right_second_lane.add({ 0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5 - adjustment_for_missing_lanes_drain) });
+            top_left_corner_lane.add({  0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5 - adjustment_for_missing_lanes_source) });
+            top_left_second_lane.add({  0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5 - adjustment_for_missing_lanes_source) });
 
             connections.insert(connections.begin(), ConnectorPolygonEnding{
                ConnectorPolygonEnding::Side::drain,

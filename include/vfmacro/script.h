@@ -20,6 +20,8 @@
 namespace vfm {
 namespace macro {
 
+static constexpr int MAXIMUM_STRING_SIZE_TO_CACHE{ 50 }; // Too large strings hit rarely but take up lots of space. (TODO: is 50 a good guess?)
+
 static const std::string MY_PATH_VARNAME{ "MY_PATH" };
 
 static const std::string PREFIX_FOR_TIMED_IDENTIFIERS = "TT";
@@ -71,6 +73,13 @@ static const std::string VARIABLE_DELIMITER = "=";
 static const char END_VALUE = ';';
 static const std::string INSCRIPT_STANDARD_PARAMETER_PATTERN = "#n#";
 
+// Methods which
+// * either can have different evaluations for the same body and parameters (e.g., eval, which depends on the data pack),
+// * or which have side effects which need to be performed every time (e.g., KILLPIDs).
+static const std::set<std::string> UNCACHABLE_METHODS{
+   "include", "eval", "PIDs", "KILLPIDs", "scriptVar", "setScriptVar", "executeCommand",
+   "vfmheap", "vfmdata", "vfmfunc", "sethard" };
+
  /// Only for internal usage, this symbol is removed from the script
  /// after the translation process is terminated.
 const std::string NOP_SYMBOL = ":$N~O~P$:";
@@ -95,6 +104,11 @@ class DummyRepresentable;
 
 using RepresentableAsPDF = std::shared_ptr<Script>;
 
+struct MethodPartBegin {
+   int method_part_begin_{};
+   std::string result_{};
+   bool cachable_{};
+};
 
 class Script : public Failable, public std::enable_shared_from_this<Script> {
 public:
@@ -145,9 +159,17 @@ public:
    /// @return  The rep instance.
    std::shared_ptr<Script> repfactory_instanceFromScript(const std::string& script);
 
+   enum class DataPreparation {
+      copy_data_pack_before_run, // Creates a copy of the data pack and works on that. I.e., you won't see the changes in the original data pack if something is altered by the script. Typically needed to make thread-safe.
+      reset_script_data_before_run, // Typically desired, unless you want to re-use dynamic methods, cache etc. over multiple sessions.
+      both,
+      none
+   };
+
    static std::string processScript(
       const std::string& text,
-      const std::shared_ptr<DataPack> data = nullptr, 
+      const DataPreparation data_prep,
+      const std::shared_ptr<DataPack> data_raw = nullptr, 
       const std::shared_ptr<FormulaParser> parser = nullptr,
       const std::shared_ptr<Failable> father_failable = nullptr);
 
@@ -192,7 +214,7 @@ public:
    /// @return  The raw script without any inscript tags.
    std::string getTagFreeRawScript();
 
-   std::string sethard(const std::string& value) { method_part_begins_[getTagFreeRawScript()].second = value; return value; }
+   std::string sethard(const std::string& value) { method_part_begins_[getTagFreeRawScript()].result_ = value; return value; }
    std::string exsmeq(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a <= b; }); }
    std::string exsm(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a < b; }); }
    std::string exgreq(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a >= b; }); }
@@ -224,8 +246,6 @@ public:
    std::string makroPattern(const int i, const std::string& pattern);
    std::string applyMethodString(const std::string& method_name, const std::vector<std::string>& parameters);
 
-   static void clearStaticData();
-
 private:
    /// If you try to avoid assigning the parameter,
    /// be careful, it's not as simple as it seems.
@@ -250,7 +270,7 @@ private:
    static std::string getConversionTag(const std::string& scriptWithoutComments);
    static std::vector<std::string> getMethodParametersWithTags(const std::string& conversionTag);
 
-   std::vector<std::string> getParametersFor(const std::vector<std::string>& rawPars, const RepresentableAsPDF this_rep);
+   std::vector<std::string> getParametersFor(const std::vector<std::string>& rawPars);
    RepresentableAsPDF applyMethodChain(const RepresentableAsPDF original, const std::vector<std::string>& methodsToApply);
    std::vector<std::string> getMethodParameters(const std::string& conversionTag);
 
@@ -263,8 +283,6 @@ private:
 
    /// Evaluates a single chain of conversion method applications to a script.
    ///
-   /// @param repScrThis  The representable script to be considered "this". Can be
-   ///                    {@code null} if chain does not begin with "this".
    /// @param chain       The method chain to apply as: "*script*.m1.m2.m3.m4..."
    ///                    where *script* is a script enclosed in @{ ... }@
    ///                    or "this", and m1, m2, ... are method signatures.
@@ -273,7 +291,7 @@ private:
    /// @return  A representable with the methods applied. Can return <code>null
    ///          </code> when the chain is not valid (e.g. when starting with a
    ///          variable).
-   std::shared_ptr<Script> evaluateChain(const std::string& repScrThis, const std::string& chain);
+   std::shared_ptr<Script> evaluateChain(const std::string& chain);
 
    /// Goes through the current version of
    /// {@link RepresentableDefault#processedScript} and replaces
@@ -355,8 +373,6 @@ private:
    /// @return  The object-specific placeholder to replace the symbol with.
    std::string symbolToPlaceholder(const std::string& symbol);
 
-   std::string removePreprocessors(const std::string& script);
-
    /// Returns the next position which is after the complete method chain of
    /// the preprocessor.
    ///
@@ -419,6 +435,8 @@ private:
    ///          exists, -1 is returned and no side effects occur.
    int findNextInscriptPos();
 
+   ScriptData& getScriptData();
+
    /// If the script is embedded in plain text tags, replace all symbols with
    /// placeholders, but leave plain-text tags for later.
    ///
@@ -428,28 +446,11 @@ private:
 
    std::string raw_script_{};
    std::string processed_script_{};
-   std::map<std::string, std::pair<int, std::string>> method_part_begins_{};
+
+   std::map<std::string, MethodPartBegin> method_part_begins_{};
    std::shared_ptr<DataPack> vfm_data_{};
    std::shared_ptr<FormulaParser> vfm_parser_{};
    std::vector<std::string> scriptSequence_{};
-
-   static std::map<std::string, std::shared_ptr<Script>> known_chains_;
-
-   /// Stores all symbols that are somehow restricted as they serve a special
-   /// purpose. Caution: Don't count on this list to be really completely
-   /// exhaustive. I.e., look at the code now and then for pending changes.
-   static std::set<std::string> SPECIAL_SYMBOLS;
-   static std::map<std::string, std::string> PLACEHOLDER_MAPPING;
-   static std::map<std::string, std::string> PLACEHOLDER_INVERSE_MAPPING;
-
-   static std::map<std::string, std::string> inscriptMethodDefinitions; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
-   static std::map<std::string, int> inscriptMethodParNums;             // TODO: no static! Should belong to some base class belonging to a single expansion "session".
-   static std::map<std::string, std::string> inscriptMethodParPatterns; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
-
-   static std::map<std::string, std::vector<std::string>> list_data_; // TODO: no static! Should belong to some base class belonging to a single expansion "session".
-
-   static int cache_hits_;
-   static int cache_misses_;
 };
 
 } // macro

@@ -7,6 +7,7 @@
 
 -- Global options
 @{EM_LESS}@*******.defaultValue[false]
+@{SCENGEN_MODE}@*******.defaultValue[false]
 
 -- Parametrization of road topology features
 @{NUMLANES}@*******.defaultValue[3]               -- Maximum number of lanes a road SEGMENT can have

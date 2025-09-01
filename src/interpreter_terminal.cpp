@@ -44,7 +44,7 @@ void vfm::InterpreterTerminal::runCommand(const char* command)
    } else {
       output_ << "\n";
       try {
-         res += macro::Script::processScript(command_str, data_, parser_);
+         res += macro::Script::processScript(command_str, macro::Script::DataPreparation::none, data_, parser_);
       }
       catch (const std::exception& e) {
          res += "#Error '" + std::string(e.what()) + "' occurred during script processing.";

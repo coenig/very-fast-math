@@ -82,12 +82,16 @@ TRANS env.ego.abCond_full = planner."abCond.cond26_all_conditions_fulfilled_raw"
 -- Don't change the wording of the above line and its corresponding closing line! It's used to detect the SPEC part
 -- to be able to replace just it when running the MC without re-generating the EnvModel. It's also used for UCD.
 
+--ADDONS
+@{main_addons.tpl}@********.include
+--EO-ADDONS
+
 @{
 @{
 @{SPEC}@.printHeap
 @{
    @{@{SPEC[i]}@.printHeap}@*.if[@{SPEC[i]}@.vfm_variable_declared]
-}@**.for[[i], 0, 100]
+}@**.for[[i], 0, 100].if[@{SCENGEN_MODE}@.eval]
 }@.@{@(replaceAll[LTLSPEC, @"{LTLSPEC NAME }"@spec$$$$$@"{ :=}"@])@@(id)@}@*.if[@{SCENGEN_MODE}@.eval]
 }@.replaceAllCounting[$$$$$]
 
