@@ -87,27 +87,7 @@ DEFINE
                       }@*.for[[j], 1, @{NUMLANES - 1}@.eval];
 
 @{
--- Make sure ego does not drive on the GREEN.
-ego.on_lane_min := case
-   @{ego_lane_b[j] : [j];
-   }@.for[[j], 0, @{NUMLANES - 2}@.eval]TRUE : @{NUMLANES - 1}@.eval[0];
-esac;
 
-ego.on_lane_max := case
-   @{ego_lane_b[j] : [j];
-   }@.for[[j], @{NUMLANES - 1}@.eval, 1, -1]TRUE : 0;
-esac;
-
-INVAR (ego.abs_pos < section_0_segment_0_pos_begin) -> 
-   (ego.on_lane_min >= section_0_segment_0_min_lane & ego.on_lane_max <= section_0_segment_0_max_lane);
-
-@{
-   INVAR (ego.abs_pos >= section_0_segment_[num]_pos_begin & ego.abs_pos < section_0_segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
-   (ego.on_lane_min >= section_0_segment_[num]_min_lane & ego.on_lane_max <= section_0_segment_[num]_max_lane);
-   }@*.for[[num], 0, @{SEGMENTS - 2}@.eval]
-   INVAR (ego.abs_pos >= section_0_segment_@{SEGMENTS - 1}@.eval[0]_pos_begin) -> 
-   (ego.on_lane_min >= section_0_segment_@{SEGMENTS - 1}@.eval[0]_min_lane & ego.on_lane_max <= section_0_segment_@{SEGMENTS - 1}@.eval[0]_max_lane);
-}@******.if[@{KEEP_EGO_FROM_GREEN}@.eval]
 
 DEFINE
 -- Schematic for ego.right_of_veh_*_lane
