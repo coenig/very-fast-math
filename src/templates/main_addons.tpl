@@ -247,5 +247,6 @@ INIT env.veh___609___.abs_pos = 10;
 INIT env.veh___619___.abs_pos = 10;
 INIT env.ego_lane_0;
 INIT env.section_1_segment_0_max_lane = 0;
+INIT env.section_2_segment_0_min_lane > 0;
 INIT env.section_0_segment_0_max_lane = @{NUMLANES - 1}@.eval[0];
 INIT env.section_0_segment_1_min_lane = 0;
