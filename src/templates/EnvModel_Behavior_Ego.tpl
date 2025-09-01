@@ -464,7 +464,11 @@ INVAR
 }@.for[[i], 1, @{NONEGOS - 1}@.eval]
 TRUE;
 )@
-@(INVAR ego.gaps___609___.i_agent_rear = empty_gap_indicator & ego.gaps___609___.i_agent_front = empty_gap_indicator;)@
+@(
+INVAR ego.gaps___609___.i_agent_rear = empty_gap_indicator & ego.gaps___609___.i_agent_front = empty_gap_indicator;
+INVAR ego.gaps___609___.s_dist_front = max_ego_visibility_range + 1;
+INVAR ego.gaps___609___.s_dist_rear = max_ego_visibility_range + 1;
+)@
 }@******.if[@{CALCULATE_LEFT_GAP}@.eval]
 
 @{@(
@@ -503,7 +507,11 @@ INVAR
 }@.for[[i], 1, @{NONEGOS - 1}@.eval]
 TRUE;
 )@
-@(INVAR ego.gaps___619___.i_agent_rear = empty_gap_indicator & ego.gaps___619___.i_agent_front = empty_gap_indicator;)@
+@(
+INVAR ego.gaps___619___.i_agent_rear = empty_gap_indicator & ego.gaps___619___.i_agent_front = empty_gap_indicator;
+INVAR ego.gaps___619___.s_dist_front = max_ego_visibility_range + 1;
+INVAR ego.gaps___619___.s_dist_rear = max_ego_visibility_range + 1;
+)@
 }@******.if[@{CALCULATE_CENTER_GAP}@.eval]
 
 
@@ -545,7 +553,11 @@ INVAR
 TRUE;
 }@*****.if[@{CALCULATE_RIGHT_GAP_REAR}@.eval]
 )@
-@(INVAR ego.gaps___629___.i_agent_rear = empty_gap_indicator & ego.gaps___629___.i_agent_front = empty_gap_indicator;)@
+@(
+INVAR ego.gaps___629___.i_agent_rear = empty_gap_indicator & ego.gaps___629___.i_agent_front = empty_gap_indicator;
+INVAR ego.gaps___629___.s_dist_front = max_ego_visibility_range + 1;
+INVAR ego.gaps___629___.s_dist_rear = max_ego_visibility_range + 1;
+)@
 }@******.if[@{CALCULATE_RIGHT_GAP}@.eval]
 
 INVAR empty_gap_indicator <= ego.gaps___609___.i_agent_front & ego.gaps___609___.i_agent_front <= @{NONEGOS - 1}@.eval[0];
@@ -554,14 +566,6 @@ INVAR empty_gap_indicator <= ego.gaps___629___.i_agent_front & ego.gaps___629___
 INVAR empty_gap_indicator <= ego.gaps___609___.i_agent_rear & ego.gaps___609___.i_agent_rear <= @{NONEGOS - 1}@.eval[0];
 INVAR empty_gap_indicator <= ego.gaps___619___.i_agent_rear & ego.gaps___619___.i_agent_rear <= @{NONEGOS - 1}@.eval[0];
 INVAR empty_gap_indicator <= ego.gaps___629___.i_agent_rear & ego.gaps___629___.i_agent_rear <= @{NONEGOS - 1}@.eval[0];
-
--- Make sure s_dist is maximal if no car in gap.
-INVAR (ego.gaps___609___.i_agent_front = empty_gap_indicator) -> (ego.gaps___609___.s_dist_front = max_ego_visibility_range + 1);
-INVAR (ego.gaps___609___.i_agent_rear  = empty_gap_indicator) -> (ego.gaps___609___.s_dist_rear = max_ego_visibility_range + 1);
-INVAR (ego.gaps___619___.i_agent_front = empty_gap_indicator) -> (ego.gaps___619___.s_dist_front = max_ego_visibility_range + 1);
-INVAR (ego.gaps___619___.i_agent_rear  = empty_gap_indicator) -> (ego.gaps___619___.s_dist_rear = max_ego_visibility_range + 1);
-INVAR (ego.gaps___629___.i_agent_front = empty_gap_indicator) -> (ego.gaps___629___.s_dist_front = max_ego_visibility_range + 1);
-INVAR (ego.gaps___629___.i_agent_rear  = empty_gap_indicator) -> (ego.gaps___629___.s_dist_rear = max_ego_visibility_range + 1);
 
 DEFINE
     @{ego.gaps___609___.lane_availability}@*.scalingVariable[distance] := case
