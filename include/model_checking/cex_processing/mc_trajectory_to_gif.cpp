@@ -246,7 +246,13 @@ void vfm::mc::trajectory_generator::LiveSimGenerator::equipRoadGraphWithCars(
       };
 
       if (on_straight_section >= 0) {
-         r->findSectionWithID(on_straight_section)->getMyRoad().addOther(veh);
+         auto rg = r->findSectionWithID(on_straight_section);
+         if (rg) {
+            rg->getMyRoad().addOther(veh);
+         }
+         else {
+            addError("Vehicle '" + std::to_string(vehicle_index) + "' will not be painted since it is on section '" + std::to_string(on_straight_section) + "' which is not reachable from the current setion '" + std::to_string(r->getID()) + "'. (Note that sections unconnected to the main road graph are currently not considered.)");
+         }
       }
       else if (traversion_from >= 0 && traversion_to >= 0) {
          const auto from_section = r->findSectionWithID(traversion_from);
@@ -310,9 +316,8 @@ void LiveSimGenerator::generate(
       extra_var_vals.insert({ "ego.gaps___619___.i_agent_front", std::to_string(current_ego.second.at(PossibleParameter::gap_1_i_agent_front))});
       extra_var_vals.insert({ "ego.gaps___629___.i_agent_front", std::to_string(current_ego.second.at(PossibleParameter::gap_2_i_agent_front))});
       extra_var_vals.insert({ "ego.gaps___609___.i_agent_rear", std::to_string(current_ego.second.at(PossibleParameter::gap_0_i_agent_rear))});
-      //extra_var_vals.insert({ "ego.gaps___619___.i_agent_rear", std::to_string(current_ego.second.at(PossibleParameter::gap_1_i_agent_rear))});
-      //extra_var_vals.insert({ "ego.gaps___629___.i_agent_rear", std::to_string(current_ego.second.at(PossibleParameter::gap_2_i_agent_rear))});
-      // TODO: Above 2 currently not used.
+      extra_var_vals.insert({ "ego.gaps___619___.i_agent_rear", std::to_string(current_ego.second.at(PossibleParameter::gap_1_i_agent_rear))});
+      extra_var_vals.insert({ "ego.gaps___629___.i_agent_rear", std::to_string(current_ego.second.at(PossibleParameter::gap_2_i_agent_rear))});
 
       // Provide data for other vehicles
       for (const auto& vehicle_name : vehicle_names_without_ego)

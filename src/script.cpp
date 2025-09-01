@@ -17,30 +17,13 @@
 using namespace vfm;
 using namespace macro;
 
-std::map<std::string, std::shared_ptr<Script>> Script::known_chains_{};
-std::map<std::string, std::vector<std::string>> Script::list_data_{};
-
-std::map<std::string, std::string> Script::inscriptMethodDefinitions{};
-std::map<std::string, int> Script::inscriptMethodParNums{};
-std::map<std::string, std::string> Script::inscriptMethodParPatterns{};
-
-std::set<std::string> Script::SPECIAL_SYMBOLS{};
-std::map<std::string, std::string> Script::PLACEHOLDER_MAPPING{};
-std::map<std::string, std::string> Script::PLACEHOLDER_INVERSE_MAPPING{};
-int Script::cache_hits_{};
-int Script::cache_misses_{};
-
 
 vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser)
-   : Failable("ScriptMacro"), vfm_data_(data), vfm_parser_(parser)
+   : Failable("ScriptMacro"), vfm_data_(data ? data : std::make_shared<DataPack>()), vfm_parser_(parser ? parser : SingletonFormulaParser::getInstance())
 {
    if (KEEP_COMMENTS_IN_PLAIN_TEXT) {
       putPlaceholderMapping(BEGIN_COMMENT);
       putPlaceholderMapping(END_COMMENT);
-   }
-   else {
-      SPECIAL_SYMBOLS.insert(BEGIN_COMMENT);
-      SPECIAL_SYMBOLS.insert(END_COMMENT);
    }
 
    putPlaceholderMapping(PLAIN_TEXT_BEGIN_TAG); // Probably unnecessary, depending on how nesting is handled.
@@ -61,11 +44,6 @@ vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shar
    putPlaceholderMapping(EXPR_END_TAG_BEFORE);
    putPlaceholderMapping(EXPR_BEG_TAG_AFTER);
    putPlaceholderMapping(EXPR_END_TAG_AFTER);
-
-   SPECIAL_SYMBOLS.insert(PREPROCESSOR_FIELD_NAME);
-   SPECIAL_SYMBOLS.insert(VARIABLE_DELIMITER);
-   SPECIAL_SYMBOLS.insert(StaticHelper::makeString(END_VALUE));
-   SPECIAL_SYMBOLS.insert(NOP_SYMBOL);
 }
 
 void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2)
@@ -92,6 +70,20 @@ std::string vfm::macro::Script::getProcessedScript() const
    return processed_script_;
 }
 
+bool isCachable(const std::vector<std::string>& method_chain)
+{
+   for (const auto& method : method_chain) {
+      const size_t par_begin{ method.find("[") };
+      const std::string method_w_o_pars{ par_begin == std::string::npos ? method : method.substr(0, par_begin) };
+
+      if (UNCACHABLE_METHODS.count(method_w_o_pars)) {
+         return false;
+      }
+   }
+
+   return true;
+}
+
 void Script::extractInscriptProcessors()
 {
    // Find next preprocessor.
@@ -116,30 +108,32 @@ void Script::extractInscriptProcessors()
       int begin = indexOfPrep;
       auto trimmed = StaticHelper::trimAndReturn(preprocessorScript);
 
-      if (method_part_begins_.count(trimmed)) {
-         cache_hits_++;
-         placeholder_for_inscript = method_part_begins_.at(trimmed).second;
+      if (method_part_begins_.count(trimmed) && method_part_begins_.at(trimmed).cachable_) { // TODO: Avoid multiple accesses to map.
+         getScriptData().cache_hits_++;
+         placeholder_for_inscript = method_part_begins_.at(trimmed).result_;
       }
       else {
-         cache_misses_++;
-         if (methodPartBegin != preprocessorScript.length() && methodPartBegin >= 0) { // TODO: Do we need this??
+         getScriptData().cache_misses_++;
+         std::vector<std::string> methodSignaturesArray = getMethodSinaturesFromChain(methods); // TODO: Done twice for each subscript. Is this expensive?
+
+         if (methodPartBegin != preprocessorScript.length() && methodPartBegin >= 0) {
             int leftTrim = preprocessorScript.size() - StaticHelper::ltrimAndReturn(preprocessorScript).size();
 
             method_part_begins_.insert({
                trimmed,
-               { methodPartBegin - leftTrim, placeholder_for_inscript }
+               { methodPartBegin - leftTrim, placeholder_for_inscript, isCachable(methodSignaturesArray) }
                });
          }
          else {
             method_part_begins_.insert({
                trimmed,
-               { -1, placeholder_for_inscript }
+               { -1, placeholder_for_inscript, isCachable(methodSignaturesArray) }
                });
          }
 
-         RepresentableAsPDF result = evaluateChain(removePreprocessors(raw_script_), preprocessorScript);
+         RepresentableAsPDF result = evaluateChain(preprocessorScript);
          placeholder_for_inscript = result->getRawScript();
-         method_part_begins_[trimmed].second = placeholder_for_inscript;
+         method_part_begins_[trimmed].result_ = placeholder_for_inscript;
       }
 
       std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
@@ -148,11 +142,11 @@ void Script::extractInscriptProcessors()
 
       if (i++ % 100 == 0) {
          addNote(""
-            + std::to_string(known_chains_.size()) + " known_chains_; "
+            + std::to_string(getScriptData().known_chains_.size()) + " known_chains_; "
             + std::to_string(method_part_begins_.size()) + " method_part_begins_; "
-            + std::to_string(list_data_.size()) + " list_data_; "
+            + std::to_string(getScriptData().list_data_.size()) + " list_data_; "
             + std::to_string(processed_script_.size()) + " script size; "
-            + std::to_string(cache_hits_) + "/" + std::to_string(cache_misses_) + " cache hits/misses; "
+            + std::to_string(getScriptData().cache_hits_) + "/" + std::to_string(getScriptData().cache_misses_) + " cache hits/misses; "
          );
       }
    }
@@ -177,21 +171,21 @@ std::string Script::checkForPlainTextTags(const std::string& script)
    return script2;
 }
 
-RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const std::string& chain)
+RepresentableAsPDF Script::evaluateChain(const std::string& chain)
 {
    std::string processedChain{ StaticHelper::trimAndReturn(chain) };
    std::string processedRaw{ processedChain };
 
-   if (known_chains_.count(processedRaw)) {
-      cache_hits_++;
-      return known_chains_.at(processedRaw);
+   if (getScriptData().known_chains_.count(processedRaw)) {
+      getScriptData().cache_hits_++;
+      return getScriptData().known_chains_.at(processedRaw);
    }
 
-   cache_misses_++;
+   getScriptData().cache_misses_++;
 
    RepresentableAsPDF repToProcess{};
-   std::shared_ptr<int> methodBegin = method_part_begins_.count(processedRaw) && method_part_begins_.at(processedRaw).first >= 0
-      ? std::make_shared<int>(method_part_begins_.at(processedRaw).first) 
+   std::shared_ptr<int> methodBegin = method_part_begins_.count(processedRaw) && method_part_begins_.at(processedRaw).method_part_begin_ >= 0
+      ? std::make_shared<int>(method_part_begins_.at(processedRaw).method_part_begin_)
       : nullptr;
 
    if (StaticHelper::stringStartsWith(processedChain, INSCR_BEG_TAG)
@@ -249,21 +243,16 @@ RepresentableAsPDF Script::evaluateChain(const std::string& repScrThis, const st
 
    addFailableChild(repToProcess, "");
 
+   std::vector<std::string> methodSignaturesArray = getMethodSinaturesFromChain(processedChain);
+   bool chachable{ isCachable(methodSignaturesArray) && processedRaw.size() <= MAXIMUM_STRING_SIZE_TO_CACHE };
+
    if (StaticHelper::isEmptyExceptWhiteSpaces(processedChain)) {
-      if (processedRaw.size() < 50) known_chains_[processedRaw] = repToProcess;
+      if (chachable) getScriptData().known_chains_[processedRaw] = repToProcess;
       return repToProcess;
    }
 
-   std::vector<std::string> methodSignatures = getMethodSinaturesFromChain(processedChain);
-   std::vector<std::string> methodSignaturesArray{};
-   methodSignaturesArray.resize(methodSignatures.size());
-
-   for (int i = 0; i < methodSignatures.size(); i++) {
-      methodSignaturesArray[i] = methodSignatures.at(i);
-   }
-
    RepresentableAsPDF apply_method_chain = applyMethodChain(repToProcess, methodSignaturesArray);
-   if (processedRaw.size() < 50) known_chains_[processedRaw] = apply_method_chain;
+   if (chachable) getScriptData().known_chains_[processedRaw] = apply_method_chain;
 
    return apply_method_chain;
 }
@@ -302,7 +291,7 @@ RepresentableAsPDF Script::applyMethod(const RepresentableAsPDF rep, const std::
    std::string methodName = StaticHelper::split(conversionTag, "[")[0];
    std::vector<std::string> pars = getMethodParameters(conversionTag);
 
-   std::vector<std::string> actualParameters = getParametersFor(pars, rep);
+   std::vector<std::string> actualParameters = getParametersFor(pars);
    std::string newScript = rep->applyMethodString(methodName, actualParameters);
 
    return repfactory_instanceFromScript(newScript);
@@ -494,9 +483,8 @@ std::string Script::newMethod(const std::string& methodName, const std::string& 
 
 std::string Script::newMethodD(const std::string& methodName, const std::string& numPars, const std::string& parameterPattern)
 {
-   if (inscriptMethodDefinitions.count(methodName)) {
-      addError("Dynamic method '" + methodName + "' already exists.");
-      return "";
+   if (getScriptData().inscriptMethodDefinitions.count(methodName)) {
+      addWarning("Dynamic method '" + methodName + "' already exists. I will override it.");
    }
 
    if (!StaticHelper::isParsableAsFloat(numPars)) {
@@ -504,21 +492,21 @@ std::string Script::newMethodD(const std::string& methodName, const std::string&
       return "";
    }
 
-   inscriptMethodDefinitions.insert({ methodName, getRawScript() });
-   inscriptMethodParNums.insert({ methodName, (int)std::stof(numPars) });
-   inscriptMethodParPatterns.insert({ methodName, parameterPattern });
+   getScriptData().inscriptMethodDefinitions.insert({ methodName, getRawScript() });
+   getScriptData().inscriptMethodParNums.insert({ methodName, (int)std::stof(numPars) });
+   getScriptData().inscriptMethodParPatterns.insert({ methodName, parameterPattern });
 
    addNote("New method '" + methodName + "' with "
-      + std::to_string(inscriptMethodParNums.at(methodName)) + " parameters defined as '"
-      + inscriptMethodDefinitions.at(methodName) + "'. Parameter pattern: '" + parameterPattern + "'.");
+      + std::to_string(getScriptData().inscriptMethodParNums.at(methodName)) + " parameters defined as '"
+      + getScriptData().inscriptMethodDefinitions.at(methodName) + "'. Parameter pattern: '" + parameterPattern + "'.");
 
    return "";
 }
 
 std::string Script::executeCommand(const std::string& methodName, const std::vector<std::string>& pars)
 {
-   std::string methodBody = inscriptMethodDefinitions.at(methodName);
-   std::string pattern = inscriptMethodParPatterns.at(methodName);
+   std::string methodBody = getScriptData().inscriptMethodDefinitions.at(methodName);
+   std::string pattern = getScriptData().inscriptMethodParPatterns.at(methodName);
 
    int numRepl = pars.size() + 1;
    std::vector<std::string> searchList{};
@@ -654,26 +642,26 @@ std::string Script::applyMethodString(const std::string& method_name, const std:
    else if (method_name == "setScriptVar" && parameters.size() == 1) {
       std::string varname{ parameters.at(0) };
 
-      if (list_data_.count(varname)) {
+      if (getScriptData().list_data_.count(varname)) {
          std::string error{ "Variable '" + varname + "' has already been declared." };
          addError(error);
          return "#" + error + "#";
       }
 
-      list_data_[varname] = { getRawScript() };
+      getScriptData().list_data_[varname] = { getRawScript() };
 
       return "";
    }
    else if (method_name == "scriptVar" && parameters.size() == 0) {
       std::string varname{ getRawScript() };
 
-      if (!list_data_.count(varname)) {
+      if (!getScriptData().list_data_.count(varname)) {
          std::string error{ "Variable '" + varname + "' has not been declared." };
          addError(error);
          return "#" + error + "#";
       }
 
-      return list_data_.at(varname).at(0);
+      return getScriptData().list_data_.at(varname).at(0);
    }
 
    else if (method_name == "include" && parameters.size() == 0) {
@@ -744,7 +732,7 @@ std::string Script::applyMethodString(const std::string& method_name, const std:
       }
 
    else if (method_name == "listElement" && parameters.size() == 1) {
-      if (!list_data_.count(getRawScript())) {
+      if (!getScriptData().list_data_.count(getRawScript())) {
          std::string error_str{ "#ERROR<list '" + getRawScript() + "' not found by listElement method>" };
          addError(error_str);
          return error_str;
@@ -758,35 +746,35 @@ std::string Script::applyMethodString(const std::string& method_name, const std:
 
       int index{ std::stoi(parameters[0]) };
 
-      if (index < 0 || index >= list_data_[getRawScript()].size()) {
-         std::string error_str{ "#ERROR<index '" + parameters[0] + "' is out of bounds for list '" + getRawScript() + "' (size " + std::to_string(list_data_[getRawScript()].size()) + ") in method listElement>"};
+      if (index < 0 || index >= getScriptData().list_data_[getRawScript()].size()) {
+         std::string error_str{ "#ERROR<index '" + parameters[0] + "' is out of bounds for list '" + getRawScript() + "' (size " + std::to_string(getScriptData().list_data_[getRawScript()].size()) + ") in method listElement>"};
          addError(error_str);
          return error_str;
       }
 
-      return list_data_[getRawScript()][index];
+      return getScriptData().list_data_[getRawScript()][index];
    }
    else if (method_name == "clearList" && parameters.size() == 0) {
-      if (!list_data_.count(getRawScript())) {
-         list_data_[getRawScript()] = {};
+      if (!getScriptData().list_data_.count(getRawScript())) {
+         getScriptData().list_data_[getRawScript()] = {};
       }
 
-      list_data_[getRawScript()].clear();
+      getScriptData().list_data_[getRawScript()].clear();
    }
    else if (method_name == "asArray" && parameters.size() == 0) {
       std::string list_str{};
 
-      for (const auto& el : list_data_[getRawScript()]) {
+      for (const auto& el : getScriptData().list_data_[getRawScript()]) {
          list_str += BEGIN_TAG_IN_SEQUENCE + el + END_TAG_IN_SEQUENCE;
       }
 
       return StaticHelper::trimAndReturn(list_str);
    }
    else if (method_name == "printList" && parameters.size() == 0) {
-      if (list_data_.count(getRawScript())) {
+      if (getScriptData().list_data_.count(getRawScript())) {
          std::string list_str{};
 
-         for (const auto& el : list_data_[getRawScript()]) {
+         for (const auto& el : getScriptData().list_data_[getRawScript()]) {
             list_str += el + "\n";
          }
 
@@ -799,10 +787,10 @@ std::string Script::applyMethodString(const std::string& method_name, const std:
       }
    }
    else if (method_name == "pushBack" && parameters.size() == 1) {
-      if (!list_data_.count(getRawScript())) {
-         list_data_[getRawScript()] = {};
+      if (!getScriptData().list_data_.count(getRawScript())) {
+         getScriptData().list_data_[getRawScript()] = {};
       }
-      list_data_[getRawScript()].push_back(parameters[0]);
+      getScriptData().list_data_[getRawScript()].push_back(parameters[0]);
       return "";
       }
    else if (method_name == "pushBack" && parameters.size() > 1) { // This is a hack to introduce comma which is usually separator of arguments.
@@ -815,7 +803,7 @@ std::string Script::applyMethodString(const std::string& method_name, const std:
       return applyMethodString(method_name, { appended });
    }
 
-   else if (inscriptMethodDefinitions.count(method_name) && inscriptMethodParNums.at(method_name) == parameters.size()) {
+   else if (getScriptData().inscriptMethodDefinitions.count(method_name) && getScriptData().inscriptMethodParNums.at(method_name) == parameters.size()) {
       return executeCommand(method_name, parameters);
    }
 
@@ -957,13 +945,13 @@ std::vector<std::string> Script::getMethodParametersWithTags(const std::string& 
    return pars;
 }
 
-std::vector<std::string> Script::getParametersFor(const std::vector<std::string>& rawPars, const RepresentableAsPDF this_rep)
+std::vector<std::string> Script::getParametersFor(const std::vector<std::string>& rawPars)
 {
    std::vector<std::string> parameters;
    parameters.resize(rawPars.size());
 
    for (int i = 0; i < rawPars.size(); i++) {
-      RepresentableAsPDF processedPar = evaluateChain(removePreprocessors(this_rep->getRawScript()), rawPars[i]);
+      RepresentableAsPDF processedPar = evaluateChain(rawPars[i]);
       parameters[i] = processedPar->getRawScript();
    }
 
@@ -1015,6 +1003,11 @@ int Script::findNextInscriptPos()
    return -1;
 }
 
+ScriptData& Script::getScriptData()
+{
+   return vfm_data_->getScriptData();
+}
+
 std::string Script::removeTaggedPartsOnTopLevel(
    const std::string& code,
    const std::string& beginTag,
@@ -1055,53 +1048,6 @@ std::string Script::removeTaggedPartsOnTopLevel(
 std::string Script::undoPlaceholdersForPlainText(const std::string& script)
 {
    return replacePlaceholders(script, false);
-}
-
-std::string Script::removePreprocessors(const std::string& script)
-{
-   std::string newScript = script;
-
-   while (StaticHelper::stringContains(newScript, INSCR_END_TAG + INSCR_PRIORITY_SYMB)) {
-      newScript = StaticHelper::replaceAll(newScript, INSCR_END_TAG + INSCR_PRIORITY_SYMB, INSCR_END_TAG);
-   }
-
-   int indexOf = newScript.find(INSCR_BEG_TAG);
-
-   while (indexOf >= 0) {
-      auto processed = StaticHelper::extractFirstSubstringLevelwise(newScript, INSCR_BEG_TAG, INSCR_END_TAG, indexOf);
-
-      if (!processed) return "#Error in script processing. No matching pair of '" + INSCR_BEG_TAG + "' and '" + INSCR_END_TAG + "'.";
-
-      std::string preprocessorScript = *processed;
-
-      int lengthOfPreprocessor = preprocessorScript.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length();
-      std::string partBefore = newScript.substr(0, indexOf);
-      std::string partAfter = newScript.substr(indexOf + lengthOfPreprocessor);
-
-      // Scale defined.
-      int indexOf2 = preprocessorScript.find("|");
-
-      if (indexOf2 >= 0) {
-         std::string scaleStr = preprocessorScript.substr(0, indexOf2);
-         if (StaticHelper::isParsableAsFloat(scaleStr)) {
-            preprocessorScript = StaticHelper::trimAndReturn(preprocessorScript.substr(indexOf2 + 1));
-         }
-      }
-
-      if (indexOf > 1 && newScript.at(indexOf - 1) == ASSIGNMENT_OPERATOR) {
-         int indexOfFilenamebegin = partBefore.length() - 1;
-         while (indexOfFilenamebegin > 0 && !std::isspace(partBefore.at(indexOfFilenamebegin))) indexOfFilenamebegin--;
-         partBefore = partBefore.substr(0, indexOfFilenamebegin + 1);
-      }
-
-      int indexCurr = getNextNonInscriptPosition(partAfter);
-      indexCurr = (std::min)(indexCurr, (int) partAfter.length());
-      partAfter = partAfter.substr(indexCurr);
-      newScript = partBefore + partAfter;
-      indexOf = newScript.find(INSCR_BEG_TAG);
-   }
-
-   return newScript;
 }
 
 int Script::getNextNonInscriptPosition(const std::string& partAfter) 
@@ -1202,8 +1148,8 @@ std::string Script::replacePlaceholders(const std::string& toReplace, const bool
    std::vector<std::string> searchList;
    std::vector<std::string> replacementList;
 
-   searchList.resize(PLACEHOLDER_MAPPING.size());
-   replacementList.resize(PLACEHOLDER_MAPPING.size());
+   searchList.resize(getScriptData().PLACEHOLDER_MAPPING.size());
+   replacementList.resize(getScriptData().PLACEHOLDER_MAPPING.size());
 
    if (to) {
       fillLists(searchList, replacementList);
@@ -1218,7 +1164,7 @@ std::string Script::replacePlaceholders(const std::string& toReplace, const bool
 void Script::fillLists(std::vector<std::string>& symbolList, std::vector<std::string>& placeholderList) 
 {
    int i = 0;
-   for (const auto& symbol : PLACEHOLDER_MAPPING) {
+   for (const auto& symbol : getScriptData().PLACEHOLDER_MAPPING) {
       std::string placeholder = symbolToPlaceholder(symbol.first);
       symbolList[i] = symbol.first;
       placeholderList[i] = placeholder;
@@ -1237,16 +1183,15 @@ void Script::putPlaceholderMapping(const std::string& symbolName)
    std::string after = "$>>$";
    std::string placeholderPlain = before + std::to_string(std::hash<std::string>()(symbolName)) + after;
 
-   PLACEHOLDER_MAPPING.insert({ symbolName, placeholderPlain });
-   PLACEHOLDER_INVERSE_MAPPING.insert({ placeholderPlain, symbolName });
-   SPECIAL_SYMBOLS.insert(symbolName);
+   getScriptData().PLACEHOLDER_MAPPING.insert({ symbolName, placeholderPlain });
+   getScriptData().PLACEHOLDER_INVERSE_MAPPING.insert({ placeholderPlain, symbolName });
 }
 
 std::string Script::placeholderToSymbol(const std::string& placeholder) {
    std::string placeholderPlain = StaticHelper::replaceAll(placeholder, StaticHelper::convertPtrAddressToString(this), "");
 
-   if (PLACEHOLDER_MAPPING.count(placeholderPlain)) {
-      std::string symbol = PLACEHOLDER_INVERSE_MAPPING.at(placeholderPlain);
+   if (getScriptData().PLACEHOLDER_MAPPING.count(placeholderPlain)) {
+      std::string symbol = getScriptData().PLACEHOLDER_INVERSE_MAPPING.at(placeholderPlain);
       return symbol;
    }
 
@@ -1254,8 +1199,8 @@ std::string Script::placeholderToSymbol(const std::string& placeholder) {
 }
 
 std::string Script::symbolToPlaceholder(const std::string& symbol) {
-   if (PLACEHOLDER_MAPPING.count(symbol)) {
-      std::string placeholderPlain = PLACEHOLDER_MAPPING.at(symbol);
+   if (getScriptData().PLACEHOLDER_MAPPING.count(symbol)) {
+      std::string placeholderPlain = getScriptData().PLACEHOLDER_MAPPING.at(symbol);
       return placeholderPlain + StaticHelper::convertPtrAddressToString(this); // Adds the current object's ID to the placeholder to allow object-specific refactorings.
    }
 
@@ -1296,6 +1241,7 @@ RepresentableAsPDF vfm::macro::Script::copy() const
    copy_script->raw_script_ = raw_script_;
    copy_script->processed_script_ = processed_script_;
    copy_script->method_part_begins_ = method_part_begins_;
+   copy_script->scriptSequence_ = scriptSequence_;
 
    return copy_script;
 }
@@ -1592,28 +1538,27 @@ std::string Script::getTagFreeRawScript() {
    return StaticHelper::replaceManyTimes(getRawScript(), { INSCR_BEG_TAG, INSCR_END_TAG }, { "", "" });
 }
 
-void vfm::macro::Script::clearStaticData()
-{
-   list_data_.clear();
-   known_chains_.clear();
-   inscriptMethodDefinitions.clear();
-   inscriptMethodParNums.clear();
-   inscriptMethodParPatterns.clear();
-   PLACEHOLDER_MAPPING.clear();
-   PLACEHOLDER_INVERSE_MAPPING.clear();
-   cache_hits_ = 0;
-   cache_misses_ = 0;
-}
-
 std::string vfm::macro::Script::processScript(
    const std::string& text,
-   const std::shared_ptr<DataPack> data,
+   const DataPreparation data_prep,
+   const std::shared_ptr<DataPack> data_raw,
    const std::shared_ptr<FormulaParser> parser,
    const std::shared_ptr<Failable> father_failable)
 {
-   clearStaticData();
+   auto data = data_raw;
 
-   auto s = std::make_shared<Script>(data ? data : std::make_shared<DataPack>(), parser ? parser : SingletonFormulaParser::getInstance());
+   if (data) {
+      if (data_prep == DataPreparation::copy_data_pack_before_run || data_prep == DataPreparation::both) {
+         data = std::make_shared<DataPack>();
+         data->initializeValuesBy(data_raw);
+      }
+
+      if (data_prep == DataPreparation::reset_script_data_before_run || data_prep == DataPreparation::both) {
+         data->getScriptData().reset();
+      }
+   }
+
+   auto s = std::make_shared<Script>(data, parser);
    
    if (father_failable) {
       father_failable->addFailableChild(s);
