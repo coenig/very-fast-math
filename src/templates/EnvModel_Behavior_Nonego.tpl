@@ -123,7 +123,7 @@ esac;
 }@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 -- EO Make sure non-egos do not drive on the GREEN.
-
+-- TODO: KEEP_EGO_FROM_GREEN has not been implemented, yet, with the new approach "ego = veh[0]". (I.e., ego is ALWAYS kept off green, it can't be DEactivated.)
 
 DEFINE
 
