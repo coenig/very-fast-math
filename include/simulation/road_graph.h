@@ -222,12 +222,32 @@ public: // TODO
 /// </summary>
 class RoadGraph : public Failable, public std::enable_shared_from_this<RoadGraph>{
 public:
+   constexpr static int EGO_MOCK_ID{ -100 };
+
    RoadGraph(const int id);
 
    std::shared_ptr<RoadGraph> findFirstSectionWithProperty(const std::function<bool(const std::shared_ptr<RoadGraph>)> property);
    std::shared_ptr<RoadGraph> findSectionWithID(const int id);
    std::shared_ptr<RoadGraph> findSectionWithCar(const int car_id);
-   std::shared_ptr<RoadGraph> findSectionWithEgo();
+
+   struct CarLocation {
+      std::shared_ptr<RoadGraph> on_section_or_origin_section_{}; // (Empty if no ego in graph, or) ON SECTION iff...
+      std::shared_ptr<RoadGraph> optional_target_section_{};      // ...optional_target_section is empty, otherwise between sections.
+      std::shared_ptr<CarPars> the_car_{};
+   };
+
+   /// <summary>
+   /// Finds ego only if it is on a section.
+   /// </summary>
+   /// <returns>The section that contains ego, or null.</returns>
+   std::shared_ptr<RoadGraph> findSectionWithEgoIfAny() const;
+
+   /// <summary>
+   /// Finds ego, wherever it may be.
+   /// </summary>
+   /// <returns>The location of ego in the graph. Origin and target section are empty if there is no ego in the graph.</returns>
+   CarLocation findEgo() const;
+
    void applyToMeAndAllMySuccessorsAndPredecessors(const std::function<void(const std::shared_ptr<RoadGraph>)> action);
 
    void cleanFromAllCars();
@@ -244,13 +264,13 @@ public:
    /// </summary>
    /// <returns></returns>
    bool isRootedInZeroAndUnturned() const;
+
+   std::pair<Vec2D, float> getEgoOriginAndRotation();
    
    /// <summary>
    /// Translates and rotates THE WHOLE GRAPH such that the section with ego on it "isRootedInZeroAndUnturned()".
    /// </summary>
-   void normalizeRoadGraphToEgoSection();
-
-   std::pair<Vec2D, float> getEgoOriginAndRotation();
+   void normalizeRoadGraphToEgo();
 
    int getID() const;
    int getNodeCount() const;

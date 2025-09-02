@@ -71,7 +71,7 @@ public:
    {
       const float LANE_CONSTANT{ ((float)road_graph->getMyRoad().getNumLanes() - 1) * 2}; // TODO: What is different sections have different numbers of lanes?
 
-      road_graph->findSectionWithEgo()->getMyRoad().setEgo(std::make_shared<CarPars>(ego_pos_y_, ego_pos_x_, ego_vx_ * SPEED_DIVISOR_FOR_STEP_SMOOTHNESS, HighwayImage::EGO_MOCK_ID));
+      road_graph->findSectionWithEgoIfAny()->getMyRoad().setEgo(std::make_shared<CarPars>(ego_pos_y_, ego_pos_x_, ego_vx_ * SPEED_DIVISOR_FOR_STEP_SMOOTHNESS, RoadGraph::EGO_MOCK_ID));
 
       for (int i{}; i < num_cars_; i++) {
          CarParsVec others_vec{ road_graph->findSectionWithCar(i)->getMyRoad().getOthers() };
@@ -98,7 +98,7 @@ public:
    }
 
    mutable std::map<int, std::pair<float, float>> others_past_vec_{};
-   mutable CarPars past_ego_{ CarPars{ -std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(), std::numeric_limits<int>::min(), HighwayImage::EGO_MOCK_ID } };
+   mutable CarPars past_ego_{ CarPars{ -std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(), std::numeric_limits<int>::min(), RoadGraph::EGO_MOCK_ID } };
    mutable int count_{ 0 };
 
    inline std::shared_ptr<Image> getBirdseyeView(

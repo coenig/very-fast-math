@@ -73,7 +73,7 @@
       "SEGMENTS": "#{segments}#",
       "SEGMENTSMINLENGTH": 50,
       "SIMPLE_LC": true,
-      "SPEC": "#{ !( env.veh___609___.is_on_sec_0 = 0 ) }#",
+      "SPEC": "#{ !((env.veh___609___.is_on_sec_0 == 0) && (env.veh___609___.abs_pos > 5)) }#",
       "SPEC1": "#{ (F(env.cnt == 1)) }#",
       "SPEC2": "#{ (F(env.cnt == 2)) }#",
       "SPEC3": "#{ (F(env.cnt == 3)) }#",

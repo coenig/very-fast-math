@@ -198,7 +198,7 @@ std::shared_ptr<RoadGraph> LiveSimGenerator::getRoadGraphTopologyFrom(const MCTr
       road_graphs[sec]->setMyRoad(lane_structure);
    }
 
-   CarPars c{ 0, 0, 0, vfm::HighwayImage::EGO_MOCK_ID };
+   CarPars c{ 0, 0, 0, vfm::RoadGraph::EGO_MOCK_ID };
    road_graphs[0]->getMyRoad().setEgo(std::make_shared<CarPars>());
 
    for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
@@ -227,10 +227,37 @@ void vfm::mc::trajectory_generator::LiveSimGenerator::equipRoadGraphWithCars(
       r->getMyRoad().getNumLanes() - 1 + current_ego.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH, // Lane
       current_ego.second.at(PossibleParameter::pos_x),                                                                           // Position
       current_ego.second.at(PossibleParameter::vel_x) / x_scaling,                                                               // Velocity
-      vfm::HighwayImage::EGO_MOCK_ID                                                                                             // ID
+      vfm::RoadGraph::EGO_MOCK_ID                                                                                             // ID
    );
 
-   //r->findSectionWithID(0)->getMyRoad().setEgo(ego); // TODO: Use correct section, once available.
+   // TODO: Double code towards below.
+   const int on_straight_section{ (int)current_ego.second.at(PossibleParameter::on_straight_section) };
+   const int traversion_from{ (int)current_ego.second.at(PossibleParameter::traversion_from) };
+   const int traversion_to{ (int)current_ego.second.at(PossibleParameter::traversion_to) };
+
+   if (on_straight_section >= 0) {
+      auto rg = r->findSectionWithID(on_straight_section);
+      if (rg) {
+         rg->getMyRoad().setEgo(ego);
+      }
+      else {
+         addError("Ego vehicle will not be painted since it is on section '" + std::to_string(on_straight_section) + "' which is not reachable from the current setion '" + std::to_string(r->getID()) + "'. (Note that sections unconnected to the main road graph are currently not considered.)");
+      }
+   }
+   else if (traversion_from >= 0 && traversion_to >= 0) {
+      const auto from_section = r->findSectionWithID(traversion_from);
+      if (from_section) {
+         from_section->addNonegoOnCrossingTowards(traversion_to, *ego);
+      }
+      else {
+         addError("Cannot place car on connection from sec '" + std::to_string(traversion_from) + "' to sec '" + std::to_string(traversion_to) + "' because the origin section does not exist.");
+      }
+   }
+   else {
+      addError("Ego car is placed neither on a straight section nor on a junction.");
+   }
+   // EO TODO: Double code towards below.
+
 
    auto& vehicle_names_without_ego = m_trajectory_provider.getVehicleNames(true);
 
