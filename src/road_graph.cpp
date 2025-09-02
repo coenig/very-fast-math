@@ -317,9 +317,19 @@ bool vfm::RoadGraph::isRootedInZeroAndUnturned() const
    return isOriginAtZero() && isAngleZero();
 }
 
+std::pair<Vec2D, float> vfm::RoadGraph::getEgoOriginAndRotation()
+{
+   return std::pair<Vec2D, float>();
+}
+
 void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
 {
-   const auto r_ego = findSectionWithEgo();
+   const auto r_ego = findSectionWithEgo(); // Empty if ego between sections.
+
+   if (!r_ego) {
+
+   }
+
    const Vec2D specialPoint{ r_ego->getOriginPoint() };
    const float theta{ r_ego->getAngle() };
    const float x_s_prime = specialPoint.x * std::cos(theta) - specialPoint.y * std::sin(theta);
@@ -335,7 +345,7 @@ void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
       r->setAngle(r->getAngle() - theta);
    }
 
-   assert(r_ego->isRootedInZeroAndUnturned());
+   assert(!r_ego || r_ego->isRootedInZeroAndUnturned());
 }
 
 static constexpr float EPS{ 0.01 };

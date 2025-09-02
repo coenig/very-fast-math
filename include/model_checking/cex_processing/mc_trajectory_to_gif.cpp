@@ -230,7 +230,7 @@ void vfm::mc::trajectory_generator::LiveSimGenerator::equipRoadGraphWithCars(
       vfm::HighwayImage::EGO_MOCK_ID                                                                                             // ID
    );
 
-   r->findSectionWithID(0)->getMyRoad().setEgo(ego); // TODO: Use correct section, once available.
+   //r->findSectionWithID(0)->getMyRoad().setEgo(ego); // TODO: Use correct section, once available.
 
    auto& vehicle_names_without_ego = m_trajectory_provider.getVehicleNames(true);
 

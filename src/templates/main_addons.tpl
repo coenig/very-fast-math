@@ -241,10 +241,10 @@ INVAR section_0_segment_2_max_lane = 0;
 
 INIT env.section_2.angle = 0;
 INIT env.section_1.angle = 45;
-INIT env.veh___609___.is_on_sec_0 = 1;
-INIT env.veh___619___.is_on_sec_0 = 1;
-INIT env.veh___629___.is_on_sec_0 = 1;
+@{
+INIT env.veh___6[i]9___.is_on_sec_0 = 1;
+}@.for[[i], 0, @{NONEGOS - 1}@.eval]
 INIT env.section_1_segment_0_max_lane = 0;
 INIT env.section_2_segment_0_min_lane > 0;
 INIT env.section_0_segment_0_max_lane = @{NUMLANES - 1}@.eval[0];
-INIT env.section_0_segment_1_min_lane = 0;
+INIT env.section_0_segment_@{SEGMENTS - 1}@.eval[0]_min_lane = 0;
