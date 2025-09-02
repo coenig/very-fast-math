@@ -48,9 +48,10 @@ VAR
 
 @{
     #ERROR: ASSIGN structure for gaps not supported anymore since 2024-06-20.
-}@******.nil
+}@******.if[@{NONEGOS <= THRESHOLD_FOR_USING_ASSIGNS_IN_GAP_STRUCTURE}@.eval]
 
 INVAR tar_dir = ActionDir____LEFT; -- TODO: This is only needed as interface towards BP. Remove when better solution comes up.
+
 
 DEFINE
     ego_lane_0 := ego_lane_b0 @{& !ego_lane_b[j]}@.for[[j], 1, @{NUMLANES - 1}@.eval];
@@ -244,7 +245,7 @@ ASSIGN
     init(ego.gaps___619___.v_front) := max_vel; -- Max velocity is indicator of empty gap to the front, 0, to the rear.
     init(ego.gaps___629___.v_front) := max_vel; -- Max velocity is indicator of empty gap to the front, 0, to the rear.
     init(ego.gaps___629___.turn_signals_front) := ActionDir____CENTER; 
-}@******.nil
+}@******.if[@{NONEGOS <= THRESHOLD_FOR_USING_ASSIGNS_IN_GAP_STRUCTURE}@.eval]
 
     init(ego.lc_direction) := ActionDir____CENTER;
     init(ego.mode) := ActionType____LANE_FOLLOWING;
@@ -560,6 +561,8 @@ INVAR ego.gaps___629___.s_dist_rear = max_ego_visibility_range + 1;
 )@
 }@******.if[@{CALCULATE_RIGHT_GAP}@.eval]
 
+
+
 INVAR empty_gap_indicator <= ego.gaps___609___.i_agent_front & ego.gaps___609___.i_agent_front <= @{NONEGOS - 1}@.eval[0];
 INVAR empty_gap_indicator <= ego.gaps___619___.i_agent_front & ego.gaps___619___.i_agent_front <= @{NONEGOS - 1}@.eval[0];
 INVAR empty_gap_indicator <= ego.gaps___629___.i_agent_front & ego.gaps___629___.i_agent_front <= @{NONEGOS - 1}@.eval[0];
@@ -629,7 +632,7 @@ DEFINE
 
 	}@**.for[[k], 0, 2]
 )@
-}@******.if[@{NONEGOS < THRESHOLD_FOR_USING_ASSIGNS_IN_GAP_STRUCTURE}@.eval]
+}@******.if[@{NONEGOS <= THRESHOLD_FOR_USING_ASSIGNS_IN_GAP_STRUCTURE}@.eval]
 
 --------------------------------------------------------
 -- End: Gap Structure
