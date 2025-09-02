@@ -562,7 +562,6 @@ INVAR ego.gaps___629___.s_dist_rear = max_ego_visibility_range + 1;
 }@******.if[@{CALCULATE_RIGHT_GAP}@.eval]
 
 
-
 INVAR empty_gap_indicator <= ego.gaps___609___.i_agent_front & ego.gaps___609___.i_agent_front <= @{NONEGOS - 1}@.eval[0];
 INVAR empty_gap_indicator <= ego.gaps___619___.i_agent_front & ego.gaps___619___.i_agent_front <= @{NONEGOS - 1}@.eval[0];
 INVAR empty_gap_indicator <= ego.gaps___629___.i_agent_front & ego.gaps___629___.i_agent_front <= @{NONEGOS - 1}@.eval[0];
