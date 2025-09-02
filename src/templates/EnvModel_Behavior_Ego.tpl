@@ -177,7 +177,7 @@ ego_pressured_by_vehicle_[i]_from_behind := ego_pressured_by_vehicle_[i] & (veh_
 
 -- minimum_dist_to_veh_[i] := (veh___6[i]9___.rel_pos + ego_v_minus_veh_[i]_v_square / (2* abs(a_min))); -- This was another way of doing it, though not quite accurate; turns out, it is also slower.
 
-@{minimum_dist_to_veh_[i]}@.scalingVariable[distance] := veh___6[i]9___.rel_pos - square_of_veh_v_[i] / (2*a_min) + square_of_veh_v_0 / (2*a_min);
+@{minimum_dist_to_veh_[i]}@.scalingVariable[distance] := veh___6[i]9___.rel_pos - square_of_veh_v_[i] / (2*a_min) + square_of_ego_v / (2*a_min);
 
 
    }@**.for[[i], 1, @{NONEGOS - 1}@.eval]
@@ -203,6 +203,15 @@ INVAR -- Ego may not "jump" over non-ego cars.
     !(ego.same_lane_as_veh_[i] & (veh___6[i]9___.prev_rel_pos > 0) & (veh___6[i]9___.rel_pos <= 0));
 }@**.for[[i], 1, @{NONEGOS - 1}@.eval]
     
+
+
+-- Lookup table to speed-up non-linear calculations
+DEFINE
+square_of_ego_v := case
+   @{ego.v = [x] : @{[x] ** 2}@.eval[0];
+   }@*.for[[x], 0, @{@{MAXSPEEDEGO}@***.velocityWorldToEnvModelConst - 1}@.eval[0]]
+   TRUE: @{@{MAXSPEEDEGO}@***.velocityWorldToEnvModelConst ** 2}@.eval[0];
+esac;
 
 
 INVAR
