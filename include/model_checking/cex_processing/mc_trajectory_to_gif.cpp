@@ -46,7 +46,7 @@ const auto VARIABLES_TO_BE_PAINTED = std::make_shared<std::vector<PainterVariabl
       //{ R"(planner."flCond.cond20_reactive_conditions_fulfilled")",   { 0, -11 } },
       //{ R"(planner."flCond.cond22_safety_conditions_fulfilled")",   { 0, -11 } },
       //{ R"(planner."flCond.cond24_external_conditions_fulfilled")",   { 0, -11 } },
-      { R"(planner."abCond.cond26_all_conditions_fulfilled_raw")",   { 0, -11 } },
+      //{ R"(planner."abCond.cond26_all_conditions_fulfilled_raw")",   { 0, -11 } },
       //{ R"(env.ego.flCond_full)",   { 0, -11 } },
       //{ R"(env.ego.mode)",   { 2, -11 } },
       //{ R"(planner."flCond.cond1_lc_trigger_dist_reached")",   { 0, -11 } },
@@ -76,9 +76,6 @@ const auto VARIABLES_TO_BE_PAINTED = std::make_shared<std::vector<PainterVariabl
       //{ R"(REGEX:.*getDynamicMinDistanceFront.part1.1")",   { 3, -11 } },
       //{ R"(REGEX:.*getDynamicMinDistanceFront.part2.1")",   { 3, -11 } },
       //{ R"(REGEX:veh___6.*9___.rel_pos)",   { 3, -11 } },
-
-      { R"(REGEX:.*env.ego..*)",   { 3, -11 } },
-      { R"(REGEX:.*rlc.*)",   { 1, -11 } },
 
       //{ R"(ego.right_of_veh_1_lane)",   { 0, -11 } },
       //{ R"(veh_length)",   { 3, -11 } },
@@ -153,6 +150,14 @@ const auto VARIABLES_TO_BE_PAINTED = std::make_shared<std::vector<PainterVariabl
       //{ R"(planner."ego.gaps___6tar_dir9___.i_agent_front")",                           { 3, -11 } },
 
       //{ "debug.crash",                                  { 0, -11 } },
+
+      
+      { R"(REGEX:.*env..*.abs_pos)", { 3, -11 } },
+      { R"(REGEX:.*env..*.v)", { 3, -11 } },
+      { R"(REGEX:.*env..*.a)", { 3, -11 } },
+      //{ R"(REGEX:.*env.ego..*)", { 3, -11 } },
+      //{ R"(REGEX:.*env.veh___6.*)",   { 3, -11 } },
+      //{ R"(REGEX:.*rlc.*)",   { 1, -11 } },
    }
 );
 

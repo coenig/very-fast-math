@@ -709,8 +709,6 @@ VAR
 
 INIT ego.abs_pos = 0;
 
-ASSIGN
-   next(ego.abs_pos) := ego.abs_pos + ego.v;
 
 
 ---------------------------------------------------------------------
