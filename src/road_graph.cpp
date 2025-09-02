@@ -381,14 +381,13 @@ std::pair<Vec2D, float> vfm::RoadGraph::getEgoOriginAndRotation()
    }
 }
 
-void vfm::RoadGraph::normalizeRoadGraphToEgo()
+void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
 {
-   auto ego_pos = getEgoOriginAndRotation();
-   auto special_point = ego_pos.first;
-   auto theta = ego_pos.second;
-
-   const float x_s_prime = special_point.x * std::cos(theta) - special_point.y * std::sin(theta);
-   const float y_s_prime = special_point.x * std::sin(theta) + special_point.y * std::cos(theta);
+   const auto r_ego = findSectionWithEgoIfAny();
+   const Vec2D specialPoint{ r_ego->getOriginPoint() };
+   const float theta{ r_ego->getAngle() };
+   const float x_s_prime = specialPoint.x * std::cos(theta) - specialPoint.y * std::sin(theta);
+   const float y_s_prime = specialPoint.x * std::sin(theta) + specialPoint.y * std::cos(theta);
 
    for (const auto& r : getAllNodes()) {
       // Rotation
@@ -400,7 +399,7 @@ void vfm::RoadGraph::normalizeRoadGraphToEgo()
       r->setAngle(r->getAngle() - theta);
    }
 
-   // assert(!r_ego || r_ego->isRootedInZeroAndUnturned());
+   assert(r_ego->isRootedInZeroAndUnturned());
 }
 
 static constexpr float EPS{ 0.01 };

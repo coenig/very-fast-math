@@ -270,7 +270,7 @@ public:
    /// <summary>
    /// Translates and rotates THE WHOLE GRAPH such that the section with ego on it "isRootedInZeroAndUnturned()".
    /// </summary>
-   void normalizeRoadGraphToEgo();
+   void normalizeRoadGraphToEgoSection();
 
    int getID() const;
    int getNodeCount() const;
