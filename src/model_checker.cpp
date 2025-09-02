@@ -155,7 +155,7 @@ void doEgoBehaviorOvertake(SystemState& s)
 }
 
 const ModelConfiguration MC::CONFIG_OVERTAKE = {
-   { { CarPars{ 1, 0, lane_speed_min(1), HighwayImage::EGO_MOCK_ID },
+   { { CarPars{ 1, 0, lane_speed_min(1), RoadGraph::EGO_MOCK_ID },
     { {0, -DISTANCE_STEP_OVERTAKE * 14, lane_speed_min(0), 0 },
       {0, DISTANCE_STEP_OVERTAKE, lane_speed_max(0), 1 },
       {1, -DISTANCE_MAX_OVERTAKE, lane_speed_min(1), 2 },

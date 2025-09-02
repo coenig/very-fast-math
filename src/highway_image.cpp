@@ -707,7 +707,7 @@ void vfm::HighwayImage::paintStraightRoadSceneFromData(StraightRoadSection& lane
    }
 
    lane_structure.setNumLanes(3);
-   lane_structure.setEgo(std::make_shared<CarPars>(ego_lane, 0, (int)ego_v, EGO_MOCK_ID));
+   lane_structure.setEgo(std::make_shared<CarPars>(ego_lane, 0, (int)ego_v, RoadGraph::EGO_MOCK_ID));
    lane_structure.setOthers({ { veh0_lane, veh0_rel_pos, (int)veh0_v, 0 }, { veh1_lane, veh1_rel_pos, (int)veh1_v, 1 } });
    lane_structure.setFuturePositionsOfOthers(future_data ? std::map<int, std::pair<float, float>>
    { { 0, { future_veh0_rel_pos, future_veh0_lane } },
@@ -726,7 +726,7 @@ void vfm::HighwayImage::paintStraightRoadSceneSimple(
 {
    StraightRoadSection dummy{};
 
-   dummy.setEgo(std::make_shared<CarPars>(ego.car_lane_, ego.car_rel_pos_, ego.car_velocity_, EGO_MOCK_ID));
+   dummy.setEgo(std::make_shared<CarPars>(ego.car_lane_, ego.car_rel_pos_, ego.car_velocity_, RoadGraph::EGO_MOCK_ID));
    dummy.setOthers(others);
    dummy.setFuturePositionsOfOthers(future_positions_of_others);
 
@@ -989,7 +989,7 @@ void vfm::HighwayImage::paintRoadGraph(
 {
    auto my_r = PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ ? vfm::test::paintExampleRoadGraphRoundabout(false, r_raw) : r_raw;
 
-   my_r->normalizeRoadGraphToEgoSection();
+   my_r->normalizeRoadGraphToEgo();
    auto old_trans = getHighwayTranslator();
    const auto all_nodes = my_r->getAllNodes();
 
@@ -1004,15 +1004,16 @@ void vfm::HighwayImage::paintRoadGraph(
       dim_raw = { (float)getWidth(), (float)getHeight() };
    }
 
-   auto r_ego = my_r->findSectionWithEgo();
-   auto ego_pos = r_ego->getMyRoad().getEgo()->car_rel_pos_;
-   auto ego_lane = r_ego->getMyRoad().getEgo()->car_lane_;
+   auto ego_location = my_r->findEgo();
+   auto r_ego_or_origin = ego_location.on_section_or_origin_section_;
+   auto ego_pos = ego_location.the_car_->car_rel_pos_;
+   auto ego_lane = ego_location.the_car_->car_lane_;
    std::vector<std::shared_ptr<RoadGraph>> all_nodes_ego_in_front{};
 
-   all_nodes_ego_in_front.push_back(r_ego);
+   all_nodes_ego_in_front.push_back(r_ego_or_origin);
 
    for (const auto r_sub : all_nodes) {
-      if (r_sub != r_ego) all_nodes_ego_in_front.push_back(r_sub);
+      if (r_sub != r_ego_or_origin) all_nodes_ego_in_front.push_back(r_sub);
    }
 
    static constexpr float MC1{ 2.0f * 12.8f };
@@ -1023,8 +1024,8 @@ void vfm::HighwayImage::paintRoadGraph(
          const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
          preserved_dimension_ = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
 
-         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
-            const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0) };
+         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego_or_origin, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+            const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego_or_origin == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego_or_origin != r_sub && old_trans->is3D() ? -ego_lane : 0) };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
             Vec2D v{ plain_2d_translator_->translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
             v.rotate(r_sub->getAngle(), { middle.x, middle.y });
@@ -1036,8 +1037,8 @@ void vfm::HighwayImage::paintRoadGraph(
                v_raw.z };
             };
 
-         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
-            const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0) };
+         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego_or_origin, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+            const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego_or_origin == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego_or_origin != r_sub && old_trans->is3D() ? -ego_lane : 0) };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
 
             Vec2D v{
@@ -1126,24 +1127,20 @@ void vfm::HighwayImage::paintRoadGraph(
                      const auto thick_a = A.thick_ * norm_length_a;
                      const auto thick_b = B.thick_ * norm_length_b;
 
-                     Vec2D between1 = a_connector_basepoint_translated;
-                     Vec2D between1_dir = a_connector_basepoint_translated;
-                     between1_dir.sub(a_connector_direction_translated);
+                     auto nice_points = bezier::getNiceBetweenPoints(a_connector_basepoint_translated, a_connector_direction_translated, b_connector_basepoint_translated, b_connector_direction_translated);
+
+                     auto between1 = nice_points[0];
+                     auto between1_dir = nice_points[1];
+                     auto between2 = nice_points[2];
+                     auto between2_dir = nice_points[3];
+
                      Vec2D between1_dir_ortho{ between1_dir };
                      between1_dir_ortho.ortho();
                      between1_dir_ortho.setLength(thick_a / 2);
 
-                     between1_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
-                     between1.add(between1_dir);
-                     Vec2D between2 = b_connector_basepoint_translated;
-                     Vec2D between2_dir = b_connector_basepoint_translated;
-                     between2_dir.sub(b_connector_direction_translated);
                      Vec2D between2_dir_ortho{ between2_dir };
                      between2_dir_ortho.ortho();
                      between2_dir_ortho.setLength(thick_b / 2);
-
-                     between2_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
-                     between2.add(between2_dir);
 
                      p.bezier(a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated, 0.01);
                      Pol2D arrow{};
@@ -1254,17 +1251,21 @@ void vfm::HighwayImage::paintRoadGraph(
 
                         CarParsVec nonegos_on_crossing{ r->getNonegosOnCrossingTowardsSuccessor(r_succ) };
 
-                        for (const auto& nonego : nonegos_on_crossing) {
+                        for (const auto& nonego : nonegos_on_crossing) { // Non-egos includes ego. Get over it ;)
                            if (nonego.car_lane_ == i - FIRST_LANE_CONNECTOR_ID) {
-                              float arc_length{ bezier::arcLength(1, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) / norm_length_a };
-                              float rel{ nonego.car_rel_pos_ / arc_length };
+                              if (nonego.car_id_ != 0) {
+                                 float arc_length{ bezier::arcLength(1, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) / norm_length_a };
+                                 float rel{ nonego.car_rel_pos_ / arc_length };
 
-                              rel = std::max(0.0f, std::min(1.0f, rel));
+                                 rel = std::max(0.0f, std::min(1.0f, rel));
 
-                              Vec2D p{ bezier::pointAtRatio(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
-                              Vec2D dir{ bezier::B_prime(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
-                              plotCar2D(3, p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
-                              //plotCar3D(p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
+                                 Color col{ nonego.car_id_ == RoadGraph::EGO_MOCK_ID ? EGO_COLOR : CAR_COLOR };
+
+                                 Vec2D p{ bezier::pointAtRatio(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
+                                 Vec2D dir{ bezier::B_prime(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
+                                 plotCar2D(3, p, col, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
+                                 //plotCar3D(p, col, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
+                              }
                            }
                         }
                      }

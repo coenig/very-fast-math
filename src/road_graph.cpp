@@ -1,5 +1,6 @@
 #include "simulation/road_graph.h"
 #include "geometry/images.h"
+#include "geometry/bezier_functions.h"
 #include <vector>
 #include <cmath>
 
@@ -252,9 +253,43 @@ std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithCar(const int car_id)
    });
 }
 
-std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithEgo()
+std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithEgoIfAny() const
 {
-   return findFirstSectionWithProperty([](const std::shared_ptr<RoadGraph> r) -> bool { return (bool) r->getMyRoad().getEgo(); });
+   return const_cast<RoadGraph*>(this)->findFirstSectionWithProperty(
+      [](const std::shared_ptr<RoadGraph> r) -> bool { return (bool) r->getMyRoad().getEgo(); }
+   );
+}
+
+RoadGraph::CarLocation vfm::RoadGraph::findEgo() const
+{
+   auto ego_section = findSectionWithEgoIfAny();
+
+   if (ego_section) {
+      return CarLocation{ ego_section, nullptr, ego_section->my_road_.getEgo() };
+   }
+   else {
+      CarLocation location{ nullptr, nullptr, nullptr };
+
+      const_cast<RoadGraph*>(this)->findFirstSectionWithProperty(
+         [&location](const std::shared_ptr<RoadGraph> r) -> bool { 
+            for (const auto& succ : r->getSuccessors()) {
+               for (const auto& car : r->getNonegosOnCrossingTowardsSuccessor(succ)) {
+                  if (car.car_id_ == EGO_MOCK_ID) {
+                     location.on_section_or_origin_section_ = r;
+                     location.optional_target_section_ = succ;
+                     location.the_car_ = std::make_shared<CarPars>(car.car_lane_, car.car_rel_pos_, car.car_velocity_, car.car_id_);
+
+                     return true;
+                  }
+               }
+            }
+
+            return false;
+         }
+      );
+
+      return location;
+   }
 }
 
 void vfm::RoadGraph::applyToMeAndAllMySuccessorsAndPredecessors(const std::function<void(const std::shared_ptr<RoadGraph>)> action)
@@ -319,21 +354,41 @@ bool vfm::RoadGraph::isRootedInZeroAndUnturned() const
 
 std::pair<Vec2D, float> vfm::RoadGraph::getEgoOriginAndRotation()
 {
-   return std::pair<Vec2D, float>();
+   const auto ego_location = findEgo();
+
+   if (!ego_location.on_section_or_origin_section_ || !ego_location.the_car_) addError("No ego found in or between section(s) on this road graph.");
+
+   if (!ego_location.optional_target_section_) { // Ego on section.
+      return { ego_location.on_section_or_origin_section_->getOriginPoint(), ego_location.on_section_or_origin_section_->getAngle() };
+   }
+   else { // Ego between sections.
+      auto p_orig_from = ego_location.on_section_or_origin_section_->getOriginPoint();
+      auto p_orig = ego_location.on_section_or_origin_section_->getDrainPoint();
+      auto p_targ = ego_location.optional_target_section_->getOriginPoint();
+      auto p_targ_to = ego_location.optional_target_section_->getDrainPoint();
+
+      auto nice_points = bezier::getNiceBetweenPoints(p_orig, p_orig - p_orig_from, p_targ, p_targ - p_targ_to);
+
+      Vec2D dir{ bezier::B_prime(
+         ego_location.the_car_->car_rel_pos_, 
+         p_orig,
+         nice_points[0],
+         nice_points[2],
+         p_targ)
+      };
+
+      return { ego_location.on_section_or_origin_section_->getDrainPoint(), dir.angle({ 1, 0 }) };
+   }
 }
 
-void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
+void vfm::RoadGraph::normalizeRoadGraphToEgo()
 {
-   const auto r_ego = findSectionWithEgo(); // Empty if ego between sections.
+   auto ego_pos = getEgoOriginAndRotation();
+   auto special_point = ego_pos.first;
+   auto theta = ego_pos.second;
 
-   if (!r_ego) {
-
-   }
-
-   const Vec2D specialPoint{ r_ego->getOriginPoint() };
-   const float theta{ r_ego->getAngle() };
-   const float x_s_prime = specialPoint.x * std::cos(theta) - specialPoint.y * std::sin(theta);
-   const float y_s_prime = specialPoint.x * std::sin(theta) + specialPoint.y * std::cos(theta);
+   const float x_s_prime = special_point.x * std::cos(theta) - special_point.y * std::sin(theta);
+   const float y_s_prime = special_point.x * std::sin(theta) + special_point.y * std::cos(theta);
 
    for (const auto& r : getAllNodes()) {
       // Rotation
@@ -345,7 +400,7 @@ void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
       r->setAngle(r->getAngle() - theta);
    }
 
-   assert(!r_ego || r_ego->isRootedInZeroAndUnturned());
+   // assert(!r_ego || r_ego->isRootedInZeroAndUnturned());
 }
 
 static constexpr float EPS{ 0.01 };

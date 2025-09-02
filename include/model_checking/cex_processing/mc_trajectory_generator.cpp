@@ -270,7 +270,9 @@ void MCinterpretedTrace::interpolate(const std::string& vehicle_name, FullTrajec
       const int traversion_from{ vehicle_name == "ego" ? -1 : (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_from", trace_cnt)) };
       const int traversion_to{ vehicle_name == "ego" ? -1 : (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_to", trace_cnt)) };
 
-      if (on_straight_section < 0 && traversion_from < 0 && traversion_to < 0) addError("Car '" + vehicle_name + "' is neither on straight section nor on curved junction.");
+      if (on_straight_section < 0 && traversion_from < 0 && traversion_to < 0) {
+         addError("Car '" + vehicle_name + "' is neither on straight section nor on curved junction.");
+      }
 
       const int on_lane{ vehicle_name == "ego" ? -1 : (int)(std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_lane", trace_cnt)) / 2) };
       const int current_seclet_length{ vehicle_name == "ego" 
