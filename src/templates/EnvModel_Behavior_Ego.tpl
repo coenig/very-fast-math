@@ -679,6 +679,9 @@ INVAR ego_lane_b[j] = veh___609___.lane_b[j];
 INVAR ego.v = veh___609___.v;
 INVAR ego.a = veh___609___.a;
 INVAR ego.abs_pos = veh___609___.abs_pos;
+DEFINE ego.on_straight_section := veh___609___.on_straight_section;
+DEFINE ego.traversion_from := veh___609___.traversion_from;
+DEFINE ego.traversion_to := veh___609___.traversion_to;
  -- EO Synch EGO with veh___609___.
 
 @{

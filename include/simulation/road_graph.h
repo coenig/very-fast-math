@@ -250,6 +250,8 @@ public:
    /// </summary>
    void normalizeRoadGraphToEgoSection();
 
+   std::pair<Vec2D, float> getEgoOriginAndRotation();
+
    int getID() const;
    int getNodeCount() const;
 
