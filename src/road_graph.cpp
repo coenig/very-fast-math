@@ -384,6 +384,9 @@ std::pair<Vec2D, float> vfm::RoadGraph::getEgoOriginAndRotation()
 void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
 {
    const auto r_ego = findSectionWithEgoIfAny();
+
+   if (!r_ego) addError("No ego found on any straight section in road graph.");
+
    const Vec2D specialPoint{ r_ego->getOriginPoint() };
    const float theta{ r_ego->getAngle() };
    const float x_s_prime = specialPoint.x * std::cos(theta) - specialPoint.y * std::sin(theta);
@@ -400,6 +403,51 @@ void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
    }
 
    assert(r_ego->isRootedInZeroAndUnturned());
+}
+
+void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
+{
+
+
+   //// Draw cars in crossing
+   //if (i >= FIRST_LANE_CONNECTOR_ID) { // This is the id of the pavement.
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 3, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 1, 3, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 3, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 3, 3, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 13, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 1, 13, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 13, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 3, 13, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 23, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 1, 23, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 23, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 3, 23, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 33, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 1, 33, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 33, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 3, 33, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 43, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 1, 43, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 43, 10, 0 }); // TODO
+   //   //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 3, 43, 10, 0 }); // TODO
+
+   //   CarParsVec nonegos_on_crossing{ r->getNonegosOnCrossingTowardsSuccessor(r_succ) };
+
+   //   for (const auto& nonego : nonegos_on_crossing) {
+   //      if (nonego.car_lane_ == i - FIRST_LANE_CONNECTOR_ID) {
+   //         float arc_length{ bezier::arcLength(1, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) / norm_length_a };
+   //         float rel{ nonego.car_rel_pos_ / arc_length };
+
+   //         rel = std::max(0.0f, std::min(1.0f, rel));
+
+   //         Vec2D p{ bezier::pointAtRatio(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
+   //         Vec2D dir{ bezier::B_prime(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
+   //         plotCar2D(3, p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
+   //         //plotCar3D(p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
+   //      }
+   //   }
+   //}
 }
 
 static constexpr float EPS{ 0.01 };

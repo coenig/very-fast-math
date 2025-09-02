@@ -272,6 +272,8 @@ public:
    /// </summary>
    void normalizeRoadGraphToEgoSection();
 
+   void transformAllCarsToStraightRoadSections();
+
    int getID() const;
    int getNodeCount() const;
 
