@@ -234,7 +234,7 @@ ASSIGN
     init(veh___6[i]9___.prev_rel_pos) := 0;
     init(veh___6[i]9___.prev_abs_pos) := 0;
     -- init(veh___6[i]9___.v) := @{MAXSPEEDNONEGO / 2}@.velocityWorldToEnvModelConst;
-    @{init(veh___6[i]9___.a) := 0;}@******.if[@{!(EGOLESS)}@.eval]
+    @{-- init(veh___6[i]9___.a) := 0;}@******.if[@{!(EGOLESS)}@.eval]
 
 @{
 @(

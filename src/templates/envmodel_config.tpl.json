@@ -73,7 +73,7 @@
       "SEGMENTS": "#{segments}#",
       "SEGMENTSMINLENGTH": 50,
       "SIMPLE_LC": true,
-      "SPEC": "#{ G(!( env.ego.a != 0 && X(env.ego.a != 0 && X(env.ego.a != 0 && X(env.ego.a != 0))) )) }#",
+      "SPEC": "#{ G(!((env.ego.a != 0) && env.veh___609___.v > 0 && X((env.ego.a != 0) && X((env.ego.a != 0) && X((env.ego.a != 0)))))) }#",
       "SPEC1": "#{ (F(env.cnt == 1)) }#",
       "SPEC2": "#{ (F(env.cnt == 2)) }#",
       "SPEC3": "#{ (F(env.cnt == 3)) }#",
