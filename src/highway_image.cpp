@@ -1021,6 +1021,8 @@ void vfm::HighwayImage::paintRoadGraph(
 
    const auto DRAW_STRAIGHT_ROAD_OR_CARS = [&](const RoadDrawingMode mode) {
       for (const auto r_sub : all_nodes_ego_in_front) {
+         if (mode == RoadDrawingMode::road && r_sub->isGhost()) continue;
+
          const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
          preserved_dimension_ = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
 

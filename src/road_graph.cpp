@@ -407,7 +407,7 @@ void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
 
 void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
 {
-
+   findSectionWithID(0)->makeGhost();
 
    //// Draw cars in crossing
    //if (i >= FIRST_LANE_CONNECTOR_ID) { // This is the id of the pavement.
@@ -579,6 +579,16 @@ void vfm::RoadGraph::addNonegoOnCrossingTowards(const int r_id, const CarPars& n
 void vfm::RoadGraph::clearNonegosOnCrossingsTowardsAny()
 {
    nonegos_towards_successors_.clear();
+}
+
+void vfm::RoadGraph::makeGhost()
+{
+   ghost_section_ = true;
+}
+
+bool vfm::RoadGraph::isGhost() const
+{
+   return ghost_section_;
 }
 
 using namespace xml;
