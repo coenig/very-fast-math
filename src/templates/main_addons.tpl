@@ -239,13 +239,19 @@ INVAR section_0_segment_2_max_lane = 0;
 
 -- @{NUMLANES}@.eval[0] Lanes.
 
-INIT env.section_2.angle != 0;
-INIT env.section_1.angle != 0;
+-- INIT env.section_2.angle != 0;
+-- INIT env.section_1.angle != 0;
 @{
 INIT env.veh___6[i]9___.is_on_sec_0 = 1;
 INIT env.veh___6[i]9___.abs_pos < env.section_0_end;
-}@.for[[i], 0, @{NONEGOS - 1}@.eval]
-INIT env.section_1_segment_0_max_lane = 0;
-INIT env.section_2_segment_0_min_lane > 0;
-INIT env.section_0_segment_0_max_lane = @{NUMLANES - 1}@.eval[0];
-INIT env.section_0_segment_@{SEGMENTS - 1}@.eval[0]_min_lane = 0;
+@{INIT env.veh___6@{[i]-1}@.eval[0]9___.abs_pos < env.veh___6[i]9___.abs_pos;}@.if[@{[i]>0}@.eval]
+@{-- INVAR abs(env.veh___6@{[i]-1}@.eval[0]9___.v - env.veh___6[i]9___.v) < 5;}@.if[@{[i]>0}@.eval]
+}@*.for[[i], 0, @{NONEGOS - 1}@.eval]
+
+INVAR env.ego.abs_pos = 0;
+INIT env.veh___609___.abs_pos = 10;
+
+-- INIT env.section_1_segment_0_max_lane = 0;
+-- INIT env.section_2_segment_0_min_lane > 0;
+-- INIT env.section_0_segment_0_max_lane = @{NUMLANES - 1}@.eval[0];
+-- INIT env.section_0_segment_@{SEGMENTS - 1}@.eval[0]_min_lane = 0;

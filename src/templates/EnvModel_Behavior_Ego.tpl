@@ -692,6 +692,12 @@ DEFINE ego.traversion_to := veh___609___.traversion_to;
 
 }@******.if[@{!(EGOLESS)}@.eval]
 
+@{
+DEFINE ego.on_straight_section := 0;
+DEFINE ego.traversion_from := -1;
+DEFINE ego.traversion_to := -1;
+}@******.if[@{EGOLESS}@.eval]
+
 ---------------------------------------------------------------------
 -- Here comes logic which is independent of EGO-less or EGO-full mode
 ---------------------------------------------------------------------
