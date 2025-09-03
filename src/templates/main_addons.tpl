@@ -239,8 +239,8 @@ INVAR section_0_segment_2_max_lane = 0;
 
 -- @{NUMLANES}@.eval[0] Lanes.
 
-INIT env.section_2.angle = 0;
-INIT env.section_1.angle = 45;
+INIT env.section_2.angle != 0;
+INIT env.section_1.angle != 0;
 @{
 INIT env.veh___6[i]9___.is_on_sec_0 = 1;
 }@.for[[i], 0, @{NONEGOS - 1}@.eval]

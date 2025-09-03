@@ -297,6 +297,9 @@ public:
    void addNonegoOnCrossingTowards(const int r_id, const CarPars& nonego);
    void clearNonegosOnCrossingsTowardsAny();
 
+   void makeGhost();
+   bool isGhost() const;
+
    std::shared_ptr<xml::CodeXML> generateOSM() const;
 
    std::vector<ConnectorPolygonEnding> connectors_{}; // TODO: Make private.
@@ -318,6 +321,8 @@ private:
    std::vector<std::shared_ptr<RoadGraph>> predecessors_{};
 
    std::map<std::shared_ptr<RoadGraph>, std::vector<CarPars>> nonegos_towards_successors_{};
+
+   bool ghost_section_{ false }; // If true, the road is not painted nor its connections to others; only the cars are painted.
 };
 
 } // vfm
