@@ -407,7 +407,7 @@ void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
 
 void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
 {
-   findSectionWithID(0)->makeGhost();
+   //findSectionWithID(0)->makeGhost();
 
    //// Draw cars in crossing
    //if (i >= FIRST_LANE_CONNECTOR_ID) { // This is the id of the pavement.
