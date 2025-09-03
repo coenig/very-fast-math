@@ -1232,6 +1232,28 @@ void vfm::HighwayImage::paintRoadGraph(
                            }
                         }
                         //drawPolygon(arrow, BLACK, true, true, true);
+                         
+                        // TODO: REMOVE THIS
+                        // Draw cars in crossing
+                        if (i >= FIRST_LANE_CONNECTOR_ID) { // This is the id of the pavement.
+                           CarParsVec nonegos_on_crossing{ r->getNonegosOnCrossingTowardsSuccessor(r_succ) };
+
+                           for (const auto& nonego : nonegos_on_crossing) {
+                              if (nonego.car_lane_ == i - FIRST_LANE_CONNECTOR_ID) {
+                                 float arc_length{ bezier::arcLength(1, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) / norm_length_a };
+                                 float rel{ nonego.car_rel_pos_ / arc_length };
+
+                                 rel = std::max(0.0f, std::min(1.0f, rel));
+
+                                 Vec2D p{ bezier::pointAtRatio(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
+                                 Vec2D dir{ bezier::B_prime(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
+                                 plotCar2D(3, p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
+                                 //plotCar3D(p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
+                              }
+                           }
+                        }
+                        // EO TODO: REMOVE THIS
+
                      }
                   }
                }
