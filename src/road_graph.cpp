@@ -407,6 +407,42 @@ void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
 
 void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
 {
+   std::shared_ptr<RoadGraph> orig_section{ shared_from_this() };
+
+   applyToMeAndAllMySuccessorsAndPredecessors([orig_section](const std::shared_ptr<RoadGraph> r) {
+      for (const auto& cars_pair : r->getNonegosOnCrossingTowardsAllSuccessors()) {
+         std::shared_ptr<RoadGraph> r_target{ cars_pair.first };
+
+         for (const auto& car : cars_pair.second) {
+            Vec2D basepoint_a{ r->getDrainPoint() };
+            Vec2D dir_a{ r->getOriginPoint() };
+            Vec2D basepoint_b{ r_target->getOriginPoint() };
+            Vec2D dir_b{ r_target->getDrainPoint() };
+
+            auto nice_points = bezier::getNiceBetweenPoints(basepoint_a, dir_a, basepoint_b, dir_b);
+
+            Vec2D between1 = nice_points[0];
+            Vec2D between1_dir = nice_points[1];
+            Vec2D between2 = nice_points[2];
+            Vec2D between2_dir = nice_points[3];
+
+            int x{};
+         }
+      }
+   });
+
+
+   //auto nice_points = bezier::getNiceBetweenPoints(
+   //   a_connector_basepoint_translated, 
+   //   a_connector_direction_translated, 
+   //   b_connector_basepoint_translated, 
+   //   b_connector_direction_translated);
+
+   //Vec2D between1 = nice_points[0];
+   //Vec2D between1_dir = nice_points[1];
+   //Vec2D between2 = nice_points[2];
+   //Vec2D between2_dir = nice_points[3];
+
    //   CarParsVec nonegos_on_crossing{ r->getNonegosOnCrossingTowardsSuccessor(r_succ) };
 
    //   for (const auto& nonego : nonegos_on_crossing) {
