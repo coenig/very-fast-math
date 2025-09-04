@@ -1130,24 +1130,20 @@ void vfm::HighwayImage::paintRoadGraph(
                         const auto thick_a = A.thick_ * norm_length_a;
                         const auto thick_b = B.thick_ * norm_length_b;
 
-                        Vec2D between1 = a_connector_basepoint_translated;
-                        Vec2D between1_dir = a_connector_basepoint_translated;
-                        between1_dir.sub(a_connector_direction_translated);
+                        auto nice_points = bezier::getNiceBetweenPoints(a_connector_basepoint_translated, a_connector_direction_translated, b_connector_basepoint_translated, b_connector_direction_translated);
+
+                        Vec2D between1 = nice_points[0];
+                        Vec2D between1_dir = nice_points[1];
+                        Vec2D between2 = nice_points[2];
+                        Vec2D between2_dir = nice_points[3];
+
                         Vec2D between1_dir_ortho{ between1_dir };
                         between1_dir_ortho.ortho();
                         between1_dir_ortho.setLength(thick_a / 2);
 
-                        between1_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
-                        between1.add(between1_dir);
-                        Vec2D between2 = b_connector_basepoint_translated;
-                        Vec2D between2_dir = b_connector_basepoint_translated;
-                        between2_dir.sub(b_connector_direction_translated);
                         Vec2D between2_dir_ortho{ between2_dir };
                         between2_dir_ortho.ortho();
                         between2_dir_ortho.setLength(thick_b / 2);
-
-                        between2_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
-                        between2.add(between2_dir);
 
                         p.bezier(a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated, 0.01);
                         Pol2D arrow{};
