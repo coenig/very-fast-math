@@ -231,22 +231,13 @@ INVAR section_0_segment_2_max_lane = 0;
 
 
    --= General "Section" Stuff =--
-@{
-@{
-   -- INVAR outgoing_connection_0_of_section_[sec] = @{[sec] + 1}@.eval[0]; -- Make all sections connect.
-}@******.for[[sec], 0, @{SECTIONS - 2}@.eval]
-}@***********.nil
-
--- @{NUMLANES}@.eval[0] Lanes.
-
-INIT env.section_2.angle = 0;
-INIT env.section_1.angle = 45;
+--= General "Section" Stuff =--
+INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
+INVAR env.ego.v = 0;
 INIT env.veh___609___.is_on_sec_0 = 1;
 INIT env.veh___619___.is_on_sec_0 = 1;
 INIT env.veh___609___.abs_pos = 10;
-INIT env.veh___619___.abs_pos = 10;
-INIT env.ego_lane_0;
-INIT env.section_1_segment_0_max_lane = 0;
-INIT env.section_2_segment_0_min_lane > 0;
-INIT env.section_0_segment_0_max_lane = @{NUMLANES - 1}@.eval[0];
-INIT env.section_0_segment_1_min_lane = 0;
+INIT env.veh___619___.abs_pos = 20;
+
+--INIT env.veh___609___.lane_1;
+--INIT env.ego_lane_0;
