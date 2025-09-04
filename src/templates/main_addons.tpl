@@ -248,10 +248,10 @@ INIT env.veh___6[i]9___.abs_pos < env.section_0_end;
 @{-- INVAR abs(env.veh___6@{[i]-1}@.eval[0]9___.v - env.veh___6[i]9___.v) < 5;}@.if[@{[i]>0}@.eval]
 }@*.for[[i], 0, @{NONEGOS - 1}@.eval]
 
-INVAR env.ego.abs_pos = 0;
-INIT env.veh___609___.abs_pos = 10;
-INVAR env.veh___609___.v = 10;
+-- INVAR env.ego.v = 5;
+INIT env.ego.abs_pos = 0;
 INVAR env.veh___619___.v = 10;
+INVAR env.veh___629___.v = 10;
 INIT env.section_0_segment_0_max_lane = 2;
 INIT env.section_0_segment_0_min_lane = 0;
 
