@@ -239,8 +239,8 @@ INVAR section_0_segment_2_max_lane = 0;
 
 -- @{NUMLANES}@.eval[0] Lanes.
 
--- INIT env.section_2.angle != 0;
--- INIT env.section_1.angle != 0;
+INIT env.section_2.angle = 90;
+INIT env.section_1.angle = 45;
 @{
 INIT env.veh___6[i]9___.is_on_sec_0 = 1;
 INIT env.veh___6[i]9___.abs_pos < env.section_0_end;
@@ -250,6 +250,10 @@ INIT env.veh___6[i]9___.abs_pos < env.section_0_end;
 
 INVAR env.ego.abs_pos = 0;
 INIT env.veh___609___.abs_pos = 10;
+INVAR env.veh___609___.v = 10;
+INVAR env.veh___619___.v = 10;
+INIT env.section_0_segment_0_max_lane = 2;
+INIT env.section_0_segment_0_min_lane = 0;
 
 -- INIT env.section_1_segment_0_max_lane = 0;
 -- INIT env.section_2_segment_0_min_lane > 0;
