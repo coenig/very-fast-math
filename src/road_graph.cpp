@@ -239,6 +239,15 @@ std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithID(const int id)
    });
 }
 
+std::shared_ptr<RoadGraph> vfm::RoadGraph::findSuccessorSectionWithID(const int id)
+{
+   for (const auto& succ : getSuccessors()) {
+      if (succ->id_ == id) return succ;
+   }
+
+   return nullptr;
+}
+
 std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithCar(const int car_id)
 {
    return findFirstSectionWithProperty([car_id](const std::shared_ptr<RoadGraph> r) -> bool
@@ -251,6 +260,17 @@ std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithCar(const int car_id)
 
       return false;
    });
+}
+
+int vfm::RoadGraph::findFirstFreeID() const
+{
+   int id{ -1 };
+
+   const_cast<RoadGraph*>(this)->applyToMeAndAllMySuccessorsAndPredecessors([&id](const std::shared_ptr<RoadGraph> r) {
+      id = std::max(id, r->id_);
+   });
+
+   return id + 1;
 }
 
 std::shared_ptr<RoadGraph> vfm::RoadGraph::findSectionWithEgoIfAny() const
@@ -409,55 +429,64 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
 {
    std::shared_ptr<RoadGraph> orig_section{ shared_from_this() };
 
+   //orig_section->applyToMeAndAllMySuccessorsAndPredecessors([](const std::shared_ptr<RoadGraph> r) { r->makeGhost(); });
+
    applyToMeAndAllMySuccessorsAndPredecessors([orig_section](const std::shared_ptr<RoadGraph> r) {
+      const float MIDDLE_OF_ROAD{ orig_section->getMyRoad().getNumLanes() - 1.0f };
+      constexpr float SOME_LENGTH{ 10 }; // Length of the dummy section, should be completely arbitrary.
+
       for (const auto& cars_pair : r->getNonegosOnCrossingTowardsAllSuccessors()) {
          std::shared_ptr<RoadGraph> r_target{ cars_pair.first };
 
          for (const auto& car : cars_pair.second) {
-            Vec2D basepoint_a{ r->getDrainPoint() };
-            Vec2D dir_a{ r->getOriginPoint() };
-            Vec2D basepoint_b{ r_target->getOriginPoint() };
-            Vec2D dir_b{ r_target->getDrainPoint() };
+            Vec2D arc_origin{ r->getDrainPoint() };
+            Vec2D arc_origin_from{ r->getOriginPoint() };
+            Vec2D arc_target{ r_target->getOriginPoint() };
+            Vec2D arc_target_from{ r_target->getDrainPoint() };
 
-            auto nice_points = bezier::getNiceBetweenPoints(basepoint_a, dir_a, basepoint_b, dir_b);
+            Vec2D lane_correction_dir_origin_prereq{ arc_origin - arc_origin_from };
+            Vec2D lane_correction_dir_target_prereq{ arc_target - arc_target_from };
+            Vec2D lane_correction_dir_origin{ lane_correction_dir_origin_prereq };
+            Vec2D lane_correction_dir_target{ lane_correction_dir_target_prereq };
 
-            Vec2D between1 = nice_points[0];
-            Vec2D between1_dir = nice_points[1];
-            Vec2D between2 = nice_points[2];
-            Vec2D between2_dir = nice_points[3];
+            lane_correction_dir_origin.ortho();
+            lane_correction_dir_target.ortho();
+
+            float lane_correction_length{ LANE_WIDTH * (MIDDLE_OF_ROAD - car.car_lane_) / 2.0f };
+            lane_correction_dir_origin.setLength(lane_correction_length);
+            lane_correction_dir_target.setLength(-lane_correction_length);
+            arc_origin.add(lane_correction_dir_origin);
+            arc_origin_from.add(lane_correction_dir_origin);
+            arc_target.add(lane_correction_dir_target);
+            arc_target_from.add(lane_correction_dir_target);
+
+            auto nice_points = bezier::getNiceBetweenPoints(arc_origin, arc_origin_from, arc_target, arc_target_from);
+
+            Vec2D between1 = nice_points[0]; // Fields between1_dir [1] and...
+            Vec2D between2 = nice_points[2]; // ...between2_dir [3] not used.
+
+            float arc_length{ bezier::arcLength(1, arc_origin, between1, between2, arc_target) };
+            float rel{ car.car_rel_pos_ / arc_length };
+
+            rel = std::max(0.0f, std::min(1.0f, rel));
+
+            Vec2D p{ bezier::pointAtRatio(rel, arc_origin, between1, between2, arc_target) };
+            Vec2D dir{ bezier::B_prime(rel, arc_origin, between1, between2, arc_target) };
+
+            auto node = std::make_shared<RoadGraph>(orig_section->findFirstFreeID());
+            node->makeGhost();
+            node->setMyRoad(StraightRoadSection{ orig_section->getMyRoad().getNumLanes(), SOME_LENGTH });
+            r->removeNonegoFromCrossingTowards(r_target, car.car_id_);
+            node->my_road_.setOthers({ CarPars{ (float) MIDDLE_OF_ROAD / 2, 0, car.car_velocity_, car.car_id_ } }); // This lane ID marks the middle of the road.
+            node->setAngle(dir.angle({ 1, 0 }));
+            node->setOriginPoint(p);
+
+            orig_section->addSuccessor(node);
 
             int x{};
          }
       }
    });
-
-
-   //auto nice_points = bezier::getNiceBetweenPoints(
-   //   a_connector_basepoint_translated, 
-   //   a_connector_direction_translated, 
-   //   b_connector_basepoint_translated, 
-   //   b_connector_direction_translated);
-
-   //Vec2D between1 = nice_points[0];
-   //Vec2D between1_dir = nice_points[1];
-   //Vec2D between2 = nice_points[2];
-   //Vec2D between2_dir = nice_points[3];
-
-   //   CarParsVec nonegos_on_crossing{ r->getNonegosOnCrossingTowardsSuccessor(r_succ) };
-
-   //   for (const auto& nonego : nonegos_on_crossing) {
-   //      if (nonego.car_lane_ == i - FIRST_LANE_CONNECTOR_ID) {
-   //         float arc_length{ bezier::arcLength(1, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) / norm_length_a };
-   //         float rel{ nonego.car_rel_pos_ / arc_length };
-
-   //         rel = std::max(0.0f, std::min(1.0f, rel));
-
-   //         Vec2D p{ bezier::pointAtRatio(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
-   //         Vec2D dir{ bezier::B_prime(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
-   //         plotCar2D(3, p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
-   //         //plotCar3D(p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
-   //      }
-   //   }
 }
 
 static constexpr float EPS{ 0.01 };
@@ -576,13 +605,37 @@ void vfm::RoadGraph::addNonegoOnCrossingTowards(const std::shared_ptr<RoadGraph>
 
 void vfm::RoadGraph::addNonegoOnCrossingTowards(const int r_id, const CarPars& nonego)
 {
-   auto r = findSectionWithID(r_id);
+   auto r = findSectionWithID(r_id); // TODO: Can this be reduced to "findSuccessorSectionWithID"? (Why do we insert r first, can't we assume it's there?)
 
    if (r) {
       addNonegoOnCrossingTowards(r, nonego);
    }
    else {
-      addError("Id '" + std::to_string(r_id) + "' not found as successor of section '" + std::to_string(id_) + "'.");
+      addError("Id '" + std::to_string(r_id) + "' not found as successor of section '" + std::to_string(id_) + "'. Nothing to add.");
+   }
+}
+
+void vfm::RoadGraph::removeNonegoFromCrossingTowards(const std::shared_ptr<RoadGraph> r, const int nonego_id)
+{
+   auto& vec = nonegos_towards_successors_.at(r);
+
+   for (const auto& el : vec) {
+      if (el.car_id_ == nonego_id) {
+         vec.erase(std::remove(vec.begin(), vec.end(), el), vec.end());
+         return;
+      }
+   }
+}
+
+void vfm::RoadGraph::removeNonegoFromCrossingTowards(const int r_id, const int nonego_id)
+{
+   auto r = findSuccessorSectionWithID(r_id);
+
+   if (r) {
+      removeNonegoFromCrossingTowards(r, nonego_id);
+   }
+   else {
+      addError("Id '" + std::to_string(r_id) + "' not found as successor of section '" + std::to_string(id_) + "'. Nothing to remove.");
    }
 }
 
