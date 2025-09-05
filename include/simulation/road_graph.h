@@ -227,8 +227,10 @@ public:
    RoadGraph(const int id);
 
    std::shared_ptr<RoadGraph> findFirstSectionWithProperty(const std::function<bool(const std::shared_ptr<RoadGraph>)> property);
-   std::shared_ptr<RoadGraph> findSectionWithID(const int id);
+   std::shared_ptr<RoadGraph> findSectionWithID(const int id);          // Returns the node with the given id, if any, nullptr otherwise.
+   std::shared_ptr<RoadGraph> findSuccessorSectionWithID(const int id); // As before, but only direct successors count.
    std::shared_ptr<RoadGraph> findSectionWithCar(const int car_id);
+   int findFirstFreeID() const;
 
    struct CarLocation {
       std::shared_ptr<RoadGraph> on_section_or_origin_section_{}; // (Empty if no ego in graph, or) ON SECTION iff...
@@ -295,6 +297,8 @@ public:
    std::map<std::shared_ptr<RoadGraph>, std::vector<CarPars>> getNonegosOnCrossingTowardsAllSuccessors() const;
    void addNonegoOnCrossingTowards(const std::shared_ptr<RoadGraph> r, const CarPars& nonego);
    void addNonegoOnCrossingTowards(const int r_id, const CarPars& nonego);
+   void removeNonegoFromCrossingTowards(const std::shared_ptr<RoadGraph> r, const int nonego_id);
+   void removeNonegoFromCrossingTowards(const int r_id, const int nonego_id);
    void clearNonegosOnCrossingsTowardsAny();
 
    void makeGhost();

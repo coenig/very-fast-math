@@ -1090,7 +1090,7 @@ void vfm::HighwayImage::paintRoadGraph(
             infinite_road ? dim_raw : preserved_dimension_,
             mode);
 
-         writeAsciiText(10, -1, "Sec" + std::to_string(r_sub->getID()));
+         if (!r_sub->isGhost()) writeAsciiText(10, -1, "Sec" + std::to_string(r_sub->getID()));
       }
       };
 
