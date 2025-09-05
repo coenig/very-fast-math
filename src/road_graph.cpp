@@ -425,12 +425,10 @@ void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
    assert(r_ego->isRootedInZeroAndUnturned());
 }
 
-void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
+void vfm::RoadGraph::removeAllGhostSectionsFromThis()
 {
-   std::shared_ptr<RoadGraph> orig_section{ shared_from_this() };
    std::vector<std::shared_ptr<RoadGraph>> none_ghosts{};
 
-   // TODO: Put to a "better place":
    for (const auto& sec : successors_) {
       if (!sec->isGhost()) {
          none_ghosts.push_back(sec);
@@ -441,11 +439,16 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
    for (const auto& sec : none_ghosts) {
       successors_.push_back(sec);
    }
-   // EO TODO
+}
+
+void vfm::RoadGraph::transformAllCarsToStraightRoadSections(const bool adjust_to_ego_lane)
+{
+   std::shared_ptr<RoadGraph> orig_section{ shared_from_this() };
+   removeAllGhostSectionsFromThis(); // Must be always the same section (e.g., 0) to avoid garbage ghost sections.
 
    //orig_section->applyToMeAndAllMySuccessorsAndPredecessors([](const std::shared_ptr<RoadGraph> r) { if (r->id_ != 0) r->makeGhost(); });
 
-   applyToMeAndAllMySuccessorsAndPredecessors([orig_section](const std::shared_ptr<RoadGraph> r) {
+   applyToMeAndAllMySuccessorsAndPredecessors([orig_section, adjust_to_ego_lane](const std::shared_ptr<RoadGraph> r) {
       const float MIDDLE_OF_ROAD{ orig_section->getMyRoad().getNumLanes() - 1.0f };
       constexpr float SOME_LENGTH{ 10 }; // Length of the dummy section, should be completely arbitrary.
 
@@ -466,7 +469,9 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
             lane_correction_dir_origin.ortho();
             lane_correction_dir_target.ortho();
 
-            float lane_correction_length{ LANE_WIDTH * (MIDDLE_OF_ROAD - car.car_lane_ * 2) / 2.0f };
+            const float ego_adjust{ adjust_to_ego_lane ? orig_section->findEgo().the_car_->car_lane_ * 0.75f : 0};
+
+            float lane_correction_length{ LANE_WIDTH * (MIDDLE_OF_ROAD / 2.0f - car.car_lane_) };
             lane_correction_dir_origin.setLength(lane_correction_length);
             lane_correction_dir_target.setLength(-lane_correction_length);
             arc_origin.add(lane_correction_dir_origin);
@@ -496,8 +501,6 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
             node->setOriginPoint(p);
 
             orig_section->addSuccessor(node);
-
-            int x{};
          }
       }
    });
