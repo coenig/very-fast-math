@@ -274,7 +274,8 @@ public:
    /// </summary>
    void normalizeRoadGraphToEgoSection();
 
-   void transformAllCarsToStraightRoadSections();
+   void removeAllGhostSectionsFromThis();
+   void transformAllCarsToStraightRoadSections(const bool adjust_to_ego_lane = false);
 
    int getID() const;
    int getNodeCount() const;
