@@ -1021,7 +1021,8 @@ void vfm::HighwayImage::paintRoadGraph(
 
    const auto DRAW_STRAIGHT_ROAD_OR_CARS = [&](const RoadDrawingMode mode) {
       for (const auto r_sub : all_nodes_ego_in_front) {
-         if (mode == RoadDrawingMode::road && r_sub->isGhost()) continue;
+         if (mode == RoadDrawingMode::road && r_sub->isGhost()
+            || mode == RoadDrawingMode::ghosts_only && !r_sub->isGhost()) continue;
 
          const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
          preserved_dimension_ = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
@@ -1088,7 +1089,7 @@ void vfm::HighwayImage::paintRoadGraph(
             var_vals,
             print_agent_ids,
             infinite_road ? dim_raw : preserved_dimension_,
-            mode);
+            mode == RoadDrawingMode::ghosts_only ? RoadDrawingMode::road : mode);
 
          if (!r_sub->isGhost()) writeAsciiText(10, -1, "Sec" + std::to_string(r_sub->getID()));
       }
@@ -1274,6 +1275,7 @@ void vfm::HighwayImage::paintRoadGraph(
    }
 
    setTranslator(old_trans);
+   DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::ghosts_only); // For debugging.
    DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
    setTranslator(old_trans);
 }
