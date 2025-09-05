@@ -469,8 +469,6 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections(const bool adjust_to
             lane_correction_dir_origin.ortho();
             lane_correction_dir_target.ortho();
 
-            const float ego_adjust{ adjust_to_ego_lane ? orig_section->findEgo().the_car_->car_lane_ * 0.75f : 0};
-
             float lane_correction_length{ LANE_WIDTH * (MIDDLE_OF_ROAD / 2.0f - car.car_lane_) };
             lane_correction_dir_origin.setLength(lane_correction_length);
             lane_correction_dir_target.setLength(-lane_correction_length);
