@@ -227,7 +227,7 @@ void vfm::mc::trajectory_generator::LiveSimGenerator::equipRoadGraphWithCars(
       r->getMyRoad().getNumLanes() - 1 + current_ego.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH, // Lane
       current_ego.second.at(PossibleParameter::pos_x),                                                                           // Position
       current_ego.second.at(PossibleParameter::vel_x) / x_scaling,                                                               // Velocity
-      vfm::RoadGraph::EGO_MOCK_ID                                                                                             // ID
+      vfm::RoadGraph::EGO_MOCK_ID                                                                                                // ID
    );
 
    // TODO: Double code towards below.
@@ -254,7 +254,8 @@ void vfm::mc::trajectory_generator::LiveSimGenerator::equipRoadGraphWithCars(
       }
    }
    else {
-      addError("Ego car is placed neither on a straight section nor on a junction.");
+      addError("Ego car is placed neither on a straight section nor on a junction. Guessing it should be on section '0'.");
+      r->findSectionWithID(0)->getMyRoad().setEgo(ego);
    }
    // EO TODO: Double code towards below.
 
