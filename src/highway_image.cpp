@@ -1274,7 +1274,7 @@ void vfm::HighwayImage::paintRoadGraph(
    }
 
    setTranslator(old_trans);
-   DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::ghosts_only); // For debugging.
+   //DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::ghosts_only); // For debugging.
    DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
    setTranslator(old_trans);
 }
