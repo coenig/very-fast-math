@@ -430,7 +430,7 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
    std::shared_ptr<RoadGraph> orig_section{ shared_from_this() };
    std::vector<std::shared_ptr<RoadGraph>> none_ghosts{};
 
-   // TODO: Make better:
+   // TODO: Put to a "better place":
    for (const auto& sec : successors_) {
       if (!sec->isGhost()) {
          none_ghosts.push_back(sec);
@@ -466,7 +466,7 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
             lane_correction_dir_origin.ortho();
             lane_correction_dir_target.ortho();
 
-            float lane_correction_length{ LANE_WIDTH * (MIDDLE_OF_ROAD - car.car_lane_) / 2.0f };
+            float lane_correction_length{ LANE_WIDTH * (MIDDLE_OF_ROAD - car.car_lane_ * 2) / 2.0f };
             lane_correction_dir_origin.setLength(lane_correction_length);
             lane_correction_dir_target.setLength(-lane_correction_length);
             arc_origin.add(lane_correction_dir_origin);
