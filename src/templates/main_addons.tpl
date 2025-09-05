@@ -238,15 +238,23 @@ INIT env.veh___609___.is_on_sec_0 = 1;
 INIT env.veh___619___.is_on_sec_0 = 1;
 INIT env.veh___609___.abs_pos = 10;
 INIT env.veh___619___.abs_pos = 20;
-INIT env.section_1.source.y = env.section_2.source.y;
-INIT env.section_1.angle != 0;
+INIT abs(env.section_0.source.y - env.section_1.source.y) >= 10;
+INIT abs(env.section_0.source.x - env.section_1.source.x) >= 10;
+INIT abs(env.section_0.source.y - env.section_2.source.y) >= 10;
+INIT abs(env.section_0.source.x - env.section_2.source.x) >= 10;
+INIT abs(env.section_0.source.y - env.section_3.source.y) >= 10;
+INIT abs(env.section_0.source.x - env.section_3.source.x) >= 10;
+INIT abs(env.section_1.source.y - env.section_2.source.y) >= 10;
+INIT abs(env.section_1.source.x - env.section_2.source.x) >= 10;
+INIT abs(env.section_1.source.y - env.section_3.source.y) >= 10;
+INIT abs(env.section_1.source.x - env.section_3.source.x) >= 10;
+INIT abs(env.section_2.source.y - env.section_3.source.y) >= 10;
+INIT abs(env.section_2.source.x - env.section_3.source.x) >= 10;
 
-INVAR abs(env.veh___609___.abs_pos - env.veh___619___.abs_pos) <= 6 -> (env.veh___609___.on_straight_section >= 0 & env.veh___619___.on_straight_section >= 0);
-
-INIT env.section_0_end = 50;
-INIT env.section_1_end = 20;
-INIT env.section_2_end = 20;
-INIT env.section_3_end = 20;
+INIT env.section_0_end = 31;
+INIT env.section_1_end = 31;
+INIT env.section_2_end = 31;
+INIT env.section_3_end = 31;
 
 --INIT env.veh___609___.lane_1;
 --INIT env.ego_lane_0;
