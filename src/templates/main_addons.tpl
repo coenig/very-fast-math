@@ -249,7 +249,6 @@ INIT env.veh___6[i]9___.abs_pos < env.section_0_end;
 }@*.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 -- INVAR env.ego.v = 5;
-INVAR env.veh___609___.is_on_sec_0 = 1;
 INVAR env.veh___619___.v = 10;
 INVAR env.veh___629___.v = 10;
 INIT env.section_0_segment_0_max_lane = 2;

@@ -265,25 +265,20 @@ void MCinterpretedTrace::interpolate(const std::string& vehicle_name, FullTrajec
 
       // Here come the helper variables for interpolation when jumping over borders of straight sections and curved junctions.
       // TODO: Maybe this all should better go in the actual interpolation function??
-      // TODO: remove special treatment for ego once ego data is also there.
-      const int on_straight_section{ vehicle_name == "ego" ? -1 : (int)std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt)) };
-      const int traversion_from{ vehicle_name == "ego" ? -1 : (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_from", trace_cnt)) };
-      const int traversion_to{ vehicle_name == "ego" ? -1 : (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_to", trace_cnt)) };
+      const int on_straight_section{ (int)std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt)) };
+      const int traversion_from{ (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_from", trace_cnt)) };
+      const int traversion_to{ (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_to", trace_cnt)) };
 
       if (on_straight_section < 0 && traversion_from < 0 && traversion_to < 0) {
          addError("Car '" + vehicle_name + "' is neither on straight section nor on curved junction.");
       }
 
-      const int on_lane{ vehicle_name == "ego" ? -1 : (int)(std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_lane", trace_cnt)) / 2) };
-      const int current_seclet_length{ vehicle_name == "ego" 
-         ? -1 
-         : (on_straight_section >= 0
+      const int on_lane{ (int)(std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_lane", trace_cnt)) / 2) };
+      const int current_seclet_length{ (on_straight_section >= 0
             ? (int)std::stof(trace.getLastValueOfVariableAtStep("env.section_" + std::to_string(on_straight_section) + "_end", trace_cnt))
             : (int)std::stof(trace.getLastValueOfVariableAtStep("env.arclength_from_sec_" + std::to_string(traversion_from) + "_to_sec_" + std::to_string(traversion_to) + "_on_lane_" + std::to_string(on_lane), trace_cnt))
-            )};
-      const bool is_switching_towards_next_step{ vehicle_name == "ego" || trace.size() <= trace_cnt + 2
-         ? false 
-         : trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt) != trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt + 2) };
+            ) };
+      const bool is_switching_towards_next_step{ trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt) != trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt + 2) };
 
 		for (size_t j = 1; j < (steps_between + 1); j++)
 		{
