@@ -494,7 +494,21 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections(const bool adjust_to
             node->makeGhost();
             node->setMyRoad(StraightRoadSection{ orig_section->getMyRoad().getNumLanes(), SOME_LENGTH });
             r->removeNonegoFromCrossingTowards(r_target, car.car_id_);
-            node->my_road_.setOthers({ CarPars{ (float) MIDDLE_OF_ROAD / 2, 0, car.car_velocity_, car.car_id_ } }); // This lane ID marks the middle of the road.
+
+            if (car.car_id_ == EGO_MOCK_ID) {
+               node->my_road_.setEgo(std::make_shared<CarPars>(
+                  (float)MIDDLE_OF_ROAD / 2, // This lane ID marks the middle of the road.
+                     0,
+                     car.car_velocity_,
+                     car.car_id_ ));
+            } else {
+               node->my_road_.setOthers({ CarPars{ 
+                  (float)MIDDLE_OF_ROAD / 2, // This lane ID marks the middle of the road.
+                  0, 
+                  car.car_velocity_, 
+                  car.car_id_ } });
+            }
+
             node->setAngle((Vec2D{0, 0} - dir).angle({ 1, 0 }));
             node->setOriginPoint(p);
 
