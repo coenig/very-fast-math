@@ -130,7 +130,7 @@ public:
 
    std::shared_ptr<OptionsGlobal> getRuntimeGlobalOptions() const;
 
-   void putJSONIntoDataPack(const std::string& json_config = JSON_TEMPLATE_DENOTER);
+   bool putJSONIntoDataPack(const std::string& json_config = JSON_TEMPLATE_DENOTER);
 
    static void runMCJob(MCScene* mc_scene, const std::string& path_generated, const std::string config_name);
    static void runMCJobs(MCScene* mc_scene);
