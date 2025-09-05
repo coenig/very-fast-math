@@ -428,8 +428,22 @@ void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
 void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
 {
    std::shared_ptr<RoadGraph> orig_section{ shared_from_this() };
+   std::vector<std::shared_ptr<RoadGraph>> none_ghosts{};
 
-   //orig_section->applyToMeAndAllMySuccessorsAndPredecessors([](const std::shared_ptr<RoadGraph> r) { r->makeGhost(); });
+   // TODO: Make better:
+   for (const auto& sec : successors_) {
+      if (!sec->isGhost()) {
+         none_ghosts.push_back(sec);
+      }
+   }
+
+   successors_.clear();
+   for (const auto& sec : none_ghosts) {
+      successors_.push_back(sec);
+   }
+   // EO TODO
+
+   //orig_section->applyToMeAndAllMySuccessorsAndPredecessors([](const std::shared_ptr<RoadGraph> r) { if (r->id_ != 0) r->makeGhost(); });
 
    applyToMeAndAllMySuccessorsAndPredecessors([orig_section](const std::shared_ptr<RoadGraph> r) {
       const float MIDDLE_OF_ROAD{ orig_section->getMyRoad().getNumLanes() - 1.0f };
@@ -478,7 +492,7 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
             node->setMyRoad(StraightRoadSection{ orig_section->getMyRoad().getNumLanes(), SOME_LENGTH });
             r->removeNonegoFromCrossingTowards(r_target, car.car_id_);
             node->my_road_.setOthers({ CarPars{ (float) MIDDLE_OF_ROAD / 2, 0, car.car_velocity_, car.car_id_ } }); // This lane ID marks the middle of the road.
-            node->setAngle(dir.angle({ 1, 0 }));
+            node->setAngle((Vec2D{0, 0} - dir).angle({ 1, 0 }));
             node->setOriginPoint(p);
 
             orig_section->addSuccessor(node);

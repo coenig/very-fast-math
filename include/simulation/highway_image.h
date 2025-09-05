@@ -72,7 +72,8 @@ public:
    enum class RoadDrawingMode {
       road,
       cars,
-      both
+      both,
+      ghosts_only
    };
 
    /// Core function for painting a straight road section.
