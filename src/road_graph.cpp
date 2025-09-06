@@ -419,7 +419,7 @@ void vfm::RoadGraph::normalizeRoadGraphToEgo()
       r->origin_point_.add(-specialPoint.x, -specialPoint.y);
    }
 
-   assert(r_ego->isRootedInZeroAndUnturned());
+   assert(r_ego->isAngleZero());
 }
 
 void vfm::RoadGraph::removeAllGhostSectionsFromThis()

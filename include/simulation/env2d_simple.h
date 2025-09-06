@@ -130,10 +130,10 @@ public:
 
       const bool infinite_highway{ road_graph->getNodeCount() == 1 };
       
-      const Rec2D bounding_box{ infinite_highway ? Rec2D{} : road_graph->getBoundingBox() };
+      Rec2D bounding_box{ infinite_highway ? Rec2D{} : road_graph->getBoundingBox() };
       const float offset_x{ infinite_highway
          ? 60 
-         : - bounding_box.upper_left_.x + 15 };
+         : -bounding_box.upper_left_.x + 15 };
       const float offset_y{ 
          infinite_highway
          ? 
