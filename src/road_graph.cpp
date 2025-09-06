@@ -401,13 +401,16 @@ std::pair<Vec2D, float> vfm::RoadGraph::getEgoOriginAndRotation()
    }
 }
 
-void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
+void vfm::RoadGraph::normalizeRoadGraphToEgo()
 {
    const auto r_ego = findSectionWithEgoIfAny();
 
-   if (!r_ego) addError("No ego found on any straight section in road graph.");
+   if (!r_ego) {
+      addError("No ego found on any straight section in road graph.");
+      return;
+   }
 
-   const Vec2D specialPoint{ r_ego->getOriginPoint() };
+   const Vec2D specialPoint{ r_ego->getOriginPoint() + Vec2D{ r_ego->my_road_.getEgo()->car_rel_pos_, 0 } };
    const float theta{ -r_ego->getAngle() };
 
    for (const auto& r : getAllNodes()) {

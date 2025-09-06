@@ -272,7 +272,7 @@ public:
    /// <summary>
    /// Translates and rotates THE WHOLE GRAPH such that the section with ego on it "isRootedInZeroAndUnturned()".
    /// </summary>
-   void normalizeRoadGraphToEgoSection();
+   void normalizeRoadGraphToEgo();
 
    void removeAllGhostSectionsFromThis();
    void transformAllCarsToStraightRoadSections(const bool adjust_to_ego_lane = false);
