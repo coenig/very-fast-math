@@ -491,7 +491,7 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections(const bool adjust_to
             Vec2D dir{ bezier::B_prime(rel, arc_origin, between1, between2, arc_target) };
 
             auto node = std::make_shared<RoadGraph>(orig_section->findFirstFreeID());
-            node->makeGhost();
+            //node->makeGhost();
             node->setMyRoad(StraightRoadSection{ orig_section->getMyRoad().getNumLanes(), SOME_LENGTH });
             r->removeNonegoFromCrossingTowards(r_target, car.car_id_);
 
