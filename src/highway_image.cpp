@@ -1103,9 +1103,9 @@ void vfm::HighwayImage::paintRoadGraph(
       setTranslator(std::make_shared<DefaultHighwayTranslator>());
    }
 
-   //return;
    // Draw crossings between sections.
    std::vector<Pol2D> additional_arrows{};
+   //goto label;
 
    for (int i = 0; i <= 30; i++) {
       my_r->applyToMeAndAllMySuccessorsAndPredecessors([this, i, &dim_raw, &additional_arrows, old_trans](const std::shared_ptr<RoadGraph> r) -> void
@@ -1251,8 +1251,9 @@ void vfm::HighwayImage::paintRoadGraph(
       }
    }
 
+   label:
    setTranslator(old_trans);
-   DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::ghosts_only); // For debugging.
+   //DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::ghosts_only); // For debugging.
    DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
    setTranslator(old_trans);
 }
