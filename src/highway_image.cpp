@@ -1005,7 +1005,6 @@ void vfm::HighwayImage::paintRoadGraph(
    }
 
    auto r_ego = my_r->findSectionWithEgoIfAny();
-   auto ego_pos = r_ego->getMyRoad().getEgo()->car_rel_pos_;
    auto ego_lane = r_ego->getMyRoad().getEgo()->car_lane_;
    std::vector<std::shared_ptr<RoadGraph>> all_nodes_ego_in_front{};
 
@@ -1026,7 +1025,7 @@ void vfm::HighwayImage::paintRoadGraph(
          const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
          preserved_dimension_ = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
 
-         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D { // TODO: The below getNumLanes() magic constant for ghost sections is not accurate.
+         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, ego_lane, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D { // TODO: The below getNumLanes() magic constant for ghost sections is not accurate.
             const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -(r_sub->isGhost() ? r_sub->my_road_.getNumLanes() * ego_lane : ego_lane) : 0)};
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
             Vec2D v{ plain_2d_translator_->translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
@@ -1039,7 +1038,7 @@ void vfm::HighwayImage::paintRoadGraph(
                v_raw.z };
             };
 
-         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D { // TODO: The below getNumLanes() magic constant for ghost sections is not accurate.
+         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, ego_lane, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D { // TODO: The below getNumLanes() magic constant for ghost sections is not accurate.
             const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -(r_sub->isGhost() ? r_sub->my_road_.getNumLanes() * ego_lane : ego_lane) : 0) };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
 
