@@ -15,8 +15,6 @@ namespace vfm {
 class HighwayImage : public Image, public Failable
 {
 public:
-   constexpr static int EGO_MOCK_ID{ -100 };
-
    HighwayImage(const int width, const int height, const std::shared_ptr<HighwayTranslator> translator, const int num_lanes);
    HighwayImage(const std::shared_ptr<HighwayTranslator> translator, const int num_lanes);
 
@@ -74,7 +72,8 @@ public:
    enum class RoadDrawingMode {
       road,
       cars,
-      both
+      both,
+      ghosts_only
    };
 
    /// Core function for painting a straight road section.

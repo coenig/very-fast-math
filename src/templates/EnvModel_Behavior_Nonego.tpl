@@ -123,7 +123,7 @@ esac;
 }@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 -- EO Make sure non-egos do not drive on the GREEN.
-
+-- TODO: KEEP_EGO_FROM_GREEN has not been implemented, yet, with the new approach "ego = veh[0]". (I.e., ego is ALWAYS kept off green, it can't be DEactivated.)
 
 DEFINE
 
@@ -234,7 +234,7 @@ ASSIGN
     init(veh___6[i]9___.prev_rel_pos) := 0;
     init(veh___6[i]9___.prev_abs_pos) := 0;
     -- init(veh___6[i]9___.v) := @{MAXSPEEDNONEGO / 2}@.velocityWorldToEnvModelConst;
-    @{init(veh___6[i]9___.a) := 0;}@******.if[@{!(EGOLESS)}@.eval]
+    @{-- init(veh___6[i]9___.a) := 0;}@******.if[@{!(EGOLESS)}@.eval]
 
 @{
 @(
@@ -378,7 +378,7 @@ ASSIGN
 
     @{
        @{
-          @{INVAR (veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1) -> (veh___6[i]9___.v <= 10 & veh___6[i]9___.lane_single);}@.if[@{[sec] != [sec2]}@.eval]
+          @{INVAR (veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1) -> (veh___6[i]9___.v <= 20 & veh___6[i]9___.lane_single);}@.if[@{[sec] != [sec2]}@.eval]
           @{TRANS next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) = 1 -> veh___6[i]9___.lane_single;}@.if[@{[sec] != [sec2]}@.eval]
        }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
     }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]

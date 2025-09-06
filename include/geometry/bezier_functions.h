@@ -75,4 +75,23 @@ static Vec2D pointAtRatio(float l, const Vec2D& s, const Vec2D& v, const Vec2D& 
    float t = findT(l * totalLength, s, v, w, e);
    return cubicBezier(t, s, v, w, e);
 }
+
+static std::vector<Vec2D> getNiceBetweenPoints(const Vec2D& point_orig, const Vec2D& dir_orig, const Vec2D& point_targ, const Vec2D& dir_targ)
+{
+   Vec2D between1 = point_orig;
+   Vec2D between1_dir = point_orig;
+   between1_dir.sub(dir_orig);
+
+   between1_dir.setLength(point_orig.distance(point_targ) / 3);
+   between1.add(between1_dir);
+   Vec2D between2 = point_targ;
+   Vec2D between2_dir = point_targ;
+   between2_dir.sub(dir_targ);
+
+   between2_dir.setLength(point_orig.distance(point_targ) / 3);
+   between2.add(between2_dir);
+
+   return { between1, between1_dir, between2, between2_dir };
+}
+
 } // vfm::bezier

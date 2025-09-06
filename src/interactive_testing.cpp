@@ -863,7 +863,7 @@ void vfm::test::cameraRotationTester()
    auto perspective{ trans->getPerspective() };
    constexpr float PI{ 3.14159265359 };
    StraightRoadSection lanes{ 3, {} };
-   CarPars ego{ 1, 0, 0, HighwayImage::EGO_MOCK_ID };
+   CarPars ego{ 1, 0, 0, RoadGraph::EGO_MOCK_ID };
    CarParsVec others{ { 2, 100, 100, 0 }, { 0, 150, 150, 1 }, { 1, 130, 130, 2 } };
    lanes.addLaneSegment(LaneSegment(-50, 0, 4));
    lanes.addLaneSegment(LaneSegment(0, 2, 2));
@@ -885,7 +885,7 @@ void vfm::test::cameraRotationTester()
    for (float i = 0; i > -300; i += 1) {
       HighwayImage img_new{ 1000, 1000, trans, 3 };
       img_new.startOrKeepUpPDF();
-      lanes.setEgo(std::make_shared<CarPars>(ego.car_lane_, ego.car_rel_pos_, ego.car_velocity_, HighwayImage::EGO_MOCK_ID));
+      lanes.setEgo(std::make_shared<CarPars>(ego.car_lane_, ego.car_rel_pos_, ego.car_velocity_, RoadGraph::EGO_MOCK_ID));
       lanes.setOthers(others);
       lanes.setFuturePositionsOfOthers({});
 
@@ -1078,7 +1078,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphCrossing(
    sectiona3.addLaneSegment(segment32);
    sectiona4.addLaneSegment(segment41);
    sectiona4.addLaneSegment(segment42);
-   std::shared_ptr<CarPars> egoa = std::make_shared<CarPars>(20, 40, 13, HighwayImage::EGO_MOCK_ID);
+   std::shared_ptr<CarPars> egoa = std::make_shared<CarPars>(20, 40, 13, RoadGraph::EGO_MOCK_ID);
    std::map<int, std::pair<float, float>> future_positions_of_others1{};
    std::map<int, std::pair<float, float>> future_positions_of_others2{};
    std::map<int, std::pair<float, float>> future_positions_of_others3{};
@@ -1187,7 +1187,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(
    sectiona3.addLaneSegment(segment32);
    sectiona4.addLaneSegment(segment41);
    sectiona4.addLaneSegment(segment42);
-   std::shared_ptr<CarPars> egoa = std::make_shared<CarPars>(2, 40, 13, HighwayImage::EGO_MOCK_ID);
+   std::shared_ptr<CarPars> egoa = std::make_shared<CarPars>(2, 40, 13, RoadGraph::EGO_MOCK_ID);
    std::map<int, std::pair<float, float>> future_positions_of_others1{};
    std::map<int, std::pair<float, float>> future_positions_of_others2{};
    std::map<int, std::pair<float, float>> future_positions_of_others3{};
@@ -1308,7 +1308,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    section5.addLaneSegment(segment5);
    section6.addLaneSegment(segment6);
    section7.addLaneSegment(segment7);
-   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 0, 0, HighwayImage::EGO_MOCK_ID);
+   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 0, 0, RoadGraph::EGO_MOCK_ID);
    std::map<int, std::pair<float, float>> future_positions_of_others{};
    CarParsVec others0{ { 0, 10, 0, 0 } };
    CarParsVec others1{ { 0, 40, 0, 1 } };

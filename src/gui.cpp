@@ -612,9 +612,10 @@ std::shared_ptr<OptionsGlobal> vfm::MCScene::getRuntimeGlobalOptions() const
    return runtime_global_options_;
 }
 
-void vfm::MCScene::putJSONIntoDataPack(const std::string& json_config)
+bool vfm::MCScene::putJSONIntoDataPack(const std::string& json_config)
 {
    const bool from_template{ json_config == JSON_TEMPLATE_DENOTER };
+   bool config_valid{ false };
 
    //data_->reset();
 
@@ -623,6 +624,8 @@ void vfm::MCScene::putJSONIntoDataPack(const std::string& json_config)
 
       for (auto& [key_config, value_config] : j.items()) {
          if (key_config == json_config) {
+            config_valid = true;
+
             for (auto& [key, value] : value_config.items()) {
                if (value.is_string()) {
                   std::string val_str = StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "");
@@ -642,7 +645,9 @@ void vfm::MCScene::putJSONIntoDataPack(const std::string& json_config)
       //addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
    }
 
-   //addError("#KEY-NOT-FOUND in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
+   if (!config_valid) addError("Config '" + json_config + "' not found in JSON. (Did you rename the folders by hand? You're not supposed to do that.)");
+
+   return config_valid;
 }
 
 void MCScene::showAllBBGroups(const bool show)
@@ -1487,8 +1492,8 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
       mc_scene->deleteMCOutputFromFolder(path_generated, true);
       mc_scene->preprocessAndRewriteJSONTemplate();
 
-      mc_scene->putJSONIntoDataPack();
-      mc_scene->putJSONIntoDataPack(config_name);
+      if (!mc_scene->putJSONIntoDataPack()) return;
+      if (!mc_scene->putJSONIntoDataPack(config_name)) return;
 
       std::string main_smv{ StaticHelper::readFile(path_generated + "/main.smv") };
 

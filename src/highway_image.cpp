@@ -707,7 +707,7 @@ void vfm::HighwayImage::paintStraightRoadSceneFromData(StraightRoadSection& lane
    }
 
    lane_structure.setNumLanes(3);
-   lane_structure.setEgo(std::make_shared<CarPars>(ego_lane, 0, (int)ego_v, EGO_MOCK_ID));
+   lane_structure.setEgo(std::make_shared<CarPars>(ego_lane, 0, (int)ego_v, RoadGraph::EGO_MOCK_ID));
    lane_structure.setOthers({ { veh0_lane, veh0_rel_pos, (int)veh0_v, 0 }, { veh1_lane, veh1_rel_pos, (int)veh1_v, 1 } });
    lane_structure.setFuturePositionsOfOthers(future_data ? std::map<int, std::pair<float, float>>
    { { 0, { future_veh0_rel_pos, future_veh0_lane } },
@@ -726,7 +726,7 @@ void vfm::HighwayImage::paintStraightRoadSceneSimple(
 {
    StraightRoadSection dummy{};
 
-   dummy.setEgo(std::make_shared<CarPars>(ego.car_lane_, ego.car_rel_pos_, ego.car_velocity_, EGO_MOCK_ID));
+   dummy.setEgo(std::make_shared<CarPars>(ego.car_lane_, ego.car_rel_pos_, ego.car_velocity_, RoadGraph::EGO_MOCK_ID));
    dummy.setOthers(others);
    dummy.setFuturePositionsOfOthers(future_positions_of_others);
 
@@ -946,7 +946,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    // Drains and sources.
    const Vec2D fix{ (float) fix_for_connections, 0 };
    const auto bottom = tl_orig.y + br_orig.y - tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
-   const auto top = tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
+   const auto top =    tl_orig.y +                         (getHighwayTranslator()->is3D() ? 0 : ego_lane);
    const auto left = road_begin - ego_rel_pos;
    const auto right = left + road_length;
    const auto bottom_right_corner = Vec2D{ right, bottom };
@@ -1004,7 +1004,7 @@ void vfm::HighwayImage::paintRoadGraph(
       dim_raw = { (float)getWidth(), (float)getHeight() };
    }
 
-   auto r_ego = my_r->findSectionWithEgo();
+   auto r_ego = my_r->findSectionWithEgoIfAny();
    auto ego_pos = r_ego->getMyRoad().getEgo()->car_rel_pos_;
    auto ego_lane = r_ego->getMyRoad().getEgo()->car_lane_;
    std::vector<std::shared_ptr<RoadGraph>> all_nodes_ego_in_front{};
@@ -1020,11 +1020,14 @@ void vfm::HighwayImage::paintRoadGraph(
 
    const auto DRAW_STRAIGHT_ROAD_OR_CARS = [&](const RoadDrawingMode mode) {
       for (const auto r_sub : all_nodes_ego_in_front) {
+         if (mode == RoadDrawingMode::road && r_sub->isGhost()
+            || mode == RoadDrawingMode::ghosts_only && !r_sub->isGhost()) continue;
+
          const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
          preserved_dimension_ = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
 
-         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
-            const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0) };
+         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D { // TODO: The below getNumLanes() magic constant for ghost sections is not accurate.
+            const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -(r_sub->isGhost() ? r_sub->my_road_.getNumLanes() * ego_lane : ego_lane) : 0)};
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
             Vec2D v{ plain_2d_translator_->translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
             v.rotate(r_sub->getAngle(), { middle.x, middle.y });
@@ -1036,8 +1039,8 @@ void vfm::HighwayImage::paintRoadGraph(
                v_raw.z };
             };
 
-         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
-            const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -ego_lane : 0) };
+         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, ego_pos, ego_lane, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D { // TODO: The below getNumLanes() magic constant for ghost sections is not accurate.
+            const Vec2D origin{ r_sub->getOriginPoint().x - (r_ego == r_sub ? 0 : ego_pos), r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -(r_sub->isGhost() ? r_sub->my_road_.getNumLanes() * ego_lane : ego_lane) : 0) };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
 
             Vec2D v{
@@ -1085,12 +1088,12 @@ void vfm::HighwayImage::paintRoadGraph(
             var_vals,
             print_agent_ids,
             infinite_road ? dim_raw : preserved_dimension_,
-            mode);
+            mode == RoadDrawingMode::ghosts_only ? RoadDrawingMode::road : mode);
 
-         writeAsciiText(10, -1, "Sec" + std::to_string(r_sub->getID()));
+         if (!r_sub->isGhost()) writeAsciiText(10, -1, "Sec" + std::to_string(r_sub->getID()));
       }
-   };
-   
+      };
+
    DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::road);
 
    if (old_trans->is3D()) {
@@ -1099,180 +1102,137 @@ void vfm::HighwayImage::paintRoadGraph(
    else {
       setTranslator(std::make_shared<DefaultHighwayTranslator>());
    }
-   
-   //return;
+
    // Draw crossings between sections.
    std::vector<Pol2D> additional_arrows{};
+   //goto label;
 
    for (int i = 0; i <= 30; i++) {
       my_r->applyToMeAndAllMySuccessorsAndPredecessors([this, i, &dim_raw, &additional_arrows, old_trans](const std::shared_ptr<RoadGraph> r) -> void
-      {
-         for (const auto& r_succ : r->getSuccessors()) {
-            for (const auto& A : r->connectors_) {
-               for (const auto& B : r_succ->connectors_) {
-                  if (A.id_ == i && A.id_ == B.id_ && A.side_ == ConnectorPolygonEnding::Side::drain && B.side_ == ConnectorPolygonEnding::Side::source) {
-                     auto trans_a = A.my_trans_;
-                     auto trans_b = B.my_trans_;
+         {
+            for (const auto& r_succ : r->getSuccessors()) {
+               for (const auto& A : r->connectors_) {
+                  for (const auto& B : r_succ->connectors_) {
+                     if (!r->isGhost() && !r_succ->isGhost() 
+                        && A.id_ == i && A.id_ == B.id_ && A.side_ == ConnectorPolygonEnding::Side::drain && B.side_ == ConnectorPolygonEnding::Side::source) {
+                        auto trans_a = A.my_trans_;
+                        auto trans_b = B.my_trans_;
 
-                     assert(*A.col_ == *B.col_);
+                        assert(*A.col_ == *B.col_);
 
-                     Pol2D p{};
-                     const auto norm_length_a = trans_a->translate({ 0, 0 }).distance(trans_a->translate({ 1, 0 }));
-                     const auto norm_length_b = trans_b->translate({ 0, 0 }).distance(trans_b->translate({ 1, 0 }));
-                     const auto a_connector_basepoint_translated = trans_a->translate(A.connector_.base_point_);
-                     const auto a_connector_direction_translated = trans_a->translate(A.connector_.direction_);
-                     const auto b_connector_basepoint_translated = trans_b->translate(B.connector_.base_point_);
-                     const auto b_connector_direction_translated = trans_b->translate(B.connector_.direction_);
-                     const auto thick_a = A.thick_ * norm_length_a;
-                     const auto thick_b = B.thick_ * norm_length_b;
+                        Pol2D p{};
+                        const auto norm_length_a = trans_a->translate({ 0, 0 }).distance(trans_a->translate({ 1, 0 }));
+                        const auto norm_length_b = trans_b->translate({ 0, 0 }).distance(trans_b->translate({ 1, 0 }));
+                        const auto a_connector_basepoint_translated = trans_a->translate(A.connector_.base_point_);
+                        const auto a_connector_direction_translated = trans_a->translate(A.connector_.direction_);
+                        const auto b_connector_basepoint_translated = trans_b->translate(B.connector_.base_point_);
+                        const auto b_connector_direction_translated = trans_b->translate(B.connector_.direction_);
+                        const auto thick_a = A.thick_ * norm_length_a;
+                        const auto thick_b = B.thick_ * norm_length_b;
 
-                     Vec2D between1 = a_connector_basepoint_translated;
-                     Vec2D between1_dir = a_connector_basepoint_translated;
-                     between1_dir.sub(a_connector_direction_translated);
-                     Vec2D between1_dir_ortho{ between1_dir };
-                     between1_dir_ortho.ortho();
-                     between1_dir_ortho.setLength(thick_a / 2);
+                        auto nice_points = bezier::getNiceBetweenPoints(a_connector_basepoint_translated, a_connector_direction_translated, b_connector_basepoint_translated, b_connector_direction_translated);
 
-                     between1_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
-                     between1.add(between1_dir);
-                     Vec2D between2 = b_connector_basepoint_translated;
-                     Vec2D between2_dir = b_connector_basepoint_translated;
-                     between2_dir.sub(b_connector_direction_translated);
-                     Vec2D between2_dir_ortho{ between2_dir };
-                     between2_dir_ortho.ortho();
-                     between2_dir_ortho.setLength(thick_b / 2);
+                        Vec2D between1 = nice_points[0];
+                        Vec2D between1_dir = nice_points[1];
+                        Vec2D between2 = nice_points[2];
+                        Vec2D between2_dir = nice_points[3];
 
-                     between2_dir.setLength(a_connector_basepoint_translated.distance(b_connector_basepoint_translated) / 3);
-                     between2.add(between2_dir);
+                        Vec2D between1_dir_ortho{ between1_dir };
+                        between1_dir_ortho.ortho();
+                        between1_dir_ortho.setLength(thick_a / 2);
 
-                     p.bezier(a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated, 0.01);
-                     Pol2D arrow{};
-                     arrow.createArrow(p, [p, thick_a, thick_b](const Vec2D& point_position, const int point_num) -> float 
-                     {
-                        const float step{ (thick_b - thick_a) / p.points_.size() };
-                        return thick_a + point_num * step;
-                     }, {}, {});
+                        Vec2D between2_dir_ortho{ between2_dir };
+                        between2_dir_ortho.ortho();
+                        between2_dir_ortho.setLength(thick_b / 2);
 
-                     if (*A.col_ == Color{0, 0, 0, 0}) {
-                        Pol2D arrow_square{};
-                        arrow.add(*arrow.points_.begin());
-                        arrow_square.createArrow(
-                           arrow, 
-                           THICK * (old_trans->is3D() ? 2.1 : 0.97), // TODO: Remove these magic numbers
-                           {},
-                           {},
-                           {},
-                           {},
-                           { 1, 1 },
-                           { 1, 1 },
-                           old_trans->is3D());
+                        p.bezier(a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated, 0.01);
+                        Pol2D arrow{};
+                        arrow.createArrow(p, [p, thick_a, thick_b](const Vec2D& point_position, const int point_num) -> float
+                           {
+                              const float step{ (thick_b - thick_a) / p.points_.size() };
+                              return thick_a + point_num * step;
+                           }, {}, {});
 
-                        Vec2D point1a{ a_connector_basepoint_translated };
-                        Vec2D point2a{ a_connector_basepoint_translated };
-                        point1a.add(between1_dir_ortho);
-                        point2a.sub(between1_dir_ortho);
-                        Pol2D stop_line_pointsa{ point1a, point2a };
-                        Pol2D stop_linea{};
-                        stop_linea.createArrow(stop_line_pointsa, THICK * 2.1); // TODO: Remove these magic numbers
+                        if (*A.col_ == Color{ 0, 0, 0, 0 }) {
+                           Pol2D arrow_square{};
+                           arrow.add(*arrow.points_.begin());
+                           arrow_square.createArrow(
+                              arrow,
+                              THICK * (old_trans->is3D() ? 2.1 : 0.97), // TODO: Remove these magic numbers
+                              {},
+                              {},
+                              {},
+                              {},
+                              { 1, 1 },
+                              { 1, 1 },
+                              old_trans->is3D());
 
-                        Vec2D point1b{ b_connector_basepoint_translated };
-                        Vec2D point2b{ b_connector_basepoint_translated };
-                        point1b.add(between2_dir_ortho);
-                        point2b.sub(between2_dir_ortho);
-                        Pol2D stop_line_pointsb{ point1b, point2b };
-                        Pol2D stop_lineb{};
-                        stop_lineb.createArrow(stop_line_pointsb, THICK * 2.1); // TODO: Remove these magic numbers
+                           Vec2D point1a{ a_connector_basepoint_translated };
+                           Vec2D point2a{ a_connector_basepoint_translated };
+                           point1a.add(between1_dir_ortho);
+                           point2a.sub(between1_dir_ortho);
+                           Pol2D stop_line_pointsa{ point1a, point2a };
+                           Pol2D stop_linea{};
+                           stop_linea.createArrow(stop_line_pointsa, THICK * 2.1); // TODO: Remove these magic numbers
 
-                        if (old_trans->is3D()) {
-                           auto arrow_square_reverse = plain_2d_translator_->reverseTranslatePolygon(arrow_square);
-                           auto stop_line_reversea = plain_2d_translator_->reverseTranslatePolygon(stop_linea);
-                           auto stop_line_reverseb = plain_2d_translator_->reverseTranslatePolygon(stop_lineb);
-                           fillPolygon(arrow_square_reverse, LANE_MARKER_COLOR);
-                           fillPolygon(stop_line_reversea, LANE_MARKER_COLOR);
-                           fillPolygon(stop_line_reverseb, LANE_MARKER_COLOR);
-                        }
-                        else {
-                           // TODO: Get rid of this workaround.
-                           for (int i = 1; i < arrow_square.points_.size(); i++) {
-                              if (arrow_square.points_[i].distance(arrow_square.points_[i - 1]) > 1000) {
-                                 arrow_square.points_[i] = arrow_square.points_[i - 1];
+                           Vec2D point1b{ b_connector_basepoint_translated };
+                           Vec2D point2b{ b_connector_basepoint_translated };
+                           point1b.add(between2_dir_ortho);
+                           point2b.sub(between2_dir_ortho);
+                           Pol2D stop_line_pointsb{ point1b, point2b };
+                           Pol2D stop_lineb{};
+                           stop_lineb.createArrow(stop_line_pointsb, THICK * 2.1); // TODO: Remove these magic numbers
+
+                           if (old_trans->is3D()) {
+                              auto arrow_square_reverse = plain_2d_translator_->reverseTranslatePolygon(arrow_square);
+                              auto stop_line_reversea = plain_2d_translator_->reverseTranslatePolygon(stop_linea);
+                              auto stop_line_reverseb = plain_2d_translator_->reverseTranslatePolygon(stop_lineb);
+                              fillPolygon(arrow_square_reverse, LANE_MARKER_COLOR);
+                              fillPolygon(stop_line_reversea, LANE_MARKER_COLOR);
+                              fillPolygon(stop_line_reverseb, LANE_MARKER_COLOR);
+                           }
+                           else {
+                              // TODO: Get rid of this workaround.
+                              for (int i = 1; i < arrow_square.points_.size(); i++) {
+                                 if (arrow_square.points_[i].distance(arrow_square.points_[i - 1]) > 1000) {
+                                    arrow_square.points_[i] = arrow_square.points_[i - 1];
+                                 }
                               }
+                              // EO TODO: Get rid of this workaround.
+
+                              fillPolygon(arrow_square, LANE_MARKER_COLOR);
                            }
-                           // EO TODO: Get rid of this workaround.
 
-                           fillPolygon(arrow_square, LANE_MARKER_COLOR);
-                        }
+                           Pol2D p2{};
+                           float begin = p.points_.size() / 4.0f;
+                           float end = p.points_.size() - p.points_.size() / 4.0f;
 
-                        Pol2D p2{};
-                        float begin = p.points_.size() / 4.0f;
-                        float end = p.points_.size() - p.points_.size() / 4.0f;
+                           for (int i = begin; i <= end; i++) {
+                              p2.add(p.points_[i]);
+                           }
 
-                        for (int i = begin; i <= end; i++) {
-                           p2.add(p.points_[i]);
-                        }
+                           auto vec = Pol2D::dashedArrow(p2, 2, 2.0f / 1500.0f * dim_raw.x * 3 * (old_trans->is3D() ? 2.1 : 1), {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 2.5, 2.5 });
 
-                        auto vec = Pol2D::dashedArrow(p2, 2, 2.0f / 1500.0f * dim_raw.x * 3 * (old_trans->is3D() ? 2.1 : 1), {}, ARROW_END_PPT_STYLE_1, { 1, 1 }, { 2.5, 2.5 });
-
-                        for (int i = 0; i < vec.size(); i++) {
-                           if (i % 2 || i == vec.size() - 1)
-                              additional_arrows.push_back(vec[i]);
-                        }
-                     }
-                     else {
-                        if (old_trans->is3D()) {
-                           auto arrow_reverse = plain_2d_translator_->reverseTranslatePolygon(arrow);
-                           fillPolygon(arrow_reverse, *A.col_);
+                           for (int i = 0; i < vec.size(); i++) {
+                              if (i % 2 || i == vec.size() - 1)
+                                 additional_arrows.push_back(vec[i]);
+                           }
                         }
                         else {
-                           fillPolygon(arrow, *A.col_);
-                        }
-                     }
-                     //drawPolygon(arrow, BLACK, true, true, true);
-
-                     // Draw cars in crossing
-                     if (i >= FIRST_LANE_CONNECTOR_ID) { // This is the id of the pavement.
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 3, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 1, 3, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 3, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 3, 3, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 13, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 1, 13, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 13, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 3, 13, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 23, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 1, 23, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 23, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 3, 23, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 33, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 1, 33, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 33, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 3, 33, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 0, 43, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 1, 43, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 2, 43, 10, 0 }); // TODO
-                        //r->addNonegoOnCrossingTowards(r_succ, CarPars{ 3, 43, 10, 0 }); // TODO
-
-                        CarParsVec nonegos_on_crossing{ r->getNonegosOnCrossingTowardsSuccessor(r_succ) };
-
-                        for (const auto& nonego : nonegos_on_crossing) {
-                           if (nonego.car_lane_ == i - FIRST_LANE_CONNECTOR_ID) {
-                              float arc_length{ bezier::arcLength(1, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) / norm_length_a };
-                              float rel{ nonego.car_rel_pos_ / arc_length };
-
-                              rel = std::max(0.0f, std::min(1.0f, rel));
-
-                              Vec2D p{ bezier::pointAtRatio(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
-                              Vec2D dir{ bezier::B_prime(rel, a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated) };
-                              plotCar2D(3, p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
-                              //plotCar3D(p, CAR_COLOR, BLACK, { norm_length_a, norm_length_a * LANE_WIDTH }, dir.angle({ 1, 0 }));
+                           if (old_trans->is3D()) {
+                              auto arrow_reverse = plain_2d_translator_->reverseTranslatePolygon(arrow);
+                              fillPolygon(arrow_reverse, *A.col_);
+                           }
+                           else {
+                              fillPolygon(arrow, *A.col_);
                            }
                         }
+                        //drawPolygon(arrow, BLACK, true, true, true);
                      }
                   }
                }
             }
-         }
-      });
+         });
    }
 
    constexpr bool DRAW_DIRECTION_ARROWS_ON_JUNCTIONS = { false };
@@ -1291,7 +1251,9 @@ void vfm::HighwayImage::paintRoadGraph(
       }
    }
 
+   label:
    setTranslator(old_trans);
+   //DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::ghosts_only); // For debugging.
    DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
    setTranslator(old_trans);
 }

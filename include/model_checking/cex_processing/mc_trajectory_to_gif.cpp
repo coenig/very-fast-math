@@ -46,7 +46,7 @@ const auto VARIABLES_TO_BE_PAINTED = std::make_shared<std::vector<PainterVariabl
       //{ R"(planner."flCond.cond20_reactive_conditions_fulfilled")",   { 0, -11 } },
       //{ R"(planner."flCond.cond22_safety_conditions_fulfilled")",   { 0, -11 } },
       //{ R"(planner."flCond.cond24_external_conditions_fulfilled")",   { 0, -11 } },
-      { R"(planner."abCond.cond26_all_conditions_fulfilled_raw")",   { 0, -11 } },
+      //{ R"(planner."abCond.cond26_all_conditions_fulfilled_raw")",   { 0, -11 } },
       //{ R"(env.ego.flCond_full)",   { 0, -11 } },
       //{ R"(env.ego.mode)",   { 2, -11 } },
       //{ R"(planner."flCond.cond1_lc_trigger_dist_reached")",   { 0, -11 } },
@@ -76,9 +76,6 @@ const auto VARIABLES_TO_BE_PAINTED = std::make_shared<std::vector<PainterVariabl
       //{ R"(REGEX:.*getDynamicMinDistanceFront.part1.1")",   { 3, -11 } },
       //{ R"(REGEX:.*getDynamicMinDistanceFront.part2.1")",   { 3, -11 } },
       //{ R"(REGEX:veh___6.*9___.rel_pos)",   { 3, -11 } },
-
-      { R"(REGEX:.*env.ego..*)",   { 3, -11 } },
-      { R"(REGEX:.*rlc.*)",   { 1, -11 } },
 
       //{ R"(ego.right_of_veh_1_lane)",   { 0, -11 } },
       //{ R"(veh_length)",   { 3, -11 } },
@@ -153,6 +150,14 @@ const auto VARIABLES_TO_BE_PAINTED = std::make_shared<std::vector<PainterVariabl
       //{ R"(planner."ego.gaps___6tar_dir9___.i_agent_front")",                           { 3, -11 } },
 
       //{ "debug.crash",                                  { 0, -11 } },
+
+      
+      { R"(REGEX:.*env..*.abs_pos)", { 3, -11 } },
+      { R"(REGEX:.*env..*.v)", { 3, -11 } },
+      { R"(REGEX:.*env..*.a)", { 3, -11 } },
+      //{ R"(REGEX:.*env.ego..*)", { 3, -11 } },
+      //{ R"(REGEX:.*env.veh___6.*)",   { 3, -11 } },
+      //{ R"(REGEX:.*rlc.*)",   { 1, -11 } },
    }
 );
 
@@ -193,7 +198,7 @@ std::shared_ptr<RoadGraph> LiveSimGenerator::getRoadGraphTopologyFrom(const MCTr
       road_graphs[sec]->setMyRoad(lane_structure);
    }
 
-   CarPars c{ 0, 0, 0, vfm::HighwayImage::EGO_MOCK_ID };
+   CarPars c{ 0, 0, 0, vfm::RoadGraph::EGO_MOCK_ID };
    road_graphs[0]->getMyRoad().setEgo(std::make_shared<CarPars>());
 
    for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
@@ -222,10 +227,38 @@ void vfm::mc::trajectory_generator::LiveSimGenerator::equipRoadGraphWithCars(
       r->getMyRoad().getNumLanes() - 1 + current_ego.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH, // Lane
       current_ego.second.at(PossibleParameter::pos_x),                                                                           // Position
       current_ego.second.at(PossibleParameter::vel_x) / x_scaling,                                                               // Velocity
-      vfm::HighwayImage::EGO_MOCK_ID                                                                                             // ID
+      vfm::RoadGraph::EGO_MOCK_ID                                                                                                // ID
    );
 
-   r->findSectionWithID(0)->getMyRoad().setEgo(ego); // TODO: Use correct section, once available.
+   // TODO: Double code towards below.
+   const int on_straight_section{ (int)current_ego.second.at(PossibleParameter::on_straight_section) };
+   const int traversion_from{ (int)current_ego.second.at(PossibleParameter::traversion_from) };
+   const int traversion_to{ (int)current_ego.second.at(PossibleParameter::traversion_to) };
+
+   if (on_straight_section >= 0) {
+      auto rg = r->findSectionWithID(on_straight_section);
+      if (rg) {
+         rg->getMyRoad().setEgo(ego);
+      }
+      else {
+         addError("Ego vehicle will not be painted since it is on section '" + std::to_string(on_straight_section) + "' which is not reachable from the current setion '" + std::to_string(r->getID()) + "'. (Note that sections unconnected to the main road graph are currently not considered.)");
+      }
+   }
+   else if (traversion_from >= 0 && traversion_to >= 0) {
+      const auto from_section = r->findSectionWithID(traversion_from);
+      if (from_section) {
+         from_section->addNonegoOnCrossingTowards(traversion_to, *ego);
+      }
+      else {
+         addError("Cannot place car on connection from sec '" + std::to_string(traversion_from) + "' to sec '" + std::to_string(traversion_to) + "' because the origin section does not exist.");
+      }
+   }
+   else {
+      addError("Ego car is placed neither on a straight section nor on a junction. Guessing it should be on section '0'.");
+      r->findSectionWithID(0)->getMyRoad().setEgo(ego);
+   }
+   // EO TODO: Double code towards below.
+
 
    auto& vehicle_names_without_ego = m_trajectory_provider.getVehicleNames(true);
 
@@ -281,6 +314,7 @@ void LiveSimGenerator::generate(
    const long sleep_for_ms)
 {
    std::shared_ptr<RoadGraph> road_graph{ getRoadGraphTopologyFrom(trace) };
+   std::shared_ptr<RoadGraph> road_graph_3d{ getRoadGraphTopologyFrom(trace) }; // TODO: replace by "copy" operation on RG on lower level (updateOutputImages), once available.
 
    std::string image_file_output = base_output_name + ".png";
    std::filesystem::path morty_progress_path{ base_output_name };
@@ -301,6 +335,7 @@ void LiveSimGenerator::generate(
       StaticHelper::writeTextToFile(std::to_string(trajectory_index) + "#" + std::to_string(trajectory_length - 1) + "#" + stage_name, morty_progress_path.string());
 
       equipRoadGraphWithCars(road_graph, trajectory_index, x_scaling);
+      equipRoadGraphWithCars(road_graph_3d, trajectory_index, x_scaling);
 
       ExtraVehicleArgs extra_var_vals = {}; // Extra data currently only used to inform about turn signals
       
@@ -346,7 +381,7 @@ void LiveSimGenerator::generate(
          m_trajectory_provider.getDataTrace().size() > trajectory_index + 1 ? m_trajectory_provider.getDataTrace().at(trajectory_index + 1) : nullptr,
          VARIABLES_TO_BE_PAINTED,
          agents_to_draw_arrows_for,
-         road_graph);
+         { road_graph, road_graph_3d });
 
       // Determine frame duration from trajectory
       double frame_duration;
@@ -401,7 +436,7 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
    const DataPackPtr future_data,
    const std::shared_ptr<std::vector<PainterVariableDescription>> variables_to_be_painted,
    const std::set<int>& agents_to_draw_arrows_for,
-   const std::shared_ptr<RoadGraph> road_graph
+   const std::pair<std::shared_ptr<RoadGraph>, std::shared_ptr<RoadGraph>> road_graph
    )
 {
    const bool activate_pdf{ ((visu_type & LiveSimType::constant_image_output) || (visu_type & LiveSimType::incremental_image_output))
@@ -417,6 +452,8 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
       ? future_data
       : nullptr;
 
+   road_graph.first->transformAllCarsToStraightRoadSections(false); // TODO: Special treatment for ego-centered lane model when doing 3D...
+
    auto birds_eye = CREATE_BIRDSEYE_VIEW 
       ? env.getBirdseyeView(
          agents_to_draw_arrows_for,
@@ -425,7 +462,7 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
          activate_pdf,
          CREATE_COCKPIT_VIEW ? 0 : 900, // TODO: Not so nice to hard-code this. But cropping the birds-eye view like this is often beneficial when used as a figure in a text.
          CREATE_COCKPIT_VIEW ? 0 : 700,
-         road_graph)
+         road_graph.first)
       : nullptr;
 
    if (birds_eye)
@@ -434,13 +471,15 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
       height_cpv = width_cpv / 5;
    }
 
+   road_graph.second->transformAllCarsToStraightRoadSections(true); // ...which needs to be resolved at some point by completely removing this special case.
+
    auto cockpit = CREATE_COCKPIT_VIEW
       ? env.getCockpitView(
          agents_to_draw_arrows_for,
          var_vals,
          actual_future_data,
          activate_pdf,
-         road_graph,
+         road_graph.second,
          width_cpv, 
          height_cpv)
       : nullptr;

@@ -185,7 +185,7 @@ private:
 		const DataPackPtr future_data,
 		const std::shared_ptr<std::vector<PainterVariableDescription>> variables_to_be_painted,
 		const std::set<int>& agents_to_draw_arrows_for,
-      const std::shared_ptr<RoadGraph> road_graph);
+      const const std::pair<std::shared_ptr<RoadGraph>, std::shared_ptr<RoadGraph>>);
 };
 
 
