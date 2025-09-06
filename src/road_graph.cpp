@@ -408,18 +408,12 @@ void vfm::RoadGraph::normalizeRoadGraphToEgoSection()
    if (!r_ego) addError("No ego found on any straight section in road graph.");
 
    const Vec2D specialPoint{ r_ego->getOriginPoint() };
-   const float theta{ r_ego->getAngle() };
-   const float x_s_prime = specialPoint.x * std::cos(theta) - specialPoint.y * std::sin(theta);
-   const float y_s_prime = specialPoint.x * std::sin(theta) + specialPoint.y * std::cos(theta);
+   const float theta{ -r_ego->getAngle() };
 
    for (const auto& r : getAllNodes()) {
-      // Rotation
-      const float x_rot = r->getOriginPoint().x * cos(theta) - r->getOriginPoint().y * sin(theta);
-      const float y_rot = r->getOriginPoint().x * sin(theta) + r->getOriginPoint().y * cos(theta);
-
-      // Translation such that ego section sits at origin.
-      r->setOriginPoint({ x_rot - x_s_prime, y_rot - y_s_prime });
-      r->setAngle(r->getAngle() - theta);
+      r->origin_point_.rotate(theta, specialPoint);
+      r->angle_ += theta;
+      r->origin_point_.add(-specialPoint.x, -specialPoint.y);
    }
 
    assert(r_ego->isRootedInZeroAndUnturned());
@@ -491,11 +485,12 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections(const bool adjust_to
             Vec2D dir{ bezier::B_prime(rel, arc_origin, between1, between2, arc_target) };
 
             auto node = std::make_shared<RoadGraph>(orig_section->findFirstFreeID());
-            //node->makeGhost();
+            node->makeGhost();
             node->setMyRoad(StraightRoadSection{ orig_section->getMyRoad().getNumLanes(), SOME_LENGTH });
             r->removeNonegoFromCrossingTowards(r_target, car.car_id_);
 
             if (car.car_id_ == EGO_MOCK_ID) {
+               orig_section->removeEgo();
                node->my_road_.setEgo(std::make_shared<CarPars>(
                   (float)MIDDLE_OF_ROAD / 2, // This lane ID marks the middle of the road.
                      0,
