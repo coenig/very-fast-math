@@ -100,12 +100,12 @@ public:
 private:
    inline Vec2D translateCore(const Vec3D& point) override
    {
-      return { point.x * factor_ + real_width_ / 2 + ego_offset_x_ * factor_,
+      return { point.x * factor_ + real_width_ / 2,
                street_top_ + (point.y + ego_lane_ - min_lane_) * lw_ + lw_ / 2 };
    }
 
    inline Vec3D reverseTranslateCore(const Vec2D& point) override {
-      return { (point.x - real_width_ / 2 - ego_offset_x_ * factor_) / factor_,
+      return { (point.x - real_width_ / 2) / factor_,
                (point.y - street_top_ - lw_ / 2) / lw_ + min_lane_ - ego_lane_,
                0 };
    }
