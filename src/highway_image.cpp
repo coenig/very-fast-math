@@ -477,13 +477,13 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
 
       // Drains and sources.
       // Assuming we do "min_lane = true" first.
-      Vec2D fix{ (float) infinitesimal_road, 0 }; // For zero-lengh sections.
-      
+      Vec2D fix{ (float)infinitesimal_road, 0 }; // For zero-lengh sections.
+
       if (min_lane) { // TOP
          auto top_right_corner = (*overpaint.points_.rbegin());
-         auto top_left_corner  = (*overpaint.points_.begin());
+         auto top_left_corner = (*overpaint.points_.begin());
          auto top_right_second = (*(overpaint.points_.rbegin() + 1)) - fix;
-         auto top_left_second  = (*(overpaint.points_.begin() + 1)) + fix;
+         auto top_left_second = (*(overpaint.points_.begin() + 1)) + fix;
 
          if (!getHighwayTranslator()->is3D()) {
             top_right_corner.add({ 0, ego.car_lane_ });
@@ -534,8 +534,8 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             const auto adjustment_for_missing_lanes_source = lane_structure.getSegments().begin()->second.getMinLane() / 2;
             top_right_corner_lane.add({ 0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5 - adjustment_for_missing_lanes_drain) });
             top_right_second_lane.add({ 0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5 - adjustment_for_missing_lanes_drain) });
-            top_left_corner_lane.add({  0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5 - adjustment_for_missing_lanes_source) });
-            top_left_second_lane.add({  0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5 - adjustment_for_missing_lanes_source) });
+            top_left_corner_lane.add({ 0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5 - adjustment_for_missing_lanes_source) });
+            top_left_second_lane.add({ 0, (float)(i - FIRST_LANE_CONNECTOR_ID + 0.5 - adjustment_for_missing_lanes_source) });
 
             connections.insert(connections.begin(), ConnectorPolygonEnding{
                ConnectorPolygonEnding::Side::drain,
@@ -556,9 +556,9 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
       }
       else { // BOTTOM
          auto bottom_right_corner = (*overpaint.points_.rbegin());
-         auto bottom_left_corner  = (*overpaint.points_.begin());
+         auto bottom_left_corner = (*overpaint.points_.begin());
          auto bottom_right_second = (*(overpaint.points_.rbegin() + 1)) - fix;
-         auto bottom_left_second  = (*(overpaint.points_.begin() + 1)) + fix;
+         auto bottom_left_second = (*(overpaint.points_.begin() + 1)) + fix;
 
          if (!getHighwayTranslator()->is3D()) {
             bottom_right_corner.add({ 0, ego.car_lane_ });
@@ -574,7 +574,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
                Vec2D middle_second{ connection.connector_.direction_ };
 
                if (connection.side_ == ConnectorPolygonEnding::Side::drain) {
-                  connection.thick_ = (float) lane_structure.getSegments().rbegin()->second.getNumLanes() * (LANE_WIDTH - LANE_MARKER_THICKNESS); // TODO: Something is not QUITE exact here
+                  connection.thick_ = (float)lane_structure.getSegments().rbegin()->second.getNumLanes() * (LANE_WIDTH - LANE_MARKER_THICKNESS); // TODO: Something is not QUITE exact here
                   middle_basepoint.add(bottom_right_corner);
                   middle_second.add(bottom_right_second);
                }
@@ -946,7 +946,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    // Drains and sources.
    const Vec2D fix{ (float) fix_for_connections, 0 };
    const auto bottom = tl_orig.y + br_orig.y - tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
-   const auto top =    tl_orig.y +                         (getHighwayTranslator()->is3D() ? 0 : ego_lane);
+   const auto top = tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
    const auto left = road_begin;
    const auto right = left + road_length;
    const auto bottom_right_corner = Vec2D{ right, bottom };
@@ -1005,7 +1005,6 @@ void vfm::HighwayImage::paintRoadGraph(
    }
 
    auto r_ego = my_r->findSectionWithEgoIfAny();
-   auto ego_lane = r_ego->getMyRoad().getEgo()->car_lane_;
    std::vector<std::shared_ptr<RoadGraph>> all_nodes_ego_in_front{};
 
    all_nodes_ego_in_front.push_back(r_ego);
@@ -1013,9 +1012,6 @@ void vfm::HighwayImage::paintRoadGraph(
    for (const auto r_sub : all_nodes) {
       if (r_sub != r_ego) all_nodes_ego_in_front.push_back(r_sub);
    }
-
-   static constexpr float MC1{ 2.0f * 12.8f };
-   static constexpr float MC2{ 480.0f };
 
    const auto DRAW_STRAIGHT_ROAD_OR_CARS = [&](const RoadDrawingMode mode) {
       for (const auto r_sub : all_nodes_ego_in_front) {
@@ -1025,26 +1021,26 @@ void vfm::HighwayImage::paintRoadGraph(
          const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
          preserved_dimension_ = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
 
-         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, ego_lane, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D { // TODO: The below getNumLanes() magic constant for ghost sections is not accurate.
-            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -(r_sub->isGhost() ? r_sub->my_road_.getNumLanes() * ego_lane : ego_lane) : 0)};
+         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
             Vec2D v{ plain_2d_translator_->translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
             v.rotate(r_sub->getAngle(), { middle.x, middle.y });
             auto res = plain_2d_translator_->reverseTranslate(v);
 
             return { // The magic numbers below reflect the dependence on the number of lanes when calculating the thickness of lane marker lines iso. paintStraightRoadScene.
-               res.x + (old_trans->is3D() ? TRANSLATE_X : TRANSLATE_X - preserved_dimension_.x / MC1), // This constant has been calculated.
-               res.y + (old_trans->is3D() ? TRANSLATE_Y : TRANSLATE_Y / LANE_WIDTH - preserved_dimension_.y / MC2), // This one is only a guess and can probably be further improved.
+               res.x + TRANSLATE_X, // This constant has been calculated.
+               res.y + TRANSLATE_Y, // This one is only a guess and can probably be further improved.
                v_raw.z };
             };
 
-         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, ego_lane, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D { // TODO: The below getNumLanes() magic constant for ghost sections is not accurate.
-            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y + (r_ego != r_sub && old_trans->is3D() ? -(r_sub->isGhost() ? r_sub->my_road_.getNumLanes() * ego_lane : ego_lane) : 0) };
+         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
 
             Vec2D v{
-               v_raw.x - (old_trans->is3D() ? TRANSLATE_X : TRANSLATE_X - preserved_dimension_.x / MC1),
-               v_raw.y - (old_trans->is3D() ? TRANSLATE_Y : TRANSLATE_Y / LANE_WIDTH - preserved_dimension_.y / MC2),
+               v_raw.x - TRANSLATE_X,
+               v_raw.y - TRANSLATE_Y,
             };
 
             v = plain_2d_translator_->translate(v);
