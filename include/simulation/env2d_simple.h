@@ -132,16 +132,20 @@ public:
       
       Rec2D bounding_box{ infinite_highway ? Rec2D{} : road_graph->getBoundingBox() };
       const float offset_x{ infinite_highway
-         ? 60 
-         : -bounding_box.upper_left_.x + 15 };
+         ? 60.0f 
+         : 30.0f //-bounding_box.upper_left_.x + 15
+      };
+
       const float offset_y{ 
          infinite_highway
          ? 
          (float)road_graph->getMyRoad().getNumLanes() / 2.0f
-         : 
-         -bounding_box.upper_left_.y + 15 
+         : 70.0f
+         //-bounding_box.upper_left_.y + 15 
          //-getImageHeight() * (getImageHeight() / outside_view_->getHeight() / 2) + 25
       };
+
+      std::cout << Vec2D{ offset_x, offset_y }.serialize() << std::endl;
 
       outside_view_->paintRoadGraph(
          road_graph,

@@ -314,7 +314,6 @@ void LiveSimGenerator::generate(
    const long sleep_for_ms)
 {
    std::shared_ptr<RoadGraph> road_graph{ getRoadGraphTopologyFrom(trace) };
-   std::shared_ptr<RoadGraph> road_graph_3d{ getRoadGraphTopologyFrom(trace) }; // TODO: replace by "copy" operation on RG on lower level (updateOutputImages), once available.
 
    std::string image_file_output = base_output_name + ".png";
    std::filesystem::path morty_progress_path{ base_output_name };
@@ -335,7 +334,6 @@ void LiveSimGenerator::generate(
       StaticHelper::writeTextToFile(std::to_string(trajectory_index) + "#" + std::to_string(trajectory_length - 1) + "#" + stage_name, morty_progress_path.string());
 
       equipRoadGraphWithCars(road_graph, trajectory_index, x_scaling);
-      equipRoadGraphWithCars(road_graph_3d, trajectory_index, x_scaling);
 
       ExtraVehicleArgs extra_var_vals = {}; // Extra data currently only used to inform about turn signals
       
@@ -381,7 +379,7 @@ void LiveSimGenerator::generate(
          m_trajectory_provider.getDataTrace().size() > trajectory_index + 1 ? m_trajectory_provider.getDataTrace().at(trajectory_index + 1) : nullptr,
          VARIABLES_TO_BE_PAINTED,
          agents_to_draw_arrows_for,
-         { road_graph, road_graph_3d });
+         road_graph);
 
       // Determine frame duration from trajectory
       double frame_duration;
@@ -436,7 +434,7 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
    const DataPackPtr future_data,
    const std::shared_ptr<std::vector<PainterVariableDescription>> variables_to_be_painted,
    const std::set<int>& agents_to_draw_arrows_for,
-   const std::pair<std::shared_ptr<RoadGraph>, std::shared_ptr<RoadGraph>> road_graph
+   const std::shared_ptr<RoadGraph> road_graph
    )
 {
    const bool activate_pdf{ ((visu_type & LiveSimType::constant_image_output) || (visu_type & LiveSimType::incremental_image_output))
@@ -452,7 +450,7 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
       ? future_data
       : nullptr;
 
-   road_graph.first->transformAllCarsToStraightRoadSections(false); // TODO: Special treatment for ego-centered lane model when doing 3D...
+   road_graph->transformAllCarsToStraightRoadSections(false); // TODO: Special treatment for ego-centered lane model when doing 3D...
 
    auto birds_eye = CREATE_BIRDSEYE_VIEW 
       ? env.getBirdseyeView(
@@ -462,7 +460,7 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
          activate_pdf,
          CREATE_COCKPIT_VIEW ? 0 : 900, // TODO: Not so nice to hard-code this. But cropping the birds-eye view like this is often beneficial when used as a figure in a text.
          CREATE_COCKPIT_VIEW ? 0 : 700,
-         road_graph.first)
+         road_graph)
       : nullptr;
 
    if (birds_eye)
@@ -471,15 +469,13 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
       height_cpv = width_cpv / 5;
    }
 
-   road_graph.second->transformAllCarsToStraightRoadSections(true); // ...which needs to be resolved at some point by completely removing this special case.
-
    auto cockpit = CREATE_COCKPIT_VIEW
       ? env.getCockpitView(
          agents_to_draw_arrows_for,
          var_vals,
          actual_future_data,
          activate_pdf,
-         road_graph.second,
+         road_graph,
          width_cpv, 
          height_cpv)
       : nullptr;
