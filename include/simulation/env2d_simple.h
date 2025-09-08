@@ -173,12 +173,12 @@ public:
 
       if (!cockpit_view_ || cockpit_view_->getWidth() != width || cockpit_view_->getHeight() != height) {
          cockpit_view_ = std::make_shared<HighwayImage>(width, height, trans_cpv, road_graph->getMyRoad().getNumLanes());
-         cockpit_view_mirror_ = std::make_shared<HighwayImage>(mirror_width, mirror_height, trans_cpvm, road_graph->getMyRoad().getNumLanes());
+         //cockpit_view_mirror_ = std::make_shared<HighwayImage>(mirror_width, mirror_height, trans_cpvm, road_graph->getMyRoad().getNumLanes());
       }
 
       if (start_pdf) {
          cockpit_view_->restartPDF();
-         cockpit_view_mirror_->restartPDF();
+         //cockpit_view_mirror_->restartPDF();
       }
 
       std::map<int, std::pair<float, float>> others_future_vec{}; // TODO: Future vec not yet working.
@@ -189,9 +189,8 @@ public:
       cockpit_view_->paintEarthAndSky({ (float)width, (float)height });
       cockpit_view_->setTranslator(trans_cpv);
 
-      cockpit_view_mirror_->setTranslator(no_trans);
-      cockpit_view_mirror_->paintEarthAndSky({ (float)mirror_width, (float)mirror_height });
-      cockpit_view_mirror_->setTranslator(trans_cpvm);
+      //cockpit_view_mirror_->setTranslator(no_trans);
+      //cockpit_view_mirror_->paintEarthAndSky({ (float)mirror_width, (float)mirror_height });
 
       cockpit_view_->paintRoadGraph(
          road_graph,
@@ -199,33 +198,33 @@ public:
          additional_var_vals,
          true);
 
-      cockpit_view_mirror_->paintRoadGraph(
-         road_graph,
-         { 500, 120 },
-         additional_var_vals,
-         true);
+      //cockpit_view_mirror_->paintRoadGraph(
+      //   road_graph,
+      //   { 500, 120 },
+      //   additional_var_vals,
+      //   true);
 
       cockpit_view_->setTranslator(std::make_shared<DefaultHighwayTranslator>());
-      cockpit_view_mirror_->setTranslator(std::make_shared<DefaultHighwayTranslator>());
+      //cockpit_view_mirror_->setTranslator(std::make_shared<DefaultHighwayTranslator>());
 
       // Paint mirror
-      cockpit_view_->fillRectangle(
-         mirror_left - mirror_frame_thickness,
-         mirror_top - mirror_frame_thickness,
-         mirror_width + mirror_frame_thickness * 2,
-         mirror_height + mirror_frame_thickness * 2,
-         BLACK,
-         false);
+      //cockpit_view_->fillRectangle(
+      //   mirror_left - mirror_frame_thickness,
+      //   mirror_top - mirror_frame_thickness,
+      //   mirror_width + mirror_frame_thickness * 2,
+      //   mirror_height + mirror_frame_thickness * 2,
+      //   BLACK,
+      //   false);
 
-      cockpit_view_->fillRectangle(
-         mirror_left - mirror_frame_thickness / 2,
-         mirror_top - mirror_frame_thickness / 2,
-         mirror_width + mirror_frame_thickness,
-         mirror_height + mirror_frame_thickness,
-         WHITE,
-         false);
+      //cockpit_view_->fillRectangle(
+      //   mirror_left - mirror_frame_thickness / 2,
+      //   mirror_top - mirror_frame_thickness / 2,
+      //   mirror_width + mirror_frame_thickness,
+      //   mirror_height + mirror_frame_thickness,
+      //   WHITE,
+      //   false);
 
-      cockpit_view_->insertImage(mirror_left, mirror_top, *cockpit_view_mirror_, false);
+      //cockpit_view_->insertImage(mirror_left, mirror_top, *cockpit_view_mirror_, false);
       // EO Paint mirror
 
       return cockpit_view_;
@@ -246,7 +245,8 @@ public:
 private:
    mutable std::shared_ptr<HighwayImage> outside_view_{ nullptr };
    mutable std::shared_ptr<HighwayImage> cockpit_view_{ nullptr };
-   mutable std::shared_ptr<HighwayImage> cockpit_view_mirror_{ nullptr };   mutable float mirror_size_percent_{ 0.35f };
+   //mutable std::shared_ptr<HighwayImage> cockpit_view_mirror_{ nullptr };
+   mutable float mirror_size_percent_{ 0.35f };
    mutable float mirror_pos_left_percent_of_screen_{ 0.64f };
    mutable float mirror_pos_top_percent_of_screen_{ 0.05f };
 };

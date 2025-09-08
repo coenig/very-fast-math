@@ -946,7 +946,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    // Drains and sources.
    const Vec2D fix{ (float) fix_for_connections, 0 };
    const auto bottom = tl_orig.y + br_orig.y - tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
-   const auto top = tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
+   const auto top = tl_orig.y                            + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
    const auto left = road_begin;
    const auto right = left + road_length;
    const auto bottom_right_corner = Vec2D{ right, bottom };
@@ -1028,14 +1028,14 @@ void vfm::HighwayImage::paintRoadGraph(
             v.rotate(r_sub->getAngle(), { middle.x, middle.y });
             auto res = plain_2d_translator_->reverseTranslate(v);
 
-            return { // The magic numbers below reflect the dependence on the number of lanes when calculating the thickness of lane marker lines iso. paintStraightRoadScene.
-               res.x + TRANSLATE_X, // This constant has been calculated.
-               res.y + TRANSLATE_Y, // This one is only a guess and can probably be further improved.
+            return {
+               res.x + TRANSLATE_X, 
+               res.y + TRANSLATE_Y,
                v_raw.z };
             };
 
          const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
-            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };
+            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y - (old_trans->is3D() && !r_sub->isGhost() ? (LANE_WIDTH * r_ego->my_road_.getEgo()->car_lane_) : 0) };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
 
             Vec2D v{
