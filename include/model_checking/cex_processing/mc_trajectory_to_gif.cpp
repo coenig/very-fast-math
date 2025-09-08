@@ -450,7 +450,7 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
       ? future_data
       : nullptr;
 
-   road_graph->transformAllCarsToStraightRoadSections(false); // TODO: Special treatment for ego-centered lane model when doing 3D...
+   road_graph->transformAllCarsToStraightRoadSections();
 
    auto birds_eye = CREATE_BIRDSEYE_VIEW 
       ? env.getBirdseyeView(
