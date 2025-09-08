@@ -1021,8 +1021,8 @@ void vfm::HighwayImage::paintRoadGraph(
          const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
          preserved_dimension_ = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
 
-         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D { // (ego_car->car_lane_ - ego_road.getNumLanes() / 2)
-            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };//+ (old_trans->is3D() && !r_sub->isGhost() ? (LANE_WIDTH * r_ego->my_road_.getEgo()->car_lane_ - section_max_lanes / 2) : 0) };
+         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };// +(r_sub == r_ego && old_trans->is3D() && !r_sub->isGhost() ? (LANE_WIDTH * r_ego->my_road_.getEgo()->car_lane_ - section_max_lanes / 2) : 0) };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
             Vec2D v{ plain_2d_translator_->translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
             v.rotate(r_sub->getAngle(), { middle.x, middle.y });
@@ -1035,7 +1035,7 @@ void vfm::HighwayImage::paintRoadGraph(
             };
 
          const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
-            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y - (old_trans->is3D() && !r_sub->isGhost() ? (LANE_WIDTH * r_ego->my_road_.getEgo()->car_lane_ - section_max_lanes / 2) : 0) };
+            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y }; // -(r_sub == r_ego && old_trans->is3D() && !r_sub->isGhost() ? (LANE_WIDTH * r_ego->my_road_.getEgo()->car_lane_ - section_max_lanes / 2) : 0) };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
 
             Vec2D v{
