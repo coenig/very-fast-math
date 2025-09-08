@@ -236,7 +236,7 @@ INIT env.outgoing_connection_0_of_section_1 = 2;
 INIT env.outgoing_connection_0_of_section_2 = 3;
 INIT env.outgoing_connection_0_of_section_3 = 0;
 INIT env.ego.on_straight_section = 0;
-INIT env.ego.v = 20;
+INIT env.ego.v > 15;
 
 @{
 INIT env.veh___6[i]9___.abs_pos < env.section_0_end;
