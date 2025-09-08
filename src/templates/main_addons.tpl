@@ -233,4 +233,4 @@ INVAR section_0_segment_2_max_lane = 0;
    --= General "Section" Stuff =--
 
 INIT env.ego.on_straight_section = 0;
-INVAR env.ego.v <= 8;
+INVAR env.ego.v <= 18;
