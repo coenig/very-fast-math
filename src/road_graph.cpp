@@ -513,7 +513,8 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
             node->setAngle((Vec2D{0, 0} - dir).angle({ 1, 0 }));
             node->setOriginPoint(p);
 
-            ghosts.push_back(node);
+            orig_section->addSuccessor(node);
+            //ghosts.push_back(node);
          }
       }
    });
