@@ -485,12 +485,12 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          auto top_right_second = (*(overpaint.points_.rbegin() + 1)) - fix;
          auto top_left_second = (*(overpaint.points_.begin() + 1)) + fix;
 
-         if (!getHighwayTranslator()->is3D()) {
+         //if (!getHighwayTranslator()->is3D()) {
             top_right_corner.add({ 0, ego.car_lane_ });
             top_right_second.add({ 0, ego.car_lane_ });
             top_left_corner.add({ 0, ego.car_lane_ });
             top_left_second.add({ 0, ego.car_lane_ });
-         }
+         //}
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{ // This is the frame border around the pavement
             ConnectorPolygonEnding::Side::drain,
@@ -560,12 +560,12 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          auto bottom_right_second = (*(overpaint.points_.rbegin() + 1)) - fix;
          auto bottom_left_second = (*(overpaint.points_.begin() + 1)) + fix;
 
-         if (!getHighwayTranslator()->is3D()) {
+         //if (!getHighwayTranslator()->is3D()) {
             bottom_right_corner.add({ 0, ego.car_lane_ });
             bottom_right_second.add({ 0, ego.car_lane_ });
             bottom_left_corner.add({ 0, ego.car_lane_ });
             bottom_left_second.add({ 0, ego.car_lane_ });
-         }
+         //}
 
          for (auto& connection : connections) {
             if (connection.id_ == 3 || connection.id_ == 4) {
@@ -945,8 +945,8 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 
    // Drains and sources.
    const Vec2D fix{ (float) fix_for_connections, 0 };
-   const auto bottom = tl_orig.y + br_orig.y - tl_orig.y + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
-   const auto top = tl_orig.y                            + (getHighwayTranslator()->is3D() ? 0 : ego_lane);
+   const auto bottom = tl_orig.y + br_orig.y - tl_orig.y + ego_lane;
+   const auto top = tl_orig.y                            + ego_lane;
    const auto left = road_begin;
    const auto right = left + road_length;
    const auto bottom_right_corner = Vec2D{ right, bottom };
@@ -1021,8 +1021,8 @@ void vfm::HighwayImage::paintRoadGraph(
          const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
          preserved_dimension_ = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
 
-         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
-            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };
+         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D { // (ego_car->car_lane_ - ego_road.getNumLanes() / 2)
+            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };//+ (old_trans->is3D() && !r_sub->isGhost() ? (LANE_WIDTH * r_ego->my_road_.getEgo()->car_lane_ - section_max_lanes / 2) : 0) };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
             Vec2D v{ plain_2d_translator_->translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
             v.rotate(r_sub->getAngle(), { middle.x, middle.y });
@@ -1035,7 +1035,7 @@ void vfm::HighwayImage::paintRoadGraph(
             };
 
          const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
-            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y - (old_trans->is3D() && !r_sub->isGhost() ? (LANE_WIDTH * r_ego->my_road_.getEgo()->car_lane_) : 0) };
+            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y - (old_trans->is3D() && !r_sub->isGhost() ? (LANE_WIDTH * r_ego->my_road_.getEgo()->car_lane_ - section_max_lanes / 2) : 0) };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
 
             Vec2D v{
