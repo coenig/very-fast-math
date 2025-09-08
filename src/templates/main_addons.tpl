@@ -231,12 +231,14 @@ INVAR section_0_segment_2_max_lane = 0;
 
 
    --= General "Section" Stuff =--
-INIT env.section_1.angle != 0;
-INIT env.section_2.angle != 0;
+INIT env.outgoing_connection_0_of_section_0 = 1;
+INIT env.outgoing_connection_0_of_section_1 = 2;
+INIT env.outgoing_connection_0_of_section_2 = 3;
+INIT env.outgoing_connection_0_of_section_3 = 0;
 INIT env.ego.on_straight_section = 0;
-INIT env.veh___619___.abs_pos < env.section_0_end;
-INIT env.veh___629___.abs_pos < env.section_0_end;
-INIT env.veh___619___.on_straight_section = 0;
-INIT env.veh___629___.on_straight_section = 0;
-INIT env.ego.on_straight_section = 0;
-INVAR env.ego.v <= 18;
+INIT env.ego.v = 20;
+
+@{
+INIT env.veh___6[i]9___.abs_pos < env.section_0_end;
+INIT env.veh___6[i]9___.on_straight_section = 0;
+}@.for[[i], 1, @{NONEGOS - 1}@.eval]

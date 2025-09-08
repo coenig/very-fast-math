@@ -513,7 +513,7 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
             node->setAngle((Vec2D{0, 0} - dir).angle({ 1, 0 }));
             node->setOriginPoint(p);
 
-            orig_section->addSuccessor(node);
+            orig_section->addSuccessor(node); // TODO: This can screw up the "r" pointers. The below approach is preferred, but sometimes the cars on the ghost sections disappear.
             //ghosts.push_back(node);
          }
       }
