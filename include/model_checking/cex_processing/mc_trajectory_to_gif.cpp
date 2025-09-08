@@ -443,8 +443,8 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
    bool CREATE_COCKPIT_VIEW = visu_type & LiveSimType::cockpit;
    bool CREATE_BIRDSEYE_VIEW = visu_type & LiveSimType::birdseye;
 
-   int width_cpv = 1000;
-   int height_cpv = 300;
+   int width_cpv = 2400;
+   int height_cpv = 480;
 
    auto actual_future_data = ((visu_type & LiveSimType::constant_image_output) || (visu_type & LiveSimType::incremental_image_output) || (visu_type & LiveSimType::always_paint_arrows))
       ? future_data
