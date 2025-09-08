@@ -410,7 +410,9 @@ void vfm::RoadGraph::normalizeRoadGraphToEgo()
       return;
    }
 
-   const Vec2D specialPoint{ r_ego->getOriginPoint() + Vec2D{ r_ego->my_road_.getEgo()->car_rel_pos_, 0 } };
+   const auto ego_road = r_ego->my_road_;
+   const auto ego_car = ego_road.getEgo();
+   const Vec2D specialPoint{ r_ego->getOriginPoint() + Vec2D{ ego_car->car_rel_pos_, (ego_car->car_lane_ - ego_road.getNumLanes() / 2) * LANE_WIDTH }};
    const float theta{ -r_ego->getAngle() };
 
    for (const auto& r : getAllNodes()) {
