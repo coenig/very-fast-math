@@ -234,6 +234,8 @@ INVAR section_0_segment_2_max_lane = 0;
 INIT env.section_1.angle != 0;
 INIT env.section_2.angle != 0;
 INIT env.ego.on_straight_section = 0;
+INIT env.veh___619___.abs_pos < env.section_0_end;
+INIT env.veh___629___.abs_pos < env.section_0_end;
 INIT env.veh___619___.on_straight_section = 0;
 INIT env.veh___629___.on_straight_section = 0;
 INIT env.ego.on_straight_section = 0;

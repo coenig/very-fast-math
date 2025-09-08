@@ -169,7 +169,7 @@ public:
       const float mirror_top = height * mirror_pos_top_percent_of_screen_;
       constexpr static float mirror_frame_thickness = 10;
       auto trans_cpv{ std::make_shared<Plain3DTranslator>(false) };
-      auto trans_cpvm{ std::make_shared<Plain3DTranslator>(true) };
+      //auto trans_cpvm{ std::make_shared<Plain3DTranslator>(true) };
 
       if (!cockpit_view_ || cockpit_view_->getWidth() != width || cockpit_view_->getHeight() != height) {
          cockpit_view_ = std::make_shared<HighwayImage>(width, height, trans_cpv, road_graph->getMyRoad().getNumLanes());

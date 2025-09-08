@@ -440,14 +440,15 @@ void vfm::RoadGraph::removeAllGhostSectionsFromThis()
    }
 }
 
-void vfm::RoadGraph::transformAllCarsToStraightRoadSections(const bool adjust_to_ego_lane)
+void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
 {
    std::shared_ptr<RoadGraph> orig_section{ shared_from_this() };
    removeAllGhostSectionsFromThis(); // Must be always the same section (e.g., 0) to avoid garbage ghost sections.
+   std::vector<std::shared_ptr<RoadGraph>> ghosts{};
 
    //orig_section->applyToMeAndAllMySuccessorsAndPredecessors([](const std::shared_ptr<RoadGraph> r) { if (r->id_ != 0) r->makeGhost(); });
 
-   applyToMeAndAllMySuccessorsAndPredecessors([orig_section, adjust_to_ego_lane](const std::shared_ptr<RoadGraph> r) {
+   applyToMeAndAllMySuccessorsAndPredecessors([orig_section, &ghosts](const std::shared_ptr<RoadGraph> r) {
       const float MIDDLE_OF_ROAD{ orig_section->getMyRoad().getNumLanes() - 1.0f };
       constexpr float SOME_LENGTH{ 10 }; // Length of the dummy section, should be completely arbitrary.
 
@@ -512,10 +513,12 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections(const bool adjust_to
             node->setAngle((Vec2D{0, 0} - dir).angle({ 1, 0 }));
             node->setOriginPoint(p);
 
-            orig_section->addSuccessor(node);
+            ghosts.push_back(node);
          }
       }
    });
+
+   for (const auto& ghost : ghosts) orig_section->addSuccessor(ghost);
 }
 
 static constexpr float EPS{ 0.01 };
