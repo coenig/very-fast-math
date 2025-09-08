@@ -72,7 +72,7 @@
       "SEGMENTS": "#{segments}#",
       "SEGMENTSMINLENGTH": 35,
       "SIMPLE_LC": true,
-      "SPEC": "#{ !((env.veh___609___.on_straight_section == 1) && env.ego_lane_b0 && env.ego.abs_pos > 18) }#",
+      "SPEC": "#{ !((env.veh___609___.on_straight_section == 1 && env.veh___619___.on_straight_section == 1 && env.veh___629___.on_straight_section == 2) && env.ego_lane_b0 && (env.ego.abs_pos > 18)) }#",
       "SPEC1": "#{ (F(env.cnt == 1)) }#",
       "SPEC2": "#{ (F(env.cnt == 2)) }#",
       "SPEC3": "#{ (F(env.cnt == 3)) }#",
