@@ -232,28 +232,26 @@ INVAR section_0_segment_2_max_lane = 0;
 
 --= General "Section" Stuff =--
 INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
-INVAR env.ego.v = 0;
 INIT env.veh___609___.is_on_sec_0 = 1;
 INIT env.veh___619___.is_on_sec_0 = 1;
-INIT env.veh___609___.abs_pos = 10;
 INIT env.veh___619___.abs_pos = 20;
-INIT abs(env.section_0.source.y - env.section_1.source.y) >= 10;
-INIT abs(env.section_0.source.x - env.section_1.source.x) >= 10;
-INIT abs(env.section_0.source.y - env.section_2.source.y) >= 10;
-INIT abs(env.section_0.source.x - env.section_2.source.x) >= 10;
-INIT abs(env.section_0.source.y - env.section_3.source.y) >= 10;
-INIT abs(env.section_0.source.x - env.section_3.source.x) >= 10;
-INIT abs(env.section_1.source.y - env.section_2.source.y) >= 10;
-INIT abs(env.section_1.source.x - env.section_2.source.x) >= 10;
-INIT abs(env.section_1.source.y - env.section_3.source.y) >= 10;
-INIT abs(env.section_1.source.x - env.section_3.source.x) >= 10;
-INIT abs(env.section_2.source.y - env.section_3.source.y) >= 10;
-INIT abs(env.section_2.source.x - env.section_3.source.x) >= 10;
+-- INIT abs(env.section_0.source.y - env.section_1.source.y) >= 10;
+-- INIT abs(env.section_0.source.x - env.section_1.source.x) >= 10;
+-- INIT abs(env.section_0.source.y - env.section_2.source.y) >= 10;
+-- INIT abs(env.section_0.source.x - env.section_2.source.x) >= 10;
+-- INIT abs(env.section_0.source.y - env.section_3.source.y) >= 10;
+-- INIT abs(env.section_0.source.x - env.section_3.source.x) >= 10;
+-- INIT abs(env.section_1.source.y - env.section_2.source.y) >= 10;
+-- INIT abs(env.section_1.source.x - env.section_2.source.x) >= 10;
+-- INIT abs(env.section_1.source.y - env.section_3.source.y) >= 10;
+-- INIT abs(env.section_1.source.x - env.section_3.source.x) >= 10;
+-- INIT abs(env.section_2.source.y - env.section_3.source.y) >= 10;
+-- INIT abs(env.section_2.source.x - env.section_3.source.x) >= 10;
 
-INIT env.section_0_end = 31;
-INIT env.section_1_end = 31;
-INIT env.section_2_end = 31;
-INIT env.section_3_end = 31;
+-- INIT env.section_0_end = 31;
+-- INIT env.section_1_end = 31;
+-- INIT env.section_2_end = 31;
+-- INIT env.section_3_end = 31;
 
 --INIT env.veh___609___.lane_1;
 --INIT env.ego_lane_0;
