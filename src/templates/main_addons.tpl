@@ -230,15 +230,30 @@ INVAR section_0_segment_2_max_lane = 0;
 }@***********.nil
 
 
-   --= General "Section" Stuff =--
-INIT env.outgoing_connection_0_of_section_0 = 1;
-INIT env.outgoing_connection_0_of_section_1 = 2;
-INIT env.outgoing_connection_0_of_section_2 = 3;
-INIT env.outgoing_connection_0_of_section_3 = 0;
-INIT env.ego.on_straight_section = 0;
-INIT env.ego.v > 15;
+--= General "Section" Stuff =--
+INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
+INVAR env.ego.v = 0;
+INIT env.veh___609___.is_on_sec_0 = 1;
+INIT env.veh___619___.is_on_sec_0 = 1;
+INIT env.veh___609___.abs_pos = 10;
+INIT env.veh___619___.abs_pos = 20;
+INIT abs(env.section_0.source.y - env.section_1.source.y) >= 10;
+INIT abs(env.section_0.source.x - env.section_1.source.x) >= 10;
+INIT abs(env.section_0.source.y - env.section_2.source.y) >= 10;
+INIT abs(env.section_0.source.x - env.section_2.source.x) >= 10;
+INIT abs(env.section_0.source.y - env.section_3.source.y) >= 10;
+INIT abs(env.section_0.source.x - env.section_3.source.x) >= 10;
+INIT abs(env.section_1.source.y - env.section_2.source.y) >= 10;
+INIT abs(env.section_1.source.x - env.section_2.source.x) >= 10;
+INIT abs(env.section_1.source.y - env.section_3.source.y) >= 10;
+INIT abs(env.section_1.source.x - env.section_3.source.x) >= 10;
+INIT abs(env.section_2.source.y - env.section_3.source.y) >= 10;
+INIT abs(env.section_2.source.x - env.section_3.source.x) >= 10;
 
-@{
-INIT env.veh___6[i]9___.abs_pos < env.section_0_end;
-INIT env.veh___6[i]9___.on_straight_section = 0;
-}@.for[[i], 1, @{NONEGOS - 1}@.eval]
+INIT env.section_0_end = 31;
+INIT env.section_1_end = 31;
+INIT env.section_2_end = 31;
+INIT env.section_3_end = 31;
+
+--INIT env.veh___609___.lane_1;
+--INIT env.ego_lane_0;
