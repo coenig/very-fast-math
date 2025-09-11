@@ -63,61 +63,63 @@
    -- "SECTIONS": "#{12}#"
    -- "SPEC": "#{ env.cnt < 0 }#"
 
-   INIT section_0.angle = 0;
-   INIT section_1.angle = 90;
-   INIT section_2.angle = 270;
-   INIT section_3.angle = 0;
-   INIT section_4.angle = 180;
-   INIT section_5.angle = 270;
-   INIT section_6.angle = 90;
-   INIT section_7.angle = 180;
-   INIT section_8.angle = 45;
-   INIT section_9.angle = 315;
-   INIT section_10.angle = 225;
-   INIT section_11.angle = 135;
+   INIT env.section_0.angle = 0;
+   INIT env.section_1.angle = 90;
+   INIT env.section_2.angle = 270;
+   INIT env.section_3.angle = 0;
+   INIT env.section_4.angle = 180;
+   INIT env.section_5.angle = 270;
+   INIT env.section_6.angle = 90;
+   INIT env.section_7.angle = 180;
+   INIT env.section_8.angle = 45;
+   INIT env.section_9.angle = 315;
+   INIT env.section_10.angle = 225;
+   INIT env.section_11.angle = 135;
     
-   INIT section_0_end != 0; -- Include this to get ROUND roundabout.
-   INIT section_1_end != 0;
-   INIT section_2_end != 0;
-   INIT section_3_end != 0;
-   INIT section_4_end != 0;
-   INIT section_5_end != 0;
-   INIT section_6_end != 0;
-   INIT section_7_end != 0;
-   INIT section_8_end = 0;
-   INIT section_9_end = 0;
-   INIT section_10_end = 0;
-   INIT section_11_end = 0;
+   INIT env.section_0_end != 0; -- Include this to get ROUND roundabout.
+   INIT env.section_1_end != 0;
+   INIT env.section_2_end != 0;
+   INIT env.section_3_end != 0;
+   INIT env.section_4_end != 0;
+   INIT env.section_5_end != 0;
+   INIT env.section_6_end != 0;
+   INIT env.section_7_end != 0;
+   INIT env.section_8_end = 0;
+   INIT env.section_9_end = 0;
+   INIT env.section_10_end = 0;
+   INIT env.section_11_end = 0;
    
-   INIT section_7.source.y = section_0.source.y - 7;
-   INIT section_7.source.x = section_0.drain.x;
-   INIT section_3.source.y = section_4.source.y + 7;
-   INIT section_3.source.x = section_4.drain.x;
-   INIT section_6.drain.y = section_5.source.y;
-   INIT section_6.source.x = section_5.source.x - 7;
-   INIT section_1.source.y = section_2.drain.y;
-   INIT section_1.source.x = section_2.source.x - 7;
+   INIT env.section_7.source.y = env.section_0.source.y - 7;
+   INIT env.section_7.source.x = env.section_0.drain.x;
+   INIT env.section_3.source.y = env.section_4.source.y + 7;
+   INIT env.section_3.source.x = env.section_4.drain.x;
+   INIT env.section_6.drain.y  = env.section_5.source.y;
+   INIT env.section_6.source.x = env.section_5.source.x - 7;
+   INIT env.section_1.source.y = env.section_2.drain.y;
+   INIT env.section_1.source.x = env.section_2.source.x - 7;
    
-   INIT outgoing_connection_0_of_section_0 = 8;
-   INIT outgoing_connection_0_of_section_1 = -1;
-   INIT outgoing_connection_0_of_section_2 = 9;
-   INIT outgoing_connection_0_of_section_3 = -1;
-   INIT outgoing_connection_0_of_section_4 = 10;
-   INIT outgoing_connection_0_of_section_5 = -1;
-   INIT outgoing_connection_0_of_section_6 = 11;
-   INIT outgoing_connection_0_of_section_7 = -1;
-   INIT outgoing_connection_0_of_section_8 = 1;
-   INIT outgoing_connection_0_of_section_9 = 3;
-   INIT outgoing_connection_0_of_section_10 = 5;
-   INIT outgoing_connection_0_of_section_11 = 7;
-   INIT outgoing_connection_1_of_section_8 = 9;
-   INIT outgoing_connection_1_of_section_9 = 10;
-   INIT outgoing_connection_1_of_section_10 = 11;
-   INIT outgoing_connection_1_of_section_11 = 8;
-}@***********.nil
+   INIT env.outgoing_connection_0_of_section_0 = 8;
+   INIT env.outgoing_connection_0_of_section_1 = -1;
+   INIT env.outgoing_connection_0_of_section_2 = 9;
+   INIT env.outgoing_connection_0_of_section_3 = -1;
+   INIT env.outgoing_connection_0_of_section_4 = 10;
+   INIT env.outgoing_connection_0_of_section_5 = -1;
+   INIT env.outgoing_connection_0_of_section_6 = 11;
+   INIT env.outgoing_connection_0_of_section_7 = -1;
+   INIT env.outgoing_connection_0_of_section_8 = 1;
+   INIT env.outgoing_connection_0_of_section_9 = 3;
+   INIT env.outgoing_connection_0_of_section_10 = 5;
+   INIT env.outgoing_connection_0_of_section_11 = 7;
+   INIT env.outgoing_connection_1_of_section_8 = 9;
+   INIT env.outgoing_connection_1_of_section_9 = 10;
+   INIT env.outgoing_connection_1_of_section_10 = 11;
+   INIT env.outgoing_connection_1_of_section_11 = 8;
+   
+   INIT env.veh___609___.is_on_sec_0 = 1;
+}@***********.id
 
 
-   --= "Round" ROUNDABOUT =--
+   --= "Round" ROUNDABOUT (this is NOT the completely circular one) =--
    -- Remove nil from generator to activate.
 @{
    -- "ANGLEGRANULARITY": "#{90}#",
@@ -133,73 +135,73 @@
    -- "SECTIONS": "#{16}#"
    -- "SPEC": "#{ env.cnt < 0 }#"
 
-   INIT section_0.angle = 0;
-   INIT section_1.angle = 90;
-   INIT section_2.angle = 270;
-   INIT section_3.angle = 0;
-   INIT section_4.angle = 180;
-   INIT section_5.angle = 270;
-   INIT section_6.angle = 90;
-   INIT section_7.angle = 180;
-   INIT section_8.angle = 90;
-   INIT section_9.angle = 0;
-   INIT section_10.angle = 0;
-   INIT section_11.angle = 270;
-   INIT section_12.angle = 270;
-   INIT section_13.angle = 180;
-   INIT section_14.angle = 180;
-   INIT section_15.angle = 90;
+   INIT env.section_0.angle = 0;
+   INIT env.section_1.angle = 90;
+   INIT env.section_2.angle = 270;
+   INIT env.section_3.angle = 0;
+   INIT env.section_4.angle = 180;
+   INIT env.section_5.angle = 270;
+   INIT env.section_6.angle = 90;
+   INIT env.section_7.angle = 180;
+   INIT env.section_8.angle = 90;
+   INIT env.section_9.angle = 0;
+   INIT env.section_10.angle = 0;
+   INIT env.section_11.angle = 270;
+   INIT env.section_12.angle = 270;
+   INIT env.section_13.angle = 180;
+   INIT env.section_14.angle = 180;
+   INIT env.section_15.angle = 90;
 
-   INIT section_0_end != 0;
-   INIT section_1_end != 0;
-   INIT section_2_end != 0;
-   INIT section_3_end != 0;
-   INIT section_4_end != 0;
-   INIT section_5_end != 0;
-   INIT section_6_end != 0;
-   INIT section_7_end != 0;
-   INIT section_8_end = 0;
-   INIT section_9_end = 0;
-   INIT section_10_end = 0;
-   INIT section_11_end = 0;
-   INIT section_12_end = 0;
-   INIT section_13_end = 0;
-   INIT section_14_end = 0;
-   INIT section_15_end = 0;
+   INIT env.section_0_end != 0;
+   INIT env.section_1_end != 0;
+   INIT env.section_2_end != 0;
+   INIT env.section_3_end != 0;
+   INIT env.section_4_end != 0;
+   INIT env.section_5_end != 0;
+   INIT env.section_6_end != 0;
+   INIT env.section_7_end != 0;
+   INIT env.section_8_end = 0;
+   INIT env.section_9_end = 0;
+   INIT env.section_10_end = 0;
+   INIT env.section_11_end = 0;
+   INIT env.section_12_end = 0;
+   INIT env.section_13_end = 0;
+   INIT env.section_14_end = 0;
+   INIT env.section_15_end = 0;
 
-   -- INIT section_7.source.x = section_0.drain.x;
-   -- INIT section_3.source.x = section_4.drain.x;
-   -- INIT section_6.drain.y = section_5.source.y;
-   -- INIT section_2.drain.y = section_1.source.y;
-   INIT section_7.source.y <= section_0.source.y - 5;
-   INIT section_3.source.y >= section_4.source.y + 5;
-   INIT section_6.source.x <= section_5.source.x - 5;
-   INIT section_1.source.x <= section_2.source.x - 5;
+   -- INIT env.section_7.source.x = env.section_0.drain.x;
+   -- INIT env.section_3.source.x = env.section_4.drain.x;
+   -- INIT env.section_6.drain.y =  env.section_5.source.y;
+   -- INIT env.section_2.drain.y =  env.section_1.source.y;
+   INIT env.section_7.source.y <= env.section_0.source.y - 5;
+   INIT env.section_3.source.y >= env.section_4.source.y + 5;
+   INIT env.section_6.source.x <= env.section_5.source.x - 5;
+   INIT env.section_1.source.x <= env.section_2.source.x - 5;
 
-   INIT outgoing_connection_0_of_section_0 = 8;
-   INIT outgoing_connection_0_of_section_1 = -1;
-   INIT outgoing_connection_0_of_section_2 = 10;
-   INIT outgoing_connection_0_of_section_3 = -1;
-   INIT outgoing_connection_0_of_section_4 = 12;
-   INIT outgoing_connection_0_of_section_5 = -1;
-   INIT outgoing_connection_0_of_section_6 = 14;
-   INIT outgoing_connection_0_of_section_7 = -1;
-   INIT outgoing_connection_0_of_section_8 = 9;
-   INIT outgoing_connection_0_of_section_9 = 10;
-   INIT outgoing_connection_0_of_section_10 = 11;
-   INIT outgoing_connection_0_of_section_11 = 12;
-   INIT outgoing_connection_0_of_section_12 = 13;
-   INIT outgoing_connection_0_of_section_13 = 14;
-   INIT outgoing_connection_0_of_section_14 = 15;
-   INIT outgoing_connection_0_of_section_15 = 8;
---   INIT outgoing_connection_1_of_section_8 = -1;
-   INIT outgoing_connection_1_of_section_9 = 1;
---   INIT outgoing_connection_1_of_section_10 = -1;
-   INIT outgoing_connection_1_of_section_11 = 3;
---   INIT outgoing_connection_1_of_section_12 = -1;
-   INIT outgoing_connection_1_of_section_13 = 5;
---   INIT outgoing_connection_1_of_section_14 = -1;
-   INIT outgoing_connection_1_of_section_15 = 7;
+   INIT env.outgoing_connection_0_of_section_0 = 8;
+   INIT env.outgoing_connection_0_of_section_1 = -1;
+   INIT env.outgoing_connection_0_of_section_2 = 10;
+   INIT env.outgoing_connection_0_of_section_3 = -1;
+   INIT env.outgoing_connection_0_of_section_4 = 12;
+   INIT env.outgoing_connection_0_of_section_5 = -1;
+   INIT env.outgoing_connection_0_of_section_6 = 14;
+   INIT env.outgoing_connection_0_of_section_7 = -1;
+   INIT env.outgoing_connection_0_of_section_8 = 9;
+   INIT env.outgoing_connection_0_of_section_9 = 10;
+   INIT env.outgoing_connection_0_of_section_10 = 11;
+   INIT env.outgoing_connection_0_of_section_11 = 12;
+   INIT env.outgoing_connection_0_of_section_12 = 13;
+   INIT env.outgoing_connection_0_of_section_13 = 14;
+   INIT env.outgoing_connection_0_of_section_14 = 15;
+   INIT env.outgoing_connection_0_of_section_15 = 8;
+-- INIT env.outgoing_connection_1_of_section_8 = -1;
+   INIT env.outgoing_connection_1_of_section_9 = 1;
+-- INIT env.outgoing_connection_1_of_section_10 = -1;
+   INIT env.outgoing_connection_1_of_section_11 = 3;
+-- INIT env.outgoing_connection_1_of_section_12 = -1;
+   INIT env.outgoing_connection_1_of_section_13 = 5;
+-- INIT env.outgoing_connection_1_of_section_14 = -1;
+   INIT env.outgoing_connection_1_of_section_15 = 7;
 }@***********.nil
 
    --= For Stop&Go =--
@@ -231,10 +233,28 @@ INVAR section_0_segment_2_max_lane = 0;
 
 
 --= General "Section" Stuff =--
-INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
-INIT env.veh___609___.is_on_sec_0 = 1;
-INIT env.veh___619___.is_on_sec_0 = 1;
-INIT env.veh___619___.abs_pos = 20;
+--INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
+--INVAR env.veh___609___.v > env.veh___619___.v + 1;
+-- INIT env.veh___619___.is_on_sec_0 = 1;
+-- INIT env.veh___619___.is_on_sec_0 = 1;
+-- --INIT env.veh___619___.abs_pos = 10;
+-- INIT env.section_3.angle = 0;
+-- INIT env.section_4.angle = 0;
+-- INIT env.section_1_end = 0;
+-- INIT env.section_2_end = 0;
+-- INIT env.section_5_end = 0;
+-- INIT env.section_6_end = 0;
+-- 
+-- INIT env.outgoing_connection_0_of_section_0 = 1;
+-- INIT env.outgoing_connection_1_of_section_0 = 2;
+-- INIT env.outgoing_connection_0_of_section_1 = 3;
+-- INIT env.outgoing_connection_0_of_section_2 = 4;
+-- INIT env.outgoing_connection_0_of_section_3 = 5;
+-- INIT env.outgoing_connection_0_of_section_4 = 6;
+-- INIT env.outgoing_connection_0_of_section_5 = 7;
+-- INIT env.outgoing_connection_0_of_section_6 = 7;
+
+
 -- INIT abs(env.section_0.source.y - env.section_1.source.y) >= 10;
 -- INIT abs(env.section_0.source.x - env.section_1.source.x) >= 10;
 -- INIT abs(env.section_0.source.y - env.section_2.source.y) >= 10;
