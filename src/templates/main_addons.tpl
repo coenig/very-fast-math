@@ -116,7 +116,7 @@
    INIT env.outgoing_connection_1_of_section_11 = 8;
    
    INIT env.veh___609___.is_on_sec_0 = 1;
-}@***********.id
+}@***********.nil
 
 
    --= "Round" ROUNDABOUT (this is NOT the completely circular one) =--
@@ -233,45 +233,30 @@ INVAR section_0_segment_2_max_lane = 0;
 
 
 --= General "Section" Stuff =--
---INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
+INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
+INVAR env.ego.v = 0;
+INVAR env.ego.abs_pos = 0;
+INIT env.veh___609___.is_on_sec_0 = 1;
+INIT env.veh___619___.is_on_sec_0 = 1;
+INIT env.veh___609___.abs_pos = 10;
+INIT env.veh___619___.abs_pos = 20;
+INIT env.section_0_end = 30;
+INIT env.section_1_end = 30;
+INIT env.section_2_end = 50;
+INIT env.section_3_end = 30;
+
 --INVAR env.veh___609___.v > env.veh___619___.v + 1;
--- INIT env.veh___619___.is_on_sec_0 = 1;
--- INIT env.veh___619___.is_on_sec_0 = 1;
--- --INIT env.veh___619___.abs_pos = 10;
--- INIT env.section_3.angle = 0;
--- INIT env.section_4.angle = 0;
--- INIT env.section_1_end = 0;
--- INIT env.section_2_end = 0;
--- INIT env.section_5_end = 0;
--- INIT env.section_6_end = 0;
--- 
+
+------------------------------------------------------- 
 -- INIT env.outgoing_connection_0_of_section_0 = 1;
 -- INIT env.outgoing_connection_1_of_section_0 = 2;
 -- INIT env.outgoing_connection_0_of_section_1 = 3;
--- INIT env.outgoing_connection_0_of_section_2 = 4;
--- INIT env.outgoing_connection_0_of_section_3 = 5;
--- INIT env.outgoing_connection_0_of_section_4 = 6;
--- INIT env.outgoing_connection_0_of_section_5 = 7;
--- INIT env.outgoing_connection_0_of_section_6 = 7;
-
-
--- INIT abs(env.section_0.source.y - env.section_1.source.y) >= 10;
--- INIT abs(env.section_0.source.x - env.section_1.source.x) >= 10;
--- INIT abs(env.section_0.source.y - env.section_2.source.y) >= 10;
--- INIT abs(env.section_0.source.x - env.section_2.source.x) >= 10;
--- INIT abs(env.section_0.source.y - env.section_3.source.y) >= 10;
--- INIT abs(env.section_0.source.x - env.section_3.source.x) >= 10;
--- INIT abs(env.section_1.source.y - env.section_2.source.y) >= 10;
--- INIT abs(env.section_1.source.x - env.section_2.source.x) >= 10;
--- INIT abs(env.section_1.source.y - env.section_3.source.y) >= 10;
--- INIT abs(env.section_1.source.x - env.section_3.source.x) >= 10;
--- INIT abs(env.section_2.source.y - env.section_3.source.y) >= 10;
--- INIT abs(env.section_2.source.x - env.section_3.source.x) >= 10;
-
--- INIT env.section_0_end = 31;
--- INIT env.section_1_end = 31;
--- INIT env.section_2_end = 31;
--- INIT env.section_3_end = 31;
+-- INIT env.outgoing_connection_0_of_section_2 = 3;
+-- INIT env.dist_0_of_section_0_to_1 = 20 | env.dist_0_of_section_0_to_1 = 40;
+-- INIT env.dist_1_of_section_0_to_2 = 20 | env.dist_1_of_section_0_to_2 = 40;
+-- INIT env.dist_0_of_section_1_to_3 = 20 | env.dist_0_of_section_1_to_3 = 40;
+-- INIT env.dist_0_of_section_2_to_3 = 20 | env.dist_0_of_section_2_to_3 = 40;
+------------------------------------------------------- 
 
 --INIT env.veh___609___.lane_1;
 --INIT env.ego_lane_0;
