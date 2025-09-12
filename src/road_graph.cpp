@@ -445,10 +445,9 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
    std::shared_ptr<RoadGraph> orig_section{ shared_from_this() };
    removeAllGhostSectionsFromThis(); // Must be always the same section (e.g., 0) to avoid garbage ghost sections.
    std::vector<std::shared_ptr<RoadGraph>> ghosts{};
+   int free_id{ orig_section->findFirstFreeID() };
 
-   //orig_section->applyToMeAndAllMySuccessorsAndPredecessors([](const std::shared_ptr<RoadGraph> r) { if (r->id_ != 0) r->makeGhost(); });
-
-   applyToMeAndAllMySuccessorsAndPredecessors([orig_section, &ghosts](const std::shared_ptr<RoadGraph> r) {
+   applyToMeAndAllMySuccessorsAndPredecessors([orig_section, &ghosts, &free_id](const std::shared_ptr<RoadGraph> r) {
       const float MIDDLE_OF_ROAD{ orig_section->getMyRoad().getNumLanes() - 1.0f };
       constexpr float SOME_LENGTH{ 10 }; // Length of the dummy section, should be completely arbitrary.
 
@@ -490,7 +489,7 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
             Vec2D p{ bezier::pointAtRatio(rel, arc_origin, between1, between2, arc_target) };
             Vec2D dir{ bezier::B_prime(rel, arc_origin, between1, between2, arc_target) };
 
-            auto node = std::make_shared<RoadGraph>(orig_section->findFirstFreeID());
+            auto node = std::make_shared<RoadGraph>(free_id++);
             node->makeGhost();
             node->setMyRoad(StraightRoadSection{ orig_section->getMyRoad().getNumLanes(), SOME_LENGTH });
             r->removeNonegoFromCrossingTowards(r_target, car.car_id_);
@@ -513,13 +512,14 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
             node->setAngle((Vec2D{0, 0} - dir).angle({ 1, 0 }));
             node->setOriginPoint(p);
 
-            //orig_section->addSuccessor(node); // TODO: This can screw up the "r" pointers. The below approach is preferred, but sometimes the cars on the ghost sections disappear.
             ghosts.push_back(node);
          }
       }
    });
 
-   for (const auto& ghost : ghosts) orig_section->addSuccessor(ghost);
+   for (const auto& ghost : ghosts) {
+      orig_section->addSuccessor(ghost);
+   }
 }
 
 static constexpr float EPS{ 0.01 };
