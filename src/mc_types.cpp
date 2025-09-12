@@ -86,5 +86,5 @@ std::string vfm::MCTrace::getLastValueOfVariableAtStep(const std::string& var, c
 
    addError("No value stored for variable '" + var + "' up to step '" + std::to_string(step) + "'.");
 
-   return "#Variable-" + var + "-not-found";
+   return "-1"; // TODO: Is this a good "Error" value?? (Needed in mc_trajectory_generator, ~268.
 }
