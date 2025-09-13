@@ -234,8 +234,8 @@ INVAR section_0_segment_2_max_lane = 0;
 
 --= General "Section" Stuff =--
 INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
-INVAR env.ego.v = 0;
-INVAR env.ego.abs_pos = 0;
+-- INVAR env.ego.v = 0;
+-- INVAR env.ego.abs_pos = 0;
 INIT env.veh___609___.is_on_sec_0 = 1;
 INIT env.veh___619___.is_on_sec_0 = 1;
 INIT env.veh___609___.abs_pos = 10;

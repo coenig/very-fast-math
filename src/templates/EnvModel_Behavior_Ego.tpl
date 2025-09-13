@@ -198,9 +198,10 @@ INVAR
 -- Make sure ego and vehicle [i] don't collide in the initial state.
 INIT abs(veh___6[i]9___.rel_pos) > veh_length | !ego.same_lane_as_veh_[i];
 
-INVAR -- Ego may not "jump" over non-ego cars.
-    !(ego.same_lane_as_veh_[i] & (veh___6[i]9___.prev_rel_pos < 0) & (veh___6[i]9___.rel_pos >= 0)) &
-    !(ego.same_lane_as_veh_[i] & (veh___6[i]9___.prev_rel_pos > 0) & (veh___6[i]9___.rel_pos <= 0));
+-- This has to go away: handled by veh___609___ logic, and otherwise leads to clashes with the inter-section travel.
+-- INVAR -- Ego may not "jump" over non-ego cars.
+--     !(ego.same_lane_as_veh_[i] & (veh___6[i]9___.prev_rel_pos < 0) & (veh___6[i]9___.rel_pos >= 0)) &
+--     !(ego.same_lane_as_veh_[i] & (veh___6[i]9___.prev_rel_pos > 0) & (veh___6[i]9___.rel_pos <= 0));
 }@**.for[[i], 1, @{NONEGOS - 1}@.eval]
     
 
@@ -716,7 +717,7 @@ VAR
 @{FROZENVAR}@******.if[@{(EGOLESS)}@.eval]
    @{ego.v}@*.scalingVariable[velocity] : 0 .. ego.max_vel; -- @{2}@.velocityWorldToEnvModelConst;
 
-INIT ego.abs_pos = 0;
+-- INIT ego.abs_pos = 0;
 
 
 
