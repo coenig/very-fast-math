@@ -326,17 +326,17 @@ bool VisualizationLaunchers::quickGenerateGIFs(
             SIM_TYPE_REGULAR_BIRDSEYE_ONLY,
             agents_to_draw_arrows_for,
             gen_config_non_smooth, "birdseye (2/7)");
+      }
 
+      if (export_with_smooth_arrows) {
          VisualizationLaunchers::interpretAndGenerate(
             trace,
             path,
             "cex-cockpit-only",
-            static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation | LiveSimGenerator::LiveSimType::cockpit | LiveSimGenerator::LiveSimType::incremental_image_output),
+            SIM_TYPE_SMOOTH_COCKPIT,
             agents_to_draw_arrows_for,
-            gen_config_non_smooth, "cockpit (3/7)");
-      }
+            gen_config_smooth, "cockpit (3/7)");
 
-      if (export_with_smooth_arrows) {
          VisualizationLaunchers::interpretAndGenerate(
             trace,
             path,

@@ -54,7 +54,7 @@ DEFINE
 
     @{max_ego_visibility_range}@*.distanceWorldToEnvModelDef[MAXEGOVISRANGE];                      --how far can the ego sensors see? Vehicles being further away than this cannot be detected and will not be considered
 
-    empty_gap_indicator := -1; --Counterpart to i_FREE_LANE in Viper, could be AKA-d but for now should be fine to have twice.
+    empty_gap_indicator := 0; --Counterpart to i_FREE_LANE in Viper, could be AKA-d but for now should be fine to have twice.
 }@**.if[@{!(EGOLESS)}@.eval]
 --------------------------------------------------------
 -- End: Constants and common definitions
