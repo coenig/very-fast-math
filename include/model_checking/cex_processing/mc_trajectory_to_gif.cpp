@@ -77,6 +77,10 @@ const auto VARIABLES_TO_BE_PAINTED = std::make_shared<std::vector<PainterVariabl
       //{ R"(REGEX:.*getDynamicMinDistanceFront.part2.1")",   { 3, -11 } },
       //{ R"(REGEX:veh___6.*9___.rel_pos)",   { 3, -11 } },
 
+      //{ R"(REGEX:.*env.veh___6.*9___..*)",   { 3, -11 } },
+      //{ R"(REGEX:.*env.ego..*)",   { 3, -11 } },
+      //{ R"(REGEX:.*rlc.*)",   { 1, -11 } },
+
       //{ R"(ego.right_of_veh_1_lane)",   { 0, -11 } },
       //{ R"(veh_length)",   { 3, -11 } },
       //{ R"(veh___619___.lane_move_up)",   { 0, -11 } },
