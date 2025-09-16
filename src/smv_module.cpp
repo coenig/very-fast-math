@@ -111,9 +111,14 @@ std::map<std::string, std::shared_ptr<SMVDatatype>> vfm::mc::smv::Module::getVar
          type = std::make_shared<SMVDatatypeEnum>();
       }
 
-      addFailableChild(type);
-      type->parseProgram(type_str);
-      res.insert({ name, type });
+      if (type) {
+         addFailableChild(type);
+         type->parseProgram(type_str);
+         res.insert({ name, type });
+      }
+      else {
+         addError("Cannot derive type for '" + type_str + "'.");
+      }
    }
 
    return res;

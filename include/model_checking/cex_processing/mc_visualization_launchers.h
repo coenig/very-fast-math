@@ -65,6 +65,11 @@ public:
       | LiveSimGenerator::LiveSimType::always_paint_arrows // Can make it quite crowded in smooth animation.
       );
 
+   static constexpr auto SIM_TYPE_SMOOTH_COCKPIT = static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
+      | LiveSimGenerator::LiveSimType::cockpit
+      | LiveSimGenerator::LiveSimType::always_paint_arrows
+      );
+
    static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY = static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
       | LiveSimGenerator::LiveSimType::birdseye
       | LiveSimGenerator::LiveSimType::incremental_image_output
