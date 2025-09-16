@@ -71,7 +71,7 @@ public:
    {
       const float LANE_CONSTANT{ ((float)road_graph->getMyRoad().getNumLanes() - 1) * 2}; // TODO: What is different sections have different numbers of lanes?
 
-      road_graph->findSectionWithEgo()->getMyRoad().setEgo(std::make_shared<CarPars>(ego_pos_y_, ego_pos_x_, ego_vx_ * SPEED_DIVISOR_FOR_STEP_SMOOTHNESS, HighwayImage::EGO_MOCK_ID));
+      road_graph->findSectionWithEgoIfAny()->getMyRoad().setEgo(std::make_shared<CarPars>(ego_pos_y_, ego_pos_x_, ego_vx_ * SPEED_DIVISOR_FOR_STEP_SMOOTHNESS, RoadGraph::EGO_MOCK_ID));
 
       for (int i{}; i < num_cars_; i++) {
          CarParsVec others_vec{ road_graph->findSectionWithCar(i)->getMyRoad().getOthers() };
@@ -98,7 +98,7 @@ public:
    }
 
    mutable std::map<int, std::pair<float, float>> others_past_vec_{};
-   mutable CarPars past_ego_{ CarPars{ -std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(), std::numeric_limits<int>::min(), HighwayImage::EGO_MOCK_ID } };
+   mutable CarPars past_ego_{ CarPars{ -std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(), std::numeric_limits<int>::min(), RoadGraph::EGO_MOCK_ID } };
    mutable int count_{ 0 };
 
    inline std::shared_ptr<Image> getBirdseyeView(
@@ -130,16 +130,18 @@ public:
 
       const bool infinite_highway{ road_graph->getNodeCount() == 1 };
       
-      const Rec2D bounding_box{ infinite_highway ? Rec2D{} : road_graph->getBoundingBox() };
+      Rec2D bounding_box{ infinite_highway ? Rec2D{} : road_graph->getBoundingBox() };
       const float offset_x{ infinite_highway
-         ? 60 
-         : - bounding_box.upper_left_.x + 15 };
+         ? 60.0f 
+         : 30.0f //-bounding_box.upper_left_.x + 15
+      };
+
       const float offset_y{ 
          infinite_highway
          ? 
          (float)road_graph->getMyRoad().getNumLanes() / 2.0f
-         : 
-         -bounding_box.upper_left_.y + 15 
+         : 20.0f
+         //-bounding_box.upper_left_.y + 15 
          //-getImageHeight() * (getImageHeight() / outside_view_->getHeight() / 2) + 25
       };
 
@@ -167,16 +169,16 @@ public:
       const float mirror_top = height * mirror_pos_top_percent_of_screen_;
       constexpr static float mirror_frame_thickness = 10;
       auto trans_cpv{ std::make_shared<Plain3DTranslator>(false) };
-      auto trans_cpvm{ std::make_shared<Plain3DTranslator>(true) };
+      //auto trans_cpvm{ std::make_shared<Plain3DTranslator>(true) };
 
       if (!cockpit_view_ || cockpit_view_->getWidth() != width || cockpit_view_->getHeight() != height) {
          cockpit_view_ = std::make_shared<HighwayImage>(width, height, trans_cpv, road_graph->getMyRoad().getNumLanes());
-         cockpit_view_mirror_ = std::make_shared<HighwayImage>(mirror_width, mirror_height, trans_cpvm, road_graph->getMyRoad().getNumLanes());
+         //cockpit_view_mirror_ = std::make_shared<HighwayImage>(mirror_width, mirror_height, trans_cpvm, road_graph->getMyRoad().getNumLanes());
       }
 
       if (start_pdf) {
          cockpit_view_->restartPDF();
-         cockpit_view_mirror_->restartPDF();
+         //cockpit_view_mirror_->restartPDF();
       }
 
       std::map<int, std::pair<float, float>> others_future_vec{}; // TODO: Future vec not yet working.
@@ -187,9 +189,8 @@ public:
       cockpit_view_->paintEarthAndSky({ (float)width, (float)height });
       cockpit_view_->setTranslator(trans_cpv);
 
-      cockpit_view_mirror_->setTranslator(no_trans);
-      cockpit_view_mirror_->paintEarthAndSky({ (float)mirror_width, (float)mirror_height });
-      cockpit_view_mirror_->setTranslator(trans_cpvm);
+      //cockpit_view_mirror_->setTranslator(no_trans);
+      //cockpit_view_mirror_->paintEarthAndSky({ (float)mirror_width, (float)mirror_height });
 
       cockpit_view_->paintRoadGraph(
          road_graph,
@@ -197,33 +198,33 @@ public:
          additional_var_vals,
          true);
 
-      cockpit_view_mirror_->paintRoadGraph(
-         road_graph,
-         { 500, 120 },
-         additional_var_vals,
-         true);
+      //cockpit_view_mirror_->paintRoadGraph(
+      //   road_graph,
+      //   { 500, 120 },
+      //   additional_var_vals,
+      //   true);
 
       cockpit_view_->setTranslator(std::make_shared<DefaultHighwayTranslator>());
-      cockpit_view_mirror_->setTranslator(std::make_shared<DefaultHighwayTranslator>());
+      //cockpit_view_mirror_->setTranslator(std::make_shared<DefaultHighwayTranslator>());
 
       // Paint mirror
-      cockpit_view_->fillRectangle(
-         mirror_left - mirror_frame_thickness,
-         mirror_top - mirror_frame_thickness,
-         mirror_width + mirror_frame_thickness * 2,
-         mirror_height + mirror_frame_thickness * 2,
-         BLACK,
-         false);
+      //cockpit_view_->fillRectangle(
+      //   mirror_left - mirror_frame_thickness,
+      //   mirror_top - mirror_frame_thickness,
+      //   mirror_width + mirror_frame_thickness * 2,
+      //   mirror_height + mirror_frame_thickness * 2,
+      //   BLACK,
+      //   false);
 
-      cockpit_view_->fillRectangle(
-         mirror_left - mirror_frame_thickness / 2,
-         mirror_top - mirror_frame_thickness / 2,
-         mirror_width + mirror_frame_thickness,
-         mirror_height + mirror_frame_thickness,
-         WHITE,
-         false);
+      //cockpit_view_->fillRectangle(
+      //   mirror_left - mirror_frame_thickness / 2,
+      //   mirror_top - mirror_frame_thickness / 2,
+      //   mirror_width + mirror_frame_thickness,
+      //   mirror_height + mirror_frame_thickness,
+      //   WHITE,
+      //   false);
 
-      cockpit_view_->insertImage(mirror_left, mirror_top, *cockpit_view_mirror_, false);
+      //cockpit_view_->insertImage(mirror_left, mirror_top, *cockpit_view_mirror_, false);
       // EO Paint mirror
 
       return cockpit_view_;
@@ -244,7 +245,8 @@ public:
 private:
    mutable std::shared_ptr<HighwayImage> outside_view_{ nullptr };
    mutable std::shared_ptr<HighwayImage> cockpit_view_{ nullptr };
-   mutable std::shared_ptr<HighwayImage> cockpit_view_mirror_{ nullptr };   mutable float mirror_size_percent_{ 0.35f };
+   //mutable std::shared_ptr<HighwayImage> cockpit_view_mirror_{ nullptr };
+   mutable float mirror_size_percent_{ 0.35f };
    mutable float mirror_pos_left_percent_of_screen_{ 0.64f };
    mutable float mirror_pos_top_percent_of_screen_{ 0.05f };
 };
