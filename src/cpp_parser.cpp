@@ -5148,14 +5148,20 @@ void vfm::CppParser::insertLiteralValuesForConstants()
                   addDebug("Found const variable '" + m_var_name + "'.");
 
                   auto val1{ m_var->constEval() };
-                  auto val2{ MathStruct::parseMathStruct(*pair.second.first, parser_, data_)->eval(data_, parser_) };
-                  auto val{ val1 != 0 ? val1 : val2 };
 
-                  if (val1 != val2) {
-                     addWarning("Variable '" + m_var_name + "' is const, but the value in the formla tree (" + std::to_string(val1) + ") differs from the one retrieved as init value (" + std::to_string(val2) + "). I'll take " + std::to_string(val) + ".");
+                  if (pair.second.first) {
+                     auto val2{ MathStruct::parseMathStruct(*pair.second.first, parser_, data_)->eval(data_, parser_) };
+                     auto val{ val1 != 0 ? val1 : val2 };
+
+                     if (val1 != val2) {
+                        addWarning("Variable '" + m_var_name + "' is const, but the value in the formla tree (" + std::to_string(val1) + ") differs from the one retrieved as init value (" + std::to_string(val2) + "). I'll take " + std::to_string(val) + ".");
+                     }
+                     m_var->replace(_val(val));
                   }
-
-                  m_var->replace(_val(val));
+                  else {
+                     addWarning("Const variable '" + m_var_name + "' is const, but there has no init value been retrieved. I'll take the value from the formula tree: " + std::to_string(val1) + ".");
+                     m_var->replace(_val(val1));
+                  }
                }
             }
          }
