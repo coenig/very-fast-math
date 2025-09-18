@@ -10,7 +10,7 @@ MODULE main
 VAR
   globals : Globals; 
   env : EnvModel;
-  planner : "@{PLANNER_ENTRY_FILENAME}@.printHeap"(globals@{PLANNER_PARAMETERS}@.printHeap);
+  planner : "@{PLANNER_ENTRY_FILENAME}@.printHeap"(globals."loc"@{PLANNER_PARAMETERS}@.printHeap);
                    
 @{
 @(

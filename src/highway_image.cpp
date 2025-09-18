@@ -400,8 +400,9 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
    std::vector<ConnectorPolygonEnding>& connections)
 {
    auto ego = ego_raw ? *ego_raw : CarPars{};
+   auto infinite_road_correction = infinite_road ? ego.car_rel_pos_ : 0;
 
-   std::map<int, std::vector<std::pair<float, float>>> shoulders;
+   std::map<int, std::vector<std::pair<float, float>>> shoulders{};
 
    for (int i = 0; i < lane_structure.getNumLanes(); i++) {
       shoulders[i] = {};
@@ -421,7 +422,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          temp_x1 = first_segment_x - 1;
       }
 
-      Vec2D last_one{ temp_x1, (float)(min_lane ? first_point.getActualDrivableMinLane() : first_point.getActualDrivableMaxLane()) - ego_lane };
+      Vec2D last_one{ temp_x1 - infinite_road_correction, (float)(min_lane ? first_point.getActualDrivableMinLane() : first_point.getActualDrivableMaxLane()) - ego_lane };
       Vec2D last_last_one{ last_one };
       bool is_last_shoulder{ false };
       bool is_last_last_shoulder{ false };
@@ -433,14 +434,9 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          const auto current_point{ segment.second };
          const float arc_length{ ARC_LENGTH };
 
-         Vec2D new_one{ current_point.getBegin(), (float)(min_lane ? current_point.getActualDrivableMinLane() : current_point.getActualDrivableMaxLane()) - ego_lane };
+         Vec2D new_one{ current_point.getBegin() - infinite_road_correction, (float)(min_lane ? current_point.getActualDrivableMinLane() : current_point.getActualDrivableMaxLane()) - ego_lane };
          const bool is_vanishing{ (min_lane ? last_one.y < new_one.y : last_one.y > new_one.y) }; // Currently unused, but the logic seems nice to have.
-         last_one.x = current_point.getBegin() - arc_length;
-
-         //if (is_vanishing) {
-            //new_one.x += 2 * ARC_LENGTH;
-            //last_one.x += 2 * ARC_LENGTH;
-         //}
+         last_one.x = current_point.getBegin() - infinite_road_correction - arc_length;
 
          const bool is_current_shoulder{ min_lane ? segment.second.isMinLaneShoulder() : segment.second.isMaxLaneShoulder() };
          const bool has_extended{ min_lane ? last_last_one.y > last_one.y : last_last_one.y < last_one.y };
@@ -485,12 +481,10 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          auto top_right_second = (*(overpaint.points_.rbegin() + 1)) - fix;
          auto top_left_second = (*(overpaint.points_.begin() + 1)) + fix;
 
-         //if (!getHighwayTranslator()->is3D()) {
-            top_right_corner.add({ 0, ego.car_lane_ });
-            top_right_second.add({ 0, ego.car_lane_ });
-            top_left_corner.add({ 0, ego.car_lane_ });
-            top_left_second.add({ 0, ego.car_lane_ });
-         //}
+         top_right_corner.add({ 0, ego.car_lane_ });
+         top_right_second.add({ 0, ego.car_lane_ });
+         top_left_corner.add({ 0, ego.car_lane_ });
+         top_left_second.add({ 0, ego.car_lane_ });
 
          connections.insert(connections.begin(), ConnectorPolygonEnding{ // This is the frame border around the pavement
             ConnectorPolygonEnding::Side::drain,
@@ -560,12 +554,10 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
          auto bottom_right_second = (*(overpaint.points_.rbegin() + 1)) - fix;
          auto bottom_left_second = (*(overpaint.points_.begin() + 1)) + fix;
 
-         //if (!getHighwayTranslator()->is3D()) {
-            bottom_right_corner.add({ 0, ego.car_lane_ });
-            bottom_right_second.add({ 0, ego.car_lane_ });
-            bottom_left_corner.add({ 0, ego.car_lane_ });
-            bottom_left_second.add({ 0, ego.car_lane_ });
-         //}
+         bottom_right_corner.add({ 0, ego.car_lane_ });
+         bottom_right_second.add({ 0, ego.car_lane_ });
+         bottom_left_corner.add({ 0, ego.car_lane_ });
+         bottom_left_second.add({ 0, ego.car_lane_ });
 
          for (auto& connection : connections) {
             if (connection.id_ == 3 || connection.id_ == 4) {
@@ -756,7 +748,8 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 
    auto ego = lane_structure.getEgo();
    auto ego_lane = ego ? ego->car_lane_ : 0;
-   const auto ego_rel_pos = ego ? ego->car_rel_pos_ : 0;
+   const auto infinite_road_correction = (infinite_road ? ego->car_rel_pos_ : 0);
+   const auto ego_rel_pos = ego ? ego->car_rel_pos_ - infinite_road_correction : 0;
    const auto ego_velocity = ego ? ego->car_velocity_ : 0;
    const auto others = lane_structure.getOthers();
    const auto future_positions_of_others = lane_structure.getFuturePositionsOfOthers();
@@ -803,7 +796,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 
    if (mode == RoadDrawingMode::road || mode == RoadDrawingMode::both) {
       if (infinite_road) {
-         fillRectangle(tl_orig.x, street_left_border, br_orig.x - tl_orig.x, street_width, PAVEMENT_COLOR, false);
+         fillRectangle(tl_orig.x - infinite_road_correction, street_left_border, br_orig.x - tl_orig.x, street_width, PAVEMENT_COLOR, false);
       }
       else {
          fillRectangle(road_begin, street_left_border, road_length, street_width, PAVEMENT_COLOR, false);
@@ -813,7 +806,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    for (int i = min_lane + 1; i <= max_lane; i++) {
       y = street_left_border + i - min_lane;
       if (mode == RoadDrawingMode::road || mode == RoadDrawingMode::both) {
-         dashed_line(road_begin, y, road_length, y, LANE_MARKER_THICKNESS, LANE_MARKER_COLOR, DASH_WIDTH);
+         dashed_line(road_begin - infinite_road_correction, y, road_length, y, LANE_MARKER_THICKNESS, LANE_MARKER_COLOR, DASH_WIDTH);
       }
    }
 
@@ -831,7 +824,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       std::map<int, int> id_to_others_vec{};
 
       for (int i = 0; i < others.size(); i++) {
-         Vec2Df pos{ others[i].car_rel_pos_, others[i].car_lane_ - ego_lane };
+         Vec2Df pos{ others[i].car_rel_pos_ - infinite_road_correction, others[i].car_lane_ - ego_lane };
          cars_by_distance[others[i].car_id_] = Vec2Df({ pos.x, std::abs(ego_lane - pos.y) * LANE_WIDTH }).length();
          id_to_others_vec[others[i].car_id_] = i;
       }
@@ -859,7 +852,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
          auto car_id{ cars_sorted_by_distance[i] };
          const auto pair{ others[id_to_others_vec[car_id]] };
 
-         Vec2Df pos{ pair.car_rel_pos_, pair.car_lane_ - (getHighwayTranslator()->is3D() ? 0 : ego_lane) };
+         Vec2Df pos{ pair.car_rel_pos_- infinite_road_correction, pair.car_lane_ - (getHighwayTranslator()->is3D() ? 0 : ego_lane) };
 
          float text_pos_x{ (std::max)(tl_orig.x + 2, (std::min)((float)br_orig.x - 2, pos.x)) };
          Color car_frame_color{ CAR_FRAME_COLOR };
@@ -904,10 +897,10 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       std::string varname_ego_turn_signals = "ego.turn_signals";
       if (var_vals.count(varname_ego_turn_signals)) {
          if (var_vals.at(varname_ego_turn_signals) == "LEFT") {
-            fillBlinker(Vec2Df{ 0, 0 }, -1.0);
+            fillBlinker(Vec2Df{ ego_rel_pos, 0 }, -1.0);
          }
          else if (var_vals.at(varname_ego_turn_signals) == "RIGHT") {
-            fillBlinker(Vec2Df{ 0, 0 }, 1.0);
+            fillBlinker(Vec2Df{ ego_rel_pos, 0 }, 1.0);
          }
       }
 
@@ -925,7 +918,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 
       for (int i = 0; i < cars_sorted_by_distance.size(); i++) {
          const auto pair = others[id_to_others_vec[cars_sorted_by_distance[i]]];
-         Vec2Df pos{ pair.car_rel_pos_, pair.car_lane_ - (getHighwayTranslator()->is3D() ? 0 : ego_lane) };
+         Vec2Df pos{ pair.car_rel_pos_ - infinite_road_correction, pair.car_lane_ - (getHighwayTranslator()->is3D() ? 0 : ego_lane) };
          if (getHighwayTranslator()->is3D()) plotCar3D(pos, CAR_COLOR, CAR_FRAME_COLOR);
       }
 
@@ -935,7 +928,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 
       if (ego) {
          auto text_pos_y{ plain_2d_translator_->reverseTranslate({ ego_rel_pos, 13 }).y };
-         writeAsciiText(-CAR_LENGTH / 2, text_pos_y, std::to_string((int)ego->car_rel_pos_) + "m", CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
+         writeAsciiText(-CAR_LENGTH / 2, text_pos_y, std::to_string((int) ego_rel_pos) + "m", CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
       }
    }
 
@@ -993,7 +986,8 @@ void vfm::HighwayImage::paintRoadGraph(
    auto old_trans = getHighwayTranslator();
    const auto all_nodes = my_r->getAllNodes();
 
-   const bool infinite_road{ all_nodes.size() == 1 && my_r->isRootedInZeroAndUnturned() }; // Only a single section, at root position and unturned, will be painted as infinite.
+   const bool infinite_road{ all_nodes.size() == 1 && my_r->isUnturned() }; // Only a single section, unturned, will be painted as infinite.
+
    float TRANSLATE_X{ TRANSLATE_X_raw };
    float TRANSLATE_Y{ TRANSLATE_Y_raw };
    Vec2D dim_raw{ dim_raw_raw };
@@ -1013,7 +1007,7 @@ void vfm::HighwayImage::paintRoadGraph(
       if (r_sub != r_ego) all_nodes_ego_in_front.push_back(r_sub);
    }
 
-   const auto DRAW_STRAIGHT_ROAD_OR_CARS = [&](const RoadDrawingMode mode) {
+   const auto DRAW_STRAIGHT_ROAD_OR_CARS = [this, &all_nodes_ego_in_front, &dim_raw, old_trans, TRANSLATE_X, TRANSLATE_Y, infinite_road, &var_vals, print_agent_ids](const RoadDrawingMode mode) {
       for (const auto r_sub : all_nodes_ego_in_front) {
          if (mode == RoadDrawingMode::road && r_sub->isGhost()
             || mode == RoadDrawingMode::ghosts_only && !r_sub->isGhost()) continue;
@@ -1021,8 +1015,8 @@ void vfm::HighwayImage::paintRoadGraph(
          const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
          preserved_dimension_ = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
 
-         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
-            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };// +(r_sub == r_ego && old_trans->is3D() && !r_sub->isGhost() ? (LANE_WIDTH * r_ego->my_road_.getEgo()->car_lane_ - section_max_lanes / 2) : 0) };
+         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
             Vec2D v{ plain_2d_translator_->translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
             v.rotate(r_sub->getAngle(), { middle.x, middle.y });
@@ -1034,8 +1028,8 @@ void vfm::HighwayImage::paintRoadGraph(
                v_raw.z };
             };
 
-         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, r_ego, old_trans, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
-            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y }; // -(r_sub == r_ego && old_trans->is3D() && !r_sub->isGhost() ? (LANE_WIDTH * r_ego->my_road_.getEgo()->car_lane_ - section_max_lanes / 2) : 0) };
+         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
 
             Vec2D v{

@@ -266,6 +266,8 @@ public:
    /// </summary>
    /// <returns></returns>
    bool isRootedInZeroAndUnturned() const;
+   bool isRootedInZero() const;
+   bool isUnturned() const;
 
    std::pair<Vec2D, float> getEgoOriginAndRotation();
    
@@ -273,6 +275,8 @@ public:
    /// Translates and rotates THE WHOLE GRAPH such that the section with ego on it "isRootedInZeroAndUnturned()".
    /// </summary>
    void normalizeRoadGraphToEgo();
+
+   void translateGraph(const Vec2D& trans);
 
    void removeAllGhostSectionsFromThis();
    void transformAllCarsToStraightRoadSections();
@@ -314,9 +318,6 @@ private:
    std::shared_ptr<RoadGraph> findFirstSectionWithProperty(
       const std::function<bool(std::shared_ptr<RoadGraph>)> property,
       std::set<std::shared_ptr<RoadGraph>>& visited);
-
-   bool isOriginAtZero() const;
-   bool isAngleZero() const;
 
    Vec2D origin_point_{ 0.0F, 0.0F };
    float angle_{ 0 }; // In RAD

@@ -233,17 +233,17 @@ INVAR section_0_segment_2_max_lane = 0;
 
 
 --= General "Section" Stuff =--
-INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
--- INVAR env.ego.v = 0;
--- INVAR env.ego.abs_pos = 0;
-INIT env.veh___609___.is_on_sec_0 = 1;
-INIT env.veh___619___.is_on_sec_0 = 1;
-INIT env.veh___609___.abs_pos = 10;
-INIT env.veh___619___.abs_pos = 20;
-INIT env.section_0_end = 30;
-INIT env.section_1_end = 30;
-INIT env.section_2_end = 50;
-INIT env.section_3_end = 30;
+-- INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
+-- -- INVAR env.ego.v = 0;
+-- -- INVAR env.ego.abs_pos = 0;
+-- INIT env.veh___609___.is_on_sec_0 = 1;
+-- INIT env.veh___619___.is_on_sec_0 = 1;
+-- INIT env.veh___609___.abs_pos = 10;
+-- INIT env.veh___619___.abs_pos = 20;
+-- INIT env.section_0_end = 30;
+-- INIT env.section_1_end = 30;
+-- INIT env.section_2_end = 50;
+-- INIT env.section_3_end = 30;
 
 --INVAR env.veh___609___.v > env.veh___619___.v + 1;
 
@@ -260,3 +260,6 @@ INIT env.section_3_end = 30;
 
 --INIT env.veh___609___.lane_1;
 --INIT env.ego_lane_0;
+
+--TMP - to be removed
+INVAR env.section_0_segment_0_min_lane != env.section_0_segment_1_min_lane | env.section_0_segment_0_max_lane != env.section_0_segment_1_max_lane;
