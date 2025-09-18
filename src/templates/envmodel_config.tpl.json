@@ -7,7 +7,7 @@
       "#006": "@f(range_mult, x, start, cnt, mult) { x = array(cnt + 1); @i = get(x); @val = start; while(i < get(x) + cnt) { i = val; @i = i + 1; @val = val * mult }; i = nan() }",
       "#007": "range(@nonegos, 2, 2);",
       "#008": "range(@lanes, 3, 3);",
-      "#009": "range(@segments, 1, 1);",
+      "#009": "range(@segments, 1, 2);",
       "#010": "range(@sections, 1, 1);",
       "#011": "range(@maxdist, 40, 40);",
       "#012": "range(@anglegran, 45, 45);",
