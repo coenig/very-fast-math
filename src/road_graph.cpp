@@ -369,7 +369,7 @@ float vfm::RoadGraph::getAngle() const
 
 bool vfm::RoadGraph::isRootedInZeroAndUnturned() const
 {
-   return isOriginAtZero() && isAngleZero();
+   return isRootedInZero() && isUnturned();
 }
 
 std::pair<Vec2D, float> vfm::RoadGraph::getEgoOriginAndRotation()
@@ -421,7 +421,14 @@ void vfm::RoadGraph::normalizeRoadGraphToEgo()
       r->origin_point_.add(-specialPoint.x, -specialPoint.y);
    }
 
-   assert(r_ego->isAngleZero());
+   assert(r_ego->isUnturned());
+}
+
+void vfm::RoadGraph::translateGraph(const Vec2D& trans)
+{
+   applyToMeAndAllMySuccessorsAndPredecessors([&trans](const std::shared_ptr<RoadGraph> r) {
+      r->origin_point_.add(trans);
+   });
 }
 
 void vfm::RoadGraph::removeAllGhostSectionsFromThis()
@@ -523,13 +530,13 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
 }
 
 static constexpr float EPS{ 0.01 };
-bool vfm::RoadGraph::isOriginAtZero() const
+bool vfm::RoadGraph::isRootedInZero() const
 {
 
    return std::abs(origin_point_.x) < EPS && std::abs(origin_point_.y) < EPS;
 }
 
-bool vfm::RoadGraph::isAngleZero() const
+bool vfm::RoadGraph::isUnturned() const
 {
    return std::abs(angle_) < EPS;
 }

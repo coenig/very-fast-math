@@ -16,16 +16,27 @@
    #include <cstdlib>
 #endif
 
-void openExplorerWindow(const char* path) {
+using namespace vfm;
+
+
+void openExplorerWindow(const MCScene* mc_scene, const std::string& path_raw) {
+   std::string path =
 #ifdef _WIN32
-   ShellExecuteA(NULL, "open", path, NULL, NULL, SW_SHOWNORMAL);
+      StaticHelper::replaceAll(path_raw, "/", "\\")
 #elif __linux__
-   std::string command = "xdg-open " + std::string(path);
+      StaticHelper::replaceAll(path_raw, "\\", "/")
+#endif
+      ;
+
+   mc_scene->addNote("Trying to open explorer window at '" + path + "'.");
+
+#ifdef _WIN32
+   ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOWNORMAL);
+#elif __linux__
+   std::string command = "xdg-open " + path;
    std::system(command.c_str());
 #endif
 }
-
-using namespace vfm;
 
 std::map<std::string, std::pair<std::string, std::string>> MCScene::loadNewBBsFromJson()
 {
@@ -2251,7 +2262,11 @@ void MCScene::onGroupClickBM(Fl_Widget* widget, void* data)
    controller->mc_scene_->showAllBBGroups(false);
 
    if (Fl::event_button() == FL_RIGHT_MOUSE) {
-      openExplorerWindow(source_path.string().c_str());
+      openExplorerWindow(controller->mc_scene_, source_path.string());
+      return;
+   }
+   if (Fl::event_button() == FL_MIDDLE_MOUSE) {
+      openExplorerWindow(controller->mc_scene_, controller->mc_scene_->getTemplateDir().c_str());
       return;
    }
 

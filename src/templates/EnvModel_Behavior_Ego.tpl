@@ -21,7 +21,8 @@ VAR
     ego.slow_lane_deadlock_active : boolean;      -- TODO: Dummy variable, still used in specs and/or evaluation.cpp. Needs to go away... (Remove from init(...) as well)
     ego.action.type : {ActionType____UNDEFINED, ActionType____OFFROAD, ActionType____LANE_FOLLOWING, ActionType____LANECHANGE_LEFT, ActionType____LANECHANGE_RIGHT, ActionType____LANECHANGE_ABORT, ActionType____CONVERGE_TO_LANE, ActionType____EGO_OPEN_LOOP, ActionType____IN_COLLISION};      -- TODO: Dummy variable, still used in specs and/or evaluation.cpp. Needs to go away...
     ego.action.t_action : integer;                -- TODO: Dummy variable, still used in specs and/or evaluation.cpp. Needs to go away...
-    
+    TEMPORARRAY1 : 0..1;                          -- TODO: Dummy variable, still used in specs and/or evaluation.cpp. Needs to go away...
+
     ego.lc_direction : {ActionDir____LEFT, ActionDir____RIGHT, ActionDir____CENTER};
     ego.mode : {ActionType____LANE_FOLLOWING@{, ActionType____LANECHANGE_RIGHT}@.if[@{RIGHTLC}@.eval]@{, ActionType____LANECHANGE_LEFT}@.if[@{LEFTLC}@.eval], ActionType____LANECHANGE_ABORT};
     ego.change_lane_now : 0..1;                     -- variable for the non-deterministic choice whether we now change the lane
