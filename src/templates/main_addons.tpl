@@ -260,3 +260,6 @@ INVAR section_0_segment_2_max_lane = 0;
 
 --INIT env.veh___609___.lane_1;
 --INIT env.ego_lane_0;
+
+--TMP - to be removed
+INVAR env.section_0_segment_0_min_lane != env.section_0_segment_1_min_lane | env.section_0_segment_0_max_lane != env.section_0_segment_1_max_lane;
