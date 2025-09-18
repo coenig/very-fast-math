@@ -85,7 +85,7 @@
       "ShowLOG": true,
       "TIMESCALING": "#{1000}#",
       "VEHICLE_LENGTH": "#{vehlen}#",
-      "_BP_INCLUDES_FILE_PATH": "../../stripped-bp/prototype/motion_planning/rule_based_planning/vfm-includes-viper.txt",
+      "_BP_INCLUDES_FILE_PATH": "../src/examples/ego_less/vfm-includes.txt",
       "_CACHED_PATH": "../examples/tmp",
       "_GENERATED_PATH": "../examples/gp"
    }
