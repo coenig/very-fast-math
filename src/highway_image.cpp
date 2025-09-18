@@ -904,10 +904,10 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       std::string varname_ego_turn_signals = "ego.turn_signals";
       if (var_vals.count(varname_ego_turn_signals)) {
          if (var_vals.at(varname_ego_turn_signals) == "LEFT") {
-            fillBlinker(Vec2Df{ 0, 0 }, -1.0);
+            fillBlinker(Vec2Df{ ego_rel_pos, 0 }, -1.0);
          }
          else if (var_vals.at(varname_ego_turn_signals) == "RIGHT") {
-            fillBlinker(Vec2Df{ 0, 0 }, 1.0);
+            fillBlinker(Vec2Df{ ego_rel_pos, 0 }, 1.0);
          }
       }
 
