@@ -22,7 +22,7 @@ using namespace vfm;
 void openExplorerWindow(const MCScene* mc_scene, const std::string& path_raw) {
    std::string path =
 #ifdef _WIN32
-      StaticHelper::replaceAll(path_raw, "/", "\\");
+      StaticHelper::replaceAll(path_raw, "/", "\\")
 #elif __linux__
       StaticHelper::replaceAll(path_raw, "\\", "/")
 #endif
@@ -33,7 +33,7 @@ void openExplorerWindow(const MCScene* mc_scene, const std::string& path_raw) {
 #ifdef _WIN32
    ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOWNORMAL);
 #elif __linux__
-v   std::string command = "xdg-open " + path;
+   std::string command = "xdg-open " + path;
    std::system(command.c_str());
 #endif
 }
