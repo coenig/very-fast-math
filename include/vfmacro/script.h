@@ -77,9 +77,11 @@ static const std::string INSCRIPT_STANDARD_PARAMETER_PATTERN = "#n#";
 // Methods which
 // * either can have different evaluations for the same body and parameters (e.g., eval, which depends on the data pack),
 // * or which have side effects which need to be performed every time (e.g., KILLPIDs).
+// TODO: Inscript method definitions currently don't provide a mechanism to be labelled uncachable.
 static const std::set<std::string> UNCACHABLE_METHODS{
    "include", "eval", "PIDs", "KILLPIDs", "scriptVar", "setScriptVar", "executeCommand",
-   "vfmheap", "vfmdata", "vfmfunc", "sethard", "printHeap", "METHODs" };
+   "vfmheap", "vfmdata", "vfmfunc", "sethard", "printHeap", "METHODs", "stringToHeap", 
+   "listElement", "clearList", "asArray", "printList", "printLists", "pushBack" };
 
  /// Only for internal usage, this symbol is removed from the script
  /// after the translation process is terminated.
@@ -725,6 +727,15 @@ private:
             addError(error_str);
             return error_str;
          }
+      } },
+      { "printLists", 0, [this](const std::vector<std::string>& parameters) -> std::string { 
+            std::string list_str{};
+
+            for (const auto& el : getScriptData().list_data_) {
+               list_str += el.first + ",";
+            }
+
+            return StaticHelper::trimAndReturn(list_str);
       } },
       { "pushBack", 1, [this](const std::vector<std::string>& parameters) -> std::string { 
          if (!getScriptData().list_data_.count(getRawScript())) {
