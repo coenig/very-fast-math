@@ -297,7 +297,7 @@ RepresentableAsPDF Script::applyMethod(const RepresentableAsPDF rep, const std::
    return repfactory_instanceFromScript(newScript);
 }
 
-std::string fromBooltoString(const bool b)
+std::string Script::fromBooltoString(const bool b)
 {
    return b ? "1" : "0";
 }

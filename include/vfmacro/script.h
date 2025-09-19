@@ -240,6 +240,8 @@ public:
    std::string exnot() { return std::to_string(!StaticHelper::isBooleanTrue(getTagFreeRawScript()));}
    std::string space() { return " "; }
 
+   std::string fromBooltoString(const bool b);
+
    std::string arclengthCubicBezierFromStreetTopology(const std::string& lane, const std::string& angle, const std::string& distance, const std::string& num_lanes);
    std::string forloop(const std::string& varname, const std::string& loop_vec);
    std::string forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw);
@@ -482,6 +484,34 @@ private:
       { "nil", 0, [this](const std::vector<std::string>& parameters) { return nil(); } },
       { "id", 0, [this](const std::vector<std::string>& parameters) { return id(); } },
       { "idd", 0, [this](const std::vector<std::string>& parameters) { return idd(); } },
+      { "if", 1, [this](const std::vector<std::string>& parameters) { return ifChoice(parameters.at(0)); } },
+      { "at", 1, [this](const std::vector<std::string>& parameters) { return element(parameters.at(0)); } },
+      { "substr", 2, [this](const std::vector<std::string>& parameters) { return substring(parameters.at(0), parameters.at(1)); } },
+      { "split", 1, [this](const std::vector<std::string>& parameters) { 
+         auto spl = StaticHelper::split(getRawScript(), parameters[0]);
+         std::string res{};
+         for (const auto& s : spl) {
+            res += BEGIN_TAG_IN_SEQUENCE + s + END_TAG_IN_SEQUENCE;
+         }
+         return res;
+      } },
+      { "newMethod", 2, [this](const std::vector<std::string>& parameters) { return newMethod(parameters.at(0), parameters.at(1)); } },
+      { "newMethod", 3, [this](const std::vector<std::string>& parameters) { return newMethodD(parameters.at(0), parameters.at(1), parameters.at(2)); } },
+      { "strsize", 0, [this](const std::vector<std::string>& parameters) { return std::to_string(getRawScript().length()); } },
+      { "seqlength", 0, [this](const std::vector<std::string>& parameters) { return std::to_string(scriptSequence_.size()); } },
+      { "firstLetterCapital", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::firstLetterCapital(getRawScript()); } },
+      { "toUpperCamelCase", 0, [this](const std::vector<std::string>& parameters) {  return StaticHelper::toUpperCamelCase(getRawScript()); } },
+      { "toUpperCase", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::toUpperCase(getRawScript()); } },
+      { "toLowerCase", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::toLowerCase(getRawScript()); } },
+      { "removeLastFileExtension", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::removeLastFileExtension(getRawScript()); } },
+      { "removeLastFileExtension", 1, [this](const std::vector<std::string>& parameters) { return StaticHelper::removeLastFileExtension(getRawScript(), parameters.at(0)); } },
+      { "getLastFileExtension", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::getLastFileExtension(getRawScript()); } },
+      { "getLastFileExtension", 1, [this](const std::vector<std::string>& parameters) { return StaticHelper::getLastFileExtension(getRawScript(), parameters.at(0)); } },
+      { "substrComplement", 2, [this](const std::vector<std::string>& parameters) { return StaticHelper::substrComplement(getRawScript(), stringToFloat(parameters.at(0)), stringToFloat(parameters.at(1))); } },
+      { "startsWithUppercase", 0, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::startsWithUppercase(getRawScript())); } },
+      { "stringStartsWith", 1, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::stringStartsWith(getRawScript(), parameters.at(0))); } },
+      { "stringStartsWith", 2, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::stringStartsWith(getRawScript(), parameters.at(0), stringToFloat(parameters.at(0)))); } },
+      { "stringEndsWith", 1, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::stringEndsWith(getRawScript(), parameters.at(0))); } },
    };
 };
 
