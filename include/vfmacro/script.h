@@ -78,7 +78,7 @@ static const std::string INSCRIPT_STANDARD_PARAMETER_PATTERN = "#n#";
 // * or which have side effects which need to be performed every time (e.g., KILLPIDs).
 static const std::set<std::string> UNCACHABLE_METHODS{
    "include", "eval", "PIDs", "KILLPIDs", "scriptVar", "setScriptVar", "executeCommand",
-   "vfmheap", "vfmdata", "vfmfunc", "sethard" };
+   "vfmheap", "vfmdata", "vfmfunc", "sethard", "printHeap" };
 
  /// Only for internal usage, this symbol is removed from the script
  /// after the translation process is terminated.
@@ -108,6 +108,16 @@ struct MethodPartBegin {
    int method_part_begin_{};
    std::string result_{};
    bool cachable_{};
+};
+
+struct ScriptMethodDescription {
+   std::string method_name_{};
+   int par_num_{};
+   std::function<std::string(const std::vector<std::string>&)> function_{};
+
+   bool operator< (const ScriptMethodDescription& o) const {
+      return (method_name_ == o.method_name_) ? (par_num_ < o.par_num_) : (method_name_ < o.method_name_);
+   }
 };
 
 class Script : public Failable, public std::enable_shared_from_this<Script> {
@@ -451,6 +461,28 @@ private:
    std::shared_ptr<DataPack> vfm_data_{};
    std::shared_ptr<FormulaParser> vfm_parser_{};
    std::vector<std::string> scriptSequence_{};
+
+   std::set<ScriptMethodDescription> METHODS{
+      { "for", 2, [this](const std::vector<std::string>& parameters) { return forloop(parameters.at(0), parameters.at(1)); } },
+      { "for", 3, [this](const std::vector<std::string>& parameters) { return forloop(parameters.at(0), parameters.at(1), parameters.at(2)); } },
+      { "for", 4, [this](const std::vector<std::string>& parameters) { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3)); } },
+      { "for", 5, [this](const std::vector<std::string>& parameters) { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3), parameters.at(4)); } },
+      { "serialize", 0, [this](const std::vector<std::string>& parameters) { return formatExpression(getRawScript(), SyntaxFormat::vfm); } },
+      { "serializeK2", 0, [this](const std::vector<std::string>& parameters) { return toK2(getRawScript()); } },
+      { "serializeNuXmv", 0, [this](const std::vector<std::string>& parameters) { return formatExpression(getRawScript(), SyntaxFormat::nuXmv); } },
+      { "atVfmTupel", 1, [this](const std::vector<std::string>& parameters) {
+         auto fmla = MathStruct::parseMathStruct(StaticHelper::replaceAll(getRawScript(), ";", ","), getParser(), getData());
+         assert(StaticHelper::isParsableAsInt(parameters[0]));
+         const int at{ std::stoi(parameters[0]) };
+         return fmla->getTermsJumpIntoCompounds()[at]->serializePlainOldVFMStyle();
+      } },
+      { "simplify", 0, [this](const std::vector<std::string>& parameters) { return simplifyExpression(getRawScript()); } },
+      { "eval", 0, [this](const std::vector<std::string>& parameters) { return evaluateExpression(getRawScript()); } },
+      { "eval", 1, [this](const std::vector<std::string>& parameters) { return evaluateExpression(getRawScript(), parameters.at(0)); } },
+      { "nil", 0, [this](const std::vector<std::string>& parameters) { return nil(); } },
+      { "id", 0, [this](const std::vector<std::string>& parameters) { return id(); } },
+      { "idd", 0, [this](const std::vector<std::string>& parameters) { return idd(); } },
+   };
 };
 
 } // macro
