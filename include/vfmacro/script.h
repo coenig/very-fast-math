@@ -632,6 +632,7 @@ private:
       } },
       { "METHODs", 0, [this](const std::vector<std::string>& parameters) -> std::string { 
          std::string s{};
+
          for (const auto& method_description : METHODS) {
             s += method_description.method_name_ + " (" + std::to_string(method_description.par_num_) + ") 'native'\n";
          }
@@ -645,8 +646,9 @@ private:
             s += method_name + " (" + std::to_string(par_num) + " " + pattern + ") '" + definition + "'\n";
          }
 
-         return s;
+         return getRawScript() + s;
       } },
+      { "VFMETHODs", 0, [this](const std::vector<std::string>& parameters) -> std::string { return getRawScript() + getParser()->serializeDynamicTerms(true); } },
       { "vfmheap", 0, [this](const std::vector<std::string>& parameters) -> std::string { return getData()->toStringHeap(); } },
       { "vfmdata", 0, [this](const std::vector<std::string>& parameters) -> std::string { return getData()->toString(); } },
       { "vfmfunc", 0, [this](const std::vector<std::string>& parameters) -> std::string { 
