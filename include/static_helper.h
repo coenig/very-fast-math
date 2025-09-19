@@ -813,6 +813,8 @@ public:
    static std::filesystem::file_time_type lastWritetimeOfFileSafe(const std::string& filepath, const bool quiet = true);
    static std::filesystem::file_time_type lastWritetimeOfFileSafe(const std::filesystem::path& filepath, const bool quiet = true);
 
+   static void openWithOS(const std::string& path_raw, const Failable* logger = nullptr);
+
    static void applyTimescaling(MCTrace& trace, const ScaleDescription& ts_description);
    
    static std::pair<double, double> cartesianToWGS84(const double x, const double y);
