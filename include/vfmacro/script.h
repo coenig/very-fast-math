@@ -648,7 +648,6 @@ private:
 
          return getRawScript() + s;
       } },
-      { "VFMETHODs", 0, [this](const std::vector<std::string>& parameters) -> std::string { return getRawScript() + getParser()->serializeDynamicTerms(true); } },
       { "vfmheap", 0, [this](const std::vector<std::string>& parameters) -> std::string { return getData()->toStringHeap(); } },
       { "vfmdata", 0, [this](const std::vector<std::string>& parameters) -> std::string { return getData()->toString(); } },
       { "vfmfunc", 0, [this](const std::vector<std::string>& parameters) -> std::string { 
