@@ -468,6 +468,21 @@ private:
    std::shared_ptr<FormulaParser> vfm_parser_{};
    std::vector<std::string> scriptSequence_{};
 
+   inline std::string setScriptVar(const std::string& parameter1, const std::string& parameter2)
+   { // Any parameter2 will be counted as "FORCE".
+      std::string varname{ parameter1 };
+
+      if (parameter2 == "" && getScriptData().list_data_.count(varname)) {
+         std::string error{ "Variable '" + varname + "' has already been declared." };
+         addError(error);
+         return "#" + error + "#";
+      }
+
+      getScriptData().list_data_[varname] = { getRawScript() };
+
+      return "";
+   }
+
    std::set<ScriptMethodDescription> METHODS{
       { "for", 2, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1)); } },
       { "for", 3, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2)); } },
@@ -568,17 +583,10 @@ private:
       { "rick", 0, [this](const std::vector<std::string>& parameters) -> std::string { return getRawScript() + RICK; } },
       { "mypath", 0, [this](const std::vector<std::string>& parameters) -> std::string { return getMyPath(); } },
       { "setScriptVar", 1, [this](const std::vector<std::string>& parameters) -> std::string { 
-         std::string varname{ parameters.at(0) };
-
-         if (getScriptData().list_data_.count(varname)) {
-            std::string error{ "Variable '" + varname + "' has already been declared." };
-            addError(error);
-            return "#" + error + "#";
-         }
-
-         getScriptData().list_data_[varname] = { getRawScript() };
-
-         return "";
+         return setScriptVar(parameters[0], "");
+      } },
+      { "setScriptVar", 2, [this](const std::vector<std::string>& parameters) -> std::string { 
+         return setScriptVar(parameters[0], parameters[1]);
       } },
       { "scriptVar", 0, [this](const std::vector<std::string>& parameters) -> std::string { 
          std::string varname{ getRawScript() };
@@ -637,7 +645,8 @@ private:
          std::string s{};
 
          for (const auto& method_description : METHODS) {
-            s += method_description.method_name_ + " (" + std::to_string(method_description.par_num_) + ") 'native'\n";
+            std::string uncachable{ UNCACHABLE_METHODS.count(method_description.method_name_) ? " <uncachable>" : "" };
+            s += method_description.method_name_ + " (" + std::to_string(method_description.par_num_) + ") 'native'" + uncachable + "\n";
          }
 
          for (const auto& dynamic_method : getScriptData().inscriptMethodDefinitions) {
@@ -645,8 +654,9 @@ private:
             std::string definition{ dynamic_method.second };
             int par_num{ getScriptData().inscriptMethodParNums.at(method_name) };
             std::string pattern{ getScriptData().inscriptMethodParPatterns.at(method_name) };
+            std::string uncachable{ UNCACHABLE_METHODS.count(method_name) ? " <uncachable>" : "" };
 
-            s += method_name + " (" + std::to_string(par_num) + " " + pattern + ") '" + definition + "'\n";
+            s += method_name + " (" + std::to_string(par_num) + " " + pattern + ") '" + definition + "'" + uncachable + "\n";
          }
 
          return getRawScript() + s;
