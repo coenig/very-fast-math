@@ -158,8 +158,8 @@ private:
          int line_y = y + line * line_height;
          int line_start_pos = line_to_position(line, text);
          int line_end_pos = line_to_position(line + 1, text);
-         int highlight_start = std::max(start, line_start_pos);
-         int highlight_end = std::min(end, line_end_pos);
+         int highlight_start = (std::max)(start, line_start_pos);
+         int highlight_end = (std::min)(end, line_end_pos);
          int highlight_width = position_to_x(highlight_end, line, text) - position_to_x(highlight_start, line, text);
 
          fl_rounded_rect(x + position_to_x(highlight_start, line, text), line_y, highlight_width + 2, line_height, 5);

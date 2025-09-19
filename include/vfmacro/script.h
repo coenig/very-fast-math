@@ -9,6 +9,7 @@
 #include "static_helper.h"
 #include "parser.h"
 #include "data_pack.h"
+#include "gui/process_helper.h"
 #include <vector>
 #include <map>
 #include <set>
@@ -78,7 +79,7 @@ static const std::string INSCRIPT_STANDARD_PARAMETER_PATTERN = "#n#";
 // * or which have side effects which need to be performed every time (e.g., KILLPIDs).
 static const std::set<std::string> UNCACHABLE_METHODS{
    "include", "eval", "PIDs", "KILLPIDs", "scriptVar", "setScriptVar", "executeCommand",
-   "vfmheap", "vfmdata", "vfmfunc", "sethard", "printHeap" };
+   "vfmheap", "vfmdata", "vfmfunc", "sethard", "printHeap", "METHODs" };
 
  /// Only for internal usage, this symbol is removed from the script
  /// after the translation process is terminated.
@@ -615,6 +616,129 @@ private:
       { "mod", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmod(parameters.at(0)); } },
       { "not", 0, [this](const std::vector<std::string>& parameters) -> std::string { return exnot(); } },
       { "space", 0, [this](const std::vector<std::string>& parameters) -> std::string { return space(); } },
+      { "arclengthCubicBezierFromStreetTopology", 3, [this](const std::vector<std::string>& parameters) -> std::string { return arclengthCubicBezierFromStreetTopology(getRawScript(), parameters.at(0), parameters.at(1), parameters.at(2)); } },
+      { "PIDs", 0, [this](const std::vector<std::string>& parameters) -> std::string { 
+         auto pids = Process().getPIDs(getRawScript());
+         std::string pids_str{};
+         for (const auto& pid : pids) pids_str += std::to_string(pid) + ",";
+         return pids_str;
+      } },
+      { "KILLPIDs", 0, [this](const std::vector<std::string>& parameters) -> std::string { 
+         std::string res{};
+         for (const auto& pid : StaticHelper::split(getRawScript(), ",")) {
+            if (!pid.empty()) res += std::to_string(Process().killByPID(std::stoi(pid)));
+         }
+         return res;
+      } },
+      { "METHODs", 0, [this](const std::vector<std::string>& parameters) -> std::string { 
+         std::string s{};
+         for (const auto& method_description : METHODS) {
+            s += method_description.method_name_ + " (" + std::to_string(method_description.par_num_) + ") 'native'\n";
+         }
+
+         for (const auto& dynamic_method : getScriptData().inscriptMethodDefinitions) {
+            std::string method_name{ dynamic_method.first };
+            std::string definition{ dynamic_method.second };
+            int par_num{ getScriptData().inscriptMethodParNums.at(method_name) };
+            std::string pattern{ getScriptData().inscriptMethodParPatterns.at(method_name) };
+
+            s += method_name + " (" + std::to_string(par_num) + " " + pattern + ") '" + definition + "'\n";
+         }
+
+         return s;
+      } },
+      { "vfmheap", 0, [this](const std::vector<std::string>& parameters) -> std::string { return getData()->toStringHeap(); } },
+      { "vfmdata", 0, [this](const std::vector<std::string>& parameters) -> std::string { return getData()->toString(); } },
+      { "vfmfunc", 0, [this](const std::vector<std::string>& parameters) -> std::string { 
+         auto parser = getParser();
+         auto ops = parser->getAllOps();
+         std::string res{};
+
+         for (const auto& op : ops) {
+            for (const auto& par_num : op.second) {
+               auto fmla = parser->getDynamicTermMeta(op.first, par_num.first);
+               res += par_num.second.serialize() + (fmla ? "\t ---> \t" + fmla->serializePlainOldVFMStyle(MathStruct::SerializationSpecial::enforce_square_array_brackets) : "\t(built-in)") + "\n";
+            }
+         }
+
+         return res;
+      } },
+      { "printHeap", 0, [this](const std::vector<std::string>& parameters) -> std::string { return getData()->printHeap(getRawScript()); } },
+      { "stringToHeap", 1, [this](const std::vector<std::string>& parameters) -> std::string { 
+         getData()->addStringToDataPack(getRawScript(), parameters[0]);
+         return parameters[0] + " set to refer to '" + getRawScript() + "' in heap.";
+      } },
+      { "listElement", 1, [this](const std::vector<std::string>& parameters) -> std::string { 
+         if (!getScriptData().list_data_.count(getRawScript())) {
+            std::string error_str{ "#ERROR<list '" + getRawScript() + "' not found by listElement method>" };
+            addError(error_str);
+            return error_str;
+         }
+
+         if (!StaticHelper::isParsableAsFloat(parameters[0])) {
+            std::string error_str{ "#ERROR<index '" + parameters[0] + "' cannot be interpreted as number for listElement method>"};
+            addError(error_str);
+            return error_str;
+         }
+
+         int index{ std::stoi(parameters[0]) };
+
+         if (index < 0 || index >= getScriptData().list_data_[getRawScript()].size()) {
+            std::string error_str{ "#ERROR<index '" + parameters[0] + "' is out of bounds for list '" + getRawScript() + "' (size " + std::to_string(getScriptData().list_data_[getRawScript()].size()) + ") in method listElement>"};
+            addError(error_str);
+            return error_str;
+         }
+
+         return getScriptData().list_data_[getRawScript()][index];
+      } },
+      { "clearList", 0, [this](const std::vector<std::string>& parameters) -> std::string { 
+         if (!getScriptData().list_data_.count(getRawScript())) {
+            getScriptData().list_data_[getRawScript()] = {};
+         }
+
+         getScriptData().list_data_[getRawScript()].clear();
+
+         return "";
+      } },
+      { "asArray", 0, [this](const std::vector<std::string>& parameters) -> std::string { 
+         std::string list_str{};
+
+         for (const auto& el : getScriptData().list_data_[getRawScript()]) {
+            list_str += BEGIN_TAG_IN_SEQUENCE + el + END_TAG_IN_SEQUENCE;
+         }
+
+         return StaticHelper::trimAndReturn(list_str);
+      } },
+      { "printList", 0, [this](const std::vector<std::string>& parameters) -> std::string { 
+         if (getScriptData().list_data_.count(getRawScript())) {
+            std::string list_str{};
+
+            for (const auto& el : getScriptData().list_data_[getRawScript()]) {
+               list_str += el + "\n";
+            }
+
+            return StaticHelper::trimAndReturn(list_str);
+         }
+         else {
+            std::string error_str{ "#ERROR<list '" + getRawScript() + "' not found by printList method>" };
+            addError(error_str);
+            return error_str;
+         }
+      } },
+      { "pushBack", 1, [this](const std::vector<std::string>& parameters) -> std::string { 
+         if (!getScriptData().list_data_.count(getRawScript())) {
+            getScriptData().list_data_[getRawScript()] = {};
+         }
+         getScriptData().list_data_[getRawScript()].push_back(parameters[0]);
+         return "";
+      } },
+      { "pushBack", 1, [this](const std::vector<std::string>& parameters) -> std::string { 
+         if (!getScriptData().list_data_.count(getRawScript())) {
+            getScriptData().list_data_[getRawScript()] = {};
+         }
+         getScriptData().list_data_[getRawScript()].push_back(parameters[0]);
+         return "";
+      } },
    };
 };
 

@@ -316,7 +316,7 @@ const mapOfFunc3 count = std::make_pair("COUNT-DISTINCT", [](const std::vector<s
      if (std::find(res.begin(), res.end(), s) == res.end()) {
        res.push_back(s);
        auto cnt = std::count(v.begin(), v.end(), s);
-       cntmax = std::max(static_cast<long int>(cnt), cntmax);
+       cntmax = (std::max)(static_cast<long int>(cnt), cntmax);
      }
    }
 
@@ -424,7 +424,7 @@ void print_result(
 
    int buff_len = 0;
    for (const auto& name : additionals_names) {
-      buff_len = std::max(buff_len, (int) name.size());
+      buff_len = (std::max)(buff_len, (int)name.size());
    }
 
    for (int i = 0; i < additionals.size(); i++) {
@@ -551,8 +551,8 @@ int testTermsGeneral(
 std::map<std::string, bool> vfm::test::runTests(const int from_raw, const int to_raw)
 {
    std::map<std::string, bool> result{};
-   const int from{ std::max(from_raw, 0) };
-   const int to{ from_raw < 0 ? (int) TEST_CASES.size() - 1 : std::max(from, to_raw)};
+   const int from{ (std::max)(from_raw, 0) };
+   const int to{ from_raw < 0 ? (int)TEST_CASES.size() - 1 : (std::max)(from, to_raw) };
 
    std::cout << "\r\n===============================================" << std::endl;
    std::cout << "<vfm Tester> Hello, I'm starting the tests now." << std::endl;
@@ -589,7 +589,7 @@ std::map<std::string, bool> vfm::test::runTests(const int from_raw, const int to
 
    std::cout << std::endl << td_str << std::endl << *d << HIGHLIGHT_COLOR << m_line(td_len) << RESET_COLOR << std::endl << std::endl;
 
-   for (int i = std::max(0, from); i < std::min((int) TEST_CASES.size(), to + 1); i++) {
+   for (int i = (std::max)(0, from); i < (std::min)((int)TEST_CASES.size(), to + 1); i++) {
       //std::vector<float> new_additional_measures;
       //additionals.push_back(new_additional_measures);
       additional_measures->clear();
@@ -625,7 +625,7 @@ std::map<std::string, bool> vfm::test::runTests(const int from_raw, const int to
       }
    }
  
-   for (int i = std::max(0, from); i < std::min((int) TEST_CASES.size(), to + 1); i++) {
+   for (int i = (std::max)(0, from); i < (std::min)((int)TEST_CASES.size(), to + 1); i++) {
       empty_add_info.push_back(
          std::to_string(counts[i]) + "/" + std::to_string(TEST_CASES[i].number_of_runs_) + " " + TEST_CASES[i].test_name_ + " tests passed. " + RIGHT_ALIGNMENT_SYMBOL
          + (counts[i] == TEST_CASES[i].number_of_runs_

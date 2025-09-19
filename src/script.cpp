@@ -6,7 +6,6 @@
 /// @file
 
 #include "vfmacro/script.h"
-#include "gui/process_helper.h"
 #include "geometry/bezier_functions.h"
 #include "parser.h"
 #include "simplification/simplification.h"
@@ -542,6 +541,16 @@ std::string Script::applyMethodString(const std::string& method_name, const std:
       if (method_description.method_name_ == method_name && parameters.size() == method_description.par_num_) {
          return method_description.function_(parameters);
       }
+   }
+
+   if (method_name == "pushBack" && parameters.size() > 1) { // This is a hack to introduce comma which is usually separator of arguments.
+      std::string appended{ parameters[0] };
+
+      for (int i = 1; i < parameters.size(); i++) {
+         appended += "," + parameters[i];
+      }
+
+      return applyMethodString(method_name, { appended });
    }
 
    if (getScriptData().inscriptMethodDefinitions.count(method_name) && getScriptData().inscriptMethodParNums.at(method_name) == parameters.size()) {
