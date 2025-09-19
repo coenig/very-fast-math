@@ -81,7 +81,8 @@ static const std::string INSCRIPT_STANDARD_PARAMETER_PATTERN = "#n#";
 static const std::set<std::string> UNCACHABLE_METHODS{
    "include", "eval", "PIDs", "KILLPIDs", "scriptVar", "setScriptVar", "executeCommand",
    "vfmheap", "vfmdata", "vfmfunc", "sethard", "printHeap", "METHODs", "stringToHeap", 
-   "listElement", "clearList", "asArray", "printList", "printLists", "pushBack" };
+   "listElement", "clearList", "asArray", "printList", "printLists", "pushBack", "openWithOS",
+   "readFile", "executeSystemCommand", "exec", "writeTextToFile", "timestamp", "vfm_variable_declared", "vfm_variable_undeclared" };
 
  /// Only for internal usage, this symbol is removed from the script
  /// after the translation process is terminated.
