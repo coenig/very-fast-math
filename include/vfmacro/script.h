@@ -465,29 +465,29 @@ private:
    std::vector<std::string> scriptSequence_{};
 
    std::set<ScriptMethodDescription> METHODS{
-      { "for", 2, [this](const std::vector<std::string>& parameters) { return forloop(parameters.at(0), parameters.at(1)); } },
-      { "for", 3, [this](const std::vector<std::string>& parameters) { return forloop(parameters.at(0), parameters.at(1), parameters.at(2)); } },
-      { "for", 4, [this](const std::vector<std::string>& parameters) { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3)); } },
-      { "for", 5, [this](const std::vector<std::string>& parameters) { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3), parameters.at(4)); } },
-      { "serialize", 0, [this](const std::vector<std::string>& parameters) { return formatExpression(getRawScript(), SyntaxFormat::vfm); } },
-      { "serializeK2", 0, [this](const std::vector<std::string>& parameters) { return toK2(getRawScript()); } },
-      { "serializeNuXmv", 0, [this](const std::vector<std::string>& parameters) { return formatExpression(getRawScript(), SyntaxFormat::nuXmv); } },
-      { "atVfmTupel", 1, [this](const std::vector<std::string>& parameters) {
+      { "for", 2, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1)); } },
+      { "for", 3, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2)); } },
+      { "for", 4, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3)); } },
+      { "for", 5, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3), parameters.at(4)); } },
+      { "serialize", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::vfm); } },
+      { "serializeK2", 0, [this](const std::vector<std::string>& parameters) -> std::string { return toK2(getRawScript()); } },
+      { "serializeNuXmv", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::nuXmv); } },
+      { "atVfmTupel", 1, [this](const std::vector<std::string>& parameters) -> std::string {
          auto fmla = MathStruct::parseMathStruct(StaticHelper::replaceAll(getRawScript(), ";", ","), getParser(), getData());
          assert(StaticHelper::isParsableAsInt(parameters[0]));
          const int at{ std::stoi(parameters[0]) };
          return fmla->getTermsJumpIntoCompounds()[at]->serializePlainOldVFMStyle();
       } },
-      { "simplify", 0, [this](const std::vector<std::string>& parameters) { return simplifyExpression(getRawScript()); } },
-      { "eval", 0, [this](const std::vector<std::string>& parameters) { return evaluateExpression(getRawScript()); } },
-      { "eval", 1, [this](const std::vector<std::string>& parameters) { return evaluateExpression(getRawScript(), parameters.at(0)); } },
-      { "nil", 0, [this](const std::vector<std::string>& parameters) { return nil(); } },
-      { "id", 0, [this](const std::vector<std::string>& parameters) { return id(); } },
-      { "idd", 0, [this](const std::vector<std::string>& parameters) { return idd(); } },
-      { "if", 1, [this](const std::vector<std::string>& parameters) { return ifChoice(parameters.at(0)); } },
-      { "at", 1, [this](const std::vector<std::string>& parameters) { return element(parameters.at(0)); } },
-      { "substr", 2, [this](const std::vector<std::string>& parameters) { return substring(parameters.at(0), parameters.at(1)); } },
-      { "split", 1, [this](const std::vector<std::string>& parameters) { 
+      { "simplify", 0, [this](const std::vector<std::string>& parameters) -> std::string { return simplifyExpression(getRawScript()); } },
+      { "eval", 0, [this](const std::vector<std::string>& parameters) -> std::string { return evaluateExpression(getRawScript()); } },
+      { "eval", 1, [this](const std::vector<std::string>& parameters) -> std::string { return evaluateExpression(getRawScript(), parameters.at(0)); } },
+      { "nil", 0, [this](const std::vector<std::string>& parameters) -> std::string { return nil(); } },
+      { "id", 0, [this](const std::vector<std::string>& parameters) -> std::string { return id(); } },
+      { "idd", 0, [this](const std::vector<std::string>& parameters) -> std::string { return idd(); } },
+      { "if", 1, [this](const std::vector<std::string>& parameters) -> std::string { return ifChoice(parameters.at(0)); } },
+      { "at", 1, [this](const std::vector<std::string>& parameters) -> std::string { return element(parameters.at(0)); } },
+      { "substr", 2, [this](const std::vector<std::string>& parameters) -> std::string { return substring(parameters.at(0), parameters.at(1)); } },
+      { "split", 1, [this](const std::vector<std::string>& parameters) -> std::string { 
          auto spl = StaticHelper::split(getRawScript(), parameters[0]);
          std::string res{};
          for (const auto& s : spl) {
@@ -495,73 +495,126 @@ private:
          }
          return res;
       } },
-      { "newMethod", 2, [this](const std::vector<std::string>& parameters) { return newMethod(parameters.at(0), parameters.at(1)); } },
-      { "newMethod", 3, [this](const std::vector<std::string>& parameters) { return newMethodD(parameters.at(0), parameters.at(1), parameters.at(2)); } },
-      { "strsize", 0, [this](const std::vector<std::string>& parameters) { return std::to_string(getRawScript().length()); } },
-      { "seqlength", 0, [this](const std::vector<std::string>& parameters) { return std::to_string(scriptSequence_.size()); } },
-      { "firstLetterCapital", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::firstLetterCapital(getRawScript()); } },
-      { "toUpperCamelCase", 0, [this](const std::vector<std::string>& parameters) {  return StaticHelper::toUpperCamelCase(getRawScript()); } },
-      { "toUpperCase", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::toUpperCase(getRawScript()); } },
-      { "toLowerCase", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::toLowerCase(getRawScript()); } },
-      { "removeLastFileExtension", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::removeLastFileExtension(getRawScript()); } },
-      { "removeLastFileExtension", 1, [this](const std::vector<std::string>& parameters) { return StaticHelper::removeLastFileExtension(getRawScript(), parameters.at(0)); } },
-      { "getLastFileExtension", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::getLastFileExtension(getRawScript()); } },
-      { "getLastFileExtension", 1, [this](const std::vector<std::string>& parameters) { return StaticHelper::getLastFileExtension(getRawScript(), parameters.at(0)); } },
-      { "substrComplement", 2, [this](const std::vector<std::string>& parameters) { return StaticHelper::substrComplement(getRawScript(), stringToFloat(parameters.at(0)), stringToFloat(parameters.at(1))); } },
-      { "startsWithUppercase", 0, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::startsWithUppercase(getRawScript())); } },
-      { "stringStartsWith", 1, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::stringStartsWith(getRawScript(), parameters.at(0))); } },
-      { "stringStartsWith", 2, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::stringStartsWith(getRawScript(), parameters.at(0), stringToFloat(parameters.at(0)))); } },
-      { "stringEndsWith", 1, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::stringEndsWith(getRawScript(), parameters.at(0))); } },
-      { "stringContains", 1, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::stringContains(getRawScript(), parameters.at(0))); } },
-      { "shortenToMaxSize", 1, [this](const std::vector<std::string>& parameters) { return StaticHelper::shortenToMaxSize(getRawScript(), stringToFloat(parameters.at(0))); } },
-      { "shortenToMaxSize", 2, [this](const std::vector<std::string>& parameters) { return StaticHelper::shortenToMaxSize(getRawScript(), stringToFloat(parameters.at(0)), StaticHelper::isBooleanTrue(parameters.at(1))); } },
-      { "shortenToMaxSize", 3, [this](const std::vector<std::string>& parameters) { return StaticHelper::shortenToMaxSize(getRawScript(), stringToFloat(parameters.at(0)), StaticHelper::isBooleanTrue(parameters.at(1)), stringToFloat(parameters.at(2))); } },
-      { "shortenToMaxSize", 4, [this](const std::vector<std::string>& parameters) { return StaticHelper::shortenToMaxSize(getRawScript(), stringToFloat(parameters.at(0)), StaticHelper::isBooleanTrue(parameters.at(1)), stringToFloat(parameters.at(2)), stringToFloat(parameters.at(3))); } },
-      { "shortenInTheMiddle", 1, [this](const std::vector<std::string>& parameters) { return StaticHelper::shortenInTheMiddle(getRawScript(), stringToFloat(parameters.at(0))); } },
-      { "shortenInTheMiddle", 2, [this](const std::vector<std::string>& parameters) { return StaticHelper::shortenInTheMiddle(getRawScript(), stringToFloat(parameters.at(0)), stringToFloat(parameters.at(1))); } },
-      { "absPath", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::absPath(getRawScript()); } },
-      { "zeroPaddedNumStr", 1, [this](const std::vector<std::string>& parameters) { return StaticHelper::zeroPaddedNumStr(stringToFloat(getRawScript()), stringToFloat(parameters.at(0))); } },
-      { "removeWhiteSpace", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::removeWhiteSpace(getRawScript()); } },
-      { "isEmptyExceptWhiteSpaces", 0, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::isEmptyExceptWhiteSpaces(getRawScript())); } },
-      { "removeMultiLineComments", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::removeMultiLineComments(getRawScript()); } },
-      { "removeMultiLineComments", 2, [this](const std::vector<std::string>& parameters) { return StaticHelper::removeMultiLineComments(getRawScript(), parameters.at(0), parameters.at(1)); } },
-      { "removeSingleLineComments", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::removeSingleLineComments(getRawScript()); } },
-      { "removeSingleLineComments", 1, [this](const std::vector<std::string>& parameters) { return StaticHelper::removeSingleLineComments(getRawScript(), parameters.at(0)); } },
-      { "removeComments", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::removeComments(getRawScript()); } },
-      { "removePartsOutsideOf", 2, [this](const std::vector<std::string>& parameters) { return StaticHelper::removePartsOutsideOf(getRawScript(), parameters.at(0), parameters.at(1)); } },
-      { "removeBlankLines", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::removeBlankLines(getRawScript()); } },
-      { "wrap", 1, [this](const std::vector<std::string>& parameters) { return StaticHelper::wrap(getRawScript(), stringToFloat(parameters.at(0))); } },
-      { "openWithOS", 0, [this](const std::vector<std::string>& parameters) { StaticHelper::openWithOS(getRawScript(), this); return ""; } },
-      { "replaceAll", 2, [this](const std::vector<std::string>& parameters) { return StaticHelper::replaceAll(getRawScript(), parameters.at(0), parameters.at(1)); } },
-      { "replaceAllCounting", 1, [this](const std::vector<std::string>& parameters) { return StaticHelper::replaceAllCounting(getRawScript(), parameters.at(0)); } },
-      { "replaceAllCounting", 2, [this](const std::vector<std::string>& parameters) { return StaticHelper::replaceAllCounting(getRawScript(), parameters.at(0), std::stof(parameters.at(1))); } },
-      { "replaceAllRegex", 2, [this](const std::vector<std::string>& parameters) { return StaticHelper::replaceAllRegex(getRawScript(), parameters.at(0), parameters.at(1)); } },
-      { "isParsableAsFloat", 0, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::isParsableAsFloat(getRawScript())); } },
-      { "isParsableAsInt", 0, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::isParsableAsInt(getRawScript())); } },
-      { "isAlpha", 0, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::isAlpha(getRawScript())); } },
-      { "isAlphaNumeric", 0, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::isAlphaNumeric(getRawScript())); } },
-      { "isAlphaNumericOrUnderscore", 0, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::isAlphaNumericOrUnderscore(getRawScript())); } },
-      { "isAlphaNumericOrUnderscoreOrColonOrComma", 0, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::isAlphaNumericOrUnderscoreOrColonOrComma(getRawScript())); } },
-      { "isValidVfmVarName", 0, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::isValidVfmVarName(getRawScript())); } },
-      { "stringConformsTo", 1, [this](const std::vector<std::string>& parameters) { return fromBooltoString(StaticHelper::stringConformsTo(getRawScript(), std::regex(parameters.at(0)))); } },
-      { "getFileNameFromPath", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::getFileNameFromPath(getRawScript()); } },
-      { "getFileNameFromPathWithoutExt", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::getFileNameFromPathWithoutExt(getRawScript()); } },
-      { "removeFileNameFromPath", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::removeFileNameFromPath(getRawScript()); } },
-      { "readFile", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::readFile(getRawScript()); } },
-      { "fromPascalToCamelCase", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::fromPascalToCamelCase(getRawScript()); } },
-      { "replaceSpecialCharsHTML_G", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::replaceSpecialCharsHTML_G(getRawScript()); } },
-      { "replaceMathHTML", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::replaceMathHTML(getRawScript()); } },
-      { "makeVarNameNuSMVReady", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::makeVarNameNuSMVReady(getRawScript()); } },
-      { "safeString", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::safeString(getRawScript()); } },
-      { "fromSafeString", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::fromSafeString(getRawScript()); } },
-      { "levensteinDistance", 1, [this](const std::vector<std::string>& parameters) { return std::to_string(StaticHelper::levensteinDistance(getRawScript(), parameters.at(0))); } },
-      { "executeSystemCommand", 0, [this](const std::vector<std::string>& parameters) { return std::to_string(StaticHelper::executeSystemCommand(getRawScript())); } },
-      { "exec", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::exec(getRawScript()); } },
-      { "writeTextToFile", 1, [this](const std::vector<std::string>& parameters) { StaticHelper::writeTextToFile(getRawScript(), parameters.at(0)); return getRawScript(); } },
-      { "writeTextToFile", 2, [this](const std::vector<std::string>& parameters) { StaticHelper::writeTextToFile(getRawScript(), parameters.at(0), StaticHelper::isBooleanTrue(parameters.at(1))); return getRawScript(); } },
-      { "timestamp", 0, [this](const std::vector<std::string>& parameters) { return StaticHelper::timeStamp(); } },
-      { "morty", 0, [this](const std::vector<std::string>& parameters) { auto rep = getRawScript(); return StaticHelper::replaceAll(rep + MORTY_ASCII_ART, "\n", "\n" + rep); } },
-      { "rick", 0, [this](const std::vector<std::string>& parameters) { return getRawScript() + RICK; } },
+      { "newMethod", 2, [this](const std::vector<std::string>& parameters) -> std::string { return newMethod(parameters.at(0), parameters.at(1)); } },
+      { "newMethod", 3, [this](const std::vector<std::string>& parameters) -> std::string { return newMethodD(parameters.at(0), parameters.at(1), parameters.at(2)); } },
+      { "strsize", 0, [this](const std::vector<std::string>& parameters) -> std::string { return std::to_string(getRawScript().length()); } },
+      { "seqlength", 0, [this](const std::vector<std::string>& parameters) -> std::string { return std::to_string(scriptSequence_.size()); } },
+      { "firstLetterCapital", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::firstLetterCapital(getRawScript()); } },
+      { "toUpperCamelCase", 0, [this](const std::vector<std::string>& parameters) -> std::string {  return StaticHelper::toUpperCamelCase(getRawScript()); } },
+      { "toUpperCase", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::toUpperCase(getRawScript()); } },
+      { "toLowerCase", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::toLowerCase(getRawScript()); } },
+      { "removeLastFileExtension", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeLastFileExtension(getRawScript()); } },
+      { "removeLastFileExtension", 1, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeLastFileExtension(getRawScript(), parameters.at(0)); } },
+      { "getLastFileExtension", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::getLastFileExtension(getRawScript()); } },
+      { "getLastFileExtension", 1, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::getLastFileExtension(getRawScript(), parameters.at(0)); } },
+      { "substrComplement", 2, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::substrComplement(getRawScript(), stringToFloat(parameters.at(0)), stringToFloat(parameters.at(1))); } },
+      { "startsWithUppercase", 0, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(StaticHelper::startsWithUppercase(getRawScript())); } },
+      { "stringStartsWith", 1, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(StaticHelper::stringStartsWith(getRawScript(), parameters.at(0))); } },
+      { "stringStartsWith", 2, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(StaticHelper::stringStartsWith(getRawScript(), parameters.at(0), stringToFloat(parameters.at(0)))); } },
+      { "stringEndsWith", 1, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(StaticHelper::stringEndsWith(getRawScript(), parameters.at(0))); } },
+      { "stringContains", 1, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(StaticHelper::stringContains(getRawScript(), parameters.at(0))); } },
+      { "shortenToMaxSize", 1, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::shortenToMaxSize(getRawScript(), stringToFloat(parameters.at(0))); } },
+      { "shortenToMaxSize", 2, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::shortenToMaxSize(getRawScript(), stringToFloat(parameters.at(0)), StaticHelper::isBooleanTrue(parameters.at(1))); } },
+      { "shortenToMaxSize", 3, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::shortenToMaxSize(getRawScript(), stringToFloat(parameters.at(0)), StaticHelper::isBooleanTrue(parameters.at(1)), stringToFloat(parameters.at(2))); } },
+      { "shortenToMaxSize", 4, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::shortenToMaxSize(getRawScript(), stringToFloat(parameters.at(0)), StaticHelper::isBooleanTrue(parameters.at(1)), stringToFloat(parameters.at(2)), stringToFloat(parameters.at(3))); } },
+      { "shortenInTheMiddle", 1, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::shortenInTheMiddle(getRawScript(), stringToFloat(parameters.at(0))); } },
+      { "shortenInTheMiddle", 2, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::shortenInTheMiddle(getRawScript(), stringToFloat(parameters.at(0)), stringToFloat(parameters.at(1))); } },
+      { "absPath", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::absPath(getRawScript()); } },
+      { "zeroPaddedNumStr", 1, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::zeroPaddedNumStr(stringToFloat(getRawScript()), stringToFloat(parameters.at(0))); } },
+      { "removeWhiteSpace", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeWhiteSpace(getRawScript()); } },
+      { "isEmptyExceptWhiteSpaces", 0, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(StaticHelper::isEmptyExceptWhiteSpaces(getRawScript())); } },
+      { "removeMultiLineComments", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeMultiLineComments(getRawScript()); } },
+      { "removeMultiLineComments", 2, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeMultiLineComments(getRawScript(), parameters.at(0), parameters.at(1)); } },
+      { "removeSingleLineComments", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeSingleLineComments(getRawScript()); } },
+      { "removeSingleLineComments", 1, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeSingleLineComments(getRawScript(), parameters.at(0)); } },
+      { "removeComments", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeComments(getRawScript()); } },
+      { "removePartsOutsideOf", 2, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removePartsOutsideOf(getRawScript(), parameters.at(0), parameters.at(1)); } },
+      { "removeBlankLines", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeBlankLines(getRawScript()); } },
+      { "wrap", 1, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::wrap(getRawScript(), stringToFloat(parameters.at(0))); } },
+      { "openWithOS", 0, [this](const std::vector<std::string>& parameters) -> std::string { StaticHelper::openWithOS(getRawScript(), this); return ""; } },
+      { "replaceAll", 2, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::replaceAll(getRawScript(), parameters.at(0), parameters.at(1)); } },
+      { "replaceAllCounting", 1, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::replaceAllCounting(getRawScript(), parameters.at(0)); } },
+      { "replaceAllCounting", 2, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::replaceAllCounting(getRawScript(), parameters.at(0), std::stof(parameters.at(1))); } },
+      { "replaceAllRegex", 2, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::replaceAllRegex(getRawScript(), parameters.at(0), parameters.at(1)); } },
+      { "isParsableAsFloat", 0, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(StaticHelper::isParsableAsFloat(getRawScript())); } },
+      { "isParsableAsInt", 0, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(StaticHelper::isParsableAsInt(getRawScript())); } },
+      { "isAlpha", 0, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(StaticHelper::isAlpha(getRawScript())); } },
+      { "isAlphaNumeric", 0, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(StaticHelper::isAlphaNumeric(getRawScript())); } },
+      { "isAlphaNumericOrUnderscore", 0, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(StaticHelper::isAlphaNumericOrUnderscore(getRawScript())); } },
+      { "isAlphaNumericOrUnderscoreOrColonOrComma", 0, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(StaticHelper::isAlphaNumericOrUnderscoreOrColonOrComma(getRawScript())); } },
+      { "isValidVfmVarName", 0, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(StaticHelper::isValidVfmVarName(getRawScript())); } },
+      { "stringConformsTo", 1, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(StaticHelper::stringConformsTo(getRawScript(), std::regex(parameters.at(0)))); } },
+      { "getFileNameFromPath", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::getFileNameFromPath(getRawScript()); } },
+      { "getFileNameFromPathWithoutExt", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::getFileNameFromPathWithoutExt(getRawScript()); } },
+      { "removeFileNameFromPath", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeFileNameFromPath(getRawScript()); } },
+      { "readFile", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::readFile(getRawScript()); } },
+      { "fromPascalToCamelCase", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::fromPascalToCamelCase(getRawScript()); } },
+      { "replaceSpecialCharsHTML_G", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::replaceSpecialCharsHTML_G(getRawScript()); } },
+      { "replaceMathHTML", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::replaceMathHTML(getRawScript()); } },
+      { "makeVarNameNuSMVReady", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::makeVarNameNuSMVReady(getRawScript()); } },
+      { "safeString", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::safeString(getRawScript()); } },
+      { "fromSafeString", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::fromSafeString(getRawScript()); } },
+      { "levensteinDistance", 1, [this](const std::vector<std::string>& parameters) -> std::string { return std::to_string(StaticHelper::levensteinDistance(getRawScript(), parameters.at(0))); } },
+      { "executeSystemCommand", 0, [this](const std::vector<std::string>& parameters) -> std::string { return std::to_string(StaticHelper::executeSystemCommand(getRawScript())); } },
+      { "exec", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::exec(getRawScript()); } },
+      { "writeTextToFile", 1, [this](const std::vector<std::string>& parameters) -> std::string { StaticHelper::writeTextToFile(getRawScript(), parameters.at(0)); return getRawScript(); } },
+      { "writeTextToFile", 2, [this](const std::vector<std::string>& parameters) -> std::string { StaticHelper::writeTextToFile(getRawScript(), parameters.at(0), StaticHelper::isBooleanTrue(parameters.at(1))); return getRawScript(); } },
+      { "timestamp", 0, [this](const std::vector<std::string>& parameters) -> std::string { return StaticHelper::timeStamp(); } },
+      { "morty", 0, [this](const std::vector<std::string>& parameters) -> std::string { auto rep = getRawScript(); return StaticHelper::replaceAll(rep + MORTY_ASCII_ART, "\n", "\n" + rep); } },
+      { "rick", 0, [this](const std::vector<std::string>& parameters) -> std::string { return getRawScript() + RICK; } },
+      { "mypath", 0, [this](const std::vector<std::string>& parameters) -> std::string { return getMyPath(); } },
+      { "setScriptVar", 1, [this](const std::vector<std::string>& parameters) -> std::string { 
+         std::string varname{ parameters.at(0) };
+
+         if (getScriptData().list_data_.count(varname)) {
+            std::string error{ "Variable '" + varname + "' has already been declared." };
+            addError(error);
+            return "#" + error + "#";
+         }
+
+         getScriptData().list_data_[varname] = { getRawScript() };
+
+         return "";
+      } },
+      { "scriptVar", 0, [this](const std::vector<std::string>& parameters) -> std::string { 
+         std::string varname{ getRawScript() };
+
+         if (!getScriptData().list_data_.count(varname)) {
+            std::string error{ "Variable '" + varname + "' has not been declared." };
+            addError(error);
+            return "#" + error + "#";
+         }
+
+         return getScriptData().list_data_.at(varname).at(0);
+      } },
+      { "include", 0, [this](const std::vector<std::string>& parameters) -> std::string { 
+         std::string filepath{ StaticHelper::absPath(getMyPath()) + "/" + getRawScript() };
+
+         if (StaticHelper::existsFileSafe(filepath)) {
+            return StaticHelper::readFile(filepath);
+         }
+         else {
+            addFatalError("File '" + filepath + "' not found.");
+            return "#FILE_NOT_FOUND<" + filepath + ">";
+         }
+      } },
+      { "vfm_variable_declared", 0, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(getData()->isVarDeclared(getRawScript())); } },
+      { "vfm_variable_undeclared", 0, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(!getData()->isVarDeclared(getRawScript())); } },
+      { "sethard", 1, [this](const std::vector<std::string>& parameters) -> std::string { return sethard(parameters.at(0)); } },
+      { "smeq", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exsmeq(parameters.at(0), parameters.at(1)); } },
+      { "sm", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exsm(parameters.at(0), parameters.at(1)); } },
+      { "greq", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exgreq(parameters.at(0), parameters.at(1)); } },
+      { "gr", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exgr(parameters.at(0), parameters.at(1)); } },
+      { "eq", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exeq(parameters.at(0), parameters.at(1)); } },
+      { "neq", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exneq(parameters.at(0), parameters.at(1)); } },
+      { "add", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exadd(parameters.at(0)); } },
+      { "sub", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsub(parameters.at(0)); } },
+      { "mult", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmult(parameters.at(0)); } },
+      { "div", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exdiv(parameters.at(0)); } },
+      { "pow", 1, [this](const std::vector<std::string>& parameters) -> std::string { return expow(parameters.at(0)); } },
+      { "mod", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmod(parameters.at(0)); } },
+      { "not", 0, [this](const std::vector<std::string>& parameters) -> std::string { return exnot(); } },
+      { "space", 0, [this](const std::vector<std::string>& parameters) -> std::string { return space(); } },
    };
 };
 
