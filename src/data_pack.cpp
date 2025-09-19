@@ -350,7 +350,7 @@ void vfm::DataPack::setHeapLocation(const int reference, const float val)
 
    vfm_memory_.at(reference) = val;
 
-   highest_defined_heap_index_above_free_ = std::max(highest_defined_heap_index_above_free_, reference);
+   highest_defined_heap_index_above_free_ = (std::max)(highest_defined_heap_index_above_free_, reference);
 }
 
 float vfm::DataPack::getHeapLocation(const int reference) const
@@ -410,10 +410,10 @@ void DataPack::addArrayAndOrSetArrayVal(const std::string& name, const int& inde
       }
       else if (mode_if_new == ArrayMode::floats
          || mode_if_new == ArrayMode::implicit && StaticHelper::stringEndsWith(name, FLOAT_ARRAY_DENOTER_SUFFIX)) {
-            addStringAsFloatVector(name, std::max(index, INITIAL_ARRAY_CAPACITY));
+            addStringAsFloatVector(name, (std::max)(index, INITIAL_ARRAY_CAPACITY));
         }
       else {
-         addStringAsArray(name, std::max(index, INITIAL_ARRAY_CAPACITY));
+         addStringAsArray(name, (std::max)(index, INITIAL_ARRAY_CAPACITY));
       }
    }
 
@@ -449,7 +449,7 @@ void DataPack::addReadonlyStringAsArray(const std::string& name, const std::stri
 
 void DataPack::addStringAsFloatVector(const std::string& name, const int& capacity)
 {
-   registerArray(name, std::make_shared<DataSrcArrayAsFloatVector>(std::max(capacity, 0)));
+   registerArray(name, std::make_shared<DataSrcArrayAsFloatVector>((std::max)(capacity, 0)));
 }
 
 void DataPack::addStringAsFloatVector(const std::string& name, const std::vector<float>& raw_data)
@@ -459,7 +459,7 @@ void DataPack::addStringAsFloatVector(const std::string& name, const std::vector
 
 void DataPack::addStringAsArray(const std::string& name, const int& capacity)
 {
-   registerArray(name, std::make_shared<DataSrcArrayAsString>(std::max(capacity, 0)));
+   registerArray(name, std::make_shared<DataSrcArrayAsString>((std::max)(capacity, 0)));
 }
 
 void DataPack::addStringAsArray(const std::string& name, const std::string& val)
@@ -992,7 +992,7 @@ bool vfm::DataPack::hasEqualData(
    // (TODO: This procedure is open for discussion, but consistent with how it's done with get and set.)
    for (const auto& arr : other.arrays_) {
       if (arr_names.count(arr.first)) {
-         arr_names.at(arr.first) = std::max(arr.second->size(), arr_names.at(arr.first));
+         arr_names.at(arr.first) = (std::max)(arr.second->size(), arr_names.at(arr.first));
       }
       else {
          arr_names.insert({ arr.first, arr.second->size() });
@@ -1163,7 +1163,7 @@ std::string DataPack::toString() const
 std::string vfm::DataPack::toStringHeap() const
 {
    std::string s;
-   int first_free_heap_index = std::max(first_free_heap_index_, highest_defined_heap_index_above_free_ + 1);
+   int first_free_heap_index = (std::max)(first_free_heap_index_, highest_defined_heap_index_above_free_ + 1);
 
    s += "address\tvalue\t\tlabel\r\n";
    for (int i = 0; i < first_free_heap_index; i++) {
@@ -1322,7 +1322,7 @@ int vfm::DataPack::reserveHeap(const int cells)
 int vfm::DataPack::deleteHeapCells(const int cells)
 {
    int reserved = getUsedHeapSize();
-   int to_delete = std::min(reserved, cells);
+   int to_delete = (std::min)(reserved, cells);
    first_free_heap_index_ -= to_delete;
    return to_delete;
 }
@@ -1340,7 +1340,7 @@ void vfm::DataPack::precalculateExternalAddresses(int max_address_exclusive, int
    }
 
    if (max_address_exclusive < 0) {
-      max_address_exclusive = std::max(first_free_heap_index_, highest_defined_heap_index_above_free_ + 1);
+      max_address_exclusive = (std::max)(first_free_heap_index_, highest_defined_heap_index_above_free_ + 1);
    }
 
    assert(min_address_inclusive <= external_addresses_need_recalculation_from_); // Avoid gaps in recalculated array.

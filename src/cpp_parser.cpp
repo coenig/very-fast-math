@@ -313,7 +313,7 @@ ChunkTypeEnum vfm::CppParser::findIndices(
       program, 
       *SingletonFormulaParser::getLightInstance(), 
       beg_temp, 
-      std::numeric_limits<int>::max(), 
+      (std::numeric_limits<int>::max)(),
       true, 
       DEFAULT_REGEX_FOR_TOKENIZER, 
       DEFAULT_IGNORE_CLASS_FOR_TOKENIZER, 
@@ -1802,7 +1802,7 @@ std::vector<std::string> vfm::CppParser::preprocessArraysInStructOrSignature(
    int dummy_pos = 0;
    std::string tokens_as_string = StaticHelper::tokensAsString(tokens);
    tokens_as_string = preprocessArraysInStructOrSignature(tokens_as_string, begin_bracket, end_bracket, delimiter, insert_delimiter_after_last_item, chunk_name);
-   return *StaticHelper::tokenize(tokens_as_string, *parser_, dummy_pos, std::numeric_limits<int>::max(), false, DEFAULT_REGEX_FOR_TOKENIZER, DEFAULT_IGNORE_CLASS_FOR_TOKENIZER, false, false);
+   return *StaticHelper::tokenize(tokens_as_string, *parser_, dummy_pos, (std::numeric_limits<int>::max)(), false, DEFAULT_REGEX_FOR_TOKENIZER, DEFAULT_IGNORE_CLASS_FOR_TOKENIZER, false, false);
 }
 
 std::string vfm::CppParser::preprocessArraysInStructOrSignature(
@@ -1989,7 +1989,7 @@ void vfm::CppParser::addStruct(
 
       if (std::regex_match(StaticHelper::makeString(token[0]), VAR_AND_FUNCTION_NAME_REGEX)) { // Check only first character since classified already by tokenized.
          if (token == "struct" || token == "enum" || token == "class") {
-            num_per_line = std::numeric_limits<int>::max(); // Skip over remainings of nested chunks.
+            num_per_line = (std::numeric_limits<int>::max)(); // Skip over remainings of nested chunks.
          }
          else if (num_per_line == 0) {
             last_type = token;
@@ -2516,13 +2516,13 @@ void vfm::CppParser::inlineFunction(
    const int start_pos{ (int) (index_begin_orig - function_name.size()) };
    int dummy_pos{ start_pos };
    auto tokens_before{ *StaticHelper::tokenize(
-      result, *parser_, dummy_pos, std::numeric_limits<int>::max(), true, DEFAULT_REGEX_FOR_TOKENIZER, DEFAULT_IGNORE_CLASS_FOR_TOKENIZER, false, false, AkaTalProcessing::none, {}, false, [](const std::vector<std::string> tokens_so_far) {
+      result, *parser_, dummy_pos, (std::numeric_limits<int>::max)(), true, DEFAULT_REGEX_FOR_TOKENIZER, DEFAULT_IGNORE_CLASS_FOR_TOKENIZER, false, false, AkaTalProcessing::none, {}, false, [](const std::vector<std::string> tokens_so_far) {
       return !tokens_so_far.empty() && (tokens_so_far.back() == ";" || tokens_so_far.back() == "{" || tokens_so_far.back() == "}");
    }) };
 
    std::string between_part{};
    std::string line_between_part{};
-   size_t pos_of_begin_of_line{ (size_t) std::max(dummy_pos, 0) };
+   size_t pos_of_begin_of_line{ (size_t)(std::max)(dummy_pos, 0) };
 
    auto func_check{ [](const MathStructPtr m) {
       //m->checkIfAllChildrenHaveConsistentFather();
@@ -2662,7 +2662,7 @@ std::string vfm::CppParser::preprocessCppFunctionInlineFunctionsAndConstructors(
                   }
                   else {
                      addError("Function '" + function_name + "' has sideeffects, but occurs NOT ISOLATED on either its own line or the right side of an assignment. Here's the context:");
-                     const size_t beg = std::max(0, index_begin - 220);
+                     const size_t beg = (std::max)(0, index_begin - 220);
                      const size_t end = index_begin - beg + 350;
                      addError("[...]" + result.substr(beg, end) + "[...]");
                   }
@@ -3003,8 +3003,8 @@ void vfm::CppParser::createDimsVector(
             }
             else if (mc::TypeAbstractionLayer::getCppType(type.first)->toEnumIfApplicable()) { // TODO: Actual enums not possible, only casts to int.
                auto enum_type = mc::TypeAbstractionLayer::getCppType(type.first)->toEnumIfApplicable();
-               int range_min = std::numeric_limits<int>::max();
-               int range_max = std::numeric_limits<int>::min();
+               int range_min = (std::numeric_limits<int>::max)();
+               int range_max = (std::numeric_limits<int>::min)();
                std::string vals = " ";
 
                for (const auto& el : enum_type->getPossibleValues()) {
@@ -4064,7 +4064,7 @@ bool vfm::CppParser::functionIsIsolatedOnLine(const std::string& enclosing_funct
 std::vector<std::string> vfm::CppParser::findTokensAfterFunctionCall(const std::string& enclosing_function, int& dummy_pos) const
 {
    auto tokens_after = StaticHelper::tokenize( // Go in forward direction to check the same for what comes after f.
-      enclosing_function, *parser_, dummy_pos, std::numeric_limits<int>::max(), false, DEFAULT_REGEX_FOR_TOKENIZER, DEFAULT_IGNORE_CLASS_FOR_TOKENIZER, true, false, AkaTalProcessing::none, {}, false, [](const std::vector<std::string> tokens_so_far) {
+      enclosing_function, *parser_, dummy_pos, (std::numeric_limits<int>::max)(), false, DEFAULT_REGEX_FOR_TOKENIZER, DEFAULT_IGNORE_CLASS_FOR_TOKENIZER, true, false, AkaTalProcessing::none, {}, false, [](const std::vector<std::string> tokens_so_far) {
       return !tokens_so_far.empty() && (tokens_so_far.back() == ";" || tokens_so_far.back() == "}");
    });
 
@@ -4198,7 +4198,7 @@ std::pair<float, float> vfm::CppParser::getSingleRange(const MathStructPtr m_raw
             max = ubx * uby;
          }
          else if (ubx >= 0 && lby < 0 && uby >= 0) {
-            min = std::min(lbx * uby, ubx * lby);
+            min = (std::min)(lbx * uby, ubx * lby);
             max = ubx * uby;
          }
          else if (ubx >= 0 && lby < 0 && uby < 0) {
@@ -4273,22 +4273,22 @@ std::pair<float, float> vfm::CppParser::getSingleRange(const MathStructPtr m_raw
          min = 0;
       }
       else {
-         min = std::min(std::abs(lbx), std::abs(ubx));
+         min = (std::min)(std::abs(lbx), std::abs(ubx));
       }
 
-      max = std::max(std::abs(lbx), std::abs(ubx));
+      max = (std::max)(std::abs(lbx), std::abs(ubx));
    }
    else if (checkOptor(SYMB_MIN)) {
-      min = std::min(lbx, lby);
-      max = std::min(ubx, uby);
+      min = (std::min)(lbx, lby);
+      max = (std::min)(ubx, uby);
    }
    else if (checkOptor(SYMB_MAX)) {
-      min = std::max(lbx, lby);
-      max = std::max(ubx, uby);
+      min = (std::max)(lbx, lby);
+      max = (std::max)(ubx, uby);
    }
    else if (checkOptor(SYMB_MOD)) {
       if (lbx < 0) {
-         min = std::max(-1 * (std::max(std::abs(lby), std::abs(uby)) - 1), lbx);
+         min = (std::max)(-1 * ((std::max)(std::abs(lby), std::abs(uby)) - 1), lbx);
       }
       else {
          min = 0;
@@ -4298,7 +4298,7 @@ std::pair<float, float> vfm::CppParser::getSingleRange(const MathStructPtr m_raw
          max = 0;
       }
       else {
-         max = std::min(std::max(std::abs(lby), std::abs(uby)) - 1, ubx);
+         max = (std::min)((std::max)(std::abs(lby), std::abs(uby)) - 1, ubx);
       }
    }
    else if (checkOptor(SYMB_NEG)) { // TODO @ Christian: Please check, is that correct?
