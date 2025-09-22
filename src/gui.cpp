@@ -10,33 +10,8 @@
 #include "model_checking/results_analysis.h"
 #include "vfmacro/script.h"
 
-#ifdef _WIN32
-   #include <windows.h>
-#elif __linux__
-   #include <cstdlib>
-#endif
-
 using namespace vfm;
 
-
-void openExplorerWindow(const MCScene* mc_scene, const std::string& path_raw) {
-   std::string path =
-#ifdef _WIN32
-      StaticHelper::replaceAll(path_raw, "/", "\\")
-#elif __linux__
-      StaticHelper::replaceAll(path_raw, "\\", "/")
-#endif
-      ;
-
-   mc_scene->addNote("Trying to open explorer window at '" + path + "'.");
-
-#ifdef _WIN32
-   ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOWNORMAL);
-#elif __linux__
-   std::string command = "xdg-open " + path;
-   std::system(command.c_str());
-#endif
-}
 
 std::map<std::string, std::pair<std::string, std::string>> MCScene::loadNewBBsFromJson()
 {
@@ -2262,11 +2237,11 @@ void MCScene::onGroupClickBM(Fl_Widget* widget, void* data)
    controller->mc_scene_->showAllBBGroups(false);
 
    if (Fl::event_button() == FL_RIGHT_MOUSE) {
-      openExplorerWindow(controller->mc_scene_, source_path.string());
+      StaticHelper::openWithOS(source_path.string(), controller->mc_scene_);
       return;
    }
    if (Fl::event_button() == FL_MIDDLE_MOUSE) {
-      openExplorerWindow(controller->mc_scene_, controller->mc_scene_->getTemplateDir().c_str());
+      StaticHelper::openWithOS(controller->mc_scene_->getTemplateDir(), controller->mc_scene_);
       return;
    }
 
