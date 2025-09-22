@@ -3594,3 +3594,30 @@ std::filesystem::file_time_type vfm::StaticHelper::lastWritetimeOfFileSafe(const
 {
    return lastWritetimeOfFileSafe(std::filesystem::path(filepath), quiet);
 }
+
+#ifdef _WIN32
+#include <windows.h>
+#elif __linux__
+#include <cstdlib>
+#endif
+
+void vfm::StaticHelper::openWithOS(const std::string& path_raw, const Failable* logger) {
+   std::string path =
+#ifdef _WIN32
+      StaticHelper::replaceAll(path_raw, "/", "\\")
+#elif __linux__
+      StaticHelper::replaceAll(path_raw, "\\", "/")
+#endif
+      ;
+
+   std::string message{ "Trying to open explorer window at '" + path + "'." };
+   if (logger) logger->addNote(message);
+   else std::cout << message << std::endl;
+
+#ifdef _WIN32
+   ShellExecuteA(NULL, "open", path.c_str(), NULL, NULL, SW_SHOWNORMAL);
+#elif __linux__
+   std::string command = "xdg-open " + path;
+   std::system(command.c_str());
+#endif
+}

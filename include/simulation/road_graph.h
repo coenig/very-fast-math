@@ -169,7 +169,7 @@ private:
    const int max_lane_{};
 };
 
-static constexpr int MIN_DISTANCE_BETWEEN_SEGMENTS{ 20 };
+static constexpr int MIN_DISTANCE_BETWEEN_SEGMENTS{ 10 };
 
 /// <summary>
 /// Sequence of LaneSegment's.
