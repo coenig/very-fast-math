@@ -235,7 +235,7 @@ private:
    inline Vec3D getPointInCameraCoordinates(const Vec3D& point_raw) const
    {
       const auto perspective{ getPerspective() };
-      const Vec3D point{ point_raw.z, point_raw.y * (mirrored_ ? -1 : 1), point_raw.x * 15 };
+      const Vec3D point{ point_raw.z, point_raw.y * (mirrored_ ? -1 : 1), point_raw.x };
 
       // Cf. https://en.wikipedia.org/w/index.php?title=3D_projection&oldid=1190317936#Mathematical_formula
       const double x{ point.x - perspective->getCameraX() };
@@ -267,7 +267,7 @@ private:
       double by{ ez / d.z * d.y + ey };
 
       bx *= real_width_;
-      by += .06; // TODO!
+      //by += .06; // TODO!
       by *= real_height_;
 
       return { (float)bx, (float)by };
