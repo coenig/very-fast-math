@@ -652,12 +652,12 @@ void vfm::HighwayImage::setPerspective(
    static constexpr float PI{ 3.14159265359 };
 
    float cnt{ std::max(0.0f /*cnt_*/, 0.0f) }; // The cnt is currently not used, can be used for doing camera rotations etc.
-   highway_translator_->getPerspective()->setCameraX(14 + cnt / 20); // Vertical positioning of the whole image (smaller: image is higher, i.e., camera lower).
-   highway_translator_->getPerspective()->setCameraY(-5 + cnt / 20);  // Horizontal positioning of the whole image (smaller: image is righter, i.e., camera lefter).
-   highway_translator_->getPerspective()->setCameraZ(-70 - cnt * 15); // How close we are to the scene.
-   highway_translator_->getPerspective()->setCameraRotationX(-0.1); // Vertical view angle.
-   highway_translator_->getPerspective()->setCameraRotationY(6.19 + (highway_translator_->isMirrored() ? PI : 0));
-   highway_translator_->getPerspective()->setCameraRotationZ(PI / 2.0);
+   highway_translator_->getPerspective()->setCameraX(4.5 + cnt / 20); // Vertical positioning of the whole image (smaller: image is higher, i.e., camera lower).
+   highway_translator_->getPerspective()->setCameraY(0.0 + cnt / 20);  // Horizontal positioning of the whole image (smaller: image is righter, i.e., camera lefter).
+   highway_translator_->getPerspective()->setCameraZ(-40 - cnt * 15); // How close we are to the scene.
+   highway_translator_->getPerspective()->setCameraRotationX(-0.0); // Vertical view angle.
+   highway_translator_->getPerspective()->setCameraRotationY(6.1 + (highway_translator_->isMirrored() ? PI : 0)); // Horizontal view angle.
+   highway_translator_->getPerspective()->setCameraRotationZ(PI / 2.0); // Don't know, don't wanna know, just don't touch it... ;-) (The old Lukas knows...)
    highway_translator_->getPerspective()->setDisplayWindowX(-2);
    highway_translator_->getPerspective()->setDisplayWindowY(0);
    highway_translator_->getPerspective()->setDisplayWindowZ(27);
