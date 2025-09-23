@@ -651,11 +651,11 @@ void vfm::HighwayImage::setPerspective(
 
    static constexpr float PI{ 3.14159265359 };
 
-   float cnt{ std::max(cnt_, 0.0f) };
-   highway_translator_->getPerspective()->setCameraX(5.4 + 0 * cnt / 20);
-   highway_translator_->getPerspective()->setCameraY(0 * cnt / 20);
-   highway_translator_->getPerspective()->setCameraZ(-175 - 0 * cnt * 15);
-   highway_translator_->getPerspective()->setCameraRotationX(0);
+   float cnt{ std::max(0.0f /*cnt_*/, 0.0f) }; // The cnt is currently not used, can be used for doing camera rotations etc.
+   highway_translator_->getPerspective()->setCameraX(14 + cnt / 20); // Vertical positioning of the whole image (smaller: image is higher, i.e., camera lower).
+   highway_translator_->getPerspective()->setCameraY(-5 + cnt / 20);  // Horizontal positioning of the whole image (smaller: image is righter, i.e., camera lefter).
+   highway_translator_->getPerspective()->setCameraZ(-70 - cnt * 15); // How close we are to the scene.
+   highway_translator_->getPerspective()->setCameraRotationX(-0.1); // Vertical view angle.
    highway_translator_->getPerspective()->setCameraRotationY(6.19 + (highway_translator_->isMirrored() ? PI : 0));
    highway_translator_->getPerspective()->setCameraRotationZ(PI / 2.0);
    highway_translator_->getPerspective()->setDisplayWindowX(-2);
