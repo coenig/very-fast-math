@@ -661,6 +661,9 @@ void vfm::HighwayImage::setPerspective(
    highway_translator_->getPerspective()->setDisplayWindowX(-2);
    highway_translator_->getPerspective()->setDisplayWindowY(0);
    highway_translator_->getPerspective()->setDisplayWindowZ(27);
+
+   highway_translator_->getPerspective()->parseProgram(StaticHelper::readFile("perspective.txt"));
+   addNote("Perspective set to '" + highway_translator_->getPerspective()->serialize() + "'.");
    //if (cnt_ >= 0 && cnt_ < 80) {
    //   cnt_ += step_;
    //   step_ += 0.0003;

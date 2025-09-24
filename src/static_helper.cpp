@@ -730,10 +730,23 @@ void vfm::StaticHelper::distributeIntoBeforeInnerAfter(std::string& before_out, 
    main_in_out = main_in_out.substr(begin, end - begin);
 }
 
+void vfm::StaticHelper::distributeIntoBeforeInnerAfterFirstInnermostMatching(std::string& before_out, std::string& main_in_out, std::string& after_out, const std::string& begin_bracket, const std::string& end_bracket)
+{
+   int begin{ StaticHelper::indexOfFirstInnermostBeginBracket(main_in_out, begin_bracket, end_bracket) };
+   int end{ StaticHelper::findMatchingEndTagLevelwise(main_in_out, begin_bracket, end_bracket, begin) };
+   distributeIntoBeforeInnerAfter(before_out, main_in_out, after_out, begin + 1, end);
+}
+
 void vfm::StaticHelper::distributeGetOnlyInner(std::string& main_in_out, const int begin, const int end)
 {
-   std::string dummy1, dummy2;
+   std::string dummy1{}, dummy2{};
    distributeIntoBeforeInnerAfter(dummy1, main_in_out, dummy2, begin, end);
+}
+
+void vfm::StaticHelper::distributeGetOnlyInnerFirstInnermostMatching(std::string& main_in_out, const std::string& begin_bracket, const std::string& end_bracket)
+{
+   std::string dummy1{}, dummy2{};
+   distributeIntoBeforeInnerAfterFirstInnermostMatching(dummy1, main_in_out, dummy2, begin_bracket, end_bracket);
 }
 
 bool StaticHelper::isRenamedPrivateRecursiveVar(const std::string& var_name)
