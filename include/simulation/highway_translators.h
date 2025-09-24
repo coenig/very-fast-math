@@ -34,12 +34,14 @@ public:
       const float real_height,
       const float ego_offset_x,
       const float street_top,
+      const float lw,
       const Vec2D& v_point)
    {
       real_width_ = real_width;
       real_height_ = real_height;
       ego_offset_x_ = ego_offset_x;
       street_top_ = street_top;
+      lw_ = lw;
       v_point_ = v_point;
    }
 
@@ -49,6 +51,7 @@ public: // TODO: Make protected again (or private!).
    float ego_offset_x_{};
    float street_top_{};
    bool mirrored_{};
+   float lw_{};
    Vec2D v_point_{};
 };
 
@@ -83,19 +86,19 @@ public:
    }
 
 private:
-   static constexpr float lw{ 70 };
+   //static constexpr float lw{ 70 };
 
    inline Vec2D translateCore(const Vec3D& point) override
    {
-      const float factor_{ lw / LANE_WIDTH };
+      const float factor_{ lw_ / LANE_WIDTH };
       return { point.x * factor_ + real_width_,
-               street_top_ + point.y * lw + lw / 2 };
+               street_top_ + point.y * lw_ + lw_ / 2 };
    }
 
    inline Vec3D reverseTranslateCore(const Vec2D& point) override {
-      const float factor_{ lw / LANE_WIDTH };
+      const float factor_{ lw_ / LANE_WIDTH };
       return { (point.x - real_width_) / factor_,
-               (point.y - street_top_ - lw / 2) / lw,
+               (point.y - street_top_ - lw_ / 2) / lw_,
                0 };
    }
 };
@@ -378,6 +381,7 @@ public:
          base_translator_->real_height_,
          base_translator_->ego_offset_x_,
          base_translator_->street_top_,
+         base_translator_->lw_,
          base_translator_->v_point_);
    }
 
@@ -416,6 +420,7 @@ public:
       const float real_height,
       const float ego_offset_x,
       const float street_top,
+      const float lw,
       const Vec2D& v_point) override
    {
       HighwayTranslator::setHighwayData(
@@ -423,6 +428,7 @@ public:
          real_height,
          ego_offset_x,
          street_top,
+         lw,
          v_point);
 
       base_translator_->setHighwayData(
@@ -430,6 +436,7 @@ public:
          real_height,
          ego_offset_x,
          street_top,
+         lw,
          v_point);
    }
 
