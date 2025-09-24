@@ -26,35 +26,36 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   auto traces1 = StaticHelper::extractMCTracesFromNusmvFile("../examples/gp_13_implicit_overtake_EGO/debug_trace_array.txt");
-   auto traces2 = StaticHelper::extractMCTracesFromNusmvFile("../examples/gp_test/debug_trace_array.txt");
-   auto trace1 = traces1.at(0);
-   auto trace2 = traces2.at(0);
+   //auto 
+   //traces = StaticHelper::extractMCTracesFromNusmvFile("../examples/gp_13_implicit_overtake_EGO/debug_trace_array.txt");
+   ////traces = StaticHelper::extractMCTracesFromNusmvFile("../examples/gp_test/debug_trace_array.txt");
 
-   VisualizationScales gen_config_non_smooth{};
-   gen_config_non_smooth.x_scaling = 1;
-   gen_config_non_smooth.duration_scale = 1;
-   gen_config_non_smooth.frames_per_second_gif = 0;
-   gen_config_non_smooth.frames_per_second_osc = 0;
-   gen_config_non_smooth.gif_duration_scale = 1;
+   //auto trace = traces.at(0);
 
-   // Smoothing by adding interpolated frames
-   auto gen_config_smooth = VisualizationScales{ gen_config_non_smooth };
-   gen_config_smooth.frames_per_second_gif = 2;
-   gen_config_smooth.frames_per_second_osc = 2;
+   //VisualizationScales gen_config_non_smooth{};
+   //gen_config_non_smooth.x_scaling = 1;
+   //gen_config_non_smooth.duration_scale = 1;
+   //gen_config_non_smooth.frames_per_second_gif = 0;
+   //gen_config_non_smooth.frames_per_second_osc = 0;
+   //gen_config_non_smooth.gif_duration_scale = 1;
 
-   for (;;) {
-      VisualizationLaunchers::interpretAndGenerate(
-         trace1,
-         ".",
-         "cex-cockpit-only",
-         static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
-         | LiveSimGenerator::LiveSimType::cockpit
-         | LiveSimGenerator::LiveSimType::always_paint_arrows
-         | LiveSimGenerator::LiveSimType::constant_image_output),
-         {},
-         gen_config_smooth, "cockpit (3/7)");
-   }
+   //// Smoothing by adding interpolated frames
+   //auto gen_config_smooth = VisualizationScales{ gen_config_non_smooth };
+   //gen_config_smooth.frames_per_second_gif = 2;
+   //gen_config_smooth.frames_per_second_osc = 2;
+
+   //for (;;) {
+   //   VisualizationLaunchers::interpretAndGenerate(
+   //      trace,
+   //      ".",
+   //      "cex-cockpit-only",
+   //      static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
+   //      | LiveSimGenerator::LiveSimType::cockpit
+   //      | LiveSimGenerator::LiveSimType::always_paint_arrows
+   //      | LiveSimGenerator::LiveSimType::constant_image_output),
+   //      {},
+   //      gen_config_smooth, "cockpit (3/7)");
+   //}
 
    //auto traces = StaticHelper::extractMCTracesFromNusmvFile("../examples/gp_config_sections=5/debug_trace_array.txt");
    //std::shared_ptr<RoadGraph> r{ mc::trajectory_generator::VisualizationLaunchers::getRoadGraphTopologyFrom(traces.at(0)) };
