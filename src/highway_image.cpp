@@ -652,9 +652,9 @@ void vfm::HighwayImage::setPerspective(
    const float lw = street_height / num_lanes;
    const float factor = lw / LANE_WIDTH;
 
-   highway_translator_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, ego_car_lane, v_point_);
-   plain_2d_translator_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, ego_car_lane, v_point_);
-   if (plain_2d_translator_wrapped_) plain_2d_translator_wrapped_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, ego_car_lane, v_point_);
+   highway_translator_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, v_point_);
+   plain_2d_translator_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, v_point_);
+   if (plain_2d_translator_wrapped_) plain_2d_translator_wrapped_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, v_point_);
 
    static constexpr float PI{ 3.14159265359 };
 
@@ -669,6 +669,9 @@ void vfm::HighwayImage::setPerspective(
    highway_translator_->getPerspective()->setDisplayWindowY(0);
    highway_translator_->getPerspective()->setDisplayWindowZ(27);
 
+   if (!StaticHelper::existsFileSafe(std::string("perspective.txt"), false)) {
+      StaticHelper::writeTextToFile(highway_translator_->getPerspective()->serialize(), "perspective.txt");
+   }
    highway_translator_->getPerspective()->parseProgram(StaticHelper::readFile("perspective.txt"));
    addNote("Perspective set to '" + highway_translator_->getPerspective()->serialize() + "'.");
    //if (cnt_ >= 0 && cnt_ < 80) {
