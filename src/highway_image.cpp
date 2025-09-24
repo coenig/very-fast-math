@@ -1028,7 +1028,7 @@ void vfm::HighwayImage::paintRoadGraph(
             || mode == RoadDrawingMode::ghosts_only && !r_sub->isGhost()) continue;
 
          const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
-         preserved_dimension_ = Vec2D{ dim_raw.x * (old_trans->is3D() ? 1.0f : section_max_lanes), dim_raw.y * (old_trans->is3D() ? 1.0f : section_max_lanes) };
+         preserved_dimension_ = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
 
          const auto wrapper_trans_function = [this, section_max_lanes, r_sub, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
             const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };
