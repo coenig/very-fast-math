@@ -734,7 +734,7 @@ void vfm::HighwayImage::paintStraightRoadSceneSimple(
    dummy.setEgo(std::make_shared<CarPars>(ego.car_lane_, ego.car_rel_pos_, ego.car_velocity_, RoadGraph::EGO_MOCK_ID));
    dummy.setOthers(others);
    dummy.setFuturePositionsOfOthers(future_positions_of_others);
-
+   
    paintStraightRoadScene(dummy, true, ego_offset_x, var_vals, print_agent_ids, { (float) getWidth(), (float) getHeight() });
 }
 
@@ -1013,6 +1013,7 @@ void vfm::HighwayImage::paintRoadGraph(
    }
 
    auto r_ego = my_r->findSectionWithEgoIfAny();
+
    std::vector<std::shared_ptr<RoadGraph>> all_nodes_ego_in_front{};
 
    all_nodes_ego_in_front.push_back(r_ego);
@@ -1027,7 +1028,7 @@ void vfm::HighwayImage::paintRoadGraph(
             || mode == RoadDrawingMode::ghosts_only && !r_sub->isGhost()) continue;
 
          const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
-         preserved_dimension_ = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
+         preserved_dimension_ = Vec2D{ dim_raw.x * (old_trans->is3D() ? 1.0f : section_max_lanes), dim_raw.y * (old_trans->is3D() ? 1.0f : section_max_lanes) };
 
          const auto wrapper_trans_function = [this, section_max_lanes, r_sub, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
             const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };
