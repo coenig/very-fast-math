@@ -111,6 +111,7 @@ const Color DARK_DARK_GREEN = Color(0, 100, 0);
 const Color BROWN = Color(101, 67, 33);
 const Color BLUE = Color(0, 0, 255);
 const Color DARK_BLUE = Color(0, 0, 139);
+const Color SKY_BLUE = Color(119, 209, 255, 255);
 const Color YELLOW = Color(255, 255, 0);
 const Color PURPLE = Color(153, 0, 153);
 const Color EGGSHELL = Color(240, 234, 214);
