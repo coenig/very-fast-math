@@ -94,6 +94,7 @@ private:
    inline Vec2D translateCore(const Vec3D& point) override
    {
       const float factor_{ lw_ / LANE_WIDTH };
+
       return { point.x * factor_ + real_width_,
                street_top_ + (point.y + ego_lane_) * lw_ + lw_ / 2 };
    }

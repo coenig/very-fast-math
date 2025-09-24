@@ -48,7 +48,7 @@ int main(int argc, char* argv[])
          ".",
          "cex-cockpit-only",
          static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
-         | LiveSimGenerator::LiveSimType::cockpit
+         | LiveSimGenerator::LiveSimType::birdseye
          | LiveSimGenerator::LiveSimType::always_paint_arrows
          | LiveSimGenerator::LiveSimType::constant_image_output),
          {},
