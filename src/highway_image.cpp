@@ -646,9 +646,12 @@ void vfm::HighwayImage::setPerspective(
    const float street_top,
    const Vec2D& dim)
 {
-   highway_translator_->setHighwayData(dim.x, dim.y, ego_offset_x, street_top, v_point_);
-   plain_2d_translator_->setHighwayData(dim.x, dim.y, ego_offset_x, street_top, v_point_);
-   if (plain_2d_translator_wrapped_) plain_2d_translator_wrapped_->setHighwayData(dim.x, dim.y, ego_offset_x, street_top, v_point_);
+   const float lw = street_height / num_lanes;
+   const float factor = lw / LANE_WIDTH;
+
+   highway_translator_->setHighwayData(dim.x, dim.y, ego_offset_x, street_top, lw, v_point_);
+   plain_2d_translator_->setHighwayData(dim.x, dim.y, ego_offset_x, street_top, lw, v_point_);
+   if (plain_2d_translator_wrapped_) plain_2d_translator_wrapped_->setHighwayData(dim.x, dim.y, ego_offset_x, street_top, lw, v_point_);
 
    static constexpr float PI{ 3.14159265359 };
 
