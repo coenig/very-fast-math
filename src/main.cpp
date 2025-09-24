@@ -38,8 +38,8 @@ int main(int argc, char* argv[])
 
    // Smoothing by adding interpolated frames
    auto gen_config_smooth = VisualizationScales{ gen_config_non_smooth };
-   gen_config_smooth.frames_per_second_gif = 40;
-   gen_config_smooth.frames_per_second_osc = 40;
+   gen_config_smooth.frames_per_second_gif = 2;
+   gen_config_smooth.frames_per_second_osc = 2;
 
    for (;;) {
       VisualizationLaunchers::interpretAndGenerate(

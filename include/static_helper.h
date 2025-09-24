@@ -501,6 +501,8 @@ public:
    ///      int pos_end = findMatchingEndTagLevelwise(inner, pos_begin, "begin", "end");
    ///      distributeIntoBeforeInnerAfter(before, inner, after, pos_begin + "begin".size(), pos_end)
    static void distributeIntoBeforeInnerAfter(std::string& before_out, std::string& main_in_out, std::string& after_out, const int begin, const int end);
+
+   static void distributeIntoBeforeInnerAfterFirstInnermostMatching(std::string& before_out, std::string& main_in_out, std::string& after_out, const std::string& begin_bracket, const std::string& end_bracket);
    
    template<class T = std::string>
    static bool count(const std::vector<T> vec, const T& item)
@@ -509,6 +511,7 @@ public:
    }
 
    static void distributeGetOnlyInner(std::string& main_in_out, const int begin, const int end);
+   static void distributeGetOnlyInnerFirstInnermostMatching(std::string& main_in_out, const std::string& begin_bracket, const std::string& end_bracket);
 
    static bool isRenamedPrivateRecursiveVar(const std::string& var_name);
    static bool isRenamedPrivateVar(const std::string& var_name);

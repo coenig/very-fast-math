@@ -12,6 +12,7 @@
 #include "geometry/plane_3d.h"
 #include "geometry/haru/hpdf.h"
 #include "data_pack.h"
+#include "static_helper.h"
 #include <stdio.h>
 #include <vector>
 #include <functional>
@@ -169,17 +170,63 @@ using TextStorage = std::vector<TextWithCoordinatesAndColor>;
 
 static const Pln3D CAMERA_PLANE_IN_CAMERA_COORDINATES{ { 0, 0, 0 }, { 0, 0, 1 } };
 
-class VisPerspective
+class VisPerspective : Parsable
 {
 public:
-   VisPerspective() = default;
+   inline VisPerspective() : Parsable("VisPerspective") {}
 
    inline std::string serialize() const
    {
-      return "Perspective [(x=" + std::to_string(camera_x_) + ", y=" + std::to_string(camera_y_) + ", z=" + std::to_string(camera_z_) + "),"
-         + " <rot_x=" + std::to_string(camera_rotation_x_) + ", rot_y=" + std::to_string(camera_rotation_y_) + ", rot_z=" + std::to_string(camera_rotation_z_) + ">]"
-         + " <disp_x=" + std::to_string(display_window_x_) + ", disp_y=" + std::to_string(display_window_y_) + ", disp_z=" + std::to_string(display_window_z_) + ">]"
+      return "Perspective [pos_xyz(" + std::to_string(camera_x_) + "," + std::to_string(camera_y_) + "," + std::to_string(camera_z_) + "),"
+         + " rot_xyz<" + std::to_string(camera_rotation_x_) + "," + std::to_string(camera_rotation_y_) + "," + std::to_string(camera_rotation_z_) + ">,"
+         + " disp_xyz{" + std::to_string(display_window_x_) + "," + std::to_string(display_window_y_) + "," + std::to_string(display_window_z_) + "}]"
          ;
+   }
+
+   inline bool parseProgram(const std::string& program) override
+   {
+      if (!StaticHelper::stringStartsWith(program, "Perspective")) {
+         addError("Program '" + program + "' does not start with the keyword 'Perspective'.");
+         return false;
+      }
+
+      std::string pos_str{ program };
+      std::string rot_str{ program };
+      std::string dis_str{ program };
+
+      StaticHelper::distributeGetOnlyInnerFirstInnermostMatching(pos_str, "(", ")");
+      StaticHelper::distributeGetOnlyInnerFirstInnermostMatching(rot_str, "<", ">");
+      StaticHelper::distributeGetOnlyInnerFirstInnermostMatching(dis_str, "{", "}");
+
+      std::vector<std::string> pos{ StaticHelper::split(pos_str, ",") };
+      std::vector<std::string> rot{ StaticHelper::split(rot_str, ",") };
+      std::vector<std::string> dis{ StaticHelper::split(dis_str, ",") };
+
+      if (pos.size() != 3 || rot.size() != 3 || dis.size() != 3) {
+         addError("Program '" + program + "' does not encode a valide perspective.");
+         return false;
+      }
+
+      for (const auto& vec : { pos, rot, dis }) {
+         for (const auto& el : vec) {
+            if (!StaticHelper::isParsableAsFloat(el)) {
+               addError("Element '" + el + "' of program '" + program + "' is not parsable as float.");
+               return false;
+            }
+         }
+      }
+
+      camera_x_ = std::stof(pos[0]);
+      camera_y_ = std::stof(pos[1]);
+      camera_z_ = std::stof(pos[2]);
+      camera_rotation_x_ = std::stof(rot[0]);
+      camera_rotation_y_ = std::stof(rot[1]);
+      camera_rotation_z_ = std::stof(rot[2]);
+      display_window_x_ = std::stof(dis[0]);
+      display_window_y_ = std::stof(dis[1]);
+      display_window_z_ = std::stof(dis[2]);
+
+      return true;
    }
 
    inline void changedRotationX() const { changed_rotation_x_ = true; }
