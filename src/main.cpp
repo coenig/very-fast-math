@@ -26,8 +26,10 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   auto traces = StaticHelper::extractMCTracesFromNusmvFile("../examples/gp_13_implicit_overtake_EGO/debug_trace_array.txt");
-   auto trace = traces.at(0);
+   auto traces1 = StaticHelper::extractMCTracesFromNusmvFile("../examples/gp_13_implicit_overtake_EGO/debug_trace_array.txt");
+   auto traces2 = StaticHelper::extractMCTracesFromNusmvFile("../examples/gp_test/debug_trace_array.txt");
+   auto trace1 = traces1.at(0);
+   auto trace2 = traces2.at(0);
 
    VisualizationScales gen_config_non_smooth{};
    gen_config_non_smooth.x_scaling = 1;
@@ -43,7 +45,7 @@ int main(int argc, char* argv[])
 
    for (;;) {
       VisualizationLaunchers::interpretAndGenerate(
-         trace,
+         trace1,
          ".",
          "cex-cockpit-only",
          static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation

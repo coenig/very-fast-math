@@ -38,7 +38,6 @@ public:
       const int min_lane,
       const int max_lane,
       const float lw,
-      const float ego_lane,
       const Vec2D& v_point)
    {
       factor_ = factor;
@@ -49,7 +48,6 @@ public:
       min_lane_ = min_lane;
       max_lane_ = max_lane;
       lw_ = lw;
-      ego_lane_ = ego_lane;
       v_point_ = v_point;
    }
 
@@ -62,7 +60,6 @@ public: // TODO: Make protected again (or private!).
    int min_lane_{};
    int max_lane_{};
    float lw_{};
-   float ego_lane_{};
    bool mirrored_{};
    Vec2D v_point_{};
 };
@@ -98,6 +95,8 @@ public:
    }
 
 private:
+   static constexpr int ego_lane_{ 0 };
+
    inline Vec2D translateCore(const Vec3D& point) override
    {
       return { point.x * factor_ + real_width_ / 2,
@@ -393,7 +392,6 @@ public:
          base_translator_->min_lane_,
          base_translator_->max_lane_,
          base_translator_->lw_,
-         base_translator_->ego_lane_,
          base_translator_->v_point_);
    }
 
@@ -436,7 +434,6 @@ public:
       const int   min_lane,
       const int   max_lane,
       const float lw,
-      const float ego_lane,
       const Vec2D& v_point) override
    {
       HighwayTranslator::setHighwayData(
@@ -448,7 +445,6 @@ public:
          min_lane,
          max_lane,
          lw,
-         ego_lane,
          v_point);
 
       base_translator_->setHighwayData(
@@ -460,7 +456,6 @@ public:
          min_lane,
          max_lane,
          lw,
-         ego_lane,
          v_point);
    }
 
