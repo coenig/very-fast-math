@@ -35,6 +35,7 @@ public:
       const float ego_offset_x,
       const float street_top,
       const float lw,
+      const float ego_lane,
       const Vec2D& v_point)
    {
       real_width_ = real_width;
@@ -42,6 +43,7 @@ public:
       ego_offset_x_ = ego_offset_x;
       street_top_ = street_top;
       lw_ = lw;
+      ego_lane_ = ego_lane;
       v_point_ = v_point;
    }
 
@@ -50,8 +52,9 @@ public: // TODO: Make protected again (or private!).
    float real_height_{};
    float ego_offset_x_{};
    float street_top_{};
-   bool mirrored_{};
    float lw_{};
+   float ego_lane_{};
+   bool mirrored_{};
    Vec2D v_point_{};
 };
 
@@ -92,13 +95,13 @@ private:
    {
       const float factor_{ lw_ / LANE_WIDTH };
       return { point.x * factor_ + real_width_,
-               street_top_ + point.y * lw_ + lw_ / 2 };
+               street_top_ + (point.y + ego_lane_) * lw_ + lw_ / 2 };
    }
 
    inline Vec3D reverseTranslateCore(const Vec2D& point) override {
       const float factor_{ lw_ / LANE_WIDTH };
       return { (point.x - real_width_) / factor_,
-               (point.y - street_top_ - lw_ / 2) / lw_,
+               (point.y - street_top_ - lw_ / 2) / lw_ - ego_lane_,
                0 };
    }
 };
@@ -382,6 +385,7 @@ public:
          base_translator_->ego_offset_x_,
          base_translator_->street_top_,
          base_translator_->lw_,
+         base_translator_->ego_lane_,
          base_translator_->v_point_);
    }
 
@@ -421,6 +425,7 @@ public:
       const float ego_offset_x,
       const float street_top,
       const float lw,
+      const float ego_lane,
       const Vec2D& v_point) override
    {
       HighwayTranslator::setHighwayData(
@@ -429,6 +434,7 @@ public:
          ego_offset_x,
          street_top,
          lw,
+         ego_lane,
          v_point);
 
       base_translator_->setHighwayData(
@@ -437,6 +443,7 @@ public:
          ego_offset_x,
          street_top,
          lw,
+         ego_lane,
          v_point);
    }
 

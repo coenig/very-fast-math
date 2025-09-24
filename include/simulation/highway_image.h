@@ -51,6 +51,7 @@ public:
       const float num_lanes,
       const float ego_offset_x,
       const float street_top,
+      const float ego_car_lane,
       const Vec2D& dim);
 
    void paintStraightRoadSceneFromData(
