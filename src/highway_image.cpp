@@ -643,18 +643,14 @@ void vfm::HighwayImage::setPerspective(
    const float street_height, 
    const float num_lanes, 
    const float ego_offset_x, 
-   const int min_lane, 
-   const int max_lane,
    const float street_top,
-   const float ego_car_lane, 
    const Vec2D& dim)
 {
    const float lw = street_height / num_lanes;
-   const float factor = lw / LANE_WIDTH;
 
-   highway_translator_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, v_point_);
-   plain_2d_translator_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, v_point_);
-   if (plain_2d_translator_wrapped_) plain_2d_translator_wrapped_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, v_point_);
+   highway_translator_->setHighwayData(dim.x, dim.y, ego_offset_x, street_top, lw, v_point_);
+   plain_2d_translator_->setHighwayData(dim.x, dim.y, ego_offset_x, street_top, lw, v_point_);
+   if (plain_2d_translator_wrapped_) plain_2d_translator_wrapped_->setHighwayData(dim.x, dim.y, ego_offset_x, street_top, lw, v_point_);
 
    static constexpr float PI{ 3.14159265359 };
 
@@ -792,7 +788,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    lane_structure.setNumLanes(num_lanes);
    lane_structure.cleanUp(false);
 
-   setPerspective(street_height, num_lanes, ego_offset_x, min_lane, max_lane, street_top, ego_lane, dim);
+   setPerspective(street_height, num_lanes, ego_offset_x, street_top, dim);
    float y = street_top;
 
    auto tl_orig{ plain_2d_translator_->reverseTranslate({ 0, 0 }).projectToXY() };

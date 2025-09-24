@@ -30,35 +30,26 @@ public:
    }
 
    virtual inline void setHighwayData(
-      const float factor,
       const float real_width,
       const float real_height,
       const float ego_offset_x,
       const float street_top,
-      const int min_lane,
-      const int max_lane,
       const float lw,
       const Vec2D& v_point)
    {
-      factor_ = factor;
       real_width_ = real_width;
       real_height_ = real_height;
       ego_offset_x_ = ego_offset_x;
       street_top_ = street_top;
-      min_lane_ = min_lane;
-      max_lane_ = max_lane;
       lw_ = lw;
       v_point_ = v_point;
    }
 
 public: // TODO: Make protected again (or private!).
-   float factor_{};
    float real_width_{};
    float real_height_{};
    float ego_offset_x_{};
    float street_top_{};
-   int min_lane_{};
-   int max_lane_{};
    float lw_{};
    bool mirrored_{};
    Vec2D v_point_{};
@@ -95,15 +86,19 @@ public:
    }
 
 private:
-   static constexpr int ego_lane_{ 0 };
+   static constexpr float ego_lane_{ 0 };
+   static constexpr float min_lane_{ 0 };
+   static constexpr float max_lane_{ 0 };
 
    inline Vec2D translateCore(const Vec3D& point) override
    {
+      const float factor_{ lw_ / LANE_WIDTH };
       return { point.x * factor_ + real_width_ / 2,
                street_top_ + (point.y + ego_lane_ - min_lane_) * lw_ + lw_ / 2 };
    }
 
    inline Vec3D reverseTranslateCore(const Vec2D& point) override {
+      const float factor_{ lw_ / LANE_WIDTH };
       return { (point.x - real_width_ / 2) / factor_,
                (point.y - street_top_ - lw_ / 2) / lw_ + min_lane_ - ego_lane_,
                0 };
@@ -384,13 +379,10 @@ public:
    {
       setPerspective(base_translator_->getPerspective());
       setHighwayData(
-         base_translator_->factor_,
          base_translator_->real_width_,
          base_translator_->real_height_,
          base_translator_->ego_offset_x_,
          base_translator_->street_top_,
-         base_translator_->min_lane_,
-         base_translator_->max_lane_,
          base_translator_->lw_,
          base_translator_->v_point_);
    }
@@ -426,35 +418,26 @@ public:
    }
 
    inline void setHighwayData(
-      const float factor,
       const float real_width,
       const float real_height,
       const float ego_offset_x,
       const float street_top,
-      const int   min_lane,
-      const int   max_lane,
       const float lw,
       const Vec2D& v_point) override
    {
       HighwayTranslator::setHighwayData(
-         factor,
          real_width,
          real_height,
          ego_offset_x,
          street_top,
-         min_lane,
-         max_lane,
          lw,
          v_point);
 
       base_translator_->setHighwayData(
-         factor,
          real_width,
          real_height,
          ego_offset_x,
          street_top,
-         min_lane,
-         max_lane,
          lw,
          v_point);
    }
