@@ -666,11 +666,14 @@ void vfm::HighwayImage::setPerspective(
    highway_translator_->getPerspective()->setDisplayWindowY(0);
    highway_translator_->getPerspective()->setDisplayWindowZ(27);
 
-   if (!StaticHelper::existsFileSafe(std::string("perspective.txt"), false)) {
-      StaticHelper::writeTextToFile(highway_translator_->getPerspective()->serialize(), "perspective.txt");
+   // TODO: Is this useful in this form?
+   if (!StaticHelper::existsFileSafe(std::string("../src/templates/perspective.txt"), false)) {
+      StaticHelper::writeTextToFile(highway_translator_->getPerspective()->serialize(), "../src/templates/perspective.txt");
    }
-   highway_translator_->getPerspective()->parseProgram(StaticHelper::readFile("perspective.txt"));
+   highway_translator_->getPerspective()->parseProgram(StaticHelper::readFile("../src/templates/perspective.txt"));
    addNote("Perspective set to '" + highway_translator_->getPerspective()->serialize() + "'.");
+   // EO TODO: Is this useful in this form?
+
    //if (cnt_ >= 0 && cnt_ < 80) {
    //   cnt_ += step_;
    //   step_ += 0.0003;
