@@ -95,13 +95,13 @@ private:
    {
       const float factor_{ lw_ / LANE_WIDTH };
 
-      return { point.x * factor_ + real_width_,
+      return { point.x * factor_,
                street_top_ + (point.y + ego_lane_) * lw_ + lw_ / 2 };
    }
 
    inline Vec3D reverseTranslateCore(const Vec2D& point) override {
       const float factor_{ lw_ / LANE_WIDTH };
-      return { (point.x - real_width_) / factor_,
+      return { (point.x) / factor_,
                (point.y - street_top_ - lw_ / 2) / lw_ - ego_lane_,
                0 };
    }
