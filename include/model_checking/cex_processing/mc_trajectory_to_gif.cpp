@@ -396,7 +396,7 @@ void LiveSimGenerator::generate(
 
       // Only live image
       if ((visu_type & LiveSimType::constant_image_output) && !(visu_type & LiveSimType::incremental_image_output)) {
-         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+         std::this_thread::sleep_for(std::chrono::milliseconds(250));
       }
    }
 
