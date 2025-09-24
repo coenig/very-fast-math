@@ -1134,7 +1134,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphCrossing(
       image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
 
       image2.fillImg(BROWN);
-      image3.paintEarthAndSky();
+      image3.paintEarthAndSky(true);
       image2.paintRoadGraph(ra1, { 500, 60 }, {}, true, 50, 70);
       image2.store("../examples/crossing", OutputType::pdf);
       image2.store("../examples/crossing", OutputType::png);
@@ -1243,7 +1243,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(
       image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
 
       image2.fillImg(BROWN);
-      image3.paintEarthAndSky();
+      image3.paintEarthAndSky(true);
       image2.paintRoadGraph(ra1, { 500, 60 }, {}, true);
       image2.store("../examples/junction", OutputType::pdf);
       image2.store("../examples/junction", OutputType::png);
@@ -1420,7 +1420,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
       image3.PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ = false;
 
       image2.fillImg(BROWN);
-      image3.paintEarthAndSky();
+      image3.paintEarthAndSky(true);
       image2.paintRoadGraph(r1, { 500, 60 }, {}, true, 60, (float)r0->getMyRoad().getNumLanes() / 2.0f);
       image2.store("../examples/roundabout", OutputType::pdf);
       image2.store("../examples/roundabout", OutputType::png);

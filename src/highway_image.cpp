@@ -114,7 +114,7 @@ void HighwayImage::setupVPointFor3DPerspective(const int num_lanes, const Vec2D&
    v_point_.x = (getXOffsetCorrection(v_point_.x, bl_.x, br_.x));
 }
 
-void HighwayImage::paintEarthAndSky(const Vec2D& dim_raw)
+void HighwayImage::paintEarthAndSky(const bool three_dee, const Vec2D& dim_raw)
 {
    const float dimx{ (float) getWidth() };
    const float dimy{ dimx / 5 };
@@ -133,15 +133,22 @@ void HighwayImage::paintEarthAndSky(const Vec2D& dim_raw)
       screen_tr_,
       screen_bl_,
       screen_br_,
-      BROWN);
+      three_dee ? SKY_BLUE : BROWN);
 
-   // From top screen corners to top street border.
-   fillQuad(
-      screen_tl_,
-      screen_tr_,
-      { screen_tl_.x, tl_y },
-      { screen_tr_.x, tr_y },
-      Color(119, 209, 255, 255));
+   //fillQuad(
+   //   screen_tl_,
+   //   screen_tr_,
+   //   screen_bl_,
+   //   screen_br_,
+   //   BROWN);
+
+   //// From top screen corners to top street border.
+   //fillQuad(
+   //   screen_tl_,
+   //   screen_tr_,
+   //   { screen_tl_.x, tl_y },
+   //   { screen_tr_.x, tr_y },
+   //   Color(119, 209, 255, 255));
 
    // Paint border around all of it.
    rectangle(screen_tl_.x, screen_tl_.y, screen_br_.x - screen_tl_.x - 1, screen_br_.y - screen_tl_.y - 1, DARK_BLUE, false);
