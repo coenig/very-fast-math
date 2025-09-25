@@ -153,7 +153,7 @@ const float INDICATOR_HEIGHT = 0.1;
 constexpr float LANE_WIDTH = 3.75;  // in m.
 constexpr float CAR_LENGTH = 4.923; // in m.
 constexpr float CAR_WIDTH = 1.852;  // in m.
-constexpr float CAR_HEIGHT = 1.3;   // in m.
+constexpr float CAR_HEIGHT = 1;   // in m.
 constexpr float DASH_WIDTH = 3.5;   // in m.
 
 typedef std::map<std::string, std::string> ExtraVehicleArgs;

@@ -311,10 +311,14 @@ public:
 
    std::shared_ptr<xml::CodeXML> generateOSM() const;
 
+   std::shared_ptr<RoadGraph> copy() const;
+
    std::vector<ConnectorPolygonEnding> connectors_{}; // TODO: Make private.
    StraightRoadSection my_road_{};                    // TODO: Make private.
 
 private:
+   std::shared_ptr<RoadGraph> copy(std::map<int, std::shared_ptr<RoadGraph>>& copied);
+
    std::shared_ptr<RoadGraph> findFirstSectionWithProperty(
       const std::function<bool(std::shared_ptr<RoadGraph>)> property,
       std::set<std::shared_ptr<RoadGraph>>& visited);
