@@ -412,16 +412,28 @@ void vfm::RoadGraph::normalizeRoadGraphToEgo()
 
    const auto ego_road = r_ego->my_road_;
    const auto ego_car = ego_road.getEgo();
-   const Vec2D specialPoint{ r_ego->getOriginPoint() + Vec2D{ ego_car->car_rel_pos_, (ego_car->car_lane_ - ego_road.getNumLanes() / 2) * LANE_WIDTH }};
+   const Vec2D specialPointBase{ Vec2D{ ego_car->car_rel_pos_, (ego_car->car_lane_ - ego_road.getNumLanes() / 2) * LANE_WIDTH }};
    const float theta{ -r_ego->getAngle() };
 
+   static constexpr bool FOLLOW_ANGLE_TOO{ true };
+
+   Vec2D specialPoint{ r_ego->getOriginPoint() + specialPointBase };
+
+   if (!FOLLOW_ANGLE_TOO) {
+      specialPoint.rotate(-theta, r_ego->getOriginPoint());
+   }
+
    for (const auto& r : getAllNodes()) {
-      r->origin_point_.rotate(theta, specialPoint);
-      r->angle_ += theta;
+
+      if (FOLLOW_ANGLE_TOO) {
+         r->origin_point_.rotate(theta, specialPoint);
+         r->angle_ += theta;
+      }
+
       r->origin_point_.add(-specialPoint.x, -specialPoint.y);
    }
 
-   assert(r_ego->isUnturned());
+   assert(!FOLLOW_ANGLE_TOO || r_ego->isUnturned());
 }
 
 void vfm::RoadGraph::translateGraph(const Vec2D& trans)
@@ -898,4 +910,40 @@ std::shared_ptr<xml::CodeXML> vfm::RoadGraph::generateOSM() const
    xml->appendAtTheEnd(CodeXML::retrieveElementWithXMLContent("osm", { { "version", "0.6" }, { "upload", "false" }, { "generator", "vfm" } }, osm_nodes));
 
    return xml;
+}
+
+std::shared_ptr<RoadGraph> vfm::RoadGraph::copy() const
+{
+   std::map<int, std::shared_ptr<RoadGraph>> dummy{};
+   return const_cast<RoadGraph*>(this)->copy(dummy);
+}
+
+std::shared_ptr<RoadGraph> vfm::RoadGraph::copy(std::map<int, std::shared_ptr<RoadGraph>>& copied)
+{
+   if (copied.count(id_)) return copied[id_];
+
+   auto my_copy = std::make_shared<RoadGraph>(id_);
+   copied.insert({ id_, my_copy });
+
+   my_copy->angle_ = angle_;
+   //my_copy->connectors_ = connectors_; // Pointer to color and translator not deep-copied.
+   my_copy->ghost_section_ = ghost_section_;
+   my_copy->my_road_ = my_road_; // TODO: do we need to copy ego, if any? It's only a pointer copy, for now.
+   my_copy->origin_point_ = origin_point_;
+
+   for (const auto& predecessor : predecessors_) {
+      auto tmp_copy = predecessor->copy(copied);
+      my_copy->addPredecessor(tmp_copy);
+   }
+   
+   for (const auto& successor : successors_) {
+      auto tmp_copy = successor->copy(copied);
+      my_copy->addSuccessor(tmp_copy);
+   }
+
+   for (const auto& nonegos_towards_successor : nonegos_towards_successors_) {
+      my_copy->nonegos_towards_successors_.insert({ nonegos_towards_successor.first->copy(copied), nonegos_towards_successor.second });
+   }
+
+   return my_copy;
 }

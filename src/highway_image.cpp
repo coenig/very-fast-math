@@ -996,6 +996,7 @@ void vfm::HighwayImage::paintRoadGraph(
 {
    auto my_r = PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ ? vfm::test::paintExampleRoadGraphRoundabout(false, r_raw) : r_raw;
 
+   my_r = my_r->copy();
    my_r->normalizeRoadGraphToEgo();
    auto old_trans = getHighwayTranslator();
    const auto all_nodes = my_r->getAllNodes();
