@@ -266,5 +266,20 @@ INVAR section_0_segment_2_max_lane = 0;
 --INIT env.veh___609___.lane_1;
 --INIT env.ego_lane_0;
 
+INIT env.outgoing_connection_0_of_section_0 = 1;
+INIT env.outgoing_connection_1_of_section_0 = 2;
+INIT env.outgoing_connection_0_of_section_1 = 3;
+INIT env.outgoing_connection_0_of_section_2 = 3;
+INIT env.dist_0_of_section_0_to_1 = 20 | env.dist_0_of_section_0_to_1 = 40;
+INIT env.dist_1_of_section_0_to_2 = 20 | env.dist_1_of_section_0_to_2 = 40;
+INIT env.dist_0_of_section_1_to_3 = 20 | env.dist_0_of_section_1_to_3 = 40;
+INIT env.dist_0_of_section_2_to_3 = 20 | env.dist_0_of_section_2_to_3 = 40;
+
+INIT env.veh___609___.is_on_sec_0 = 1;
+INIT env.veh___619___.is_on_sec_0 = 1;
+INIT env.veh___609___.abs_pos = 0;
+INIT env.veh___619___.abs_pos = 10;
+
+INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
+
 --TMP - to be removed
-INVAR env.section_0_segment_0_min_lane != env.section_0_segment_1_min_lane | env.section_0_segment_0_max_lane != env.section_0_segment_1_max_lane;
