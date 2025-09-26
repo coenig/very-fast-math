@@ -1,3 +1,8 @@
+-- Working in folder '@{FULL_GEN_PATH}@.printHeap'.
+-- This run is based on GIT commit: @{git rev-parse HEAD}@.exec
+-- Storing patch in '@{FULL_GEN_PATH}@.printHeap/git_patch.txt'
+@{git diff > "@{FULL_GEN_PATH}@.printHeap/git_patch.txt"}@.exec
+
    --= CROSSING =--
    -- Remove nil from generator to activate.
 @{

@@ -415,7 +415,7 @@ void vfm::RoadGraph::normalizeRoadGraphToEgo()
    const Vec2D specialPointBase{ Vec2D{ ego_car->car_rel_pos_, (ego_car->car_lane_ - ego_road.getNumLanes() / 2) * LANE_WIDTH }};
    const float theta{ -r_ego->getAngle() };
 
-   static constexpr bool FOLLOW_ANGLE_TOO{ true };
+   static constexpr bool FOLLOW_ANGLE_TOO{ false }; // NOTE: If set to true, don't copy the graph in paintRoadGraph(). (TODO: Fix this!)
 
    Vec2D specialPoint{ r_ego->getOriginPoint() + specialPointBase };
 
