@@ -11,7 +11,7 @@
       "#010": "range(@sections, 1, 1);",
       "#011": "range(@maxdist, 40, 40);",
       "#012": "range(@anglegran, 45, 45);",
-      "#013": "range(@vehlen, 5, 5);",
+      "#013": "range(@vehlen, 10, 10);",
       "#014": "range(@minaccelego, -8, -8);",
       "#015": "range(@maxaccelego, 3, 3);",
       "#016": "range(@minaccel, -8, -8);",
