@@ -3623,7 +3623,7 @@ void vfm::StaticHelper::openWithOS(const std::string& path_raw, const Failable* 
 #endif
       ;
 
-   std::string message{ "Trying to open explorer window at '" + path + "'." };
+   std::string message{ "Trying to open path with OS at '" + path + "'." };
    if (logger) logger->addNote(message);
    else std::cout << message << std::endl;
 

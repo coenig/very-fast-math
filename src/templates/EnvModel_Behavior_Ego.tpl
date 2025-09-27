@@ -170,7 +170,7 @@ DEFINE
 	ego.crash_with_veh_[i] := ego.same_lane_as_veh_[i] & (veh___6[i]9___.rel_pos >= -veh_length & veh___6[i]9___.rel_pos <= veh_length);
 	ego.blamable_crash_with_veh_[i] := ego.same_lane_as_veh_[i] & (veh___6[i]9___.rel_pos >= 0 & veh___6[i]9___.rel_pos <= veh_length);
 
-   ego_pressured_by_vehicle_[i] := ego.same_lane_as_veh_[i] 
+   ego_pressured_by_vehicle_[i] := FALSE; -- ego.same_lane_as_veh_[i] -- TODO adjust to seclets 
         @{| (veh___6[i]9___.lc_direction = ActionDir____RIGHT & ego.right_of_veh_[i]_lane & veh___6[i]9___.change_lane_now = 1)
         | (veh___6[i]9___.lc_direction = ActionDir____LEFT & ego.left_of_veh_[i]_lane   & veh___6[i]9___.change_lane_now = 1)}@******.if[@{!SIMPLE_LC}@.eval];
 

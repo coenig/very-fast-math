@@ -268,18 +268,27 @@ INVAR section_0_segment_2_max_lane = 0;
 
 INIT env.outgoing_connection_0_of_section_0 = 1;
 INIT env.outgoing_connection_1_of_section_0 = 2;
-INIT env.outgoing_connection_0_of_section_1 = 3;
-INIT env.outgoing_connection_0_of_section_2 = 3;
-INIT env.dist_0_of_section_0_to_1 = 20 | env.dist_0_of_section_0_to_1 = 40;
-INIT env.dist_1_of_section_0_to_2 = 20 | env.dist_1_of_section_0_to_2 = 40;
-INIT env.dist_0_of_section_1_to_3 = 20 | env.dist_0_of_section_1_to_3 = 40;
-INIT env.dist_0_of_section_2_to_3 = 20 | env.dist_0_of_section_2_to_3 = 40;
+INIT env.outgoing_connection_2_of_section_0 = 3;
+INIT env.outgoing_connection_0_of_section_1 = 4;
+INIT env.outgoing_connection_0_of_section_2 = 4;
+INIT env.outgoing_connection_0_of_section_3 = 4;
+INIT env.dist_0_of_section_0_to_1 = 20;
+INIT env.dist_1_of_section_0_to_2 = 30;
+INIT env.dist_2_of_section_0_to_3 = 40;
+INIT env.dist_0_of_section_1_to_4 = 40;
+INIT env.dist_0_of_section_2_to_4 = 30;
+INIT env.dist_0_of_section_3_to_4 = 20;
+
+INIT env.section_4_end = 20;
 
 INIT env.veh___609___.is_on_sec_0 = 1;
 INIT env.veh___619___.is_on_sec_0 = 1;
+INIT env.veh___629___.is_on_sec_0 = 1;
 INIT env.veh___609___.abs_pos = 0;
-INIT env.veh___619___.abs_pos = 10;
+INIT env.veh___619___.abs_pos = 6;
+INIT env.veh___629___.abs_pos = 12;
 
 INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
+INVAR abs(env.veh___619___.v - env.veh___629___.v) <= 6;
 
 --TMP - to be removed
