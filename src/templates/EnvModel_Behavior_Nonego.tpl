@@ -180,7 +180,7 @@ INVAR
 
 INVAR
     (max(-veh___6[i]9___.v, a_min) <= veh___6[i]9___.a & veh___6[i]9___.a <= a_max) &
-    (0 <= veh___6[i]9___.v & veh___6[i]9___.v <= max_vel);
+    (-max_vel <= veh___6[i]9___.v & veh___6[i]9___.v <= max_vel);
 
 -- Lookup table to speed-up non-linear calculations
 DEFINE
@@ -329,7 +329,7 @@ ASSIGN
     esac;
 
     -- update velocity (directly feed-through newly chosen accel)
-    next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, 0), max_vel);
+    next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, -max_vel), max_vel);
 
     -- ############ IDEA ###########
     -- Set future road either to 1/0 if it's clear we'll end or not end up there, or to {0, 1} whenever there IS a connection,
