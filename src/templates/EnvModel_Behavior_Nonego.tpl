@@ -179,8 +179,13 @@ INVAR
     veh___6[i]9___.lane_single | veh___6[i]9___.lane_crossing;
 
 INVAR
-    (max(-veh___6[i]9___.v, a_min) <= veh___6[i]9___.a & veh___6[i]9___.a <= a_max) &
+    (a_min <= veh___6[i]9___.a & veh___6[i]9___.a <= a_max) &
     (-max_vel <= veh___6[i]9___.v & veh___6[i]9___.v <= max_vel);
+
+-- MAX/MIN velocities per lane.
+@{
+INVAR veh___6[i]9___.lane_b@{#j}@.eval[0] -> (veh___6[i]9___.v >= @{LANES_MIN_SPEEDS}@.printHeap.at[#j] & veh___6[i]9___.v <= @{LANES_MAX_SPEEDS}@.printHeap.at[#j]);
+}@***.for[#j, 0, @{NUMLANES - 1}@.eval]
 
 -- Lookup table to speed-up non-linear calculations
 DEFINE
@@ -192,10 +197,11 @@ esac;
 
 veh___6[i]9___.v_kmh := (veh___6[i]9___.v * 36) / 10;
 
-veh___6[i]9___.halber_tacho := case
-   veh___6[i]9___.v_kmh <= 50 : veh___6[i]9___.v; -- TODO: Is this correct when considering scaling? (I think it should be.)
-   TRUE : veh___6[i]9___.v_kmh / 2;
-esac;
+veh___6[i]9___.halber_tacho := 0;
+-- case -- comment in for halber tacho calculation.
+--    veh___6[i]9___.v_kmh <= 50 : veh___6[i]9___.v; -- TODO: Is this correct when considering scaling? (I think it should be.)
+--    TRUE : veh___6[i]9___.v_kmh / 2;
+-- esac;
 
 @{
 DEFINE veh_[i]_and_veh_[j]_on_same_seclet := 

@@ -27,7 +27,7 @@ VAR
     ego.mode : {ActionType____LANE_FOLLOWING@{, ActionType____LANECHANGE_RIGHT}@.if[@{RIGHTLC}@.eval]@{, ActionType____LANECHANGE_LEFT}@.if[@{LEFTLC}@.eval], ActionType____LANECHANGE_ABORT};
     ego.change_lane_now : 0..1;                     -- variable for the non-deterministic choice whether we now change the lane
     @{ego_timer}@*.scalingVariable[time] : -1..@{10}@.timeWorldToEnvModelConst;
-    @{ego.time_since_last_lc}@*.scalingVariable[time] : -1..ego.min_time_between_lcs;        -- enough time has expired since the last lc happened
+    @{ego.time_since_last_lc}@*.scalingVariable[time] : -1..min_time_between_lcs;        -- enough time has expired since the last lc happened
 
     -- Ego env_model interface
     @{ego.gaps___609___.s_dist_front}@*.scalingVariable[distance] : integer;
@@ -263,7 +263,7 @@ ASSIGN
     init(ego_timer) := -1;
     init(ego.change_lane_now) := 0;
   
-    init(ego.time_since_last_lc) := ego.min_time_between_lcs;       -- init with max value such that lane change is immediately allowed after start
+    init(ego.time_since_last_lc) := min_time_between_lcs;       -- init with max value such that lane change is immediately allowed after start
 
     -- ego.v 
     next(ego.v) := min(max(ego.v + ego.a, -ego.max_vel), ego.max_vel);
@@ -317,6 +317,7 @@ VAR
 TRANS (next(ego.mode = ActionType____LANECHANGE_ABORT) | ego.mode = ActionType____LANECHANGE_ABORT | next(ego.abCond_full) | ego.abCond_full) -> (!ego_lane_move_up & !ego_lane_move_down);
 }@******.if[@{ABORTREVOKE}@.eval]
 
+@{
 ASSIGN
     @{
     @{@(@(LEFT)@)@}@*.if[@{LEFTLC}@.eval]
@@ -358,7 +359,7 @@ ASSIGN
 
     next(ego.time_since_last_lc) := case
         (@{ego.mode = ActionType____LANECHANGE_[DIR] | }@.for[[DIR], @{possible_lc_modes}@.scriptVar] ego.mode = ActionType____LANECHANGE_ABORT) & next(ego.mode) = ActionType____LANE_FOLLOWING : 0;            -- activate timer when lane change finishes
-        ego.time_since_last_lc >= 0 & ego.time_since_last_lc < ego.min_time_between_lcs: ego.time_since_last_lc + 1;    -- increment until threshold is reached, saturate at the threshold (-> else condition)
+        ego.time_since_last_lc >= 0 & ego.time_since_last_lc < min_time_between_lcs: ego.time_since_last_lc + 1;    -- increment until threshold is reached, saturate at the threshold (-> else condition)
         ego.mode = ActionType____LANE_FOLLOWING & (FALSE @{| next(ego.mode) = ActionType____LANECHANGE_[DIR]}@.for[[DIR], @{possible_lc_modes}@.scriptVar]): -1;           -- deactivate timer when new lane change starts
         TRUE: ego.time_since_last_lc;                                           -- this clause also keeps the var at max value once the max value has been reached
     esac;
@@ -398,6 +399,8 @@ TRANS
         esac;
         TRUE: ego_lane_unchanged;                                      -- hold current value in all other cases
     esac;
+
+}@.if[@{!SIMPLE_LC}@.eval]
 
 --------------------------------------------------------
 -- End: Ego Env Model Part 

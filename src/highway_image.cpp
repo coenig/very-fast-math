@@ -802,7 +802,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    const float street_width{ (float)((max_lane - min_lane) + 1) };
    const float street_right_border{ street_left_border + street_width };
 
-   constexpr static float METERS_TO_LOOK_BEHIND{ 130 };
+   constexpr static float METERS_TO_LOOK_BEHIND{ 300 };
    constexpr static float METERS_TO_LOOK_AHEAD{ METERS_TO_LOOK_BEHIND };
 
    tl_orig.x = -METERS_TO_LOOK_BEHIND;
