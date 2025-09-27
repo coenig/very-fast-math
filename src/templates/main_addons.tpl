@@ -269,3 +269,23 @@ INVAR section_0_segment_2_max_lane = 0;
 
 
 --TMP - to be removed
+INIT env.veh___609___.abs_pos = 0;
+INIT env.veh___619___.abs_pos > 80;
+INIT env.veh___629___.abs_pos > 80;
+INIT env.veh___639___.abs_pos > 80;
+INIT env.veh___649___.abs_pos > 80;
+INIT env.veh___659___.abs_pos > 80;
+INIT env.veh___669___.abs_pos > 80;
+
+INIT env.section_0_segment_0_min_lane != env.section_0_segment_1_min_lane | env.section_0_segment_0_max_lane != env.section_0_segment_1_max_lane;
+INIT env.section_0_segment_1_min_lane != env.section_0_segment_2_min_lane | env.section_0_segment_1_max_lane != env.section_0_segment_2_max_lane;
+INIT env.section_0_segment_2_min_lane != env.section_0_segment_3_min_lane | env.section_0_segment_2_max_lane != env.section_0_segment_3_max_lane;
+INIT env.section_0_segment_3_min_lane != env.section_0_segment_4_min_lane | env.section_0_segment_3_max_lane != env.section_0_segment_4_max_lane;
+
+INIT env.section_0_segment_2_min_lane = env.section_0_segment_2_max_lane;
+
+INIT env.section_0_segment_0_pos_begin = 0;
+INIT env.section_0_segment_1_pos_begin = 20;
+INIT env.section_0_segment_2_pos_begin = 40;
+INIT env.section_0_segment_3_pos_begin = 60;
+INIT env.section_0_segment_4_pos_begin = 80;
