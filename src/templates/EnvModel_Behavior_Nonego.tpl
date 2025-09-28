@@ -321,16 +321,22 @@ ASSIGN
     next(veh___6[i]9___.prev_rel_pos) := veh___6[i]9___.rel_pos;
     next(veh___6[i]9___.prev_abs_pos) := veh___6[i]9___.abs_pos;
 
-
-    next(veh___6[i]9___.abs_pos) := case
+DEFINE
+    veh___6[i]9___.current_seclet_length := case
        @{
-          veh___6[i]9___.is_on_sec_[sec2] = 1 & veh___6[i]9___.next_abs_pos > section_[sec2]_end : veh___6[i]9___.next_abs_pos - section_[sec2]_end;
+          veh___6[i]9___.is_on_sec_[sec2] = 1 : section_[sec2]_end;
           @{
             @{
-               @{veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : veh___6[i]9___.next_abs_pos - arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane];}@.if[@{[sec] != [sec2]}@.eval]
+               @{veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] : arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane];}@.if[@{[sec] != [sec2]}@.eval]
             }@*.for[[lane], 0, @{NUMLANES - 1}@.eval]
           }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
        }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+          TRUE : -1;
+    esac;
+
+ASSIGN
+    next(veh___6[i]9___.abs_pos) := case
+          veh___6[i]9___.next_abs_pos > veh___6[i]9___.current_seclet_length : veh___6[i]9___.next_abs_pos - veh___6[i]9___.current_seclet_length;
           TRUE : veh___6[i]9___.next_abs_pos;
     esac;
 
