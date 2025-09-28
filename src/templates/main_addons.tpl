@@ -266,26 +266,54 @@ INVAR section_0_segment_2_max_lane = 0;
 --INIT env.veh___609___.lane_1;
 --INIT env.ego_lane_0;
 
+-- Three cars invert their ordering
+INIT env.outgoing_connection_0_of_section_0 = 1;
+INIT env.outgoing_connection_1_of_section_0 = 2;
+INIT env.outgoing_connection_2_of_section_0 = 3;
+INIT env.outgoing_connection_0_of_section_1 = 4;
+INIT env.outgoing_connection_0_of_section_2 = 4;
+INIT env.outgoing_connection_0_of_section_3 = 4;
+INIT env.dist_0_of_section_0_to_1 = 20;
+INIT env.dist_1_of_section_0_to_2 = 30;
+INIT env.dist_2_of_section_0_to_3 = 40;
+INIT env.dist_0_of_section_1_to_4 = 40;
+INIT env.dist_0_of_section_2_to_4 = 30;
+INIT env.dist_0_of_section_3_to_4 = 20;
 
+INIT env.section_4_end = 20;
 
---TMP - to be removed
+INIT env.veh___609___.is_on_sec_0 = 1;
+INIT env.veh___619___.is_on_sec_0 = 1;
+INIT env.veh___629___.is_on_sec_0 = 1;
 INIT env.veh___609___.abs_pos = 0;
-INIT env.veh___619___.abs_pos > 80;
-INIT env.veh___629___.abs_pos > 80;
-INIT env.veh___639___.abs_pos > 80;
-INIT env.veh___649___.abs_pos > 80;
-INIT env.veh___659___.abs_pos > 80;
-INIT env.veh___669___.abs_pos > 80;
+INIT env.veh___619___.abs_pos = 6;
+INIT env.veh___629___.abs_pos = 12;
 
-INIT env.section_0_segment_0_min_lane != env.section_0_segment_1_min_lane | env.section_0_segment_0_max_lane != env.section_0_segment_1_max_lane;
-INIT env.section_0_segment_1_min_lane != env.section_0_segment_2_min_lane | env.section_0_segment_1_max_lane != env.section_0_segment_2_max_lane;
-INIT env.section_0_segment_2_min_lane != env.section_0_segment_3_min_lane | env.section_0_segment_2_max_lane != env.section_0_segment_3_max_lane;
-INIT env.section_0_segment_3_min_lane != env.section_0_segment_4_min_lane | env.section_0_segment_3_max_lane != env.section_0_segment_4_max_lane;
+INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
+INVAR abs(env.veh___619___.v - env.veh___629___.v) <= 6;
+INVAR env.veh___609___.v <= 10;
+-- EO Three cars invert their ordering
 
-INIT env.section_0_segment_2_min_lane = env.section_0_segment_2_max_lane;
 
-INIT env.section_0_segment_0_pos_begin = 0;
-INIT env.section_0_segment_1_pos_begin = 20;
-INIT env.section_0_segment_2_pos_begin = 40;
-INIT env.section_0_segment_3_pos_begin = 60;
-INIT env.section_0_segment_4_pos_begin = 80;
+-- Nudging
+-- INIT env.veh___609___.abs_pos = 0;
+-- INIT env.veh___619___.abs_pos > 80;
+-- INIT env.veh___629___.abs_pos > 80;
+-- INIT env.veh___639___.abs_pos > 80;
+-- INIT env.veh___649___.abs_pos > 80;
+-- INIT env.veh___659___.abs_pos > 80;
+-- INIT env.veh___669___.abs_pos > 80;
+-- 
+-- INIT env.section_0_segment_0_min_lane != env.section_0_segment_1_min_lane | env.section_0_segment_0_max_lane != env.section_0_segment_1_max_lane;
+-- INIT env.section_0_segment_1_min_lane != env.section_0_segment_2_min_lane | env.section_0_segment_1_max_lane != env.section_0_segment_2_max_lane;
+-- INIT env.section_0_segment_2_min_lane != env.section_0_segment_3_min_lane | env.section_0_segment_2_max_lane != env.section_0_segment_3_max_lane;
+-- INIT env.section_0_segment_3_min_lane != env.section_0_segment_4_min_lane | env.section_0_segment_3_max_lane != env.section_0_segment_4_max_lane;
+-- 
+-- INIT env.section_0_segment_2_min_lane = env.section_0_segment_2_max_lane;
+-- 
+-- INIT env.section_0_segment_0_pos_begin = 0;
+-- INIT env.section_0_segment_1_pos_begin = 20;
+-- INIT env.section_0_segment_2_pos_begin = 40;
+-- INIT env.section_0_segment_3_pos_begin = 60;
+-- INIT env.section_0_segment_4_pos_begin = 80;
+-- EO Nudging
