@@ -267,20 +267,20 @@ INVAR section_0_segment_2_max_lane = 0;
 --INIT env.ego_lane_0;
 
 -- Three cars invert their ordering
-INIT env.outgoing_connection_0_of_section_0 = 1;
-INIT env.outgoing_connection_1_of_section_0 = 2;
-INIT env.outgoing_connection_2_of_section_0 = 3;
-INIT env.outgoing_connection_0_of_section_1 = 4;
-INIT env.outgoing_connection_0_of_section_2 = 4;
-INIT env.outgoing_connection_0_of_section_3 = 4;
-INIT env.dist_0_of_section_0_to_1 = 20;
-INIT env.dist_1_of_section_0_to_2 = 30;
-INIT env.dist_2_of_section_0_to_3 = 40;
-INIT env.dist_0_of_section_1_to_4 = 40;
-INIT env.dist_0_of_section_2_to_4 = 30;
-INIT env.dist_0_of_section_3_to_4 = 20;
+-- INIT env.outgoing_connection_0_of_section_0 = 1;
+-- INIT env.outgoing_connection_1_of_section_0 = 2;
+-- INIT env.outgoing_connection_2_of_section_0 = 3;
+-- INIT env.outgoing_connection_0_of_section_1 = 4;
+-- INIT env.outgoing_connection_0_of_section_2 = 4;
+-- INIT env.outgoing_connection_0_of_section_3 = 4;
+-- INIT env.dist_0_of_section_0_to_1 = 20;
+-- INIT env.dist_1_of_section_0_to_2 = 30;
+-- INIT env.dist_2_of_section_0_to_3 = 40;
+-- INIT env.dist_0_of_section_1_to_4 = 40;
+-- INIT env.dist_0_of_section_2_to_4 = 30;
+-- INIT env.dist_0_of_section_3_to_4 = 20;
 
-INIT env.section_4_end = 20;
+-- INIT env.section_4_end = 20;
 
 INIT env.veh___609___.is_on_sec_0 = 1;
 INIT env.veh___619___.is_on_sec_0 = 1;
