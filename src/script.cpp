@@ -17,6 +17,9 @@ using namespace vfm;
 using namespace macro;
 
 
+std::map<int, std::shared_ptr<RoadGraph>> vfm::macro::Script::road_graphs_{};
+std::map<std::string, std::shared_ptr<StraightRoadSection>> straight_road_sections_{};
+
 vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser)
    : Failable("ScriptMacro"), vfm_data_(data ? data : std::make_shared<DataPack>()), vfm_parser_(parser ? parser : SingletonFormulaParser::getInstance())
 {

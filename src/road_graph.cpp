@@ -8,7 +8,7 @@
 using namespace vfm;
 
 LaneSegment::LaneSegment(const float begin, const int min_lane, const int max_lane)
-   : begin_(begin), min_lane_(min_lane), max_lane_(max_lane)
+   : Parsable("LaneSegment"), begin_(begin), min_lane_(min_lane), max_lane_(max_lane)
 {}
 
 float LaneSegment::getBegin() const { return begin_; }
@@ -38,13 +38,36 @@ std::string LaneSegment::toString() const
    return "<" + std::to_string(getBegin()) + ", [" + std::to_string(getMinLane()) + " -- " + std::to_string(getMaxLane()) + "]>";
 }
 
+bool LaneSegment::parseProgram(const std::string& program)
+{
+   auto params = StaticHelper::split(StaticHelper::removeWhiteSpace(StaticHelper::replaceAll(StaticHelper::replaceAll(program, ")", ""), "(", "")), ",");
+
+   if (params.size() != 3) {
+      addError("Cannot parse program '" + program + "'. Number of parameters is not equal to 3.");
+      return false;
+   }
+   
+   for (const auto& par : params) {
+      if (!StaticHelper::isParsableAsFloat(par)) {
+         addError("Cannot parse program '" + program + "'. Parameter '" + par + "' is not a number.");
+         return false;
+      }
+   }
+
+   min_lane_ = std::stof(params[0]);
+   max_lane_ = std::stof(params[1]);
+   begin_ = std::stof(params[2]);
+
+   return true;
+}
+
 StraightRoadSection::StraightRoadSection() : StraightRoadSection(-1, -1) {} // Constructs an invalid lane structure.
 
 StraightRoadSection::StraightRoadSection(const int lane_num, const float section_end)
    : StraightRoadSection(lane_num, section_end, std::vector<LaneSegment>{}) {}
 
 StraightRoadSection::StraightRoadSection(const int lane_num, const float section_end, const std::vector<LaneSegment>& segments)
-   : num_lanes_(lane_num), section_end_(section_end), Failable("StraightRoadSection") {
+   : num_lanes_(lane_num), section_end_(section_end), Parsable("StraightRoadSection") {
    for (const auto& segment : segments) {
       addLaneSegment(segment);
    }
@@ -203,7 +226,19 @@ float vfm::StraightRoadSection::getLength() const
    return section_end_;
 }
 
-vfm::RoadGraph::RoadGraph(const int id) : Failable("RoadGraph"), id_{id}
+bool StraightRoadSection::parseProgram(const std::string& program)
+{
+   // ( max_lanes, section_end, ( (min_lane_0, max_lane_0, begin_0), ... , (min_lane_n, max_lane_n, begin_n) ) )
+
+   auto bracket_structure = StaticHelper::extractArbitraryBracketStructure(StaticHelper::removeWhiteSpace(program), "(", ")", ",");
+
+   std::string max_lanes = bracket_structure->children_.at(0)->content_;
+   std::string section_end_ = bracket_structure->children_.at(1)->content_;
+
+   return true;
+}
+
+vfm::RoadGraph::RoadGraph(const int id) : Parsable("RoadGraph"), id_{id}
 {}
 
 std::shared_ptr<RoadGraph> vfm::RoadGraph::findFirstSectionWithProperty(
@@ -705,6 +740,12 @@ bool vfm::RoadGraph::isGhost() const
 {
    return ghost_section_;
 }
+
+bool vfm::RoadGraph::parseProgram(const std::string& program)
+{
+   return true;
+}
+
 
 using namespace xml;
 
