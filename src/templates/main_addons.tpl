@@ -291,7 +291,7 @@ INIT env.veh___629___.abs_pos = 12;
 
 INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
 INVAR abs(env.veh___619___.v - env.veh___629___.v) <= 6;
-INVAR env.veh___609___.v <= env.veh___609___.current_seclet_length;
+--INVAR env.veh___609___.v <= env.veh___609___.current_seclet_length;
 
 -- EO Three cars invert their ordering
 

@@ -143,7 +143,7 @@ private:
 /// It is embedded into a StraightRoadSection which defines the number of lanes available.
 /// Also, the begin_ member implicitly defines a length when within a sequence of LaneSegment's.
 /// </summary>
-class LaneSegment {
+class LaneSegment : public Parsable {
 public:
    LaneSegment(const float begin, const int min_lane, const int max_lane);
 
@@ -163,10 +163,14 @@ public:
 
    std::string toString() const;
 
+   // (1, 2, 40)
+   // (min_lane, max_lane, begin)
+   bool parseProgram(const std::string& program) override;
+
 private:
    float begin_{};
-   const int min_lane_{}; // 0: right-most, 1: right-most as emergency, 2: right-most - 1 etc.
-   const int max_lane_{};
+   int min_lane_{}; // 0: right-most, 1: right-most as emergency, 2: right-most - 1 etc.
+   int max_lane_{};
 };
 
 static constexpr int MIN_DISTANCE_BETWEEN_SEGMENTS{ 10 };
@@ -180,7 +184,7 @@ static constexpr int MIN_DISTANCE_BETWEEN_SEGMENTS{ 10 };
 ///   SEG1       |  SEG2  | ... |  SEG n     | ... |  SEG m     |
 /// -------------------------------------------------------------
 /// </summary>
-class StraightRoadSection : public Failable {
+class StraightRoadSection : public Parsable {
 public:
    StraightRoadSection(); // Constructs an invalid lane structure.
    StraightRoadSection(const int lane_num, const float section_end);
@@ -206,6 +210,10 @@ public:
    float getLength() const;
    std::map<int, Way> addWaysToSegment(const float segment_id, const std::shared_ptr<RoadGraph> father_rg);
 
+   // ( 4, 200, ( (0, 2, 0), (0, 1, 20), (1, 1, 40) ) )
+   // ( max_lanes, section_end, ( (min_lane_0, max_lane_0, begin_0), ... , (min_lane_n, max_lane_n, begin_n) ) )
+   bool parseProgram(const std::string& program) override;
+
 private:
    std::map<float, LaneSegment> segments_{};
    mutable int num_lanes_{ -1 }; // We have lane ids: 0 .. (num_lanes_ - 1) * 2
@@ -220,7 +228,7 @@ public: // TODO
 /// <summary>
 /// Connected, possibly circular graph of StraightRoadSection's.
 /// </summary>
-class RoadGraph : public Failable, public std::enable_shared_from_this<RoadGraph>{
+class RoadGraph : public Parsable, public std::enable_shared_from_this<RoadGraph>{
 public:
    constexpr static int EGO_MOCK_ID{ -100 };
 
@@ -315,6 +323,10 @@ public:
 
    std::vector<ConnectorPolygonEnding> connectors_{}; // TODO: Make private.
    StraightRoadSection my_road_{};                    // TODO: Make private.
+
+   // ( (3, 4), 45, (4, 200, ( (0, 2, 0), (0, 1, 20), (1, 1, 40) ) ) )
+   // ( (x, y), theta, (max_lanes, section_end, ( (min_lane_0, max_lane_0, begin_0), ... , (min_lane_n, max_lane_n, begin_n) ) ) )
+   bool parseProgram(const std::string& program) override;
 
 private:
    std::shared_ptr<RoadGraph> copy(std::map<int, std::shared_ptr<RoadGraph>>& copied);
