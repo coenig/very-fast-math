@@ -2317,7 +2317,7 @@ std::shared_ptr<BracketStructure> vfm::StaticHelper::extractArbitraryBracketStru
             }
             else if (bracket_structure_as_string.substr(i, delimiter.size()) == delimiter) {
                overall_structure->children_.push_back(std::make_shared<BracketStructure>(current_element, std::vector<std::shared_ptr<BracketStructure>>{}));
-               i += delimiter.size();
+               i += delimiter.size() - next_inc;
                current_element.clear();
             }
             else {
