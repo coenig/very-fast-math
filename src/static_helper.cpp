@@ -1405,6 +1405,21 @@ std::string BracketStructure::getContentAt(const std::vector<int> path_through_t
    return "";
 }
 
+std::string vfm::BracketStructure::serialize(const std::string& opening_bracket, const std::string& closing_bracket, const std::string& delimiter) const
+{
+   std::string res{};
+   const std::string ob{ children_.size() > 0 ? opening_bracket : "" };
+   const std::string cb{ children_.size() > 0 ? closing_bracket : "" };
+
+   res += content_;
+
+   for (const auto& child : children_) {
+      res += (&child != &children_.front() ? delimiter : "") + child->serialize(opening_bracket, closing_bracket, delimiter);
+   }
+
+   return ob + res + cb;
+}
+
 // From https://stackoverflow.com/questions/236129/the-most-elegant-way-to-iterate-the-words-of-a-string
 // This function is licensed under CC-BY-SA-4.0 which is a copy-left license
 // (https://creativecommons.org/licenses/by-sa/4.0/deed.en)!
@@ -2317,7 +2332,7 @@ std::shared_ptr<BracketStructure> vfm::StaticHelper::extractArbitraryBracketStru
             }
             else if (bracket_structure_as_string.substr(i, delimiter.size()) == delimiter) {
                overall_structure->children_.push_back(std::make_shared<BracketStructure>(current_element, std::vector<std::shared_ptr<BracketStructure>>{}));
-               i += delimiter.size() - next_inc;
+               i += delimiter.size();
                current_element.clear();
             }
             else {

@@ -7,6 +7,9 @@
 
 using namespace vfm;
 
+vfm::LaneSegment::LaneSegment() : LaneSegment(-1, -1, -1)
+{}
+
 LaneSegment::LaneSegment(const float begin, const int min_lane, const int max_lane)
    : Parsable("LaneSegment"), begin_(begin), min_lane_(min_lane), max_lane_(max_lane)
 {}
@@ -228,12 +231,37 @@ float vfm::StraightRoadSection::getLength() const
 
 bool StraightRoadSection::parseProgram(const std::string& program)
 {
-   // ( max_lanes, section_end, ( (min_lane_0, max_lane_0, begin_0), ... , (min_lane_n, max_lane_n, begin_n) ) )
-
    auto bracket_structure = StaticHelper::extractArbitraryBracketStructure(StaticHelper::removeWhiteSpace(program), "(", ")", ",");
+   
+   if (!bracket_structure->children_.size() == 3) {
+      addError("Cannot parse program '" + program + "'. Number of parameters is not equal to 3.");
+      return false;
+   }
 
    std::string max_lanes = bracket_structure->children_.at(0)->content_;
-   std::string section_end_ = bracket_structure->children_.at(1)->content_;
+   std::string section_end = bracket_structure->children_.at(1)->content_;
+
+   if (!StaticHelper::isParsableAsFloat(max_lanes)) {
+      addError("Cannot parse program '" + program + "'. Parameter '" + max_lanes + "' is not a number.");
+      return false;
+   }
+
+   num_lanes_ = std::stof(max_lanes);
+
+   if (!StaticHelper::isParsableAsFloat(section_end)) {
+      addError("Cannot parse program '" + program + "'. Parameter '" + section_end + "' is not a number.");
+      return false;
+   }
+
+   section_end_ = std::stof(section_end);
+
+   std::cout << bracket_structure->serialize("(", ")", ",") << std::endl;
+
+   for (const auto& segment_desc : bracket_structure->children_.at(2)->children_) {
+      LaneSegment segment{};
+      if (!segment.parseProgram(segment_desc->serialize("(", ")", ","))) return false;
+      addLaneSegment(segment);
+   }
 
    return true;
 }

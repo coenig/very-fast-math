@@ -145,6 +145,7 @@ private:
 /// </summary>
 class LaneSegment : public Parsable {
 public:
+   LaneSegment();
    LaneSegment(const float begin, const int min_lane, const int max_lane);
 
    float getBegin() const;
