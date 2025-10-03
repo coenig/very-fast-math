@@ -2327,12 +2327,12 @@ std::shared_ptr<BracketStructure> vfm::StaticHelper::extractArbitraryBracketStru
                int pos_end = findMatchingEndTagLevelwise(bracket_structure_as_string, pos_beg, opening_bracket, closing_bracket, ignoreBegTags, ignoreEndTags);
                std::string part = bracket_structure_as_string.substr(pos_beg + opening_bracket.size(), pos_end - pos_beg - opening_bracket.size());
                overall_structure->children_.push_back(extractArbitraryBracketStructure(part, opening_bracket, closing_bracket, delimiter, ignoreBegTags, ignoreEndTags, false));
-               i = pos_end + closing_bracket.size() + 1;
+               i = pos_end + closing_bracket.size() + 1 - next_inc;
                current_element.clear();
             }
             else if (bracket_structure_as_string.substr(i, delimiter.size()) == delimiter) {
                overall_structure->children_.push_back(std::make_shared<BracketStructure>(current_element, std::vector<std::shared_ptr<BracketStructure>>{}));
-               i += delimiter.size();
+               i += delimiter.size() - next_inc;
                current_element.clear();
             }
             else {
