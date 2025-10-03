@@ -256,7 +256,12 @@ bool StraightRoadSection::parseProgram(const std::string& program_raw)
 
    section_end_ = std::stof(section_end);
 
+   // RESET
    segments_.clear();
+   others_.clear();
+   future_positions_of_others_.clear();
+   // EO RESET
+
    for (const auto& segment_desc : bracket_structure->children_.at(2)->children_) {
       LaneSegment segment{};
       if (!segment.parseProgram(segment_desc->serialize("(", ")", ","))) return false;
@@ -803,6 +808,15 @@ bool vfm::RoadGraph::parseProgram(const std::string& program_raw)
 
    origin_point_ = { std::stof(x), std::stof(y) };
    angle_ = std::stof(angle);
+
+   // RESET
+   successors_.clear();
+   predecessors_.clear();
+   nonegos_towards_successors_.clear();
+   ghost_section_ = false;
+   connectors_.clear();
+   // EO RESET
+
 
    my_road_.parseProgram(bracket_structure->children_.at(2)->serialize("(", ")", ","));
 
