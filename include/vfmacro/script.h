@@ -512,32 +512,9 @@ private:
       return getScriptData().list_data_[getRawScript()][index];
    }
 
-   inline std::string connectRoadGraphTo(const std::string& id)
-   {
-      if (!StaticHelper::isParsableAsFloat(getRawScript())) {
-         addError("RoadGraph ID '" + getRawScript() + "' is not an integer.");
-         return "#ERROR";
-      }
-      if (!StaticHelper::isParsableAsFloat(id)) {
-         addError("RoadGraph ID '" + id + "' is not an integer.");
-         return "#ERROR";
-      }
-
-      return "";
-   }
-
-   inline std::string createRoadGraph(const std::string& id) 
-   {
-
-      if (!StaticHelper::isParsableAsFloat(id)) {
-         addError("RoadGraph with ID '" + id + "' CANNOT be created, because ID is not an integer.");
-         return "#ERROR";
-      }
-
-      int rg_id{ std::stoi(getRawScript()) };
-
-      road_graphs_.insert({ rg_id, std::make_shared<RoadGraph>(rg_id) });
-   }
+   std::string connectRoadGraphTo(const std::string& id2_str);
+   std::string storeRoadGraph(const std::string& filename);
+   inline std::string createRoadGraph(const std::string& id);
 
    ScriptMethodDescription m1{ "for", 2, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1)); } };
    ScriptMethodDescription m2{ "for", 3, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2)); } };
@@ -801,7 +778,10 @@ private:
          getScriptData().list_data_[getRawScript()].push_back(parameters[0]);
          return "";
       } },
-      { "createRoadGraph", 1, [this](const std::vector<std::string>& parameters) -> std::string { return createRoadGraph(parameters[0]); }},
+      { "createRoadGraph", 1, [this](const std::vector<std::string>& parameters) -> std::string { 
+         return createRoadGraph(parameters[0]); 
+      } },
+      { "storeRoadGraph", 1, [this](const std::vector<std::string>& parameters) -> std::string { return storeRoadGraph(parameters[0]); }},
    };
 };
 

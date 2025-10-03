@@ -14,16 +14,6 @@ using namespace vfm;
 
 static constexpr float LANE_MARKER_THICKNESS{ 0.08 };
 
-vfm::HighwayImage::HighwayImage(const int width, const int height, const std::shared_ptr<HighwayTranslator> translator, const int num_lanes) 
-   : Image(width, height), Failable("HighwayImage")
-{
-   setTranslator(translator);
-   setupVPointFor3DPerspective(num_lanes, { (float) width, (float) height });
-}
-
-vfm::HighwayImage::HighwayImage(const std::shared_ptr<HighwayTranslator> translator, const int num_lanes) 
-   : HighwayImage(0, 0, translator, num_lanes)
-{}
 
 // 3D-specific stuff (mainly for setting the v_point_). TODO: Get rid of such things that should go into the translator.
 float getXOffsetCorrection(

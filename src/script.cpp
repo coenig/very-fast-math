@@ -10,6 +10,9 @@
 #include "parser.h"
 #include "simplification/simplification.h"
 #include "geometry/images.h"
+#include "simulation/highway_image.h"
+#include "simulation/env2d_simple.h"
+#include "simulation/highway_translators.h"
 #include <cmath>
 
 
@@ -1322,4 +1325,105 @@ std::string vfm::macro::Script::processScript(
 
    s->applyDeclarationsAndPreprocessors(text);
    return s->getProcessedScript();
+}
+
+std::string vfm::macro::Script::connectRoadGraphTo(const std::string& id2_str)
+{
+   if (!StaticHelper::isParsableAsFloat(getRawScript())) {
+      addError("RoadGraph ID '" + getRawScript() + "' is not an integer.");
+      return "#ERROR";
+   }
+   if (!StaticHelper::isParsableAsFloat(id2_str)) {
+      addError("RoadGraph ID '" + id2_str + "' is not an integer.");
+      return "#ERROR";
+   }
+
+   int id1{ (int)std::stof(getRawScript()) };
+   int id2{ (int)std::stof(id2_str) };
+
+   for (const auto& id : { id1, id2 }) {
+      if (!road_graphs_.count(id)) {
+         addError("RoadGraph with ID '" + std::to_string(id) + "' not found.");
+         return "#ERROR";
+      }
+   }
+
+   road_graphs_.at(id1)->addSuccessor(road_graphs_.at(id2));
+
+   return "";
+}
+
+std::string vfm::macro::Script::storeRoadGraph(const std::string& filename)
+{
+   if (!StaticHelper::isParsableAsFloat(getRawScript())) {
+      addError("RoadGraph ID '" + getRawScript() + "' is not an integer.");
+      return "#ERROR";
+   }
+
+   int id{ (int) std::stof(getRawScript()) };
+
+   if (!road_graphs_.count(id)) {
+      addError("RoadGraph with ID '" + std::to_string(id) + "' not found.");
+      return "#ERROR";
+   }
+
+   auto rg = road_graphs_.at(id);
+
+   const bool infinite_highway{ rg->getNodeCount() == 1 };
+
+   vfm::HighwayImage image{
+      Env2D::getImageWidth(MAX_NUM_LANES_SIMPLE) * (infinite_highway ? 1 : 1),
+      Env2D::getImageHeight() * (rg->getNodeCount() > 1 ? 7 : 1),
+      std::make_shared<Plain2DTranslator>(),
+      rg->getMyRoad().getNumLanes() };
+
+   image.fillImg(BROWN);
+
+   Rec2D bounding_box{ infinite_highway ? Rec2D{} : rg->getBoundingBox() };
+   const float offset_x{ infinite_highway
+      ? 60.0f
+      : 30.0f
+   };
+
+   const float offset_y{
+      infinite_highway
+      ?
+      (float)rg->getMyRoad().getNumLanes() / 2.0f
+      : 20.0f
+   };
+
+   image.paintRoadGraph(
+      rg,
+      { 500, 60 },
+      {},
+      true, offset_x, offset_y);
+
+   image.store(filename);
+
+   return "Road graph '" + std::to_string(id) + "' stored in '" + filename + "'.";
+}
+
+// @{ ((0, 0), 0, ( 4, 200, ( (0, 5, 0), (2, 2, 50) ) )) }@.createRoadGraph[0]
+// @{0}@.storeRoadGraph[mytest]
+std::string vfm::macro::Script::createRoadGraph(const std::string& id)
+{
+   if (!StaticHelper::isParsableAsFloat(id)) {
+      addError("RoadGraph with ID '" + id + "' CANNOT be created, because ID is not an integer.");
+      return "#ERROR";
+   }
+
+   int rg_id{ std::stoi(id) };
+   auto rg = std::make_shared<RoadGraph>(rg_id);
+
+   if (rg_id == 0) {
+      rg->my_road_.setEgo(std::make_shared<CarPars>(0, 0, 0, RoadGraph::EGO_MOCK_ID));
+   }
+
+   road_graphs_[rg_id] = rg;
+
+   if (!rg->parseProgram(getRawScript())) {
+      return "#ERROR";
+   }
+
+   return "Road graph '" + id + "' created.";
 }

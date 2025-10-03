@@ -15,8 +15,17 @@ namespace vfm {
 class HighwayImage : public Image, public Failable
 {
 public:
-   HighwayImage(const int width, const int height, const std::shared_ptr<HighwayTranslator> translator, const int num_lanes);
-   HighwayImage(const std::shared_ptr<HighwayTranslator> translator, const int num_lanes);
+   inline HighwayImage(const int width, const int height, const std::shared_ptr<HighwayTranslator> translator, const int num_lanes) 
+      : Image(width, height), Failable("HighwayImage")
+   {
+      setTranslator(translator);
+      setupVPointFor3DPerspective(num_lanes, { (float)width, (float)height });
+   }
+
+   inline HighwayImage(const std::shared_ptr<HighwayTranslator> translator, const int num_lanes)
+      : HighwayImage(0, 0, translator, num_lanes)
+   {}
+
 
    void setupVPointFor3DPerspective(const int num_lanes, const Vec2D& dim); // 3D-Specific - TODO: Needs to go away.
    void paintEarthAndSky(const bool three_dee, const Vec2D& dim = Vec2D{ 0, 0 }); // New version paints all sky for 3d and all earth for 2d.
