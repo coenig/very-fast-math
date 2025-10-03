@@ -52,7 +52,7 @@ bool LaneSegment::parseProgram(const std::string& program)
    
    for (const auto& par : params) {
       if (!StaticHelper::isParsableAsFloat(par)) {
-         addError("Cannot parse program '" + program + "'. Parameter '" + par + "' is not a number.");
+         addError("Cannot parse program '" + program + "'. Argument '" + par + "' is not a number.");
          return false;
       }
    }
@@ -229,12 +229,13 @@ float vfm::StraightRoadSection::getLength() const
    return section_end_;
 }
 
-bool StraightRoadSection::parseProgram(const std::string& program)
+bool StraightRoadSection::parseProgram(const std::string& program_raw)
 {
-   auto bracket_structure = StaticHelper::extractArbitraryBracketStructure(StaticHelper::removeWhiteSpace(program), "(", ")", ",");
-   
-   if (!bracket_structure->children_.size() == 3) {
-      addError("Cannot parse program '" + program + "'. Number of parameters is not equal to 3.");
+   auto bracket_structure = StaticHelper::extractArbitraryBracketStructure(StaticHelper::removeWhiteSpace(program_raw), "(", ")", ",");
+   std::string program{ bracket_structure->serialize("(", ")", ",") };
+
+   if (bracket_structure->children_.size() != 3) {
+      addError("Cannot parse program '" + program + "'. Number of top-level arguments is not equal to 3.");
       return false;
    }
 
@@ -242,21 +243,20 @@ bool StraightRoadSection::parseProgram(const std::string& program)
    std::string section_end = bracket_structure->children_.at(1)->content_;
 
    if (!StaticHelper::isParsableAsFloat(max_lanes)) {
-      addError("Cannot parse program '" + program + "'. Parameter '" + max_lanes + "' is not a number.");
+      addError("Cannot parse program '" + program + "'. Argument '" + max_lanes + "' is not a number.");
       return false;
    }
 
    num_lanes_ = std::stof(max_lanes);
 
    if (!StaticHelper::isParsableAsFloat(section_end)) {
-      addError("Cannot parse program '" + program + "'. Parameter '" + section_end + "' is not a number.");
+      addError("Cannot parse program '" + program + "'. Argument '" + section_end + "' is not a number.");
       return false;
    }
 
    section_end_ = std::stof(section_end);
 
-   std::cout << bracket_structure->serialize("(", ")", ",") << std::endl;
-
+   segments_.clear();
    for (const auto& segment_desc : bracket_structure->children_.at(2)->children_) {
       LaneSegment segment{};
       if (!segment.parseProgram(segment_desc->serialize("(", ")", ","))) return false;
@@ -769,8 +769,43 @@ bool vfm::RoadGraph::isGhost() const
    return ghost_section_;
 }
 
-bool vfm::RoadGraph::parseProgram(const std::string& program)
+bool vfm::RoadGraph::parseProgram(const std::string& program_raw)
 {
+   auto bracket_structure = StaticHelper::extractArbitraryBracketStructure(StaticHelper::removeWhiteSpace(program_raw), "(", ")", ",");
+   std::string program{ bracket_structure->serialize("(", ")", ",") };
+
+   if (bracket_structure->children_.size() != 3) {
+      addError("Cannot parse program '" + program + "'. Number of top-level arguments is not equal to 3.");
+      return false;
+   }
+
+   if (bracket_structure->children_.at(0)->children_.size() != 2) {
+      addError("Cannot parse program '" + program + "'. First top-level arguments should be of type (x, y), but found '" + std::to_string(bracket_structure->children_.at(0)->children_.size()) + "' entries.");
+      return false;
+   }
+
+   std::string x = bracket_structure->children_.at(0)->children_.at(0)->content_;
+   std::string y = bracket_structure->children_.at(0)->children_.at(1)->content_;
+   std::string angle = bracket_structure->children_.at(1)->content_;
+
+   if (!StaticHelper::isParsableAsFloat(x)) {
+      addError("Cannot parse program '" + program + "'. Argument '" + x + "' is not a number.");
+      return false;
+   }
+   if (!StaticHelper::isParsableAsFloat(y)) {
+      addError("Cannot parse program '" + program + "'. Argument '" + y + "' is not a number.");
+      return false;
+   }
+   if (!StaticHelper::isParsableAsFloat(angle)) {
+      addError("Cannot parse program '" + program + "'. Argument '" + angle + "' is not a number.");
+      return false;
+   }
+
+   origin_point_ = { std::stof(x), std::stof(y) };
+   angle_ = std::stof(angle);
+
+   my_road_.parseProgram(bracket_structure->children_.at(2)->serialize("(", ")", ","));
+
    return true;
 }
 

@@ -26,10 +26,6 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   StraightRoadSection r{};
-   r.parseProgram("( 4, 200, ( (0, 2, 0), (0, 1, 20), (1, 1, 40) ) )");
-   termnate();
-
    //for (;;) {
    //   auto traces = StaticHelper::extractMCTracesFromNusmvFile("debug_trace_array.txt");
 

@@ -322,12 +322,12 @@ public:
 
    std::shared_ptr<RoadGraph> copy() const;
 
-   std::vector<ConnectorPolygonEnding> connectors_{}; // TODO: Make private.
-   StraightRoadSection my_road_{};                    // TODO: Make private.
-
    // ( (3, 4), 45, (4, 200, ( (0, 2, 0), (0, 1, 20), (1, 1, 40) ) ) )
    // ( (x, y), theta, (max_lanes, section_end, ( (min_lane_0, max_lane_0, begin_0), ... , (min_lane_n, max_lane_n, begin_n) ) ) )
    bool parseProgram(const std::string& program) override;
+
+   std::vector<ConnectorPolygonEnding> connectors_{}; // TODO: Make private.
+   StraightRoadSection my_road_{};                    // TODO: Make private.
 
 private:
    std::shared_ptr<RoadGraph> copy(std::map<int, std::shared_ptr<RoadGraph>>& copied);
