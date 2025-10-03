@@ -128,6 +128,8 @@ public:
 
    std::string getContentAt(const std::vector<int> path_through_tree);
 
+   std::string serialize(const std::string& opening_bracket, const std::string& closing_bracket, const std::string& delimiter) const;
+
    std::string content_;
    std::vector<std::shared_ptr<BracketStructure>> children_;
 };
