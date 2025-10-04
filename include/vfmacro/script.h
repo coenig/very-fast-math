@@ -10,6 +10,7 @@
 #include "parser.h"
 #include "data_pack.h"
 #include "gui/process_helper.h"
+#include "simulation/road_graph.h"
 #include <vector>
 #include <map>
 #include <set>
@@ -82,7 +83,8 @@ static const std::set<std::string> UNCACHABLE_METHODS{
    "include", "eval", "PIDs", "KILLPIDs", "scriptVar", "setScriptVar", "executeCommand",
    "vfmheap", "vfmdata", "vfmfunc", "sethard", "printHeap", "METHODs", "stringToHeap", 
    "listElement", "clearList", "asArray", "printList", "printLists", "pushBack", "openWithOS",
-   "readFile", "executeSystemCommand", "exec", "writeTextToFile", "timestamp", "vfm_variable_declared", "vfm_variable_undeclared" };
+   "readFile", "executeSystemCommand", "exec", "writeTextToFile", "timestamp", "vfm_variable_declared", "vfm_variable_undeclared",
+   "createRoadGraph", "storeRoadGraph", "connectRoadGraphTo"};
 
  /// Only for internal usage, this symbol is removed from the script
  /// after the translation process is terminated.
@@ -126,6 +128,9 @@ struct ScriptMethodDescription {
 
 class Script : public Failable, public std::enable_shared_from_this<Script> {
 public:
+   static std::map<int, std::shared_ptr<RoadGraph>> road_graphs_; // TODO: Non-static!
+   static std::map<std::string, std::shared_ptr<StraightRoadSection>> straight_road_sections_; // TODO: Non-static!
+
    Script() = delete;
    Script(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser); // Path mypath relative entry point for file system operations.
 
@@ -483,11 +488,45 @@ private:
       return "";
    }
 
+   inline std::string listElement(const std::vector<std::string>& parameters)
+   {
+      if (!getScriptData().list_data_.count(getRawScript())) {
+         std::string error_str{ "#ERROR<list '" + getRawScript() + "' not found by listElement method>" };
+         addError(error_str);
+         return error_str;
+      }
+
+      if (!StaticHelper::isParsableAsFloat(parameters[0])) {
+         std::string error_str{ "#ERROR<index '" + parameters[0] + "' cannot be interpreted as number for listElement method>" };
+         addError(error_str);
+         return error_str;
+      }
+
+      int index{ std::stoi(parameters[0]) };
+
+      if (index < 0 || index >= getScriptData().list_data_[getRawScript()].size()) {
+         std::string error_str{ "#ERROR<index '" + parameters[0] + "' is out of bounds for list '" + getRawScript() + "' (size " + std::to_string(getScriptData().list_data_[getRawScript()].size()) + ") in method listElement>" };
+         addError(error_str);
+         return error_str;
+      }
+
+      return getScriptData().list_data_[getRawScript()][index];
+   }
+
+   std::string connectRoadGraphTo(const std::string& id2_str);
+   std::string storeRoadGraph(const std::string& filename);
+   inline std::string createRoadGraph(const std::string& id);
+
+   ScriptMethodDescription m1{ "for", 2, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1)); } };
+   ScriptMethodDescription m2{ "for", 3, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2)); } };
+   ScriptMethodDescription m3{ "for", 4, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3)); } };
+   ScriptMethodDescription m4{ "for", 5, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3), parameters.at(4)); } };
+
    std::set<ScriptMethodDescription> METHODS{
-      { "for", 2, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1)); } },
-      { "for", 3, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2)); } },
-      { "for", 4, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3)); } },
-      { "for", 5, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3), parameters.at(4)); } },
+      m1,
+      m2,
+      m3,
+      m4,
       { "serialize", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::vfm); } },
       { "serializeK2", 0, [this](const std::vector<std::string>& parameters) -> std::string { return toK2(getRawScript()); } },
       { "serializeNuXmv", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::nuXmv); } },
@@ -682,29 +721,7 @@ private:
          getData()->addStringToDataPack(getRawScript(), parameters[0]);
          return parameters[0] + " set to refer to '" + getRawScript() + "' in heap.";
       } },
-      { "listElement", 1, [this](const std::vector<std::string>& parameters) -> std::string { 
-         if (!getScriptData().list_data_.count(getRawScript())) {
-            std::string error_str{ "#ERROR<list '" + getRawScript() + "' not found by listElement method>" };
-            addError(error_str);
-            return error_str;
-         }
-
-         if (!StaticHelper::isParsableAsFloat(parameters[0])) {
-            std::string error_str{ "#ERROR<index '" + parameters[0] + "' cannot be interpreted as number for listElement method>"};
-            addError(error_str);
-            return error_str;
-         }
-
-         int index{ std::stoi(parameters[0]) };
-
-         if (index < 0 || index >= getScriptData().list_data_[getRawScript()].size()) {
-            std::string error_str{ "#ERROR<index '" + parameters[0] + "' is out of bounds for list '" + getRawScript() + "' (size " + std::to_string(getScriptData().list_data_[getRawScript()].size()) + ") in method listElement>"};
-            addError(error_str);
-            return error_str;
-         }
-
-         return getScriptData().list_data_[getRawScript()][index];
-      } },
+      { "listElement", 1, [this](const std::vector<std::string>& parameters) -> std::string { return listElement(parameters); } },
       { "clearList", 0, [this](const std::vector<std::string>& parameters) -> std::string { 
          if (!getScriptData().list_data_.count(getRawScript())) {
             getScriptData().list_data_[getRawScript()] = {};
@@ -762,6 +779,9 @@ private:
          getScriptData().list_data_[getRawScript()].push_back(parameters[0]);
          return "";
       } },
+      { "createRoadGraph", 1, [this](const std::vector<std::string>& parameters) -> std::string { return createRoadGraph(parameters[0]); } },
+      { "storeRoadGraph", 1, [this](const std::vector<std::string>& parameters) -> std::string { return storeRoadGraph(parameters[0]); } },
+      { "connectRoadGraphTo", 1, [this](const std::vector<std::string>& parameters) -> std::string { return connectRoadGraphTo(parameters[0]); } },
    };
 };
 

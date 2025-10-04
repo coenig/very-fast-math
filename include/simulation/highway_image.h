@@ -15,11 +15,20 @@ namespace vfm {
 class HighwayImage : public Image, public Failable
 {
 public:
-   HighwayImage(const int width, const int height, const std::shared_ptr<HighwayTranslator> translator, const int num_lanes);
-   HighwayImage(const std::shared_ptr<HighwayTranslator> translator, const int num_lanes);
+   inline HighwayImage(const int width, const int height, const std::shared_ptr<HighwayTranslator> translator, const int num_lanes) 
+      : Image(width, height), Failable("HighwayImage")
+   {
+      setTranslator(translator);
+      setupVPointFor3DPerspective(num_lanes, { (float)width, (float)height });
+   }
+
+   inline HighwayImage(const std::shared_ptr<HighwayTranslator> translator, const int num_lanes)
+      : HighwayImage(0, 0, translator, num_lanes)
+   {}
+
 
    void setupVPointFor3DPerspective(const int num_lanes, const Vec2D& dim); // 3D-Specific - TODO: Needs to go away.
-   void paintEarthAndSky(const Vec2D& dim = Vec2D{0, 0});                   // 3D-Specific - TODO: Needs to go away.
+   void paintEarthAndSky(const bool three_dee, const Vec2D& dim = Vec2D{ 0, 0 }); // New version paints all sky for 3d and all earth for 2d.
 
    void setTranslator(const std::shared_ptr<VisTranslator> function) override;
 
@@ -50,10 +59,8 @@ public:
       const float street_height,
       const float num_lanes,
       const float ego_offset_x,
-      const int min_lane,
-      const int max_lane,
       const float street_top,
-      const float ego_car_lane, 
+      const float ego_car_lane,
       const Vec2D& dim);
 
    void paintStraightRoadSceneFromData(
@@ -102,7 +109,7 @@ private:
    std::shared_ptr<HighwayTranslator> highway_translator_{};
    std::shared_ptr<Plain2DTranslator> plain_2d_translator_{ std::make_shared<Plain2DTranslator>() };
    std::shared_ptr<HighwayTranslatorWrapper> plain_2d_translator_wrapped_{};
-   float cnt_{ -150 };
+   //float cnt_{ -150 };
    float step_{ 0.05 };
    int num_lanes_{}; // TODO: Needed only for setting up 3D perspective, which should go into the 3D part.
    Vec2D preserved_dimension_{}; // Only for paintRoadGraph, we need this variable to not go out of scope for the lambdas.

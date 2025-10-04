@@ -7,8 +7,11 @@
 
 using namespace vfm;
 
+vfm::LaneSegment::LaneSegment() : LaneSegment(-1, -1, -1)
+{}
+
 LaneSegment::LaneSegment(const float begin, const int min_lane, const int max_lane)
-   : begin_(begin), min_lane_(min_lane), max_lane_(max_lane)
+   : Parsable("LaneSegment"), begin_(begin), min_lane_(min_lane), max_lane_(max_lane)
 {}
 
 float LaneSegment::getBegin() const { return begin_; }
@@ -38,13 +41,36 @@ std::string LaneSegment::toString() const
    return "<" + std::to_string(getBegin()) + ", [" + std::to_string(getMinLane()) + " -- " + std::to_string(getMaxLane()) + "]>";
 }
 
+bool LaneSegment::parseProgram(const std::string& program)
+{
+   auto params = StaticHelper::split(StaticHelper::removeWhiteSpace(StaticHelper::replaceAll(StaticHelper::replaceAll(program, ")", ""), "(", "")), ",");
+
+   if (params.size() != 3) {
+      addError("Cannot parse program '" + program + "'. Number of parameters is not equal to 3.");
+      return false;
+   }
+   
+   for (const auto& par : params) {
+      if (!StaticHelper::isParsableAsFloat(par)) {
+         addError("Cannot parse program '" + program + "'. Argument '" + par + "' is not a number.");
+         return false;
+      }
+   }
+
+   min_lane_ = std::stof(params[0]);
+   max_lane_ = std::stof(params[1]);
+   begin_ = std::stof(params[2]);
+
+   return true;
+}
+
 StraightRoadSection::StraightRoadSection() : StraightRoadSection(-1, -1) {} // Constructs an invalid lane structure.
 
 StraightRoadSection::StraightRoadSection(const int lane_num, const float section_end)
    : StraightRoadSection(lane_num, section_end, std::vector<LaneSegment>{}) {}
 
 StraightRoadSection::StraightRoadSection(const int lane_num, const float section_end, const std::vector<LaneSegment>& segments)
-   : num_lanes_(lane_num), section_end_(section_end), Failable("StraightRoadSection") {
+   : num_lanes_(lane_num), section_end_(section_end), Parsable("StraightRoadSection") {
    for (const auto& segment : segments) {
       addLaneSegment(segment);
    }
@@ -203,7 +229,49 @@ float vfm::StraightRoadSection::getLength() const
    return section_end_;
 }
 
-vfm::RoadGraph::RoadGraph(const int id) : Failable("RoadGraph"), id_{id}
+bool StraightRoadSection::parseProgram(const std::string& program_raw)
+{
+   auto bracket_structure = StaticHelper::extractArbitraryBracketStructure(StaticHelper::removeWhiteSpace(program_raw), "(", ")", ",");
+   std::string program{ bracket_structure->serialize("(", ")", ",") };
+
+   if (bracket_structure->children_.size() != 3) {
+      addError("Cannot parse program '" + program + "'. Number of top-level arguments is not equal to 3.");
+      return false;
+   }
+
+   std::string max_lanes = bracket_structure->children_.at(0)->content_;
+   std::string section_end = bracket_structure->children_.at(1)->content_;
+
+   if (!StaticHelper::isParsableAsFloat(max_lanes)) {
+      addError("Cannot parse program '" + program + "'. Argument '" + max_lanes + "' is not a number.");
+      return false;
+   }
+
+   num_lanes_ = std::stof(max_lanes);
+
+   if (!StaticHelper::isParsableAsFloat(section_end)) {
+      addError("Cannot parse program '" + program + "'. Argument '" + section_end + "' is not a number.");
+      return false;
+   }
+
+   section_end_ = std::stof(section_end);
+
+   // RESET
+   segments_.clear();
+   others_.clear();
+   future_positions_of_others_.clear();
+   // EO RESET
+
+   for (const auto& segment_desc : bracket_structure->children_.at(2)->children_) {
+      LaneSegment segment{};
+      if (!segment.parseProgram(segment_desc->serialize("(", ")", ","))) return false;
+      addLaneSegment(segment);
+   }
+
+   return true;
+}
+
+vfm::RoadGraph::RoadGraph(const int id) : Parsable("RoadGraph"), id_{id}
 {}
 
 std::shared_ptr<RoadGraph> vfm::RoadGraph::findFirstSectionWithProperty(
@@ -412,16 +480,28 @@ void vfm::RoadGraph::normalizeRoadGraphToEgo()
 
    const auto ego_road = r_ego->my_road_;
    const auto ego_car = ego_road.getEgo();
-   const Vec2D specialPoint{ r_ego->getOriginPoint() + Vec2D{ ego_car->car_rel_pos_, (ego_car->car_lane_ - ego_road.getNumLanes() / 2) * LANE_WIDTH }};
+   const Vec2D specialPointBase{ Vec2D{ ego_car->car_rel_pos_, (ego_car->car_lane_ - ego_road.getNumLanes() / 2) * LANE_WIDTH }};
    const float theta{ -r_ego->getAngle() };
 
+   static constexpr bool FOLLOW_ANGLE_TOO{ false }; // NOTE: If set to true, don't copy the graph in paintRoadGraph(). (TODO: Fix this!)
+
+   Vec2D specialPoint{ r_ego->getOriginPoint() + specialPointBase };
+
+   if (!FOLLOW_ANGLE_TOO) {
+      specialPoint.rotate(-theta, r_ego->getOriginPoint());
+   }
+
    for (const auto& r : getAllNodes()) {
-      r->origin_point_.rotate(theta, specialPoint);
-      r->angle_ += theta;
+
+      if (FOLLOW_ANGLE_TOO) {
+         r->origin_point_.rotate(theta, specialPoint);
+         r->angle_ += theta;
+      }
+
       r->origin_point_.add(-specialPoint.x, -specialPoint.y);
    }
 
-   assert(r_ego->isUnturned());
+   assert(!FOLLOW_ANGLE_TOO || r_ego->isUnturned());
 }
 
 void vfm::RoadGraph::translateGraph(const Vec2D& trans)
@@ -694,6 +774,56 @@ bool vfm::RoadGraph::isGhost() const
    return ghost_section_;
 }
 
+bool vfm::RoadGraph::parseProgram(const std::string& program_raw)
+{
+   auto bracket_structure = StaticHelper::extractArbitraryBracketStructure(StaticHelper::removeWhiteSpace(program_raw), "(", ")", ",");
+   std::string program{ bracket_structure->serialize("(", ")", ",") };
+
+   if (bracket_structure->children_.size() != 3) {
+      addError("Cannot parse program '" + program + "'. Number of top-level arguments is not equal to 3.");
+      return false;
+   }
+
+   if (bracket_structure->children_.at(0)->children_.size() != 2) {
+      addError("Cannot parse program '" + program + "'. First top-level arguments should be of type (x, y), but found '" + std::to_string(bracket_structure->children_.at(0)->children_.size()) + "' entries.");
+      return false;
+   }
+
+   std::string x = bracket_structure->children_.at(0)->children_.at(0)->content_;
+   std::string y = bracket_structure->children_.at(0)->children_.at(1)->content_;
+   std::string angle = bracket_structure->children_.at(1)->content_;
+
+   if (!StaticHelper::isParsableAsFloat(x)) {
+      addError("Cannot parse program '" + program + "'. Argument '" + x + "' is not a number.");
+      return false;
+   }
+   if (!StaticHelper::isParsableAsFloat(y)) {
+      addError("Cannot parse program '" + program + "'. Argument '" + y + "' is not a number.");
+      return false;
+   }
+   if (!StaticHelper::isParsableAsFloat(angle)) {
+      addError("Cannot parse program '" + program + "'. Argument '" + angle + "' is not a number.");
+      return false;
+   }
+
+   origin_point_ = { std::stof(x), std::stof(y) };
+   angle_ = std::stof(angle);
+
+   // RESET
+   successors_.clear();
+   predecessors_.clear();
+   nonegos_towards_successors_.clear();
+   ghost_section_ = false;
+   connectors_.clear();
+   // EO RESET
+
+
+   my_road_.parseProgram(bracket_structure->children_.at(2)->serialize("(", ")", ","));
+
+   return true;
+}
+
+
 using namespace xml;
 
 vfm::Way::Way(const std::shared_ptr<RoadGraph> my_father_rg) : Failable("OSM-Way"),
@@ -898,4 +1028,40 @@ std::shared_ptr<xml::CodeXML> vfm::RoadGraph::generateOSM() const
    xml->appendAtTheEnd(CodeXML::retrieveElementWithXMLContent("osm", { { "version", "0.6" }, { "upload", "false" }, { "generator", "vfm" } }, osm_nodes));
 
    return xml;
+}
+
+std::shared_ptr<RoadGraph> vfm::RoadGraph::copy() const
+{
+   std::map<int, std::shared_ptr<RoadGraph>> dummy{};
+   return const_cast<RoadGraph*>(this)->copy(dummy);
+}
+
+std::shared_ptr<RoadGraph> vfm::RoadGraph::copy(std::map<int, std::shared_ptr<RoadGraph>>& copied)
+{
+   if (copied.count(id_)) return copied[id_];
+
+   auto my_copy = std::make_shared<RoadGraph>(id_);
+   copied.insert({ id_, my_copy });
+
+   my_copy->angle_ = angle_;
+   //my_copy->connectors_ = connectors_; // Pointer to color and translator not deep-copied.
+   my_copy->ghost_section_ = ghost_section_;
+   my_copy->my_road_ = my_road_; // TODO: do we need to copy ego, if any? It's only a pointer copy, for now.
+   my_copy->origin_point_ = origin_point_;
+
+   for (const auto& predecessor : predecessors_) {
+      auto tmp_copy = predecessor->copy(copied);
+      my_copy->addPredecessor(tmp_copy);
+   }
+   
+   for (const auto& successor : successors_) {
+      auto tmp_copy = successor->copy(copied);
+      my_copy->addSuccessor(tmp_copy);
+   }
+
+   for (const auto& nonegos_towards_successor : nonegos_towards_successors_) {
+      my_copy->nonegos_towards_successors_.insert({ nonegos_towards_successor.first->copy(copied), nonegos_towards_successor.second });
+   }
+
+   return my_copy;
 }

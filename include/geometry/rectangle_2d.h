@@ -61,7 +61,8 @@ inline Rectangle2D<NumType>::Rectangle2D()
 
 template<class NumType>
 inline Rectangle2D<NumType>::Rectangle2D(const Vector2D<NumType>& ul, const Vector2D<NumType>& lr)
-   : upper_left_(std::min(ul.x, lr.x), std::min(ul.y, lr.y)), lower_right_(std::max(ul.x, lr.x), std::max(ul.y, lr.y)) {}
+   : upper_left_((std::min)(ul.x, lr.x), (std::min)(ul.y, lr.y)), lower_right_((std::max)(ul.x, lr.x), (std::max)(ul.y, lr.y)) {
+}
 
 template<class NumType>
 inline Rectangle2D<NumType>::Rectangle2D(const Rectangle2D<NumType>& other)
