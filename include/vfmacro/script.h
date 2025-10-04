@@ -84,7 +84,7 @@ static const std::set<std::string> UNCACHABLE_METHODS{
    "vfmheap", "vfmdata", "vfmfunc", "sethard", "printHeap", "METHODs", "stringToHeap", 
    "listElement", "clearList", "asArray", "printList", "printLists", "pushBack", "openWithOS",
    "readFile", "executeSystemCommand", "exec", "writeTextToFile", "timestamp", "vfm_variable_declared", "vfm_variable_undeclared",
-   "createRoadGraph", "storeRoadGraph" };
+   "createRoadGraph", "storeRoadGraph", "connectRoadGraphTo"};
 
  /// Only for internal usage, this symbol is removed from the script
  /// after the translation process is terminated.
@@ -779,10 +779,9 @@ private:
          getScriptData().list_data_[getRawScript()].push_back(parameters[0]);
          return "";
       } },
-      { "createRoadGraph", 1, [this](const std::vector<std::string>& parameters) -> std::string { 
-         return createRoadGraph(parameters[0]); 
-      } },
-      { "storeRoadGraph", 1, [this](const std::vector<std::string>& parameters) -> std::string { return storeRoadGraph(parameters[0]); }},
+      { "createRoadGraph", 1, [this](const std::vector<std::string>& parameters) -> std::string { return createRoadGraph(parameters[0]); } },
+      { "storeRoadGraph", 1, [this](const std::vector<std::string>& parameters) -> std::string { return storeRoadGraph(parameters[0]); } },
+      { "connectRoadGraphTo", 1, [this](const std::vector<std::string>& parameters) -> std::string { return connectRoadGraphTo(parameters[0]); } },
    };
 };
 
