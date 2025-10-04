@@ -1501,6 +1501,7 @@ void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw,
       main_smv += SPEC_BEGIN + "\n";
 
       auto spec_part = StaticHelper::removePartsOutsideOf(main_template, SPEC_BEGIN, SPEC_END);
+      mc_scene->data_->addStringToDataPack(path_generated, "FULL_GEN_PATH");
       spec_part = vfm::macro::Script::processScript(spec_part, macro::Script::DataPreparation::both, mc_scene->data_, mc_scene->parser_);
       main_smv += spec_part + "\n";
       main_smv += SPEC_END + "\n";

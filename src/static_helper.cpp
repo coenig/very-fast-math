@@ -730,10 +730,23 @@ void vfm::StaticHelper::distributeIntoBeforeInnerAfter(std::string& before_out, 
    main_in_out = main_in_out.substr(begin, end - begin);
 }
 
+void vfm::StaticHelper::distributeIntoBeforeInnerAfterFirstInnermostMatching(std::string& before_out, std::string& main_in_out, std::string& after_out, const std::string& begin_bracket, const std::string& end_bracket)
+{
+   int begin{ StaticHelper::indexOfFirstInnermostBeginBracket(main_in_out, begin_bracket, end_bracket) };
+   int end{ StaticHelper::findMatchingEndTagLevelwise(main_in_out, begin_bracket, end_bracket, begin) };
+   distributeIntoBeforeInnerAfter(before_out, main_in_out, after_out, begin + 1, end);
+}
+
 void vfm::StaticHelper::distributeGetOnlyInner(std::string& main_in_out, const int begin, const int end)
 {
-   std::string dummy1, dummy2;
+   std::string dummy1{}, dummy2{};
    distributeIntoBeforeInnerAfter(dummy1, main_in_out, dummy2, begin, end);
+}
+
+void vfm::StaticHelper::distributeGetOnlyInnerFirstInnermostMatching(std::string& main_in_out, const std::string& begin_bracket, const std::string& end_bracket)
+{
+   std::string dummy1{}, dummy2{};
+   distributeIntoBeforeInnerAfterFirstInnermostMatching(dummy1, main_in_out, dummy2, begin_bracket, end_bracket);
 }
 
 bool StaticHelper::isRenamedPrivateRecursiveVar(const std::string& var_name)
@@ -1390,6 +1403,21 @@ std::string BracketStructure::getContentAt(const std::vector<int> path_through_t
    }
 
    return "";
+}
+
+std::string vfm::BracketStructure::serialize(const std::string& opening_bracket, const std::string& closing_bracket, const std::string& delimiter) const
+{
+   std::string res{};
+   const std::string ob{ children_.size() > 0 ? opening_bracket : "" };
+   const std::string cb{ children_.size() > 0 ? closing_bracket : "" };
+
+   res += content_;
+
+   for (const auto& child : children_) {
+      res += (&child != &children_.front() ? delimiter : "") + child->serialize(opening_bracket, closing_bracket, delimiter);
+   }
+
+   return ob + res + cb;
 }
 
 // From https://stackoverflow.com/questions/236129/the-most-elegant-way-to-iterate-the-words-of-a-string
@@ -2299,12 +2327,12 @@ std::shared_ptr<BracketStructure> vfm::StaticHelper::extractArbitraryBracketStru
                int pos_end = findMatchingEndTagLevelwise(bracket_structure_as_string, pos_beg, opening_bracket, closing_bracket, ignoreBegTags, ignoreEndTags);
                std::string part = bracket_structure_as_string.substr(pos_beg + opening_bracket.size(), pos_end - pos_beg - opening_bracket.size());
                overall_structure->children_.push_back(extractArbitraryBracketStructure(part, opening_bracket, closing_bracket, delimiter, ignoreBegTags, ignoreEndTags, false));
-               i = pos_end + closing_bracket.size() + 1;
+               i = pos_end + closing_bracket.size() + 1 - next_inc;
                current_element.clear();
             }
             else if (bracket_structure_as_string.substr(i, delimiter.size()) == delimiter) {
                overall_structure->children_.push_back(std::make_shared<BracketStructure>(current_element, std::vector<std::shared_ptr<BracketStructure>>{}));
-               i += delimiter.size();
+               i += delimiter.size() - next_inc;
                current_element.clear();
             }
             else {
@@ -3610,7 +3638,7 @@ void vfm::StaticHelper::openWithOS(const std::string& path_raw, const Failable* 
 #endif
       ;
 
-   std::string message{ "Trying to open explorer window at '" + path + "'." };
+   std::string message{ "Trying to open path with OS at '" + path + "'." };
    if (logger) logger->addNote(message);
    else std::cout << message << std::endl;
 

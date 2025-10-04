@@ -14,16 +14,6 @@ using namespace vfm;
 
 static constexpr float LANE_MARKER_THICKNESS{ 0.08 };
 
-vfm::HighwayImage::HighwayImage(const int width, const int height, const std::shared_ptr<HighwayTranslator> translator, const int num_lanes) 
-   : Image(width, height), Failable("HighwayImage")
-{
-   setTranslator(translator);
-   setupVPointFor3DPerspective(num_lanes, { (float) width, (float) height });
-}
-
-vfm::HighwayImage::HighwayImage(const std::shared_ptr<HighwayTranslator> translator, const int num_lanes) 
-   : HighwayImage(0, 0, translator, num_lanes)
-{}
 
 // 3D-specific stuff (mainly for setting the v_point_). TODO: Get rid of such things that should go into the translator.
 float getXOffsetCorrection(
@@ -114,7 +104,7 @@ void HighwayImage::setupVPointFor3DPerspective(const int num_lanes, const Vec2D&
    v_point_.x = (getXOffsetCorrection(v_point_.x, bl_.x, br_.x));
 }
 
-void HighwayImage::paintEarthAndSky(const Vec2D& dim_raw)
+void HighwayImage::paintEarthAndSky(const bool three_dee, const Vec2D& dim_raw)
 {
    const float dimx{ (float) getWidth() };
    const float dimy{ dimx / 5 };
@@ -133,15 +123,22 @@ void HighwayImage::paintEarthAndSky(const Vec2D& dim_raw)
       screen_tr_,
       screen_bl_,
       screen_br_,
-      BROWN);
+      three_dee ? SKY_BLUE : BROWN);
 
-   // From top screen corners to top street border.
-   fillQuad(
-      screen_tl_,
-      screen_tr_,
-      { screen_tl_.x, tl_y },
-      { screen_tr_.x, tr_y },
-      Color(119, 209, 255, 255));
+   //fillQuad(
+   //   screen_tl_,
+   //   screen_tr_,
+   //   screen_bl_,
+   //   screen_br_,
+   //   BROWN);
+
+   //// From top screen corners to top street border.
+   //fillQuad(
+   //   screen_tl_,
+   //   screen_tr_,
+   //   { screen_tl_.x, tl_y },
+   //   { screen_tr_.x, tr_y },
+   //   Color(119, 209, 255, 255));
 
    // Paint border around all of it.
    rectangle(screen_tl_.x, screen_tl_.y, screen_br_.x - screen_tl_.x - 1, screen_br_.y - screen_tl_.y - 1, DARK_BLUE, false);
@@ -636,31 +633,38 @@ void vfm::HighwayImage::setPerspective(
    const float street_height, 
    const float num_lanes, 
    const float ego_offset_x, 
-   const int min_lane, 
-   const int max_lane,
    const float street_top,
-   const float ego_car_lane, 
+   const float ego_car_lane,
    const Vec2D& dim)
 {
    const float lw = street_height / num_lanes;
    const float factor = lw / LANE_WIDTH;
 
-   highway_translator_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, ego_car_lane, v_point_);
-   plain_2d_translator_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, ego_car_lane, v_point_);
-   if (plain_2d_translator_wrapped_) plain_2d_translator_wrapped_->setHighwayData(factor, dim.x, dim.y, ego_offset_x, street_top, min_lane, max_lane, lw, ego_car_lane, v_point_);
+   highway_translator_->setHighwayData(dim.x, dim.y, ego_offset_x, street_top, lw, ego_car_lane, v_point_);
+   plain_2d_translator_->setHighwayData(dim.x, dim.y, ego_offset_x, street_top, lw, ego_car_lane, v_point_);
+   if (plain_2d_translator_wrapped_) plain_2d_translator_wrapped_->setHighwayData(dim.x, dim.y, ego_offset_x, street_top, lw, ego_car_lane, v_point_);
 
    static constexpr float PI{ 3.14159265359 };
 
-   float cnt{ std::max(cnt_, 0.0f) };
-   highway_translator_->getPerspective()->setCameraX(5.4 + 0 * cnt / 20);
-   highway_translator_->getPerspective()->setCameraY(0 * cnt / 20);
-   highway_translator_->getPerspective()->setCameraZ(-175 - 0 * cnt * 15);
-   highway_translator_->getPerspective()->setCameraRotationX(0);
-   highway_translator_->getPerspective()->setCameraRotationY(6.19 + (highway_translator_->isMirrored() ? PI : 0));
-   highway_translator_->getPerspective()->setCameraRotationZ(PI / 2.0);
+   float cnt{ std::max(0.0f /*cnt_*/, 0.0f) }; // The cnt is currently not used, can be used for doing camera rotations etc.
+   highway_translator_->getPerspective()->setCameraX(4.5 + cnt / 20); // Vertical positioning of the whole image (smaller: image is higher, i.e., camera lower).
+   highway_translator_->getPerspective()->setCameraY(0.0 + cnt / 20);  // Horizontal positioning of the whole image (smaller: image is righter, i.e., camera lefter).
+   highway_translator_->getPerspective()->setCameraZ(-40 - cnt * 15); // How close we are to the scene.
+   highway_translator_->getPerspective()->setCameraRotationX(-0.0); // Vertical view angle.
+   highway_translator_->getPerspective()->setCameraRotationY(6.1 + (highway_translator_->isMirrored() ? PI : 0)); // Horizontal view angle.
+   highway_translator_->getPerspective()->setCameraRotationZ(PI / 2.0); // Don't know, don't wanna know, just don't touch it... ;-) (The old Lukas knows...)
    highway_translator_->getPerspective()->setDisplayWindowX(-2);
    highway_translator_->getPerspective()->setDisplayWindowY(0);
    highway_translator_->getPerspective()->setDisplayWindowZ(27);
+
+   // TODO: Is this useful in this form?
+   if (!StaticHelper::existsFileSafe(std::string("../src/templates/perspective.txt"), false)) {
+      StaticHelper::writeTextToFile(highway_translator_->getPerspective()->serialize(), "../src/templates/perspective.txt");
+   }
+   highway_translator_->getPerspective()->parseProgram(StaticHelper::readFile("../src/templates/perspective.txt"));
+   addNote("Perspective set to '" + highway_translator_->getPerspective()->serialize() + "'.");
+   // EO TODO: Is this useful in this form?
+
    //if (cnt_ >= 0 && cnt_ < 80) {
    //   cnt_ += step_;
    //   step_ += 0.0003;
@@ -720,7 +724,7 @@ void vfm::HighwayImage::paintStraightRoadSceneSimple(
    dummy.setEgo(std::make_shared<CarPars>(ego.car_lane_, ego.car_rel_pos_, ego.car_velocity_, RoadGraph::EGO_MOCK_ID));
    dummy.setOthers(others);
    dummy.setFuturePositionsOfOthers(future_positions_of_others);
-
+   
    paintStraightRoadScene(dummy, true, ego_offset_x, var_vals, print_agent_ids, { (float) getWidth(), (float) getHeight() });
 }
 
@@ -779,7 +783,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    lane_structure.setNumLanes(num_lanes);
    lane_structure.cleanUp(false);
 
-   setPerspective(street_height, num_lanes, ego_offset_x, min_lane, max_lane, street_top, ego_lane, dim);
+   setPerspective(street_height, num_lanes, ego_offset_x, street_top, ego_lane, dim);
    float y = street_top;
 
    auto tl_orig{ plain_2d_translator_->reverseTranslate({ 0, 0 }).projectToXY() };
@@ -788,7 +792,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    const float street_width{ (float)((max_lane - min_lane) + 1) };
    const float street_right_border{ street_left_border + street_width };
 
-   constexpr static float METERS_TO_LOOK_BEHIND{ 130 };
+   constexpr static float METERS_TO_LOOK_BEHIND{ 300 };
    constexpr static float METERS_TO_LOOK_AHEAD{ METERS_TO_LOOK_BEHIND };
 
    tl_orig.x = -METERS_TO_LOOK_BEHIND;
@@ -852,7 +856,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
          auto car_id{ cars_sorted_by_distance[i] };
          const auto pair{ others[id_to_others_vec[car_id]] };
 
-         Vec2Df pos{ pair.car_rel_pos_- infinite_road_correction, pair.car_lane_ - (getHighwayTranslator()->is3D() ? 0 : ego_lane) };
+         Vec2Df pos{ pair.car_rel_pos_ - infinite_road_correction, pair.car_lane_ - (getHighwayTranslator()->is3D() ? 0 : ego_lane) };
 
          float text_pos_x{ (std::max)(tl_orig.x + 2, (std::min)((float)br_orig.x - 2, pos.x)) };
          Color car_frame_color{ CAR_FRAME_COLOR };
@@ -982,6 +986,7 @@ void vfm::HighwayImage::paintRoadGraph(
 {
    auto my_r = PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ ? vfm::test::paintExampleRoadGraphRoundabout(false, r_raw) : r_raw;
 
+   my_r = my_r->copy();
    my_r->normalizeRoadGraphToEgo();
    auto old_trans = getHighwayTranslator();
    const auto all_nodes = my_r->getAllNodes();
@@ -999,6 +1004,7 @@ void vfm::HighwayImage::paintRoadGraph(
    }
 
    auto r_ego = my_r->findSectionWithEgoIfAny();
+
    std::vector<std::shared_ptr<RoadGraph>> all_nodes_ego_in_front{};
 
    all_nodes_ego_in_front.push_back(r_ego);

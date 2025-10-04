@@ -98,7 +98,7 @@ public:
    }
 
    mutable std::map<int, std::pair<float, float>> others_past_vec_{};
-   mutable CarPars past_ego_{ CarPars{ -std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(), std::numeric_limits<int>::min(), RoadGraph::EGO_MOCK_ID } };
+   mutable CarPars past_ego_{ CarPars{ -std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(), (std::numeric_limits<int>::min)(), RoadGraph::EGO_MOCK_ID } };
    mutable int count_{ 0 };
 
    inline std::shared_ptr<Image> getBirdseyeView(
@@ -186,7 +186,7 @@ public:
 
       auto no_trans{std::make_shared<DefaultHighwayTranslator>()};
       cockpit_view_->setTranslator(no_trans);
-      cockpit_view_->paintEarthAndSky({ (float)width, (float)height });
+      cockpit_view_->paintEarthAndSky(true, { (float)width, (float)height });
       cockpit_view_->setTranslator(trans_cpv);
 
       //cockpit_view_mirror_->setTranslator(no_trans);

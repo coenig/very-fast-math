@@ -30,37 +30,28 @@ public:
    }
 
    virtual inline void setHighwayData(
-      const float factor,
       const float real_width,
       const float real_height,
       const float ego_offset_x,
       const float street_top,
-      const int min_lane,
-      const int max_lane,
       const float lw,
       const float ego_lane,
       const Vec2D& v_point)
    {
-      factor_ = factor;
       real_width_ = real_width;
       real_height_ = real_height;
       ego_offset_x_ = ego_offset_x;
       street_top_ = street_top;
-      min_lane_ = min_lane;
-      max_lane_ = max_lane;
       lw_ = lw;
       ego_lane_ = ego_lane;
       v_point_ = v_point;
    }
 
 public: // TODO: Make protected again (or private!).
-   float factor_{};
    float real_width_{};
    float real_height_{};
    float ego_offset_x_{};
    float street_top_{};
-   int min_lane_{};
-   int max_lane_{};
    float lw_{};
    float ego_lane_{};
    bool mirrored_{};
@@ -98,15 +89,20 @@ public:
    }
 
 private:
+   //static constexpr float lw{ 70 };
+
    inline Vec2D translateCore(const Vec3D& point) override
    {
-      return { point.x * factor_ + real_width_ / 2,
-               street_top_ + (point.y + ego_lane_ - min_lane_) * lw_ + lw_ / 2 };
+      const float factor_{ lw_ / LANE_WIDTH };
+
+      return { point.x * factor_ + 500,
+               street_top_ + (point.y + ego_lane_) * lw_ + lw_ / 2 };
    }
 
    inline Vec3D reverseTranslateCore(const Vec2D& point) override {
-      return { (point.x - real_width_ / 2) / factor_,
-               (point.y - street_top_ - lw_ / 2) / lw_ + min_lane_ - ego_lane_,
+      const float factor_{ lw_ / LANE_WIDTH };
+      return { (point.x - 500) / factor_,
+               (point.y - street_top_ - lw_ / 2) / lw_ - ego_lane_,
                0 };
    }
 };
@@ -235,7 +231,7 @@ private:
    inline Vec3D getPointInCameraCoordinates(const Vec3D& point_raw) const
    {
       const auto perspective{ getPerspective() };
-      const Vec3D point{ point_raw.z, point_raw.y * (mirrored_ ? -1 : 1), point_raw.x * 15 };
+      const Vec3D point{ point_raw.z, point_raw.y * (mirrored_ ? -1 : 1), point_raw.x };
 
       // Cf. https://en.wikipedia.org/w/index.php?title=3D_projection&oldid=1190317936#Mathematical_formula
       const double x{ point.x - perspective->getCameraX() };
@@ -267,7 +263,7 @@ private:
       double by{ ez / d.z * d.y + ey };
 
       bx *= real_width_;
-      by += .06; // TODO!
+      //by += .06; // TODO!
       by *= real_height_;
 
       return { (float)bx, (float)by };
@@ -385,13 +381,10 @@ public:
    {
       setPerspective(base_translator_->getPerspective());
       setHighwayData(
-         base_translator_->factor_,
          base_translator_->real_width_,
          base_translator_->real_height_,
          base_translator_->ego_offset_x_,
          base_translator_->street_top_,
-         base_translator_->min_lane_,
-         base_translator_->max_lane_,
          base_translator_->lw_,
          base_translator_->ego_lane_,
          base_translator_->v_point_);
@@ -428,37 +421,28 @@ public:
    }
 
    inline void setHighwayData(
-      const float factor,
       const float real_width,
       const float real_height,
       const float ego_offset_x,
       const float street_top,
-      const int   min_lane,
-      const int   max_lane,
       const float lw,
       const float ego_lane,
       const Vec2D& v_point) override
    {
       HighwayTranslator::setHighwayData(
-         factor,
          real_width,
          real_height,
          ego_offset_x,
          street_top,
-         min_lane,
-         max_lane,
          lw,
          ego_lane,
          v_point);
 
       base_translator_->setHighwayData(
-         factor,
          real_width,
          real_height,
          ego_offset_x,
          street_top,
-         min_lane,
-         max_lane,
          lw,
          ego_lane,
          v_point);
