@@ -1403,9 +1403,11 @@ std::string vfm::macro::Script::storeRoadGraph(const std::string& filename)
    return "Road graph '" + std::to_string(id) + "' stored in '" + filename + "'.";
 }
 
-// @{ ((0, 0), 0, ( 4, 50, ( (0, 5, 0), (2, 2, 30) ) )) }@.createRoadGraph[0]
-// @{ ((70, 20), 0, ( 4, 50, ( (2, 2, 0), (0, 5, 30) ) )) }@.createRoadGraph[1]
+// @{ ((0, 0), 0, (4, 50, ((0, 5, 0), (0, 5, 30)))) }@.createRoadGraph[0]
+// @{ ((90, 20), 0, (4, 50, ((0, 5, 0), (0, 5, 30)))) }@.createRoadGraph[1]
+// @{ ((90, -20), 0, (4, 50, ((0, 5, 0), (0, 5, 30)))) }@.createRoadGraph[2]
 // @{0}@.connectRoadGraphTo[1]
+// @{0}@.connectRoadGraphTo[2]
 // @{0}@.storeRoadGraph[mytest]
 std::string vfm::macro::Script::createRoadGraph(const std::string& id)
 {
