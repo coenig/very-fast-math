@@ -1,3 +1,5 @@
+@{./vfm.exe --execute-script --rootdir ../src/templates/}@.nil
+
 @{ ((0, 0), 0, (4, 50, ((0, 5, 0)))) }@.createRoadGraph[0]
 @{ ((90, 20), 0, (4, 50, ((0, 5, 0), (0, 3, 30)))) }@.createRoadGraph[1]
 @{ ((90, -20), 0, (4, 50, ((0, 5, 0)))) }@.createRoadGraph[2]
