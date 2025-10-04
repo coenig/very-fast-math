@@ -8,6 +8,7 @@
 #include "testing/interactive_testing.h"
 #include "gui/gui.h"
 #include "model_checking/cex_processing/mc_visualization_launchers.h"
+#include "vfmacro/script.h"
 
 #include <stdio.h>
 #include <string>
@@ -646,6 +647,7 @@ const std::string CMD_PLANNER_FILENAME{ "--planner-include-file" };
 const std::string CMD_MAIN_TEMPLATE{ "--main-template-file" };
 const std::string CMD_CACHE_DIR{ "--chache-dir" };
 const std::string CMD_CEX_FILE{ "--cex-file-name" };
+const std::string CMD_EXECUTE_SCRIPT{ "--execute-script" };
 
 #ifdef _WIN32
 const std::string CMD_CPP_EXEC{ "--path-to-cpp" };
@@ -671,6 +673,7 @@ InputParser vfm::test::createInputParserForMC(int& argc, char** argv)
    parser.addParameter(CMD_CEX_FILE, "name of counterexample file in SMV format", "debug_trace_array.txt");
    parser.addParameter(CMD_NUXMV_EXEC, "path to NUXMV executable", "nuxmv.exe");
    parser.addParameter(CMD_KRATOS_EXEC, "path to KRATOS executable", "kratos.exe");
+   parser.addFlag(CMD_EXECUTE_SCRIPT, "if script expansion for file 'script.txt' is to be run");
 #ifdef _WIN32
    parser.addParameter(CMD_CPP_EXEC, "path to CPP preprocessor executable", "cpp.exe");
 #endif
@@ -687,12 +690,30 @@ int vfm::test::artifactRun(int argc, char* argv[])
    InputParser inputs{ createInputParserForMC(argc, argv) };
    bool success{ true };
 
-   if (inputs.getCmdOption(CMD_HELP) != "true") inputs.triggerErrorifAnyArgumentMissing();
+   if (inputs.getCmdOption(CMD_HELP) != "true" && inputs.getCmdOption(CMD_EXECUTE_SCRIPT) != "true") inputs.triggerErrorifAnyArgumentMissing();
 
    if (inputs.getCmdOption(CMD_HELP) == "true") {
       inputs.addNote("vfm is a library for Model Checking of ADAS software.");
       inputs.addNote("Run without parameters for GUI mode or use the below command line parameters, particularly '--mode' for specific run modes.");
       inputs.printArgumentsForMC();
+      return EXIT_SUCCESS;
+   }
+
+   if (inputs.getCmdOption(CMD_EXECUTE_SCRIPT) == "true") {
+      const std::string path{ inputs.getCmdOption(CMD_DIR_ROOT) + "/" + "script.txt" };
+      std::cout << "Processing script in '" + StaticHelper::absPath(path) + "'." << std::endl;
+
+      if (!StaticHelper::existsFileSafe(path)) {
+         std::cerr << "File not found." << std::endl;
+         return EXIT_FAILURE;
+      }
+
+      const std::string script{ StaticHelper::readFile(path)};
+      auto data = std::make_shared<DataPack>();
+      auto parser = std::make_shared<FormulaParser>();
+
+      std::cout << "Script expanded to:\n--------------------\n" << macro::Script::processScript(script, macro::Script::DataPreparation::none, data, parser) << std::endl;
+
       return EXIT_SUCCESS;
    }
 
@@ -1593,8 +1614,8 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          float vy{ std::stof(data[4]) };
          float heading{ std::stof(data[5]) };
 
-         x = std::max(std::min(x, std::numeric_limits<float>::max()), std::numeric_limits<float>::min());
-         vx = std::max(std::min(vx, 70.0f), 0.0f);
+         x = (std::max)((std::min)(x, (std::numeric_limits<float>::max)()), (std::numeric_limits<float>::min)());
+         vx = (std::max)((std::min)(vx, 70.0f), 0.0f);
 
          main_file += "INIT env.veh___6" + std::to_string(i) + "9___.abs_pos = " + std::to_string((int)(x)) + ";\n";
          main_file += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx)) + ";\n";
