@@ -701,16 +701,17 @@ int vfm::test::artifactRun(int argc, char* argv[])
 
    if (inputs.getCmdOption(CMD_EXECUTE_SCRIPT) == "true") {
       const std::string path{ inputs.getCmdOption(CMD_DIR_ROOT) + "/" + "script.txt" };
+      const std::string template_path{ inputs.getCmdOption(CMD_TEMPLATE_DIR_PATH) + "/" + "script_immediate.tpl" };
       std::cout << "Processing script in '" + StaticHelper::absPath(path) + "'." << std::endl;
 
       if (!StaticHelper::existsFileSafe(path)) {
-         std::cerr << "File not found." << std::endl;
-         return EXIT_FAILURE;
+         std::cerr << "File '" + path + "' not found. Generating one from template '" + template_path + "'." << std::endl;
+         std::filesystem::copy_file(template_path, path);
       }
 
       const std::string script{ StaticHelper::readFile(path)};
       auto data = std::make_shared<DataPack>();
-      auto parser = std::make_shared<FormulaParser>();
+      auto parser = SingletonFormulaParser::getInstance();
 
       std::cout << "Script expanded to:\n--------------------\n" << macro::Script::processScript(script, macro::Script::DataPreparation::none, data, parser) << std::endl;
 

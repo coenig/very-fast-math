@@ -1371,9 +1371,16 @@ std::string vfm::macro::Script::storeRoadGraph(const std::string& filename)
 
    const bool infinite_highway{ rg->getNodeCount() == 1 };
 
+   if (!vfm_data_->isVarDeclared("WIDTH_FACTOR_NON_INFINITE")) vfm_data_->addOrSetSingleVal("WIDTH_FACTOR_NON_INFINITE", 1);
+   if (!vfm_data_->isVarDeclared("HEIGHT_FACTOR_NON_INFINITE")) vfm_data_->addOrSetSingleVal("HEIGHT_FACTOR_NON_INFINITE", 7);
+   if (!vfm_data_->isVarDeclared("OFFSET_X_NON_INFINITE")) vfm_data_->addOrSetSingleVal("OFFSET_X_NON_INFINITE", 0);
+   if (!vfm_data_->isVarDeclared("OFFSET_Y_NON_INFINITE")) vfm_data_->addOrSetSingleVal("OFFSET_Y_NON_INFINITE", 20);
+   if (!vfm_data_->isVarDeclared("DIMENSION_X")) vfm_data_->addOrSetSingleVal("DIMENSION_X", 500);
+   if (!vfm_data_->isVarDeclared("DIMENSION_Y")) vfm_data_->addOrSetSingleVal("DIMENSION_Y", 60);
+
    vfm::HighwayImage image{
-      Env2D::getImageWidth(MAX_NUM_LANES_SIMPLE) * (infinite_highway ? 1 : 1),
-      Env2D::getImageHeight() * (rg->getNodeCount() > 1 ? 7 : 1),
+      Env2D::getImageWidth(MAX_NUM_LANES_SIMPLE) * (infinite_highway ? 1 : (int) vfm_data_->getSingleVal("WIDTH_FACTOR_NON_INFINITE")),
+      Env2D::getImageHeight() * (rg->getNodeCount() > 1 ? (int) vfm_data_->getSingleVal("HEIGHT_FACTOR_NON_INFINITE") : 1),
       std::make_shared<Plain2DTranslator>(),
       rg->getMyRoad().getNumLanes() };
 
@@ -1382,33 +1389,27 @@ std::string vfm::macro::Script::storeRoadGraph(const std::string& filename)
    Rec2D bounding_box{ infinite_highway ? Rec2D{} : rg->getBoundingBox() };
    const float offset_x{ infinite_highway
       ? 60.0f
-      : 0.0f
+      : (int)vfm_data_->getSingleVal("OFFSET_X_NON_INFINITE")
    };
 
    const float offset_y{
       infinite_highway
       ?
       (float)rg->getMyRoad().getNumLanes() / 2.0f
-      : 20.0f
+      : (int)vfm_data_->getSingleVal("OFFSET_Y_NON_INFINITE")
    };
 
    image.paintRoadGraph(
       rg,
-      { 500, 60 },
+      { vfm_data_->getSingleVal("DIMENSION_X"), vfm_data_->getSingleVal("DIMENSION_Y") },
       {},
       true, offset_x, offset_y);
 
    image.store(filename);
 
-   return "Road graph '" + std::to_string(id) + "' stored in '" + filename + "'.";
+   return "Road graph '" + std::to_string(id) + "' stored in '" + StaticHelper::absPath(filename) + "'.";
 }
 
-// @{ ((0, 0), 0, (4, 50, ((0, 5, 0), (0, 5, 30)))) }@.createRoadGraph[0]
-// @{ ((90, 20), 0, (4, 50, ((0, 5, 0), (0, 5, 30)))) }@.createRoadGraph[1]
-// @{ ((90, -20), 0, (4, 50, ((0, 5, 0), (0, 5, 30)))) }@.createRoadGraph[2]
-// @{0}@.connectRoadGraphTo[1]
-// @{0}@.connectRoadGraphTo[2]
-// @{0}@.storeRoadGraph[mytest]
 std::string vfm::macro::Script::createRoadGraph(const std::string& id)
 {
    if (!StaticHelper::isParsableAsFloat(id)) {
