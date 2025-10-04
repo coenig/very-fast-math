@@ -17,7 +17,7 @@ The syntax of a road graph is:
 @{@OFFSET_Y_NON_INFINITE = 10}@.eval
 }@.nil
 
-@{0}@.storeRoadGraph[mytest]
+@{0}@.storeRoadGraph[mytest.png]
 
 Variable values for image creation I used:
 WIDTH_FACTOR_NON_INFINITE = @{WIDTH_FACTOR_NON_INFINITE}@.eval[0]
@@ -26,4 +26,3 @@ OFFSET_X_NON_INFINITE = @{OFFSET_X_NON_INFINITE}@.eval[0]
 OFFSET_Y_NON_INFINITE = @{OFFSET_Y_NON_INFINITE}@.eval[0]
 DIMENSION_X = @{DIMENSION_X}@.eval[0]
 DIMENSION_Y = @{DIMENSION_Y}@.eval[0]
-
