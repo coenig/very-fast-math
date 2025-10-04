@@ -1350,7 +1350,7 @@ std::string vfm::macro::Script::connectRoadGraphTo(const std::string& id2_str)
 
    road_graphs_.at(id1)->addSuccessor(road_graphs_.at(id2));
 
-   return "";
+   return "Road graph '" + std::to_string(id1) + "' connected to '" + std::to_string(id2) + "'.";
 }
 
 std::string vfm::macro::Script::storeRoadGraph(const std::string& filename)
@@ -1382,7 +1382,7 @@ std::string vfm::macro::Script::storeRoadGraph(const std::string& filename)
    Rec2D bounding_box{ infinite_highway ? Rec2D{} : rg->getBoundingBox() };
    const float offset_x{ infinite_highway
       ? 60.0f
-      : 30.0f
+      : 0.0f
    };
 
    const float offset_y{
@@ -1403,7 +1403,9 @@ std::string vfm::macro::Script::storeRoadGraph(const std::string& filename)
    return "Road graph '" + std::to_string(id) + "' stored in '" + filename + "'.";
 }
 
-// @{ ((0, 0), 0, ( 4, 200, ( (0, 5, 0), (2, 2, 50) ) )) }@.createRoadGraph[0]
+// @{ ((0, 0), 0, ( 4, 50, ( (0, 5, 0), (2, 2, 30) ) )) }@.createRoadGraph[0]
+// @{ ((70, 20), 0, ( 4, 50, ( (2, 2, 0), (0, 5, 30) ) )) }@.createRoadGraph[1]
+// @{0}@.connectRoadGraphTo[1]
 // @{0}@.storeRoadGraph[mytest]
 std::string vfm::macro::Script::createRoadGraph(const std::string& id)
 {
@@ -1413,6 +1415,16 @@ std::string vfm::macro::Script::createRoadGraph(const std::string& id)
    }
 
    int rg_id{ std::stoi(id) };
+
+   if (road_graphs_.count(rg_id)) {
+      if (road_graphs_.at(rg_id)->parseProgram(getRawScript())) {
+         return "Existing road graph '" + id + "' updated.";
+      }
+      else {
+         return "#PARSING-ERROR";
+      }
+   }
+
    auto rg = std::make_shared<RoadGraph>(rg_id);
 
    if (rg_id == 0) {
@@ -1421,9 +1433,10 @@ std::string vfm::macro::Script::createRoadGraph(const std::string& id)
 
    road_graphs_[rg_id] = rg;
 
-   if (!rg->parseProgram(getRawScript())) {
-      return "#ERROR";
+   if (rg->parseProgram(getRawScript())) {
+      return "Road graph '" + id + "' created.";
+   } 
+   else {
+      return "#PARSING-ERROR";
    }
-
-   return "Road graph '" + id + "' created.";
 }
