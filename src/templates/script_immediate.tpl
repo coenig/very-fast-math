@@ -7,8 +7,23 @@ The syntax of a road graph is:
 }@.nil
 
 @{ ((0, 0), 0, (4, 50, ((0, 5, 0)))) }@.createRoadGraph[0]
-@{ ((90, 20), 0, (4, 50, ((0, 5, 0), (0, 3, 30)))) }@.createRoadGraph[1]
+@{ ((90, 20), 45, (4, 50, ((0, 5, 0), (0, 3, 30)))) }@.createRoadGraph[1]
 @{ ((90, -20), 0, (4, 50, ((0, 5, 0)))) }@.createRoadGraph[2]
 @{0}@.connectRoadGraphTo[1]
 @{0}@.connectRoadGraphTo[2]
+
+@{
+@{@WIDTH_FACTOR_NON_INFINITE = 1}@.eval
+@{@OFFSET_Y_NON_INFINITE = 10}@.eval
+}@.nil
+
 @{0}@.storeRoadGraph[mytest]
+
+Variable values for image creation I used:
+WIDTH_FACTOR_NON_INFINITE = @{WIDTH_FACTOR_NON_INFINITE}@.eval[0]
+HEIGHT_FACTOR_NON_INFINITE = @{HEIGHT_FACTOR_NON_INFINITE}@.eval[0]
+OFFSET_X_NON_INFINITE = @{OFFSET_X_NON_INFINITE}@.eval[0]
+OFFSET_Y_NON_INFINITE = @{OFFSET_Y_NON_INFINITE}@.eval[0]
+DIMENSION_X = @{DIMENSION_X}@.eval[0]
+DIMENSION_Y = @{DIMENSION_Y}@.eval[0]
+
