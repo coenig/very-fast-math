@@ -46,13 +46,15 @@ float getLaneMid(const float laneFromLeft, const float lane_w_average_, const fl
    return getLaneLeft(laneFromLeft, lane_w_average_, blx, num_lanes) + /*marker_w_*/ 0 + lane_w_average_ * factor_last / 2.0;
 }
 
-void HighwayImage::setupVPointFor3DPerspective(const int num_lanes, const Vec2D& dim)
+void HighwayImage::setupVPointFor3DPerspective(const int num_lanes_raw, const Vec2D& dim)
 {
    // Outermost screen borders.
    Vec2D screen_tl_{ 0, 0 };
    Vec2D screen_br_{ dim.x, dim.y };
    Vec2D screen_tr_{ screen_br_.x, screen_tl_.y };
    Vec2D screen_bl_{ screen_tl_.x, screen_br_.y };
+
+   const int num_lanes{ std::max(2, num_lanes_raw) }; // At least one lane.
 
    // Street box borders: Calculate helper variables for the corners.
    float screen_width = screen_br_.x - screen_bl_.x;
