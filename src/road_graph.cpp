@@ -818,9 +818,7 @@ bool vfm::RoadGraph::parseProgram(const std::string& program_raw)
    // EO RESET
 
 
-   my_road_.parseProgram(bracket_structure->children_.at(2)->serialize("(", ")", ","));
-
-   return true;
+   return my_road_.parseProgram(bracket_structure->children_.at(2)->serialize("(", ")", ","));
 }
 
 
