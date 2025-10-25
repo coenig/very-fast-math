@@ -2052,7 +2052,18 @@ void deleteTestCases(MCScene* mc_scene) // Free function that actually does it, 
                entry.path().string() + "/cex-smooth-with-arrows-full",
             };
 
-            for (const auto& folder : folders) {
+            for (int i = 0;; ++i) { // Remove folders 0, 1, 2, ...
+               std::string numbered_folder{ entry.path().string() + "/" + std::to_string(i) };
+
+               if (StaticHelper::existsFileSafe(numbered_folder)) {
+                  folders.push_back(numbered_folder);
+               }
+               else {
+                  break;
+               }
+            }
+
+            for (const auto& folder : folders) { // Remove static folders. (TODO: Obsolete?)
                if (StaticHelper::existsFileSafe(folder)) {
                   mc_scene->addNote("Deleting folder '" + folder + "'.");
                   StaticHelper::removeAllFilesSafe(folder);
