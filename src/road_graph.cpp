@@ -234,7 +234,16 @@ bool StraightRoadSection::parseProgram(const std::string& program_raw)
    auto bracket_structure = StaticHelper::extractArbitraryBracketStructure(StaticHelper::removeWhiteSpace(program_raw), "(", ")", ",");
    std::string program{ bracket_structure->serialize("(", ")", ",") };
 
-   if (bracket_structure->children_.size() != 3) {
+   if (bracket_structure->children_.size() == 2) {
+      addNote("Number of top-level arguments is 2. Assuming you left out the segments, I'll induce a default segment.");
+      auto fake_begin = std::make_shared<BracketStructure>("0", std::vector<std::shared_ptr<BracketStructure>>{});
+      auto fake_min_lanes = std::make_shared<BracketStructure>("0", std::vector<std::shared_ptr<BracketStructure>>{});
+      auto fake_max_lanes = std::make_shared<BracketStructure>(bracket_structure->children_.at(0)->content_, std::vector<std::shared_ptr<BracketStructure>>{});
+      auto fake_segment = std::make_shared<BracketStructure>("", std::vector<std::shared_ptr<BracketStructure>>{fake_min_lanes, fake_max_lanes, fake_begin});
+      fake_segment = std::make_shared<BracketStructure>("", std::vector<std::shared_ptr<BracketStructure>>{ fake_segment });
+      bracket_structure->children_.push_back(fake_segment);
+   }
+   else if (bracket_structure->children_.size() != 3) {
       addError("Cannot parse program '" + program + "'. Number of top-level arguments is not equal to 3.");
       return false;
    }
@@ -818,9 +827,7 @@ bool vfm::RoadGraph::parseProgram(const std::string& program_raw)
    // EO RESET
 
 
-   my_road_.parseProgram(bracket_structure->children_.at(2)->serialize("(", ")", ","));
-
-   return true;
+   return my_road_.parseProgram(bracket_structure->children_.at(2)->serialize("(", ")", ","));
 }
 
 

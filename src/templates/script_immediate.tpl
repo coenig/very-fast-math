@@ -1,10 +1,22 @@
 @{
+This is an example script on how to create Road Graph images with vfm.
+
 Use this command from the bin folder to expand the script:
 ./vfm.exe --execute-script --rootdir .
 
-The syntax of a road graph is: 
+On the NT, it can be expanded via CLI:
+pace mc --execute_script
+
+If this script template file is present in the "templates" folder, it will be used in case there is no explicit file provided. 
+An explicit script can be provided as *root_dir*/script.txt. *root_dir* defaults to /workspace on the NT.
+
+The syntax of a single road graph instance is:
 "((x_src, y_src), angle, (max_lanes, section_length, ((seg_1_min_lane, seg_1_max_lane, seg_1_begin), ..., ((seg_i_min_lane, seg_i_max_lane, seg_i_begin)))))"
+
+Below follows an example of how a road graph image can be created and stored as "mytest.png". 
 }@.nil
+
+
 
 @{ ((0, 0), 0, (4, 50, ((0, 5, 0)))) }@.createRoadGraph[0]
 @{ ((90, 20), 45, (4, 50, ((0, 5, 0), (0, 3, 30)))) }@.createRoadGraph[1]
