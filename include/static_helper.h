@@ -130,8 +130,8 @@ public:
 
    std::string serialize(const std::string& opening_bracket, const std::string& closing_bracket, const std::string& delimiter) const;
 
-   std::string content_;
-   std::vector<std::shared_ptr<BracketStructure>> children_;
+   std::string content_{};
+   std::vector<std::shared_ptr<BracketStructure>> children_{};
 };
 
 class MetaRule;
