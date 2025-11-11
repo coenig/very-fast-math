@@ -37,6 +37,23 @@ public:
 )" };
 
       std::map<std::string, std::vector<std::string>> df{ StaticHelper::readCSV(csv_path, ";") };
+
+      if (df.empty()) {
+         addError("No data found in '" + csv_path + "'.");
+         return;
+      }
+
+      const std::set<std::string> necessary_ones{ "t", "d", "nonegos" };
+
+      for (const auto& necessary_one : necessary_ones) {
+         if (!df.count(necessary_one)) {
+            df.insert({ necessary_one, {} });
+            for (int i = 0; i < df.begin()->second.size(); i++) {
+               df.at(necessary_one).push_back("1");
+            }
+         }
+      }
+
       std::set<std::string> nonegos_unique(df.at("nonegos").begin(), df.at("nonegos").end());
       std::set<std::string> t_unique(df.at("t").begin(), df.at("t").end());
       std::set<int> d_unique{};
