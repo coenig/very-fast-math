@@ -48,6 +48,8 @@ INVAR num_lanes = @{NUMLANES}@.eval[0];
 }@*****.if[@{EM_LESS}@.eval]
 )@
 @(
-   @{EnvModel_Alberto_three_cars_five_secs.tpl}@********.include
+   @{EnvModel_Parameters.tpl}@********.include
+   @{EnvModel_Scaling.tpl}@********.include
+   @{EnvModel_Abstract.tpl}@********.include
 )@
 }@*********.if[@{FULL_MODEL}@.eval]
