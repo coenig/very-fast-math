@@ -7,12 +7,15 @@
 #pragma once
 
 #include "failable.h"
+#include "parser.h"
+#include "data_pack.h"
 #include <filesystem>
 
 namespace vfm
 {
 static const std::string PROSE_DESC_NAME{ "prose_scenario_description.txt" };
 static const std::string FILE_NAME_JSON{ "envmodel_config.json" };
+static const std::string FILE_NAME_JSON_TEMPLATE { "envmodel_config.tpl.json" };
 
 namespace mc{
 
@@ -37,7 +40,7 @@ public:
 
    void deleteMCOutputFromFolder(const std::string& path_generated, const bool actually_delete_gif); // ...or otherwise copy "waiting for" image.
    void preprocessAndRewriteJSONTemplate(const std::string& path_template, const std::string& json_tpl_filename);
-   bool putJSONIntoDataPack(const std::string& path_template, const std::string& json_config = JSON_TEMPLATE_DENOTER, const std::string& json_template_input = );
+   bool putJSONIntoDataPack(const std::string& path_template, const std::string& config_name = JSON_TEMPLATE_DENOTER);
 
 private:
    std::mutex main_file_mutex_{};

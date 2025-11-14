@@ -54,7 +54,11 @@ std::vector<std::string> McWorkflow::runMCJobs(
    return possibles;
 }
 
-void McWorkflow::runMCJob(const std::string& path_generated_raw, const std::string& config_name, const std::string& path_template, const std::string& json_tpl_filename)
+void McWorkflow::runMCJob(
+   const std::string& path_generated_raw, 
+   const std::string& config_name, 
+   const std::string& path_template, 
+   const std::string& json_tpl_filename)
 {
    std::string path_generated{ StaticHelper::replaceAll(path_generated_raw, "\\", "/") };
 
@@ -260,16 +264,16 @@ void vfm::mc::McWorkflow::preprocessAndRewriteJSONTemplate(const std::string& pa
    json_file.close();
 }
 
-bool McWorkflow::putJSONIntoDataPack(const std::string& path_template, const std::string& json_config)
+bool McWorkflow::putJSONIntoDataPack(const std::string& path_template, const std::string& config_name)
 {
-   const bool from_template{ json_config == JSON_TEMPLATE_DENOTER };
+   bool from_template{ config_name == JSON_TEMPLATE_DENOTER };
    bool config_valid{ false };
 
    try {
-      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(path_template + "/" + FILE_NAME_JSON));
+      nlohmann::json j = nlohmann::json::parse(StaticHelper::readFile(path_template + "/" + (from_template ? FILE_NAME_JSON_TEMPLATE : FILE_NAME_JSON)));
 
       for (auto& [key_config, value_config] : j.items()) {
-         if (key_config == json_config) {
+         if (key_config == config_name) {
             config_valid = true;
 
             for (auto& [key, value] : value_config.items()) {
@@ -291,7 +295,7 @@ bool McWorkflow::putJSONIntoDataPack(const std::string& path_template, const std
       //addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
    }
 
-   if (!config_valid) addError("Config '" + json_config + "' not found in JSON. (Did you rename the folders by hand? You're not supposed to do that.)");
+   if (!config_valid) addError("Config '" + config_name + "' not found in JSON. (Did you rename the folders by hand? You're not supposed to do that.)");
 
    return config_valid;
 }
