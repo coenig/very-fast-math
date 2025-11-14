@@ -12,13 +12,16 @@
 namespace vfm
 {
 static const std::string PROSE_DESC_NAME{ "prose_scenario_description.txt" };
+static const std::string FILE_NAME_JSON{ "envmodel_config.json" };
 
 namespace mc{
 
 class McWorkflow : public Failable
 {
 public:
-   McWorkflow();
+   McWorkflow(
+      const std::shared_ptr<DataPack> data_,
+      const std::shared_ptr<FormulaParser> parser);
 
    std::vector<std::string> runMCJobs(
       const std::filesystem::path& working_dir, 
@@ -28,12 +31,16 @@ public:
    void runMCJob(
       const std::string& path_generated_raw, 
       const std::string& config_name, 
-      const std::string& path_template);
+      const std::string& path_template, 
+      const std::string& json_tpl_filename);
 
    void deleteMCOutputFromFolder(const std::string& path_generated, const bool actually_delete_gif); // ...or otherwise copy "waiting for" image.
+   void preprocessAndRewriteJSONTemplate(const std::string& path_template, const std::string& json_tpl_filename);
 
 private:
    std::mutex main_file_mutex_{};
+   std::shared_ptr<DataPack> data_{};
+   std::shared_ptr<FormulaParser> parser_{};
 
 };
 
