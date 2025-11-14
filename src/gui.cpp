@@ -599,44 +599,6 @@ std::shared_ptr<OptionsGlobal> vfm::MCScene::getRuntimeGlobalOptions() const
    return runtime_global_options_;
 }
 
-bool vfm::MCScene::putJSONIntoDataPack(const std::string& json_config)
-{
-   const bool from_template{ json_config == JSON_TEMPLATE_DENOTER };
-   bool config_valid{ false };
-
-   //data_->reset();
-
-   try {
-      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
-
-      for (auto& [key_config, value_config] : j.items()) {
-         if (key_config == json_config) {
-            config_valid = true;
-
-            for (auto& [key, value] : value_config.items()) {
-               if (value.is_string()) {
-                  std::string val_str = StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "");
-                  data_->addStringToDataPack(val_str, key);
-               }
-               else {
-                  data_->addOrSetSingleVal(key, value);
-               }
-            }
-         }
-      }
-   }
-   catch (const nlohmann::json::parse_error& e) {
-      //addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
-   }
-   catch (...) {
-      //addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
-   }
-
-   if (!config_valid) addError("Config '" + json_config + "' not found in JSON. (Did you rename the folders by hand? You're not supposed to do that.)");
-
-   return config_valid;
-}
-
 void MCScene::showAllBBGroups(const bool show)
 {
    for (const auto& group : bb_groups_) {
@@ -1484,11 +1446,11 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
    const std::filesystem::path path_generated_base(path_generated_base_str);
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
 
-   mc_scene->deleteMCOutputFromFolder(path_generated_base_str, true);
+   mc_scene->mc_workflow_.deleteMCOutputFromFolder(path_generated_base_str, true);
    
    std::vector<std::string> possibles{ mc_scene->getMcWorkflow().runMCJobs(path_generated_base_parent, [mc_scene](const std::string& config_name) -> bool {
       return StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(config_name, SecOptionLocalItemEnum::selected_job));
-   }) };
+   }, mc_scene->getTemplateDir(), mc_scene->json_tpl_filename_) };
 
    std::filesystem::path path_preview_bb{};
    for (const auto& folder : possibles) { // Prepare directories for previews.
@@ -1744,7 +1706,7 @@ void MCScene::buttonSaveJSON(Fl_Widget* widget, void* data)
 void MCScene::buttonReloadJSON(Fl_Widget* widget, void* data) 
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
-   mc_scene->putJSONIntoDataPack();
+   mc_scene->mc_workflow_.putJSONIntoDataPack(mc_scene->getTemplateDir());
    mc_scene->evaluateFormulasInJSON(mc_scene->getJSON());
 
    mc_scene->showAllBBGroups(false);
@@ -1796,12 +1758,12 @@ void deleteMCOutput(MCScene* mc_scene) // Free function that actually does it, r
       std::string possible{ entry.path().filename().string() };
       if (std::filesystem::is_directory(entry) && possible != prefix && StaticHelper::stringStartsWith(possible, prefix)) {
          if (StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(possible, SecOptionLocalItemEnum::selected_job))) {
-            mc_scene->deleteMCOutputFromFolder(entry.path().string(), true);
+            mc_scene->getMcWorkflow().deleteMCOutputFromFolder(entry.path().string(), true);
          }
       }
    }
 
-   mc_scene->deleteMCOutputFromFolder(path_generated_base_str, false);
+   mc_scene->getMcWorkflow().deleteMCOutputFromFolder(path_generated_base_str, false);
    mc_scene->resetParserAndData();
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }
@@ -2038,7 +2000,7 @@ void MCScene::onGroupClickBM(Fl_Widget* widget, void* data)
          other.selected_ = false;
       }
 
-      controller->mc_scene_->deleteMCOutputFromFolder(controller->mc_scene_->getGeneratedDir(), false);
+      controller->mc_scene_->getMcWorkflow().deleteMCOutputFromFolder(controller->mc_scene_->getGeneratedDir(), false);
 
       return;
    }
