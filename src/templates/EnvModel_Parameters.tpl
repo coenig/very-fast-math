@@ -65,6 +65,6 @@
 
 -- Special purpose parameters.
 @{FEASIBILITY}@*******.defaultValue[true] -- Includes defines needed for the ACA4.1 Fesibility study.
-
+@{FULL_MODEL}@*******.defaultValue[true] -- Uses the full model, as opposed to Alberto's topology-only model.
 
 -- EO Don't change.
