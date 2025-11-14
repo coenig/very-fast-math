@@ -9,6 +9,7 @@
 #include "gui/process_helper.h"
 #include "model_checking/results_analysis.h"
 #include "vfmacro/script.h"
+#include "model_checking/mc_workflow.h"
 
 using namespace vfm;
 
@@ -1533,33 +1534,9 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
    const std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
    const std::filesystem::path path_generated_base(path_generated_base_str);
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
-   std::string prefix{ path_generated_base.filename().string() };
 
    mc_scene->deleteMCOutputFromFolder(path_generated_base_str, true);
-   std::vector<std::string> possibles{};
-
-   for (const auto& entry : std::filesystem::directory_iterator(path_generated_base_parent)) {
-      std::string possible{ entry.path().filename().string() };
-      if (std::filesystem::is_directory(entry) && possible != prefix && StaticHelper::stringStartsWith(possible, prefix)) {
-         possibles.push_back(entry.path().string());
-      }
-   }
-
-   { // Scope which makes us wait for finishing the jobs before entering the next line.
-      ThreadPool pool(test::MAX_THREADS);
-
-      for (const auto& folder : possibles) {
-         std::this_thread::sleep_for(std::chrono::seconds(1));
-
-         const std::string config_name{ std::filesystem::path(folder).filename().string() };
-
-         if (StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(config_name, SecOptionLocalItemEnum::selected_job))) {
-            pool.enqueue([mc_scene, folder, path_generated_base_parent, prefix] {
-               MCScene::runMCJob(mc_scene, folder, folder.substr(path_generated_base_parent.string().size() + prefix.size() + 1));
-            });
-         }
-      }
-   }
+   std::vector<std::string> possibles{ mc_scene->getMcWorkflow().runMCJobs(path_generated_base_parent) };
 
    std::filesystem::path path_preview_bb{};
    for (const auto& folder : possibles) { // Prepare directories for previews.
