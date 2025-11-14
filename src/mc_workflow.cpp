@@ -22,7 +22,8 @@ McWorkflow::McWorkflow(
 std::vector<std::string> McWorkflow::runMCJobs(
    const std::filesystem::path& working_dir, 
    const std::function<bool(const std::string& folder)> job_selector, 
-   const std::string& path_template)
+   const std::string& path_template, 
+   const std::string& json_tpl_filename)
 {
    std::vector<std::string> possibles{};
    std::string prefix{ working_dir.filename().string() };
@@ -43,8 +44,8 @@ std::vector<std::string> McWorkflow::runMCJobs(
          const std::string config_name{ std::filesystem::path(folder).filename().string() };
 
          if (job_selector(config_name)) {
-            pool.enqueue([this, folder, working_dir, prefix, path_template] {
-               runMCJob(folder, folder.substr(working_dir.string().size() + prefix.size() + 1), path_template);
+            pool.enqueue([this, &folder, &working_dir, &prefix, &path_template, &json_tpl_filename] {
+               runMCJob(folder, folder.substr(working_dir.string().size() + prefix.size() + 1), path_template, json_tpl_filename);
             });
          }
       }
@@ -64,14 +65,14 @@ void McWorkflow::runMCJob(const std::string& path_generated_raw, const std::stri
       deleteMCOutputFromFolder(path_generated, true);
       preprocessAndRewriteJSONTemplate(path_template, json_tpl_filename);
 
-      if (!mc_scene->putJSONIntoDataPack()) return;
-      if (!mc_scene->putJSONIntoDataPack(config_name)) return;
+      if (!putJSONIntoDataPack(path_template)) return;
+      if (!putJSONIntoDataPack(path_template, config_name)) return;
 
       std::string main_smv{ StaticHelper::readFile(path_generated + "/main.smv") };
 
-      std::string script_template{ StaticHelper::readFile(mc_scene->getTemplateDir() + "/script.tpl") };
-      std::string main_template{ StaticHelper::readFile(mc_scene->getTemplateDir() + "/main.tpl") };
-      std::string generated_script{ CppParser::generateScript(script_template, mc_scene->data_, mc_scene->parser_) };
+      std::string script_template{ StaticHelper::readFile(path_template + "/script.tpl") };
+      std::string main_template{ StaticHelper::readFile(path_template + "/main.tpl") };
+      std::string generated_script{ CppParser::generateScript(script_template, data_, parser_) };
       StaticHelper::writeTextToFile(generated_script, path_generated + "/script.cmd");
 
       addNote("Created script.cmd with the following content:\n" + StaticHelper::readFile(path_generated + "/script.cmd") + "<EOF>");
@@ -80,7 +81,7 @@ void McWorkflow::runMCJob(const std::string& path_generated_raw, const std::stri
       static const std::string SPEC_END{ "--EO-SPEC-STUFF" };
       static const std::string ADDONS_BEGIN{ "--ADDONS" };
       static const std::string ADDONS_END{ "--EO-ADDONS" };
-      data_->addStringToDataPack(mc_scene->getTemplateDir(), macro::MY_PATH_VARNAME); // Set the script processors home path (for the case it's not already been set during EnvModel generation).
+      data_->addStringToDataPack(path_template, macro::MY_PATH_VARNAME); // Set the script processors home path (for the case it's not already been set during EnvModel generation).
 
       // Re-generate SPEC stuff.
       main_smv = StaticHelper::removeMultiLineComments(main_smv, SPEC_BEGIN, SPEC_END);
@@ -88,7 +89,7 @@ void McWorkflow::runMCJob(const std::string& path_generated_raw, const std::stri
 
       auto spec_part = StaticHelper::removePartsOutsideOf(main_template, SPEC_BEGIN, SPEC_END);
       data_->addStringToDataPack(path_generated, "FULL_GEN_PATH");
-      spec_part = vfm::macro::Script::processScript(spec_part, macro::Script::DataPreparation::both, mc_scene->data_, mc_scene->parser_);
+      spec_part = vfm::macro::Script::processScript(spec_part, macro::Script::DataPreparation::both, data_, parser_);
       main_smv += spec_part + "\n";
       main_smv += SPEC_END + "\n";
 
@@ -257,4 +258,40 @@ void vfm::mc::McWorkflow::preprocessAndRewriteJSONTemplate(const std::string& pa
    json_file.open(path_json_plain);
    json_file << j_out.dump(3);
    json_file.close();
+}
+
+bool McWorkflow::putJSONIntoDataPack(const std::string& path_template, const std::string& json_config)
+{
+   const bool from_template{ json_config == JSON_TEMPLATE_DENOTER };
+   bool config_valid{ false };
+
+   try {
+      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(path_template + "/" + FILE_NAME_JSON));
+
+      for (auto& [key_config, value_config] : j.items()) {
+         if (key_config == json_config) {
+            config_valid = true;
+
+            for (auto& [key, value] : value_config.items()) {
+               if (value.is_string()) {
+                  std::string val_str = StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "");
+                  data_->addStringToDataPack(val_str, key);
+               }
+               else {
+                  data_->addOrSetSingleVal(key, value);
+               }
+            }
+         }
+      }
+   }
+   catch (const nlohmann::json::parse_error& e) {
+      //addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
+   }
+   catch (...) {
+      //addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
+   }
+
+   if (!config_valid) addError("Config '" + json_config + "' not found in JSON. (Did you rename the folders by hand? You're not supposed to do that.)");
+
+   return config_valid;
 }
