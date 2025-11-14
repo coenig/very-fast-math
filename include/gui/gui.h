@@ -38,7 +38,6 @@
 namespace vfm {
 
 static const std::string GUI_NAME{ "M²oRTy" };
-static const std::string PROSE_DESC_NAME{ "prose_scenario_description.txt" };
 static const std::string FILE_NAME_JSON{ "envmodel_config.json" };
 static float TIMEOUT_FREQUENT{ 0.05 };
 static float TIMEOUT_RARE{ 0.5 };
@@ -99,7 +98,6 @@ public:
    void loadJsonText();
    void saveJsonText();
    void setTitle();
-   void deleteMCOutputFromFolder(const std::string& path_generated, const bool actually_delete_gif); // ...or otherwise copy "waiting for" image.
    void evaluateFormulasInJSON(const nlohmann::json j_template);
    void preprocessAndRewriteJSONTemplate();
    nlohmann::json getJSON() const;
@@ -196,7 +194,6 @@ private:
    Fl_Multiline_Input* scene_description_ = new Fl_Multiline_Input(1000, 250, 400, 300, "Scene description:");
    std::mutex parser_mutex_{};
    std::mutex refresh_mutex_{};
-   std::mutex main_file_mutex_{};
    std::mutex formula_evaluation_mutex_{};
    std::mutex preview_filesystem_mutex_{};
 
