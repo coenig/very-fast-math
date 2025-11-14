@@ -38,7 +38,6 @@
 namespace vfm {
 
 static const std::string GUI_NAME{ "M²oRTy" };
-static const std::string FILE_NAME_JSON{ "envmodel_config.json" };
 static float TIMEOUT_FREQUENT{ 0.05 };
 static float TIMEOUT_RARE{ 0.5 };
 static float TIMEOUT_SOMETIMES{ 2 };
