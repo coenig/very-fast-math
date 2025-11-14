@@ -7,6 +7,7 @@
 #pragma once
 
 #include "testing/interactive_testing.h"
+#include "model_checking/mc_workflow.h"
 #include "static_helper.h"
 #include "json_parsing/json.hpp"
 #include "failable.h"
@@ -128,6 +129,8 @@ public:
    void setValueForJSONKeyFromString(const std::string& key_to_find, const std::string& config_name, const bool from_template, const std::string& value_to_set) const;
    void setValueForJSONKeyFromBool(const std::string& key_to_find, const std::string& config_name, const bool from_template, const bool value_to_set) const;
 
+   mc::McWorkflow getMcWorkflow() const;
+
    std::shared_ptr<OptionsGlobal> getRuntimeGlobalOptions() const;
 
    bool putJSONIntoDataPack(const std::string& json_config = JSON_TEMPLATE_DENOTER);
@@ -234,6 +237,8 @@ private:
    std::string json_tpl_filename_{};
    std::string path_to_template_dir_{};
    std::string path_to_external_folder_{};
+
+   mc::McWorkflow mc_workflow_{};
 };
 
 } // vfm
