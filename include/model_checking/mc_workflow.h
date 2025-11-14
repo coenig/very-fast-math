@@ -26,7 +26,8 @@ public:
    std::vector<std::string> runMCJobs(
       const std::filesystem::path& working_dir, 
       const std::function<bool(const std::string& folder)> job_selector, 
-      const std::string& path_template);
+      const std::string& path_template, 
+      const std::string& json_tpl_filename);
 
    void runMCJob(
       const std::string& path_generated_raw, 
@@ -36,6 +37,7 @@ public:
 
    void deleteMCOutputFromFolder(const std::string& path_generated, const bool actually_delete_gif); // ...or otherwise copy "waiting for" image.
    void preprocessAndRewriteJSONTemplate(const std::string& path_template, const std::string& json_tpl_filename);
+   bool putJSONIntoDataPack(const std::string& path_template, const std::string& json_config = JSON_TEMPLATE_DENOTER, const std::string& json_template_input = );
 
 private:
    std::mutex main_file_mutex_{};
