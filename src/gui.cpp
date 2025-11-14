@@ -1465,57 +1465,6 @@ void MCScene::jsonChangedCallback(Fl_Widget* widget, void* data) {
    mc_scene->button_check_json_->color(FL_YELLOW);
 }
 
-
-
-void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw, const std::string config_name)
-{
-   std::string path_generated{ StaticHelper::replaceAll(path_generated_raw, "\\", "/") };
-   std::string path_template{ mc_scene->getTemplateDir() };
-
-   {
-      std::lock_guard<std::mutex> lock{ mc_scene->main_file_mutex_ };
-
-      mc_scene->addNote("Running model checker and creating preview for folder '" + path_generated + "' (config: '" + config_name + "').");
-      mc_scene->deleteMCOutputFromFolder(path_generated, true);
-      mc_scene->preprocessAndRewriteJSONTemplate();
-
-      if (!mc_scene->putJSONIntoDataPack()) return;
-      if (!mc_scene->putJSONIntoDataPack(config_name)) return;
-
-      std::string main_smv{ StaticHelper::readFile(path_generated + "/main.smv") };
-
-      std::string script_template{ StaticHelper::readFile(mc_scene->getTemplateDir() + "/script.tpl") };
-      std::string main_template{ StaticHelper::readFile(mc_scene->getTemplateDir() + "/main.tpl") };
-      std::string generated_script{ CppParser::generateScript(script_template, mc_scene->data_, mc_scene->parser_) };
-      StaticHelper::writeTextToFile(generated_script, path_generated + "/script.cmd");
-
-      mc_scene->addNote("Created script.cmd with the following content:\n" + StaticHelper::readFile(path_generated + "/script.cmd") + "<EOF>");
-
-      static const std::string SPEC_BEGIN{ "--SPEC-STUFF" };
-      static const std::string SPEC_END{ "--EO-SPEC-STUFF" };
-      static const std::string ADDONS_BEGIN{ "--ADDONS" };
-      static const std::string ADDONS_END{ "--EO-ADDONS" };
-      mc_scene->data_->addStringToDataPack(mc_scene->getTemplateDir(), macro::MY_PATH_VARNAME); // Set the script processors home path (for the case it's not already been set during EnvModel generation).
-
-      // Re-generate SPEC stuff.
-      main_smv = StaticHelper::removeMultiLineComments(main_smv, SPEC_BEGIN, SPEC_END);
-      main_smv += SPEC_BEGIN + "\n";
-
-      auto spec_part = StaticHelper::removePartsOutsideOf(main_template, SPEC_BEGIN, SPEC_END);
-      mc_scene->data_->addStringToDataPack(path_generated, "FULL_GEN_PATH");
-      spec_part = vfm::macro::Script::processScript(spec_part, macro::Script::DataPreparation::both, mc_scene->data_, mc_scene->parser_);
-      main_smv += spec_part + "\n";
-      main_smv += SPEC_END + "\n";
-
-      StaticHelper::writeTextToFile(main_smv, path_generated + "/main.smv");
-   }
-
-   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, path_generated, "FAKE_PATH_NOT_USED", path_template, "FAKE_PATH_NOT_USED", mc_scene->getCachedDir(), mc_scene->path_to_external_folder_);
-   mc_scene->generatePreview(path_generated, 0);
-
-   mc_scene->addNote("Model checker run finished for folder '" + path_generated + "'.");
-}
-
 void vfm::MCScene::generatePreview(const std::string& path_generated, const int cex_num)
 {
    addNote("Generating preview for folder '" + path_generated + "'.");
@@ -1536,7 +1485,10 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
 
    mc_scene->deleteMCOutputFromFolder(path_generated_base_str, true);
-   std::vector<std::string> possibles{ mc_scene->getMcWorkflow().runMCJobs(path_generated_base_parent) };
+   
+   std::vector<std::string> possibles{ mc_scene->getMcWorkflow().runMCJobs(path_generated_base_parent, [mc_scene](const std::string& config_name) -> bool {
+      return StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(config_name, SecOptionLocalItemEnum::selected_job));
+   }) };
 
    std::filesystem::path path_preview_bb{};
    for (const auto& folder : possibles) { // Prepare directories for previews.
@@ -1610,59 +1562,6 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
 
    mc_scene->mc_running_internal_ = false;
    mc_scene->activateMCButtons(true, ButtonClass::All);
-}
-
-void MCScene::deleteMCOutputFromFolder(const std::string& path_generated, const bool actually_delete_gif)
-{
-   //StaticHelper::removeFileSafe(path_generated + "/" + "main.smv"); // Do NOT remove main.smv. It only gets changed at this point.
-
-
-   std::string path_result{ path_generated + "/debug_trace_array.txt" };
-   std::string path_runtimes{ path_generated + "/mc_runtimes.txt" };
-   std::string path_script{ path_generated + "/" + "script.cmd" };
-
-   std::string path_prose_description{ path_generated + "/" + PROSE_DESC_NAME };
-   std::string path_planner_smv{ path_generated + "/planner.cpp_combined.k2.smv" };
-   std::string path_generated_preview{ path_generated + "/preview" };
-
-   if (actually_delete_gif) {
-      for (int i = 0; i < 100; i++) StaticHelper::removeAllFilesSafe(path_generated + "/" + std::to_string(i));
-      addNote("Deleting folder '" + path_generated_preview + "'.");
-      StaticHelper::removeAllFilesSafe(path_generated_preview);
-   }
-   else {
-      addNote("Overwriting folder '" + path_generated_preview + "'.");
-      copyWaitingForPreviewGIF();
-   }
-
-   if (std::filesystem::exists(path_prose_description)) {
-      addNote("Deleting file '" + path_prose_description + "'.");
-      StaticHelper::removeFileSafe(path_prose_description);
-   }
-
-   if (std::filesystem::exists(path_planner_smv)) {
-      addNote("Deleting file '" + path_planner_smv + "'.");
-      StaticHelper::removeFileSafe(path_planner_smv);
-   }
-
-   if (std::filesystem::exists(path_result)) {
-      addNote("Deleting file '" + path_result + "'.");
-      StaticHelper::removeFileSafe(path_result);
-   }
-
-   if (std::filesystem::exists(path_runtimes)) {
-      addNote("Deleting file '" + path_runtimes + "'.");
-      StaticHelper::removeFileSafe(path_runtimes);
-   }
-
-   if (std::filesystem::exists(path_script)) {
-      addNote("Deleting file '" + path_script + "'.");
-      StaticHelper::removeFileSafe(path_script);
-   }
-
-   for (auto& sec : se_controllers_) {
-      sec.selected_ = false;
-   }
 }
 
 nlohmann::json MCScene::getJSON() const
