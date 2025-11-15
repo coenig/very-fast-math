@@ -26,7 +26,7 @@ void McWorkflow::resetParserAndData()
 }
 
 std::vector<std::string> McWorkflow::runMCJobs(
-   const std::filesystem::path& working_dir, 
+   const std::filesystem::path& path_generated, 
    const std::function<bool(const std::string& folder)> job_selector, 
    const std::string& path_template,
    const std::string& path_cached,
@@ -36,10 +36,11 @@ std::vector<std::string> McWorkflow::runMCJobs(
    std::shared_ptr<std::mutex> formula_evaluation_mutex
 )
 {
+   std::filesystem::path path_generated_parent = path_generated.parent_path();
    std::vector<std::string> possibles{};
-   std::string prefix{ working_dir.filename().string() };
+   std::string prefix{ path_generated.filename().string() };
 
-   for (const auto& entry : std::filesystem::directory_iterator(working_dir)) {
+   for (const auto& entry : std::filesystem::directory_iterator(path_generated_parent)) {
       std::string possible{ entry.path().filename().string() };
       if (std::filesystem::is_directory(entry) && possible != prefix && StaticHelper::stringStartsWith(possible, prefix)) {
          possibles.push_back(entry.path().string());
@@ -55,8 +56,8 @@ std::vector<std::string> McWorkflow::runMCJobs(
          const std::string config_name{ std::filesystem::path(folder).filename().string() };
 
          if (job_selector(config_name)) {
-            pool.enqueue([this, &folder, &working_dir, &prefix, &path_template, &json_tpl_filename, &path_cached, &path_external, &previous_write_time, formula_evaluation_mutex] {
-               runMCJob(folder, folder.substr(working_dir.string().size() + prefix.size() + 1), path_template, path_cached, path_external, json_tpl_filename, previous_write_time, formula_evaluation_mutex);
+            pool.enqueue([this, &folder, &path_generated_parent, &prefix, &path_template, &json_tpl_filename, &path_cached, &path_external, &previous_write_time, formula_evaluation_mutex] {
+               runMCJob(folder, folder.substr(path_generated_parent.string().size() + prefix.size() + 1), path_template, path_cached, path_external, json_tpl_filename, previous_write_time, formula_evaluation_mutex);
             });
          }
       }
@@ -197,7 +198,7 @@ nlohmann::json McWorkflow::getJSON(const std::string& path) const
       json = nlohmann::json::parse(json_text);
    }
    catch (const nlohmann::json::parse_error& e) {
-      // TODO
+      addError("Json file not loaded from '" + path + "'.");
    }
 
    return json;
@@ -215,7 +216,7 @@ void McWorkflow::preprocessAndRewriteJSONTemplate(
 
    nlohmann::json j_template = getJSON(path_json_template);
    nlohmann::json j_out = {};
-   const bool is_ltl{ isLTL(JSON_TEMPLATE_DENOTER) };
+   const bool is_ltl{ isLTL(JSON_TEMPLATE_DENOTER, path_template) };
 
    if (j_template.empty() || j_template.items().begin().key() != JSON_TEMPLATE_DENOTER) {
       addError("JSON parsing failed.");
@@ -516,4 +517,29 @@ void McWorkflow::copyWaitingForPreviewGIF(
    }
 
    previous_write_time = StaticHelper::lastWritetimeOfFileSafe(path_preview_target, false);
+}
+
+std::string McWorkflow::getValueForJSONKeyAsString(const std::string& key_to_find, const nlohmann::json& json, const std::string& config_name) const
+{
+   for (auto& [key_config, value_config] : json.items()) {
+      if (key_config == config_name) {
+         for (auto& [key, value] : value_config.items()) {
+            if (key == key_to_find) {
+               return StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "");
+            }
+         }
+      }
+   }
+
+   addError("#KEY-NOT-FOUND in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "').");
+   return "#KEY-NOT-FOUND";
+}
+
+bool McWorkflow::isLTL(const std::string& config, const std::string& path_template)
+{
+   std::string json_file_name{ config == JSON_TEMPLATE_DENOTER ? FILE_NAME_JSON_TEMPLATE : FILE_NAME_JSON };
+   nlohmann::json json = getJSON(path_template + "/" + json_file_name);
+   return true;
+   //auto val = getValueForJSONKeyAsString("LTL_MODE", config, json);
+   //return StaticHelper::isBooleanTrue(val);
 }
