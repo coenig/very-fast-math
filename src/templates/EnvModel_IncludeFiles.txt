@@ -11,6 +11,3 @@ EnvModel_Header.tpl
 EnvModel_Parameters.tpl
 EnvModel_Scaling.tpl
 EnvModel_Sections.tpl
-EnvModel_Alberto_macros.tpl
-EnvModel_Alberto_three_cars_five_secs.tpl
-EnvModel_Alberto_two_cars.tpl
