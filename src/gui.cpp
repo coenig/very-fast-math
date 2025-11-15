@@ -1450,7 +1450,7 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
    
    std::vector<std::string> possibles{ mc_scene->getMcWorkflow().runMCJobs(path_generated_base_parent, [mc_scene](const std::string& config_name) -> bool {
       return StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(config_name, SecOptionLocalItemEnum::selected_job));
-   }, mc_scene->getTemplateDir(), mc_scene->json_tpl_filename_) };
+   }, mc_scene->getTemplateDir(), mc_scene->getCachedDir(), mc_scene->path_to_external_folder_, mc_scene->json_tpl_filename_) };
 
    std::filesystem::path path_preview_bb{};
    for (const auto& folder : possibles) { // Prepare directories for previews.
@@ -1540,103 +1540,6 @@ nlohmann::json MCScene::getJSON() const
    }
 
    return json;
-}
-
-nlohmann::json MCScene::instanceFromTemplate(
-   const nlohmann::json& j_template, 
-   const std::vector<std::pair<std::string, std::vector<float>>>& ranges,
-   const std::vector<int>& counter_vec,
-   const bool is_ltl)
-{
-   std::string name{ "_config" };
-
-   for (int i = 0; i < counter_vec.size(); i++) {
-      name += "_" + ranges[i].first + "=" + StaticHelper::floatToStringNoTrailingZeros(ranges[i].second[counter_vec[i]]);
-   }
-
-   nlohmann::json res = { { name.c_str(), {} } };
-
-   for (auto& [key_config, value_config] : j_template.items()) {
-      if (key_config == JSON_TEMPLATE_DENOTER) {
-         for (auto& [key, value] : value_config.items()) {
-            if (!StaticHelper::stringStartsWith(key, JSON_VFM_FORMULA_PREFIX)) {
-               if (value.type() == nlohmann::detail::value_t::string) {
-                  std::string val_str{ StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "") };
-
-                  if (StaticHelper::stringContains(val_str, JSON_NUXMV_FORMULA_BEGIN)) {
-                     int begin{ StaticHelper::indexOfFirstInnermostBeginBracket(val_str, JSON_NUXMV_FORMULA_BEGIN, JSON_NUXMV_FORMULA_END) };
-                     int end{ StaticHelper::findMatchingEndTagLevelwise(val_str, begin, JSON_NUXMV_FORMULA_BEGIN, JSON_NUXMV_FORMULA_END) };
-                     std::string formula_str{ val_str };
-                     std::string before{};
-                     std::string after{};
-
-                     StaticHelper::distributeIntoBeforeInnerAfter(before, formula_str, after, begin + JSON_NUXMV_FORMULA_BEGIN.size(), end);
-                     auto formula{ _id(MathStruct::parseMathStruct(formula_str, parser_, data_, DotTreatment::as_operator)->toTermIfApplicable()) };
-
-                     formula->applyToMeAndMyChildrenIterative([&ranges, &counter_vec, this](const MathStructPtr m)
-                     {
-                        auto m_var{ m->toVariableIfApplicable() };
-                        if (m_var) {
-                           auto m_var_name{ m_var->getVariableName() };
-
-                           for (int i = 0; i < ranges.size(); i++) {
-                              if (ranges[i].first == m_var_name) {
-                                 m_var->replaceJumpOverCompounds(_val(ranges[i].second[counter_vec[i]]));
-                              }
-                           }
-                        }
-                     }, TraverseCompoundsType::avoid_compound_structures);
-
-                     const std::string before_without_bracket{ before.substr(0, before.size() - JSON_NUXMV_FORMULA_BEGIN.size()) };
-                     const std::string after_without_bracket{ after.substr(JSON_NUXMV_FORMULA_END.size()) };
-                     const std::string new_inner{ formula->child0()->isTermVal() 
-                        ? formula->child0()->serializePlainOldVFMStyle(MathStruct::SerializationSpecial::enforce_square_array_brackets)    // If it's only a number, use regular serialization since the nusmv one casts to int.
-                        : formula->child0()->serializeNuSMV(data_, parser_) // For larger formulas, print in nusmv style since it goes directly to the model checker.
-                     };
-
-                     val_str = 
-                        before_without_bracket
-                        + new_inner 
-                        + after_without_bracket;
-
-                     if (StaticHelper::stringStartsWith(key, "SPEC")) {
-                        val_str = std::string(is_ltl ? "LTLSPEC " : "INVARSPEC ") + val_str + ";";
-                     }
-                  }
-
-                  // Special treatment: check if format is "-(NUM)" for some float NUM and replace with "-NUM".
-                  // TODO: Should vfm serialize negative numbers - or all negative terms - to "-NUM" right away?
-                  std::string val_str_tmp{ StaticHelper::removeWhiteSpace(val_str) };
-                  if (StaticHelper::stringStartsWith(val_str_tmp, "-(") && StaticHelper::stringEndsWith(val_str_tmp, ")")) {
-                     std::string middle_part = val_str_tmp.substr(2);
-                     middle_part = middle_part.substr(0, middle_part.size() - 1);
-                     if (StaticHelper::isParsableAsFloat(middle_part)) {
-                        val_str = "-" + middle_part;
-                     }
-                  }
-
-                  if (StaticHelper::isParsableAsFloat(val_str)) {
-                     float num{ std::stof(val_str) };
-                     if (StaticHelper::isFloatInteger(num)) {
-                        res.begin().value()[key] = (int)num;
-                     }
-                     else {
-                        res.begin().value()[key] = num;
-                     }
-                  }
-                  else {
-                     res.begin().value()[key] = val_str;
-                  }
-               }
-               else {
-                  res.begin().value()[key] = value;
-               }
-            }
-         }
-      }
-   }
-
-   return res;
 }
 
 void vfm::MCScene::evaluateFormulasInJSON(const nlohmann::json j_template)

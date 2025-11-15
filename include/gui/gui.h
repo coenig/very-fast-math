@@ -215,12 +215,6 @@ private:
    mutable std::string includes_file_dir_{};
    std::shared_ptr<OptionsGlobal> runtime_global_options_{};
 
-   nlohmann::json instanceFromTemplate(
-      const nlohmann::json& j_template,
-      const std::vector<std::pair<std::string, std::vector<float>>>& ranges,
-      const std::vector<int>& counter_vec,
-      const bool is_ltl);
-
    std::string last_json_string_{};
    std::map<std::string, std::pair<std::string, std::string>> last_bb_stuff_;
 
