@@ -539,7 +539,6 @@ bool McWorkflow::isLTL(const std::string& config, const std::string& path_templa
 {
    std::string json_file_name{ config == JSON_TEMPLATE_DENOTER ? FILE_NAME_JSON_TEMPLATE : FILE_NAME_JSON };
    nlohmann::json json = getJSON(path_template + "/" + json_file_name);
-   return true;
-   //auto val = getValueForJSONKeyAsString("LTL_MODE", config, json);
-   //return StaticHelper::isBooleanTrue(val);
+   auto val = getValueForJSONKeyAsString("LTL_MODE", json, config);
+   return StaticHelper::isBooleanTrue(val);
 }
