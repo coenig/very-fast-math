@@ -468,8 +468,8 @@ void SingleExpController::sliderCallback(Fl_Widget* widget, void* data) {
 
    if (!StaticHelper::existsFileSafe(source_path) || Fl::event_button() == FL_RIGHT_MOUSE) {
       std::thread t{ [sec, sec_path]() { // Don't use references since they go out of scope.
-         sec->mc_scene_->deleteMCOutputFromFolder(sec->generated_path_, false);
-         sec->mc_scene_->generatePreview(sec_path.string(), sec->slider_->value());
+         sec->mc_scene_->getMcWorkflow().deleteMCOutputFromFolder(sec->generated_path_, false, sec->mc_scene_->getTemplateDir(), sec->mc_scene_->previous_write_time_);
+         sec->mc_scene_->getMcWorkflow().generatePreview(sec_path.string(), sec->slider_->value());
          sec->tryToSelectController();
       } };
 
