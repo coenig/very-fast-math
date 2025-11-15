@@ -27,7 +27,7 @@ std::map<std::string, std::pair<std::string, std::string>> MCScene::loadNewBBsFr
    last_bb_stuff_.clear();
 
    auto json = getJSON();
-   evaluateFormulasInJSON(json);
+   mc_workflow_.evaluateFormulasInJSON(json, formula_evaluation_mutex_);
 
    auto bb_pair = getSpec(JSON_TEMPLATE_DENOTER);
    std::string bb{ bb_pair.second };
@@ -38,10 +38,10 @@ std::map<std::string, std::pair<std::string, std::string>> MCScene::loadNewBBsFr
       std::string(isLTL(JSON_TEMPLATE_DENOTER) ? "LTLSPEC" : "INVARSPEC")
       + " = " + bb.substr(JSON_NUXMV_FORMULA_BEGIN.size(), bb.size() - JSON_NUXMV_FORMULA_BEGIN.size() - JSON_NUXMV_FORMULA_END.size() - 1);
 
-   parser_->resetErrors(ErrorLevelEnum::error);
-   MathStructPtr fmla = MathStruct::parseMathStruct(bb_str, parser_, data_, DotTreatment::as_operator);
+   mc_workflow_.parser_->resetErrors(ErrorLevelEnum::error);
+   MathStructPtr fmla = MathStruct::parseMathStruct(bb_str, mc_workflow_.parser_, mc_workflow_.data_, DotTreatment::as_operator);
 
-   if (parser_->hasErrorOccurred()) {
+   if (mc_workflow_.parser_->hasErrorOccurred()) {
       last_bb_stuff_.insert({ StaticHelper::removeWhiteSpace(StaticHelper::split(bb_str, "=").at(0)), { bb_str, bb_pair.first } });
    }
    else {
@@ -59,7 +59,7 @@ std::map<std::string, std::pair<std::string, std::string>> MCScene::loadNewBBsFr
    }
 
    // BBs
-   for (const auto& dynamic_terms : parser_->getDynamicTermMetas()) {
+   for (const auto& dynamic_terms : mc_workflow_.parser_->getDynamicTermMetas()) {
       const std::string name{ dynamic_terms.first };
       
       for (const auto& dynamic_term : dynamic_terms.second) {
@@ -101,7 +101,7 @@ std::map<std::string, std::pair<std::string, std::string>> MCScene::loadNewBBsFr
 
             if (!fmla_id.empty()) {
                std::string params{};
-               const auto& par_names_map = parser_->getParameterNamesFor(name, num_params);
+               const auto& par_names_map = mc_workflow_.parser_->getParameterNamesFor(name, num_params);
 
                for (const auto& param : par_names_map) {
                   params += ", " + param.second;
@@ -160,6 +160,8 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
 {
    inputs.printArgumentsForMC();
 
+   formula_evaluation_mutex_ = std::make_shared<std::mutex>();
+
    path_to_template_dir_ = inputs.getCmdOption(vfm::test::CMD_TEMPLATE_DIR_PATH);
    json_tpl_filename_ = inputs.getCmdOption(vfm::test::CMD_JSON_TEMPLATE_FILE_NAME);
    auto path_to_nuxmv = inputs.getCmdOption(vfm::test::CMD_NUXMV_EXEC);
@@ -173,14 +175,12 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
    window_->color(FL_RED);
    main_group_->end();
 
-   resetParserAndData();
-
    ADDITIONAL_LOGGING_PIPE = new std::ostringstream{};
    addOrChangeErrorOrOutputStream(*ADDITIONAL_LOGGING_PIPE, true);
    addOrChangeErrorOrOutputStream(*ADDITIONAL_LOGGING_PIPE, false);
    addFailableChild(Failable::getSingleton(GUI_NAME + "_Related"), "");
 
-   logging_output_and_interpreter_ = new InterpreterTerminal(data_, parser_, 10, 300, window_->w(), INTERPRETER_TERMINAL_HEIGHT);
+   logging_output_and_interpreter_ = new InterpreterTerminal(mc_workflow_.data_, mc_workflow_.parser_, 10, 300, window_->w(), INTERPRETER_TERMINAL_HEIGHT);
    addNotePlain(RICK);
    addNotePlain(MORTY_ASCII_ART);
    addNote("Terminal initialized.");
@@ -228,7 +228,8 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
    Fl::add_timeout(TIMEOUT_RARE, refreshRarely, this);
    Fl::add_timeout(TIMEOUT_SOMETIMES, refreshSometimes, this);
 
-   copyWaitingForPreviewGIF();
+   mc_workflow_.copyWaitingForPreviewGIF(getTemplateDir(), getGeneratedDir(), previous_write_time_);
+   refreshPreview(); // TODO: Here it happens that the red background is not shown.
 
    scene_description_->textfont(FL_COURIER_BOLD);
    scene_description_->textsize(16);
@@ -413,27 +414,6 @@ void vfm::MCScene::resetCachedVariables() const
    generated_dir_ = "";
 }
 
-void MCScene::copyWaitingForPreviewGIF() {
-   std::string path_preview_template{ getTemplateDir() + "/preview.img" };
-   std::string path_preview_target{ getGeneratedDir() + "/preview/preview.gif" };
-   StaticHelper::createDirectoriesSafe(getGeneratedDir() + "/preview", false);
-
-   if (StaticHelper::existsFileSafe(path_preview_target, false)) {
-      StaticHelper::removeFileSafe(path_preview_target, false);
-   }
-
-   try {
-      std::filesystem::copy(path_preview_template, path_preview_target);
-   }
-   catch (const std::exception& e) {
-      addWarning("Directory '" + StaticHelper::absPath(path_preview_template) + "' not copied to '" + StaticHelper::absPath(path_preview_target) + "'. Error: " + e.what());
-   }
-
-   previous_write_time_ = StaticHelper::lastWritetimeOfFileSafe(path_preview_target, false);
-
-   refreshPreview(); // TODO: HERE IT HAPPENS THAT THE RED BACKGORUND IS NOT SHOWN.
-}
-
 void MCScene::refreshPreview()
 {
    std::lock_guard<std::mutex> lock{ refresh_mutex_ };
@@ -605,10 +585,10 @@ void MCScene::showAllBBGroups(const bool show)
       envmodel_variables_.insert(group.first);
 
       const std::string fmla_str{ group.second.second->getFormula() };
-      parser_->resetErrors(ErrorLevelEnum::error);
-      const TermPtr fmla{ MathStruct::parseMathStruct(fmla_str, parser_, data_, DotTreatment::as_operator)->toTermIfApplicable() };
+      mc_workflow_.parser_->resetErrors(ErrorLevelEnum::error);
+      const TermPtr fmla{ MathStruct::parseMathStruct(fmla_str, mc_workflow_.parser_, mc_workflow_.data_, DotTreatment::as_operator)->toTermIfApplicable() };
 
-      if (parser_->hasErrorOccurred()) {
+      if (mc_workflow_.parser_->hasErrorOccurred()) {
          group.second.second->color(FL_RED);
       }
       else {
@@ -1427,30 +1407,21 @@ void MCScene::jsonChangedCallback(Fl_Widget* widget, void* data) {
    mc_scene->button_check_json_->color(FL_YELLOW);
 }
 
-void vfm::MCScene::generatePreview(const std::string& path_generated, const int cex_num)
-{
-   addNote("Generating preview for folder '" + path_generated + "'.");
-
-   mc::trajectory_generator::VisualizationLaunchers::quickGeneratePreviewGIFs(
-      { cex_num },
-      path_generated,
-      "debug_trace_array",
-      mc::trajectory_generator::CexTypeEnum::smv);
-
-   refreshPreview();
-}
-
 void vfm::MCScene::runMCJobs(MCScene* mc_scene)
 {
    const std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
    const std::filesystem::path path_generated_base(path_generated_base_str);
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
 
-   mc_scene->mc_workflow_.deleteMCOutputFromFolder(path_generated_base_str, true);
+   mc_scene->mc_workflow_.deleteMCOutputFromFolder(path_generated_base_str, true, mc_scene->getTemplateDir(), mc_scene->previous_write_time_);
    
+   for (auto& sec : mc_scene->se_controllers_) { // TODO: DBL CODE after delete output
+      sec.selected_ = false;
+   }
+
    std::vector<std::string> possibles{ mc_scene->getMcWorkflow().runMCJobs(path_generated_base_parent, [mc_scene](const std::string& config_name) -> bool {
       return StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(config_name, SecOptionLocalItemEnum::selected_job));
-   }, mc_scene->getTemplateDir(), mc_scene->getCachedDir(), mc_scene->path_to_external_folder_, mc_scene->json_tpl_filename_) };
+   }, mc_scene->getTemplateDir(), mc_scene->getCachedDir(), mc_scene->path_to_external_folder_, mc_scene->json_tpl_filename_, mc_scene->previous_write_time_, mc_scene->formula_evaluation_mutex_) };
 
    std::filesystem::path path_preview_bb{};
    for (const auto& folder : possibles) { // Prepare directories for previews.
@@ -1464,8 +1435,8 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
       std::string type_str{ is_ltl ? "LTLSPEC" : "INVARSPEC" };
 
       spec = StaticHelper::trimAndReturn(StaticHelper::replaceAll(StaticHelper::replaceAll(spec, "LTLSPEC", ""), "INVARSPEC", ""));
-      auto spec_fmla{ MathStruct::parseMathStruct(spec, mc_scene->parser_, mc_scene->data_, DotTreatment::as_operator)->toTermIfApplicable() };
-      spec_fmla = _id(mc::simplification::simplifyFast(spec_fmla, mc_scene->parser_));
+      auto spec_fmla{ MathStruct::parseMathStruct(spec, mc_scene->mc_workflow_.parser_, mc_scene->mc_workflow_.data_, DotTreatment::as_operator)->toTermIfApplicable() };
+      spec_fmla = _id(mc::simplification::simplifyFast(spec_fmla, mc_scene->mc_workflow_.parser_));
 
       spec_fmla->applyToMeAndMyChildren([](const MathStructPtr m) { // Replace function stuff with variables: "GapLeft(20, 20) ==> GapLeft"
          if (m->isTermCompound() && !MathStruct::DEFAULT_EXCEPTIONS_FOR_FLATTENING.count(m->getOptorJumpIntoCompound())) {
@@ -1542,56 +1513,12 @@ nlohmann::json MCScene::getJSON() const
    return json;
 }
 
-void vfm::MCScene::evaluateFormulasInJSON(const nlohmann::json j_template)
-{
-   std::lock_guard<std::mutex> lock{ formula_evaluation_mutex_ };
-   parser_ = std::make_shared<FormulaParser>();
-   parser_->addDefaultDynamicTerms();
-
-   for (auto& [key_config, value_config] : j_template.items()) {
-      if (key_config == JSON_TEMPLATE_DENOTER) {
-         for (auto& [key, value] : value_config.items()) {
-            if (StaticHelper::stringStartsWith(key, JSON_VFM_FORMULA_PREFIX)) {
-               std::string val_str{ StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "") };
-               parser_->resetErrors(ErrorLevelEnum::error);
-               TermPtr formula{ _val0() };
-
-               try {
-                  formula = MathStruct::parseMathStruct(val_str, parser_, data_, DotTreatment::as_operator)->toTermIfApplicable();
-               }
-               catch (const std::exception& e) {
-                  parser_->addError("Parsing of formula '" + val_str + "' raised an unhandled error.");
-               }
-
-               if (parser_->hasErrorOccurred()) {
-                  if (StaticHelper::stringContains(val_str, "@f")) {
-                     int fct_name_begin_index{ StaticHelper::indexOfFirstInnermostBeginBracket(val_str, "(", ")")};
-                     int fct_name_end_index{ StaticHelper::findMatchingEndTagLevelwise(val_str, fct_name_begin_index, "(", ")") };
-                     int fct_pars_begin_index{ StaticHelper::indexOfFirstInnermostBeginBracket(val_str, "{", "}")};
-                     int fct_pars_end_index{ StaticHelper::findMatchingEndTagLevelwise(val_str, fct_pars_begin_index, "{", "}") };
-                     std::string fct_name{ val_str.substr(fct_name_begin_index + 1, fct_name_end_index - fct_name_begin_index - 1) };
-                     std::string fct_pars{ val_str.substr(fct_pars_begin_index + 1, fct_pars_end_index - fct_pars_begin_index - 1) };
-
-                     StaticHelper::trim(fct_pars);
-                     int arg_num{ fct_pars.empty() ? 0 : (int)(fct_pars.size() - StaticHelper::replaceAll(fct_pars, ",", "").size() + 1) };
-
-                     parser_->addDynamicTerm(_var("#ERROR"), fct_name, false, arg_num);
-                  }
-               }
-
-               float result{ formula->eval(data_, parser_) };
-            }
-         }
-      }
-   }
-}
-
 void vfm::MCScene::preprocessAndRewriteJSONTemplate()
 {
    std::lock_guard<std::mutex> lock(parser_mutex_);
    const std::string path_template{  };
 
-   mc_workflow_.preprocessAndRewriteJSONTemplate(getTemplateDir(), json_tpl_filename_);
+   mc_workflow_.preprocessAndRewriteJSONTemplate(getTemplateDir(), json_tpl_filename_, formula_evaluation_mutex_);
 
    loadJsonText();
    button_check_json_->color(FL_YELLOW);
@@ -1610,7 +1537,7 @@ void MCScene::buttonReloadJSON(Fl_Widget* widget, void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
    mc_scene->mc_workflow_.putJSONIntoDataPack(mc_scene->getTemplateDir());
-   mc_scene->evaluateFormulasInJSON(mc_scene->getJSON());
+   mc_scene->mc_workflow_.evaluateFormulasInJSON(mc_scene->getJSON(), mc_scene->formula_evaluation_mutex_);
 
    mc_scene->showAllBBGroups(false);
    mc_scene->loadJsonText();
@@ -1639,16 +1566,6 @@ void MCScene::buttonCheckJSON(Fl_Widget* widget, void* data)
    }
 }
 
-void vfm::MCScene::resetParserAndData()
-{
-   std::lock_guard<std::mutex> lock{ parser_mutex_ };
-
-   parser_ = std::make_shared<FormulaParser>();
-   data_ = std::make_shared<DataPack>();
-   parser_->addDefaultDynamicTerms();
-   parser_->addnuSMVOperators(TLType::LTL);
-}
-
 void deleteMCOutput(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
@@ -1661,13 +1578,26 @@ void deleteMCOutput(MCScene* mc_scene) // Free function that actually does it, r
       std::string possible{ entry.path().filename().string() };
       if (std::filesystem::is_directory(entry) && possible != prefix && StaticHelper::stringStartsWith(possible, prefix)) {
          if (StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(possible, SecOptionLocalItemEnum::selected_job))) {
-            mc_scene->getMcWorkflow().deleteMCOutputFromFolder(entry.path().string(), true);
+            mc_scene->getMcWorkflow().deleteMCOutputFromFolder(entry.path().string(), true, mc_scene->getTemplateDir(), mc_scene->previous_write_time_);
+
+            for (auto& sec : mc_scene->se_controllers_) { // TODO: DBL CODE after delete output
+               sec.selected_ = false;
+            }
          }
       }
    }
 
-   mc_scene->getMcWorkflow().deleteMCOutputFromFolder(path_generated_base_str, false);
-   mc_scene->resetParserAndData();
+   mc_scene->getMcWorkflow().deleteMCOutputFromFolder(path_generated_base_str, false, mc_scene->getTemplateDir(), mc_scene->previous_write_time_);
+
+   for (auto& sec : mc_scene->se_controllers_) { // TODO: DBL CODE after delete output
+      sec.selected_ = false;
+   }
+
+   {
+      std::lock_guard<std::mutex> lock{ mc_scene->parser_mutex_ };
+      mc_scene->getMcWorkflow().resetParserAndData();
+   }
+
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }
 
@@ -1753,7 +1683,8 @@ void deleteFolders(MCScene* mc_scene) // Free function that actually does it, ra
       mc_scene->addWarning("Deleting folders not possible due to error: " + std::string(e.what()));
    }
 
-   mc_scene->copyWaitingForPreviewGIF();
+   mc_scene->getMcWorkflow().copyWaitingForPreviewGIF(mc_scene->getTemplateDir(), mc_scene->getGeneratedDir(), mc_scene->previous_write_time_);
+   mc_scene->refreshPreview();
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }
 
@@ -1844,7 +1775,10 @@ void MCScene::doAllEnvModelGenerations(MCScene* mc_scene)
    std::string template_dir{ mc_scene->getTemplateDir() };
 
    mc_scene->saveJsonText();
-   mc_scene->resetParserAndData();
+   {
+      std::lock_guard<std::mutex> lock{ mc_scene->parser_mutex_ };
+      mc_scene->getMcWorkflow().resetParserAndData();
+   }
    mc_scene->preprocessAndRewriteJSONTemplate();
 
    auto envmodeldefs{ test::retrieveEnvModelDefinitionFromJSON(path_json, test::EnvModelCachedMode::always_regenerate) };
@@ -1903,7 +1837,15 @@ void MCScene::onGroupClickBM(Fl_Widget* widget, void* data)
          other.selected_ = false;
       }
 
-      controller->mc_scene_->getMcWorkflow().deleteMCOutputFromFolder(controller->mc_scene_->getGeneratedDir(), false);
+      controller->mc_scene_->getMcWorkflow().deleteMCOutputFromFolder(
+         controller->mc_scene_->getGeneratedDir(), 
+         false, 
+         controller->mc_scene_->getTemplateDir(), 
+         controller->mc_scene_->previous_write_time_);
+
+      for (auto& sec : controller->mc_scene_->se_controllers_) { // TODO: DBL CODE after delete output
+         sec.selected_ = false;
+      }
 
       return;
    }

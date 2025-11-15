@@ -12,10 +12,17 @@
 using namespace vfm;
 using namespace mc;
 
-McWorkflow::McWorkflow(
-   const std::shared_ptr<DataPack> data,
-   const std::shared_ptr<FormulaParser> parser) : Failable("McWorkflow"), data_{ data }, parser_{ parser }
+McWorkflow::McWorkflow() : Failable("McWorkflow")
 {
+   resetParserAndData();
+}
+
+void McWorkflow::resetParserAndData()
+{
+   parser_ = std::make_shared<FormulaParser>();
+   data_ = std::make_shared<DataPack>();
+   parser_->addDefaultDynamicTerms();
+   parser_->addnuSMVOperators(TLType::LTL);
 }
 
 std::vector<std::string> McWorkflow::runMCJobs(
@@ -24,7 +31,10 @@ std::vector<std::string> McWorkflow::runMCJobs(
    const std::string& path_template,
    const std::string& path_cached,
    const std::string& path_external,
-   const std::string& json_tpl_filename)
+   const std::string& json_tpl_filename,
+   std::filesystem::file_time_type& previous_write_time,
+   std::shared_ptr<std::mutex> formula_evaluation_mutex
+)
 {
    std::vector<std::string> possibles{};
    std::string prefix{ working_dir.filename().string() };
@@ -45,8 +55,8 @@ std::vector<std::string> McWorkflow::runMCJobs(
          const std::string config_name{ std::filesystem::path(folder).filename().string() };
 
          if (job_selector(config_name)) {
-            pool.enqueue([this, &folder, &working_dir, &prefix, &path_template, &json_tpl_filename, &path_cached, &path_external] {
-               runMCJob(folder, folder.substr(working_dir.string().size() + prefix.size() + 1), path_template, path_cached, path_external, json_tpl_filename);
+            pool.enqueue([this, &folder, &working_dir, &prefix, &path_template, &json_tpl_filename, &path_cached, &path_external, &previous_write_time, formula_evaluation_mutex] {
+               runMCJob(folder, folder.substr(working_dir.string().size() + prefix.size() + 1), path_template, path_cached, path_external, json_tpl_filename, previous_write_time, formula_evaluation_mutex);
             });
          }
       }
@@ -61,7 +71,10 @@ void McWorkflow::runMCJob(
    const std::string& path_template,
    const std::string& path_cached,
    const std::string& path_external,
-   const std::string& json_tpl_filename)
+   const std::string& json_tpl_filename,
+   std::filesystem::file_time_type& previous_write_time, 
+   std::shared_ptr<std::mutex> formula_evaluation_mutex
+)
 {
    std::string path_generated{ StaticHelper::replaceAll(path_generated_raw, "\\", "/") };
 
@@ -69,8 +82,8 @@ void McWorkflow::runMCJob(
       std::lock_guard<std::mutex> lock{ main_file_mutex_ };
 
       addNote("Running model checker and creating preview for folder '" + path_generated + "' (config: '" + config_name + "').");
-      deleteMCOutputFromFolder(path_generated, true);
-      preprocessAndRewriteJSONTemplate(path_template, json_tpl_filename);
+      deleteMCOutputFromFolder(path_generated, true, path_template, previous_write_time);
+      preprocessAndRewriteJSONTemplate(path_template, json_tpl_filename, formula_evaluation_mutex);
 
       if (!putJSONIntoDataPack(path_template)) return;
       if (!putJSONIntoDataPack(path_template, config_name)) return;
@@ -104,12 +117,30 @@ void McWorkflow::runMCJob(
    }
 
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, path_generated, "FAKE_PATH_NOT_USED", path_template, "FAKE_PATH_NOT_USED", path_cached, path_external);
-   mc_scene->generatePreview(path_generated, 0);
+   generatePreview(path_generated, 0);
 
    addNote("Model checker run finished for folder '" + path_generated + "'.");
 }
 
-void McWorkflow::deleteMCOutputFromFolder(const std::string& path_generated, const bool actually_delete_gif)
+void McWorkflow::generatePreview(const std::string& path_generated, const int cex_num)
+{
+   addNote("Generating preview for folder '" + path_generated + "'.");
+
+   mc::trajectory_generator::VisualizationLaunchers::quickGeneratePreviewGIFs(
+      { cex_num },
+      path_generated,
+      "debug_trace_array",
+      mc::trajectory_generator::CexTypeEnum::smv);
+
+   //refreshPreview(); // TODO: Function not taken over. Do we need it here?
+}
+
+void McWorkflow::deleteMCOutputFromFolder(
+   const std::string& path_generated, 
+   const bool actually_delete_gif,
+   const std::string& path_template,
+   std::filesystem::file_time_type& previous_write_time
+)
 {
    //StaticHelper::removeFileSafe(path_generated + "/" + "main.smv"); // Do NOT remove main.smv. It only gets changed at this point.
 
@@ -128,7 +159,7 @@ void McWorkflow::deleteMCOutputFromFolder(const std::string& path_generated, con
    }
    else {
       addNote("Overwriting folder '" + path_generated_preview + "'.");
-      copyWaitingForPreviewGIF();
+      copyWaitingForPreviewGIF(path_template, path_generated, previous_write_time);
    }
 
    if (std::filesystem::exists(path_prose_description)) {
@@ -155,20 +186,34 @@ void McWorkflow::deleteMCOutputFromFolder(const std::string& path_generated, con
       addNote("Deleting file '" + path_script + "'.");
       StaticHelper::removeFileSafe(path_script);
    }
-
-   for (auto& sec : se_controllers_) {
-      sec.selected_ = false;
-   }
 }
 
-void vfm::mc::McWorkflow::preprocessAndRewriteJSONTemplate(const std::string& path_template, const std::string& json_tpl_filename)
+nlohmann::json McWorkflow::getJSON(const std::string& path) const
+{
+   std::string json_text{ StaticHelper::readFile(path) };
+   nlohmann::json json{};
+
+   try {
+      json = nlohmann::json::parse(json_text);
+   }
+   catch (const nlohmann::json::parse_error& e) {
+      // TODO
+   }
+
+   return json;
+}
+
+void McWorkflow::preprocessAndRewriteJSONTemplate(
+   const std::string& path_template, 
+   const std::string& json_tpl_filename,
+   std::shared_ptr<std::mutex> formula_evaluation_mutex)
 {
    const std::string path_json_template{ path_template + "/" + json_tpl_filename };
    const std::string path_json_plain{ path_template + "/" + FILE_NAME_JSON };
 
    std::string s{};
 
-   nlohmann::json j_template = getJSON();
+   nlohmann::json j_template = getJSON(path_json_template);
    nlohmann::json j_out = {};
    const bool is_ltl{ isLTL(JSON_TEMPLATE_DENOTER) };
 
@@ -176,7 +221,7 @@ void vfm::mc::McWorkflow::preprocessAndRewriteJSONTemplate(const std::string& pa
       addError("JSON parsing failed.");
    }
 
-   evaluateFormulasInJSON(j_template);
+   evaluateFormulasInJSON(j_template, formula_evaluation_mutex);
    //addNote("This is the vfm heap after all the operations:\n" + data_->toStringHeap());
 
    addNote("Processing nuxmv formulas in JSON template: looking for variables and ranges.");
@@ -265,6 +310,54 @@ void vfm::mc::McWorkflow::preprocessAndRewriteJSONTemplate(const std::string& pa
    json_file.open(path_json_plain);
    json_file << j_out.dump(3);
    json_file.close();
+}
+
+
+void McWorkflow::evaluateFormulasInJSON(const nlohmann::json j_template, std::shared_ptr<std::mutex> formula_evaluation_mutex)
+{
+   auto lock = (formula_evaluation_mutex == nullptr) ?
+      std::unique_lock<std::mutex>()
+      : std::unique_lock<std::mutex>(*formula_evaluation_mutex);
+
+   parser_ = std::make_shared<FormulaParser>();
+   parser_->addDefaultDynamicTerms();
+
+   for (auto& [key_config, value_config] : j_template.items()) {
+      if (key_config == JSON_TEMPLATE_DENOTER) {
+         for (auto& [key, value] : value_config.items()) {
+            if (StaticHelper::stringStartsWith(key, JSON_VFM_FORMULA_PREFIX)) {
+               std::string val_str{ StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "") };
+               parser_->resetErrors(ErrorLevelEnum::error);
+               TermPtr formula{ _val0() };
+
+               try {
+                  formula = MathStruct::parseMathStruct(val_str, parser_, data_, DotTreatment::as_operator)->toTermIfApplicable();
+               }
+               catch (const std::exception& e) {
+                  parser_->addError("Parsing of formula '" + val_str + "' raised an unhandled error.");
+               }
+
+               if (parser_->hasErrorOccurred()) {
+                  if (StaticHelper::stringContains(val_str, "@f")) {
+                     int fct_name_begin_index{ StaticHelper::indexOfFirstInnermostBeginBracket(val_str, "(", ")") };
+                     int fct_name_end_index{ StaticHelper::findMatchingEndTagLevelwise(val_str, fct_name_begin_index, "(", ")") };
+                     int fct_pars_begin_index{ StaticHelper::indexOfFirstInnermostBeginBracket(val_str, "{", "}") };
+                     int fct_pars_end_index{ StaticHelper::findMatchingEndTagLevelwise(val_str, fct_pars_begin_index, "{", "}") };
+                     std::string fct_name{ val_str.substr(fct_name_begin_index + 1, fct_name_end_index - fct_name_begin_index - 1) };
+                     std::string fct_pars{ val_str.substr(fct_pars_begin_index + 1, fct_pars_end_index - fct_pars_begin_index - 1) };
+
+                     StaticHelper::trim(fct_pars);
+                     int arg_num{ fct_pars.empty() ? 0 : (int)(fct_pars.size() - StaticHelper::replaceAll(fct_pars, ",", "").size() + 1) };
+
+                     parser_->addDynamicTerm(_var("#ERROR"), fct_name, false, arg_num);
+                  }
+               }
+
+               float result{ formula->eval(data_, parser_) };
+            }
+         }
+      }
+   }
 }
 
 bool McWorkflow::putJSONIntoDataPack(const std::string& path_template, const std::string& config_name)
@@ -399,4 +492,28 @@ nlohmann::json McWorkflow::instanceFromTemplate(
    }
 
    return res;
+}
+
+
+void McWorkflow::copyWaitingForPreviewGIF(
+   const std::string& path_template,
+   const std::string& path_generated,
+   std::filesystem::file_time_type& previous_write_time
+) {
+   std::string path_preview_template{ path_template + "/preview.img" };
+   std::string path_preview_target{ path_generated + "/preview/preview.gif" };
+   StaticHelper::createDirectoriesSafe(path_generated + "/preview", false);
+
+   if (StaticHelper::existsFileSafe(path_preview_target, false)) {
+      StaticHelper::removeFileSafe(path_preview_target, false);
+   }
+
+   try {
+      std::filesystem::copy(path_preview_template, path_preview_target);
+   }
+   catch (const std::exception& e) {
+      addWarning("Directory '" + StaticHelper::absPath(path_preview_template) + "' not copied to '" + StaticHelper::absPath(path_preview_target) + "'. Error: " + e.what());
+   }
+
+   previous_write_time = StaticHelper::lastWritetimeOfFileSafe(path_preview_target, false);
 }
