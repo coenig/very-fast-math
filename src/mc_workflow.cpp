@@ -331,11 +331,11 @@ void McWorkflow::preprocessAndRewriteJSONTemplate(
 
    while (!VECTOR_COUNTER_IS_ALL_ZERO(counter_vec)) {
       VECTOR_COUNTER_DECREMENT(arity_vec, counter_vec);
-      addNote("Working on ", true, "");
-      for (int i = 0; i < counter_vec.size(); i++) {
-         addNotePlain(std::to_string(ranges[i].second[counter_vec[i]]), " ");
-      }
-      addNotePlain("");
+      //addNote("Working on ", true, "");
+      //for (int i = 0; i < counter_vec.size(); i++) {
+      //   addNotePlain(std::to_string(ranges[i].second[counter_vec[i]]), " ");
+      //}
+      //addNotePlain("");
 
       nlohmann::json json_instance = instanceFromTemplate(j_template, ranges, counter_vec, is_ltl);
 
