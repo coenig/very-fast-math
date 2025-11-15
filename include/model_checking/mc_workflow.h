@@ -35,8 +35,19 @@ public:
       const std::string& path_cached,
       const std::string& path_external,
       const std::string& json_tpl_filename,
+      const int num_threads
+   );
+
+   std::vector<std::string> runMCJobs(
+      const std::filesystem::path& path_generated,
+      const std::function<bool(const std::string& folder)> job_selector, 
+      const std::string& path_template,
+      const std::string& path_cached,
+      const std::string& path_external,
+      const std::string& json_tpl_filename,
       std::filesystem::file_time_type& previous_write_time,
-      std::shared_ptr<std::mutex> formula_evaluation_mutex
+      std::shared_ptr<std::mutex> formula_evaluation_mutex,
+      const int num_threads
    );
 
    void runMCJob(
