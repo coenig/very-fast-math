@@ -25,6 +25,7 @@ namespace mc{
 class McWorkflow : public Failable
 {
 public:
+   McWorkflow(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser);
    McWorkflow();
 
    std::vector<std::string> runMCJobs(
@@ -37,6 +38,14 @@ public:
       std::filesystem::file_time_type& previous_write_time,
       std::shared_ptr<std::mutex> formula_evaluation_mutex
    );
+
+   void runMCJob(
+      const std::string& path_generated_raw,
+      const std::string& config_name,
+      const std::string& path_template,
+      const std::string& path_cached,
+      const std::string& path_external,
+      const std::string& json_tpl_filename);
 
    void runMCJob(
       const std::string& path_generated_raw, 
@@ -79,6 +88,7 @@ public:
       );
 
    void resetParserAndData();
+   void resetParserAndData(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser);
    std::string getValueForJSONKeyAsString(const std::string& key_to_find, const nlohmann::json& json, const std::string& config_name) const;
    bool isLTL(const std::string& config, const std::string& path_template);
 
