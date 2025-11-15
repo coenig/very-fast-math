@@ -11,6 +11,7 @@
 #include "data_pack.h"
 #include "gui/process_helper.h"
 #include "simulation/road_graph.h"
+#include "model_checking/mc_workflow.h"
 #include <vector>
 #include <map>
 #include <set>
@@ -522,11 +523,44 @@ private:
    ScriptMethodDescription m3{ "for", 4, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3)); } };
    ScriptMethodDescription m4{ "for", 5, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3), parameters.at(4)); } };
 
+   ScriptMethodDescription m5{ 
+      "runMCJob", 
+      1, 
+      [this](const std::vector<std::string>& parameters) -> std::string 
+      { 
+         auto mc_workflow = mc::McWorkflow(vfm_data_, vfm_parser_);
+
+         static const std::string PREFIX{"gp"};
+         std::string config_name{ getRawScript() };
+         std::string mypath{ "." };
+         std::string path_template{ mypath + "/../src/templates"};
+         std::string path_generated_raw{ mypath + "/" + parameters.at(0) + "/" + PREFIX + config_name + "/"};
+         std::string path_cached{ path_generated_raw + "/tmp/" };
+         std::string path_external{ path_template + "/../../external/" };
+         addNote("Root path for runMCJob (" + MY_PATH_VARNAME + ") is '" + StaticHelper::absPath(mypath) + "'. (This should be the 'bin' folder.)");
+         addNote("Setting 'path_template' to '" + StaticHelper::absPath(path_template) + "'.");
+         addNote("Setting 'path_generated_raw' to '" + StaticHelper::absPath(path_generated_raw) + "'.");
+         addNote("Setting 'path_cached' to '" + StaticHelper::absPath(path_cached) + "'.");
+         addNote("Setting 'path_external' to '" + StaticHelper::absPath(path_external) + "'.");
+
+         mc_workflow.runMCJob(
+            path_generated_raw,
+            config_name,
+            path_template,
+            path_cached,
+            path_external,
+            FILE_NAME_JSON_TEMPLATE);
+
+         return "";
+      } 
+   };
+
    std::set<ScriptMethodDescription> METHODS{
       m1,
       m2,
       m3,
       m4,
+      m5, // Example: @{_config_d=25000_lanes=1_maxaccel=3_maxaccelego=3_minaccel=-8_minaccelego=-8_nonegos=3_sections=5_segments=1_t=1100_vehlen=5}@.runMCJob[../examples]
       { "serialize", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::vfm); } },
       { "serializeK2", 0, [this](const std::vector<std::string>& parameters) -> std::string { return toK2(getRawScript()); } },
       { "serializeNuXmv", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::nuXmv); } },

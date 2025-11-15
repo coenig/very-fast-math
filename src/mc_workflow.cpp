@@ -12,17 +12,35 @@
 using namespace vfm;
 using namespace mc;
 
-McWorkflow::McWorkflow() : Failable("McWorkflow")
+McWorkflow::McWorkflow() : McWorkflow(nullptr, nullptr)
+{}
+
+McWorkflow::McWorkflow(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser) : Failable("McWorkflow")
 {
-   resetParserAndData();
+   resetParserAndData(data, parser);
 }
 
-void McWorkflow::resetParserAndData()
+void vfm::mc::McWorkflow::resetParserAndData()
 {
-   parser_ = std::make_shared<FormulaParser>();
-   data_ = std::make_shared<DataPack>();
-   parser_->addDefaultDynamicTerms();
-   parser_->addnuSMVOperators(TLType::LTL);
+   resetParserAndData(nullptr, nullptr);
+}
+
+void McWorkflow::resetParserAndData(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser)
+{
+   if (data) {
+      data_ = data;
+   }
+   else {
+      data_ = std::make_shared<DataPack>();
+   }
+
+   if (parser) {
+      parser_ = parser;
+   } else {
+      parser_ = std::make_shared<FormulaParser>();
+      parser_->addDefaultDynamicTerms();
+      parser_->addnuSMVOperators(TLType::LTL);
+   }
 }
 
 std::vector<std::string> McWorkflow::runMCJobs(
@@ -64,6 +82,25 @@ std::vector<std::string> McWorkflow::runMCJobs(
    }
 
    return possibles;
+}
+
+void McWorkflow::runMCJob(
+   const std::string& path_generated_raw, 
+   const std::string& config_name, 
+   const std::string& path_template, 
+   const std::string& path_cached, 
+   const std::string& path_external, 
+   const std::string& json_tpl_filename)
+{
+   runMCJob(
+      path_generated_raw,
+      config_name,
+      path_template,
+      path_cached,
+      path_external,
+      json_tpl_filename,
+      std::filesystem::file_time_type{},
+      nullptr);
 }
 
 void McWorkflow::runMCJob(
