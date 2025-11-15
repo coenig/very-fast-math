@@ -28,7 +28,7 @@ public:
    McWorkflow();
 
    std::vector<std::string> runMCJobs(
-      const std::filesystem::path& working_dir, 
+      const std::filesystem::path& path_generated,
       const std::function<bool(const std::string& folder)> job_selector, 
       const std::string& path_template,
       const std::string& path_cached,
@@ -79,6 +79,8 @@ public:
       );
 
    void resetParserAndData();
+   std::string getValueForJSONKeyAsString(const std::string& key_to_find, const nlohmann::json& json, const std::string& config_name) const;
+   bool isLTL(const std::string& config, const std::string& path_template);
 
    std::shared_ptr<DataPack> data_{}; // TODO: make private again.
    std::shared_ptr<FormulaParser> parser_{}; // TODO: make private again.

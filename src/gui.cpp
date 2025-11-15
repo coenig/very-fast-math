@@ -35,7 +35,7 @@ std::map<std::string, std::pair<std::string, std::string>> MCScene::loadNewBBsFr
 
    // SPEC
    bb_str = 
-      std::string(isLTL(JSON_TEMPLATE_DENOTER) ? "LTLSPEC" : "INVARSPEC")
+      std::string(mc_workflow_.isLTL(JSON_TEMPLATE_DENOTER, getTemplateDir()) ? "LTLSPEC" : "INVARSPEC")
       + " = " + bb.substr(JSON_NUXMV_FORMULA_BEGIN.size(), bb.size() - JSON_NUXMV_FORMULA_BEGIN.size() - JSON_NUXMV_FORMULA_END.size() - 1);
 
    mc_workflow_.parser_->resetErrors(ErrorLevelEnum::error);
@@ -284,16 +284,7 @@ std::string vfm::MCScene::getValueForJSONKeyAsString(const std::string& key_to_f
 
    try {
       nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
-
-      for (auto& [key_config, value_config] : j.items()) {
-         if (key_config == config_name) {
-            for (auto& [key, value] : value_config.items()) {
-               if (key == key_to_find) {
-                  return StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "");
-               }
-            }
-         }
-      }
+      return mc_workflow_.getValueForJSONKeyAsString(key_to_find, j, config_name);
    }
    catch (const nlohmann::json::parse_error& e) {
       addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
@@ -303,9 +294,6 @@ std::string vfm::MCScene::getValueForJSONKeyAsString(const std::string& key_to_f
       addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
       return "#JSON Error";
    }
-
-   addError("#KEY-NOT-FOUND in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
-   return "#KEY-NOT-FOUND";
 }
 
 void vfm::MCScene::setValueForJSONKeyFromBool(const std::string& key_to_find, const std::string& config_name, const bool from_template, const bool value_to_set) const
@@ -475,12 +463,6 @@ void MCScene::activateMCButtons(const bool active, const ButtonClass which)
    }
 }
 
-bool MCScene::isLTL(const std::string& config)
-{
-   auto val = getValueForJSONKeyAsString("LTL_MODE", config);
-   return StaticHelper::isBooleanTrue(val);
-}
-
 int MCScene::bmcDepth(const std::string& config)
 {
    auto val = getValueForJSONKeyAsString("BMC_CNT", config);
@@ -572,6 +554,11 @@ void MCScene::setTitle()
       + StaticHelper::absPath(getTemplateDir()) + " ==> " 
       + StaticHelper::absPath(getGeneratedDir())
       + " [[" + StaticHelper::absPath(getCachedDir()) + "]]").c_str());
+}
+
+mc::McWorkflow& vfm::MCScene::getMcWorkflow()
+{
+   return mc_workflow_;
 }
 
 std::shared_ptr<OptionsGlobal> vfm::MCScene::getRuntimeGlobalOptions() const
@@ -1415,11 +1402,7 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
 
    mc_scene->mc_workflow_.deleteMCOutputFromFolder(path_generated_base_str, true, mc_scene->getTemplateDir(), mc_scene->previous_write_time_);
    
-   for (auto& sec : mc_scene->se_controllers_) { // TODO: DBL CODE after delete output
-      sec.selected_ = false;
-   }
-
-   std::vector<std::string> possibles{ mc_scene->getMcWorkflow().runMCJobs(path_generated_base_parent, [mc_scene](const std::string& config_name) -> bool {
+   std::vector<std::string> possibles{ mc_scene->getMcWorkflow().runMCJobs(path_generated_base, [mc_scene](const std::string& config_name) -> bool {
       return StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(config_name, SecOptionLocalItemEnum::selected_job));
    }, mc_scene->getTemplateDir(), mc_scene->getCachedDir(), mc_scene->path_to_external_folder_, mc_scene->json_tpl_filename_, mc_scene->previous_write_time_, mc_scene->formula_evaluation_mutex_) };
 
@@ -1428,7 +1411,7 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
       path_preview_bb = path_generated_base;
       
       std::string spec{ mc_scene->getValueForJSONKeyAsString("SPEC", JSON_TEMPLATE_DENOTER) };
-      bool is_ltl{ mc_scene->isLTL(JSON_TEMPLATE_DENOTER) };
+      bool is_ltl{ mc_scene->mc_workflow_.isLTL(JSON_TEMPLATE_DENOTER, mc_scene->getTemplateDir()) };
       spec = StaticHelper::replaceAll(spec, JSON_NUXMV_FORMULA_BEGIN, "");
       spec = StaticHelper::replaceAll(spec, JSON_NUXMV_FORMULA_END, "");
       spec = StaticHelper::replaceAll(spec, ";", "");
