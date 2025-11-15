@@ -72,7 +72,6 @@ enum class ButtonClass {
 class MCScene : public Failable {
 public:
    MCScene(const InputParser& inputs);
-   void copyWaitingForPreviewGIF();
    void refreshPreview();
 
    void activateMCButtons(const bool active, const ButtonClass which);
@@ -97,11 +96,8 @@ public:
    void loadJsonText();
    void saveJsonText();
    void setTitle();
-   void evaluateFormulasInJSON(const nlohmann::json j_template);
    void preprocessAndRewriteJSONTemplate();
    nlohmann::json getJSON() const;
-
-   void generatePreview(const std::string& path_generated, const int cex_num);
    
    std::map<std::string, std::pair<std::string, std::string>> loadNewBBsFromJson();
    std::pair<std::string, std::string> getBBNameAndFormulaByJsonName(const std::string& json_name);
@@ -118,10 +114,9 @@ public:
    int getFlRunInfo() const;
    SingleExpController getSECFromConfig(const std::string& name) const;
    std::string getOptionFromSECConfig(const std::string& config_name, const SecOptionLocalItemEnum option) const;
-   void resetParserAndData();
 
-   inline std::shared_ptr<FormulaParser> getParser() const { return parser_; }
-   inline std::shared_ptr<DataPack> getData() const { return data_; }
+   inline std::shared_ptr<FormulaParser> getParser() const { return mc_workflow_.parser_; }
+   inline std::shared_ptr<DataPack> getData() const { return mc_workflow_.data_; }
    std::string getValueForJSONKeyAsString(const std::string& key_to_find, const std::string& config_name) const;
    void setValueForJSONKeyFromString(const std::string& key_to_find, const std::string& config_name, const bool from_template, const std::string& value_to_set) const;
    void setValueForJSONKeyFromBool(const std::string& key_to_find, const std::string& config_name, const bool from_template, const bool value_to_set) const;
@@ -162,6 +157,8 @@ public:
    static void buttonRuntimeAnalysis(Fl_Widget* widget, void* data);
 
    std::set<SingleExpController> se_controllers_;
+   std::filesystem::file_time_type previous_write_time_{}; // TODO: Make private again.
+   std::mutex parser_mutex_{}; // Make private again.
 
 private:
    Fl_Double_Window* window_ = new Fl_Double_Window(0, 0, 1500, 900, GUI_NAME.c_str());
@@ -189,9 +186,8 @@ private:
    Fl_Button* button_check_json_ = new Fl_Button(510, 630, 130, 30, "Check JSON syntax");
    CustomMultiBrowser* variables_list_ = new CustomMultiBrowser(10, 10, 380, 280);
    Fl_Multiline_Input* scene_description_ = new Fl_Multiline_Input(1000, 250, 400, 300, "Scene description:");
-   std::mutex parser_mutex_{};
    std::mutex refresh_mutex_{};
-   std::mutex formula_evaluation_mutex_{};
+   std::shared_ptr<std::mutex> formula_evaluation_mutex_{};
    std::mutex preview_filesystem_mutex_{};
 
    //Fl_Input* spec_input = new Fl_Input(750, 610, 560, 30, "SPEC:");
@@ -199,10 +195,6 @@ private:
    static void doAllEnvModelGenerations(MCScene* mc_scene);
    
    int fl_run_info_{};
-   std::filesystem::file_time_type previous_write_time_{};
-
-   std::shared_ptr<DataPack> data_{};
-   std::shared_ptr<FormulaParser> parser_{};
 
    std::map<std::string, std::pair<std::string, DragGroup*>> bb_groups_{};
 
@@ -226,7 +218,7 @@ private:
    std::string path_to_template_dir_{};
    std::string path_to_external_folder_{};
 
-   mc::McWorkflow mc_workflow_{};
+   mc::McWorkflow mc_workflow_;
 };
 
 } // vfm
