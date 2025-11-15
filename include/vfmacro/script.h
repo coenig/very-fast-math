@@ -523,32 +523,45 @@ private:
    ScriptMethodDescription m3{ "for", 4, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3)); } };
    ScriptMethodDescription m4{ "for", 5, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3), parameters.at(4)); } };
 
+   std::map<std::string, std::string> guessPaths(const std::string& path_generated_raw, const std::string& config_name)
+   {
+      static const std::string PREFIX{ "gp" };
+
+      std::map<std::string, std::string> map{};
+      std::string mypath{ "." };
+      std::string path_template{ mypath + "/../src/templates" };
+      std::string path_generated{ path_generated_raw + "/" + PREFIX + config_name + "/" };
+      std::string path_cached{ path_generated_raw + "/tmp/" };
+      std::string path_external{ path_template + "/../../external/" };
+
+      map.insert({"mypath", mypath });
+      map.insert({"path_template", path_template });
+      map.insert({"path_generated", path_generated });
+      map.insert({"path_cached", path_cached });
+      map.insert({"path_external", path_external });
+
+      for (const auto& p : map) {
+         addNote("Setting directory '" + p.first + "' to '" + StaticHelper::absPath(p.second) + "'.");
+      }
+
+      return map;
+   }
+
    ScriptMethodDescription m5{ 
       "runMCJob", 
       1, 
       [this](const std::vector<std::string>& parameters) -> std::string 
       { 
          auto mc_workflow = mc::McWorkflow(vfm_data_, vfm_parser_);
-
-         static const std::string PREFIX{"gp"};
-         std::string config_name{ getRawScript() };
-         std::string mypath{ "." };
-         std::string path_template{ mypath + "/../src/templates"};
-         std::string path_generated_raw{ mypath + "/" + parameters.at(0) + "/" + PREFIX + config_name + "/"};
-         std::string path_cached{ path_generated_raw + "/tmp/" };
-         std::string path_external{ path_template + "/../../external/" };
-         addNote("Root path for runMCJob (" + MY_PATH_VARNAME + ") is '" + StaticHelper::absPath(mypath) + "'. (This should be the 'bin' folder.)");
-         addNote("Setting 'path_template' to '" + StaticHelper::absPath(path_template) + "'.");
-         addNote("Setting 'path_generated_raw' to '" + StaticHelper::absPath(path_generated_raw) + "'.");
-         addNote("Setting 'path_cached' to '" + StaticHelper::absPath(path_cached) + "'.");
-         addNote("Setting 'path_external' to '" + StaticHelper::absPath(path_external) + "'.");
+         std::string config_name{ parameters.at(0) };
+         std::map<std::string, std::string> paths{ guessPaths(getRawScript(), config_name) };
 
          mc_workflow.runMCJob(
-            path_generated_raw,
+            paths.at("path_generated"),
             config_name,
-            path_template,
-            path_cached,
-            path_external,
+            paths.at("path_template"),
+            paths.at("path_cached"),
+            paths.at("path_external"),
             FILE_NAME_JSON_TEMPLATE);
 
          return "";
@@ -560,7 +573,7 @@ private:
       m2,
       m3,
       m4,
-      m5, // Example: @{_config_d=25000_lanes=1_maxaccel=3_maxaccelego=3_minaccel=-8_minaccelego=-8_nonegos=3_sections=5_segments=1_t=1100_vehlen=5}@.runMCJob[../examples]
+      m5, // Example: @{../examples}@.runMCJob[_config_d=1000_lanes=1_maxaccel=3_maxaccelego=3_minaccel=-8_minaccelego=-8_nonegos=3_sections=5_segments=1_t=1100_vehlen=5]
       { "serialize", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::vfm); } },
       { "serializeK2", 0, [this](const std::vector<std::string>& parameters) -> std::string { return toK2(getRawScript()); } },
       { "serializeNuXmv", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::nuXmv); } },
