@@ -9,6 +9,7 @@
 #include "failable.h"
 #include "parser.h"
 #include "data_pack.h"
+#include "static_helper.h"
 #include <filesystem>
 
 namespace vfm
@@ -29,14 +30,24 @@ public:
    std::vector<std::string> runMCJobs(
       const std::filesystem::path& working_dir, 
       const std::function<bool(const std::string& folder)> job_selector, 
-      const std::string& path_template, 
+      const std::string& path_template,
+      const std::string& path_cached,
+      const std::string& path_external,
       const std::string& json_tpl_filename);
 
    void runMCJob(
       const std::string& path_generated_raw, 
       const std::string& config_name, 
-      const std::string& path_template, 
+      const std::string& path_template,
+      const std::string& path_cached,
+      const std::string& path_external,
       const std::string& json_tpl_filename);
+
+   nlohmann::json instanceFromTemplate(
+      const nlohmann::json& j_template,
+      const std::vector<std::pair<std::string, std::vector<float>>>& ranges,
+      const std::vector<int>& counter_vec,
+      const bool is_ltl);
 
    void deleteMCOutputFromFolder(const std::string& path_generated, const bool actually_delete_gif); // ...or otherwise copy "waiting for" image.
    void preprocessAndRewriteJSONTemplate(const std::string& path_template, const std::string& json_tpl_filename);
