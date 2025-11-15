@@ -1402,9 +1402,18 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
 
    mc_scene->mc_workflow_.deleteMCOutputFromFolder(path_generated_base_str, true, mc_scene->getTemplateDir(), mc_scene->previous_write_time_);
    
-   std::vector<std::string> possibles{ mc_scene->getMcWorkflow().runMCJobs(path_generated_base, [mc_scene](const std::string& config_name) -> bool {
-      return StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(config_name, SecOptionLocalItemEnum::selected_job));
-   }, mc_scene->getTemplateDir(), mc_scene->getCachedDir(), mc_scene->path_to_external_folder_, mc_scene->json_tpl_filename_, mc_scene->previous_write_time_, mc_scene->formula_evaluation_mutex_) };
+   std::vector<std::string> possibles{ mc_scene->getMcWorkflow().runMCJobs(
+      path_generated_base, 
+      [mc_scene](const std::string& config_name) -> bool {
+         return StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(config_name, SecOptionLocalItemEnum::selected_job));
+      }, 
+      mc_scene->getTemplateDir(), 
+      mc_scene->getCachedDir(), 
+      mc_scene->path_to_external_folder_, 
+      mc_scene->json_tpl_filename_, 
+      mc_scene->previous_write_time_, 
+      mc_scene->formula_evaluation_mutex_,
+      test::MAX_THREADS) };
 
    std::filesystem::path path_preview_bb{};
    for (const auto& folder : possibles) { // Prepare directories for previews.

@@ -43,6 +43,26 @@ void McWorkflow::resetParserAndData(const std::shared_ptr<DataPack> data, const 
    }
 }
 
+std::vector<std::string> vfm::mc::McWorkflow::runMCJobs(
+   const std::filesystem::path& path_generated, 
+   const std::function<bool(const std::string& folder)> job_selector, 
+   const std::string& path_template, 
+   const std::string& path_cached, 
+   const std::string& path_external, 
+   const std::string& json_tpl_filename, 
+   const int num_threads)
+{
+   return runMCJobs(
+      path_generated, 
+      job_selector, 
+      path_template, 
+      path_cached, 
+      path_external, 
+      json_tpl_filename,
+      std::filesystem::file_time_type{},
+      nullptr, num_threads);
+}
+
 std::vector<std::string> McWorkflow::runMCJobs(
    const std::filesystem::path& path_generated, 
    const std::function<bool(const std::string& folder)> job_selector, 
@@ -51,8 +71,8 @@ std::vector<std::string> McWorkflow::runMCJobs(
    const std::string& path_external,
    const std::string& json_tpl_filename,
    std::filesystem::file_time_type& previous_write_time,
-   std::shared_ptr<std::mutex> formula_evaluation_mutex
-)
+   std::shared_ptr<std::mutex> formula_evaluation_mutex,
+   const int num_threads)
 {
    std::filesystem::path path_generated_parent = path_generated.parent_path();
    std::vector<std::string> possibles{};
@@ -66,7 +86,7 @@ std::vector<std::string> McWorkflow::runMCJobs(
    }
 
    { // Scope which makes us wait for finishing the jobs before entering the next line.
-      ThreadPool pool(test::MAX_THREADS);
+      ThreadPool pool(num_threads);
 
       for (const auto& folder : possibles) {
          std::this_thread::sleep_for(std::chrono::seconds(1));
