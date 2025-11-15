@@ -568,15 +568,6 @@ private:
       } 
    };
 
-   //std::vector<std::string> vfm::mc::McWorkflow::runMCJobs(
-   //   const std::filesystem::path& path_generated,
-   //   const std::function<bool(const std::string& folder)> job_selector,
-   //   const std::string& path_template,
-   //   const std::string& path_cached,
-   //   const std::string& path_external,
-   //   const std::string& json_tpl_filename,
-   //   const int num_threads)
-
    ScriptMethodDescription m6{
       "runMCJobs",
       1,
