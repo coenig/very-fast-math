@@ -151,7 +151,7 @@ public:
    static void buttonDeleteCached(Fl_Widget* widget, void* data);
    static void buttonRunMCAndPreview(Fl_Widget* widget, void* data);
    static void onGroupClickBM(Fl_Widget* widget, void* data);
-   static void buttonReparse(Fl_Widget* widget, void* data);
+   static void buttonCreateEnvmodels(Fl_Widget* widget, void* data);
    static void buttonCEX(Fl_Widget* widget, void* data);
    static void buttonRuntimeAnalysis(Fl_Widget* widget, void* data);
 
@@ -170,7 +170,7 @@ private:
 
    Fl_Group* main_group_ = new Fl_Group(0, 95, window_->w(), window_->h());
    Fl_Scroll* sec_scroll_ = nullptr;
-   Fl_Button* button_run_parser_ = new Fl_Button(0, 250, 200, 30, "Create EnvModels...");
+   Fl_Button* button_create_envmodels = new Fl_Button(0, 250, 200, 30, "Create EnvModels...");
    Fl_Button* button_run_mc_and_preview_ = new Fl_Button(0, 300, 200, 30, "Run Model Checker...");
    Fl_Button* button_run_cex_ = new Fl_Button(0, 350, 200, 30, "Generate test cases...");
    Fl_Button* button_runtime_analysis_ = new Fl_Button(0, 400, 200, 30, "Runtime analysis");

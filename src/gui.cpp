@@ -201,7 +201,7 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
    button_delete_cached_->callback(buttonDeleteCached, this);
    button_delete_cached_->tooltip("Use right click if you really want to delete cache");
    button_run_mc_and_preview_->callback(buttonRunMCAndPreview, this);
-   button_run_parser_->callback(buttonReparse, this);
+   button_create_envmodels->callback(buttonCreateEnvmodels, this);
    button_run_cex_->callback(buttonCEX, this);
    button_runtime_analysis_->callback(buttonRuntimeAnalysis, this);
    checkbox_json_visible_->callback(checkboxJSONVisibleCallback, this);
@@ -433,7 +433,7 @@ void MCScene::activateMCButtons(const bool active, const ButtonClass which)
 {
    if (active) {
       if (which == ButtonClass::RunButtons || which == ButtonClass::All) {
-         button_run_parser_->activate();
+         button_create_envmodels->activate();
          button_run_cex_->activate();
          button_run_mc_and_preview_->activate();
          button_runtime_analysis_->activate();
@@ -448,7 +448,7 @@ void MCScene::activateMCButtons(const bool active, const ButtonClass which)
    }
    else {
       if (which == ButtonClass::RunButtons || which == ButtonClass::All) {
-         button_run_parser_->deactivate();
+         button_create_envmodels->deactivate();
          button_run_cex_->deactivate();
          button_run_mc_and_preview_->deactivate();
          button_runtime_analysis_->deactivate();
@@ -1161,7 +1161,7 @@ void MCScene::refreshRarely(void* data)
    }
 
    // Show building blocks as draggable boxes.
-   if (mc_scene->button_run_parser_->active()) { // Only if the buttons are active, i.e., if no jobs are running in the background.
+   if (mc_scene->button_create_envmodels->active()) { // Only if the buttons are active, i.e., if no jobs are running in the background.
       std::lock_guard<std::mutex> lock{ mc_scene->parser_mutex_ };
       std::map<std::string, std::pair<std::string, std::string>> new_bbs{ mc_scene->loadNewBBsFromJson() };
       std::set<std::string> to_delete_bbs{};
@@ -1307,7 +1307,7 @@ void MCScene::refreshSometimes(void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
 
-   if (mc_scene->button_run_parser_->active()) { // Don't display this warning when jobs are running.
+   if (mc_scene->button_create_envmodels->active()) { // Don't display this warning when jobs are running.
       if (!test::isCacheUpToDateWithTemplates(mc_scene->getCachedDir(), mc_scene->getTemplateDir(), GUI_NAME + "_Related")) {
          mc_scene->addWarning("Cache in '" + mc_scene->getCachedDir() + "' is outdated w.r.t. the template files in '" + mc_scene->getTemplateDir() + "'.\n"
             + "All cached entries will be deleted on next click on 'Create EnvModels...'. <Delete cache with right-click on the button to stop this message.>");
@@ -1845,7 +1845,7 @@ void MCScene::onGroupClickBM(Fl_Widget* widget, void* data)
    controller->tryToSelectController();
 }
 
-void MCScene::buttonReparse(Fl_Widget* widget, void* data)
+void MCScene::buttonCreateEnvmodels(Fl_Widget* widget, void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
    mc_scene->showAllBBGroups(false);
