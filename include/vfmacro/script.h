@@ -593,7 +593,7 @@ private:
 
    ScriptMethodDescription m7{
       "generateEnvmodels",
-      1,
+      0,
       [this](const std::vector<std::string>& parameters) -> std::string
       {
          auto mc_workflow = mc::McWorkflow(vfm_data_, vfm_parser_);
@@ -601,7 +601,7 @@ private:
 
          mc_workflow.generateEnvmodels(paths.at("path_template"), FILE_NAME_JSON, FILE_NAME_JSON_TEMPLATE, FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
 
-         return "Envmodel generation finished for '" + paths.at("path_generated") + "'.";
+         return "Envmodel generation finished for.";
       }
    };
 
@@ -612,6 +612,7 @@ private:
       m4,
       m5, // Example: @{../examples}@.runMCJob[_config_d=1000_lanes=1_maxaccel=3_maxaccelego=3_minaccel=-8_minaccelego=-8_nonegos=3_sections=5_segments=1_t=1100_vehlen=5]
       m6, // Example: @{../examples}@.runMCJobs[10]
+      m7, // Example: @{}@.generateEnvmodels
       { "serialize", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::vfm); } },
       { "serializeK2", 0, [this](const std::vector<std::string>& parameters) -> std::string { return toK2(getRawScript()); } },
       { "serializeNuXmv", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::nuXmv); } },
