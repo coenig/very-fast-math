@@ -1758,48 +1758,28 @@ void MCScene::doAllEnvModelGenerations(MCScene* mc_scene)
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
    mc_scene->showAllBBGroups(false);
 
-   std::string path{ mc_scene->getTemplateDir() };
    std::string generated_dir{ mc_scene->getGeneratedDir() };
+   std::string template_dir{ mc_scene->getTemplateDir() };
    std::string cached_dir{ mc_scene->getCachedDir() };
    std::string path_planner{ mc_scene->getBPIncludesFileDir() };
-   std::string path_json{ path + "/" + FILE_NAME_JSON };
-   std::string path_envmodel{ path + "/EnvModel.tpl" };
-   std::string template_dir{ mc_scene->getTemplateDir() };
+   std::string path_json{ FILE_NAME_JSON };
+   std::string path_envmodel{ FILE_NAME_ENVMODEL_ENTRANCE };
 
    mc_scene->saveJsonText();
    {
       std::lock_guard<std::mutex> lock{ mc_scene->parser_mutex_ };
       mc_scene->getMcWorkflow().resetParserAndData();
    }
-   mc_scene->preprocessAndRewriteJSONTemplate();
 
-   auto envmodeldefs{ test::retrieveEnvModelDefinitionFromJSON(path_json, test::EnvModelCachedMode::always_regenerate) };
-
-   std::map<test::EnvModelConfig, std::string> env_model_configs{};
-   std::set<std::string> relevant_variables{};
-   int max{ (int) envmodeldefs.size() };
-   int cnt{ 1 };
-
-   for (const auto& envmodeldef : envmodeldefs) { // Create empty dirs to make visualization nicer.
-      if (envmodeldef.first != JSON_TEMPLATE_DENOTER) {
-         StaticHelper::createDirectoriesSafe(generated_dir + envmodeldef.first);
-      }
-   }
-
-   for (const auto& envmodeldef : envmodeldefs) {
-      mc_scene->addNote("Generating EnvModel " + std::to_string(cnt++) + "/" + std::to_string(max) + ".");
-
-      if (envmodeldef.first != JSON_TEMPLATE_DENOTER) {
-         test::doParsingRun( // TODO: go over command line!
-            envmodeldef,
-            ".",
-            path_envmodel,
-            path_planner,
-            generated_dir,
-            cached_dir,
-            GUI_NAME + "_Related");
-      }
-   }
+   mc_scene->mc_workflow_.generateEnvmodels(
+      generated_dir,
+      template_dir,
+      cached_dir,
+      path_planner,
+      FILE_NAME_JSON,
+      FILE_NAME_JSON_TEMPLATE,
+      FILE_NAME_ENVMODEL_ENTRANCE,
+      mc_scene->formula_evaluation_mutex_);
 
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }
