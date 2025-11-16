@@ -19,6 +19,8 @@ namespace vfm
 static const std::string PROSE_DESC_NAME{ "prose_scenario_description.txt" };
 static const std::string FILE_NAME_JSON{ "envmodel_config.json" };
 static const std::string FILE_NAME_JSON_TEMPLATE { "envmodel_config.tpl.json" };
+static const std::string FILE_NAME_ENVMODEL_ENTRANCE{ "EnvModel.tpl" };
+static const std::string GUI_NAME{ "M²oRTy" };
 
 namespace mc{
 
@@ -27,6 +29,17 @@ class McWorkflow : public Failable
 public:
    McWorkflow(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser);
    McWorkflow();
+
+   void generateEnvmodels(
+      const std::string& path_generated,
+      const std::string& path_template,
+      const std::string& path_cached,
+      const std::string& path_planner,
+      const std::string& json_filename,
+      const std::string& json_tpl_filename,
+      const std::string& envmodel_entrance_filename,
+      const std::shared_ptr<std::mutex> formula_evaluation_mutex
+      );
 
    std::vector<std::string> runMCJobs(
       const std::filesystem::path& path_generated,
@@ -46,7 +59,7 @@ public:
       const std::string& path_external,
       const std::string& json_tpl_filename,
       std::filesystem::file_time_type& previous_write_time,
-      std::shared_ptr<std::mutex> formula_evaluation_mutex,
+      const std::shared_ptr<std::mutex> formula_evaluation_mutex,
       const int num_threads
    );
 
@@ -66,7 +79,7 @@ public:
       const std::string& path_external,
       const std::string& json_tpl_filename,
       std::filesystem::file_time_type& previous_write_time,
-      std::shared_ptr<std::mutex> formula_evaluation_mutex
+      const std::shared_ptr<std::mutex> formula_evaluation_mutex
    );
 
    nlohmann::json instanceFromTemplate(
@@ -85,11 +98,11 @@ public:
    void preprocessAndRewriteJSONTemplate(
       const std::string& path_template, 
       const std::string& json_tpl_filename, 
-      std::shared_ptr<std::mutex> formula_evaluation_mutex);
+      const std::shared_ptr<std::mutex> formula_evaluation_mutex);
 
    bool putJSONIntoDataPack(const std::string& path_template, const std::string& config_name = JSON_TEMPLATE_DENOTER);
    void generatePreview(const std::string& path_generated, const int cex_num);
-   void evaluateFormulasInJSON(const nlohmann::json j_template, std::shared_ptr<std::mutex> formula_evaluation_mutex);
+   void evaluateFormulasInJSON(const nlohmann::json j_template, const std::shared_ptr<std::mutex> formula_evaluation_mutex);
    nlohmann::json getJSON(const std::string& path) const;
 
    void copyWaitingForPreviewGIF(

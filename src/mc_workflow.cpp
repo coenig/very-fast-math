@@ -43,6 +43,49 @@ void McWorkflow::resetParserAndData(const std::shared_ptr<DataPack> data, const 
    }
 }
 
+void vfm::mc::McWorkflow::generateEnvmodels(
+   const std::string& path_generated, 
+   const std::string& path_template, 
+   const std::string& path_cached, 
+   const std::string& path_planner, 
+   const std::string& json_filename,
+   const std::string& json_tpl_filename,
+   const std::string& envmodel_entrance_filename,
+   const std::shared_ptr<std::mutex> formula_evaluation_mutex)
+{
+   std::string path_json{ path_template + "/" + json_filename };
+   std::string path_envmodel{ path_template + "/" + envmodel_entrance_filename };
+   preprocessAndRewriteJSONTemplate(path_template, json_tpl_filename, formula_evaluation_mutex);
+
+   auto envmodeldefs{ test::retrieveEnvModelDefinitionFromJSON(path_json, test::EnvModelCachedMode::always_regenerate) };
+
+   std::map<test::EnvModelConfig, std::string> env_model_configs{};
+   std::set<std::string> relevant_variables{};
+   int max{ (int)envmodeldefs.size() };
+   int cnt{ 1 };
+
+   for (const auto& envmodeldef : envmodeldefs) { // Create empty dirs to make visualization nicer.
+      if (envmodeldef.first != JSON_TEMPLATE_DENOTER) {
+         StaticHelper::createDirectoriesSafe(path_generated + envmodeldef.first);
+      }
+   }
+
+   for (const auto& envmodeldef : envmodeldefs) {
+      addNote("Generating EnvModel " + std::to_string(cnt++) + "/" + std::to_string(max) + ".");
+
+      if (envmodeldef.first != JSON_TEMPLATE_DENOTER) {
+         test::doParsingRun( // TODO: go over command line!
+            envmodeldef,
+            ".",
+            path_envmodel,
+            path_planner,
+            path_generated,
+            path_cached,
+            GUI_NAME + "_Related");
+      }
+   }
+}
+
 std::vector<std::string> vfm::mc::McWorkflow::runMCJobs(
    const std::filesystem::path& path_generated, 
    const std::function<bool(const std::string& folder)> job_selector, 
@@ -71,7 +114,7 @@ std::vector<std::string> McWorkflow::runMCJobs(
    const std::string& path_external,
    const std::string& json_tpl_filename,
    std::filesystem::file_time_type& previous_write_time,
-   std::shared_ptr<std::mutex> formula_evaluation_mutex,
+   const std::shared_ptr<std::mutex> formula_evaluation_mutex,
    const int num_threads)
 {
    std::filesystem::path path_generated_parent = path_generated.parent_path();
@@ -131,7 +174,7 @@ void McWorkflow::runMCJob(
    const std::string& path_external,
    const std::string& json_tpl_filename,
    std::filesystem::file_time_type& previous_write_time, 
-   std::shared_ptr<std::mutex> formula_evaluation_mutex
+   const std::shared_ptr<std::mutex> formula_evaluation_mutex
 )
 {
    std::string path_generated{ StaticHelper::replaceAll(path_generated_raw, "\\", "/") };
@@ -264,7 +307,7 @@ nlohmann::json McWorkflow::getJSON(const std::string& path) const
 void McWorkflow::preprocessAndRewriteJSONTemplate(
    const std::string& path_template, 
    const std::string& json_tpl_filename,
-   std::shared_ptr<std::mutex> formula_evaluation_mutex)
+   const std::shared_ptr<std::mutex> formula_evaluation_mutex)
 {
    const std::string path_json_template{ path_template + "/" + json_tpl_filename };
    const std::string path_json_plain{ path_template + "/" + FILE_NAME_JSON };
@@ -371,7 +414,7 @@ void McWorkflow::preprocessAndRewriteJSONTemplate(
 }
 
 
-void McWorkflow::evaluateFormulasInJSON(const nlohmann::json j_template, std::shared_ptr<std::mutex> formula_evaluation_mutex)
+void McWorkflow::evaluateFormulasInJSON(const nlohmann::json j_template, const std::shared_ptr<std::mutex> formula_evaluation_mutex)
 {
    auto lock = (formula_evaluation_mutex == nullptr) ?
       std::unique_lock<std::mutex>()
