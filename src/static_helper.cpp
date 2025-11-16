@@ -325,6 +325,11 @@ std::string vfm::StaticHelper::shortenInTheMiddle(const std::string& s, const in
    return shortenToMaxSize(s, max_size, true, -1, percentage_front, dots);
 }
 
+std::string vfm::StaticHelper::absPath(const std::filesystem::path& rel_path, const bool verbose)
+{
+   return absPath(rel_path.string(), verbose);
+}
+
 std::string vfm::StaticHelper::absPath(const std::string& rel_path, const bool verbose)
 {
    static const std::string FAILABLE_NAME = "Compiler-Version";
@@ -2054,7 +2059,7 @@ std::vector<MCTrace> vfm::StaticHelper::extractMCTracesFromKratos(const std::str
    return trace.empty() ? std::vector<MCTrace>{} : std::vector<MCTrace>{ trace };
 }
 
-std::string StaticHelper::readFile(const std::string& path, const bool from_utf16)
+std::string StaticHelper::readFile(const std::filesystem::path& path, const bool from_utf16)
 {
    std::string ce_raw{};
 
@@ -3421,7 +3426,7 @@ std::string vfm::StaticHelper::createKratosNdetFunction(const std::string& name,
                        (seq (havoc ret) (assume " + cond + ")))\n");
 }
 
-void vfm::StaticHelper::writeTextToFile(const std::string& text, const std::string& path, const bool append)
+void vfm::StaticHelper::writeTextToFile(const std::string& text, const std::filesystem::path& path, const bool append)
 {
    std::ofstream out;
 
@@ -3435,7 +3440,7 @@ void vfm::StaticHelper::writeTextToFile(const std::string& text, const std::stri
    if (out.good()) {
       out << text;
    } else {
-      Failable::getSingleton()->addError("File '" + path + "' could not be written to.");
+      Failable::getSingleton()->addError("File '" + path.string() + "' could not be written to.");
 
       if (out.bad()) {
          Failable::getSingleton()->addError("Bad file stream: Read/writing error on i/o operation.");

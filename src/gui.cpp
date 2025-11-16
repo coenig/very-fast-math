@@ -172,7 +172,7 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
       Fl::screen_scale(screenNumber, calculateScaleFactor(screenNumber));
    }
 
-   window_->color(FL_RED);
+   //window_->color(FL_RED);
    main_group_->end();
 
    ADDITIONAL_LOGGING_PIPE = new std::ostringstream{};
@@ -228,8 +228,8 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
    Fl::add_timeout(TIMEOUT_RARE, refreshRarely, this);
    Fl::add_timeout(TIMEOUT_SOMETIMES, refreshSometimes, this);
 
-   mc_workflow_.copyWaitingForPreviewGIF(getTemplateDir(), getGeneratedDir(), previous_write_time_);
-   refreshPreview(); // TODO: Here it happens that the red background is not shown.
+   mc_workflow_.copyWaitingForPreviewGIF(getTemplateDir(), mc_workflow_.getGeneratedDir(getTemplateDir()), previous_write_time_);
+   refreshPreview();
 
    scene_description_->textfont(FL_COURIER_BOLD);
    scene_description_->textsize(16);
@@ -241,7 +241,7 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
 
    main_group_->position(50, 200);
 
-   runtime_global_options_ = std::make_shared<OptionsGlobal>(getGeneratedDir() + "/runtime_options.morty");
+   runtime_global_options_ = std::make_shared<OptionsGlobal>((mc_workflow_.getGeneratedDir(getTemplateDir()) / "runtime_options.morty").string());
    runtime_global_options_->loadOptions();
    runtime_global_options_->saveOptions(); // In case of missing file, create it with default values.
 
@@ -359,38 +359,6 @@ std::string MCScene::getTemplateDir() const
    return path_to_template_dir_;
 }
 
-std::string MCScene::getCachedDir() const
-{
-   if (cached_dir_.empty()) {
-      cached_dir_ = getValueForJSONKeyAsString("_CACHED_PATH", JSON_TEMPLATE_DENOTER);
-   }
-
-   return cached_dir_;
-}
-
-std::string MCScene::getBPIncludesFileDir() const
-{
-   if (includes_file_dir_.empty()) {
-      includes_file_dir_ = getValueForJSONKeyAsString("_BP_INCLUDES_FILE_PATH", JSON_TEMPLATE_DENOTER);
-   }
-
-   return includes_file_dir_;
-}
-
-std::string MCScene::getGeneratedDir() const
-{
-   if (cached_dir_.empty()) {
-      generated_dir_ = getValueForJSONKeyAsString("_GENERATED_PATH", JSON_TEMPLATE_DENOTER);
-   }
-
-   return generated_dir_;
-}
-
-std::string vfm::MCScene::getGeneratedParentDir() const
-{
-   return std::filesystem::path(getGeneratedDir()).parent_path().string();
-}
-
 int vfm::MCScene::getActualJSONWidth() const
 {
    return json_input_->visible() ? json_input_->w() : 0;
@@ -405,16 +373,16 @@ void vfm::MCScene::resetCachedVariables() const
 void MCScene::refreshPreview()
 {
    std::lock_guard<std::mutex> lock{ refresh_mutex_ };
-   std::string path_preview_target{ getGeneratedDir() + "/preview/preview.gif" };
+   std::filesystem::path path_preview_target{ mc_workflow_.getGeneratedDir(getTemplateDir()) / "preview/preview.gif" };
 
-   if (!StaticHelper::existsFileSafe(getGeneratedDir()) || !StaticHelper::existsFileSafe(path_preview_target)) {
+   if (!StaticHelper::existsFileSafe(mc_workflow_.getGeneratedDir(getTemplateDir())) || !StaticHelper::existsFileSafe(path_preview_target)) {
       return;
    }
 
    box_->image(nullptr);
    gif_->release(); // Here the gif image is deleted.
    try {
-      gif_ = new Fl_Anim_GIF_Image(path_preview_target.c_str());
+      gif_ = new Fl_Anim_GIF_Image(path_preview_target.string().c_str());
    }
    catch (std::exception& e) {
 
@@ -540,8 +508,8 @@ void MCScene::saveJsonText()
    try {
       nlohmann::json json = nlohmann::json::parse(json_input_->buffer()->text());
       resetCachedVariables();
-      getGeneratedDir();
-      getCachedDir();
+      mc_workflow_.getGeneratedDir(getTemplateDir());
+      mc_workflow_.getCachedDir(getTemplateDir());
    }
    catch (const nlohmann::json::parse_error& e) {
    }
@@ -552,11 +520,11 @@ void MCScene::setTitle()
    window_->label((GUI_NAME + std::string("         ")
       + json_tpl_filename_ + " | "
       + StaticHelper::absPath(getTemplateDir()) + " ==> " 
-      + StaticHelper::absPath(getGeneratedDir())
-      + " [[" + StaticHelper::absPath(getCachedDir()) + "]]").c_str());
+      + StaticHelper::absPath(mc_workflow_.getGeneratedDir(getTemplateDir()))
+      + " [[" + StaticHelper::absPath(mc_workflow_.getCachedDir(getTemplateDir())) + "]]").c_str());
 }
 
-mc::McWorkflow& vfm::MCScene::getMcWorkflow()
+mc::McWorkflow& vfm::MCScene::getMcWorkflow() const
 {
    return mc_workflow_;
 }
@@ -610,7 +578,7 @@ void MCScene::resetAllBBGroups()
 
 void showBoxWithPreviews(const MCScene* mc_scene, const DragGroup* drag_group)
 {
-   const std::filesystem::path previews_path{ mc_scene->getGeneratedParentDir() + "/previews" };
+   const std::filesystem::path previews_path{ mc_scene->getMcWorkflow().getGeneratedParentDir(mc_scene->getTemplateDir()) / "previews"};
    StaticHelper::createDirectoriesSafe(previews_path);
    float current_best{ std::numeric_limits<float>::infinity() };
    std::filesystem::directory_entry best{};
@@ -936,20 +904,19 @@ void MCScene::refreshRarely(void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
 
-   std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
+   std::filesystem::path path_generated_base{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir()) };
 
-   if (!StaticHelper::existsFileSafe(path_generated_base_str)) {
-      StaticHelper::createDirectoriesSafe(path_generated_base_str);
+   if (!StaticHelper::existsFileSafe(path_generated_base)) {
+      StaticHelper::createDirectoriesSafe(path_generated_base);
    }
 
-   std::string path_prose_description{ path_generated_base_str + "/" + PROSE_DESC_NAME };
-   std::filesystem::path path_generated_base(path_generated_base_str);
+   std::filesystem::path path_prose_description{ path_generated_base / PROSE_DESC_NAME };
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
    std::string path_template{ mc_scene->getTemplateDir() };
    std::string prefix{ path_generated_base.filename().string() };
    std::set<std::string> packages{};
 
-   if (StaticHelper::stringContains(StaticHelper::toLowerCase(path_generated_base_str), "error")) {
+   if (StaticHelper::stringContains(StaticHelper::toLowerCase(path_generated_base.string()), "error")) {
       return;
    }
 
@@ -1000,9 +967,9 @@ void MCScene::refreshRarely(void* data)
       mc_scene->scene_description_->value("Waiting for data...");
    }
 
-   std::string path_preview_target{ std::string(mc_scene->getGeneratedDir()) + "/preview/preview.gif" };
+   std::filesystem::path path_preview_target{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir()) / "preview/preview.gif" };
 
-   if (!mc_scene->mc_running_internal_ && StaticHelper::existsFileSafe(mc_scene->getGeneratedDir()) && StaticHelper::existsFileSafe(path_preview_target)) {
+   if (!mc_scene->mc_running_internal_ && StaticHelper::existsFileSafe(mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir())) && StaticHelper::existsFileSafe(path_preview_target)) {
       auto currentWriteTime = StaticHelper::lastWritetimeOfFileSafe(path_preview_target);
 
       // Compare the current write time with the previous write time
@@ -1052,7 +1019,7 @@ void MCScene::refreshRarely(void* data)
       if (!found) {
          mc_scene->se_controllers_.insert(SingleExpController(
             path_template,
-            path_generated_base_str,
+            path_generated_base.string(),
             el,
             StaticHelper::replaceAll(el, prefix + "_config_", ""),
             mc_scene));
@@ -1308,8 +1275,8 @@ void MCScene::refreshSometimes(void* data)
    auto mc_scene{ static_cast<MCScene*>(data) };
 
    if (mc_scene->button_create_envmodels->active()) { // Don't display this warning when jobs are running.
-      if (!test::isCacheUpToDateWithTemplates(mc_scene->getCachedDir(), mc_scene->getTemplateDir(), GUI_NAME + "_Related")) {
-         mc_scene->addWarning("Cache in '" + mc_scene->getCachedDir() + "' is outdated w.r.t. the template files in '" + mc_scene->getTemplateDir() + "'.\n"
+      if (!test::isCacheUpToDateWithTemplates(mc_scene->mc_workflow_.getCachedDir(mc_scene->getTemplateDir()), mc_scene->getTemplateDir(), GUI_NAME + "_Related")) {
+         mc_scene->addWarning("Cache in '" + mc_scene->mc_workflow_.getCachedDir(mc_scene->getTemplateDir()).string() + "' is outdated w.r.t. the template files in '" + mc_scene->getTemplateDir() + "'.\n"
             + "All cached entries will be deleted on next click on 'Create EnvModels...'. <Delete cache with right-click on the button to stop this message.>");
       }
    }
@@ -1396,7 +1363,7 @@ void MCScene::jsonChangedCallback(Fl_Widget* widget, void* data) {
 
 void vfm::MCScene::runMCJobs(MCScene* mc_scene)
 {
-   const std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
+   const std::filesystem::path path_generated_base_str{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir()) };
    const std::filesystem::path path_generated_base(path_generated_base_str);
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
 
@@ -1408,8 +1375,6 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
          return StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(config_name, SecOptionLocalItemEnum::selected_job));
       }, 
       mc_scene->getTemplateDir(), 
-      mc_scene->getCachedDir(), 
-      mc_scene->path_to_external_folder_, 
       mc_scene->json_tpl_filename_, 
       mc_scene->previous_write_time_, 
       mc_scene->formula_evaluation_mutex_,
@@ -1561,8 +1526,7 @@ void MCScene::buttonCheckJSON(Fl_Widget* widget, void* data)
 void deleteMCOutput(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
-   std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
-   std::filesystem::path path_generated_base(path_generated_base_str);
+   std::filesystem::path path_generated_base{ mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir()) };
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
    std::string prefix{ path_generated_base.filename().string() };
 
@@ -1579,7 +1543,7 @@ void deleteMCOutput(MCScene* mc_scene) // Free function that actually does it, r
       }
    }
 
-   mc_scene->getMcWorkflow().deleteMCOutputFromFolder(path_generated_base_str, false, mc_scene->getTemplateDir(), mc_scene->previous_write_time_);
+   mc_scene->getMcWorkflow().deleteMCOutputFromFolder(path_generated_base, false, mc_scene->getTemplateDir(), mc_scene->previous_write_time_);
 
    for (auto& sec : mc_scene->se_controllers_) { // TODO: DBL CODE after delete output
       sec.selected_ = false;
@@ -1596,8 +1560,7 @@ void deleteMCOutput(MCScene* mc_scene) // Free function that actually does it, r
 void deleteTestCases(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
-   std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
-   std::filesystem::path path_generated_base(path_generated_base_str);
+   std::filesystem::path path_generated_base{ mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir())};
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
    std::string prefix{ path_generated_base.filename().string() };
 
@@ -1642,7 +1605,7 @@ void deleteTestCases(MCScene* mc_scene) // Free function that actually does it, 
 void deleteFolders(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
-   std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
+   std::filesystem::path path_generated_base_str{ mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir())};
    std::filesystem::path path_generated_base(path_generated_base_str);
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
    std::string prefix{ path_generated_base.filename().string() };
@@ -1675,7 +1638,7 @@ void deleteFolders(MCScene* mc_scene) // Free function that actually does it, ra
       mc_scene->addWarning("Deleting folders not possible due to error: " + std::string(e.what()));
    }
 
-   mc_scene->getMcWorkflow().copyWaitingForPreviewGIF(mc_scene->getTemplateDir(), mc_scene->getGeneratedDir(), mc_scene->previous_write_time_);
+   mc_scene->getMcWorkflow().copyWaitingForPreviewGIF(mc_scene->getTemplateDir(), mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir()), mc_scene->previous_write_time_);
    mc_scene->refreshPreview();
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }
@@ -1683,8 +1646,8 @@ void deleteFolders(MCScene* mc_scene) // Free function that actually does it, ra
 void deleteCached(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
-   std::string path_cached{ mc_scene->getCachedDir() };
-   mc_scene->addNote("Deleting folder '" + path_cached + "'.");
+   auto path_cached{ mc_scene->getMcWorkflow().getCachedDir(mc_scene->getTemplateDir())};
+   mc_scene->addNote("Deleting folder '" + path_cached.string() + "'.");
    StaticHelper::removeAllFilesSafe(path_cached);
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }
@@ -1758,12 +1721,9 @@ void MCScene::doAllEnvModelGenerations(MCScene* mc_scene)
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
    mc_scene->showAllBBGroups(false);
 
-   std::string generated_dir{ mc_scene->getGeneratedDir() };
-   std::string template_dir{ mc_scene->getTemplateDir() };
-   std::string cached_dir{ mc_scene->getCachedDir() };
-   std::string path_planner{ mc_scene->getBPIncludesFileDir() };
-   std::string path_json{ FILE_NAME_JSON };
-   std::string path_envmodel{ FILE_NAME_ENVMODEL_ENTRANCE };
+   auto template_dir{ mc_scene->getTemplateDir() };
+   auto path_json{ FILE_NAME_JSON };
+   auto path_envmodel{ FILE_NAME_ENVMODEL_ENTRANCE };
 
    mc_scene->saveJsonText();
    {
@@ -1772,10 +1732,7 @@ void MCScene::doAllEnvModelGenerations(MCScene* mc_scene)
    }
 
    mc_scene->mc_workflow_.generateEnvmodels(
-      generated_dir,
       template_dir,
-      cached_dir,
-      path_planner,
       FILE_NAME_JSON,
       FILE_NAME_JSON_TEMPLATE,
       FILE_NAME_ENVMODEL_ENTRANCE,
@@ -1810,7 +1767,7 @@ void MCScene::onGroupClickBM(Fl_Widget* widget, void* data)
       }
 
       controller->mc_scene_->getMcWorkflow().deleteMCOutputFromFolder(
-         controller->mc_scene_->getGeneratedDir(), 
+         controller->mc_scene_->mc_workflow_.getGeneratedDir(controller->mc_scene_->getTemplateDir()),
          false, 
          controller->mc_scene_->getTemplateDir(), 
          controller->mc_scene_->previous_write_time_);
@@ -1866,7 +1823,7 @@ void MCScene::createTestCases(MCScene* mc_scene)
          while (!spawned) {
             if (numThreads < test::MAX_THREADS) {
                threads.emplace_back(std::thread(
-                  MCScene::createTestCase, mc_scene, mc_scene->getGeneratedParentDir(), cnt++, max, sec.getMyId(), sec.slider_->value()));
+                  MCScene::createTestCase, mc_scene, mc_scene->mc_workflow_.getGeneratedParentDir(mc_scene->getTemplateDir()).string(), cnt++, max, sec.getMyId(), sec.slider_->value()));
                spawned = true;
                numThreads++;
             }
@@ -1951,9 +1908,9 @@ void vfm::MCScene::buttonRuntimeAnalysis(Fl_Widget* widget, void* data)
       res += std::to_string(time_ms) + ";" + time_str + "\n";
    }
 
-   const std::string runtime_analysis_path{ mc_scene->getGeneratedDir() + "/runtime_summary.csv" };
-   const std::string abs_path{ StaticHelper::absPath(runtime_analysis_path) };
-   const std::string tikz_path{ StaticHelper::removeLastFileExtension(abs_path) + ".tex" };
+   const auto runtime_analysis_path{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir()) / "runtime_summary.csv" };
+   const auto abs_path{ StaticHelper::absPath(runtime_analysis_path) };
+   const auto tikz_path{ StaticHelper::removeLastFileExtension(abs_path) + ".tex" };
 
    mc_scene->addNote("Storing runtime analysis in '" + abs_path + "'.");
    StaticHelper::writeTextToFile(res, runtime_analysis_path);

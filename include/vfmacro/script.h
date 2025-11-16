@@ -560,8 +560,6 @@ private:
             paths.at("path_generated"),
             config_name,
             paths.at("path_template"),
-            paths.at("path_cached"),
-            paths.at("path_external"),
             FILE_NAME_JSON_TEMPLATE);
 
          return "MC run finished for '" + config_name + "'.";
@@ -583,15 +581,27 @@ private:
          std::map<std::string, std::string> paths{ guessPaths(getRawScript(), "")};
 
          mc_workflow.runMCJobs(
-            std::filesystem::path(paths.at("path_generated")),
+            std::filesystem::path(paths.at("path_generated")), // TODO: Don't need this parameter.
             [](const std::string& folder) -> bool { return true; },
             paths.at("path_template"),
-            paths.at("path_cached"),
-            paths.at("path_external"),
             FILE_NAME_JSON_TEMPLATE, 
             std::stoi(num_threads_str));
 
          return "MC runs finished for '" + paths.at("path_generated") + "'.";
+      }
+   };
+
+   ScriptMethodDescription m7{
+      "generateEnvmodels",
+      1,
+      [this](const std::vector<std::string>& parameters) -> std::string
+      {
+         auto mc_workflow = mc::McWorkflow(vfm_data_, vfm_parser_);
+         std::map<std::string, std::string> paths{ guessPaths(getRawScript(), "") };
+
+         mc_workflow.generateEnvmodels(paths.at("path_template"), FILE_NAME_JSON, FILE_NAME_JSON_TEMPLATE, FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
+
+         return "Envmodel generation finished for '" + paths.at("path_generated") + "'.";
       }
    };
 

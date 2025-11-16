@@ -31,10 +31,7 @@ public:
    McWorkflow();
 
    void generateEnvmodels(
-      const std::string& path_generated,
       const std::string& path_template,
-      const std::string& path_cached,
-      const std::string& path_planner,
       const std::string& json_filename,
       const std::string& json_tpl_filename,
       const std::string& envmodel_entrance_filename,
@@ -42,21 +39,17 @@ public:
       );
 
    std::vector<std::string> runMCJobs(
-      const std::filesystem::path& path_generated,
-      const std::function<bool(const std::string& folder)> job_selector, 
+      const std::filesystem::path& path_generated_config_level,
+      const std::function<bool(const std::string& folder)> job_selector,
       const std::string& path_template,
-      const std::string& path_cached,
-      const std::string& path_external,
       const std::string& json_tpl_filename,
       const int num_threads
    );
 
    std::vector<std::string> runMCJobs(
-      const std::filesystem::path& path_generated,
-      const std::function<bool(const std::string& folder)> job_selector, 
+      const std::filesystem::path& path_generated_config_level,
+      const std::function<bool(const std::string& folder)> job_selector,
       const std::string& path_template,
-      const std::string& path_cached,
-      const std::string& path_external,
       const std::string& json_tpl_filename,
       std::filesystem::file_time_type& previous_write_time,
       const std::shared_ptr<std::mutex> formula_evaluation_mutex,
@@ -64,19 +57,15 @@ public:
    );
 
    void runMCJob(
-      const std::string& path_generated_raw,
+      const std::filesystem::path& path_generated_config_level,
       const std::string& config_name,
       const std::string& path_template,
-      const std::string& path_cached,
-      const std::string& path_external,
       const std::string& json_tpl_filename);
 
    void runMCJob(
-      const std::string& path_generated_raw, 
-      const std::string& config_name, 
+      const std::filesystem::path& path_generated_config_level,
+      const std::string& config_name,
       const std::string& path_template,
-      const std::string& path_cached,
-      const std::string& path_external,
       const std::string& json_tpl_filename,
       std::filesystem::file_time_type& previous_write_time,
       const std::shared_ptr<std::mutex> formula_evaluation_mutex
@@ -89,7 +78,7 @@ public:
       const bool is_ltl);
 
    void deleteMCOutputFromFolder(
-      const std::string& path_generated, 
+      const std::filesystem::path& path_generated,
       const bool actually_delete_gif,
       const std::string& path_template,
       std::filesystem::file_time_type& previous_write_time
@@ -101,20 +90,26 @@ public:
       const std::shared_ptr<std::mutex> formula_evaluation_mutex);
 
    bool putJSONIntoDataPack(const std::string& path_template, const std::string& config_name = JSON_TEMPLATE_DENOTER);
-   void generatePreview(const std::string& path_generated, const int cex_num);
+   void generatePreview(const std::filesystem::path& path_generated_config_level, const int cex_num);
    void evaluateFormulasInJSON(const nlohmann::json j_template, const std::shared_ptr<std::mutex> formula_evaluation_mutex);
    nlohmann::json getJSON(const std::string& path) const;
 
    void copyWaitingForPreviewGIF(
-      const std::string& path_template,
-      const std::string& path_generated,
+      const std::filesystem::path& path_generated,
+      const std::filesystem::path& path_template,
       std::filesystem::file_time_type& previous_write_time
       );
 
    void resetParserAndData();
    void resetParserAndData(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser);
+   std::string getValueForJSONKeyAsString(const std::string& key_to_find, const std::string& path_template, const std::string& config_name) const;
    std::string getValueForJSONKeyAsString(const std::string& key_to_find, const nlohmann::json& json, const std::string& config_name) const;
    bool isLTL(const std::string& config, const std::string& path_template);
+   std::filesystem::path getCachedDir(const std::string& path_template) const;
+   std::filesystem::path getBPIncludesFileDir(const std::string& path_template) const;
+   std::filesystem::path getGeneratedDir(const std::string& path_template) const;
+   std::filesystem::path getExternalDir(const std::string& path_template) const;
+   std::filesystem::path getGeneratedParentDir(const std::string& path_template) const;
 
    std::shared_ptr<DataPack> data_{}; // TODO: make private again.
    std::shared_ptr<FormulaParser> parser_{}; // TODO: make private again.
