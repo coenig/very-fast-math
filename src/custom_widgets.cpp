@@ -593,7 +593,7 @@ void DragGroup::buttonApplyCallback(Fl_Widget* widget, void* data)
       //   }
       //}
 
-      const std::filesystem::path previews_path{ mc_scene->getGeneratedParentDir() + "/previews" };
+      const std::filesystem::path previews_path{ mc_scene->getMcWorkflow().getGeneratedParentDir(mc_scene->getTemplateDir()) / "previews"};
       mc_scene->addNote("Renaming the tokens which are part of SPECs in the previews.");
 
       //try {
