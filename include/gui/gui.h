@@ -101,10 +101,6 @@ public:
    std::pair<std::string, std::string> getBBNameAndFormulaByJsonName(const std::string& json_name);
 
    std::string getTemplateDir() const;
-   std::string getCachedDir() const;
-   std::string getBPIncludesFileDir() const;
-   std::string getGeneratedDir() const;
-   std::string getGeneratedParentDir() const;
    int getActualJSONWidth() const;
 
    void resetCachedVariables() const;
@@ -119,7 +115,7 @@ public:
    void setValueForJSONKeyFromString(const std::string& key_to_find, const std::string& config_name, const bool from_template, const std::string& value_to_set) const;
    void setValueForJSONKeyFromBool(const std::string& key_to_find, const std::string& config_name, const bool from_template, const bool value_to_set) const;
 
-   mc::McWorkflow& getMcWorkflow();
+   mc::McWorkflow& getMcWorkflow() const;
 
    std::shared_ptr<OptionsGlobal> getRuntimeGlobalOptions() const;
 
@@ -216,7 +212,7 @@ private:
    std::string path_to_template_dir_{};
    std::string path_to_external_folder_{};
 
-   mc::McWorkflow mc_workflow_{};
+   mutable mc::McWorkflow mc_workflow_{}; // TODO: Make non-mutable again.
 };
 
 } // vfm

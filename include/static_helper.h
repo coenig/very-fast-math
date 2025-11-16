@@ -301,6 +301,7 @@ public:
    static std::string shortenToMaxSize(const std::string& s, const int max_size, const bool add_dots = true, const int shorten_to = -1, const float percentage_front = 1, const std::string& dots = "[...]");
    static std::string shortenInTheMiddle(const std::string& s, const int max_size, const float percentage_front = 0.5, const std::string& dots = "[...]");
 
+   static std::string absPath(const std::filesystem::path& rel_path, const bool verbose = true);
    static std::string absPath(const std::string& rel_path, const bool verbose = true);
 
    static std::string cleanVarNameOfPossibleRefSymbol(const std::string& name);
@@ -711,7 +712,7 @@ public:
    static std::vector<MCTrace> extractMCTracesFromNusmvFile(const std::string& path, const TraceExtractionMode mode = TraceExtractionMode::regular);
    static std::string serializeMCTraceNusmvStyle(const MCTrace& trace, const bool print_unchanged_values = false);
 
-   static std::string readFile(const std::string& path, const bool from_utf16 = false);
+   static std::string readFile(const std::filesystem::path& path, const bool from_utf16 = false);
 
    static std::vector<MCTrace> extractMCTracesFromKratos(const std::string& cexp_string); // For now only one CEX is extracted. Empty CEX returned as empty list.
    static std::vector<MCTrace> extractMCTracesFromKratosFile(const std::string& path, const bool from_utf16 = false);
@@ -803,7 +804,7 @@ public:
 
    static std::string createKratosNdetFunction(const std::string& name, const std::vector<std::string> options);
 
-   static void writeTextToFile(const std::string& text, const std::string& path, const bool append = false);
+   static void writeTextToFile(const std::string& text, const std::filesystem::path& path, const bool append = false);
    static void fakeCallWithCommandLineArguments(const std::string& argv_combined, std::function<void(int argc, char* argv[])> to_do);
    static void addNDetDummyFunctions(const std::shared_ptr<FormulaParser> parser, const std::shared_ptr<DataPack> data);
 

@@ -44,15 +44,15 @@ void McWorkflow::resetParserAndData(const std::shared_ptr<DataPack> data, const 
 }
 
 void vfm::mc::McWorkflow::generateEnvmodels(
-   const std::string& path_generated, 
    const std::string& path_template, 
-   const std::string& path_cached, 
-   const std::string& path_planner, 
    const std::string& json_filename,
    const std::string& json_tpl_filename,
    const std::string& envmodel_entrance_filename,
    const std::shared_ptr<std::mutex> formula_evaluation_mutex)
 {
+   const auto path_generated{ getGeneratedDir(path_template) };
+   const auto path_planner{ getBPIncludesFileDir(path_template) };
+   const auto path_cached{ getCachedDir(path_template) };
    std::string path_json{ path_template + "/" + json_filename };
    std::string path_envmodel{ path_template + "/" + envmodel_entrance_filename };
    preprocessAndRewriteJSONTemplate(path_template, json_tpl_filename, formula_evaluation_mutex);
@@ -66,7 +66,7 @@ void vfm::mc::McWorkflow::generateEnvmodels(
 
    for (const auto& envmodeldef : envmodeldefs) { // Create empty dirs to make visualization nicer.
       if (envmodeldef.first != JSON_TEMPLATE_DENOTER) {
-         StaticHelper::createDirectoriesSafe(path_generated + envmodeldef.first);
+         StaticHelper::createDirectoriesSafe(path_generated.string() + envmodeldef.first);
       }
    }
 
@@ -78,48 +78,42 @@ void vfm::mc::McWorkflow::generateEnvmodels(
             envmodeldef,
             ".",
             path_envmodel,
-            path_planner,
-            path_generated,
-            path_cached,
+            path_planner.string(),
+            path_generated.string(),
+            path_cached.string(),
             GUI_NAME + "_Related");
       }
    }
 }
 
 std::vector<std::string> vfm::mc::McWorkflow::runMCJobs(
-   const std::filesystem::path& path_generated, 
-   const std::function<bool(const std::string& folder)> job_selector, 
+   const std::filesystem::path& path_generated_config_level,
+   const std::function<bool(const std::string& folder)> job_selector,
    const std::string& path_template, 
-   const std::string& path_cached, 
-   const std::string& path_external, 
    const std::string& json_tpl_filename, 
    const int num_threads)
 {
    return runMCJobs(
-      path_generated, 
+      path_generated_config_level,
       job_selector, 
       path_template, 
-      path_cached, 
-      path_external, 
       json_tpl_filename,
       std::filesystem::file_time_type{},
       nullptr, num_threads);
 }
 
 std::vector<std::string> McWorkflow::runMCJobs(
-   const std::filesystem::path& path_generated, 
-   const std::function<bool(const std::string& folder)> job_selector, 
+   const std::filesystem::path& path_generated_config_level,
+   const std::function<bool(const std::string& folder)> job_selector,
    const std::string& path_template,
-   const std::string& path_cached,
-   const std::string& path_external,
    const std::string& json_tpl_filename,
    std::filesystem::file_time_type& previous_write_time,
    const std::shared_ptr<std::mutex> formula_evaluation_mutex,
    const int num_threads)
 {
-   std::filesystem::path path_generated_parent = path_generated.parent_path();
+   std::filesystem::path path_generated_parent = path_generated_config_level.parent_path();
    std::vector<std::string> possibles{};
-   std::string prefix{ path_generated.filename().string() };
+   std::string prefix{ path_generated_config_level.filename().string() };
 
    for (const auto& entry : std::filesystem::directory_iterator(path_generated_parent)) {
       std::string possible{ entry.path().filename().string() };
@@ -137,8 +131,8 @@ std::vector<std::string> McWorkflow::runMCJobs(
          const std::string config_name{ std::filesystem::path(folder).filename().string() };
 
          if (job_selector(config_name)) {
-            pool.enqueue([this, &folder, &path_generated_parent, &prefix, &path_template, &json_tpl_filename, &path_cached, &path_external, &previous_write_time, formula_evaluation_mutex] {
-               runMCJob(folder, folder.substr(path_generated_parent.string().size() + prefix.size() + 1), path_template, path_cached, path_external, json_tpl_filename, previous_write_time, formula_evaluation_mutex);
+            pool.enqueue([this, &folder, &path_generated_parent, &prefix, &path_template, &json_tpl_filename, &previous_write_time, formula_evaluation_mutex] {
+               runMCJob(folder, folder.substr(path_generated_parent.string().size() + prefix.size() + 1), path_template, json_tpl_filename, previous_write_time, formula_evaluation_mutex);
             });
          }
       }
@@ -148,55 +142,50 @@ std::vector<std::string> McWorkflow::runMCJobs(
 }
 
 void McWorkflow::runMCJob(
-   const std::string& path_generated_raw, 
-   const std::string& config_name, 
+   const std::filesystem::path& path_generated_config_level,
+   const std::string& config_name,
    const std::string& path_template, 
-   const std::string& path_cached, 
-   const std::string& path_external, 
    const std::string& json_tpl_filename)
 {
    runMCJob(
-      path_generated_raw,
+      path_generated_config_level,
       config_name,
       path_template,
-      path_cached,
-      path_external,
       json_tpl_filename,
       std::filesystem::file_time_type{},
       nullptr);
 }
 
 void McWorkflow::runMCJob(
-   const std::string& path_generated_raw, 
-   const std::string& config_name, 
+   const std::filesystem::path& path_generated_config_level,
+   const std::string& config_name,
    const std::string& path_template,
-   const std::string& path_cached,
-   const std::string& path_external,
    const std::string& json_tpl_filename,
    std::filesystem::file_time_type& previous_write_time, 
    const std::shared_ptr<std::mutex> formula_evaluation_mutex
 )
 {
-   std::string path_generated{ StaticHelper::replaceAll(path_generated_raw, "\\", "/") };
+   const auto path_cached{ getCachedDir(path_template) };
+   const auto path_external{ getExternalDir(path_template) };
 
    {
       std::lock_guard<std::mutex> lock{ main_file_mutex_ };
 
-      addNote("Running model checker and creating preview for folder '" + path_generated + "' (config: '" + config_name + "').");
-      deleteMCOutputFromFolder(path_generated, true, path_template, previous_write_time);
+      addNote("Running model checker and creating preview for folder '" + path_generated_config_level.string() + "' (config: '" + config_name + "').");
+      deleteMCOutputFromFolder(path_generated_config_level, true, path_template, previous_write_time);
       preprocessAndRewriteJSONTemplate(path_template, json_tpl_filename, formula_evaluation_mutex);
 
       if (!putJSONIntoDataPack(path_template)) return;
       if (!putJSONIntoDataPack(path_template, config_name)) return;
 
-      std::string main_smv{ StaticHelper::readFile(path_generated + "/main.smv") };
+      std::string main_smv{ StaticHelper::readFile(path_generated_config_level / "main.smv") };
 
       std::string script_template{ StaticHelper::readFile(path_template + "/script.tpl") };
       std::string main_template{ StaticHelper::readFile(path_template + "/main.tpl") };
       std::string generated_script{ CppParser::generateScript(script_template, data_, parser_) };
-      StaticHelper::writeTextToFile(generated_script, path_generated + "/script.cmd");
+      StaticHelper::writeTextToFile(generated_script, path_generated_config_level / "script.cmd");
 
-      addNote("Created script.cmd with the following content:\n" + StaticHelper::readFile(path_generated + "/script.cmd") + "<EOF>");
+      addNote("Created script.cmd with the following content:\n" + StaticHelper::readFile(path_generated_config_level / "script.cmd") + "<EOF>");
 
       static const std::string SPEC_BEGIN{ "--SPEC-STUFF" };
       static const std::string SPEC_END{ "--EO-SPEC-STUFF" };
@@ -209,27 +198,27 @@ void McWorkflow::runMCJob(
       main_smv += SPEC_BEGIN + "\n";
 
       auto spec_part = StaticHelper::removePartsOutsideOf(main_template, SPEC_BEGIN, SPEC_END);
-      data_->addStringToDataPack(path_generated, "FULL_GEN_PATH");
+      data_->addStringToDataPack(path_generated_config_level.string(), "FULL_GEN_PATH");
       spec_part = vfm::macro::Script::processScript(spec_part, macro::Script::DataPreparation::both, data_, parser_);
       main_smv += spec_part + "\n";
       main_smv += SPEC_END + "\n";
 
-      StaticHelper::writeTextToFile(main_smv, path_generated + "/main.smv");
+      StaticHelper::writeTextToFile(main_smv, path_generated_config_level / "main.smv");
    }
 
-   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, path_generated, "FAKE_PATH_NOT_USED", path_template, "FAKE_PATH_NOT_USED", path_cached, path_external);
-   generatePreview(path_generated, 0);
+   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, path_generated_config_level.string(), "FAKE_PATH_NOT_USED", path_template, "FAKE_PATH_NOT_USED", path_cached.string(), path_external.string());
+   generatePreview(path_generated_config_level, 0);
 
-   addNote("Model checker run finished for folder '" + path_generated + "'.");
+   addNote("Model checker run finished for folder '" + path_generated_config_level.string() + "'.");
 }
 
-void McWorkflow::generatePreview(const std::string& path_generated, const int cex_num)
+void McWorkflow::generatePreview(const std::filesystem::path& path_generated_config_level, const int cex_num)
 {
-   addNote("Generating preview for folder '" + path_generated + "'.");
+   addNote("Generating preview for folder '" + path_generated_config_level.string() + "'.");
 
    mc::trajectory_generator::VisualizationLaunchers::quickGeneratePreviewGIFs(
       { cex_num },
-      path_generated,
+      path_generated_config_level.string(),
       "debug_trace_array",
       mc::trajectory_generator::CexTypeEnum::smv);
 
@@ -237,7 +226,7 @@ void McWorkflow::generatePreview(const std::string& path_generated, const int ce
 }
 
 void McWorkflow::deleteMCOutputFromFolder(
-   const std::string& path_generated, 
+   const std::filesystem::path& path_generated,
    const bool actually_delete_gif,
    const std::string& path_template,
    std::filesystem::file_time_type& previous_write_time
@@ -245,46 +234,46 @@ void McWorkflow::deleteMCOutputFromFolder(
 {
    //StaticHelper::removeFileSafe(path_generated + "/" + "main.smv"); // Do NOT remove main.smv. It only gets changed at this point.
 
-   std::string path_result{ path_generated + "/debug_trace_array.txt" };
-   std::string path_runtimes{ path_generated + "/mc_runtimes.txt" };
-   std::string path_script{ path_generated + "/" + "script.cmd" };
+   auto path_result{ path_generated / "debug_trace_array.txt" };
+   auto path_runtimes{ path_generated / "mc_runtimes.txt" };
+   auto path_script{ path_generated / "script.cmd" };
 
-   std::string path_prose_description{ path_generated + "/" + PROSE_DESC_NAME };
-   std::string path_planner_smv{ path_generated + "/planner.cpp_combined.k2.smv" };
-   std::string path_generated_preview{ path_generated + "/preview" };
+   auto path_prose_description{ path_generated / PROSE_DESC_NAME };
+   auto path_planner_smv{ path_generated / "planner.cpp_combined.k2.smv" };
+   auto path_generated_preview{ path_generated / "preview" };
 
    if (actually_delete_gif) {
-      for (int i = 0; i < 100; i++) StaticHelper::removeAllFilesSafe(path_generated + "/" + std::to_string(i));
-      addNote("Deleting folder '" + path_generated_preview + "'.");
+      for (int i = 0; i < 100; i++) StaticHelper::removeAllFilesSafe(path_generated / std::to_string(i));
+      addNote("Deleting folder '" + path_generated_preview.string() + "'.");
       StaticHelper::removeAllFilesSafe(path_generated_preview);
    }
    else {
-      addNote("Overwriting folder '" + path_generated_preview + "'.");
+      addNote("Overwriting folder '" + path_generated_preview.string() + "'.");
       copyWaitingForPreviewGIF(path_template, path_generated, previous_write_time);
    }
 
    if (std::filesystem::exists(path_prose_description)) {
-      addNote("Deleting file '" + path_prose_description + "'.");
+      addNote("Deleting file '" + path_prose_description.string() + "'.");
       StaticHelper::removeFileSafe(path_prose_description);
    }
 
    if (std::filesystem::exists(path_planner_smv)) {
-      addNote("Deleting file '" + path_planner_smv + "'.");
+      addNote("Deleting file '" + path_planner_smv.string() + "'.");
       StaticHelper::removeFileSafe(path_planner_smv);
    }
 
    if (std::filesystem::exists(path_result)) {
-      addNote("Deleting file '" + path_result + "'.");
+      addNote("Deleting file '" + path_result.string() + "'.");
       StaticHelper::removeFileSafe(path_result);
    }
 
    if (std::filesystem::exists(path_runtimes)) {
-      addNote("Deleting file '" + path_runtimes + "'.");
+      addNote("Deleting file '" + path_runtimes.string() + "'.");
       StaticHelper::removeFileSafe(path_runtimes);
    }
 
    if (std::filesystem::exists(path_script)) {
-      addNote("Deleting file '" + path_script + "'.");
+      addNote("Deleting file '" + path_script.string() + "'.");
       StaticHelper::removeFileSafe(path_script);
    }
 }
@@ -597,13 +586,13 @@ nlohmann::json McWorkflow::instanceFromTemplate(
 
 
 void McWorkflow::copyWaitingForPreviewGIF(
-   const std::string& path_template,
-   const std::string& path_generated,
+   const std::filesystem::path& path_generated,
+   const std::filesystem::path& path_template,
    std::filesystem::file_time_type& previous_write_time
 ) {
-   std::string path_preview_template{ path_template + "/preview.img" };
-   std::string path_preview_target{ path_generated + "/preview/preview.gif" };
-   StaticHelper::createDirectoriesSafe(path_generated + "/preview", false);
+   auto path_preview_template{ path_template / "preview.img" };
+   auto path_preview_target{ path_generated / "preview/preview.gif" };
+   StaticHelper::createDirectoriesSafe(path_generated / "preview", false);
 
    if (StaticHelper::existsFileSafe(path_preview_target, false)) {
       StaticHelper::removeFileSafe(path_preview_target, false);
@@ -617,6 +606,13 @@ void McWorkflow::copyWaitingForPreviewGIF(
    }
 
    previous_write_time = StaticHelper::lastWritetimeOfFileSafe(path_preview_target, false);
+}
+
+std::string McWorkflow::getValueForJSONKeyAsString(const std::string& key_to_find, const std::string& path_template, const std::string& config_name) const
+{
+   std::string json_file_name{ config_name == JSON_TEMPLATE_DENOTER ? FILE_NAME_JSON_TEMPLATE : FILE_NAME_JSON };
+   nlohmann::json json = getJSON(path_template + "/" + json_file_name);
+   return getValueForJSONKeyAsString(key_to_find, json, config_name);
 }
 
 std::string McWorkflow::getValueForJSONKeyAsString(const std::string& key_to_find, const nlohmann::json& json, const std::string& config_name) const
@@ -637,8 +633,32 @@ std::string McWorkflow::getValueForJSONKeyAsString(const std::string& key_to_fin
 
 bool McWorkflow::isLTL(const std::string& config, const std::string& path_template)
 {
-   std::string json_file_name{ config == JSON_TEMPLATE_DENOTER ? FILE_NAME_JSON_TEMPLATE : FILE_NAME_JSON };
-   nlohmann::json json = getJSON(path_template + "/" + json_file_name);
-   auto val = getValueForJSONKeyAsString("LTL_MODE", json, config);
+   auto val = getValueForJSONKeyAsString("LTL_MODE", path_template, config);
    return StaticHelper::isBooleanTrue(val);
 }
+
+std::filesystem::path McWorkflow::getCachedDir(const std::string& path_template) const
+{
+   return getValueForJSONKeyAsString("_CACHED_PATH", path_template, JSON_TEMPLATE_DENOTER);
+}
+
+std::filesystem::path McWorkflow::getBPIncludesFileDir(const std::string& path_template) const
+{
+   return getValueForJSONKeyAsString("_BP_INCLUDES_FILE_PATH", path_template, JSON_TEMPLATE_DENOTER);
+}
+
+std::filesystem::path McWorkflow::getGeneratedDir(const std::string& path_template) const
+{
+   return getValueForJSONKeyAsString("_GENERATED_PATH", path_template, JSON_TEMPLATE_DENOTER);
+}
+
+std::filesystem::path vfm::mc::McWorkflow::getExternalDir(const std::string& path_template) const
+{
+   return getValueForJSONKeyAsString("_EXTERNAL_PATH", path_template, JSON_TEMPLATE_DENOTER);
+}
+
+std::filesystem::path McWorkflow::getGeneratedParentDir(const std::string& path_template) const
+{
+   return getGeneratedDir(path_template).parent_path();
+}
+
