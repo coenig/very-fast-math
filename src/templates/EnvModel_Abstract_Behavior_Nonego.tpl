@@ -297,42 +297,42 @@ ASSIGN
 }@*.for[[sec], 0, @{SECTIONS - 1}@.eval]
 }@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval]
 
-@{
-TRANS
-    case
-        -- the timer is within the interval where we may leave our source lane, we may transition to any neighbor lane but we do not have to (current lane is also allowed for next state)
-        veh___6[i]9___.lc_timer >= leave_src_lane_earliest_after & veh___6[i]9___.lc_timer < leave_src_lane_latest_after & veh___6[i]9___.lane_single & !veh___6[i]9___.abort_lc & !next(veh___6[i]9___.abort_lc): 
-        case 
-            veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max @{& !(ego.left_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@******.if[@{!(EGOLESS)}@.eval] : next(veh___6[i]9___.change_lane_now) = 0 ? veh___6[i]9___.lane_unchanged : veh___6[i]9___.lane_move_up;
-            veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min @{& !(ego.right_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@******.if[@{!(EGOLESS)}@.eval] : next(veh___6[i]9___.change_lane_now) = 0 ? veh___6[i]9___.lane_unchanged : veh___6[i]9___.lane_move_down;
-    --        TRUE : veh___6[i]9___.lane_unchanged;
-    --    esac;
-    --    -- at the latest point in time, we need to leave the source lane if we have not already
-    --    veh___6[i]9___.lc_timer = leave_src_lane_latest_after & veh___6[i]9___.lane_single: 
-    --    case
-    --            veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max @{& !(ego.left_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@******.if[@{!(EGOLESS)}@.eval] : veh___6[i]9___.lane_move_up; 
-    --            veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min @{& !(ego.right_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@******.if[@{!(EGOLESS)}@.eval] : veh___6[i]9___.lane_move_down;
-    --            TRUE : veh___6[i]9___.lane_unchanged;
-    --    esac;
-    --    -- lane change is finished in the next step (time conditions are checked at do_lane_change), set state to target lane (we must be on two lanes right now)
-    --    veh___6[i]9___.lc_timer > 0 & next(veh___6[i]9___.do_lane_change) = FALSE & veh___6[i]9___.lane_crossing & !veh___6[i]9___.abort_lc & !next(veh___6[i]9___.abort_lc) : 
-    --    case  
-    --        veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max : veh___6[i]9___.lane_move_up; 
-    --        veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min : veh___6[i]9___.lane_move_down;
-    --        TRUE : veh___6[i]9___.lane_unchanged;
-    --    esac;
-    --    -- there is an abort running and it is finished in the next step (time conditions are checked at do_lane_change), set state back to source lane (we must be on two lanes right now)
-    --    veh___6[i]9___.lc_timer > 0 & !next(veh___6[i]9___.do_lane_change) & veh___6[i]9___.lane_crossing & veh___6[i]9___.abort_lc: 
-    --    case
-    --        veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_min: veh___6[i]9___.lane_move_down ;   
-    --        veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_max: veh___6[i]9___.lane_move_up;
-    --        TRUE : veh___6[i]9___.lane_unchanged;
-    --    esac;
-    --    TRUE: veh___6[i]9___.lane_unchanged;                                      -- hold current value in all other cases
-    --esac;
-}@******.if[@{!SIMPLE_LC}@.eval]
-
-}@**.for[[i], 0, @{NONEGOS - 1}@.eval]
+--@{
+--TRANS
+--    case
+--        -- the timer is within the interval where we may leave our source lane, we may transition to any neighbor lane but we do not have to (current lane is also allowed for next state)
+--        veh___6[i]9___.lc_timer >= leave_src_lane_earliest_after & veh___6[i]9___.lc_timer < leave_src_lane_latest_after & veh___6[i]9___.lane_single & !veh___6[i]9___.abort_lc & !next(veh___6[i]9___.abort_lc): 
+--        case 
+--            veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max @{& !(ego.left_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@******.if[@{!(EGOLESS)}@.eval] : next(veh___6[i]9___.change_lane_now) = 0 ? veh___6[i]9___.lane_unchanged : veh___6[i]9___.lane_move_up;
+--            veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min @{& !(ego.right_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@******.if[@{!(EGOLESS)}@.eval] : next(veh___6[i]9___.change_lane_now) = 0 ? veh___6[i]9___.lane_unchanged : veh___6[i]9___.lane_move_down;
+--            TRUE : veh___6[i]9___.lane_unchanged;
+--        esac;
+--    --    -- at the latest point in time, we need to leave the source lane if we have not already
+--    --    veh___6[i]9___.lc_timer = leave_src_lane_latest_after & veh___6[i]9___.lane_single: 
+--    --    case
+--    --            veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max @{& !(ego.left_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@******.if[@{!(EGOLESS)}@.eval] : veh___6[i]9___.lane_move_up; 
+--    --            veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min @{& !(ego.right_of_veh_[i]_lane & (next(veh___6[i]9___.rel_pos) > min_dist_long & next(veh___6[i]9___.rel_pos) < abs(min_dist_long) + veh_length))}@******.if[@{!(EGOLESS)}@.eval] : veh___6[i]9___.lane_move_down;
+--    --            TRUE : veh___6[i]9___.lane_unchanged;
+--    --    esac;
+--    --    -- lane change is finished in the next step (time conditions are checked at do_lane_change), set state to target lane (we must be on two lanes right now)
+--    --    veh___6[i]9___.lc_timer > 0 & next(veh___6[i]9___.do_lane_change) = FALSE & veh___6[i]9___.lane_crossing & !veh___6[i]9___.abort_lc & !next(veh___6[i]9___.abort_lc) : 
+--    --    case  
+--    --        veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_max : veh___6[i]9___.lane_move_up; 
+--    --        veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_min : veh___6[i]9___.lane_move_down;
+--    --        TRUE : veh___6[i]9___.lane_unchanged;
+--    --    esac;
+--    --    -- there is an abort running and it is finished in the next step (time conditions are checked at do_lane_change), set state back to source lane (we must be on two lanes right now)
+--    --    veh___6[i]9___.lc_timer > 0 & !next(veh___6[i]9___.do_lane_change) & veh___6[i]9___.lane_crossing & veh___6[i]9___.abort_lc: 
+--    --    case
+--    --        veh___6[i]9___.lc_direction = ActionDir____LEFT & !veh___6[i]9___.lane_min: veh___6[i]9___.lane_move_down ;   
+--    --        veh___6[i]9___.lc_direction = ActionDir____RIGHT & !veh___6[i]9___.lane_max: veh___6[i]9___.lane_move_up;
+--    --        TRUE : veh___6[i]9___.lane_unchanged;
+--    --    esac;
+--    --    TRUE: veh___6[i]9___.lane_unchanged;                                      -- hold current value in all other cases
+--    esac;
+--}@******.if[@{!SIMPLE_LC}@.eval]
+--
+--}@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 --------------------------------------------------------
 -- End: Non-ego Spec 
