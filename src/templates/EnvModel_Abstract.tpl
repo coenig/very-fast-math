@@ -21,5 +21,6 @@ DEFINE
     @{abort_lane_change_complete_earliest_after}@*.timeWorldToEnvModelDef[1]; -- earliest point in time where the vehicle is entirely back on its source lane after a lane change abort
     @{abort_lane_change_complete_latest_after}@*.timeWorldToEnvModelDef[3];
     @{ego.min_time_between_lcs}@*.timeWorldToEnvModelDef[2];                      -- after finisihing one lc, how much time needs to pass before the next one may be started
+@{EnvModel_Alberto_macros.tpl}@******.include
 @{EnvModel_Abstract_Sections.tpl}@*******.include
 @{EnvModel_Abstract_Behavior_Nonego.tpl}@********.include
