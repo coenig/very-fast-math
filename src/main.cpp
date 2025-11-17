@@ -99,23 +99,11 @@ int main(int argc, char* argv[])
    if (argc == 1) {
       std::cout << "Found no command line arguments. Creating artificial ones to trigger M²oRTy GUI.\nNote: Make sure to run from *vfm*/bin folder.\n";
 
-      char* argvv[7];
-      argc = 7;
+      char* argvv[2];
+      argc = 2;
 
       argvv[0] = argv[0];
-      argvv[1] = "--mode";
-      argvv[2] = "gui";
-      argvv[3] = "--path-to-nuxmv";
-#ifdef _WIN32
-      argvv[4] = "../external/win32/nuXmv.exe";
-#elif __linux__
-      argvv[4] = "../external/linux64/nuXmv";
-#else
-      argvv[4] = "../external/linux64/nuXmv";
-      std::cout << "Unknown OS, trying linux, but no guarantee.\n"
-#endif
-      argvv[5] = "--template-dir";
-      argvv[6] = "../src/templates";
+      argvv[1] = "--execute-script";
 
       return artifactRun(argc, argvv);
    }

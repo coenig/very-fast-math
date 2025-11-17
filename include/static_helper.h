@@ -971,8 +971,16 @@ public:
       distance_scaling_factor_ = 1;
 
       if (!envmodel_str.empty()) {
-         time_scaling_factor_ = std::stof(StaticHelper::removePartsOutsideOf(envmodel_str, "TIMESCALING((((", "))))GNILACSEMIT"));
-         distance_scaling_factor_ = std::stof(StaticHelper::removePartsOutsideOf(envmodel_str, "DISTANCESCALING((((", "))))GNILACSECNATSID"));
+         std::string time_scaling_str{ StaticHelper::removePartsOutsideOf(envmodel_str, "TIMESCALING((((", "))))GNILACSEMIT") };
+         std::string distance_scaling_str{ StaticHelper::removePartsOutsideOf(envmodel_str, "DISTANCESCALING((((", "))))GNILACSECNATSID") };
+
+         if (StaticHelper::isParsableAsFloat(time_scaling_str)) {
+            time_scaling_factor_ = std::stof(time_scaling_str);
+         }
+
+         if (StaticHelper::isParsableAsFloat(distance_scaling_str)) {
+            distance_scaling_factor_ = std::stof(distance_scaling_str);
+         }
       }
 
       return true;
