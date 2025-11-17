@@ -75,7 +75,6 @@ public:
    void refreshPreview();
 
    void activateMCButtons(const bool active, const ButtonClass which);
-   bool isLTL(const std::string& config);
    int bmcDepth(const std::string& config);
 
    /// <summary>
@@ -121,7 +120,7 @@ public:
    void setValueForJSONKeyFromString(const std::string& key_to_find, const std::string& config_name, const bool from_template, const std::string& value_to_set) const;
    void setValueForJSONKeyFromBool(const std::string& key_to_find, const std::string& config_name, const bool from_template, const bool value_to_set) const;
 
-   mc::McWorkflow getMcWorkflow() const;
+   mc::McWorkflow& getMcWorkflow();
 
    std::shared_ptr<OptionsGlobal> getRuntimeGlobalOptions() const;
 
@@ -218,7 +217,7 @@ private:
    std::string path_to_template_dir_{};
    std::string path_to_external_folder_{};
 
-   mc::McWorkflow mc_workflow_;
+   mc::McWorkflow mc_workflow_{};
 };
 
 } // vfm
