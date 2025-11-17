@@ -1,8 +1,9 @@
+@{EnvModel_Header.tpl}@********.include
+@{EnvModel_Parameters.tpl}@********.include
+
 @{
 @(
-@{EnvModel_Header.tpl}@********.include
 @{EnvModel_Scaling.tpl}@********.include
-@{EnvModel_Parameters.tpl}@********.include
 @{EnvModel_Geometry.tpl}@********.include
 
 MODULE EnvModel
@@ -48,8 +49,6 @@ INVAR num_lanes = @{NUMLANES}@.eval[0];
 }@*****.if[@{EM_LESS}@.eval]
 )@
 @(
-   @{EnvModel_Parameters.tpl}@********.include
-   @{EnvModel_Scaling.tpl}@********.include
-   @{EnvModel_Abstract.tpl}@********.include
+   @{EnvModel_Alberto_two_cars.tpl}@********.include
 )@
 }@*********.if[@{FULL_MODEL}@.eval]

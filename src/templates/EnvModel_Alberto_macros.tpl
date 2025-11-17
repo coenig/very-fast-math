@@ -48,17 +48,19 @@
 --#define junction_big_or0(c0, sec0) \
 --  (FALSE)
 
-#define CarCoreDecl(car_name, n_sec, secparts_per_sec) \
-  VAR \
-    car_name.on_secpart : -1 .. secparts_per_sec;               \
-    car_name.on_straight_section : -1 .. n_sec; \
-    car_name.traversing_from : -1 .. n_sec; \
-    car_name.traversing_to : -1 .. n_sec; \
-  INIT car_name.traversing_to = -1 & car_name.traversing_from = -1; \
-  INIT car_name.on_secpart != -1;                                   \
-  TRANS car_name.on_straight_section = -1 ->                                        \
-    (next(car_name.on_straight_section) = -1 & next(car_name.traversing_to) = car_name.traversing_to & next(car_name.traversing_from) = car_name.traversing_from & next(car_name.on_secpart = -1)) | \
-    (next(car_name.on_straight_section) = car_name.traversing_to & next(car_name.traversing_to) = -1 & next(car_name.traversing_from) = -1 & next(car_name.on_secpart) = 0); \
+@{
+  VAR
+    #0#.on_secpart : -1 .. #2#;
+    #0#.on_straight_section : -1 .. #1#;
+    #0#.traversing_from : -1 .. #1#;
+    #0#.traversing_to : -1 .. #1#;
+  INIT #0#.traversing_to = -1 & #0#.traversing_from = -1;
+  INIT #0#.on_secpart != -1;
+  TRANS #0#.on_straight_section = -1 ->
+    (next(#0#.on_straight_section) = -1 & next(#0#.traversing_to) = #0#.traversing_to & next(#0#.traversing_from) = #0#.traversing_from & next(#0#.on_secpart = -1)) |
+    (next(#0#.on_straight_section) = #0#.traversing_to & next(#0#.traversing_to) = -1 & next(#0#.traversing_from) = -1 & next(#0#.on_secpart) = 0);
+}@***.newMethod[CarCoreDecl, 2]
+
 
 #define CAR_CAN_PROGRESS_WITH_MULTIPLE_STEPS 0
 #ifndef CAR_CAN_PROGRESS_WITH_MULTIPLE_STEPS

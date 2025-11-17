@@ -15,9 +15,11 @@ MODULE main
 
   -- part of declaration indipendent of interaction declared with macros.
   -- also control movement from junctions to sections
-  CarCoreDecl(car0, max_sec_id, max_secparts_per_sec)
-  CarCoreDecl(car1, max_sec_id, max_secparts_per_sec)
 
+  @{
+  @{car[car_num]}@.CarCoreDecl[max_sec_id, max_secparts_per_sec]
+  }@*.for[[car_num], 0, @{NONEGOS}@.eval]
+  
   -- TODO: Do I really need this constraint???
   INVAR ! (same_sec(car0, car1) & car0.on_secpart = car1.on_secpart);
 
