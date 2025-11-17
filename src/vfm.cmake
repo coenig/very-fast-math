@@ -103,6 +103,7 @@ SOURCES
    math_struct.cpp
    meta_rule.cpp
    mc_types.cpp
+   mc_workflow.cpp
    operator_structure.cpp
    parser.cpp
    failable.cpp

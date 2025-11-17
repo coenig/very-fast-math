@@ -6,7 +6,7 @@
       "#005": "@f(range_dist, x, a, b, c) { x = array((b - a) / c + 1 ); @i = get(x); while(i - get(x) < (b - a) / c + 1) { i = a + (i - get(x)) * c; @i = i +1}; i = nan() }",
       "#006": "@f(range_mult, x, start, cnt, mult) { x = array(cnt + 1); @i = get(x); @val = start; while(i < get(x) + cnt) { i = val; @i = i + 1; @val = val * mult }; i = nan() }",
       "#007": "range(@nonegos, 3, 3);",
-      "#008": "range(@lanes, 1, 1);",
+      "#008": "range(@lanes, 1, 4);",
       "#009": "range(@segments, 1, 1);",
       "#010": "range(@sections, 5, 5);",
       "#011": "range(@maxdist, 40, 40);",
@@ -16,8 +16,8 @@
       "#015": "range(@maxaccelego, 3, 3);",
       "#016": "range(@minaccel, -8, -8);",
       "#017": "range(@maxaccel, 3, 3);",
-      "#018": "range_dist(@d, 200, 1000, 100);",
-      "#019": "range_dist(@t, 200, 1000, 100);",
+      "#018": "range(@d, 1000, 1000);",
+      "#019": "range(@t, 1000, 1000);",
       "#020": "@distscaling = array(3); @distscaling[0] = 8000; @distscaling[1] = 25000; @distscaling[2] = nan();",
       "#021": "range_mult(@gran, 10, 4, 2);",
       "#121": "@f(LaneAvailableLeft) { distance_front } { env.ego.gaps___609___.lane_availability > distance_front }",
@@ -90,6 +90,7 @@
       "VEHICLE_LENGTH": "#{vehlen}#",
       "_BP_INCLUDES_FILE_PATH": "../src/examples/ego_less/vfm-includes.txt",
       "_CACHED_PATH": "../examples/tmp",
-      "_GENERATED_PATH": "../examples/gp"
+      "_GENERATED_PATH": "../examples/gp",
+      "_EXTERNAL_PATH": "../external"
    }
 }
