@@ -562,7 +562,7 @@ private:
             paths.at("path_template"),
             FILE_NAME_JSON_TEMPLATE);
 
-         return "MC run finished for '" + config_name + "'.";
+         return "MC run via script finished for '" + config_name + "'.";
       } 
    };
 
@@ -587,7 +587,7 @@ private:
             FILE_NAME_JSON_TEMPLATE, 
             std::stoi(num_threads_str));
 
-         return "MC runs finished for '" + paths.at("path_generated") + "'.";
+         return "MC runs via script finished for '" + paths.at("path_generated") + "'.";
       }
    };
 
@@ -601,7 +601,7 @@ private:
 
          mc_workflow.generateEnvmodels(paths.at("path_template"), FILE_NAME_JSON, FILE_NAME_JSON_TEMPLATE, FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
 
-         return "Envmodel generation finished for.";
+         return "Envmodel generation via script finished.";
       }
    };
 
