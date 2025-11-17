@@ -1,24 +1,52 @@
-#define behind_sec(c0, c1) \
-  (same_sec(c0, c1) & (c0.on_secpart < c1.on_secpart))
+-- TODO[AB]: I will have to change the name to this field!!!
+@{
+  (#0#.on_secpart)
+}@**.newMethod[secpart, 0]
 
-#define same_sec(c0, c1) \
-  (c0.on_straight_section != -1 & c0.on_straight_section = c1.on_straight_section)
+@{
+  (#0#.on_straight_section)
+}@**.newMethod[sec, 0]
 
-#define car_at_end_of_section(c0, sec_id, sec_n_seg) \
-  (c0.on_straight_section = sec_id & c0.on_secpart = sec_n_seg)
+-- Expression is true if the two cars are on the same section.
+--
+--#define same_sec(c0, c1) \
+--  (c0.on_straight_section != -1 & c0.on_straight_section = c1.on_straight_section)
+@{
+  (@{#0#}@.sec = @{#1#}@.sec & @{#0#}@.sec != -1)
+}@***.newMethod[same_sec, 1]
+
+-- True if car0 is in the same section of car1 and it is behind.
+-- If the two cars are in different sections or in junctions the proposition is false
+--
+--#define behind_sec(c0, c1) \
+--  (same_sec(c0, c1) & (c0.on_secpart < c1.on_secpart))
+@{
+  (@{#0#}@.same_sec[#1] & @{#0#}@.secpart < @{#0#}@.secpart)
+}@***.newMethod[behind_sec, 1]
+
+-- True if the car is in the last chunk of the section (\sa on_secpart)
+--
+--#define car_at_end_of_section(c0, sec_id, sec_n_seg) \
+--  (c0.on_straight_section = sec_id & c0.on_secpart = sec_n_seg)
+--
+-- TODO[AB]: Extend with new MAX_SECPART parameter?
+@{
+  @{#0#}@.sec = #1# & @{#0#}@.secpart = #2#
+}@***.newMethod[car_at_end_of_section, 2]
 
 
-#define junction_big_or2(c0, sec0) \
-  (                                 \
-    (junction_big_or1(c0, sec0)) |  \
-    (next(c0.traversing_to) = sec0.outgoing_connection_1)   \
-  )
-  
-#define junction_big_or1(c0, sec0) \
-  (next(c0.traversing_to) = sec0.outgoing_connection_0)
-
-#define junction_big_or0(c0, sec0) \
-  (FALSE)
+-- TODO[AB]: Remove and use existing machinery!
+--#define junction_big_or2(c0, sec0) \
+--  (                                 \
+--    (junction_big_or1(c0, sec0)) |  \
+--    (next(c0.traversing_to) = sec0.outgoing_connection_1)   \
+--  )
+--  
+--#define junction_big_or1(c0, sec0) \
+--  (next(c0.traversing_to) = sec0.outgoing_connection_0)
+--
+--#define junction_big_or0(c0, sec0) \
+--  (FALSE)
 
 #define CarCoreDecl(car_name, n_sec, secparts_per_sec) \
   VAR \
