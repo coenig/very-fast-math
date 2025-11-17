@@ -541,7 +541,7 @@ private:
       map.insert({ "path_external", path_external });
 
       for (const auto& p : map) {
-         addNote("Setting directory '" + p.first + "' to '" + StaticHelper::absPath(p.second) + "'.");
+         addNote("Setting directory '" + p.first + "' to '" + StaticHelper::absPath(p.second, false) + "'.");
       }
 
       return map;

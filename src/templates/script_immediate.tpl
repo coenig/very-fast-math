@@ -1,10 +1,9 @@
-@{
-   *** COMMENTS SECTION ***
+@{ *** COMMENTS SECTION ***
+   
 
    @{../src/templates}@.stringToHeap[MY_PATH]
 
-   *** EO COMMENTS SECTION ***
-}@*.nil
+   *** EO COMMENTS SECTION *** }@*.nil
 
 
 
