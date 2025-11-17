@@ -85,7 +85,7 @@ static const std::set<std::string> UNCACHABLE_METHODS{
    "vfmheap", "vfmdata", "vfmfunc", "sethard", "printHeap", "METHODs", "stringToHeap", 
    "listElement", "clearList", "asArray", "printList", "printLists", "pushBack", "openWithOS",
    "readFile", "executeSystemCommand", "exec", "writeTextToFile", "timestamp", "vfm_variable_declared", "vfm_variable_undeclared",
-   "createRoadGraph", "storeRoadGraph", "connectRoadGraphTo", "runMCJobs", "runMCJob" };
+   "createRoadGraph", "storeRoadGraph", "connectRoadGraphTo", "runMCJobs", "runMCJob", "generateEnvmodels"};
 
  /// Only for internal usage, this symbol is removed from the script
  /// after the translation process is terminated.
