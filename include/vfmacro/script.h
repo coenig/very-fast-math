@@ -591,6 +591,7 @@ private:
       }
    };
 
+   // Full example: @{}@.generateEnvmodels @{../src/templates}@.stringToHeap[MY_PATH] @{../examples}@.runMCJobs[10]
    ScriptMethodDescription m7{
       "generateEnvmodels",
       0,
