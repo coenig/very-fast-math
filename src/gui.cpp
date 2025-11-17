@@ -904,6 +904,19 @@ void MCScene::refreshRarely(void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
 
+   if (mc_scene->logging_output_and_interpreter_->getResult() == EMPTY) {
+      mc_scene->logging_output_and_interpreter_->activate();
+   }
+   else {
+      if (mc_scene->logging_output_and_interpreter_->getResult() == WAITING) {
+         mc_scene->logging_output_and_interpreter_->deactivate();
+      }
+      else {
+         mc_scene->logging_output_and_interpreter_->append(mc_scene->logging_output_and_interpreter_->getResult().c_str());
+         mc_scene->logging_output_and_interpreter_->setResult(EMPTY);
+      }
+   }
+
    std::filesystem::path path_generated_base{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir()) };
 
    if (!StaticHelper::existsFileSafe(path_generated_base)) {

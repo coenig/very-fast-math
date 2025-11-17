@@ -20,7 +20,7 @@ static const std::string PROSE_DESC_NAME{ "prose_scenario_description.txt" };
 static const std::string FILE_NAME_JSON{ "envmodel_config.json" };
 static const std::string FILE_NAME_JSON_TEMPLATE { "envmodel_config.tpl.json" };
 static const std::string FILE_NAME_ENVMODEL_ENTRANCE{ "EnvModel.tpl" };
-static const std::string GUI_NAME{ "M²oRTy" };
+static const std::string GUI_NAME{ "MÂ²oRTy" };
 
 namespace mc{
 
