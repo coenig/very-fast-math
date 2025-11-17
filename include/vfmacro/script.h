@@ -11,6 +11,7 @@
 #include "data_pack.h"
 #include "gui/process_helper.h"
 #include "simulation/road_graph.h"
+#include "model_checking/mc_workflow.h"
 #include <vector>
 #include <map>
 #include <set>
@@ -84,7 +85,7 @@ static const std::set<std::string> UNCACHABLE_METHODS{
    "vfmheap", "vfmdata", "vfmfunc", "sethard", "printHeap", "METHODs", "stringToHeap", 
    "listElement", "clearList", "asArray", "printList", "printLists", "pushBack", "openWithOS",
    "readFile", "executeSystemCommand", "exec", "writeTextToFile", "timestamp", "vfm_variable_declared", "vfm_variable_undeclared",
-   "createRoadGraph", "storeRoadGraph", "connectRoadGraphTo"};
+   "createRoadGraph", "storeRoadGraph", "connectRoadGraphTo", "runMCJobs", "runMCJob" };
 
  /// Only for internal usage, this symbol is removed from the script
  /// after the translation process is terminated.
@@ -522,11 +523,96 @@ private:
    ScriptMethodDescription m3{ "for", 4, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3)); } };
    ScriptMethodDescription m4{ "for", 5, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3), parameters.at(4)); } };
 
+   std::map<std::string, std::string> guessPaths(const std::string& path_generated_raw, const std::string& config_name)
+   {
+      static const std::string PREFIX{ "gp" };
+
+      std::map<std::string, std::string> map{};
+      std::string mypath{ "." };
+      std::string path_template{ mypath + "/../src/templates" };
+      std::string path_generated{ path_generated_raw + "/" + PREFIX + config_name };
+      std::string path_cached{ path_generated_raw + "/tmp/" };
+      std::string path_external{ path_template + "/../../external/" };
+
+      map.insert({ "mypath", mypath });
+      map.insert({ "path_template", path_template });
+      map.insert({ "path_generated", path_generated });
+      map.insert({ "path_cached", path_cached });
+      map.insert({ "path_external", path_external });
+
+      for (const auto& p : map) {
+         addNote("Setting directory '" + p.first + "' to '" + StaticHelper::absPath(p.second) + "'.");
+      }
+
+      return map;
+   }
+
+   ScriptMethodDescription m5{ 
+      "runMCJob", 
+      1, 
+      [this](const std::vector<std::string>& parameters) -> std::string 
+      { 
+         auto mc_workflow = mc::McWorkflow(vfm_data_, vfm_parser_);
+         std::string config_name{ parameters.at(0) };
+         std::map<std::string, std::string> paths{ guessPaths(getRawScript(), config_name) };
+
+         mc_workflow.runMCJob(
+            paths.at("path_generated"),
+            config_name,
+            paths.at("path_template"),
+            FILE_NAME_JSON_TEMPLATE);
+
+         return "MC run finished for '" + config_name + "'.";
+      } 
+   };
+
+   ScriptMethodDescription m6{
+      "runMCJobs",
+      1,
+      [this](const std::vector<std::string>& parameters) -> std::string
+      {
+         auto mc_workflow = mc::McWorkflow(vfm_data_, vfm_parser_);
+         std::string num_threads_str{ parameters.at(0) };
+
+         if (!StaticHelper::isParsableAsFloat(num_threads_str)) {
+            return "#ERROR<Parameter for number of threads '" + num_threads_str + "' is not a valid number in runMCJobs method>#";
+         }
+
+         std::map<std::string, std::string> paths{ guessPaths(getRawScript(), "")};
+
+         mc_workflow.runMCJobs(
+            std::filesystem::path(paths.at("path_generated")), // TODO: Don't need this parameter.
+            [](const std::string& folder) -> bool { return true; },
+            paths.at("path_template"),
+            FILE_NAME_JSON_TEMPLATE, 
+            std::stoi(num_threads_str));
+
+         return "MC runs finished for '" + paths.at("path_generated") + "'.";
+      }
+   };
+
+   ScriptMethodDescription m7{
+      "generateEnvmodels",
+      0,
+      [this](const std::vector<std::string>& parameters) -> std::string
+      {
+         auto mc_workflow = mc::McWorkflow(vfm_data_, vfm_parser_);
+         std::map<std::string, std::string> paths{ guessPaths(getRawScript(), "") };
+
+         mc_workflow.generateEnvmodels(paths.at("path_template"), FILE_NAME_JSON, FILE_NAME_JSON_TEMPLATE, FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
+
+         return "Envmodel generation finished for.";
+      }
+   };
+
    std::set<ScriptMethodDescription> METHODS{
       m1,
       m2,
       m3,
       m4,
+      m5, // Example: @{../examples}@.runMCJob[_config_d=1000_lanes=1_maxaccel=3_maxaccelego=3_minaccel=-8_minaccelego=-8_nonegos=3_sections=5_segments=1_t=1100_vehlen=5]
+      m6, // Example: @{../examples}@.runMCJobs[10]
+      m7, // Example: @{}@.generateEnvmodels
       { "serialize", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::vfm); } },
       { "serializeK2", 0, [this](const std::vector<std::string>& parameters) -> std::string { return toK2(getRawScript()); } },
       { "serializeNuXmv", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::nuXmv); } },

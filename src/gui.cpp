@@ -9,6 +9,7 @@
 #include "gui/process_helper.h"
 #include "model_checking/results_analysis.h"
 #include "vfmacro/script.h"
+#include "model_checking/mc_workflow.h"
 
 using namespace vfm;
 
@@ -26,7 +27,7 @@ std::map<std::string, std::pair<std::string, std::string>> MCScene::loadNewBBsFr
    last_bb_stuff_.clear();
 
    auto json = getJSON();
-   evaluateFormulasInJSON(json);
+   mc_workflow_.evaluateFormulasInJSON(json, formula_evaluation_mutex_);
 
    auto bb_pair = getSpec(JSON_TEMPLATE_DENOTER);
    std::string bb{ bb_pair.second };
@@ -34,13 +35,13 @@ std::map<std::string, std::pair<std::string, std::string>> MCScene::loadNewBBsFr
 
    // SPEC
    bb_str = 
-      std::string(isLTL(JSON_TEMPLATE_DENOTER) ? "LTLSPEC" : "INVARSPEC")
+      std::string(mc_workflow_.isLTL(JSON_TEMPLATE_DENOTER, getTemplateDir()) ? "LTLSPEC" : "INVARSPEC")
       + " = " + bb.substr(JSON_NUXMV_FORMULA_BEGIN.size(), bb.size() - JSON_NUXMV_FORMULA_BEGIN.size() - JSON_NUXMV_FORMULA_END.size() - 1);
 
-   parser_->resetErrors(ErrorLevelEnum::error);
-   MathStructPtr fmla = MathStruct::parseMathStruct(bb_str, parser_, data_, DotTreatment::as_operator);
+   mc_workflow_.parser_->resetErrors(ErrorLevelEnum::error);
+   MathStructPtr fmla = MathStruct::parseMathStruct(bb_str, mc_workflow_.parser_, mc_workflow_.data_, DotTreatment::as_operator);
 
-   if (parser_->hasErrorOccurred()) {
+   if (mc_workflow_.parser_->hasErrorOccurred()) {
       last_bb_stuff_.insert({ StaticHelper::removeWhiteSpace(StaticHelper::split(bb_str, "=").at(0)), { bb_str, bb_pair.first } });
    }
    else {
@@ -58,7 +59,7 @@ std::map<std::string, std::pair<std::string, std::string>> MCScene::loadNewBBsFr
    }
 
    // BBs
-   for (const auto& dynamic_terms : parser_->getDynamicTermMetas()) {
+   for (const auto& dynamic_terms : mc_workflow_.parser_->getDynamicTermMetas()) {
       const std::string name{ dynamic_terms.first };
       
       for (const auto& dynamic_term : dynamic_terms.second) {
@@ -100,7 +101,7 @@ std::map<std::string, std::pair<std::string, std::string>> MCScene::loadNewBBsFr
 
             if (!fmla_id.empty()) {
                std::string params{};
-               const auto& par_names_map = parser_->getParameterNamesFor(name, num_params);
+               const auto& par_names_map = mc_workflow_.parser_->getParameterNamesFor(name, num_params);
 
                for (const auto& param : par_names_map) {
                   params += ", " + param.second;
@@ -159,6 +160,8 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
 {
    inputs.printArgumentsForMC();
 
+   formula_evaluation_mutex_ = std::make_shared<std::mutex>();
+
    path_to_template_dir_ = inputs.getCmdOption(vfm::test::CMD_TEMPLATE_DIR_PATH);
    json_tpl_filename_ = inputs.getCmdOption(vfm::test::CMD_JSON_TEMPLATE_FILE_NAME);
    auto path_to_nuxmv = inputs.getCmdOption(vfm::test::CMD_NUXMV_EXEC);
@@ -169,17 +172,15 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
       Fl::screen_scale(screenNumber, calculateScaleFactor(screenNumber));
    }
 
-   window_->color(FL_RED);
+   //window_->color(FL_RED);
    main_group_->end();
-
-   resetParserAndData();
 
    ADDITIONAL_LOGGING_PIPE = new std::ostringstream{};
    addOrChangeErrorOrOutputStream(*ADDITIONAL_LOGGING_PIPE, true);
    addOrChangeErrorOrOutputStream(*ADDITIONAL_LOGGING_PIPE, false);
    addFailableChild(Failable::getSingleton(GUI_NAME + "_Related"), "");
 
-   logging_output_and_interpreter_ = new InterpreterTerminal(data_, parser_, 10, 300, window_->w(), INTERPRETER_TERMINAL_HEIGHT);
+   logging_output_and_interpreter_ = new InterpreterTerminal(mc_workflow_.data_, mc_workflow_.parser_, 10, 300, window_->w(), INTERPRETER_TERMINAL_HEIGHT);
    addNotePlain(RICK);
    addNotePlain(MORTY_ASCII_ART);
    addNote("Terminal initialized.");
@@ -200,7 +201,7 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
    button_delete_cached_->callback(buttonDeleteCached, this);
    button_delete_cached_->tooltip("Use right click if you really want to delete cache");
    button_run_mc_and_preview_->callback(buttonRunMCAndPreview, this);
-   button_run_parser_->callback(buttonReparse, this);
+   button_create_envmodels->callback(buttonCreateEnvmodels, this);
    button_run_cex_->callback(buttonCEX, this);
    button_runtime_analysis_->callback(buttonRuntimeAnalysis, this);
    checkbox_json_visible_->callback(checkboxJSONVisibleCallback, this);
@@ -227,7 +228,8 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
    Fl::add_timeout(TIMEOUT_RARE, refreshRarely, this);
    Fl::add_timeout(TIMEOUT_SOMETIMES, refreshSometimes, this);
 
-   copyWaitingForPreviewGIF();
+   mc_workflow_.copyWaitingForPreviewGIF(getTemplateDir(), mc_workflow_.getGeneratedDir(getTemplateDir()), previous_write_time_);
+   refreshPreview();
 
    scene_description_->textfont(FL_COURIER_BOLD);
    scene_description_->textsize(16);
@@ -239,7 +241,7 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
 
    main_group_->position(50, 200);
 
-   runtime_global_options_ = std::make_shared<OptionsGlobal>(getGeneratedDir() + "/runtime_options.morty");
+   runtime_global_options_ = std::make_shared<OptionsGlobal>((mc_workflow_.getGeneratedDir(getTemplateDir()) / "runtime_options.morty").string());
    runtime_global_options_->loadOptions();
    runtime_global_options_->saveOptions(); // In case of missing file, create it with default values.
 
@@ -282,16 +284,7 @@ std::string vfm::MCScene::getValueForJSONKeyAsString(const std::string& key_to_f
 
    try {
       nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
-
-      for (auto& [key_config, value_config] : j.items()) {
-         if (key_config == config_name) {
-            for (auto& [key, value] : value_config.items()) {
-               if (key == key_to_find) {
-                  return StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "");
-               }
-            }
-         }
-      }
+      return mc_workflow_.getValueForJSONKeyAsString(key_to_find, j, config_name);
    }
    catch (const nlohmann::json::parse_error& e) {
       addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
@@ -301,9 +294,6 @@ std::string vfm::MCScene::getValueForJSONKeyAsString(const std::string& key_to_f
       addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
       return "#JSON Error";
    }
-
-   addError("#KEY-NOT-FOUND in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
-   return "#KEY-NOT-FOUND";
 }
 
 void vfm::MCScene::setValueForJSONKeyFromBool(const std::string& key_to_find, const std::string& config_name, const bool from_template, const bool value_to_set) const
@@ -369,38 +359,6 @@ std::string MCScene::getTemplateDir() const
    return path_to_template_dir_;
 }
 
-std::string MCScene::getCachedDir() const
-{
-   if (cached_dir_.empty()) {
-      cached_dir_ = getValueForJSONKeyAsString("_CACHED_PATH", JSON_TEMPLATE_DENOTER);
-   }
-
-   return cached_dir_;
-}
-
-std::string MCScene::getBPIncludesFileDir() const
-{
-   if (includes_file_dir_.empty()) {
-      includes_file_dir_ = getValueForJSONKeyAsString("_BP_INCLUDES_FILE_PATH", JSON_TEMPLATE_DENOTER);
-   }
-
-   return includes_file_dir_;
-}
-
-std::string MCScene::getGeneratedDir() const
-{
-   if (cached_dir_.empty()) {
-      generated_dir_ = getValueForJSONKeyAsString("_GENERATED_PATH", JSON_TEMPLATE_DENOTER);
-   }
-
-   return generated_dir_;
-}
-
-std::string vfm::MCScene::getGeneratedParentDir() const
-{
-   return std::filesystem::path(getGeneratedDir()).parent_path().string();
-}
-
 int vfm::MCScene::getActualJSONWidth() const
 {
    return json_input_->visible() ? json_input_->w() : 0;
@@ -412,40 +370,19 @@ void vfm::MCScene::resetCachedVariables() const
    generated_dir_ = "";
 }
 
-void MCScene::copyWaitingForPreviewGIF() {
-   std::string path_preview_template{ getTemplateDir() + "/preview.img" };
-   std::string path_preview_target{ getGeneratedDir() + "/preview/preview.gif" };
-   StaticHelper::createDirectoriesSafe(getGeneratedDir() + "/preview", false);
-
-   if (StaticHelper::existsFileSafe(path_preview_target, false)) {
-      StaticHelper::removeFileSafe(path_preview_target, false);
-   }
-
-   try {
-      std::filesystem::copy(path_preview_template, path_preview_target);
-   }
-   catch (const std::exception& e) {
-      addWarning("Directory '" + StaticHelper::absPath(path_preview_template) + "' not copied to '" + StaticHelper::absPath(path_preview_target) + "'. Error: " + e.what());
-   }
-
-   previous_write_time_ = StaticHelper::lastWritetimeOfFileSafe(path_preview_target, false);
-
-   refreshPreview(); // TODO: HERE IT HAPPENS THAT THE RED BACKGORUND IS NOT SHOWN.
-}
-
 void MCScene::refreshPreview()
 {
    std::lock_guard<std::mutex> lock{ refresh_mutex_ };
-   std::string path_preview_target{ getGeneratedDir() + "/preview/preview.gif" };
+   std::filesystem::path path_preview_target{ mc_workflow_.getGeneratedDir(getTemplateDir()) / "preview/preview.gif" };
 
-   if (!StaticHelper::existsFileSafe(getGeneratedDir()) || !StaticHelper::existsFileSafe(path_preview_target)) {
+   if (!StaticHelper::existsFileSafe(mc_workflow_.getGeneratedDir(getTemplateDir())) || !StaticHelper::existsFileSafe(path_preview_target)) {
       return;
    }
 
    box_->image(nullptr);
    gif_->release(); // Here the gif image is deleted.
    try {
-      gif_ = new Fl_Anim_GIF_Image(path_preview_target.c_str());
+      gif_ = new Fl_Anim_GIF_Image(path_preview_target.string().c_str());
    }
    catch (std::exception& e) {
 
@@ -464,7 +401,7 @@ void MCScene::activateMCButtons(const bool active, const ButtonClass which)
 {
    if (active) {
       if (which == ButtonClass::RunButtons || which == ButtonClass::All) {
-         button_run_parser_->activate();
+         button_create_envmodels->activate();
          button_run_cex_->activate();
          button_run_mc_and_preview_->activate();
          button_runtime_analysis_->activate();
@@ -479,7 +416,7 @@ void MCScene::activateMCButtons(const bool active, const ButtonClass which)
    }
    else {
       if (which == ButtonClass::RunButtons || which == ButtonClass::All) {
-         button_run_parser_->deactivate();
+         button_create_envmodels->deactivate();
          button_run_cex_->deactivate();
          button_run_mc_and_preview_->deactivate();
          button_runtime_analysis_->deactivate();
@@ -492,12 +429,6 @@ void MCScene::activateMCButtons(const bool active, const ButtonClass which)
          button_delete_cached_->deactivate();
       }
    }
-}
-
-bool MCScene::isLTL(const std::string& config)
-{
-   auto val = getValueForJSONKeyAsString("LTL_MODE", config);
-   return StaticHelper::isBooleanTrue(val);
 }
 
 int MCScene::bmcDepth(const std::string& config)
@@ -577,8 +508,8 @@ void MCScene::saveJsonText()
    try {
       nlohmann::json json = nlohmann::json::parse(json_input_->buffer()->text());
       resetCachedVariables();
-      getGeneratedDir();
-      getCachedDir();
+      mc_workflow_.getGeneratedDir(getTemplateDir());
+      mc_workflow_.getCachedDir(getTemplateDir());
    }
    catch (const nlohmann::json::parse_error& e) {
    }
@@ -589,51 +520,18 @@ void MCScene::setTitle()
    window_->label((GUI_NAME + std::string("         ")
       + json_tpl_filename_ + " | "
       + StaticHelper::absPath(getTemplateDir()) + " ==> " 
-      + StaticHelper::absPath(getGeneratedDir())
-      + " [[" + StaticHelper::absPath(getCachedDir()) + "]]").c_str());
+      + StaticHelper::absPath(mc_workflow_.getGeneratedDir(getTemplateDir()))
+      + " [[" + StaticHelper::absPath(mc_workflow_.getCachedDir(getTemplateDir())) + "]]").c_str());
+}
+
+mc::McWorkflow& vfm::MCScene::getMcWorkflow() const
+{
+   return mc_workflow_;
 }
 
 std::shared_ptr<OptionsGlobal> vfm::MCScene::getRuntimeGlobalOptions() const
 {
    return runtime_global_options_;
-}
-
-bool vfm::MCScene::putJSONIntoDataPack(const std::string& json_config)
-{
-   const bool from_template{ json_config == JSON_TEMPLATE_DENOTER };
-   bool config_valid{ false };
-
-   //data_->reset();
-
-   try {
-      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
-
-      for (auto& [key_config, value_config] : j.items()) {
-         if (key_config == json_config) {
-            config_valid = true;
-
-            for (auto& [key, value] : value_config.items()) {
-               if (value.is_string()) {
-                  std::string val_str = StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "");
-                  data_->addStringToDataPack(val_str, key);
-               }
-               else {
-                  data_->addOrSetSingleVal(key, value);
-               }
-            }
-         }
-      }
-   }
-   catch (const nlohmann::json::parse_error& e) {
-      //addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
-   }
-   catch (...) {
-      //addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
-   }
-
-   if (!config_valid) addError("Config '" + json_config + "' not found in JSON. (Did you rename the folders by hand? You're not supposed to do that.)");
-
-   return config_valid;
 }
 
 void MCScene::showAllBBGroups(const bool show)
@@ -642,10 +540,10 @@ void MCScene::showAllBBGroups(const bool show)
       envmodel_variables_.insert(group.first);
 
       const std::string fmla_str{ group.second.second->getFormula() };
-      parser_->resetErrors(ErrorLevelEnum::error);
-      const TermPtr fmla{ MathStruct::parseMathStruct(fmla_str, parser_, data_, DotTreatment::as_operator)->toTermIfApplicable() };
+      mc_workflow_.parser_->resetErrors(ErrorLevelEnum::error);
+      const TermPtr fmla{ MathStruct::parseMathStruct(fmla_str, mc_workflow_.parser_, mc_workflow_.data_, DotTreatment::as_operator)->toTermIfApplicable() };
 
-      if (parser_->hasErrorOccurred()) {
+      if (mc_workflow_.parser_->hasErrorOccurred()) {
          group.second.second->color(FL_RED);
       }
       else {
@@ -680,7 +578,7 @@ void MCScene::resetAllBBGroups()
 
 void showBoxWithPreviews(const MCScene* mc_scene, const DragGroup* drag_group)
 {
-   const std::filesystem::path previews_path{ mc_scene->getGeneratedParentDir() + "/previews" };
+   const std::filesystem::path previews_path{ mc_scene->getMcWorkflow().getGeneratedParentDir(mc_scene->getTemplateDir()) / "previews"};
    StaticHelper::createDirectoriesSafe(previews_path);
    float current_best{ std::numeric_limits<float>::infinity() };
    std::filesystem::directory_entry best{};
@@ -1006,20 +904,19 @@ void MCScene::refreshRarely(void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
 
-   std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
+   std::filesystem::path path_generated_base{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir()) };
 
-   if (!StaticHelper::existsFileSafe(path_generated_base_str)) {
-      StaticHelper::createDirectoriesSafe(path_generated_base_str);
+   if (!StaticHelper::existsFileSafe(path_generated_base)) {
+      StaticHelper::createDirectoriesSafe(path_generated_base);
    }
 
-   std::string path_prose_description{ path_generated_base_str + "/" + PROSE_DESC_NAME };
-   std::filesystem::path path_generated_base(path_generated_base_str);
+   std::filesystem::path path_prose_description{ path_generated_base / PROSE_DESC_NAME };
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
    std::string path_template{ mc_scene->getTemplateDir() };
    std::string prefix{ path_generated_base.filename().string() };
    std::set<std::string> packages{};
 
-   if (StaticHelper::stringContains(StaticHelper::toLowerCase(path_generated_base_str), "error")) {
+   if (StaticHelper::stringContains(StaticHelper::toLowerCase(path_generated_base.string()), "error")) {
       return;
    }
 
@@ -1070,9 +967,9 @@ void MCScene::refreshRarely(void* data)
       mc_scene->scene_description_->value("Waiting for data...");
    }
 
-   std::string path_preview_target{ std::string(mc_scene->getGeneratedDir()) + "/preview/preview.gif" };
+   std::filesystem::path path_preview_target{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir()) / "preview/preview.gif" };
 
-   if (!mc_scene->mc_running_internal_ && StaticHelper::existsFileSafe(mc_scene->getGeneratedDir()) && StaticHelper::existsFileSafe(path_preview_target)) {
+   if (!mc_scene->mc_running_internal_ && StaticHelper::existsFileSafe(mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir())) && StaticHelper::existsFileSafe(path_preview_target)) {
       auto currentWriteTime = StaticHelper::lastWritetimeOfFileSafe(path_preview_target);
 
       // Compare the current write time with the previous write time
@@ -1122,7 +1019,7 @@ void MCScene::refreshRarely(void* data)
       if (!found) {
          mc_scene->se_controllers_.insert(SingleExpController(
             path_template,
-            path_generated_base_str,
+            path_generated_base.string(),
             el,
             StaticHelper::replaceAll(el, prefix + "_config_", ""),
             mc_scene));
@@ -1231,7 +1128,7 @@ void MCScene::refreshRarely(void* data)
    }
 
    // Show building blocks as draggable boxes.
-   if (mc_scene->button_run_parser_->active()) { // Only if the buttons are active, i.e., if no jobs are running in the background.
+   if (mc_scene->button_create_envmodels->active()) { // Only if the buttons are active, i.e., if no jobs are running in the background.
       std::lock_guard<std::mutex> lock{ mc_scene->parser_mutex_ };
       std::map<std::string, std::pair<std::string, std::string>> new_bbs{ mc_scene->loadNewBBsFromJson() };
       std::set<std::string> to_delete_bbs{};
@@ -1377,9 +1274,9 @@ void MCScene::refreshSometimes(void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
 
-   if (mc_scene->button_run_parser_->active()) { // Don't display this warning when jobs are running.
-      if (!test::isCacheUpToDateWithTemplates(mc_scene->getCachedDir(), mc_scene->getTemplateDir(), GUI_NAME + "_Related")) {
-         mc_scene->addWarning("Cache in '" + mc_scene->getCachedDir() + "' is outdated w.r.t. the template files in '" + mc_scene->getTemplateDir() + "'.\n"
+   if (mc_scene->button_create_envmodels->active()) { // Don't display this warning when jobs are running.
+      if (!test::isCacheUpToDateWithTemplates(mc_scene->mc_workflow_.getCachedDir(mc_scene->getTemplateDir()), mc_scene->getTemplateDir(), GUI_NAME + "_Related")) {
+         mc_scene->addWarning("Cache in '" + mc_scene->mc_workflow_.getCachedDir(mc_scene->getTemplateDir()).string() + "' is outdated w.r.t. the template files in '" + mc_scene->getTemplateDir() + "'.\n"
             + "All cached entries will be deleted on next click on 'Create EnvModels...'. <Delete cache with right-click on the button to stop this message.>");
       }
    }
@@ -1464,117 +1361,39 @@ void MCScene::jsonChangedCallback(Fl_Widget* widget, void* data) {
    mc_scene->button_check_json_->color(FL_YELLOW);
 }
 
-
-
-void MCScene::runMCJob(MCScene* mc_scene, const std::string& path_generated_raw, const std::string config_name)
-{
-   std::string path_generated{ StaticHelper::replaceAll(path_generated_raw, "\\", "/") };
-   std::string path_template{ mc_scene->getTemplateDir() };
-
-   {
-      std::lock_guard<std::mutex> lock{ mc_scene->main_file_mutex_ };
-
-      mc_scene->addNote("Running model checker and creating preview for folder '" + path_generated + "' (config: '" + config_name + "').");
-      mc_scene->deleteMCOutputFromFolder(path_generated, true);
-      mc_scene->preprocessAndRewriteJSONTemplate();
-
-      if (!mc_scene->putJSONIntoDataPack()) return;
-      if (!mc_scene->putJSONIntoDataPack(config_name)) return;
-
-      std::string main_smv{ StaticHelper::readFile(path_generated + "/main.smv") };
-
-      std::string script_template{ StaticHelper::readFile(mc_scene->getTemplateDir() + "/script.tpl") };
-      std::string main_template{ StaticHelper::readFile(mc_scene->getTemplateDir() + "/main.tpl") };
-      std::string generated_script{ CppParser::generateScript(script_template, mc_scene->data_, mc_scene->parser_) };
-      StaticHelper::writeTextToFile(generated_script, path_generated + "/script.cmd");
-
-      mc_scene->addNote("Created script.cmd with the following content:\n" + StaticHelper::readFile(path_generated + "/script.cmd") + "<EOF>");
-
-      static const std::string SPEC_BEGIN{ "--SPEC-STUFF" };
-      static const std::string SPEC_END{ "--EO-SPEC-STUFF" };
-      static const std::string ADDONS_BEGIN{ "--ADDONS" };
-      static const std::string ADDONS_END{ "--EO-ADDONS" };
-      mc_scene->data_->addStringToDataPack(mc_scene->getTemplateDir(), macro::MY_PATH_VARNAME); // Set the script processors home path (for the case it's not already been set during EnvModel generation).
-
-      // Re-generate SPEC stuff.
-      main_smv = StaticHelper::removeMultiLineComments(main_smv, SPEC_BEGIN, SPEC_END);
-      main_smv += SPEC_BEGIN + "\n";
-
-      auto spec_part = StaticHelper::removePartsOutsideOf(main_template, SPEC_BEGIN, SPEC_END);
-      mc_scene->data_->addStringToDataPack(path_generated, "FULL_GEN_PATH");
-      spec_part = vfm::macro::Script::processScript(spec_part, macro::Script::DataPreparation::both, mc_scene->data_, mc_scene->parser_);
-      main_smv += spec_part + "\n";
-      main_smv += SPEC_END + "\n";
-
-      StaticHelper::writeTextToFile(main_smv, path_generated + "/main.smv");
-   }
-
-   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, path_generated, "FAKE_PATH_NOT_USED", path_template, "FAKE_PATH_NOT_USED", mc_scene->getCachedDir(), mc_scene->path_to_external_folder_);
-   mc_scene->generatePreview(path_generated, 0);
-
-   mc_scene->addNote("Model checker run finished for folder '" + path_generated + "'.");
-}
-
-void vfm::MCScene::generatePreview(const std::string& path_generated, const int cex_num)
-{
-   addNote("Generating preview for folder '" + path_generated + "'.");
-
-   mc::trajectory_generator::VisualizationLaunchers::quickGeneratePreviewGIFs(
-      { cex_num },
-      path_generated,
-      "debug_trace_array",
-      mc::trajectory_generator::CexTypeEnum::smv);
-
-   refreshPreview();
-}
-
 void vfm::MCScene::runMCJobs(MCScene* mc_scene)
 {
-   const std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
+   const std::filesystem::path path_generated_base_str{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir()) };
    const std::filesystem::path path_generated_base(path_generated_base_str);
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
-   std::string prefix{ path_generated_base.filename().string() };
 
-   mc_scene->deleteMCOutputFromFolder(path_generated_base_str, true);
-   std::vector<std::string> possibles{};
-
-   for (const auto& entry : std::filesystem::directory_iterator(path_generated_base_parent)) {
-      std::string possible{ entry.path().filename().string() };
-      if (std::filesystem::is_directory(entry) && possible != prefix && StaticHelper::stringStartsWith(possible, prefix)) {
-         possibles.push_back(entry.path().string());
-      }
-   }
-
-   { // Scope which makes us wait for finishing the jobs before entering the next line.
-      ThreadPool pool(test::MAX_THREADS);
-
-      for (const auto& folder : possibles) {
-         std::this_thread::sleep_for(std::chrono::seconds(1));
-
-         const std::string config_name{ std::filesystem::path(folder).filename().string() };
-
-         if (StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(config_name, SecOptionLocalItemEnum::selected_job))) {
-            pool.enqueue([mc_scene, folder, path_generated_base_parent, prefix] {
-               MCScene::runMCJob(mc_scene, folder, folder.substr(path_generated_base_parent.string().size() + prefix.size() + 1));
-            });
-         }
-      }
-   }
+   mc_scene->mc_workflow_.deleteMCOutputFromFolder(path_generated_base_str, true, mc_scene->getTemplateDir(), mc_scene->previous_write_time_);
+   
+   std::vector<std::string> possibles{ mc_scene->getMcWorkflow().runMCJobs(
+      path_generated_base, 
+      [mc_scene](const std::string& config_name) -> bool {
+         return StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(config_name, SecOptionLocalItemEnum::selected_job));
+      }, 
+      mc_scene->getTemplateDir(), 
+      mc_scene->json_tpl_filename_, 
+      mc_scene->previous_write_time_, 
+      mc_scene->formula_evaluation_mutex_,
+      test::MAX_THREADS) };
 
    std::filesystem::path path_preview_bb{};
    for (const auto& folder : possibles) { // Prepare directories for previews.
       path_preview_bb = path_generated_base;
       
       std::string spec{ mc_scene->getValueForJSONKeyAsString("SPEC", JSON_TEMPLATE_DENOTER) };
-      bool is_ltl{ mc_scene->isLTL(JSON_TEMPLATE_DENOTER) };
+      bool is_ltl{ mc_scene->mc_workflow_.isLTL(JSON_TEMPLATE_DENOTER, mc_scene->getTemplateDir()) };
       spec = StaticHelper::replaceAll(spec, JSON_NUXMV_FORMULA_BEGIN, "");
       spec = StaticHelper::replaceAll(spec, JSON_NUXMV_FORMULA_END, "");
       spec = StaticHelper::replaceAll(spec, ";", "");
       std::string type_str{ is_ltl ? "LTLSPEC" : "INVARSPEC" };
 
       spec = StaticHelper::trimAndReturn(StaticHelper::replaceAll(StaticHelper::replaceAll(spec, "LTLSPEC", ""), "INVARSPEC", ""));
-      auto spec_fmla{ MathStruct::parseMathStruct(spec, mc_scene->parser_, mc_scene->data_, DotTreatment::as_operator)->toTermIfApplicable() };
-      spec_fmla = _id(mc::simplification::simplifyFast(spec_fmla, mc_scene->parser_));
+      auto spec_fmla{ MathStruct::parseMathStruct(spec, mc_scene->mc_workflow_.parser_, mc_scene->mc_workflow_.data_, DotTreatment::as_operator)->toTermIfApplicable() };
+      spec_fmla = _id(mc::simplification::simplifyFast(spec_fmla, mc_scene->mc_workflow_.parser_));
 
       spec_fmla->applyToMeAndMyChildren([](const MathStructPtr m) { // Replace function stuff with variables: "GapLeft(20, 20) ==> GapLeft"
          if (m->isTermCompound() && !MathStruct::DEFAULT_EXCEPTIONS_FOR_FLATTENING.count(m->getOptorJumpIntoCompound())) {
@@ -1635,59 +1454,6 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }
 
-void MCScene::deleteMCOutputFromFolder(const std::string& path_generated, const bool actually_delete_gif)
-{
-   //StaticHelper::removeFileSafe(path_generated + "/" + "main.smv"); // Do NOT remove main.smv. It only gets changed at this point.
-
-
-   std::string path_result{ path_generated + "/debug_trace_array.txt" };
-   std::string path_runtimes{ path_generated + "/mc_runtimes.txt" };
-   std::string path_script{ path_generated + "/" + "script.cmd" };
-
-   std::string path_prose_description{ path_generated + "/" + PROSE_DESC_NAME };
-   std::string path_planner_smv{ path_generated + "/planner.cpp_combined.k2.smv" };
-   std::string path_generated_preview{ path_generated + "/preview" };
-
-   if (actually_delete_gif) {
-      for (int i = 0; i < 100; i++) StaticHelper::removeAllFilesSafe(path_generated + "/" + std::to_string(i));
-      addNote("Deleting folder '" + path_generated_preview + "'.");
-      StaticHelper::removeAllFilesSafe(path_generated_preview);
-   }
-   else {
-      addNote("Overwriting folder '" + path_generated_preview + "'.");
-      copyWaitingForPreviewGIF();
-   }
-
-   if (std::filesystem::exists(path_prose_description)) {
-      addNote("Deleting file '" + path_prose_description + "'.");
-      StaticHelper::removeFileSafe(path_prose_description);
-   }
-
-   if (std::filesystem::exists(path_planner_smv)) {
-      addNote("Deleting file '" + path_planner_smv + "'.");
-      StaticHelper::removeFileSafe(path_planner_smv);
-   }
-
-   if (std::filesystem::exists(path_result)) {
-      addNote("Deleting file '" + path_result + "'.");
-      StaticHelper::removeFileSafe(path_result);
-   }
-
-   if (std::filesystem::exists(path_runtimes)) {
-      addNote("Deleting file '" + path_runtimes + "'.");
-      StaticHelper::removeFileSafe(path_runtimes);
-   }
-
-   if (std::filesystem::exists(path_script)) {
-      addNote("Deleting file '" + path_script + "'.");
-      StaticHelper::removeFileSafe(path_script);
-   }
-
-   for (auto& sec : se_controllers_) {
-      sec.selected_ = false;
-   }
-}
-
 nlohmann::json MCScene::getJSON() const
 {
    std::string json_text{ json_input_->buffer()->text() };
@@ -1704,253 +1470,12 @@ nlohmann::json MCScene::getJSON() const
    return json;
 }
 
-nlohmann::json MCScene::instanceFromTemplate(
-   const nlohmann::json& j_template, 
-   const std::vector<std::pair<std::string, std::vector<float>>>& ranges,
-   const std::vector<int>& counter_vec,
-   const bool is_ltl)
-{
-   std::string name{ "_config" };
-
-   for (int i = 0; i < counter_vec.size(); i++) {
-      name += "_" + ranges[i].first + "=" + StaticHelper::floatToStringNoTrailingZeros(ranges[i].second[counter_vec[i]]);
-   }
-
-   nlohmann::json res = { { name.c_str(), {} } };
-
-   for (auto& [key_config, value_config] : j_template.items()) {
-      if (key_config == JSON_TEMPLATE_DENOTER) {
-         for (auto& [key, value] : value_config.items()) {
-            if (!StaticHelper::stringStartsWith(key, JSON_VFM_FORMULA_PREFIX)) {
-               if (value.type() == nlohmann::detail::value_t::string) {
-                  std::string val_str{ StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "") };
-
-                  if (StaticHelper::stringContains(val_str, JSON_NUXMV_FORMULA_BEGIN)) {
-                     int begin{ StaticHelper::indexOfFirstInnermostBeginBracket(val_str, JSON_NUXMV_FORMULA_BEGIN, JSON_NUXMV_FORMULA_END) };
-                     int end{ StaticHelper::findMatchingEndTagLevelwise(val_str, begin, JSON_NUXMV_FORMULA_BEGIN, JSON_NUXMV_FORMULA_END) };
-                     std::string formula_str{ val_str };
-                     std::string before{};
-                     std::string after{};
-
-                     StaticHelper::distributeIntoBeforeInnerAfter(before, formula_str, after, begin + JSON_NUXMV_FORMULA_BEGIN.size(), end);
-                     auto formula{ _id(MathStruct::parseMathStruct(formula_str, parser_, data_, DotTreatment::as_operator)->toTermIfApplicable()) };
-
-                     formula->applyToMeAndMyChildrenIterative([&ranges, &counter_vec, this](const MathStructPtr m)
-                     {
-                        auto m_var{ m->toVariableIfApplicable() };
-                        if (m_var) {
-                           auto m_var_name{ m_var->getVariableName() };
-
-                           for (int i = 0; i < ranges.size(); i++) {
-                              if (ranges[i].first == m_var_name) {
-                                 m_var->replaceJumpOverCompounds(_val(ranges[i].second[counter_vec[i]]));
-                              }
-                           }
-                        }
-                     }, TraverseCompoundsType::avoid_compound_structures);
-
-                     const std::string before_without_bracket{ before.substr(0, before.size() - JSON_NUXMV_FORMULA_BEGIN.size()) };
-                     const std::string after_without_bracket{ after.substr(JSON_NUXMV_FORMULA_END.size()) };
-                     const std::string new_inner{ formula->child0()->isTermVal() 
-                        ? formula->child0()->serializePlainOldVFMStyle(MathStruct::SerializationSpecial::enforce_square_array_brackets)    // If it's only a number, use regular serialization since the nusmv one casts to int.
-                        : formula->child0()->serializeNuSMV(data_, parser_) // For larger formulas, print in nusmv style since it goes directly to the model checker.
-                     };
-
-                     val_str = 
-                        before_without_bracket
-                        + new_inner 
-                        + after_without_bracket;
-
-                     if (StaticHelper::stringStartsWith(key, "SPEC")) {
-                        val_str = std::string(is_ltl ? "LTLSPEC " : "INVARSPEC ") + val_str + ";";
-                     }
-                  }
-
-                  // Special treatment: check if format is "-(NUM)" for some float NUM and replace with "-NUM".
-                  // TODO: Should vfm serialize negative numbers - or all negative terms - to "-NUM" right away?
-                  std::string val_str_tmp{ StaticHelper::removeWhiteSpace(val_str) };
-                  if (StaticHelper::stringStartsWith(val_str_tmp, "-(") && StaticHelper::stringEndsWith(val_str_tmp, ")")) {
-                     std::string middle_part = val_str_tmp.substr(2);
-                     middle_part = middle_part.substr(0, middle_part.size() - 1);
-                     if (StaticHelper::isParsableAsFloat(middle_part)) {
-                        val_str = "-" + middle_part;
-                     }
-                  }
-
-                  if (StaticHelper::isParsableAsFloat(val_str)) {
-                     float num{ std::stof(val_str) };
-                     if (StaticHelper::isFloatInteger(num)) {
-                        res.begin().value()[key] = (int)num;
-                     }
-                     else {
-                        res.begin().value()[key] = num;
-                     }
-                  }
-                  else {
-                     res.begin().value()[key] = val_str;
-                  }
-               }
-               else {
-                  res.begin().value()[key] = value;
-               }
-            }
-         }
-      }
-   }
-
-   return res;
-}
-
-void vfm::MCScene::evaluateFormulasInJSON(const nlohmann::json j_template)
-{
-   std::lock_guard<std::mutex> lock{ formula_evaluation_mutex_ };
-   parser_ = std::make_shared<FormulaParser>();
-   parser_->addDefaultDynamicTerms();
-
-   for (auto& [key_config, value_config] : j_template.items()) {
-      if (key_config == JSON_TEMPLATE_DENOTER) {
-         for (auto& [key, value] : value_config.items()) {
-            if (StaticHelper::stringStartsWith(key, JSON_VFM_FORMULA_PREFIX)) {
-               std::string val_str{ StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "") };
-               parser_->resetErrors(ErrorLevelEnum::error);
-               TermPtr formula{ _val0() };
-
-               try {
-                  formula = MathStruct::parseMathStruct(val_str, parser_, data_, DotTreatment::as_operator)->toTermIfApplicable();
-               }
-               catch (const std::exception& e) {
-                  parser_->addError("Parsing of formula '" + val_str + "' raised an unhandled error.");
-               }
-
-               if (parser_->hasErrorOccurred()) {
-                  if (StaticHelper::stringContains(val_str, "@f")) {
-                     int fct_name_begin_index{ StaticHelper::indexOfFirstInnermostBeginBracket(val_str, "(", ")")};
-                     int fct_name_end_index{ StaticHelper::findMatchingEndTagLevelwise(val_str, fct_name_begin_index, "(", ")") };
-                     int fct_pars_begin_index{ StaticHelper::indexOfFirstInnermostBeginBracket(val_str, "{", "}")};
-                     int fct_pars_end_index{ StaticHelper::findMatchingEndTagLevelwise(val_str, fct_pars_begin_index, "{", "}") };
-                     std::string fct_name{ val_str.substr(fct_name_begin_index + 1, fct_name_end_index - fct_name_begin_index - 1) };
-                     std::string fct_pars{ val_str.substr(fct_pars_begin_index + 1, fct_pars_end_index - fct_pars_begin_index - 1) };
-
-                     StaticHelper::trim(fct_pars);
-                     int arg_num{ fct_pars.empty() ? 0 : (int)(fct_pars.size() - StaticHelper::replaceAll(fct_pars, ",", "").size() + 1) };
-
-                     parser_->addDynamicTerm(_var("#ERROR"), fct_name, false, arg_num);
-                  }
-               }
-
-               float result{ formula->eval(data_, parser_) };
-            }
-         }
-      }
-   }
-}
-
 void vfm::MCScene::preprocessAndRewriteJSONTemplate()
 {
    std::lock_guard<std::mutex> lock(parser_mutex_);
-   const std::string path_template{ getTemplateDir() };
-   const std::string path_json_template{ path_template + "/" + json_tpl_filename_ };
-   const std::string path_json_plain{ path_template + "/" + FILE_NAME_JSON };
+   const std::string path_template{  };
 
-   std::string s{};
-
-   nlohmann::json j_template = getJSON();
-   nlohmann::json j_out = {};
-   const bool is_ltl{ isLTL(JSON_TEMPLATE_DENOTER) };
-
-   if (j_template.empty() || j_template.items().begin().key() != JSON_TEMPLATE_DENOTER) {
-      addError("JSON parsing failed.");
-   }
-
-   evaluateFormulasInJSON(j_template);
-   //addNote("This is the vfm heap after all the operations:\n" + data_->toStringHeap());
-
-   addNote("Processing nuxmv formulas in JSON template: looking for variables and ranges.");
-   std::set<std::string> variables{};
-
-   for (auto& [key_config, value_config] : j_template.items()) {
-      if (key_config == JSON_TEMPLATE_DENOTER) {
-         for (auto& [key, value] : value_config.items()) {
-            if (value.type() == nlohmann::detail::value_t::string) {
-               std::string val_str{ StaticHelper::replaceAll(nlohmann::to_string(value), "\"", "") };
-
-               if (StaticHelper::stringContains(val_str, JSON_NUXMV_FORMULA_BEGIN)) {
-                  int begin{ StaticHelper::indexOfFirstInnermostBeginBracket(val_str, JSON_NUXMV_FORMULA_BEGIN, JSON_NUXMV_FORMULA_END) };
-                  int end{ StaticHelper::findMatchingEndTagLevelwise(val_str, begin, JSON_NUXMV_FORMULA_BEGIN, JSON_NUXMV_FORMULA_END) };
-                  std::string formula_str{ val_str };
-
-                  StaticHelper::distributeGetOnlyInner(formula_str, begin + JSON_NUXMV_FORMULA_BEGIN.size(), end);
-                  auto formula{ MathStruct::parseMathStruct(formula_str, parser_, data_, DotTreatment::as_operator) };
-
-                  formula->applyToMeAndMyChildrenIterative([&variables, this](const MathStructPtr m)
-                  {
-                     auto m_var{ m->toVariableIfApplicable() };
-                     if (m_var) {
-                        auto m_var_name{ m_var->getVariableName() };
-                        if (data_->isDeclared(m_var_name)) {
-                           addNote("Found variable in nuXmv formula: " + m->serializeWithinSurroundingFormula());
-                           variables.insert(m_var_name);
-                        }
-                     }
-                  }, TraverseCompoundsType::avoid_compound_structures);
-               }
-            }
-         }
-      }
-   }
-
-   if (variables.empty()) { // Mock some range to get exactly one config.
-      static const std::string DUMMY_RANGE_VAR_NAME{ "DUMMYVAR" };
-      variables.insert(DUMMY_RANGE_VAR_NAME);
-      int address{ data_->reserveHeap(2) };
-      data_->addOrSetSingleVal(DUMMY_RANGE_VAR_NAME, address);
-      data_->setHeapLocation(address, 0);
-      data_->setHeapLocation(address + 1, std::numeric_limits<float>::quiet_NaN());
-   }
-
-   std::vector<std::pair<std::string, std::vector<float>>> ranges{};
-   addNote("Recovering ranges from vfm heap.");
-   for (const auto& var : variables) {
-      addNote("Range for '" + var + "' is: ", true, "");
-      ranges.push_back({ var, {} });
-      int address{ (int) data_->getSingleVal(var) };
-
-      while (!std::isnan(data_->getHeapLocation(address))) {
-         ranges.back().second.push_back(data_->getHeapLocation(address));
-         address++;
-         addNotePlain(std::to_string(ranges.back().second.back()), " ");
-      }
-
-      addNotePlain("");
-   }
-
-   std::vector<int> arity_vec{};
-   std::vector<int> counter_vec{};
-   for (const auto& range : ranges) {
-      arity_vec.push_back(range.second.size());
-      counter_vec.push_back(range.second.size() - 1);
-   }
-   counter_vec.front()++;
-
-   while (!VECTOR_COUNTER_IS_ALL_ZERO(counter_vec)) {
-      VECTOR_COUNTER_DECREMENT(arity_vec, counter_vec);
-      addNote("Working on ", true, "");
-      for (int i = 0; i < counter_vec.size(); i++) {
-         addNotePlain(std::to_string(ranges[i].second[counter_vec[i]]), " ");
-      }
-      addNotePlain("");
-
-      nlohmann::json json_instance = instanceFromTemplate(j_template, ranges, counter_vec, is_ltl);
-
-      j_out[json_instance.items().begin().key()] = json_instance.items().begin().value();
-   }
-
-   //std::cout << j_out.dump(3) << std::endl;
-
-   std::ofstream json_file{};
-   json_file.open(path_json_plain);
-   json_file << j_out.dump(3);
-   json_file.close();
+   mc_workflow_.preprocessAndRewriteJSONTemplate(getTemplateDir(), json_tpl_filename_, formula_evaluation_mutex_);
 
    loadJsonText();
    button_check_json_->color(FL_YELLOW);
@@ -1968,8 +1493,8 @@ void MCScene::buttonSaveJSON(Fl_Widget* widget, void* data)
 void MCScene::buttonReloadJSON(Fl_Widget* widget, void* data) 
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
-   mc_scene->putJSONIntoDataPack();
-   mc_scene->evaluateFormulasInJSON(mc_scene->getJSON());
+   mc_scene->mc_workflow_.putJSONIntoDataPack(mc_scene->getTemplateDir());
+   mc_scene->mc_workflow_.evaluateFormulasInJSON(mc_scene->getJSON(), mc_scene->formula_evaluation_mutex_);
 
    mc_scene->showAllBBGroups(false);
    mc_scene->loadJsonText();
@@ -1998,21 +1523,10 @@ void MCScene::buttonCheckJSON(Fl_Widget* widget, void* data)
    }
 }
 
-void vfm::MCScene::resetParserAndData()
-{
-   std::lock_guard<std::mutex> lock{ parser_mutex_ };
-
-   parser_ = std::make_shared<FormulaParser>();
-   data_ = std::make_shared<DataPack>();
-   parser_->addDefaultDynamicTerms();
-   parser_->addnuSMVOperators(TLType::LTL);
-}
-
 void deleteMCOutput(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
-   std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
-   std::filesystem::path path_generated_base(path_generated_base_str);
+   std::filesystem::path path_generated_base{ mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir()) };
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
    std::string prefix{ path_generated_base.filename().string() };
 
@@ -2020,21 +1534,33 @@ void deleteMCOutput(MCScene* mc_scene) // Free function that actually does it, r
       std::string possible{ entry.path().filename().string() };
       if (std::filesystem::is_directory(entry) && possible != prefix && StaticHelper::stringStartsWith(possible, prefix)) {
          if (StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(possible, SecOptionLocalItemEnum::selected_job))) {
-            mc_scene->deleteMCOutputFromFolder(entry.path().string(), true);
+            mc_scene->getMcWorkflow().deleteMCOutputFromFolder(entry.path().string(), true, mc_scene->getTemplateDir(), mc_scene->previous_write_time_);
+
+            for (auto& sec : mc_scene->se_controllers_) { // TODO: DBL CODE after delete output
+               sec.selected_ = false;
+            }
          }
       }
    }
 
-   mc_scene->deleteMCOutputFromFolder(path_generated_base_str, false);
-   mc_scene->resetParserAndData();
+   mc_scene->getMcWorkflow().deleteMCOutputFromFolder(path_generated_base, false, mc_scene->getTemplateDir(), mc_scene->previous_write_time_);
+
+   for (auto& sec : mc_scene->se_controllers_) { // TODO: DBL CODE after delete output
+      sec.selected_ = false;
+   }
+
+   {
+      std::lock_guard<std::mutex> lock{ mc_scene->parser_mutex_ };
+      mc_scene->getMcWorkflow().resetParserAndData();
+   }
+
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }
 
 void deleteTestCases(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
-   std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
-   std::filesystem::path path_generated_base(path_generated_base_str);
+   std::filesystem::path path_generated_base{ mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir())};
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
    std::string prefix{ path_generated_base.filename().string() };
 
@@ -2079,7 +1605,7 @@ void deleteTestCases(MCScene* mc_scene) // Free function that actually does it, 
 void deleteFolders(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
-   std::string path_generated_base_str{ mc_scene->getGeneratedDir() };
+   std::filesystem::path path_generated_base_str{ mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir())};
    std::filesystem::path path_generated_base(path_generated_base_str);
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
    std::string prefix{ path_generated_base.filename().string() };
@@ -2112,15 +1638,16 @@ void deleteFolders(MCScene* mc_scene) // Free function that actually does it, ra
       mc_scene->addWarning("Deleting folders not possible due to error: " + std::string(e.what()));
    }
 
-   mc_scene->copyWaitingForPreviewGIF();
+   mc_scene->getMcWorkflow().copyWaitingForPreviewGIF(mc_scene->getTemplateDir(), mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir()), mc_scene->previous_write_time_);
+   mc_scene->refreshPreview();
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }
 
 void deleteCached(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
-   std::string path_cached{ mc_scene->getCachedDir() };
-   mc_scene->addNote("Deleting folder '" + path_cached + "'.");
+   auto path_cached{ mc_scene->getMcWorkflow().getCachedDir(mc_scene->getTemplateDir())};
+   mc_scene->addNote("Deleting folder '" + path_cached.string() + "'.");
    StaticHelper::removeAllFilesSafe(path_cached);
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }
@@ -2194,45 +1721,22 @@ void MCScene::doAllEnvModelGenerations(MCScene* mc_scene)
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
    mc_scene->showAllBBGroups(false);
 
-   std::string path{ mc_scene->getTemplateDir() };
-   std::string generated_dir{ mc_scene->getGeneratedDir() };
-   std::string cached_dir{ mc_scene->getCachedDir() };
-   std::string path_planner{ mc_scene->getBPIncludesFileDir() };
-   std::string path_json{ path + "/" + FILE_NAME_JSON };
-   std::string path_envmodel{ path + "/EnvModel.tpl" };
-   std::string template_dir{ mc_scene->getTemplateDir() };
+   auto template_dir{ mc_scene->getTemplateDir() };
+   auto path_json{ FILE_NAME_JSON };
+   auto path_envmodel{ FILE_NAME_ENVMODEL_ENTRANCE };
 
    mc_scene->saveJsonText();
-   mc_scene->resetParserAndData();
-   mc_scene->preprocessAndRewriteJSONTemplate();
-
-   auto envmodeldefs{ test::retrieveEnvModelDefinitionFromJSON(path_json, test::EnvModelCachedMode::always_regenerate) };
-
-   std::map<test::EnvModelConfig, std::string> env_model_configs{};
-   std::set<std::string> relevant_variables{};
-   int max{ (int) envmodeldefs.size() };
-   int cnt{ 1 };
-
-   for (const auto& envmodeldef : envmodeldefs) { // Create empty dirs to make visualization nicer.
-      if (envmodeldef.first != JSON_TEMPLATE_DENOTER) {
-         StaticHelper::createDirectoriesSafe(generated_dir + envmodeldef.first);
-      }
+   {
+      std::lock_guard<std::mutex> lock{ mc_scene->parser_mutex_ };
+      mc_scene->getMcWorkflow().resetParserAndData();
    }
 
-   for (const auto& envmodeldef : envmodeldefs) {
-      mc_scene->addNote("Generating EnvModel " + std::to_string(cnt++) + "/" + std::to_string(max) + ".");
-
-      if (envmodeldef.first != JSON_TEMPLATE_DENOTER) {
-         test::doParsingRun( // TODO: go over command line!
-            envmodeldef,
-            ".",
-            path_envmodel,
-            path_planner,
-            generated_dir,
-            cached_dir,
-            GUI_NAME + "_Related");
-      }
-   }
+   mc_scene->mc_workflow_.generateEnvmodels(
+      template_dir,
+      FILE_NAME_JSON,
+      FILE_NAME_JSON_TEMPLATE,
+      FILE_NAME_ENVMODEL_ENTRANCE,
+      mc_scene->formula_evaluation_mutex_);
 
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }
@@ -2262,7 +1766,15 @@ void MCScene::onGroupClickBM(Fl_Widget* widget, void* data)
          other.selected_ = false;
       }
 
-      controller->mc_scene_->deleteMCOutputFromFolder(controller->mc_scene_->getGeneratedDir(), false);
+      controller->mc_scene_->getMcWorkflow().deleteMCOutputFromFolder(
+         controller->mc_scene_->mc_workflow_.getGeneratedDir(controller->mc_scene_->getTemplateDir()),
+         false, 
+         controller->mc_scene_->getTemplateDir(), 
+         controller->mc_scene_->previous_write_time_);
+
+      for (auto& sec : controller->mc_scene_->se_controllers_) { // TODO: DBL CODE after delete output
+         sec.selected_ = false;
+      }
 
       return;
    }
@@ -2270,7 +1782,7 @@ void MCScene::onGroupClickBM(Fl_Widget* widget, void* data)
    controller->tryToSelectController();
 }
 
-void MCScene::buttonReparse(Fl_Widget* widget, void* data)
+void MCScene::buttonCreateEnvmodels(Fl_Widget* widget, void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
    mc_scene->showAllBBGroups(false);
@@ -2311,7 +1823,7 @@ void MCScene::createTestCases(MCScene* mc_scene)
          while (!spawned) {
             if (numThreads < test::MAX_THREADS) {
                threads.emplace_back(std::thread(
-                  MCScene::createTestCase, mc_scene, mc_scene->getGeneratedParentDir(), cnt++, max, sec.getMyId(), sec.slider_->value()));
+                  MCScene::createTestCase, mc_scene, mc_scene->mc_workflow_.getGeneratedParentDir(mc_scene->getTemplateDir()).string(), cnt++, max, sec.getMyId(), sec.slider_->value()));
                spawned = true;
                numThreads++;
             }
@@ -2396,9 +1908,9 @@ void vfm::MCScene::buttonRuntimeAnalysis(Fl_Widget* widget, void* data)
       res += std::to_string(time_ms) + ";" + time_str + "\n";
    }
 
-   const std::string runtime_analysis_path{ mc_scene->getGeneratedDir() + "/runtime_summary.csv" };
-   const std::string abs_path{ StaticHelper::absPath(runtime_analysis_path) };
-   const std::string tikz_path{ StaticHelper::removeLastFileExtension(abs_path) + ".tex" };
+   const auto runtime_analysis_path{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir()) / "runtime_summary.csv" };
+   const auto abs_path{ StaticHelper::absPath(runtime_analysis_path) };
+   const auto tikz_path{ StaticHelper::removeLastFileExtension(abs_path) + ".tex" };
 
    mc_scene->addNote("Storing runtime analysis in '" + abs_path + "'.");
    StaticHelper::writeTextToFile(res, runtime_analysis_path);
