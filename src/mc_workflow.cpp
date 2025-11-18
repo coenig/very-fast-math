@@ -178,8 +178,9 @@ void McWorkflow::runMCJob(
       if (!putJSONIntoDataPack(path_template)) return;
       if (!putJSONIntoDataPack(path_template, config_name)) return;
 
-      std::string main_smv{ StaticHelper::readFile(path_generated_config_level / "main.smv") };
+      data_->addStringToDataPack(path_template, macro::MY_PATH_VARNAME); // Set the script processors home path (for the case it's not already been set during EnvModel generation).
 
+      std::string main_smv{ StaticHelper::readFile(path_generated_config_level / "main.smv") };
       std::string script_template{ StaticHelper::readFile(path_template + "/script.tpl") };
       std::string main_template{ StaticHelper::readFile(path_template + "/main.tpl") };
       std::string generated_script{ CppParser::generateScript(script_template, data_, parser_) };
@@ -191,7 +192,6 @@ void McWorkflow::runMCJob(
       static const std::string SPEC_END{ "--EO-SPEC-STUFF" };
       static const std::string ADDONS_BEGIN{ "--ADDONS" };
       static const std::string ADDONS_END{ "--EO-ADDONS" };
-      data_->addStringToDataPack(path_template, macro::MY_PATH_VARNAME); // Set the script processors home path (for the case it's not already been set during EnvModel generation).
 
       // Re-generate SPEC stuff.
       main_smv = StaticHelper::removeMultiLineComments(main_smv, SPEC_BEGIN, SPEC_END);
