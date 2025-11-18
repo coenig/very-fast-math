@@ -547,11 +547,17 @@ private:
       return map;
    }
 
+   void setMyPath(const std::shared_ptr<DataPack> data)
+   {
+      data->addStringToDataPack("../src/templates", MY_PATH_VARNAME);
+   }
+
    ScriptMethodDescription m5{ 
       "runMCJob", 
       1, 
       [this](const std::vector<std::string>& parameters) -> std::string 
       { 
+         setMyPath(vfm_data_);
          auto mc_workflow = mc::McWorkflow(vfm_data_, vfm_parser_);
          std::string config_name{ parameters.at(0) };
          std::map<std::string, std::string> paths{ guessPaths(getRawScript(), config_name) };
@@ -571,6 +577,7 @@ private:
       1,
       [this](const std::vector<std::string>& parameters) -> std::string
       {
+         setMyPath(vfm_data_);
          auto mc_workflow = mc::McWorkflow(vfm_data_, vfm_parser_);
          std::string num_threads_str{ parameters.at(0) };
 
@@ -591,12 +598,14 @@ private:
       }
    };
 
-   // Full example: @{}@.generateEnvmodels @{../src/templates}@.stringToHeap[MY_PATH] @{../examples}@.runMCJobs[10]
+   // Full example: @{}@.generateEnvmodels @{../examples}@.runMCJobs[10]
+   // @{../src/templates}@.stringToHeap[MY_PATH]
    ScriptMethodDescription m7{
       "generateEnvmodels",
       0,
       [this](const std::vector<std::string>& parameters) -> std::string
       {
+         setMyPath(vfm_data_);
          auto mc_workflow = mc::McWorkflow(vfm_data_, vfm_parser_);
          std::map<std::string, std::string> paths{ guessPaths(getRawScript(), "") };
 
