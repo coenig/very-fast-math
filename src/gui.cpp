@@ -1803,7 +1803,15 @@ void MCScene::buttonCreateEnvmodels(Fl_Widget* widget, void* data)
    t.detach();
 }
 
-void vfm::MCScene::createTestCase(const MCScene* mc_scene, const std::string& generated_parent_dir, const int cnt, const int max, const std::string& id, const int cex_num)
+void vfm::MCScene::createTestCase(
+   const MCScene* mc_scene, 
+   const std::string& 
+   generated_parent_dir, 
+   const int cnt, 
+   const int max, 
+   const std::string& id, 
+   const int cex_num,
+   const std::map<std::string, std::string> modes)
 {
    mc_scene->addNote("Running test case generation " + std::to_string(cnt) + "/" + std::to_string(max) + " for '" + id + "'.");
 
@@ -1812,15 +1820,12 @@ void vfm::MCScene::createTestCase(const MCScene* mc_scene, const std::string& ge
       generated_parent_dir + "/" + id,
       "debug_trace_array",
       mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv),
-      true, // export basics
-      true, // export with smooth arrows
-      false, // export without smooth arrows
-      { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 });
+      modes);
 
    mc_scene->addNote("Finished test case generation for '" + id + "'.");
 }
 
-void MCScene::createTestCases(MCScene* mc_scene)
+void MCScene::createTestCases(MCScene* mc_scene, const std::map<std::string, std::string> modes)
 {
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
 
@@ -1836,7 +1841,14 @@ void MCScene::createTestCases(MCScene* mc_scene)
          while (!spawned) {
             if (numThreads < test::MAX_THREADS) {
                threads.emplace_back(std::thread(
-                  MCScene::createTestCase, mc_scene, mc_scene->mc_workflow_.getGeneratedParentDir(mc_scene->getTemplateDir()).string(), cnt++, max, sec.getMyId(), sec.slider_->value()));
+                  MCScene::createTestCase, 
+                  mc_scene, mc_scene->mc_workflow_.getGeneratedParentDir(mc_scene->getTemplateDir()).string(), 
+                  cnt++, 
+                  max, 
+                  sec.getMyId(), 
+                  sec.slider_->value(),
+                  modes));
+
                spawned = true;
                numThreads++;
             }
@@ -1858,7 +1870,7 @@ void MCScene::buttonCEX(Fl_Widget* widget, void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
    mc_scene->showAllBBGroups(false);
-   std::thread t{ createTestCases, mc_scene };
+   std::thread t{ createTestCases, mc_scene, mc::trajectory_generator::ALL_TESTCASE_MODES };
    t.detach();
 }
 

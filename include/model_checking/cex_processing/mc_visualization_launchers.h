@@ -45,6 +45,28 @@ public:
    int frames_per_second_osc = 5;
 };
 
+static const std::pair<std::string, std::string> TESTCASE_MODE_PREVIEW{ "preview", "preview" };
+static const std::pair<std::string, std::string> TESTCASE_MODE_PREVIEW_2{ "preview2", "preview 2" };
+static const std::pair<std::string, std::string> TESTCASE_MODE_CEX_FULL{ "cex-full", "full (1/7)" };
+static const std::pair<std::string, std::string> TESTCASE_MODE_CEX_BIRDSEYE{ "cex-birdseye", "birdseye (2/7)" };
+static const std::pair<std::string, std::string> TESTCASE_MODE_CEX_COCKPIT_ONLY{ "cex-cockpit-only", "cockpit (3/7)" };
+static const std::pair<std::string, std::string> TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_FULL{ "cex-smooth-with-arrows-full", "smooth-with-arrows (6/7)" };
+static const std::pair<std::string, std::string> TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_BIRDSEYE{ "cex-smooth-with-arrows-birdseye", "smooth-with-arrows-birdseye (7/7)" };
+static const std::pair<std::string, std::string> TESTCASE_MODE_CEX_SMOOTH_FULL{ "cex-smooth-full", "full-smooth (4/7)" };
+static const std::pair<std::string, std::string> TESTCASE_MODE_CEX_SMOOTH_BIRDSEYE{ "cex-smooth-birdseye", "birdseye-smooth (5/7)" };
+
+static const std::map<std::string, std::string> ALL_TESTCASE_MODES{
+   TESTCASE_MODE_PREVIEW,
+   TESTCASE_MODE_PREVIEW_2,
+   TESTCASE_MODE_CEX_FULL,
+   TESTCASE_MODE_CEX_BIRDSEYE,
+   TESTCASE_MODE_CEX_COCKPIT_ONLY,
+   TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_FULL,
+   TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_BIRDSEYE,
+   TESTCASE_MODE_CEX_SMOOTH_FULL,
+   TESTCASE_MODE_CEX_SMOOTH_BIRDSEYE
+};
+
 class VisualizationLaunchers
 {
 public:
@@ -94,9 +116,7 @@ public:
       const std::string& path_cropped,
       const std::string& file_name_without_txt_extension,
       const CexType& cex_type,
-      const bool export_basic = true,
-      const bool export_with_smooth_arrows = true,
-      const bool export_without_smooth_arrows = false,
+      const std::map<std::string, std::string> modes,
       const std::set<int>& agents_to_draw_arrows_for = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }
    );
 
