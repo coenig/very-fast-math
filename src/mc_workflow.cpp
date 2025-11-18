@@ -216,11 +216,14 @@ void McWorkflow::generatePreview(const std::filesystem::path& path_generated_con
 {
    addNote("Generating preview for folder '" + path_generated_config_level.string() + "'.");
 
-   mc::trajectory_generator::VisualizationLaunchers::quickGeneratePreviewGIFs(
+   trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
       { cex_num },
       path_generated_config_level.string(),
       "debug_trace_array",
-      mc::trajectory_generator::CexTypeEnum::smv);
+      trajectory_generator::CexType(trajectory_generator::CexTypeEnum::smv),
+      false,
+      false,
+      false);
 
    //refreshPreview(); // TODO: Function not taken over. Do we need it here?
 }
