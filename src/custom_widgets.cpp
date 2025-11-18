@@ -851,16 +851,16 @@ void vfm::ProgressDetector::placeProgressImage(
                sec.has_preview_ = false;
             }
 
-            static const std::string FIRST_STAGE_NAME{ "full" };
-            static const std::string LAST_STAGE_NAME{ "smooth-with-arrows-birdseye" };
+            static const std::pair<std::string, std::string> FIRST_STAGE_NAME{ mc::trajectory_generator::TESTCASE_MODE_CEX_FULL };
+            static const std::pair<std::string, std::string> LAST_STAGE_NAME{ mc::trajectory_generator::TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_BIRDSEYE };
             static const std::string LAST_STAGE_NUM{ "7" };
 
             sec.image_box_mcrun_->size(12, 12);
-            auto path_temp_first = path_generated_base_parent / package / ("cex-" + FIRST_STAGE_NAME);
-            auto path_temp_last = path_generated_base_parent / package / ("cex-" + LAST_STAGE_NAME) / ("cex-" + LAST_STAGE_NAME + ".gif");
+            auto path_temp_first = path_generated_base_parent / package / "0" / FIRST_STAGE_NAME.first;
+            auto path_temp_last =  path_generated_base_parent / package / "0" / LAST_STAGE_NAME.first / (LAST_STAGE_NAME.first + ".gif");
 
             if (StaticHelper::existsFileSafe(path_temp_last)
-               && sec.getProgressStage() != LAST_STAGE_NAME + " (" + LAST_STAGE_NUM + "/" + LAST_STAGE_NUM + ")") {
+               && sec.getProgressStage() != LAST_STAGE_NAME.second) {
                sec.image_box_testcase_->image(check_image_);
                sec.has_testcase_ = true;
             }
