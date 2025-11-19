@@ -685,11 +685,11 @@ private:
       m2,
       m3,
       m4,
-      m5, // Example: @{../examples}@.runMCJob[_config_d=1000_lanes=1_maxaccel=3_maxaccelego=3_minaccel=-8_minaccelego=-8_nonegos=3_sections=5_segments=1_t=1100_vehlen=5]
-      m6, // Example: @{../examples}@.runMCJobs[10]
+      m5, // Example: @{}@.runMCJob[_config_d=1000_lanes=1_maxaccel=3_maxaccelego=3_minaccel=-8_minaccelego=-8_nonegos=3_sections=5_segments=1_t=1100_vehlen=5]
+      m6, // Example: @{}@.runMCJobs[10]
       m7, // Example: @{}@.generateEnvmodels
       m8, // Example: @{}@.generateTestCases       ==> Will fail, but present list of available modes.
-      m9, // Example: @{../examples}@.generateTestCases[all]
+      m9, // Example: @{}@.generateTestCases[all]
       { "serialize", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::vfm); } },
       { "serializeK2", 0, [this](const std::vector<std::string>& parameters) -> std::string { return toK2(getRawScript()); } },
       { "serializeNuXmv", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::nuXmv); } },
