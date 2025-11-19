@@ -273,7 +273,7 @@ void McWorkflow::generatePreview(const std::filesystem::path& path_generated_con
       path_generated_config_level.string(),
       "debug_trace_array",
       trajectory_generator::CexType(trajectory_generator::CexTypeEnum::smv),
-      std::map<std::string, std::string>{ mc::trajectory_generator::TESTCASE_MODE_PREVIEW, mc::trajectory_generator::TESTCASE_MODE_PREVIEW_2 });
+      std::map<std::string, std::string>{ mc::TESTCASE_MODE_PREVIEW, mc::TESTCASE_MODE_PREVIEW_2 });
 
    //refreshPreview(); // TODO: Function not taken over. Do we need it here?
 }

@@ -1826,7 +1826,7 @@ void MCScene::buttonCEX(Fl_Widget* widget, void* data)
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
    mc_scene->showAllBBGroups(false);
-   std::thread t{ createTestCases, mc_scene, mc::trajectory_generator::ALL_TESTCASE_MODES };
+   std::thread t{ createTestCases, mc_scene, mc::ALL_TESTCASE_MODES };
    t.detach();
 }
 
