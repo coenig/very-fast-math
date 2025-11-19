@@ -572,13 +572,22 @@ std::string Script::applyMethodString(const std::string& method_name, const std:
    std::vector<std::string> method_names{};
    std::vector<std::string> method_names_lowercase{};
 
-   for (const auto& name : METHODS) {
-      method_names.push_back(name.method_name_);
-      method_names_lowercase.push_back(StaticHelper::toLowerCase(name.method_name_));
+   for (const auto& meth : METHODS) {
+      method_names.push_back(meth.method_name_);
+      method_names_lowercase.push_back(StaticHelper::toLowerCase(meth.method_name_));
+   }
+
+   auto closest = StaticHelper::getClosest(method_names_lowercase, StaticHelper::toLowerCase(method_name), method_names);
+   std::string all_closest{};
+
+   for (const auto& meth : METHODS) {
+      if (meth.method_name_ == closest) {
+         all_closest += " " + closest + "[" + std::to_string(meth.par_num_) + "]";
+      }
    }
 
    std::string error_str{ "No method '" + method_name + "' found which takes " + std::to_string(parameters.size()) + " arguments. Arguments are: {" + pars + "}. " + 
-      "Did you mean '" + StaticHelper::getClosest(method_names_lowercase, StaticHelper::toLowerCase(method_name), method_names) + "'?"};
+      "Did you mean:" + all_closest + "?"};
 
    addError(error_str);
    return "#INVALID(" + error_str + ")";
