@@ -635,7 +635,7 @@ private:
       }
    };
 
-   // Full example: @{}@.generateEnvmodels @{../examples}@.runMCJobs[10]
+   // Full example: @{}@.generateEnvmodels @{../examples}@.runMCJobs[10] @{../examples}@.generateTestCases[all]
    ScriptMethodDescription m9{
       "generateTestCases",
       1,
@@ -656,7 +656,7 @@ private:
             }
          }
          catch (const std::exception& ex) {
-            addError("<generateTestCases> Error occurred during collection of packages for test case generation: '" + std::string(ex.what()) + " '");
+            addError("<generateTestCases> Error occurred during collection of packages for test case generation: '" + std::string(ex.what()) + "'");
          }
 
          const std::string raw_modes{ parameters[0] == "all" ? allModesStr() : parameters[0]};
@@ -675,7 +675,7 @@ private:
 
          mc_workflow.createTestCases(modes, path_generated_parent, sec_ids);
 
-         return "<generateTestCases> Test case generation via script finished for these modes: '" + modes_str + "'.";
+         return "<generateTestCases> Test case generation via script finished for these modes: '" + modes_str + " '.";
       }
    };
 
@@ -687,8 +687,8 @@ private:
       m5, // Example: @{../examples}@.runMCJob[_config_d=1000_lanes=1_maxaccel=3_maxaccelego=3_minaccel=-8_minaccelego=-8_nonegos=3_sections=5_segments=1_t=1100_vehlen=5]
       m6, // Example: @{../examples}@.runMCJobs[10]
       m7, // Example: @{}@.generateEnvmodels
-      m8, // Example: @{}@.generateTestCases  ==> Will fail, but present list of available modes.
-      m9, // 
+      m8, // Example: @{}@.generateTestCases       ==> Will fail, but present list of available modes.
+      m9, // Example: @{../examples}@.generateTestCases[all]
       { "serialize", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::vfm); } },
       { "serializeK2", 0, [this](const std::vector<std::string>& parameters) -> std::string { return toK2(getRawScript()); } },
       { "serializeNuXmv", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::nuXmv); } },
