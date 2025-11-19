@@ -8,6 +8,7 @@
 #include "model_checking/mc_workflow.h"
 #include "testing/interactive_testing.h"
 #include "vfmacro/script.h"
+#include <thread>
 
 using namespace vfm;
 using namespace mc;
@@ -210,6 +211,57 @@ void McWorkflow::runMCJob(
    generatePreview(path_generated_config_level, 0);
 
    addNote("Model checker run finished for folder '" + path_generated_config_level.string() + "'.");
+}
+
+void McWorkflow::createTestCase(
+   const std::string& generated_parent_dir, 
+   const std::string& id, 
+   const std::map<std::string, std::string>& modes)
+{
+   Failable::getSingleton()->addNote("Running test case generation for '" + id + "'.");
+
+   mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
+      { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
+      generated_parent_dir + "/" + id,
+      "debug_trace_array",
+      mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv),
+      modes);
+
+   Failable::getSingleton()->addNote("Finished test case generation for '" + id + "'.");
+}
+
+void vfm::mc::McWorkflow::createTestCases(
+   const std::map<std::string, std::string>& modes,
+   const std::filesystem::path generated_parent_dir,
+   const std::vector<std::string> sec_ids)
+{
+   std::vector<std::thread> threads{};
+   int numThreads{ 0 };
+
+   for (const auto& sec_id : sec_ids) {
+      bool spawned{ false };
+
+      while (!spawned) {
+         if (numThreads < test::MAX_THREADS) {
+            threads.emplace_back(std::thread(
+               createTestCase,
+               generated_parent_dir.string(),
+               sec_id,
+               //sec.slider_->value(),
+               modes));
+
+            spawned = true;
+            numThreads++;
+         }
+         else if (!threads.empty()) {
+            threads.front().join();
+            threads.erase(threads.begin());
+            numThreads--;
+         }
+      }
+   }
+
+   for (auto& t : threads) t.join();
 }
 
 void McWorkflow::generatePreview(const std::filesystem::path& path_generated_config_level, const int cex_num)
