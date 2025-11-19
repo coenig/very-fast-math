@@ -526,16 +526,16 @@ private:
    ScriptMethodDescription m3{ "for", 4, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3)); } };
    ScriptMethodDescription m4{ "for", 5, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3), parameters.at(4)); } };
 
-   std::map<std::string, std::string> guessPaths(const std::string& path_generated_raw, const std::string& config_name)
+   std::map<std::string, std::string> guessPaths(const mc::McWorkflow& workflow, const std::string& config_name)
    {
 
       std::map<std::string, std::string> map{};
       const std::string rootpath{ "." };
       const std::string path_template{ rootpath + "/../src/templates" };
-      const std::string path_generated_parent{ path_generated_raw };
-      const std::string path_generated{ path_generated_parent + "/" + MC_PACKAGE_PREFIX + config_name };
-      const std::string path_cached{ path_generated_parent + "/tmp/" };
-      const std::string path_external{ path_template + "/../../external/" };
+      const std::string path_generated_parent{ workflow.getGeneratedParentDir(path_template).string() };
+      const std::string path_generated{ workflow.getGeneratedDir(path_template).string() + config_name };
+      const std::string path_cached{ workflow.getCachedDir(path_template).string() };
+      const std::string path_external{ workflow.getExternalDir(path_template).string() };
 
       map.insert({ "rootpath", rootpath });
       map.insert({ "path_template", path_template });
@@ -564,7 +564,7 @@ private:
       { 
          auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_);
          std::string config_name{ parameters.at(0) };
-         std::map<std::string, std::string> paths{ guessPaths(getRawScript(), config_name) };
+         std::map<std::string, std::string> paths{ guessPaths(mc_workflow, config_name) };
 
          mc_workflow.runMCJob(
             paths.at("path_generated"),
@@ -588,7 +588,7 @@ private:
             return "#ERROR<Parameter for number of threads '" + num_threads_str + "' is not a valid number in runMCJobs method>#";
          }
 
-         std::map<std::string, std::string> paths{ guessPaths(getRawScript(), "")};
+         std::map<std::string, std::string> paths{ guessPaths(mc_workflow, "")};
 
          mc_workflow.runMCJobs(
             std::filesystem::path(paths.at("path_generated")), // TODO: Don't need this parameter.
@@ -607,7 +607,7 @@ private:
       [this](const std::vector<std::string>& parameters) -> std::string
       {
          auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_);
-         std::map<std::string, std::string> paths{ guessPaths(getRawScript(), "") }; // Note that only path_template is used, the others might be broken.
+         std::map<std::string, std::string> paths{ guessPaths(mc_workflow, "") }; // Note that only path_template is used, the others might be broken.
 
          mc_workflow.generateEnvmodels(paths.at("path_template"), FILE_NAME_JSON, FILE_NAME_JSON_TEMPLATE, FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
 
@@ -635,15 +635,16 @@ private:
       }
    };
 
-   // Full example: @{}@.generateEnvmodels @{../examples}@.runMCJobs[10] @{../examples}@.generateTestCases[all]
+   // Full example: @{}@.generateEnvmodels @{}@.runMCJobs[10] @{}@.generateTestCases[all]
    ScriptMethodDescription m9{
       "generateTestCases",
       1,
       [this](const std::vector<std::string>& parameters) -> std::string
       {
          auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_);
-         const std::map<std::string, std::string> paths{ guessPaths(getRawScript(), "") };
+         const std::map<std::string, std::string> paths{ guessPaths(mc_workflow, "") };
          const std::string path_generated_parent{ paths.at("path_generated_parent") };
+         const std::string path_template{ paths.at("path_template") };
 
          std::vector<std::string> sec_ids{};
 
@@ -673,7 +674,7 @@ private:
             }
          }
 
-         mc_workflow.createTestCases(modes, path_generated_parent, sec_ids);
+         mc_workflow.createTestCases(modes, path_template, sec_ids);
 
          return "<generateTestCases> Test case generation via script finished for these modes: '" + modes_str + " '.";
       }
