@@ -577,12 +577,23 @@ std::string Script::applyMethodString(const std::string& method_name, const std:
       method_names_lowercase.push_back(StaticHelper::toLowerCase(meth.method_name_));
    }
 
+   for (const auto& dynamic_method : getScriptData().inscriptMethodParNums) {
+      method_names.push_back(dynamic_method.first);
+      method_names_lowercase.push_back(StaticHelper::toLowerCase(dynamic_method.first));
+   }
+
    auto closest = StaticHelper::getClosest(method_names_lowercase, StaticHelper::toLowerCase(method_name), method_names);
    std::string all_closest{};
 
    for (const auto& meth : METHODS) {
       if (meth.method_name_ == closest) {
          all_closest += " " + closest + "[" + std::to_string(meth.par_num_) + "]";
+      }
+   }
+
+   for (const auto& meth : getScriptData().inscriptMethodParNums) {
+      if (meth.first == closest) {
+         all_closest += " " + closest + "[" + std::to_string(meth.second) + "]";
       }
    }
 
