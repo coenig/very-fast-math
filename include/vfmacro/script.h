@@ -847,7 +847,7 @@ private:
 
          for (const auto& method_description : METHODS) {
             std::string uncachable{ UNCACHABLE_METHODS.count(method_description.method_name_) ? " <uncachable>" : "" };
-            s += method_description.method_name_ + " (" + std::to_string(method_description.par_num_) + ") 'native'" + uncachable + "\n";
+            s += method_description.method_name_ + "[" + std::to_string(method_description.par_num_) + "] 'native'" + uncachable + "\n";
          }
 
          for (const auto& dynamic_method : getScriptData().inscriptMethodDefinitions) {
