@@ -1816,7 +1816,7 @@ void MCScene::createTestCases(MCScene* mc_scene, const std::map<std::string, std
 
    mc_scene->getMcWorkflow().createTestCases(
       modes,
-      mc_scene->mc_workflow_.getGeneratedParentDir(mc_scene->getTemplateDir()), 
+      mc_scene->getTemplateDir(), 
       sec_ids);
 
    mc_scene->activateMCButtons(true, ButtonClass::All);

@@ -78,8 +78,8 @@ public:
 
    void createTestCases(
       const std::map<std::string, std::string>& modes, 
-      const std::filesystem::path generated_parent_dir,
-      const std::vector<std::string> sec_ids);
+      const std::string& path_template,
+      const std::vector<std::string>& sec_ids);
 
    nlohmann::json instanceFromTemplate(
       const nlohmann::json& j_template,

@@ -232,8 +232,8 @@ void McWorkflow::createTestCase(
 
 void vfm::mc::McWorkflow::createTestCases(
    const std::map<std::string, std::string>& modes,
-   const std::filesystem::path generated_parent_dir,
-   const std::vector<std::string> sec_ids)
+   const std::string& path_template,
+   const std::vector<std::string>& sec_ids)
 {
    std::vector<std::thread> threads{};
    int numThreads{ 0 };
@@ -245,7 +245,7 @@ void vfm::mc::McWorkflow::createTestCases(
          if (numThreads < test::MAX_THREADS) {
             threads.emplace_back(std::thread(
                createTestCase,
-               generated_parent_dir.string(),
+               getGeneratedParentDir(path_template).string(),
                sec_id,
                //sec.slider_->value(),
                modes));
