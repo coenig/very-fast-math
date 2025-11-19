@@ -851,8 +851,8 @@ void vfm::ProgressDetector::placeProgressImage(
                sec.has_preview_ = false;
             }
 
-            static const std::pair<std::string, std::string> FIRST_STAGE_NAME{ mc::trajectory_generator::TESTCASE_MODE_CEX_FULL };
-            static const std::pair<std::string, std::string> LAST_STAGE_NAME{ mc::trajectory_generator::TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_BIRDSEYE };
+            static const std::pair<std::string, std::string> FIRST_STAGE_NAME{ mc::TESTCASE_MODE_CEX_FULL };
+            static const std::pair<std::string, std::string> LAST_STAGE_NAME{ mc::TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_BIRDSEYE };
             static const std::string LAST_STAGE_NUM{ "7" };
 
             sec.image_box_mcrun_->size(12, 12);
