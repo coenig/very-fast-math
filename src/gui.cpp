@@ -1803,65 +1803,21 @@ void MCScene::buttonCreateEnvmodels(Fl_Widget* widget, void* data)
    t.detach();
 }
 
-void vfm::MCScene::createTestCase(
-   const MCScene* mc_scene, 
-   const std::string& 
-   generated_parent_dir, 
-   const int cnt, 
-   const int max, 
-   const std::string& id, 
-   const int cex_num,
-   const std::map<std::string, std::string> modes)
-{
-   mc_scene->addNote("Running test case generation " + std::to_string(cnt) + "/" + std::to_string(max) + " for '" + id + "'.");
-
-   mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
-      { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
-      generated_parent_dir + "/" + id,
-      "debug_trace_array",
-      mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv),
-      modes);
-
-   mc_scene->addNote("Finished test case generation for '" + id + "'.");
-}
-
-void MCScene::createTestCases(MCScene* mc_scene, const std::map<std::string, std::string> modes)
+void MCScene::createTestCases(MCScene* mc_scene, const std::map<std::string, std::string>& modes)
 {
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
 
-   int cnt{ 1 };
-   int max{ (int)mc_scene->se_controllers_.size() };
-   std::vector<std::thread> threads{};
-   int numThreads{ 0 };
-
+   std::vector<std::string> sec_ids{};
    for (const auto& sec : mc_scene->se_controllers_) {
       if (StaticHelper::isBooleanTrue(sec.runtime_local_options_.getOptionValue(SecOptionLocalItemEnum::selected_job))) {
-         bool spawned{ false };
-
-         while (!spawned) {
-            if (numThreads < test::MAX_THREADS) {
-               threads.emplace_back(std::thread(
-                  MCScene::createTestCase, 
-                  mc_scene, mc_scene->mc_workflow_.getGeneratedParentDir(mc_scene->getTemplateDir()).string(), 
-                  cnt++, 
-                  max, 
-                  sec.getMyId(), 
-                  sec.slider_->value(),
-                  modes));
-
-               spawned = true;
-               numThreads++;
-            }
-            else if (!threads.empty()) {
-               threads.front().join();
-               threads.erase(threads.begin());
-               numThreads--;
-            }
-         }
+         sec_ids.push_back(sec.getMyId());
       }
    }
 
-   for (auto& t : threads) t.join();
+   mc_scene->getMcWorkflow().createTestCases(
+      modes,
+      mc_scene->mc_workflow_.getGeneratedParentDir(mc_scene->getTemplateDir()), 
+      sec_ids);
 
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }
