@@ -569,7 +569,16 @@ std::string Script::applyMethodString(const std::string& method_name, const std:
       pars += ", '" + s + "' (" + std::to_string(cnt++) + ")";
    }
 
-   std::string error_str{ "No method '" + method_name + "' found which takes " + std::to_string(parameters.size()) + " arguments. Arguments are: {" + pars + "}." };
+   std::vector<std::string> method_names{};
+   std::vector<std::string> method_names_lowercase{};
+
+   for (const auto& name : METHODS) {
+      method_names.push_back(name.method_name_);
+      method_names_lowercase.push_back(StaticHelper::toLowerCase(name.method_name_));
+   }
+
+   std::string error_str{ "No method '" + method_name + "' found which takes " + std::to_string(parameters.size()) + " arguments. Arguments are: {" + pars + "}. " + 
+      "Did you mean '" + StaticHelper::getClosest(method_names_lowercase, StaticHelper::toLowerCase(method_name), method_names) + "'?"};
 
    addError(error_str);
    return "#INVALID(" + error_str + ")";
