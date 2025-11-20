@@ -23,7 +23,7 @@
 --#define behindsec(c0, c1) \
 --  (samesec(c0, c1) & (c0.on_secpart < c1.on_secpart))
 @{
-  (@{#0#}@.samesec[#1#] & @{#0#}@.secpart < @{#0#}@.secpart)
+  (@{#0#}@.samesec[#1#] & @{#0#}@.secpart < @{#1#}@.secpart)
 }@**.newMethod[behindsec, 1]
 
 -- True if the car is in the last chunk of the section (\sa on_secpart)
@@ -78,7 +78,7 @@
 @{
   INVAR (@{#0#}@.sec = #1#) -> @{#0#}@.secpart >= 0 & @{#0#}@.secpart <= @{#1#}@.nsecparts; 
   TRANS (@{#0#}@.sec = #1#) & next(@{#0#}@.sec) != -1 ->  
-    (next(@{#0#}@.sec = #1#) & (next(@{#0#}@.secpart) = @{#0#}@.secpart | @{#0#}@.doprogresssecpart[#1#] & 
+    (next(@{#0#}@.sec = #1#) & ((next(@{#0#}@.secpart) = @{#0#}@.secpart | @{#0#}@.doprogresssecpart[#1#]) & 
      next(@{#0#}@.secpart) <= @{#1#}@.nsecparts & 
      next(@{#0#}@.to) = -1 & next(@{#0#}@.from) = -1))
 }@***.newMethod[CarTransSectInner, 1]
