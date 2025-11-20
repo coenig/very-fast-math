@@ -826,9 +826,8 @@ int vfm::test::artifactRun(int argc, char* argv[])
          { 0 }, // TODO: For do now only first CEX if several given.
          generated_dir,
          StaticHelper::removeLastFileExtension(inputs.getCmdOption(CMD_CEX_FILE)),
-         mc::trajectory_generator::CexTypeEnum::smv, // TODO: Make this parametrizable
-         true,
-         true);
+         mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv), // TODO: Make this parametrizable
+         mc::ALL_TESTCASE_MODES);
    }
 
    return success && !inputs.hasErrorOccurred()

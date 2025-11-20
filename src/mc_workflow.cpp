@@ -8,6 +8,7 @@
 #include "model_checking/mc_workflow.h"
 #include "testing/interactive_testing.h"
 #include "vfmacro/script.h"
+#include <thread>
 
 using namespace vfm;
 using namespace mc;
@@ -45,15 +46,14 @@ void McWorkflow::resetParserAndData(const std::shared_ptr<DataPack> data, const 
 
 void vfm::mc::McWorkflow::generateEnvmodels(
    const std::string& path_template, 
-   const std::string& json_filename,
    const std::string& json_tpl_filename,
    const std::string& envmodel_entrance_filename,
    const std::shared_ptr<std::mutex> formula_evaluation_mutex)
 {
-   const auto path_generated{ getGeneratedDir(path_template) };
-   const auto path_planner{ getBPIncludesFileDir(path_template) };
-   const auto path_cached{ getCachedDir(path_template) };
-   std::string path_json{ path_template + "/" + json_filename };
+   const auto path_generated{ getGeneratedDir(path_template, json_tpl_filename) };
+   const auto path_planner{ getBPIncludesFileDir(path_template, json_tpl_filename) };
+   const auto path_cached{ getCachedDir(path_template, json_tpl_filename) };
+   std::string path_json{ path_template + "/" + getJsonFileNameFromJsonTemplateFileName(json_tpl_filename) };
    std::string path_envmodel{ path_template + "/" + envmodel_entrance_filename };
    preprocessAndRewriteJSONTemplate(path_template, json_tpl_filename, formula_evaluation_mutex);
 
@@ -93,12 +93,14 @@ std::vector<std::string> vfm::mc::McWorkflow::runMCJobs(
    const std::string& json_tpl_filename, 
    const int num_threads)
 {
+   std::filesystem::file_time_type dummy_time{};
+
    return runMCJobs(
       path_generated_config_level,
       job_selector, 
       path_template, 
       json_tpl_filename,
-      std::filesystem::file_time_type{},
+      dummy_time,
       nullptr, num_threads);
 }
 
@@ -147,12 +149,14 @@ void McWorkflow::runMCJob(
    const std::string& path_template, 
    const std::string& json_tpl_filename)
 {
+   std::filesystem::file_time_type dummy_time{};
+
    runMCJob(
       path_generated_config_level,
       config_name,
       path_template,
       json_tpl_filename,
-      std::filesystem::file_time_type{},
+      dummy_time,
       nullptr);
 }
 
@@ -165,8 +169,8 @@ void McWorkflow::runMCJob(
    const std::shared_ptr<std::mutex> formula_evaluation_mutex
 )
 {
-   const auto path_cached{ getCachedDir(path_template) };
-   const auto path_external{ getExternalDir(path_template) };
+   const auto path_cached{ getCachedDir(path_template, json_tpl_filename) };
+   const auto path_external{ getExternalDir(path_template, json_tpl_filename) };
 
    {
       std::lock_guard<std::mutex> lock{ main_file_mutex_ };
@@ -175,11 +179,12 @@ void McWorkflow::runMCJob(
       deleteMCOutputFromFolder(path_generated_config_level, true, path_template, previous_write_time);
       preprocessAndRewriteJSONTemplate(path_template, json_tpl_filename, formula_evaluation_mutex);
 
-      if (!putJSONIntoDataPack(path_template)) return;
-      if (!putJSONIntoDataPack(path_template, config_name)) return;
+      if (!putJSONIntoDataPack(path_template, json_tpl_filename)) return;
+      if (!putJSONIntoDataPack(path_template, json_tpl_filename, config_name)) return;
+
+      data_->addStringToDataPack(path_template, macro::MY_PATH_VARNAME); // Set the script processors home path (for the case it's not already been set during EnvModel generation).
 
       std::string main_smv{ StaticHelper::readFile(path_generated_config_level / "main.smv") };
-
       std::string script_template{ StaticHelper::readFile(path_template + "/script.tpl") };
       std::string main_template{ StaticHelper::readFile(path_template + "/main.tpl") };
       std::string generated_script{ CppParser::generateScript(script_template, data_, parser_) };
@@ -191,7 +196,6 @@ void McWorkflow::runMCJob(
       static const std::string SPEC_END{ "--EO-SPEC-STUFF" };
       static const std::string ADDONS_BEGIN{ "--ADDONS" };
       static const std::string ADDONS_END{ "--EO-ADDONS" };
-      data_->addStringToDataPack(path_template, macro::MY_PATH_VARNAME); // Set the script processors home path (for the case it's not already been set during EnvModel generation).
 
       // Re-generate SPEC stuff.
       main_smv = StaticHelper::removeMultiLineComments(main_smv, SPEC_BEGIN, SPEC_END);
@@ -212,15 +216,68 @@ void McWorkflow::runMCJob(
    addNote("Model checker run finished for folder '" + path_generated_config_level.string() + "'.");
 }
 
+void McWorkflow::createTestCase(
+   const std::string& generated_parent_dir, 
+   const std::string& id, 
+   const std::map<std::string, std::string>& modes)
+{
+   Failable::getSingleton()->addNote("Running test case generation for '" + id + "'.");
+
+   mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
+      { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
+      generated_parent_dir + "/" + id,
+      "debug_trace_array",
+      mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv),
+      modes);
+
+   Failable::getSingleton()->addNote("Finished test case generation for '" + id + "'.");
+}
+
+void vfm::mc::McWorkflow::createTestCases(
+   const std::map<std::string, std::string>& modes,
+   const std::string& path_template,
+   const std::string& json_tpl_filename,
+   const std::vector<std::string>& sec_ids)
+{
+   std::vector<std::thread> threads{};
+   int numThreads{ 0 };
+
+   for (const auto& sec_id : sec_ids) {
+      bool spawned{ false };
+
+      while (!spawned) {
+         if (numThreads < test::MAX_THREADS) {
+            threads.emplace_back(std::thread(
+               createTestCase,
+               getGeneratedParentDir(path_template, json_tpl_filename).string(),
+               sec_id,
+               //sec.slider_->value(),
+               modes));
+
+            spawned = true;
+            numThreads++;
+         }
+         else if (!threads.empty()) {
+            threads.front().join();
+            threads.erase(threads.begin());
+            numThreads--;
+         }
+      }
+   }
+
+   for (auto& t : threads) t.join();
+}
+
 void McWorkflow::generatePreview(const std::filesystem::path& path_generated_config_level, const int cex_num)
 {
    addNote("Generating preview for folder '" + path_generated_config_level.string() + "'.");
 
-   mc::trajectory_generator::VisualizationLaunchers::quickGeneratePreviewGIFs(
+   trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
       { cex_num },
       path_generated_config_level.string(),
       "debug_trace_array",
-      mc::trajectory_generator::CexTypeEnum::smv);
+      trajectory_generator::CexType(trajectory_generator::CexTypeEnum::smv),
+      std::map<std::string, std::string>{ mc::TESTCASE_MODE_PREVIEW, mc::TESTCASE_MODE_PREVIEW_2 });
 
    //refreshPreview(); // TODO: Function not taken over. Do we need it here?
 }
@@ -299,13 +356,13 @@ void McWorkflow::preprocessAndRewriteJSONTemplate(
    const std::shared_ptr<std::mutex> formula_evaluation_mutex)
 {
    const std::string path_json_template{ path_template + "/" + json_tpl_filename };
-   const std::string path_json_plain{ path_template + "/" + FILE_NAME_JSON };
+   const std::string path_json_plain{ path_template + "/" + getJsonFileNameFromJsonTemplateFileName(json_tpl_filename) };
 
    std::string s{};
 
    nlohmann::json j_template = getJSON(path_json_template);
    nlohmann::json j_out = {};
-   const bool is_ltl{ isLTL(JSON_TEMPLATE_DENOTER, path_template) };
+   const bool is_ltl{ isLTL(JSON_TEMPLATE_DENOTER, path_template, json_tpl_filename) };
 
    if (j_template.empty() || j_template.items().begin().key() != JSON_TEMPLATE_DENOTER) {
       addError("JSON parsing failed.");
@@ -450,13 +507,14 @@ void McWorkflow::evaluateFormulasInJSON(const nlohmann::json j_template, const s
    }
 }
 
-bool McWorkflow::putJSONIntoDataPack(const std::string& path_template, const std::string& config_name)
+bool McWorkflow::putJSONIntoDataPack(const std::string& path_template, const std::string& filename_json_template, const std::string& config_name)
 {
    bool from_template{ config_name == JSON_TEMPLATE_DENOTER };
    bool config_valid{ false };
 
    try {
-      nlohmann::json j = nlohmann::json::parse(StaticHelper::readFile(path_template + "/" + (from_template ? FILE_NAME_JSON_TEMPLATE : FILE_NAME_JSON)));
+      nlohmann::json j = nlohmann::json::parse(
+         StaticHelper::readFile(path_template + "/" + (from_template ? filename_json_template : getJsonFileNameFromJsonTemplateFileName(filename_json_template))));
 
       for (auto& [key_config, value_config] : j.items()) {
          if (key_config == config_name) {
@@ -608,14 +666,18 @@ void McWorkflow::copyWaitingForPreviewGIF(
    previous_write_time = StaticHelper::lastWritetimeOfFileSafe(path_preview_target, false);
 }
 
-std::string McWorkflow::getValueForJSONKeyAsString(const std::string& key_to_find, const std::string& path_template, const std::string& config_name) const
+std::string McWorkflow::getValueForJSONKeyAsString(
+   const std::string& key_to_find,
+   const std::string& path_template,
+   const std::string& filename_json_template,
+   const std::string& config_name) const
 {
-   std::string json_file_name{ config_name == JSON_TEMPLATE_DENOTER ? FILE_NAME_JSON_TEMPLATE : FILE_NAME_JSON };
+   std::string json_file_name{ config_name == JSON_TEMPLATE_DENOTER ? filename_json_template : getJsonFileNameFromJsonTemplateFileName(filename_json_template) };
    nlohmann::json json = getJSON(path_template + "/" + json_file_name);
-   return getValueForJSONKeyAsString(key_to_find, json, config_name);
+   return getValueForJSONKeyAsStringPlain(key_to_find, json, config_name);
 }
 
-std::string McWorkflow::getValueForJSONKeyAsString(const std::string& key_to_find, const nlohmann::json& json, const std::string& config_name) const
+std::string McWorkflow::getValueForJSONKeyAsStringPlain(const std::string& key_to_find, const nlohmann::json& json, const std::string& config_name) const
 {
    for (auto& [key_config, value_config] : json.items()) {
       if (key_config == config_name) {
@@ -627,38 +689,42 @@ std::string McWorkflow::getValueForJSONKeyAsString(const std::string& key_to_fin
       }
    }
 
+
    addError("#KEY-NOT-FOUND in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "').");
    return "#KEY-NOT-FOUND";
 }
 
-bool McWorkflow::isLTL(const std::string& config, const std::string& path_template)
+bool McWorkflow::isLTL(
+   const std::string& config, 
+   const std::string& path_template,
+   const std::string& filename_json_template)
 {
-   auto val = getValueForJSONKeyAsString("LTL_MODE", path_template, config);
+   auto val = getValueForJSONKeyAsString("LTL_MODE", path_template, filename_json_template, config);
    return StaticHelper::isBooleanTrue(val);
 }
 
-std::filesystem::path McWorkflow::getCachedDir(const std::string& path_template) const
+std::filesystem::path McWorkflow::getCachedDir(const std::string& path_template, const std::string& filename_json_template) const
 {
-   return getValueForJSONKeyAsString("_CACHED_PATH", path_template, JSON_TEMPLATE_DENOTER);
+   return getValueForJSONKeyAsString("_CACHED_PATH", path_template, filename_json_template, JSON_TEMPLATE_DENOTER);
 }
 
-std::filesystem::path McWorkflow::getBPIncludesFileDir(const std::string& path_template) const
+std::filesystem::path McWorkflow::getBPIncludesFileDir(const std::string& path_template, const std::string& filename_json_template) const
 {
-   return getValueForJSONKeyAsString("_BP_INCLUDES_FILE_PATH", path_template, JSON_TEMPLATE_DENOTER);
+   return getValueForJSONKeyAsString("_BP_INCLUDES_FILE_PATH", path_template, filename_json_template, JSON_TEMPLATE_DENOTER);
 }
 
-std::filesystem::path McWorkflow::getGeneratedDir(const std::string& path_template) const
+std::filesystem::path McWorkflow::getGeneratedDir(const std::string& path_template, const std::string& filename_json_template) const
 {
-   return getValueForJSONKeyAsString("_GENERATED_PATH", path_template, JSON_TEMPLATE_DENOTER);
+   return getValueForJSONKeyAsString("_GENERATED_PATH", path_template, filename_json_template, JSON_TEMPLATE_DENOTER);
 }
 
-std::filesystem::path vfm::mc::McWorkflow::getExternalDir(const std::string& path_template) const
+std::filesystem::path vfm::mc::McWorkflow::getExternalDir(const std::string& path_template, const std::string& filename_json_template) const
 {
-   return getValueForJSONKeyAsString("_EXTERNAL_PATH", path_template, JSON_TEMPLATE_DENOTER);
+   return getValueForJSONKeyAsString("_EXTERNAL_PATH", path_template, filename_json_template, JSON_TEMPLATE_DENOTER);
 }
 
-std::filesystem::path McWorkflow::getGeneratedParentDir(const std::string& path_template) const
+std::filesystem::path McWorkflow::getGeneratedParentDir(const std::string& path_template, const std::string& filename_json_template) const
 {
-   return getGeneratedDir(path_template).parent_path();
+   return getGeneratedDir(path_template, filename_json_template).parent_path();
 }
 

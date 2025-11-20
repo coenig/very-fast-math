@@ -743,6 +743,7 @@ public:
 
    static size_t levensteinDistance(const std::string& a, const std::string& b);
    static std::tuple<size_t, size_t> findClosest(const std::vector<std::string>& strs, const std::string& query);
+   static std::string getClosest(const std::vector<std::string>& strs, const std::string& query, const std::vector<std::string>& real_ones = {});
 
    static std::string replaceManyTimes(
       const std::string& str,
