@@ -56,16 +56,10 @@ MODULE main
   -- reverse car:
   LTLSPEC NAME reverse_cars :=
     ! (
-    -- initially the cars are ordered 0,..., n
-    @{ @{ @{car[c0]}@.behindsec[car[c1]] }@*.for[ [c1], @{[c0] + 1}@.eval[0], @{NONEGOS - 1}@.eval[0],1,&]
-    }@**.for[ [c0], 0, @{NONEGOS - 1}@.eval[0],1,&]
+     --initially the cars are ordered 0,..., n
+    @{@{car[i]}@.behindsec[car@{[i] + 1}@.eval[0]]}@*.for[[i], 0, @{NONEGOS - 2}@.eval[0],1,&] 
+    & 
     -- then at some point order is reversed.
-    F (
-      @{
-      @{
-      @{car[c1]}@.behindsec[car[c0]] 
-    }@*.for[ [c1], @{[c0] + 1}@.eval[0], @{NONEGOS - 1}@.eval[0], 1, &]
-    }@**.for[ [c0], 0, @{NONEGOS - 1}@.eval[0], 1, &]
-    TRUE
-    )
-    )
+    F (@{@{car@{[i]+1}@.eval[0]}@.behindsec[car[i]]}@*.for[[i], 0, @{NONEGOS - 2}@.eval[0],1,&])
+
+  )
