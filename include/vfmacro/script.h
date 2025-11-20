@@ -519,7 +519,7 @@ private:
 
    std::string connectRoadGraphTo(const std::string& id2_str);
    std::string storeRoadGraph(const std::string& filename);
-   inline std::string createRoadGraph(const std::string& id);
+   std::string createRoadGraph(const std::string& id);
 
    ScriptMethodDescription m1{ "for", 2, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1)); } };
    ScriptMethodDescription m2{ "for", 3, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2)); } };

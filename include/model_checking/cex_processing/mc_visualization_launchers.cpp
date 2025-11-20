@@ -32,12 +32,14 @@ std::string VisualizationLaunchers::writeProseSingleStep(
       }
       else if (past_lane < current_lane) {
          if (StaticHelper::isFloatInteger(past_lane)) {
-            return +" starts a lane change to the right";
+            return " starts a lane change to the right";
          }
          else {
-            return +" finshes its lane change to the right";
+            return " finshes its lane change to the right";
          }
       }
+
+      return "NO LANECHANGE";
    } };
 
    const auto LANE_INFO{ [](const float other_lane, const float ego_lane) -> std::string {

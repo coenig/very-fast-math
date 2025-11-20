@@ -1201,6 +1201,7 @@ std::string Script::formatExpression(const std::string& expression, const Syntax
    }
    else {
       addError("Syntax format not supported.");
+      return "#ERROR(Syntax format not supported.)";
    }
 }
 

@@ -93,12 +93,14 @@ std::vector<std::string> vfm::mc::McWorkflow::runMCJobs(
    const std::string& json_tpl_filename, 
    const int num_threads)
 {
+   std::filesystem::file_time_type dummy_time{};
+
    return runMCJobs(
       path_generated_config_level,
       job_selector, 
       path_template, 
       json_tpl_filename,
-      std::filesystem::file_time_type{},
+      dummy_time,
       nullptr, num_threads);
 }
 
@@ -147,12 +149,14 @@ void McWorkflow::runMCJob(
    const std::string& path_template, 
    const std::string& json_tpl_filename)
 {
+   std::filesystem::file_time_type dummy_time{};
+
    runMCJob(
       path_generated_config_level,
       config_name,
       path_template,
       json_tpl_filename,
-      std::filesystem::file_time_type{},
+      dummy_time,
       nullptr);
 }
 
