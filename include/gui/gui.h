@@ -130,6 +130,8 @@ public:
    std::map<std::string, std::pair<std::string, DragGroup*>> getBBGroups() const;
    Fl_Double_Window* getWindow() const;
 
+   std::string getJsonTplFilename() const;
+
    static void bbBoxSliderCallback(Fl_Widget* widget, void* data);
    static void bbBoxCallback(Fl_Widget* widget, void* data);
    static void checkboxJSONVisibleCallback(Fl_Widget* widget, void* data);

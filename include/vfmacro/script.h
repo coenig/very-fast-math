@@ -526,16 +526,16 @@ private:
    ScriptMethodDescription m3{ "for", 4, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3)); } };
    ScriptMethodDescription m4{ "for", 5, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3), parameters.at(4)); } };
 
-   std::map<std::string, std::string> guessPaths(const mc::McWorkflow& workflow, const std::string& config_name)
+   std::map<std::string, std::string> retrievePaths(const mc::McWorkflow& workflow, const std::string& json_tpl_filename_raw, const std::string& config_name)
    {
-
+      const std::string json_tpl_filename{ DEFAULT_FILE_NAME_JSON_TEMPLATE };
       std::map<std::string, std::string> map{};
       const std::string rootpath{ "." };
       const std::string path_template{ rootpath + "/../src/templates" };
-      const std::string path_generated_parent{ workflow.getGeneratedParentDir(path_template).string() };
-      const std::string path_generated{ workflow.getGeneratedDir(path_template).string() + config_name };
-      const std::string path_cached{ workflow.getCachedDir(path_template).string() };
-      const std::string path_external{ workflow.getExternalDir(path_template).string() };
+      const std::string path_generated_parent{ workflow.getGeneratedParentDir(path_template, json_tpl_filename).string() };
+      const std::string path_generated{ workflow.getGeneratedDir(path_template, json_tpl_filename).string() + config_name };
+      const std::string path_cached{ workflow.getCachedDir(path_template, json_tpl_filename).string() };
+      const std::string path_external{ workflow.getExternalDir(path_template, json_tpl_filename).string() };
 
       map.insert({ "rootpath", rootpath });
       map.insert({ "path_template", path_template });
@@ -564,13 +564,13 @@ private:
       { 
          auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_);
          std::string config_name{ parameters.at(0) };
-         std::map<std::string, std::string> paths{ guessPaths(mc_workflow, config_name) };
+         std::map<std::string, std::string> paths{ retrievePaths(mc_workflow, getRawScript(), config_name)};
 
          mc_workflow.runMCJob(
             paths.at("path_generated"),
             config_name,
             paths.at("path_template"),
-            FILE_NAME_JSON_TEMPLATE);
+            DEFAULT_FILE_NAME_JSON_TEMPLATE);
 
          return "<runMCJob> MC run via script finished for '" + config_name + "'.";
       } 
@@ -588,13 +588,13 @@ private:
             return "#ERROR<Parameter for number of threads '" + num_threads_str + "' is not a valid number in runMCJobs method>#";
          }
 
-         std::map<std::string, std::string> paths{ guessPaths(mc_workflow, "")};
+         std::map<std::string, std::string> paths{ retrievePaths(mc_workflow, getRawScript(), "")};
 
          mc_workflow.runMCJobs(
             std::filesystem::path(paths.at("path_generated")), // TODO: Don't need this parameter.
             [](const std::string& folder) -> bool { return true; },
             paths.at("path_template"),
-            FILE_NAME_JSON_TEMPLATE, 
+            DEFAULT_FILE_NAME_JSON_TEMPLATE, 
             std::stoi(num_threads_str));
 
          return "<runMCJobs> MC runs via script finished for '" + paths.at("path_generated") + "'.";
@@ -607,9 +607,9 @@ private:
       [this](const std::vector<std::string>& parameters) -> std::string
       {
          auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_);
-         std::map<std::string, std::string> paths{ guessPaths(mc_workflow, "") }; // Note that only path_template is used, the others might be broken.
+         std::map<std::string, std::string> paths{ retrievePaths(mc_workflow, getRawScript(), "") }; // Note that only path_template is used, the others might be broken.
 
-         mc_workflow.generateEnvmodels(paths.at("path_template"), FILE_NAME_JSON, FILE_NAME_JSON_TEMPLATE, FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
+         mc_workflow.generateEnvmodels(paths.at("path_template"), DEFAULT_FILE_NAME_JSON_TEMPLATE, FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
 
          return "<generateEnvmodels> Envmodel generation via script finished.";
       }
@@ -635,14 +635,13 @@ private:
       }
    };
 
-   // Full example: @{}@.generateEnvmodels @{}@.runMCJobs[10] @{}@.generateTestCases[all]
    ScriptMethodDescription m9{
       "generateTestCases",
       1,
       [this](const std::vector<std::string>& parameters) -> std::string
       {
          auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_);
-         const std::map<std::string, std::string> paths{ guessPaths(mc_workflow, "") };
+         const std::map<std::string, std::string> paths{ retrievePaths(mc_workflow, getRawScript(), "") };
          const std::string path_generated_parent{ paths.at("path_generated_parent") };
          const std::string path_template{ paths.at("path_template") };
 
@@ -674,7 +673,9 @@ private:
             }
          }
 
-         mc_workflow.createTestCases(modes, path_template, sec_ids);
+         std::string json_tpl_filename{ getRawScript().empty() ? DEFAULT_FILE_NAME_JSON_TEMPLATE : getRawScript() };
+
+         mc_workflow.createTestCases(modes, path_template, json_tpl_filename, sec_ids);
 
          return "<generateTestCases> Test case generation via script finished for these modes: '" + modes_str + " '.";
       }
@@ -685,11 +686,13 @@ private:
       m2,
       m3,
       m4,
+          // In the following examples, the json template filename is the default, but can also explicitly be given as @{SOME_NAME.tpl.json}@.
       m5, // Example: @{}@.runMCJob[_config_d=1000_lanes=1_maxaccel=3_maxaccelego=3_minaccel=-8_minaccelego=-8_nonegos=3_sections=5_segments=1_t=1100_vehlen=5]
       m6, // Example: @{}@.runMCJobs[10]
       m7, // Example: @{}@.generateEnvmodels
       m8, // Example: @{}@.generateTestCases       ==> Will fail, but present list of available modes.
       m9, // Example: @{}@.generateTestCases[all]
+          // Full example: @{}@.generateEnvmodels @{}@.runMCJobs[10] @{}@.generateTestCases[all]
       { "serialize", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::vfm); } },
       { "serializeK2", 0, [this](const std::vector<std::string>& parameters) -> std::string { return toK2(getRawScript()); } },
       { "serializeNuXmv", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::nuXmv); } },

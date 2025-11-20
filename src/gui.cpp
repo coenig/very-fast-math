@@ -35,7 +35,7 @@ std::map<std::string, std::pair<std::string, std::string>> MCScene::loadNewBBsFr
 
    // SPEC
    bb_str = 
-      std::string(mc_workflow_.isLTL(JSON_TEMPLATE_DENOTER, getTemplateDir()) ? "LTLSPEC" : "INVARSPEC")
+      std::string(mc_workflow_.isLTL(JSON_TEMPLATE_DENOTER, getTemplateDir(), json_tpl_filename_) ? "LTLSPEC" : "INVARSPEC")
       + " = " + bb.substr(JSON_NUXMV_FORMULA_BEGIN.size(), bb.size() - JSON_NUXMV_FORMULA_BEGIN.size() - JSON_NUXMV_FORMULA_END.size() - 1);
 
    mc_workflow_.parser_->resetErrors(ErrorLevelEnum::error);
@@ -228,7 +228,7 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
    Fl::add_timeout(TIMEOUT_RARE, refreshRarely, this);
    Fl::add_timeout(TIMEOUT_SOMETIMES, refreshSometimes, this);
 
-   mc_workflow_.copyWaitingForPreviewGIF(getTemplateDir(), mc_workflow_.getGeneratedDir(getTemplateDir()), previous_write_time_);
+   mc_workflow_.copyWaitingForPreviewGIF(getTemplateDir(), mc_workflow_.getGeneratedDir(getTemplateDir(), json_tpl_filename_), previous_write_time_);
    refreshPreview();
 
    scene_description_->textfont(FL_COURIER_BOLD);
@@ -241,7 +241,7 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
 
    main_group_->position(50, 200);
 
-   runtime_global_options_ = std::make_shared<OptionsGlobal>((mc_workflow_.getGeneratedDir(getTemplateDir()) / "runtime_options.morty").string());
+   runtime_global_options_ = std::make_shared<OptionsGlobal>((mc_workflow_.getGeneratedDir(getTemplateDir(), json_tpl_filename_) / "runtime_options.morty").string());
    runtime_global_options_->loadOptions();
    runtime_global_options_->saveOptions(); // In case of missing file, create it with default values.
 
@@ -283,8 +283,9 @@ std::string vfm::MCScene::getValueForJSONKeyAsString(const std::string& key_to_f
    const bool from_template{ config_name == JSON_TEMPLATE_DENOTER };
 
    try {
-      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
-      return mc_workflow_.getValueForJSONKeyAsString(key_to_find, j, config_name);
+      // TODO: Do we want to allow different json files in UI?
+      nlohmann::json j = nlohmann::json::parse(StaticHelper::readFile(getTemplateDir() + "/" + (from_template ? DEFAULT_FILE_NAME_JSON_TEMPLATE : getJsonFileNameFromJsonTemplateFileName(DEFAULT_FILE_NAME_JSON_TEMPLATE))));
+      return mc_workflow_.getValueForJSONKeyAsStringPlain(key_to_find, j, config_name);
    }
    catch (const nlohmann::json::parse_error& e) {
       addError("#JSON Error in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "', from_template: " + std::to_string(from_template) + ").");
@@ -299,7 +300,7 @@ std::string vfm::MCScene::getValueForJSONKeyAsString(const std::string& key_to_f
 void vfm::MCScene::setValueForJSONKeyFromBool(const std::string& key_to_find, const std::string& config_name, const bool from_template, const bool value_to_set) const
 { // TODO: Double code
    try {
-      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
+      nlohmann::json j = nlohmann::json::parse(StaticHelper::readFile(getTemplateDir() + "/" + (from_template ? DEFAULT_FILE_NAME_JSON_TEMPLATE : getJsonFileNameFromJsonTemplateFileName(DEFAULT_FILE_NAME_JSON_TEMPLATE))));
 
       for (auto& [key_config, value_config] : j.items()) {
          if (key_config == config_name) {
@@ -328,7 +329,7 @@ void vfm::MCScene::setValueForJSONKeyFromBool(const std::string& key_to_find, co
 void vfm::MCScene::setValueForJSONKeyFromString(const std::string& key_to_find, const std::string& config_name, const bool from_template, const std::string& value_to_set) const
 { // TODO: Double code
    try {
-      nlohmann::json j = nlohmann::json::parse(from_template ? json_input_->buffer()->text() : StaticHelper::readFile(getTemplateDir() + "/" + FILE_NAME_JSON));
+      nlohmann::json j = nlohmann::json::parse(StaticHelper::readFile(getTemplateDir() + "/" + (from_template ? DEFAULT_FILE_NAME_JSON_TEMPLATE : getJsonFileNameFromJsonTemplateFileName(DEFAULT_FILE_NAME_JSON_TEMPLATE))));
 
       for (auto& [key_config, value_config] : j.items()) {
          if (key_config == config_name) {
@@ -373,9 +374,9 @@ void vfm::MCScene::resetCachedVariables() const
 void MCScene::refreshPreview()
 {
    std::lock_guard<std::mutex> lock{ refresh_mutex_ };
-   std::filesystem::path path_preview_target{ mc_workflow_.getGeneratedDir(getTemplateDir()) / "preview/preview.gif" };
+   std::filesystem::path path_preview_target{ mc_workflow_.getGeneratedDir(getTemplateDir(), json_tpl_filename_) / "preview/preview.gif" };
 
-   if (!StaticHelper::existsFileSafe(mc_workflow_.getGeneratedDir(getTemplateDir())) || !StaticHelper::existsFileSafe(path_preview_target)) {
+   if (!StaticHelper::existsFileSafe(mc_workflow_.getGeneratedDir(getTemplateDir(), json_tpl_filename_)) || !StaticHelper::existsFileSafe(path_preview_target)) {
       return;
    }
 
@@ -464,7 +465,7 @@ std::vector<std::pair<std::string, std::string>> MCScene::getAllFormulasFromJSON
 
 std::pair<std::string, std::string> MCScene::getSpec(const std::string& config, const bool any)
 {
-   const std::string file_name{ config == JSON_TEMPLATE_DENOTER ? json_tpl_filename_ : FILE_NAME_JSON };
+   const std::string file_name{ config == JSON_TEMPLATE_DENOTER ? json_tpl_filename_ : getJsonFileNameFromJsonTemplateFileName(json_tpl_filename_) };
 
    try {
       std::string json_text{ StaticHelper::readFile(getTemplateDir() + "/" + file_name) };
@@ -508,8 +509,8 @@ void MCScene::saveJsonText()
    try {
       nlohmann::json json = nlohmann::json::parse(json_input_->buffer()->text());
       resetCachedVariables();
-      mc_workflow_.getGeneratedDir(getTemplateDir());
-      mc_workflow_.getCachedDir(getTemplateDir());
+      mc_workflow_.getGeneratedDir(getTemplateDir(), json_tpl_filename_);
+      mc_workflow_.getCachedDir(getTemplateDir(), json_tpl_filename_);
    }
    catch (const nlohmann::json::parse_error& e) {
    }
@@ -520,8 +521,8 @@ void MCScene::setTitle()
    window_->label((GUI_NAME + std::string("         ")
       + json_tpl_filename_ + " | "
       + StaticHelper::absPath(getTemplateDir()) + " ==> " 
-      + StaticHelper::absPath(mc_workflow_.getGeneratedDir(getTemplateDir()))
-      + " [[" + StaticHelper::absPath(mc_workflow_.getCachedDir(getTemplateDir())) + "]]").c_str());
+      + StaticHelper::absPath(mc_workflow_.getGeneratedDir(getTemplateDir(), json_tpl_filename_))
+      + " [[" + StaticHelper::absPath(mc_workflow_.getCachedDir(getTemplateDir(), json_tpl_filename_)) + "]]").c_str());
 }
 
 mc::McWorkflow& vfm::MCScene::getMcWorkflow() const
@@ -578,7 +579,7 @@ void MCScene::resetAllBBGroups()
 
 void showBoxWithPreviews(const MCScene* mc_scene, const DragGroup* drag_group)
 {
-   const std::filesystem::path previews_path{ mc_scene->getMcWorkflow().getGeneratedParentDir(mc_scene->getTemplateDir()) / "previews"};
+   const std::filesystem::path previews_path{ mc_scene->getMcWorkflow().getGeneratedParentDir(mc_scene->getTemplateDir(), mc_scene->getJsonTplFilename()) / "previews"};
    StaticHelper::createDirectoriesSafe(previews_path);
    float current_best{ std::numeric_limits<float>::infinity() };
    std::filesystem::directory_entry best{};
@@ -791,6 +792,11 @@ std::map<std::string, std::pair<std::string, DragGroup*>> vfm::MCScene::getBBGro
    return bb_groups_;
 }
 
+std::string MCScene::getJsonTplFilename() const
+{
+   return json_tpl_filename_;
+}
+
 // Callbacks
 
 void MCScene::bbBoxSliderCallback(Fl_Widget* widget, void* data)
@@ -917,7 +923,7 @@ void MCScene::refreshRarely(void* data)
       }
    }
 
-   std::filesystem::path path_generated_base{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir()) };
+   std::filesystem::path path_generated_base{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir(), mc_scene->getJsonTplFilename()) };
 
    if (!StaticHelper::existsFileSafe(path_generated_base)) {
       StaticHelper::createDirectoriesSafe(path_generated_base);
@@ -980,9 +986,9 @@ void MCScene::refreshRarely(void* data)
       mc_scene->scene_description_->value("Waiting for data...");
    }
 
-   std::filesystem::path path_preview_target{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir()) / "preview/preview.gif" };
+   std::filesystem::path path_preview_target{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir(), mc_scene->getJsonTplFilename()) / "preview/preview.gif" };
 
-   if (!mc_scene->mc_running_internal_ && StaticHelper::existsFileSafe(mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir())) && StaticHelper::existsFileSafe(path_preview_target)) {
+   if (!mc_scene->mc_running_internal_ && StaticHelper::existsFileSafe(mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir(), mc_scene->getJsonTplFilename())) && StaticHelper::existsFileSafe(path_preview_target)) {
       auto currentWriteTime = StaticHelper::lastWritetimeOfFileSafe(path_preview_target);
 
       // Compare the current write time with the previous write time
@@ -1288,8 +1294,8 @@ void MCScene::refreshSometimes(void* data)
    auto mc_scene{ static_cast<MCScene*>(data) };
 
    if (mc_scene->button_create_envmodels->active()) { // Don't display this warning when jobs are running.
-      if (!test::isCacheUpToDateWithTemplates(mc_scene->mc_workflow_.getCachedDir(mc_scene->getTemplateDir()), mc_scene->getTemplateDir(), GUI_NAME + "_Related")) {
-         mc_scene->addWarning("Cache in '" + mc_scene->mc_workflow_.getCachedDir(mc_scene->getTemplateDir()).string() + "' is outdated w.r.t. the template files in '" + mc_scene->getTemplateDir() + "'.\n"
+      if (!test::isCacheUpToDateWithTemplates(mc_scene->mc_workflow_.getCachedDir(mc_scene->getTemplateDir(), mc_scene->getJsonTplFilename()), mc_scene->getTemplateDir(), GUI_NAME + "_Related")) {
+         mc_scene->addWarning("Cache in '" + mc_scene->mc_workflow_.getCachedDir(mc_scene->getTemplateDir(), mc_scene->getJsonTplFilename()).string() + "' is outdated w.r.t. the template files in '" + mc_scene->getTemplateDir() + "'.\n"
             + "All cached entries will be deleted on next click on 'Create EnvModels...'. <Delete cache with right-click on the button to stop this message.>");
       }
    }
@@ -1376,7 +1382,7 @@ void MCScene::jsonChangedCallback(Fl_Widget* widget, void* data) {
 
 void vfm::MCScene::runMCJobs(MCScene* mc_scene)
 {
-   const std::filesystem::path path_generated_base_str{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir()) };
+   const std::filesystem::path path_generated_base_str{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir(), mc_scene->getJsonTplFilename()) };
    const std::filesystem::path path_generated_base(path_generated_base_str);
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
 
@@ -1398,7 +1404,7 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
       path_preview_bb = path_generated_base;
       
       std::string spec{ mc_scene->getValueForJSONKeyAsString("SPEC", JSON_TEMPLATE_DENOTER) };
-      bool is_ltl{ mc_scene->mc_workflow_.isLTL(JSON_TEMPLATE_DENOTER, mc_scene->getTemplateDir()) };
+      bool is_ltl{ mc_scene->mc_workflow_.isLTL(JSON_TEMPLATE_DENOTER, mc_scene->getTemplateDir(), mc_scene->getJsonTplFilename()) };
       spec = StaticHelper::replaceAll(spec, JSON_NUXMV_FORMULA_BEGIN, "");
       spec = StaticHelper::replaceAll(spec, JSON_NUXMV_FORMULA_END, "");
       spec = StaticHelper::replaceAll(spec, ";", "");
@@ -1506,7 +1512,7 @@ void MCScene::buttonSaveJSON(Fl_Widget* widget, void* data)
 void MCScene::buttonReloadJSON(Fl_Widget* widget, void* data) 
 {
    auto mc_scene{ static_cast<MCScene*>(data) };
-   mc_scene->mc_workflow_.putJSONIntoDataPack(mc_scene->getTemplateDir());
+   mc_scene->mc_workflow_.putJSONIntoDataPack(mc_scene->getTemplateDir(), mc_scene->json_tpl_filename_);
    mc_scene->mc_workflow_.evaluateFormulasInJSON(mc_scene->getJSON(), mc_scene->formula_evaluation_mutex_);
 
    mc_scene->showAllBBGroups(false);
@@ -1539,7 +1545,7 @@ void MCScene::buttonCheckJSON(Fl_Widget* widget, void* data)
 void deleteMCOutput(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
-   std::filesystem::path path_generated_base{ mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir()) };
+   std::filesystem::path path_generated_base{ mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir(), mc_scene->getJsonTplFilename()) };
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
    std::string prefix{ path_generated_base.filename().string() };
 
@@ -1573,7 +1579,7 @@ void deleteMCOutput(MCScene* mc_scene) // Free function that actually does it, r
 void deleteTestCases(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
-   std::filesystem::path path_generated_base{ mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir())};
+   std::filesystem::path path_generated_base{ mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir(), mc_scene->getJsonTplFilename())};
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
    std::string prefix{ path_generated_base.filename().string() };
 
@@ -1618,7 +1624,7 @@ void deleteTestCases(MCScene* mc_scene) // Free function that actually does it, 
 void deleteFolders(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
-   std::filesystem::path path_generated_base_str{ mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir())};
+   std::filesystem::path path_generated_base_str{ mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir(), mc_scene->getJsonTplFilename())};
    std::filesystem::path path_generated_base(path_generated_base_str);
    std::filesystem::path path_generated_base_parent = path_generated_base.parent_path();
    std::string prefix{ path_generated_base.filename().string() };
@@ -1651,7 +1657,7 @@ void deleteFolders(MCScene* mc_scene) // Free function that actually does it, ra
       mc_scene->addWarning("Deleting folders not possible due to error: " + std::string(e.what()));
    }
 
-   mc_scene->getMcWorkflow().copyWaitingForPreviewGIF(mc_scene->getTemplateDir(), mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir()), mc_scene->previous_write_time_);
+   mc_scene->getMcWorkflow().copyWaitingForPreviewGIF(mc_scene->getTemplateDir(), mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir(), mc_scene->getJsonTplFilename()), mc_scene->previous_write_time_);
    mc_scene->refreshPreview();
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }
@@ -1659,7 +1665,7 @@ void deleteFolders(MCScene* mc_scene) // Free function that actually does it, ra
 void deleteCached(MCScene* mc_scene) // Free function that actually does it, ran in a thread from the callback.
 {
    mc_scene->activateMCButtons(false, ButtonClass::RunButtons);
-   auto path_cached{ mc_scene->getMcWorkflow().getCachedDir(mc_scene->getTemplateDir())};
+   auto path_cached{ mc_scene->getMcWorkflow().getCachedDir(mc_scene->getTemplateDir(), mc_scene->getJsonTplFilename())};
    mc_scene->addNote("Deleting folder '" + path_cached.string() + "'.");
    StaticHelper::removeAllFilesSafe(path_cached);
    mc_scene->activateMCButtons(true, ButtonClass::All);
@@ -1735,7 +1741,6 @@ void MCScene::doAllEnvModelGenerations(MCScene* mc_scene)
    mc_scene->showAllBBGroups(false);
 
    auto template_dir{ mc_scene->getTemplateDir() };
-   auto path_json{ FILE_NAME_JSON };
    auto path_envmodel{ FILE_NAME_ENVMODEL_ENTRANCE };
 
    mc_scene->saveJsonText();
@@ -1746,8 +1751,7 @@ void MCScene::doAllEnvModelGenerations(MCScene* mc_scene)
 
    mc_scene->mc_workflow_.generateEnvmodels(
       template_dir,
-      FILE_NAME_JSON,
-      FILE_NAME_JSON_TEMPLATE,
+      mc_scene->json_tpl_filename_,
       FILE_NAME_ENVMODEL_ENTRANCE,
       mc_scene->formula_evaluation_mutex_);
 
@@ -1780,7 +1784,7 @@ void MCScene::onGroupClickBM(Fl_Widget* widget, void* data)
       }
 
       controller->mc_scene_->getMcWorkflow().deleteMCOutputFromFolder(
-         controller->mc_scene_->mc_workflow_.getGeneratedDir(controller->mc_scene_->getTemplateDir()),
+         controller->mc_scene_->mc_workflow_.getGeneratedDir(controller->mc_scene_->getTemplateDir(), controller->mc_scene_->getJsonTplFilename()),
          false, 
          controller->mc_scene_->getTemplateDir(), 
          controller->mc_scene_->previous_write_time_);
@@ -1816,7 +1820,8 @@ void MCScene::createTestCases(MCScene* mc_scene, const std::map<std::string, std
 
    mc_scene->getMcWorkflow().createTestCases(
       modes,
-      mc_scene->getTemplateDir(), 
+      mc_scene->getTemplateDir(),
+      mc_scene->getJsonTplFilename(),
       sec_ids);
 
    mc_scene->activateMCButtons(true, ButtonClass::All);
@@ -1889,7 +1894,7 @@ void vfm::MCScene::buttonRuntimeAnalysis(Fl_Widget* widget, void* data)
       res += std::to_string(time_ms) + ";" + time_str + "\n";
    }
 
-   const auto runtime_analysis_path{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir()) / "runtime_summary.csv" };
+   const auto runtime_analysis_path{ mc_scene->mc_workflow_.getGeneratedDir(mc_scene->getTemplateDir(), mc_scene->json_tpl_filename_) / "runtime_summary.csv" };
    const auto abs_path{ StaticHelper::absPath(runtime_analysis_path) };
    const auto tikz_path{ StaticHelper::removeLastFileExtension(abs_path) + ".tex" };
 
