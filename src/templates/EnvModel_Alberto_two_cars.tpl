@@ -1,9 +1,8 @@
 @{EnvModel_Alberto_macros.tpl}@********.include
 
-#define max_sec_id 1
+-- TODO[AB]: Move this in parameter part
 #define max_secparts_per_sec 4
 
---ヤッター！
 MODULE main
   VAR
     -- section declarations
@@ -17,13 +16,16 @@ MODULE main
   -- also control movement from junctions to sections
 
   @{
-  @{car[car_num]}@.CarCoreDecl[max_sec_id, max_secparts_per_sec]
+  @{car[car_num]}@.CarCoreDecl[@{SECTIONS - 1}@.eval[0], max_secparts_per_sec]
   }@*.for[[car_num], 0, @{NONEGOS - 1}@.eval[0]]
+
+  -- Avoid car collisions
+  INVAR !
   @{
   @{
-  INVAR ! (@{car[i]}@.samesec[car[j]] & @{car[i]}@.secpart = @{car[0]}@.secpart);
-  }@*.for[[j], @{i + 1}@.eval[0], @{NONEGOS - 1}@.eval[0]]
-  }@*.for[[i], 0, @{NONEGOS - 1}@.eval[0]]
+    (@{car[i]}@.samesec[car[j]] & @{car[i]}@.secpart = @{car[0]}@.secpart)
+  }@*.for[[j], @{i + 1}@.eval[0], @{NONEGOS - 1}@.eval[0],1,&]
+  }@**.for[[i], 0, @{NONEGOS - 1}@.eval[0],1,&]
 
   DEFINE
     @{
@@ -35,27 +37,20 @@ MODULE main
   @{
   @{
   -- Transitions for cars inside the sections (assuming they do not pass to next section)
-  @{car[i]}@.CarTransSectInner[sec[j], [j]];
+  @{car[i]}@.CarTransSectInner[[j]];
   -- Transition representing junction entering
-  @{car[i]}@.CarTransSectJunc[sec[j], [j]];
+  @{car[i]}@.CarTransSectJunc[[j]];
   }@*.for[[i], 0, @{NONEGOS - 1}@.eval[0]]
   }@*.for[[j], 0, @{SECTIONS - 1}@.eval[0]]
 
-  BehindDecl(car0, car1, was_behind_car0_car1, behind_car0_car1)
-  BehindDecl(car1, car0, was_behind_car1_car0, behind_car1_car0)
-  --TRANS behind_car0_car1 & car0.on_straight_section = car1.on_straight_section -> next(behind_car0_car1);
-  --TRANS behind_car1_car0 & car1.on_straight_section = car0.on_straight_section -> next(behind_car1_car0);
+  @{
+  @{
+  @{
+    @{car[i]}@.BehindDecl[car[j],was_behind_car[i]_car[j],behind_car[i]_car[j]]
+  }@*.if[@{[i] != [j]}@.eval]
+  }@**.for[[j], 0, @{NONEGOS - 1}@.eval[0]]
+  }@**.for[[i], 0, @{NONEGOS - 1}@.eval[0]]
 
-#define INCLUDE_BOUND_COUNTER 0 
-#if INCLUDE_BOUND_COUNTER
-#define bound_counter_upper_bound
-  VAR bound_counter : 0 .. bound_counter_upper_bound;
-
-  INIT bound_counter = 0;
-  TRANS next(bound_counter) = ((bound_counter = bound_counter_upper_bound) ? (bound_counter_upper_bound) : (bound_counter + 1));
-#endif
-  --INIT behind_sec(car0, car1) & sec0.n_secparts = 2 & sec1.n_secparts = 2;
-  --INVARSPEC  !behind_sec(car1, car0);
   LTLSPEC ! (behind_sec(car0, car1) & F (behind_sec(car1, car0)));
   LTLSPEC ! (sec1.outgoing_connection_0 = -1 & behind_sec(car0, car1) & F (behind_sec(car1, car0)));
       
@@ -63,8 +58,8 @@ MODULE main
 MODULE Section2Conn(max_sec_parts, id)
   FROZENVAR
     n_secparts : 0..max_sec_parts;
-    outgoing_connection_0 : -1 .. max_sec_id;
-    outgoing_connection_1 : -1 .. max_sec_id;
+    outgoing_connection_0 : -1 .. @{SECTIONS - 1}@.eval[0];
+    outgoing_connection_1 : -1 .. @{SECTIONS - 1}@.eval[0];
 
   -- If a single connection occurs, it is on connection 0
   INIT outgoing_connection_0 = -1 -> outgoing_connection_1 = -1;
@@ -78,7 +73,7 @@ MODULE Section2Conn(max_sec_parts, id)
 MODULE Section1Conn(max_sec_parts, id)
   FROZENVAR
     n_secparts : 0..max_sec_parts;
-    outgoing_connection_0 : -1 .. max_sec_id;
+    outgoing_connection_0 : -1 .. @{SECTIONS - 1}@.eval[0];
 
   -- no selfloop
   INIT outgoing_connection_0 != id;
