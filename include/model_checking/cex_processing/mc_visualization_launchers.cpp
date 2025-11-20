@@ -225,14 +225,12 @@ std::string VisualizationLaunchers::writeProseTrafficScene(const MCTrace trace)
 }
 
 bool VisualizationLaunchers::quickGenerateGIFs(
-   const std::set<int>& cex_nums_to_generate,
+   const std::set<int>& cex_nums_to_generate, // In case cex file contains more than 1 CEX, numbers to pick.
    const std::string& path_cropped,
    const std::string& file_name_without_txt_extension,
    const CexType& cex_type,
-   const bool export_basic,
-   const bool export_with_smooth_arrows,
-   const bool export_without_smooth_arrows,
-   const std::set<int>& agents_to_draw_arrows_for) 
+   const std::map<std::string, std::string> modes,
+   const std::set<int>& agents_to_draw_arrows_for)
 {
    if (cex_type != CexTypeEnum::smv && cex_type != CexTypeEnum::kratos && cex_type != CexTypeEnum::msatic) {
       Failable::getSingleton()->addError("Cex type '" + cex_type.getEnumAsString() + "' not allowed. CEX generation aborted.");
@@ -290,86 +288,96 @@ bool VisualizationLaunchers::quickGenerateGIFs(
       gen_config_smooth.frames_per_second_gif = 40;
       gen_config_smooth.frames_per_second_osc = 40;
 
-      if (/*true ||*/ !trace.at(0).second.count("env.section_1_segment_0_pos_begin")) {
+      if (modes.count(TESTCASE_MODE_PREVIEW.first) && !trace.at(0).second.count("env.section_1_segment_0_pos_begin")) {
          // TODO: For now we can skip generating preview GIF for multi-section scenes with the surrounding IF because it's very expensive due to hard-coded large image size.
          // Needs to be fixed by reducing image size to what is actually needed. (Plus some other intelligent stuff.)
          VisualizationLaunchers::interpretAndGenerate(
             trace,
             path,
-            "preview",
+            TESTCASE_MODE_PREVIEW.first,
             SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
             agents_to_draw_arrows_for,
-            gen_config_smooth, "preview");
+            gen_config_smooth, TESTCASE_MODE_PREVIEW.second);
       }
 
-      VisualizationLaunchers::interpretAndGenerate(
-         trace,
-         path,
-         "preview2",
-         SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
-         agents_to_draw_arrows_for,
-         gen_config_non_smooth, "preview 2");
-
-      if (export_basic) {
+      if (modes.count(TESTCASE_MODE_PREVIEW_2.first)) {
          VisualizationLaunchers::interpretAndGenerate(
             trace,
             path,
-            "cex-full",
+            TESTCASE_MODE_PREVIEW_2.first,
+            SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
+            agents_to_draw_arrows_for,
+            gen_config_non_smooth, TESTCASE_MODE_PREVIEW_2.second);
+      }
+
+      if (modes.count(TESTCASE_MODE_CEX_FULL.first)) {
+         VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            path,
+            TESTCASE_MODE_CEX_FULL.first,
             SIM_TYPE_REGULAR,
             agents_to_draw_arrows_for,
-            gen_config_non_smooth, "full (1/7)");
+            gen_config_non_smooth, TESTCASE_MODE_CEX_FULL.second);
+      }
 
+      if (modes.count(TESTCASE_MODE_CEX_BIRDSEYE.first)) {
          VisualizationLaunchers::interpretAndGenerate(
             trace,
             path,
-            "cex-birdseye",
+            TESTCASE_MODE_CEX_BIRDSEYE.first,
             SIM_TYPE_REGULAR_BIRDSEYE_ONLY,
             agents_to_draw_arrows_for,
-            gen_config_non_smooth, "birdseye (2/7)");
+            gen_config_non_smooth, TESTCASE_MODE_CEX_BIRDSEYE.second);
       }
 
-      if (export_with_smooth_arrows) {
+      if (modes.count(TESTCASE_MODE_CEX_COCKPIT_ONLY.first)) {
          VisualizationLaunchers::interpretAndGenerate(
             trace,
             path,
-            "cex-cockpit-only",
+            TESTCASE_MODE_CEX_COCKPIT_ONLY.first,
             SIM_TYPE_SMOOTH_COCKPIT,
             agents_to_draw_arrows_for,
-            gen_config_smooth, "cockpit (3/7)");
-
-         VisualizationLaunchers::interpretAndGenerate(
-            trace,
-            path,
-            "cex-smooth-with-arrows-full",
-            SIM_TYPE_SMOOTH_WITH_ARROWS,
-            agents_to_draw_arrows_for,
-            gen_config_smooth, "smooth-with-arrows (6/7)");
-
-         VisualizationLaunchers::interpretAndGenerate(
-            trace,
-            path,
-            "cex-smooth-with-arrows-birdseye",
-            SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
-            agents_to_draw_arrows_for,
-            gen_config_smooth, "smooth-with-arrows-birdseye (7/7)");
+            gen_config_smooth, TESTCASE_MODE_CEX_COCKPIT_ONLY.second);
       }
 
-      if (export_without_smooth_arrows) {
+      if (modes.count(TESTCASE_MODE_CEX_SMOOTH_FULL.first)) {
          VisualizationLaunchers::interpretAndGenerate(
             trace,
             path,
-            "cex-smooth-full",
+            TESTCASE_MODE_CEX_SMOOTH_FULL.first,
             SIM_TYPE_SMOOTH,
             agents_to_draw_arrows_for,
-            gen_config_smooth, "full-smooth (4/7)");
+            gen_config_smooth, TESTCASE_MODE_CEX_SMOOTH_FULL.second);
+      }
 
+      if (modes.count(TESTCASE_MODE_CEX_SMOOTH_BIRDSEYE.first)) {
          VisualizationLaunchers::interpretAndGenerate(
             trace,
             path,
-            "cex-smooth-birdseye",
+            TESTCASE_MODE_CEX_SMOOTH_BIRDSEYE.first,
             SIM_TYPE_SMOOTH_BIRDSEYE_ONLY,
             agents_to_draw_arrows_for,
-            gen_config_smooth, "birdseye-smooth (5/7)");
+            gen_config_smooth, TESTCASE_MODE_CEX_SMOOTH_BIRDSEYE.second);
+      }
+
+      if (modes.count(TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_FULL.first)) {
+         VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            path,
+            TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_FULL.first,
+            SIM_TYPE_SMOOTH_WITH_ARROWS,
+            agents_to_draw_arrows_for,
+            gen_config_smooth, TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_FULL.second);
+      }
+
+      if (modes.count(TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_BIRDSEYE.first)) {
+         VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            path,
+            TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_BIRDSEYE.first,
+            SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
+            agents_to_draw_arrows_for,
+            gen_config_smooth, TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_BIRDSEYE.second);
       }
    }
 
@@ -471,14 +479,29 @@ bool processCEX(
    const bool include_smooth,
    const bool with_smooth_arrows)
 {
+   std::map<std::string, std::string> modes{};
+
+   modes.insert(TESTCASE_MODE_PREVIEW);
+   modes.insert(TESTCASE_MODE_CEX_FULL);
+   modes.insert(TESTCASE_MODE_CEX_COCKPIT_ONLY);
+
+   if (include_smooth) {
+      modes.insert(TESTCASE_MODE_PREVIEW);
+      modes.insert(TESTCASE_MODE_CEX_SMOOTH_FULL);
+      modes.insert(TESTCASE_MODE_CEX_SMOOTH_BIRDSEYE);
+   }
+
+   if (with_smooth_arrows) {
+      modes.insert(TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_FULL);
+      modes.insert(TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_BIRDSEYE);
+   }
+
    bool success{ vfm::mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
       { 0 }, // For now, always generate only the first CEX.
       std::string(path_cropped),
       "debug_trace_array",
       CexType(std::string(cex_type)),
-      include_smooth,
-      true, // without_smooth_arrows
-      with_smooth_arrows) };
+      modes) };
 
    if (!success) {
       Failable::getSingleton()->addError("CEX generation failed.");

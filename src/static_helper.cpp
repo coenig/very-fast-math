@@ -3025,6 +3025,12 @@ std::tuple<size_t, size_t> vfm::StaticHelper::findClosest(const std::vector<std:
    return std::make_tuple(mini, minv);
 }
 
+std::string vfm::StaticHelper::getClosest(const std::vector<std::string>& strs, const std::string& query, const std::vector<std::string>& real_ones)
+{
+   auto matches = findClosest(strs, query);
+   return (real_ones.empty() ? strs : real_ones).at(std::get<0>(matches));
+}
+
 void vfm::StaticHelper::addNDetDummyFunctions(const std::shared_ptr<FormulaParser> parser, const std::shared_ptr<DataPack> data)
 {
    std::string ndet_dummy_code = "\
