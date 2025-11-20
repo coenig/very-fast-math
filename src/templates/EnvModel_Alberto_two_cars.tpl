@@ -4,12 +4,16 @@
 #define max_secparts_per_sec 4
 
 MODULE main
-  VAR
-    -- section declarations
-    sec0 : Section2Conn(max_secparts_per_sec, 0);
-    sec1 : Section1Conn(max_secparts_per_sec, 1);
-    --sec2 : Section1Conn(max_secparts_per_sec, 2);
-    --sec3 : SectionSink(max_secparts_per_sec, 3);
+@{
+  FROZENVAR @{[sec]}@.nsecparts : 0 .. max_secparts_per_sec;
+  @{
+  FROZENVAR @{[sec]}@.outconn[[con]] : -1..@{SECTIONS - 1}@.eval[0];
+  INIT @{[sec]}@.outconn[[con]] != [sec]; -- Don't connect to self.
+  @{
+  INIT @{[sec]}@.outconn[[con]] = -1 -> @{[sec]}@.outconn[@{[con] + 1}@.eval[0]] = -1;
+  }@***.if[@{[con] < MAXOUTGOINGCONNECTIONS -1}@.eval] -- Reduce topological permutations
+  }@****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
+}@******.for[[sec], 0, @{SECTIONS - 1}@.eval]
   -- non-ego cars declaration
 
   -- part of declaration indipendent of interaction declared with macros.
@@ -23,7 +27,7 @@ MODULE main
   INVAR !
   @{
   @{
-    (@{car[i]}@.samesec[car[j]] & @{car[i]}@.secpart = @{car[0]}@.secpart)
+    (@{car[i]}@.samesec[car[j]] & @{car[i]}@.secpart = @{car[j]}@.secpart)
   }@*.for[[j], @{i + 1}@.eval[0], @{NONEGOS - 1}@.eval[0],1,&]
   }@**.for[[i], 0, @{NONEGOS - 1}@.eval[0],1,&]
 
@@ -50,34 +54,3 @@ MODULE main
   }@*.if[@{[i] != [j]}@.eval]
   }@**.for[[j], 0, @{NONEGOS - 1}@.eval[0]]
   }@**.for[[i], 0, @{NONEGOS - 1}@.eval[0]]
-
-  LTLSPEC ! (behind_sec(car0, car1) & F (behind_sec(car1, car0)));
-  LTLSPEC ! (sec1.outgoing_connection_0 = -1 & behind_sec(car0, car1) & F (behind_sec(car1, car0)));
-      
--- TODO: In general n_secparts and others parameter are actually the max index
-MODULE Section2Conn(max_sec_parts, id)
-  FROZENVAR
-    n_secparts : 0..max_sec_parts;
-    outgoing_connection_0 : -1 .. @{SECTIONS - 1}@.eval[0];
-    outgoing_connection_1 : -1 .. @{SECTIONS - 1}@.eval[0];
-
-  -- If a single connection occurs, it is on connection 0
-  INIT outgoing_connection_0 = -1 -> outgoing_connection_1 = -1;
-
-  -- there are no duplicated connections
-  INIT outgoing_connection_0 != -1 -> outgoing_connection_0 != outgoing_connection_1;
-
-  -- no selfloop
-  INIT outgoing_connection_0 != id & outgoing_connection_1 != id;
-
-MODULE Section1Conn(max_sec_parts, id)
-  FROZENVAR
-    n_secparts : 0..max_sec_parts;
-    outgoing_connection_0 : -1 .. @{SECTIONS - 1}@.eval[0];
-
-  -- no selfloop
-  INIT outgoing_connection_0 != id;
-
-MODULE SectionSink(max_sec_parts, id)
-  FROZENVAR
-    n_secparts : 0..max_sec_parts;
