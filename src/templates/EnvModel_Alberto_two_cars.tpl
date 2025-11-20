@@ -20,10 +20,11 @@ MODULE main
   }@*.for[[car_num], 0, @{NONEGOS - 1}@.eval[0]]
 
   -- Avoid car collisions
-  INVAR !
+  INVAR 
   @{
   @{
-    (@{car[i]}@.samesec[car[j]] & @{car[i]}@.secpart = @{car[j]}@.secpart)
+    -- Car[i] and Car[j] are not in collision!
+    !(@{car[i]}@.samesec[car[j]] & @{car[i]}@.secpart = @{car[j]}@.secpart)
   }@*.for[[j], @{[i] + 1}@.eval[0], @{NONEGOS - 1}@.eval[0],1,&]
   }@**.for[[i], 0, @{NONEGOS - 1}@.eval[0],1,&]
   TRUE
