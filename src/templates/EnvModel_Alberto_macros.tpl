@@ -1,12 +1,13 @@
 -- TODO[AB]: I will have to change the name to this field!!!
-@{ #0#.on_secpart }@**.newMethod[secpart, 0]
+@{#0#.on_secpart }@**.newMethod[secpart, 0]
 
-@{ #0#.traversing_to }@**.newMethod[to, 0]
+@{#0#.traversing_to }@**.newMethod[to, 0]
 
-@{ #0#.traversing_from }@**.newMethod[from, 0]
+@{#0#.traversing_from }@**.newMethod[from, 0]
 
-@{ #0#.on_straight_section }@**.newMethod[sec, 0]
+@{#0#.on_straight_section }@**.newMethod[sec, 0]
 
+@{outgoing_connection_#1#_of_section_#0#}@**.newMethod[outconn, 1]
 -- Expression is true if the two cars are on the same section.
 --
 --#define same_sec(c0, c1) \
@@ -50,18 +51,18 @@
 --  (c0.on_secpart < sec0.n_secparts & next(c0.on_secpart) = c0.on_secpart + 1)
 --
 @{
-  (@{#0#}@.secpart < @{#1#}@.n_secparts & next(@{#0#}@.secpart) = @{#0#}@.secpart + 1)
-}@***.newMethod[_do_progress_secpart,1]
+  (@{#0#}@.secpart < #1#.n_secparts & next(@{#0#}@.secpart) = @{#0#}@.secpart + 1)
+}@***.newMethod[doprogresssecpart,1]
 
 -- True if it is possible to pass from a section to the next one (assuming that c0.on_straight_section = sec0_id)
 --
---#define _can_traverse(c0, sec0) \
+--#define cantraverse(c0, sec0) \
 --  (c0.on_secpart = sec0.n_secparts)
 --#endif
 --
 @{
-  (@[#0#]@.on_secpart = #1#.n_secparts)
-}@***.newMethod[_can_traverse, 1]
+  (@{#0#}@.secpart = #1#.n_secparts)
+}@***.newMethod[cantraverse, 1]
 
 -- Behavior of car while moving inside the section
 --#define CarTransSectInner(c0, sec0, sec0_id) \
@@ -74,31 +75,29 @@
 @{
   INVAR (@{#0#}@.sec = #2#) -> @{#0#}@.secpart >= 0 & @{#0#}@.secpart <= #1#.n_secparts; 
   TRANS (@{#0#}@.sec = #2#) & next(@{#0#}@.sec) != -1 ->  
-    (next(@{#0#}@.sec = sec0_id) & (next(@{#0#}@.on_secpart) = @{#0#}@.on_secpart | @{#0#}@._do_progress_secpart(c0, sec0)) & 
-     next(@{#0#}@.secpart) <= #1.n_secparts & 
-     next(@{#0#}@.traversing_to) = -1 & next(@{#0#}@.traversing_from) = -1)
+    (next(@{#0#}@.sec = #2#) & (next(@{#0#}@.secpart) = @{#0#}@.secpart | @{#0#}@.doprogresssecpart[#1#] & 
+     next(@{#0#}@.secpart) <= #1#.n_secparts & 
+     next(@{#0#}@.to) = -1 & next(@{#0#}@.from) = -1))
 }@***.newMethod[CarTransSectInner, 2]
 
 -- True if it will pass from a section to a junction
---#define will_traverse(c0, sec0_id) \
+--#define willtraverse(c0, sec0_id) \
 --  (c0.on_straight_section = sec0_id & next(c0.on_straight_section) = -1)
 --
-@{
-  @{#0#}@.sec = #1# & next(@{#0#}@.sec) = -1
-}@***.newMethod[willtraverse, 1]
+@{@{#0#}@.sec = #1# & next(@{#0#}@.sec) = -1}@***.newMethod[willtraverse, 1]
 
 -- Model the transitions between a section and a junction
 --
 --#define CarTransSectJunc(c0, sec0, sec0_id, junc_big_or) \
---  TRANS will_traverse(c0, sec0_id) -> (_can_traverse(c0, sec0) & next(c0.on_secpart) = -1 & next(c0.traversing_from) = sec0_id & next(c0.traversing_to) != -1 & (junc_big_or))
+--  TRANS willtraverse(c0, sec0_id) -> (cantraverse(c0, sec0) & next(c0.on_secpart) = -1 & next(c0.traversing_from) = sec0_id & next(c0.traversing_to) != -1 & (junc_big_or))
 --
 @{
-  TRANS @{#0#}@.will_traverse[#2#] -> (@{#0#}@._can_traverse[#1#] & next(@{#0#}@.secpart) = -1 & next(@{#0#}@.traversing_from = #1# & next(@{#0#}@.traversing_to != -1 &
-    @{
-    (next(c0.traversing_to) = sec0.outgoing_connection_1)   
-      @{#1#}@.outconn[con] = next(@{#0#}@.traversing_to)
-    }@*.for[[con],0, @{MAXOUTGOINGCONNECTIONS - 1}@.eval[0], 1, |}
-}@***.newMethod[CarTransSectJunc, 3]
+  TRANS @{#0#}@.willtraverse[#2#] -> (@{#0#}@.cantraverse[#1#] & next(@{#0#}@.secpart) = -1 & next(@{#0#}@.from) = #1# & next(@{#0#}@.to) != -1 &
+    (@{
+      @{#1#}@.outconn[[con]] = next(@{#0#}@.to)
+    }@*.for[[con],0, @{MAXOUTGOINGCONNECTIONS - 1}@.eval[0], 1,|])
+    )
+}@***.newMethod[CarTransSectJunc, 2]
 
 -- Conditions such that a car is considered behind another car. Uses an additional variable that looks at the past to know if it is still behind.
 --

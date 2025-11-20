@@ -26,27 +26,20 @@ MODULE main
   }@*.for[[i], 0, @{NONEGOS - 1}@.eval[0]]
 
   DEFINE
-    car0_will_travese_from_sec0 := will_traverse(car0, 0);
-    car1_will_travese_from_sec0 := will_traverse(car1, 0);
-    car0_will_travese_from_sec1 := will_traverse(car0, 1);
-    car1_will_travese_from_sec1 := will_traverse(car1, 1);
+    @{
+    @{
+    car[i]_will_travese_from_sec[j] := @{car[i]}@.willtraverse[[j]];
+    }@*.for[[i], 0, @{NONEGOS - 1}@.eval[0]]
+    }@*.for[[j], 0, @{SECTIONS - 1}@.eval[0]]
 
+  @{
+  @{
   -- Transitions for cars inside the sections (assuming they do not pass to next section)
-  CarTransSectInner(car0, sec0, 0);
-  CarTransSectInner(car0, sec1, 1);
-  --CarTransSectInner(car0, sec2, 2);
-  --CarTransSectInner(car0, sec3, 3);
-
-  CarTransSectInner(car1, sec0, 0);
-  CarTransSectInner(car1, sec1, 1);
-  
-
+  @{car[i]}@.CarTransSectInner[sec[j], [j]];
   -- Transition representing junction entering
-  CarTransSectJunc2(car0, sec0, 0);
-  CarTransSectJunc2(car1, sec0, 0);
-
-  CarTransSectJunc1(car0, sec1, 1);
-  CarTransSectJunc1(car1, sec1, 1);
+  @{car[i]}@.CarTransSectJunc[sec[j], [j]];
+  }@*.for[[i], 0, @{NONEGOS - 1}@.eval[0]]
+  }@*.for[[j], 0, @{SECTIONS - 1}@.eval[0]]
 
   BehindDecl(car0, car1, was_behind_car0_car1, behind_car0_car1)
   BehindDecl(car1, car0, was_behind_car1_car0, behind_car1_car0)
