@@ -28,16 +28,16 @@
 -- INIT env.section_4_end = 20;
 -- }@.if[@{MYOPTION == 1}@.eval]
 
-INIT env.veh___609___.is_on_sec_0 = 1;
-INIT env.veh___619___.is_on_sec_0 = 1;
-INIT env.veh___629___.is_on_sec_0 = 1;
-INIT env.veh___609___.abs_pos = 0;
-INIT env.veh___619___.abs_pos = 6;
-INIT env.veh___629___.abs_pos = 12;
-
-INVAR env.veh___609___.v < 6;
-INVAR env.veh___619___.v < 6;
-INVAR env.veh___629___.v < 6;
+-- INIT env.veh___609___.is_on_sec_0 = 1;
+-- INIT env.veh___619___.is_on_sec_0 = 1;
+-- INIT env.veh___629___.is_on_sec_0 = 1;
+-- INIT env.veh___609___.abs_pos = 0;
+-- INIT env.veh___619___.abs_pos = 6;
+-- INIT env.veh___629___.abs_pos = 12;
+-- 
+-- INVAR env.veh___609___.v < 6;
+-- INVAR env.veh___619___.v < 6;
+-- INVAR env.veh___629___.v < 6;
 
 --INVAR env.veh___609___.v > env.veh___619___.v + 1;
 

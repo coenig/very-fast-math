@@ -110,6 +110,10 @@ std::map<std::string, std::shared_ptr<SMVDatatype>> vfm::mc::smv::Module::getVar
       else if (StaticHelper::stringContains(type_str, "{")) {
          type = std::make_shared<SMVDatatypeEnum>();
       }
+      else {
+         addWarning("TODO: Fall-back for macro types, e.g., 'x : Section2Conn(max_secparts_per_sec, 0)'");
+         type = std::make_shared<SMVDatatypeInt>();
+      }
 
       if (type) {
          addFailableChild(type);
@@ -154,14 +158,13 @@ std::map<std::string, std::string> vfm::mc::smv::Module::getVariableDefines() co
    for (const auto& line_raw : raw_code) {
       auto line_split = StaticHelper::split(line_raw, ":=");
 
-      if (line_split.size() != 2) {
-         addError("Line '" + line_raw + "' malformed, cannot derive define.");
+      if (line_split.size() == 2) {
+         std::string name = StaticHelper::trimAndReturn(line_split[0]);
+         std::string definition = StaticHelper::trimAndReturn(line_split[1]);
+         res.insert({ name, definition });
+      } else {
+         addWarning("Line '" + line_raw + "' malformed, cannot derive define. Is it a macro definition? (Feel free to ignore, but keep in mind...)");
       }
-
-      std::string name = StaticHelper::trimAndReturn(line_split[0]);
-      std::string definition = StaticHelper::trimAndReturn(line_split[1]);
-
-      res.insert({ name, definition });
    }
 
    return res;

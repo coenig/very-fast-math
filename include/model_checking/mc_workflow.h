@@ -17,10 +17,14 @@
 namespace vfm
 {
 static const std::string PROSE_DESC_NAME{ "prose_scenario_description.txt" };
-static const std::string FILE_NAME_JSON{ "envmodel_config.json" };
-static const std::string FILE_NAME_JSON_TEMPLATE { "envmodel_config.tpl.json" };
+static const std::string DEFAULT_FILE_NAME_JSON_TEMPLATE { "envmodel_config.tpl.json" };
 static const std::string FILE_NAME_ENVMODEL_ENTRANCE{ "EnvModel.tpl" };
-static const std::string GUI_NAME{ "M²oRTy" };
+static const std::string GUI_NAME{ "MÂ²oRTy" };
+
+static std::string getJsonFileNameFromJsonTemplateFileName(const std::string& json_tpl_filename)
+{
+   return StaticHelper::replaceAll(json_tpl_filename, ".tpl.json", ".json");
+}
 
 namespace mc{
 
@@ -32,7 +36,6 @@ public:
 
    void generateEnvmodels(
       const std::string& path_template,
-      const std::string& json_filename,
       const std::string& json_tpl_filename,
       const std::string& envmodel_entrance_filename,
       const std::shared_ptr<std::mutex> formula_evaluation_mutex
@@ -71,6 +74,17 @@ public:
       const std::shared_ptr<std::mutex> formula_evaluation_mutex
    );
 
+   static void createTestCase(
+      const std::string& generated_parent_dir,
+      const std::string& id,
+      const std::map<std::string, std::string>& modes);
+
+   void createTestCases(
+      const std::map<std::string, std::string>& modes, 
+      const std::string& path_template,
+      const std::string& json_tpl_filename,
+      const std::vector<std::string>& sec_ids);
+
    nlohmann::json instanceFromTemplate(
       const nlohmann::json& j_template,
       const std::vector<std::pair<std::string, std::vector<float>>>& ranges,
@@ -89,7 +103,11 @@ public:
       const std::string& json_tpl_filename, 
       const std::shared_ptr<std::mutex> formula_evaluation_mutex);
 
-   bool putJSONIntoDataPack(const std::string& path_template, const std::string& config_name = JSON_TEMPLATE_DENOTER);
+   bool putJSONIntoDataPack(
+      const std::string& path_template, 
+      const std::string& filename_json_template, // Resist the urge to provide the plain json path. It's always the tpl path which is automatically tranferred if necessary.
+      const std::string& config_name = JSON_TEMPLATE_DENOTER);
+
    void generatePreview(const std::filesystem::path& path_generated_config_level, const int cex_num);
    void evaluateFormulasInJSON(const nlohmann::json j_template, const std::shared_ptr<std::mutex> formula_evaluation_mutex);
    nlohmann::json getJSON(const std::string& path) const;
@@ -102,14 +120,20 @@ public:
 
    void resetParserAndData();
    void resetParserAndData(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser);
-   std::string getValueForJSONKeyAsString(const std::string& key_to_find, const std::string& path_template, const std::string& config_name) const;
-   std::string getValueForJSONKeyAsString(const std::string& key_to_find, const nlohmann::json& json, const std::string& config_name) const;
-   bool isLTL(const std::string& config, const std::string& path_template);
-   std::filesystem::path getCachedDir(const std::string& path_template) const;
-   std::filesystem::path getBPIncludesFileDir(const std::string& path_template) const;
-   std::filesystem::path getGeneratedDir(const std::string& path_template) const;
-   std::filesystem::path getExternalDir(const std::string& path_template) const;
-   std::filesystem::path getGeneratedParentDir(const std::string& path_template) const;
+   
+   std::string getValueForJSONKeyAsString(
+      const std::string& key_to_find, 
+      const std::string& path_template, 
+      const std::string& filename_json_template, // Resist the urge to provide the plain json path. It's always the tpl path which is automatically tranferred if necessary.
+      const std::string& config_name) const;
+
+   std::string getValueForJSONKeyAsStringPlain(const std::string& key_to_find, const nlohmann::json& json, const std::string& config_name) const;
+   bool isLTL(const std::string& config, const std::string& path_template, const std::string& filename_json_template);
+   std::filesystem::path getCachedDir(const std::string& path_template, const std::string& filename_json_template) const;
+   std::filesystem::path getBPIncludesFileDir(const std::string& path_template, const std::string& filename_json_template) const;
+   std::filesystem::path getGeneratedDir(const std::string& path_template, const std::string& filename_json_template) const;
+   std::filesystem::path getExternalDir(const std::string& path_template, const std::string& filename_json_template) const;
+   std::filesystem::path getGeneratedParentDir(const std::string& path_template, const std::string& filename_json_template) const;
 
    std::shared_ptr<DataPack> data_{}; // TODO: make private again.
    std::shared_ptr<FormulaParser> parser_{}; // TODO: make private again.
