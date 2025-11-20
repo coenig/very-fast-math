@@ -35,12 +35,12 @@ namespace mc {
       TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_BIRDSEYE,
    };
 
-   static std::vector<std::string> ALL_TEST_CASE_MODES_PLAIN_NAMES()
+   static const std::vector<std::string> ALL_TEST_CASE_MODES_PLAIN_NAMES()
    {
       std::vector<std::string> keys{};
 
-      for (auto& it = ALL_TESTCASE_MODES.begin(); it != mc::ALL_TESTCASE_MODES.end(); ++it) {
-         keys.push_back(it->first);
+      for (const auto& pair : ALL_TESTCASE_MODES) {
+         keys.push_back(pair.first);
       }
 
       return keys;
