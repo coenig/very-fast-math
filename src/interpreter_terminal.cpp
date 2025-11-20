@@ -12,7 +12,7 @@
 using namespace vfm;
 
 InterpreterTerminal::InterpreterTerminal(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser, int X, int Y, int W, int H, const char* L) 
-   : Fl_Text_Editor(X, Y, W, H, L), data_{ data }, parser_{ parser } 
+   : Fl_Text_Editor(X, Y, W, H, L), data_{ data }, parser_{ parser }
 {
    buff = new Fl_Text_Buffer();
    buffer(buff);
@@ -33,6 +33,15 @@ void vfm::InterpreterTerminal::append(const char* s)
    scroll(count_lines(0, buffer()->length(), 1), 0);
 }
 
+void vfm::InterpreterTerminal::fool(
+   const std::string& command_str, 
+   const std::shared_ptr<DataPack> data, 
+   const std::shared_ptr<FormulaParser> parser,
+   InterpreterTerminal* term)
+{
+   term->result_ = macro::Script::processScript(command_str, macro::Script::DataPreparation::none, data, parser, nullptr);
+}
+
 void vfm::InterpreterTerminal::runCommand(const char* command)
 {
    output_.str("");
@@ -44,7 +53,9 @@ void vfm::InterpreterTerminal::runCommand(const char* command)
    } else {
       output_ << "\n";
       try {
-         res += macro::Script::processScript(command_str, macro::Script::DataPreparation::none, data_, parser_);
+         result_ = WAITING;
+         std::thread t{ fool, command_str, data_, parser_, this };
+         t.detach();
       }
       catch (const std::exception& e) {
          res += "#Error '" + std::string(e.what()) + "' occurred during script processing.";
@@ -88,4 +99,14 @@ int vfm::InterpreterTerminal::handle(int e)
    }
 
    return(Fl_Text_Editor::handle(e));
+}
+
+std::string vfm::InterpreterTerminal::getResult() const
+{
+   return result_;
+}
+
+void vfm::InterpreterTerminal::setResult(const std::string& result)
+{
+   result_ = result;
 }

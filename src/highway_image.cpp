@@ -664,7 +664,7 @@ void vfm::HighwayImage::setPerspective(
       StaticHelper::writeTextToFile(highway_translator_->getPerspective()->serialize(), "../src/templates/perspective.txt");
    }
    highway_translator_->getPerspective()->parseProgram(StaticHelper::readFile("../src/templates/perspective.txt"));
-   addNote("Perspective set to '" + highway_translator_->getPerspective()->serialize() + "'.");
+   //addNote("Perspective set to '" + highway_translator_->getPerspective()->serialize() + "'.");
    // EO TODO: Is this useful in this form?
 
    //if (cnt_ >= 0 && cnt_ < 80) {
