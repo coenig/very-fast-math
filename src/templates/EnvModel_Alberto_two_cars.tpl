@@ -18,10 +18,12 @@ MODULE main
 
   @{
   @{car[car_num]}@.CarCoreDecl[max_sec_id, max_secparts_per_sec]
-  }@*.for[[car_num], 0, @{NONEGOS}@.eval]
-  
-  -- TODO: Do I really need this constraint???
-  INVAR ! (same_sec(car0, car1) & car0.on_secpart = car1.on_secpart);
+  }@*.for[[car_num], 0, @{NONEGOS - 1}@.eval[0]]
+  @{
+  @{
+  INVAR ! (@{car[i]}@.samesec[car[j]] & @{car[i]}@.secpart = @{car[0]}@.secpart);
+  }@*.for[[j], @{i + 1}@.eval[0], @{NONEGOS - 1}@.eval[0]]
+  }@*.for[[i], 0, @{NONEGOS - 1}@.eval[0]]
 
   DEFINE
     car0_will_travese_from_sec0 := will_traverse(car0, 0);
