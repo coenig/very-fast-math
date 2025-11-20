@@ -1,14 +1,13 @@
 @{EnvModel_Alberto_macros.tpl}@********.include
 
 -- TODO[AB]: Move this in parameter part
-#define max_secparts_per_sec 4
 
 MODULE main
 @{
-  FROZENVAR @{[sec]}@.nsecparts : 0 .. max_secparts_per_sec;
+  FROZENVAR @{[sec]}@.nsecparts : 1 .. @{MAX_SEGPARTS - 1}@.eval[0];
   @{
   FROZENVAR @{[sec]}@.outconn[[con]] : -1..@{SECTIONS - 1}@.eval[0];
-  INIT @{[sec]}@.outconn[[con]] != [sec]; -- Don't connect to self.
+  INIT @{[sec]}@.outconn[[con]] != [sec]; -- Dont connect to self.
   @{
   INIT @{[sec]}@.outconn[[con]] = -1 -> @{[sec]}@.outconn[@{[con] + 1}@.eval[0]] = -1;
   }@***.if[@{[con] < MAXOUTGOINGCONNECTIONS -1}@.eval] -- Reduce topological permutations
@@ -16,11 +15,8 @@ MODULE main
 }@******.for[[sec], 0, @{SECTIONS - 1}@.eval]
   -- non-ego cars declaration
 
-  -- part of declaration indipendent of interaction declared with macros.
-  -- also control movement from junctions to sections
-
   @{
-  @{car[car_num]}@.CarCoreDecl[@{SECTIONS - 1}@.eval[0], max_secparts_per_sec]
+  @{car[car_num]}@.CarCoreDecl[@{SECTIONS - 1}@.eval[0], @{MAX_SEGPARTS - 1}@.eval[0]]
   }@*.for[[car_num], 0, @{NONEGOS - 1}@.eval[0]]
 
   -- Avoid car collisions
@@ -28,8 +24,9 @@ MODULE main
   @{
   @{
     (@{car[i]}@.samesec[car[j]] & @{car[i]}@.secpart = @{car[j]}@.secpart)
-  }@*.for[[j], @{i + 1}@.eval[0], @{NONEGOS - 1}@.eval[0],1,&]
+  }@*.for[[j], @{[i] + 1}@.eval[0], @{NONEGOS - 1}@.eval[0],1,&]
   }@**.for[[i], 0, @{NONEGOS - 1}@.eval[0],1,&]
+  TRUE
 
   DEFINE
     @{
@@ -54,3 +51,20 @@ MODULE main
   }@*.if[@{[i] != [j]}@.eval]
   }@**.for[[j], 0, @{NONEGOS - 1}@.eval[0]]
   }@**.for[[i], 0, @{NONEGOS - 1}@.eval[0]]
+  
+  -- reverse car:
+  LTLSPEC NAME reverse_cars :=
+    ! (
+    -- initially the cars are ordered 0,..., n
+    @{ @{ @{car[c0]}@.behindsec[car[c1]] }@*.for[ [c1], @{[c0] + 1}@.eval[0], @{NONEGOS - 1}@.eval[0],1,&]
+    }@**.for[ [c0], 0, @{NONEGOS - 1}@.eval[0],1,&]
+    -- then at some point order is reversed.
+    F (
+      @{
+      @{
+      @{car[c1]}@.behindsec[car[c0]] 
+    }@*.for[ [c1], @{[c0] + 1}@.eval[0], @{NONEGOS - 1}@.eval[0], 1, &]
+    }@**.for[ [c0], 0, @{NONEGOS - 1}@.eval[0], 1, &]
+    TRUE
+    )
+    )
