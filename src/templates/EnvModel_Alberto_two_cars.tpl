@@ -1,7 +1,5 @@
 @{EnvModel_Alberto_macros.tpl}@********.include
 
--- TODO[AB]: Move this in parameter part
-
 MODULE main
 @{
   FROZENVAR @{[sec]}@.nsecparts : 1 .. @{MAX_SEGPARTS - 1}@.eval[0];
