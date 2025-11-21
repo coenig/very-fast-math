@@ -64,7 +64,8 @@ MODULE EnvModel
   )
 
   VAR
-   cnt : integer;
+   -- TODO: counter as integer slow down verification!!!
+   cnt : -1..1;
 
    -- "cond" variables are only there to mock the interface towards the BP
    ego.flCond_full : boolean; -- conditions for lane change to fast lane (lc allowed and desired)
