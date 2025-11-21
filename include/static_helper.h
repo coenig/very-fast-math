@@ -483,6 +483,32 @@ public:
       const std::string& beginTag,
       const std::string& endTag);
 
+   /// <summary>
+   /// Finds the enclosing bracket pair from within a string. For example,
+   /// (a(b(c)d)e)
+   ///        ^
+   /// Would return the indeces of:
+   /// (a(b(c)d)e)
+   ///   ^     ^
+   /// For bracket structures of length > 1, the left-most index is returned.
+   /// </summary>
+   /// <param name="string">The string to look in.</param>
+   /// <param name="startPos">The position within the enclosing brackets.</param>
+   /// <param name="beginTag">The begin bracket</param>
+   /// <param name="endTag">The end bracket.</param>
+   /// <returns>The left-most indices of the begin and end brackets.</returns>
+   static std::pair<int, int> findEnclosingBeginAndEndBrackets(
+      const std::string& string,
+      const int startPos,
+      const std::string& beginTag,
+      const std::string& endTag);
+
+   static std::string extractPartWithinEnclosingBrackets(
+      const std::string& string,
+      const int startPos,
+      const std::string& beginTag,
+      const std::string& endTag);
+
    static int indexOfOnTopLevel(
       const std::string& string,
       const std::vector<std::string>& find,
