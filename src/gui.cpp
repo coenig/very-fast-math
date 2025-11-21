@@ -918,7 +918,18 @@ void MCScene::refreshRarely(void* data)
          mc_scene->logging_output_and_interpreter_->deactivate();
       }
       else {
-         mc_scene->logging_output_and_interpreter_->append(mc_scene->logging_output_and_interpreter_->getResult().c_str());
+         std::string result{ mc_scene->logging_output_and_interpreter_->getResult() };
+
+         if (mc_scene->logging_output_and_interpreter_->getOptionalScript() == EMPTY) {
+            mc_scene->logging_output_and_interpreter_->append(result.c_str());
+         } else {
+            std::string old_editor_text{ mc_scene->logging_output_and_interpreter_->buffer()->text() };
+            std::string original_script{ BEGIN_TAG_MULTILINE_SCRIPT + mc_scene->logging_output_and_interpreter_->getOptionalScript() + END_TAG_MULTILINE_SCRIPT };
+            std::string new_editor_text{ StaticHelper::replaceAll(old_editor_text, original_script, result) };
+            mc_scene->logging_output_and_interpreter_->setText(new_editor_text);
+            mc_scene->logging_output_and_interpreter_->setOptionalScript(EMPTY);
+         }
+
          mc_scene->logging_output_and_interpreter_->setResult(EMPTY);
       }
    }

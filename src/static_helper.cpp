@@ -696,6 +696,43 @@ bool StaticHelper::isWithinLevelwise(
    return count < 0;
 }
 
+std::pair<int, int> vfm::StaticHelper::findEnclosingBeginAndEndBrackets(
+   const std::string& string, 
+   const int startPos, 
+   const std::string& beginTag, 
+   const std::string& endTag)
+{
+   int begin_pos{};
+   int end_pos{};
+
+   auto is_tag = [&string](const std::string& tag, const int pos) {
+      return string.substr(pos, tag.length()) == tag;
+   };
+
+   for (int i = startPos; i < string.size(); ++i) {
+      if (is_tag(endTag, i)) {
+         end_pos = i;
+         break;
+      }
+   }
+
+   begin_pos = findMatchingBegTagLevelwise(string, beginTag, endTag, end_pos);
+
+   return { begin_pos, end_pos };
+}
+
+std::string vfm::StaticHelper::extractPartWithinEnclosingBrackets(
+   const std::string& string, 
+   const int startPos, 
+   const std::string& beginTag, 
+   const std::string& endTag)
+{
+   std::pair<int, int> enclosing_indices{ findEnclosingBeginAndEndBrackets(string, startPos, beginTag, endTag) };
+   std::string res{ string.substr(enclosing_indices.first + beginTag.size(), enclosing_indices.second - enclosing_indices.first - endTag.size()) };
+
+   return res;
+}
+
 int StaticHelper::indexOfOnTopLevel(
    const std::string& string, 
    const std::vector<std::string>& find, 

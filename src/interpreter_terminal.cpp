@@ -66,6 +66,14 @@ void vfm::InterpreterTerminal::runCommand(const char* command)
    append(output_.str().c_str());
 }
 
+void vfm::InterpreterTerminal::expandMultilineScript(const std::string& script)
+{
+   result_ = WAITING;
+   optional_script_ = script;
+   std::thread t{ fool, script, data_, parser_, this };
+   t.detach();
+}
+
 int vfm::InterpreterTerminal::handle(int e)
 {
    int key = Fl::event_key();
@@ -77,21 +85,30 @@ int vfm::InterpreterTerminal::handle(int e)
       }
       case FL_KEYDOWN: {
          if (key == FL_Enter && !Fl::event_state(FL_SHIFT)) {
-            const auto lines = StaticHelper::split(std::string(buffer()->text()), "\n");
+            const std::string all_editor_text{ std::string(buffer()->text()) };
             const int position = insert_position();
-            const char* text = buffer()->text();
-            int line_number = 0;
 
-            for (int i = 0; i < position; ++i) {
-               if (text[i] == '\n') {
-                  line_number++;
+            if (StaticHelper::isWithinLevelwise(all_editor_text, position, BEGIN_TAG_MULTILINE_SCRIPT, END_TAG_MULTILINE_SCRIPT)) {
+               std::string script{ StaticHelper::extractPartWithinEnclosingBrackets(all_editor_text, position, BEGIN_TAG_MULTILINE_SCRIPT, END_TAG_MULTILINE_SCRIPT) };
+               expandMultilineScript(script);
+            }
+            else {
+               const auto lines = StaticHelper::split(all_editor_text, "\n");
+               const char* text = buffer()->text();
+               int line_number = 0;
+
+               for (int i = 0; i < position; ++i) {
+                  if (text[i] == '\n') {
+                     line_number++;
+                  }
                }
+
+               if (line_number < 0 || line_number >= lines.size()) return(1); // Just a sanity check, should never happen.
+
+               runCommand(lines[line_number].c_str());
+               append("\n");
             }
 
-            if (line_number < 0 || line_number >= lines.size()) return(1); // Just a sanity check, should never happen.
-
-            runCommand(lines[line_number].c_str());
-            append("\n");
             return(1); // hide 'Enter' from text widget
          }
          break;
@@ -106,7 +123,22 @@ std::string vfm::InterpreterTerminal::getResult() const
    return result_;
 }
 
+std::string vfm::InterpreterTerminal::getOptionalScript() const
+{
+   return optional_script_;
+}
+
 void vfm::InterpreterTerminal::setResult(const std::string& result)
 {
    result_ = result;
+}
+
+void vfm::InterpreterTerminal::setOptionalScript(const std::string& result)
+{
+   optional_script_ = result;
+}
+
+void vfm::InterpreterTerminal::setText(const std::string& result)
+{
+   buffer()->replace(0, buffer()->length(), result.c_str());
 }
