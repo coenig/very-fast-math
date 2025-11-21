@@ -1,4 +1,4 @@
-
+@{EnvModel_Common_Sections.tpl}@********.include
 --------------------------------------------------------
 -- Sections
 --  ==> Segments
@@ -44,15 +44,6 @@ INIT section_[sec]_segment_[num]_pos_begin + @{SEGMENTSMINLENGTH}@.distanceWorld
 INIT abs(section_[sec]_segment_[num]_min_lane - section_[sec]_segment_@{[num] + 1}@.eval[0]_min_lane) <= 1;
 INIT abs(section_[sec]_segment_[num]_max_lane - section_[sec]_segment_@{[num] + 1}@.eval[0]_max_lane) <= 1;
 }@**.for[[num], 0, @{SEGMENTS - 2}@.eval]
-
-@{
-INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lane;
-INIT section_[sec]_segment_[num]_min_lane >= 0;
-INIT section_[sec]_segment_[num]_max_lane <= @{(NUMLANES - 1)}@.eval[0];
-}@.for[[num], 0, @{SEGMENTS - 1}@.eval]
-
--- INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -- Make sure we always have a drivable lane at the start. TODO: Make flexible.
-}@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 --------------------------------------------------------
 --  <== EO Segments
@@ -100,9 +91,6 @@ INIT section_[sec]_segment_[num]_max_lane <= @{(NUMLANES - 1)}@.eval[0];
       section_[sec].drain.y := section_[sec].source.y + (section_[sec]_end * sin_of_section_[sec]_angle) / 100;
  
       @{
-      FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1..@{SECTIONS - 1}@.eval[0];
-      INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Don't connect to self.
-
       @{
           @{
               FROZENVAR dist_[con]_of_section_[sec]_to_[sec2] : @{MINDISTCONNECTIONS}@.eval[0] .. @{MAXDISTCONNECTIONS}@.eval[0];

@@ -2,15 +2,9 @@
 
 MODULE EnvModel
   DEFINE ego_lane_crossing := FALSE;
+@{EnvModel_Common_Sections.tpl}@********.include
 @{
   FROZENVAR @{[sec]}@.nsecparts : 1 .. @{MAXSECPARTS - 1}@.eval[0];
-  @{
-  FROZENVAR @{[sec]}@.outconn[[con]] : -1..@{SECTIONS - 1}@.eval[0];
-  INIT @{[sec]}@.outconn[[con]] != [sec]; -- Dont connect to self.
-  @{
-  INIT @{[sec]}@.outconn[[con]] = -1 -> @{[sec]}@.outconn[@{[con] + 1}@.eval[0]] = -1;
-  }@***.if[@{[con] < MAXOUTGOINGCONNECTIONS -1}@.eval] -- Reduce topological permutations
-  }@****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
 }@******.for[[sec], 0, @{SECTIONS - 1}@.eval]
   -- non-ego cars declaration
 
