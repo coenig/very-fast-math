@@ -2,7 +2,7 @@
 
 MODULE EnvModel
 @{
-  FROZENVAR @{[sec]}@.nsecparts : 1 .. @{MAX_SEGPARTS - 1}@.eval[0];
+  FROZENVAR @{[sec]}@.nsecparts : 1 .. @{MAXSECPARTS - 1}@.eval[0];
   @{
   FROZENVAR @{[sec]}@.outconn[[con]] : -1..@{SECTIONS - 1}@.eval[0];
   INIT @{[sec]}@.outconn[[con]] != [sec]; -- Dont connect to self.
