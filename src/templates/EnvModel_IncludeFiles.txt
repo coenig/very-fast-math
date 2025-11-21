@@ -12,4 +12,5 @@ EnvModel_Parameters.tpl
 EnvModel_Scaling.tpl
 EnvModel_Sections.tpl
 EnvModel_Abstract.tpl
+EnvModel_Common_Sections.tpl
 EnvModel_Abstract_Macros.tpl
