@@ -1,0 +1,3 @@
+// Global options.
+vfm-options.txt$
+feasibility.cpp$
