@@ -19,6 +19,10 @@ namespace vfm {
 static const std::string WAITING{ "$!W-A-I-T-I-N-G!$" };
 static const std::string EMPTY{ "$!E-M-P-T-Y!$" };
 
+static const std::string BEGIN_TAG_MULTILINE_SCRIPT{ "@<" };
+static const std::string END_TAG_MULTILINE_SCRIPT{ ">@" };
+
+
 class InterpreterTerminal : public Fl_Text_Editor {
 
 public:
@@ -26,10 +30,14 @@ public:
    void append(const char* s); // Append to buffer, keep cursor at end
    int handle(int e); // Handle events in the Fl_Text_Editor
    std::string getResult() const;
+   std::string getOptionalScript() const;
    void setResult(const std::string& result);
+   void setOptionalScript(const std::string& result);
+   void setText(const std::string& test);
 
 private:
    void runCommand(const char* command); // Run the specified command, append output to terminal
+   void expandMultilineScript(const std::string& script);
    static void fool(const std::string& command_str, const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser, InterpreterTerminal* term);
 
    std::shared_ptr<DataPack> data_{};
@@ -37,6 +45,7 @@ private:
    std::ostringstream output_{};
 
    std::string result_{ EMPTY };
+   std::string optional_script_{ EMPTY };
 
    Fl_Text_Buffer *buff;
 };
