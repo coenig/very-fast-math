@@ -1,6 +1,7 @@
 @{EnvModel_Abstract_Macros.tpl}@********.include
 
 MODULE EnvModel
+  DEFINE ego_lane_crossing := FALSE;
 @{
   FROZENVAR @{[sec]}@.nsecparts : 1 .. @{MAXSECPARTS - 1}@.eval[0];
   @{
@@ -14,7 +15,7 @@ MODULE EnvModel
   -- non-ego cars declaration
 
   @{
-  @{car[car_num]}@.CarCoreDecl[@{SECTIONS - 1}@.eval[0], @{MAX_SEGPARTS - 1}@.eval[0]]
+  @{car[car_num]}@.CarCoreDecl[@{SECTIONS - 1}@.eval[0], @{MAXSECPARTS - 1}@.eval[0]]
   }@*.for[[car_num], 0, @{NONEGOS - 1}@.eval[0]]
 
   -- Avoid car collisions
