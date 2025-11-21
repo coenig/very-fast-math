@@ -19,8 +19,8 @@ namespace vfm {
 static const std::string WAITING{ "$!W-A-I-T-I-N-G!$" };
 static const std::string EMPTY{ "$!E-M-P-T-Y!$" };
 
-static const std::string BEGIN_TAG_MULTILINE_SCRIPT{ "@{" };
-static const std::string END_TAG_MULTILINE_SCRIPT{ "}@" };
+static const std::string BEGIN_TAG_MULTILINE_SCRIPT{ "@<" };
+static const std::string END_TAG_MULTILINE_SCRIPT{ ">@" };
 
 
 class InterpreterTerminal : public Fl_Text_Editor {
