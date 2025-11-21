@@ -692,7 +692,12 @@ private:
       m7, // Example: @{}@.generateEnvmodels
       m8, // Example: @{}@.generateTestCases       ==> Will fail, but present list of available modes.
       m9, // Example: @{}@.generateTestCases[all]
-          // Full example: @{}@.generateEnvmodels @{}@.runMCJobs[10] @{}@.generateTestCases[all]
+          // Full example: 
+          // @<
+          // @{}@.generateEnvmodels 
+          // @{}@.runMCJobs[10] 
+          // @{}@.generateTestCases[all]
+          // >@
       { "serialize", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::vfm); } },
       { "serializeK2", 0, [this](const std::vector<std::string>& parameters) -> std::string { return toK2(getRawScript()); } },
       { "serializeNuXmv", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::nuXmv); } },
