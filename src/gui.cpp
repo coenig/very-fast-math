@@ -922,15 +922,28 @@ void MCScene::refreshRarely(void* data)
 
          if (mc_scene->logging_output_and_interpreter_->getOptionalScript() == EMPTY) {
             mc_scene->logging_output_and_interpreter_->appendAndSetCursorToEnd(result.c_str());
+            mc_scene->logging_output_and_interpreter_->setResult(EMPTY);
          } else {
+            const std::string begin_tag{ mc_scene->logging_output_and_interpreter_->last_script_enclosing_begin_tag_ };
+            const std::string end_tag{ mc_scene->logging_output_and_interpreter_->last_script_enclosing_end_tag_ };
             std::string old_editor_text{ mc_scene->logging_output_and_interpreter_->buffer()->text() };
-            std::string original_script{ BEGIN_TAG_MULTILINE_SCRIPT + mc_scene->logging_output_and_interpreter_->getOptionalScript() + END_TAG_MULTILINE_SCRIPT };
-            std::string new_editor_text{ StaticHelper::replaceAll(old_editor_text, original_script, result) };
+            std::string original_script{ begin_tag + mc_scene->logging_output_and_interpreter_->getOptionalScript() + end_tag };
+            auto position{ old_editor_text.find(original_script) + begin_tag.size() };
+            std::string new_editor_text{ StaticHelper::replaceAll(old_editor_text, original_script, begin_tag + result + end_tag) };
             mc_scene->logging_output_and_interpreter_->setText(new_editor_text);
-            mc_scene->logging_output_and_interpreter_->setOptionalScript(EMPTY);
-         }
+            mc_scene->logging_output_and_interpreter_->insert_position(position);
 
-         mc_scene->logging_output_and_interpreter_->setResult(EMPTY);
+            if (StaticHelper::stringContains(result, macro::INSCR_BEG_TAG)) { // Automatic re-triggering if not completely resolved.
+               mc_scene->logging_output_and_interpreter_->setResult(WAITING);
+               mc_scene->logging_output_and_interpreter_->setOptionalScript(result);
+               std::thread t{ InterpreterTerminal::fool, result, mc_scene->getData(), mc_scene->getParser(), mc_scene->logging_output_and_interpreter_, true};
+               t.detach();
+            }
+            else {
+               mc_scene->logging_output_and_interpreter_->setOptionalScript(EMPTY);
+               mc_scene->logging_output_and_interpreter_->setResult(EMPTY);
+            }
+         }
       }
    }
 

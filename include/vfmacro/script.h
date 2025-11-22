@@ -160,9 +160,10 @@ public:
    /// <LI>All variables are set to the defined values, including in-script and regular preprocessors.</LI>
    /// </UL>
    ///
-   /// @param codeRaw2  The code to parse (without a real parser though). Comments must have been removed already.
+   /// @param codeRaw2  The code to parse. Comments must have been removed already.
+   /// @param only_one_step  Iff only one step of preprocessor application is to be performed.
    /// @return  Debug code if requested, <code>null</code> otherwise.
-   void applyDeclarationsAndPreprocessors(const std::string& codeRaw2);
+   void applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step);
 
    std::shared_ptr<Script> copy() const;
 
@@ -192,6 +193,7 @@ public:
    static std::string processScript(
       const std::string& text,
       const DataPreparation data_prep,
+      const bool only_one_step,
       const std::shared_ptr<DataPack> data_raw = nullptr, 
       const std::shared_ptr<FormulaParser> parser = nullptr,
       const std::shared_ptr<Failable> father_failable = nullptr);
@@ -329,7 +331,7 @@ private:
    ///
    /// @return  Iff there has been a change on
    ///          {@link RepresentableDefault#processedScript}.
-   void extractInscriptProcessors();
+   void extractInscriptProcessors(const bool only_one_step);
 
    /// Searches for plain-text parts <code>"@{ *PLAINTEXT/// }@"</code> in the
    /// script and replaces all symbols within them with placeholders, thereby
@@ -572,7 +574,7 @@ private:
             paths.at("path_template"),
             DEFAULT_FILE_NAME_JSON_TEMPLATE);
 
-         return "<runMCJob> MC run via script finished for '" + config_name + "'.";
+         return "MC run via script finished for '" + config_name + "'.";
       } 
    };
 
@@ -597,7 +599,7 @@ private:
             DEFAULT_FILE_NAME_JSON_TEMPLATE, 
             std::stoi(num_threads_str));
 
-         return "<runMCJobs> MC runs via script finished for '" + paths.at("path_generated") + "'.";
+         return "MC runs via script finished.";
       }
    };
 
@@ -611,7 +613,7 @@ private:
 
          mc_workflow.generateEnvmodels(paths.at("path_template"), DEFAULT_FILE_NAME_JSON_TEMPLATE, FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
 
-         return "<generateEnvmodels> Envmodel generation via script finished.";
+         return "Envmodel generation via script finished.";
       }
    };
 
@@ -631,7 +633,7 @@ private:
       0,
       [this](const std::vector<std::string>& parameters) -> std::string
       {
-         return std::string("<generateTestCases> No modes given. Please add 'all' or '/'-separated selection of these as parameter: ") + "[" + allModesStr() + "]";
+         return std::string("No modes given. Please add 'all' or '/'-separated selection of these as parameter: ") + "[" + allModesStr() + "]";
       }
    };
 
@@ -656,7 +658,7 @@ private:
             }
          }
          catch (const std::exception& ex) {
-            addError("<generateTestCases> Error occurred during collection of packages for test case generation: '" + std::string(ex.what()) + "'");
+            addError("Error occurred during collection of packages for test case generation: '" + std::string(ex.what()) + "'");
          }
 
          const std::string raw_modes{ parameters[0] == "all" ? allModesStr() : parameters[0]};
@@ -669,7 +671,7 @@ private:
                modes_str += " " + mode;
             }
             else {
-               addWarning("<generateTestCases> Mode candidate '" + mode + "' is not an available mode. Will be ignored.");
+               addWarning("Mode candidate '" + mode + "' is not an available mode. Will be ignored.");
             }
          }
 
@@ -677,7 +679,7 @@ private:
 
          mc_workflow.createTestCases(modes, path_template, json_tpl_filename, sec_ids);
 
-         return "<generateTestCases> Test case generation via script finished for these modes: '" + modes_str + " '.";
+         return "Test case generation via script finished for these modes: '" + modes_str + " '.";
       }
    };
 
