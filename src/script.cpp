@@ -94,11 +94,8 @@ void Script::extractInscriptProcessors(const bool only_one_step)
    // Find next preprocessor.
    int indexOfPrep = findNextInscriptPos();
    int i{};
-   bool first{ true };
 
    while (indexOfPrep >= 0) {
-      if (!first && only_one_step) return;
-      first = false;
       std::string preprocessorScript = *StaticHelper::extractFirstSubstringLevelwise(processed_script_, INSCR_BEG_TAG, INSCR_END_TAG, indexOfPrep);
       int lengthOfPreprocessor = preprocessorScript.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length();
       std::string partBefore = processed_script_.substr(0, indexOfPrep);
@@ -146,7 +143,6 @@ void Script::extractInscriptProcessors(const bool only_one_step)
 
       std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
       processed_script_ = partBefore + placeholderFinal + partAfter;
-      indexOfPrep = findNextInscriptPos();
 
       if (i++ % 100 == 0) {
          addNote(""
@@ -157,6 +153,10 @@ void Script::extractInscriptProcessors(const bool only_one_step)
             + std::to_string(getScriptData().cache_hits_) + "/" + std::to_string(getScriptData().cache_misses_) + " cache hits/misses; "
          );
       }
+
+      if (only_one_step) return;
+
+      indexOfPrep = findNextInscriptPos();
    }
 }
 
