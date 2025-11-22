@@ -27,7 +27,8 @@ class InterpreterTerminal : public Fl_Text_Editor {
 
 public:
    InterpreterTerminal(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser, int X, int Y, int W, int H, const char* L = 0);
-   void append(const char* s); // Append to buffer, keep cursor at end
+   void appendPlain(const char* s);
+   void appendAndSetCursorToEnd(const char* s);
    int handle(int e); // Handle events in the Fl_Text_Editor
    std::string getResult() const;
    std::string getOptionalScript() const;
