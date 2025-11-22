@@ -203,7 +203,7 @@ void McWorkflow::runMCJob(
 
       auto spec_part = StaticHelper::removePartsOutsideOf(main_template, SPEC_BEGIN, SPEC_END);
       data_->addStringToDataPack(path_generated_config_level.string(), "FULL_GEN_PATH");
-      spec_part = vfm::macro::Script::processScript(spec_part, macro::Script::DataPreparation::both, data_, parser_);
+      spec_part = vfm::macro::Script::processScript(spec_part, macro::Script::DataPreparation::both, false, data_, parser_);
       main_smv += spec_part + "\n";
       main_smv += SPEC_END + "\n";
 

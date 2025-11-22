@@ -21,6 +21,8 @@ static const std::string EMPTY{ "$!E-M-P-T-Y!$" };
 
 static const std::string BEGIN_TAG_MULTILINE_SCRIPT{ "@<" };
 static const std::string END_TAG_MULTILINE_SCRIPT{ ">@" };
+static const std::string BEGIN_TAG_MULTILINE_SCRIPT_SINGLE_STEP{ "@<<" };
+static const std::string END_TAG_MULTILINE_SCRIPT_SINGLE_STEP{ ">>@" };
 
 
 class InterpreterTerminal : public Fl_Text_Editor {
@@ -36,11 +38,19 @@ public:
    void setOptionalScript(const std::string& result);
    void setText(const std::string& test);
 
+   static void fool(
+      const std::string& command_str, 
+      const std::shared_ptr<DataPack> data, 
+      const std::shared_ptr<FormulaParser> parser, 
+      InterpreterTerminal* term,
+      const bool only_one_step);
+
+   std::string last_script_enclosing_begin_tag_{};
+   std::string last_script_enclosing_end_tag_{};
+
 private:
    void runCommand(const char* command); // Run the specified command, append output to terminal
-   void expandMultilineScript(const std::string& script);
-   static void fool(const std::string& command_str, const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser, InterpreterTerminal* term);
-
+   void expandMultilineScript(const std::string& script, const bool only_one_step);
    std::shared_ptr<DataPack> data_{};
    std::shared_ptr<FormulaParser> parser_{};
    std::ostringstream output_{};
