@@ -25,10 +25,14 @@ InterpreterTerminal::InterpreterTerminal(const std::shared_ptr<DataPack> data, c
    parser_->addOrChangeErrorOrOutputStream(output_, false);
 }
 
-void vfm::InterpreterTerminal::append(const char* s)
+void vfm::InterpreterTerminal::appendPlain(const char* s)
 {
    buff->append(s);
-   // Go to end of line
+}
+
+void vfm::InterpreterTerminal::appendAndSetCursorToEnd(const char* s)
+{
+   appendPlain(s);
    insert_position(buffer()->length());
    scroll(count_lines(0, buffer()->length(), 1), 0);
 }
@@ -63,7 +67,7 @@ void vfm::InterpreterTerminal::runCommand(const char* command)
    }
    
    output_ << res;
-   append(output_.str().c_str());
+   appendAndSetCursorToEnd(output_.str().c_str());
 }
 
 void vfm::InterpreterTerminal::expandMultilineScript(const std::string& script)
@@ -106,7 +110,7 @@ int vfm::InterpreterTerminal::handle(int e)
                if (line_number < 0 || line_number >= lines.size()) return(1); // Just a sanity check, should never happen.
 
                runCommand(lines[line_number].c_str());
-               append("\n");
+               appendAndSetCursorToEnd("\n");
             }
 
             return(1); // hide 'Enter' from text widget

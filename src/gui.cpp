@@ -921,7 +921,7 @@ void MCScene::refreshRarely(void* data)
          std::string result{ mc_scene->logging_output_and_interpreter_->getResult() };
 
          if (mc_scene->logging_output_and_interpreter_->getOptionalScript() == EMPTY) {
-            mc_scene->logging_output_and_interpreter_->append(result.c_str());
+            mc_scene->logging_output_and_interpreter_->appendAndSetCursorToEnd(result.c_str());
          } else {
             std::string old_editor_text{ mc_scene->logging_output_and_interpreter_->buffer()->text() };
             std::string original_script{ BEGIN_TAG_MULTILINE_SCRIPT + mc_scene->logging_output_and_interpreter_->getOptionalScript() + END_TAG_MULTILINE_SCRIPT };
@@ -1381,7 +1381,13 @@ void MCScene::refreshFrequently(void* data)
 
    std::string current_content = StaticHelper::trimAndReturn(static_cast<std::ostringstream*>(ADDITIONAL_LOGGING_PIPE)->str());
    if (!current_content.empty()) {
-      mc_scene->logging_output_and_interpreter_->append((current_content + "\n").c_str());
+      if (mc_scene->logging_output_and_interpreter_->active()) {
+         mc_scene->logging_output_and_interpreter_->appendAndSetCursorToEnd((current_content + "\n").c_str());
+      }
+      else {
+         mc_scene->logging_output_and_interpreter_->appendPlain((current_content + "\n").c_str());
+      }
+      
       static_cast<std::ostringstream*>(ADDITIONAL_LOGGING_PIPE)->str("");
    }
 }
