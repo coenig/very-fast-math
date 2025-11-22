@@ -694,7 +694,7 @@ private:
       m7, // Example: @{}@.generateEnvmodels
       m8, // Example: @{}@.generateTestCases       ==> Will fail, but present list of available modes.
       m9, // Example: @{}@.generateTestCases[all]
-          // Full example: 
+          // Full example (enclosing tags @<...>@ only for M²oRTy UI, leave out for plain script processing):
           // @<
           // @{}@.generateEnvmodels 
           // @{}@.runMCJobs[10] 
