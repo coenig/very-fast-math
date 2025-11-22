@@ -683,6 +683,18 @@ private:
       }
    };
 
+   // FIBONACCI EXAMPLE
+   // ---
+   // @<<
+   // @{@{@{
+   // @(#0#)@
+   // @(@{@{@{#0#}@*.sub[1].fib}@*}@.add[@{#0#}@*.sub[2].fib])@
+   // }@**.if[@{}@.smeq[#0#, 1]]}@***.newMethod[fib, 0]
+   // 
+   // @{@{5}@.fib}@.eval[0]}@.removeWhiteSpace
+   // >>@
+   // ---
+
    std::set<ScriptMethodDescription> METHODS{
       m1,
       m2,
