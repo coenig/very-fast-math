@@ -51,7 +51,7 @@ vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shar
    putPlaceholderMapping(EXPR_END_TAG_AFTER);
 }
 
-void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2)
+void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step)
 {
    raw_script_ = codeRaw2; // Nothing is done to rawScript code.
 
@@ -63,7 +63,7 @@ void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2)
    std::string codeRaw = inferPlaceholdersForPlainText(codeRaw2);                              // Secure plain-text parts.
    processed_script_ = evaluateAll(codeRaw, EXPR_BEG_TAG_BEFORE, EXPR_END_TAG_BEFORE);         // Evaluate expressions BEFORE run.
 
-   extractInscriptProcessors();                                                                // DO THE ACTUAL THING.
+   extractInscriptProcessors(only_one_step);                                                   // DO THE ACTUAL THING.
 
    processed_script_ = undoPlaceholdersForPlainText(processed_script_);                        // Undo placeholder securing.
    processed_script_ = StaticHelper::replaceAll(processed_script_, NOP_SYMBOL, "");            // Clear all NOP symbols from script.
@@ -89,7 +89,7 @@ bool isCachable(const std::vector<std::string>& method_chain)
    return true;
 }
 
-void Script::extractInscriptProcessors()
+void Script::extractInscriptProcessors(const bool only_one_step)
 {
    // Find next preprocessor.
    int indexOfPrep = findNextInscriptPos();
@@ -143,7 +143,6 @@ void Script::extractInscriptProcessors()
 
       std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
       processed_script_ = partBefore + placeholderFinal + partAfter;
-      indexOfPrep = findNextInscriptPos();
 
       if (i++ % 100 == 0) {
          addNote(""
@@ -154,6 +153,10 @@ void Script::extractInscriptProcessors()
             + std::to_string(getScriptData().cache_hits_) + "/" + std::to_string(getScriptData().cache_misses_) + " cache hits/misses; "
          );
       }
+
+      if (only_one_step) return;
+
+      indexOfPrep = findNextInscriptPos();
    }
 }
 
@@ -1328,6 +1331,7 @@ std::string Script::getTagFreeRawScript() {
 std::string vfm::macro::Script::processScript(
    const std::string& text,
    const DataPreparation data_prep,
+   const bool only_one_step,
    const std::shared_ptr<DataPack> data_raw,
    const std::shared_ptr<FormulaParser> parser,
    const std::shared_ptr<Failable> father_failable)
@@ -1353,7 +1357,7 @@ std::string vfm::macro::Script::processScript(
 
    s->addNote("Processing script. Variable '" + MY_PATH_VARNAME + "' is set to '" + s->getMyPath() + "'.");
 
-   s->applyDeclarationsAndPreprocessors(text);
+   s->applyDeclarationsAndPreprocessors(text, only_one_step);
    return s->getProcessedScript();
 }
 

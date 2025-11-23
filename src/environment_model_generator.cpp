@@ -28,5 +28,5 @@ void vfm::mc::EnvModel::loadFromFile(const std::string& file_path)
 
 std::string vfm::mc::EnvModel::generateEnvModel(const std::shared_ptr<Failable> father_failable)
 {
-   return vfm::macro::Script::processScript(getTemplate(), macro::Script::DataPreparation::both, data_, parser_, father_failable);
+   return vfm::macro::Script::processScript(getTemplate(), macro::Script::DataPreparation::both, false, data_, parser_, father_failable);
 }
