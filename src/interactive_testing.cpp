@@ -713,7 +713,7 @@ int vfm::test::artifactRun(int argc, char* argv[])
       auto data = std::make_shared<DataPack>();
       auto parser = SingletonFormulaParser::getInstance();
 
-      std::cout << "Script expanded to:\n--------------------\n" << macro::Script::processScript(script, macro::Script::DataPreparation::none, data, parser) << std::endl;
+      std::cout << "Script expanded to:\n--------------------\n" << macro::Script::processScript(script, macro::Script::DataPreparation::none, false, data, parser) << std::endl;
 
       return EXIT_SUCCESS;
    }

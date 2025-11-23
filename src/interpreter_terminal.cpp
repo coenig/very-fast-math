@@ -25,10 +25,14 @@ InterpreterTerminal::InterpreterTerminal(const std::shared_ptr<DataPack> data, c
    parser_->addOrChangeErrorOrOutputStream(output_, false);
 }
 
-void vfm::InterpreterTerminal::append(const char* s)
+void vfm::InterpreterTerminal::appendPlain(const char* s)
 {
    buff->append(s);
-   // Go to end of line
+}
+
+void vfm::InterpreterTerminal::appendAndSetCursorToEnd(const char* s)
+{
+   appendPlain(s);
    insert_position(buffer()->length());
    scroll(count_lines(0, buffer()->length(), 1), 0);
 }
@@ -37,9 +41,10 @@ void vfm::InterpreterTerminal::fool(
    const std::string& command_str, 
    const std::shared_ptr<DataPack> data, 
    const std::shared_ptr<FormulaParser> parser,
-   InterpreterTerminal* term)
+   InterpreterTerminal* term,
+   const bool only_one_step)
 {
-   term->result_ = macro::Script::processScript(command_str, macro::Script::DataPreparation::none, data, parser, nullptr);
+   term->result_ = macro::Script::processScript(command_str, macro::Script::DataPreparation::none, only_one_step, data, parser, nullptr);
 }
 
 void vfm::InterpreterTerminal::runCommand(const char* command)
@@ -54,7 +59,7 @@ void vfm::InterpreterTerminal::runCommand(const char* command)
       output_ << "\n";
       try {
          result_ = WAITING;
-         std::thread t{ fool, command_str, data_, parser_, this };
+         std::thread t{ fool, command_str, data_, parser_, this, true };
          t.detach();
       }
       catch (const std::exception& e) {
@@ -63,14 +68,18 @@ void vfm::InterpreterTerminal::runCommand(const char* command)
    }
    
    output_ << res;
-   append(output_.str().c_str());
+   appendAndSetCursorToEnd(output_.str().c_str());
 }
 
-void vfm::InterpreterTerminal::expandMultilineScript(const std::string& script)
+void vfm::InterpreterTerminal::expandMultilineScript(const std::string& script, const bool only_one_step)
 {
    result_ = WAITING;
    optional_script_ = script;
-   std::thread t{ fool, script, data_, parser_, this };
+   last_script_enclosing_begin_tag_ = only_one_step ? BEGIN_TAG_MULTILINE_SCRIPT_SINGLE_STEP : BEGIN_TAG_MULTILINE_SCRIPT;
+   last_script_enclosing_end_tag_ = only_one_step ? END_TAG_MULTILINE_SCRIPT_SINGLE_STEP : END_TAG_MULTILINE_SCRIPT;
+   deactivate();
+
+   std::thread t{ fool, script, data_, parser_, this, only_one_step };
    t.detach();
 }
 
@@ -89,8 +98,13 @@ int vfm::InterpreterTerminal::handle(int e)
             const int position = insert_position();
 
             if (StaticHelper::isWithinLevelwise(all_editor_text, position, BEGIN_TAG_MULTILINE_SCRIPT, END_TAG_MULTILINE_SCRIPT)) {
-               std::string script{ StaticHelper::extractPartWithinEnclosingBrackets(all_editor_text, position, BEGIN_TAG_MULTILINE_SCRIPT, END_TAG_MULTILINE_SCRIPT) };
-               expandMultilineScript(script);
+               const bool is_automatic_single_step{ StaticHelper::isWithinLevelwise(all_editor_text, position, BEGIN_TAG_MULTILINE_SCRIPT_SINGLE_STEP, END_TAG_MULTILINE_SCRIPT_SINGLE_STEP) };
+               std::string script{ StaticHelper::extractPartWithinEnclosingBrackets(
+                  all_editor_text, 
+                  position, 
+                  is_automatic_single_step ? BEGIN_TAG_MULTILINE_SCRIPT_SINGLE_STEP : BEGIN_TAG_MULTILINE_SCRIPT,
+                  is_automatic_single_step ? END_TAG_MULTILINE_SCRIPT_SINGLE_STEP : END_TAG_MULTILINE_SCRIPT) };
+               expandMultilineScript(script, is_automatic_single_step);
             }
             else {
                const auto lines = StaticHelper::split(all_editor_text, "\n");
@@ -106,7 +120,7 @@ int vfm::InterpreterTerminal::handle(int e)
                if (line_number < 0 || line_number >= lines.size()) return(1); // Just a sanity check, should never happen.
 
                runCommand(lines[line_number].c_str());
-               append("\n");
+               appendAndSetCursorToEnd("\n");
             }
 
             return(1); // hide 'Enter' from text widget
