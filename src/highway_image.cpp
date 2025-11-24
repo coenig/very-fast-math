@@ -1131,6 +1131,11 @@ void vfm::HighwayImage::paintBezierConnectionsBetweenSections(
    }
 }
 
+void vfm::HighwayImage::paintGraphConnectionsBetweenSections()
+{
+
+}
+
 void vfm::HighwayImage::paintRoadGraph(
    const std::shared_ptr<RoadGraph> r_raw,
    const Vec2D& dim_raw_raw,
@@ -1256,7 +1261,14 @@ void vfm::HighwayImage::paintRoadGraph(
    //goto label;
 
    // Draw crossings between sections.
-   paintBezierConnectionsBetweenSections(my_r, dim_raw, old_trans);
+   const bool topology_only{ true };
+
+   if (topology_only) {
+      paintGraphConnectionsBetweenSections();
+   }
+   else {
+      paintBezierConnectionsBetweenSections(my_r, dim_raw, old_trans);
+   }
 
    label:
    setTranslator(old_trans);
