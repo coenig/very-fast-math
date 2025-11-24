@@ -99,7 +99,10 @@ public:
       const std::shared_ptr<HighwayTranslator> old_trans
    );
 
-   void paintGraphConnectionsBetweenSections();
+   void paintGraphConnectionsBetweenSections(
+      const std::shared_ptr<RoadGraph> my_r,
+      const std::shared_ptr<HighwayTranslator> old_trans
+   );
 
    void paintRoadGraph(
       const std::shared_ptr<RoadGraph> r,
