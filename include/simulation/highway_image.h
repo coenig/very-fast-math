@@ -99,6 +99,8 @@ public:
       const std::shared_ptr<HighwayTranslator> old_trans
    );
 
+   void paintGraphConnectionsBetweenSections();
+
    void paintRoadGraph(
       const std::shared_ptr<RoadGraph> r,
       const Vec2D& dim,
