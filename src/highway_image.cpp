@@ -1136,13 +1136,50 @@ void vfm::HighwayImage::paintGraphConnectionsBetweenSections(
    const std::shared_ptr<HighwayTranslator> old_trans
 )
 {
+   my_r->applyToMeAndAllMySuccessorsAndPredecessors([this](const std::shared_ptr<RoadGraph> r) {
+      for (const auto& r_succ : r->getSuccessors()) {
+         for (const auto& A : r->connectors_) {
+            for (const auto& B : r_succ->connectors_) {
+               if (/* A.id_ == i && */ A.id_ == B.id_ && A.side_ == ConnectorPolygonEnding::Side::drain && B.side_ == ConnectorPolygonEnding::Side::source) {
+                  auto trans_a = A.my_trans_;
+                  auto trans_b = B.my_trans_;
 
-   for (const auto& s : my_r->getSuccessors()) {
-      Pol2D p{ old_trans->translate(my_r->getOriginPoint()), old_trans->translate(s->getOriginPoint()) };
-      Pol2D arrow{};
-      arrow.createArrow(p, 2.1);
-      //fillPolygon(arrow, RED);
-   }
+                  assert(*A.col_ == *B.col_);
+
+                  Pol2D p{};
+                  const auto a_connector_basepoint_translated = trans_a->translate(A.connector_.base_point_);
+                  const auto a_connector_direction_translated = trans_a->translate(A.connector_.direction_);
+                  const auto b_connector_basepoint_translated = trans_b->translate(B.connector_.base_point_);
+                  const auto b_connector_direction_translated = trans_b->translate(B.connector_.direction_);
+                  const auto thick_a = 2.0f;
+                  const auto thick_b = 2.0f;
+
+                  auto nice_points = bezier::getNiceBetweenPoints(a_connector_basepoint_translated, a_connector_direction_translated, b_connector_basepoint_translated, b_connector_direction_translated);
+
+                  Vec2D between1 = nice_points[0];
+                  Vec2D between1_dir = nice_points[1];
+                  Vec2D between2 = nice_points[2];
+                  Vec2D between2_dir = nice_points[3];
+
+                  Vec2D between1_dir_ortho{ between1_dir };
+                  between1_dir_ortho.ortho();
+                  between1_dir_ortho.setLength(thick_a / 2);
+
+                  Vec2D between2_dir_ortho{ between2_dir };
+                  between2_dir_ortho.ortho();
+                  between2_dir_ortho.setLength(thick_b / 2);
+
+                  p.bezier(a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated, 0.01);
+                  Pol2D arrow{};
+
+                  arrow.createArrow(p, thick_a, {}, {}, {}, ARROW_END_PPT_STYLE_1, {}, { 2, 2 });
+
+                  fillPolygon(arrow);
+               }
+            }
+         }
+      }
+   });
 }
 
 void vfm::HighwayImage::paintRoadGraph(
