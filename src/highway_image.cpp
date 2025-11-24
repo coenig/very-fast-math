@@ -1131,9 +1131,18 @@ void vfm::HighwayImage::paintBezierConnectionsBetweenSections(
    }
 }
 
-void vfm::HighwayImage::paintGraphConnectionsBetweenSections()
+void vfm::HighwayImage::paintGraphConnectionsBetweenSections(
+   const std::shared_ptr<RoadGraph> my_r,
+   const std::shared_ptr<HighwayTranslator> old_trans
+)
 {
 
+   for (const auto& s : my_r->getSuccessors()) {
+      Pol2D p{ old_trans->translate(my_r->getOriginPoint()), old_trans->translate(s->getOriginPoint()) };
+      Pol2D arrow{};
+      arrow.createArrow(p, 2.1);
+      //fillPolygon(arrow, RED);
+   }
 }
 
 void vfm::HighwayImage::paintRoadGraph(
@@ -1264,7 +1273,7 @@ void vfm::HighwayImage::paintRoadGraph(
    const bool topology_only{ true };
 
    if (topology_only) {
-      paintGraphConnectionsBetweenSections();
+      paintGraphConnectionsBetweenSections(my_r, old_trans);
    }
    else {
       paintBezierConnectionsBetweenSections(my_r, dim_raw, old_trans);

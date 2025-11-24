@@ -245,27 +245,13 @@ void vfm::mc::McWorkflow::createTestCases(
    for (const auto& sec_id : sec_ids) {
       bool spawned{ false };
 
-      while (!spawned) {
-         if (numThreads < test::MAX_THREADS) {
-            threads.emplace_back(std::thread(
-               createTestCase,
+               createTestCase(
                getGeneratedParentDir(path_template, json_tpl_filename).string(),
                sec_id,
                //sec.slider_->value(),
-               modes));
-
-            spawned = true;
-            numThreads++;
-         }
-         else if (!threads.empty()) {
-            threads.front().join();
-            threads.erase(threads.begin());
-            numThreads--;
-         }
-      }
+               modes);
    }
 
-   for (auto& t : threads) t.join();
 }
 
 void McWorkflow::generatePreview(const std::filesystem::path& path_generated_config_level, const int cex_num)
