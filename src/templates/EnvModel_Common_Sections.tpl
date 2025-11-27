@@ -31,11 +31,6 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
       }@****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
    }@******.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
-VAR
-   ego.on_section : 0 .. @{SECTIONS - 1}@.eval[0];
-
-INIT ego.on_section = 0;
-
 --------------------------------------------------------
 -- EO Sections
 --------------------------------------------------------
