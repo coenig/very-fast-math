@@ -44,6 +44,7 @@ INIT section_[sec]_segment_[num]_pos_begin + @{SEGMENTSMINLENGTH}@.distanceWorld
 INIT abs(section_[sec]_segment_[num]_min_lane - section_[sec]_segment_@{[num] + 1}@.eval[0]_min_lane) <= 1;
 INIT abs(section_[sec]_segment_[num]_max_lane - section_[sec]_segment_@{[num] + 1}@.eval[0]_max_lane) <= 1;
 }@**.for[[num], 0, @{SEGMENTS - 2}@.eval]
+}@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 --------------------------------------------------------
 --  <== EO Segments
@@ -54,8 +55,6 @@ INIT abs(section_[sec]_segment_[num]_max_lane - section_[sec]_segment_@{[num] + 
       FROZENVAR
          @{
             @{section_[sec]_segment_[seg]_pos_begin}@*.scalingVariable[distance] : integer;
-            section_[sec]_segment_[seg]_min_lane : integer;
-            section_[sec]_segment_[seg]_max_lane : integer;
          }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
    
          @{section_[sec]_end}@*.scalingVariable[distance] : 
