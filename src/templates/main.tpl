@@ -14,8 +14,17 @@ VAR
                    
 @{
 @(
+ env.veh___6TEMPORARRAY19___.v : integer;
+)@
+@(
+cnt : -1..1;
+ env.veh___6TEMPORARRAY19___.v : -1..1;
+)@
+}@.if[@{CONCRETE_MODEL}@.eval]
 
-cnt : integer;
+@{
+@(
+
 
 TRANS next(env.input.m_gpFunktionsstatusGetriggerterFsw.m_value) = planner."gpFunktionsstatusGetriggerterFsw.m_value";
 -- TRANS next(env.input.m_gpFunktionsstatusGetriggerterFsw.m_valueLastCycle) = planner."gpFunktionsstatusGetriggerterFsw.m_valueLastCycle";
@@ -46,17 +55,7 @@ INVARSPEC
    env.params.enable_lane_change_driver_request : boolean;
    env.params.enable_lanechanges : boolean;
    env.params.slow_lane_is_on_the_right : boolean;
-   env.veh___6TEMPORARRAY19___.v : integer;
 
-INIT env.node.em.filtered_driver_intention_dir = ActionDir____CENTER;
-INIT env.params.enable_lane_change_driver_request = TRUE;
-INIT env.params.enable_lanechanges = TRUE;
-INIT env.params.slow_lane_is_on_the_right = TRUE;
-INIT env.veh___6TEMPORARRAY19___.v = 0;
-
-INIT !env.ego.flCond_full;
---INIT !env.ego.slCond_full;
-INIT !env.ego.abCond_full;
 INIT !lane_changed;
 INIT !lane_change_aborted;
 

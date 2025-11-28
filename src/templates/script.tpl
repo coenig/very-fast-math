@@ -1,8 +1,8 @@
 @{
 @(
-   @{script_full.tpl}@.include
+   @{script_concrete.tpl}@.include
 )@
 @(
-   @{script_alberto.tpl}@.include
+   @{script_abstract.tpl}@.include
 )@
-}@.if[@{FULL_MODEL}@.eval]
+}@.if[@{CONCRETE_MODEL}@.eval]
