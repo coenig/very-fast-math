@@ -1,9 +1,9 @@
 @{EnvModel_Header.tpl}@********.include
-@{EnvModel_Parameters.tpl}@********.include
+@{EnvModel_Scaling.tpl}@********.include
+@{EnvModel_Parameters.tpl}@********.include -- Needs to be loaded before parameters (like CONCRETE_MODEL) are evaluated below.
 
 @{
 @(
-@{EnvModel_Scaling.tpl}@********.include
 @{EnvModel_Geometry.tpl}@********.include
 
 MODULE EnvModel
@@ -58,9 +58,9 @@ INVAR num_lanes = @{NUMLANES}@.eval[0];
 @{EnvModel_Feasibility.tpl}@*******.include
 
 )@
-}@*****.if[@{EM_LESS}@.eval]
+}@**.if[@{EM_LESS}@.eval]
 )@
 @(
-   @{EnvModel_Abstract.tpl}@********.include
+   @{EnvModel_Abstract.tpl}@.include
 )@
-}@*********.if[@{CONCRETE_MODEL}@.eval]
+}@***.if[@{CONCRETE_MODEL}@.eval]
