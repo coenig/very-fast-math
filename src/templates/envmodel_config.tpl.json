@@ -51,7 +51,7 @@
       "DEBUG": false,
       "DISTANCESCALING": "#{1000}#",
       "EGOLESS": false,
-      "FEASIBILITY": false,
+      "FEASIBILITY": true,
       "CONCRETE_MODEL": true,
       "KEEP_EGO_FROM_GREEN": true,
       "LANES_MAX_SPEEDS": "@(15)@@(15)@@(0)@",
@@ -96,3 +96,4 @@
       "_GENERATED_PATH": "../examples/gp"
    }
 }
+
