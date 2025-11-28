@@ -337,10 +337,11 @@ if((env_state.max_lane_id - ego.on_lane >= 2))
    {
       @flCond4LeadNotMuchFasterThanEgo.cond4_lead_not_much_faster_than_ego = (veh___609___.v - ego.v < 1)
    };
-   @TEMPORARRAY1 = -(1);
    @flCond.cond4_lead_not_much_faster_than_ego = flCond4LeadNotMuchFasterThanEgo.cond4_lead_not_much_faster_than_ego;
    @flCond.cond5_ax_acf_target_lane_same_or_higher = true;
    @flCond6TargetRearVehicleMildBraking.dist_min_fast_approaching = 0;
+   @flCond6TargetRearVehicleMildBraking.v_rel = 0;
+   @TEMPORARRAY1 = -(1);
    @flCond6TargetRearVehicleMildBraking.v_rel = max(veh___6TEMPORARRAY19___.v - ego.v, 0);
    @getMinDistanceForFastApproachingVehicles.part1 = max(veh___6TEMPORARRAY19___.v - ego.v, 0) * params.turn_signal_duration;
    if(false)
@@ -400,7 +401,7 @@ if((env_state.max_lane_id - ego.on_lane >= 2))
       }
    };
    @flCond7DistToTargetFrontVehicleLargeEnough.i_agent_front = ego.gaps___6tar_dir9___.i_agent_front;
-   if((ego.gaps___6tar_dir9___.i_agent_front != -(2)))
+   if((flCond7DistToTargetFrontVehicleLargeEnough.i_agent_front != -(2)))
    {
       if((ActionDir::NONE == tar_dir))
       {
@@ -509,10 +510,10 @@ if((env_state.max_lane_id - ego.on_lane >= 2))
          }
       }
    };
-   @flCond.cond7_dist_to_target_front_vehicle_large_enough = (ego.gaps___6tar_dir9___.s_dist_front > flCond7DistToTargetFrontVehicleLargeEnough.min_dist_target_front) ||
-   (ego.gaps___6tar_dir9___.i_agent_front == -(2));
    @flCond7DistToTargetFrontVehicleLargeEnough.cond7_dist_to_target_front_vehicle_large_enough = (ego.gaps___6tar_dir9___.s_dist_front >
    flCond7DistToTargetFrontVehicleLargeEnough.min_dist_target_front) || (ego.gaps___6tar_dir9___.i_agent_front == -(2));
+   @flCond.cond7_dist_to_target_front_vehicle_large_enough = (ego.gaps___6tar_dir9___.s_dist_front > flCond7DistToTargetFrontVehicleLargeEnough.min_dist_target_front) ||
+   (ego.gaps___6tar_dir9___.i_agent_front == -(2));
    if((ActionDir::NONE == tar_dir))
    {
       @ego.gaps___6tar_dir9___.s_dist_rear = ego.gaps___629___.s_dist_rear
