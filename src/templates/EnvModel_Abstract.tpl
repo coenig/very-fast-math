@@ -1,26 +1,69 @@
-MODULE main
-  VAR env_model : EnvModel;
+@{EnvModel_Abstract_Macros.tpl}@********.include
 
 MODULE EnvModel
--- TODO[AB]: This is a subset of the Constants.tpl file!
-DEFINE
-    @{min_time_between_lcs}@*.timeWorldToEnvModelDef[MIN_TIME_BETWEEN_LANECHANGES]; -- after finisihing one lc, how much time needs to pass before the next one may be started
-    @{params.turn_signal_duration}@*.timeWorldToEnvModelDef[2]; -- turn signals will be on for this amount of time -- TODO: Connection via vfm-aka not working, has to be investigated.
-    -- total lc duration shall be 5 s according to code documentation
-    -- src lane is left 1s or 2s after end of turn signal duration, tgt lane is reached after 5s
-    @{ego.leave_src_lane_earliest_after}@*.timeWorldToEnvModelDef[1] + params.turn_signal_duration;  -- 1 s after end of turn signal duration
-    @{ego.leave_src_lane_latest_after}@*.timeWorldToEnvModelDef[2] + params.turn_signal_duration;    -- 2 s after end of turn signal duration
-    @{ego.complete_lane_change_earliest_after}@*.timeWorldToEnvModelDef[2] + params.turn_signal_duration;
-    @{ego.complete_lane_change_latest_after}@*.timeWorldToEnvModelDef[2] + params.turn_signal_duration;
-    -- it seems that there is no parameter given for the duration of the abort, assume same duration to roll back that it took to get to the current pos
+  DEFINE ego_lane_crossing := FALSE;
+@{EnvModel_Common_Sections.tpl}@********.include
+@{
+  -- Abstract environment specific variable declaration. Split the sections in section parts.
+  FROZENVAR @{[sec]}@.nsecparts : 1 .. @{MAXSECPARTS - 1}@.eval[0];
+}@******.for[[sec], 0, @{SECTIONS - 1}@.eval]
+  -- non-ego cars declaration
 
-    @{leave_src_lane_earliest_after}@*.timeWorldToEnvModelDef[1];             -- earliest point in time where the vehicle may cross the lane border, i.e., after this transition the vehicle occupies two lanes 
-    @{leave_src_lane_latest_after}@*.timeWorldToEnvModelDef[5];
-    @{complete_lane_change_earliest_after}@*.timeWorldToEnvModelDef[1];       -- earliest point in time where the vehicle is entirely on its target lane, i.e., after this transition the vehicle only occupies one lane
-    @{complete_lane_change_latest_after}@*.timeWorldToEnvModelDef[7];
-    @{abort_lane_change_complete_earliest_after}@*.timeWorldToEnvModelDef[1]; -- earliest point in time where the vehicle is entirely back on its source lane after a lane change abort
-    @{abort_lane_change_complete_latest_after}@*.timeWorldToEnvModelDef[3];
-    @{ego.min_time_between_lcs}@*.timeWorldToEnvModelDef[2];                      -- after finisihing one lc, how much time needs to pass before the next one may be started
-@{EnvModel_Alberto_macros.tpl}@******.include
-@{EnvModel_Abstract_Sections.tpl}@*******.include
-@{EnvModel_Abstract_Behavior_Nonego.tpl}@********.include
+  @{
+  @{[car_num]}@.CarCoreDecl[@{SECTIONS - 1}@.eval[0], @{MAXSECPARTS - 1}@.eval[0]]
+  }@*.for[[car_num], 0, @{NONEGOS - 1}@.eval[0]]
+
+  -- Avoid car collisions
+  INVAR 
+  @{
+  @{
+    -- Car[i] and Car[j] are not in collision!
+    !(@{[i]}@.samesec[[j]] & @{[i]}@.secpart = @{[j]}@.secpart)
+  }@*.for[[j], @{[i] + 1}@.eval[0], @{NONEGOS - 1}@.eval[0],1,&]
+  }@**.for[[i], 0, @{NONEGOS - 1}@.eval[0],1,&]
+  TRUE;
+
+  DEFINE
+    @{
+    @{
+    @{[i]}@.car_will_travese_from_sec[j] := @{[i]}@.willtraverse[[j]];
+    }@*.for[[i], 0, @{NONEGOS - 1}@.eval[0]]
+    }@*.for[[j], 0, @{SECTIONS - 1}@.eval[0]]
+
+  @{
+  @{
+  -- Transitions for cars inside the sections (assuming they do not pass to next section)
+  @{[i]}@.CarTransSectInner[[j]];
+  -- Transition representing junction entering
+  @{[i]}@.CarTransSectJunc[[j]];
+  }@*.for[[i], 0, @{NONEGOS - 1}@.eval[0]]
+  }@*.for[[j], 0, @{SECTIONS - 1}@.eval[0]]
+
+  @{
+  @{
+  @{
+    @{[i]}@.BehindDecl[[j],was_behind_[i]_[j],behind_[i]_[j]]
+  }@*.if[@{[i] != [j]}@.eval]
+  }@**.for[[j], 0, @{NONEGOS - 1}@.eval[0]]
+  }@**.for[[i], 0, @{NONEGOS - 1}@.eval[0]]
+  
+  -- reverse car:
+  LTLSPEC NAME reverse_cars :=
+    ! (
+     --initially the cars are ordered 0,..., n
+    @{@{[i]}@.behindsec[@{[i] + 1}@.eval[0]]}@*.for[[i], 0, @{NONEGOS - 2}@.eval[0],1,&] 
+    & 
+    -- then at some point order is reversed.
+    F (@{@{@{[i]+1}@.eval[0]}@.behindsec[[i]]}@*.for[[i], 0, @{NONEGOS - 2}@.eval[0],1,&])
+
+  )
+
+  VAR
+   -- TODO: counter as integer slow down verification!!!
+   cnt : -1..1;
+
+   -- "cond" variables are only there to mock the interface towards the BP
+   ego.flCond_full : boolean; -- conditions for lane change to fast lane (lc allowed and desired)
+   ego.slCond_full : boolean; -- conditions for lane change to slow lane (lc allowed and desired)
+   ego.abCond_full : boolean; -- conditions for abort of lane change 
+   -- EO "cond"

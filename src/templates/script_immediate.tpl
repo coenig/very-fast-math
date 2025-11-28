@@ -7,4 +7,5 @@
 
 
 
-@{}@.generateEnvmodels
+@{envmodel_config.tpl.json}@.generateEnvmodels
+@{envmodel_config.tpl.json}@.runMCJobs[10]
