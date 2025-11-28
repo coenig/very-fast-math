@@ -14,7 +14,6 @@ VAR
                    
 @{
 @(
-cnt : integer;
  env.veh___6TEMPORARRAY19___.v : integer;
 )@
 @(
