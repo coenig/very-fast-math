@@ -176,13 +176,19 @@ public:
       none
    };
 
+   enum class SpecialOption {
+      add_default_dynamic_methods,
+      none
+   };
+
    static std::string processScript(
       const std::string& text,
       const DataPreparation data_prep,
       const bool only_one_step,
       const std::shared_ptr<DataPack> data_raw = nullptr, 
       const std::shared_ptr<FormulaParser> parser = nullptr,
-      const std::shared_ptr<Failable> father_failable = nullptr);
+      const std::shared_ptr<Failable> father_failable = nullptr,
+      const SpecialOption option = SpecialOption::none);
 
    std::string simplifyExpression(const std::string& expression);
 
@@ -265,6 +271,8 @@ public:
    bool isCachableMethod(const std::string& method_name) const;
    bool makeMethodCachable(const std::string& method_name);   // Returns false if the method was already cachable.
    bool makeMethodUnCachable(const std::string& method_name); // Returns false if the method was already uncachable.
+
+   void addDefaultDynamicMathods();
 
 private:
    bool isCachableChain(const std::vector<std::string>& method_chain) const;

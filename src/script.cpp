@@ -634,11 +634,6 @@ bool vfm::macro::Script::isCachableChain(const std::vector<std::string>& method_
    return true;
 }
 
-bool vfm::macro::Script::makeMethodUnCachable(const std::string& method_name)
-{
-   return getScriptData().uncachable_methods.insert(method_name).second;
-}
-
 bool vfm::macro::Script::makeMethodCachable(const std::string& method_name)
 {
    if (getScriptData().uncachable_methods.count(method_name)) {
@@ -647,6 +642,29 @@ bool vfm::macro::Script::makeMethodCachable(const std::string& method_name)
    }
 
    return false; // Was already cachable (= not in "uncachable" list).
+}
+
+bool vfm::macro::Script::makeMethodUnCachable(const std::string& method_name)
+{
+   return getScriptData().uncachable_methods.insert(method_name).second;
+}
+
+void vfm::macro::Script::addDefaultDynamicMathods()
+{
+   getScriptData().inscriptMethodDefinitions.insert({ "fib", R"(@{
+@(#0#)@
+@(@{@{@{#0#}@*.sub[1].fib}@*}@.add[@{#0#}@*.sub[2].fib])@
+}@**.if[@{}@.smeq[#0#, 1]])"});
+   getScriptData().inscriptMethodParNums.insert({ "fib", 0 });
+   getScriptData().inscriptMethodParPatterns.insert({ "fib", INSCRIPT_STANDARD_PARAMETER_PATTERN });
+
+   getScriptData().inscriptMethodDefinitions.insert({ "fibfast", R"(@{
+@(#0#)@
+@(@{#0#.fibfast}@.sethard[
+@{@{@{@{#0#}@*.sub[1]}@*.fibfast}@*}@.add[@{@{#0#}@*.sub[2]}@*.fibfast]])@
+}@**.if[@{}@.smeq[#0#, 1]])"});
+   getScriptData().inscriptMethodParNums.insert({ "fibfast", 0 });
+   getScriptData().inscriptMethodParPatterns.insert({ "fibfast", INSCRIPT_STANDARD_PARAMETER_PATTERN });
 }
 
 std::vector<std::string> Script::getMethodParameters(const std::string& conversionTag)
@@ -1376,7 +1394,8 @@ std::string vfm::macro::Script::processScript(
    const bool only_one_step,
    const std::shared_ptr<DataPack> data_raw,
    const std::shared_ptr<FormulaParser> parser,
-   const std::shared_ptr<Failable> father_failable)
+   const std::shared_ptr<Failable> father_failable,
+   const SpecialOption option)
 {
    auto data = data_raw;
 
@@ -1398,6 +1417,10 @@ std::string vfm::macro::Script::processScript(
    }
 
    s->addNote("Processing script. Variable '" + MY_PATH_VARNAME + "' is set to '" + s->getMyPath() + "'.");
+
+   if (option == SpecialOption::add_default_dynamic_methods) {
+      s->addDefaultDynamicMathods();
+   }
 
    s->applyDeclarationsAndPreprocessors(text, only_one_step);
    return s->getProcessedScript();
