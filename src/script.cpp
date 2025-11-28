@@ -75,20 +75,6 @@ std::string vfm::macro::Script::getProcessedScript() const
    return processed_script_;
 }
 
-bool isCachable(const std::vector<std::string>& method_chain)
-{
-   for (const auto& method : method_chain) {
-      const size_t par_begin{ method.find("[") };
-      const std::string method_w_o_pars{ par_begin == std::string::npos ? method : method.substr(0, par_begin) };
-
-      if (UNCACHABLE_METHODS.count(method_w_o_pars)) {
-         return false;
-      }
-   }
-
-   return true;
-}
-
 void Script::extractInscriptProcessors(const bool only_one_step)
 {
    // Find next preprocessor.
@@ -113,9 +99,9 @@ void Script::extractInscriptProcessors(const bool only_one_step)
       int begin = indexOfPrep;
       auto trimmed = StaticHelper::trimAndReturn(preprocessorScript);
 
-      if (method_part_begins_.count(trimmed) && method_part_begins_.at(trimmed).cachable_) { // TODO: Avoid multiple accesses to map.
+      if (getScriptData().method_part_begins_.count(trimmed) && getScriptData().method_part_begins_.at(trimmed).cachable_) { // TODO: Avoid multiple accesses to map.
          getScriptData().cache_hits_++;
-         placeholder_for_inscript = method_part_begins_.at(trimmed).result_;
+         placeholder_for_inscript = getScriptData().method_part_begins_.at(trimmed).result_;
       }
       else {
          getScriptData().cache_misses_++;
@@ -124,21 +110,21 @@ void Script::extractInscriptProcessors(const bool only_one_step)
          if (methodPartBegin != preprocessorScript.length() && methodPartBegin >= 0) {
             int leftTrim = preprocessorScript.size() - StaticHelper::ltrimAndReturn(preprocessorScript).size();
 
-            method_part_begins_.insert({
+            getScriptData().method_part_begins_.insert({
                trimmed,
-               { methodPartBegin - leftTrim, placeholder_for_inscript, isCachable(methodSignaturesArray) }
+               { methodPartBegin - leftTrim, placeholder_for_inscript, isCachableChain(methodSignaturesArray) }
                });
          }
          else {
-            method_part_begins_.insert({
+            getScriptData().method_part_begins_.insert({
                trimmed,
-               { -1, placeholder_for_inscript, isCachable(methodSignaturesArray) }
+               { -1, placeholder_for_inscript, isCachableChain(methodSignaturesArray) }
                });
          }
 
          RepresentableAsPDF result = evaluateChain(preprocessorScript);
          placeholder_for_inscript = result->getRawScript();
-         method_part_begins_[trimmed].result_ = placeholder_for_inscript;
+         getScriptData().method_part_begins_[trimmed].result_ = placeholder_for_inscript;
       }
 
       std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
@@ -147,7 +133,7 @@ void Script::extractInscriptProcessors(const bool only_one_step)
       if (i++ % 100 == 0) {
          addNote(""
             + std::to_string(getScriptData().known_chains_.size()) + " known_chains_; "
-            + std::to_string(method_part_begins_.size()) + " method_part_begins_; "
+            + std::to_string(getScriptData().method_part_begins_.size()) + " method_part_begins_; "
             + std::to_string(getScriptData().list_data_.size()) + " list_data_; "
             + std::to_string(processed_script_.size()) + " script size; "
             + std::to_string(getScriptData().cache_hits_) + "/" + std::to_string(getScriptData().cache_misses_) + " cache hits/misses; "
@@ -192,8 +178,8 @@ RepresentableAsPDF Script::evaluateChain(const std::string& chain)
    getScriptData().cache_misses_++;
 
    RepresentableAsPDF repToProcess{};
-   std::shared_ptr<int> methodBegin = method_part_begins_.count(processedRaw) && method_part_begins_.at(processedRaw).method_part_begin_ >= 0
-      ? std::make_shared<int>(method_part_begins_.at(processedRaw).method_part_begin_)
+   std::shared_ptr<int> methodBegin = getScriptData().method_part_begins_.count(processedRaw) && getScriptData().method_part_begins_.at(processedRaw).method_part_begin_ >= 0
+      ? std::make_shared<int>(getScriptData().method_part_begins_.at(processedRaw).method_part_begin_)
       : nullptr;
 
    if (StaticHelper::stringStartsWith(processedChain, INSCR_BEG_TAG)
@@ -252,7 +238,7 @@ RepresentableAsPDF Script::evaluateChain(const std::string& chain)
    addFailableChild(repToProcess, "");
 
    std::vector<std::string> methodSignaturesArray = getMethodSinaturesFromChain(processedChain);
-   bool chachable{ isCachable(methodSignaturesArray) && processedRaw.size() <= MAXIMUM_STRING_SIZE_TO_CACHE };
+   bool chachable{ isCachableChain(methodSignaturesArray) && processedRaw.size() <= MAXIMUM_STRING_SIZE_TO_CACHE };
 
    if (StaticHelper::isEmptyExceptWhiteSpaces(processedChain)) {
       if (chachable) getScriptData().known_chains_[processedRaw] = repToProcess;
@@ -607,6 +593,80 @@ std::string Script::applyMethodString(const std::string& method_name, const std:
    return "#INVALID(" + error_str + ")";
 }
 
+bool vfm::macro::Script::isNativeMethod(const std::string& method_name) const
+{
+   for (const auto& method_description : METHODS) {
+      if (method_description.method_name_ == method_name) {
+         return true;
+      }
+   }
+
+   return false;
+}
+
+bool vfm::macro::Script::isDynamicMethod(const std::string& method_name) const
+{
+   return getScriptData().inscriptMethodDefinitions.count(method_name);
+}
+
+bool vfm::macro::Script::isMethod(const std::string& method_name) const
+{
+   return isNativeMethod(method_name) || isDynamicMethod(method_name);
+}
+
+bool vfm::macro::Script::isCachableMethod(const std::string& method_name) const
+{
+   return getScriptData().uncachable_methods.count(method_name) == 0;
+}
+
+
+bool vfm::macro::Script::isCachableChain(const std::vector<std::string>& method_chain) const
+{
+   for (const auto& method : method_chain) {
+      const size_t par_begin{ method.find("[") };
+      const std::string method_w_o_pars{ par_begin == std::string::npos ? method : method.substr(0, par_begin) };
+
+      if (!isCachableMethod(method_w_o_pars)) {
+         return false;
+      }
+   }
+
+   return true;
+}
+
+bool vfm::macro::Script::makeMethodCachable(const std::string& method_name)
+{
+   if (getScriptData().uncachable_methods.count(method_name)) {
+      getScriptData().uncachable_methods.erase(method_name);
+      return true;
+   }
+
+   return false; // Was already cachable (= not in "uncachable" list).
+}
+
+bool vfm::macro::Script::makeMethodUnCachable(const std::string& method_name)
+{
+   return getScriptData().uncachable_methods.insert(method_name).second;
+}
+
+void vfm::macro::Script::addDefaultDynamicMathods()
+{
+   getScriptData().inscriptMethodDefinitions.insert({ "fib", R"(@{
+@(#0#)@
+@(@{@{@{#0#}@*.sub[1].fib}@*}@.add[@{#0#}@*.sub[2].fib])@
+}@**.if[@{}@.smeq[#0#, 1]])"});
+   getScriptData().inscriptMethodParNums.insert({ "fib", 0 });
+   getScriptData().inscriptMethodParPatterns.insert({ "fib", INSCRIPT_STANDARD_PARAMETER_PATTERN });
+
+   getScriptData().inscriptMethodDefinitions.insert({ "fibfast", R"(@{
+@(#0#)@
+@(@{#0#.fibfast}@.sethard[
+@{@{@{@{#0#}@*.sub[1]}@*.fibfast}@*}@.add[@{@{#0#}@*.sub[2]}@*.fibfast]])@
+}@**.if[@{}@.smeq[#0#, 1]])"});
+   getScriptData().inscriptMethodParNums.insert({ "fibfast", 0 });
+   getScriptData().inscriptMethodParPatterns.insert({ "fibfast", INSCRIPT_STANDARD_PARAMETER_PATTERN });
+}
+
 std::vector<std::string> Script::getMethodParameters(const std::string& conversionTag)
 {
    if (!StaticHelper::stringContains(conversionTag, METHOD_PARS_BEGIN_TAG)
@@ -792,7 +852,7 @@ int Script::findNextInscriptPos()
    return -1;
 }
 
-ScriptData& Script::getScriptData()
+ScriptData& Script::getScriptData() const
 {
    return vfm_data_->getScriptData();
 }
@@ -1029,7 +1089,7 @@ RepresentableAsPDF vfm::macro::Script::copy() const
 
    copy_script->raw_script_ = raw_script_;
    copy_script->processed_script_ = processed_script_;
-   copy_script->method_part_begins_ = method_part_begins_;
+   copy_script->getScriptData().method_part_begins_ = getScriptData().method_part_begins_;
    copy_script->scriptSequence_ = scriptSequence_;
 
    return copy_script;
@@ -1334,7 +1394,8 @@ std::string vfm::macro::Script::processScript(
    const bool only_one_step,
    const std::shared_ptr<DataPack> data_raw,
    const std::shared_ptr<FormulaParser> parser,
-   const std::shared_ptr<Failable> father_failable)
+   const std::shared_ptr<Failable> father_failable,
+   const SpecialOption option)
 {
    auto data = data_raw;
 
@@ -1356,6 +1417,10 @@ std::string vfm::macro::Script::processScript(
    }
 
    s->addNote("Processing script. Variable '" + MY_PATH_VARNAME + "' is set to '" + s->getMyPath() + "'.");
+
+   if (option == SpecialOption::add_default_dynamic_methods) {
+      s->addDefaultDynamicMathods();
+   }
 
    s->applyDeclarationsAndPreprocessors(text, only_one_step);
    return s->getProcessedScript();

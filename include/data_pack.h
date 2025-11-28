@@ -38,7 +38,26 @@ namespace macro {
    class Script;
 }
 
+const static std::set<std::string> UNCACHABLE_METHODS_BASE{
+      "include", "eval", "PIDs", "KILLPIDs", "scriptVar", "setScriptVar", "executeCommand",
+      "vfmheap", "vfmdata", "vfmfunc", "sethard", "printHeap", "METHODs", "stringToHeap",
+      "listElement", "clearList", "asArray", "printList", "printLists", "pushBack", "openWithOS",
+      "readFile", "executeSystemCommand", "exec", "writeTextToFile", "timestamp", "vfm_variable_declared", "vfm_variable_undeclared",
+      "createRoadGraph", "storeRoadGraph", "connectRoadGraphTo", "runMCJobs", "runMCJob", "generateEnvmodels", "generateTestCases",
+      "makeUnCachable", "makeCachable", "resetScriptData", "resetAllData" };
+
+struct MethodPartBegin {
+   int method_part_begin_{};
+   std::string result_{};
+   bool cachable_{};
+};
+
 struct ScriptData {
+   inline ScriptData() 
+   {
+      reset();
+   }
+
    std::map<std::string, std::shared_ptr<macro::Script>> known_chains_{};
    std::map<std::string, std::string> PLACEHOLDER_MAPPING{};
    std::map<std::string, std::string> PLACEHOLDER_INVERSE_MAPPING{};
@@ -46,19 +65,32 @@ struct ScriptData {
    std::map<std::string, int> inscriptMethodParNums{};
    std::map<std::string, std::string> inscriptMethodParPatterns{};
    std::map<std::string, std::vector<std::string>> list_data_{};
+   std::map<std::string, MethodPartBegin> method_part_begins_{};
    int cache_hits_{ 0 };
    int cache_misses_{ 0 };
 
-   void reset() {
+   // Methods which
+   // * either can have different evaluations for the same body and parameters (e.g., eval, which depends on the data pack),
+   // * or which have side effects which need to be performed every time (e.g., KILLPIDs).
+   std::set<std::string> uncachable_methods{};
+
+   inline void reset() 
+   {
       known_chains_.clear();
       PLACEHOLDER_MAPPING.clear();
       PLACEHOLDER_INVERSE_MAPPING.clear();
       inscriptMethodDefinitions.clear();
       inscriptMethodParNums.clear();
       inscriptMethodParPatterns.clear();
+      method_part_begins_.clear();
       list_data_.clear();
       cache_hits_ = 0;
       cache_misses_ = 0;
+
+      uncachable_methods.clear();
+      for (const auto& method_name : UNCACHABLE_METHODS_BASE) {
+         uncachable_methods.insert(method_name);
+      }
    }
 };
 
