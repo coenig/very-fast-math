@@ -72,23 +72,15 @@ static const std::string EXPR_END_TAG_AFTER = "}~";
 static const std::string EXPR_BEG_TAG_BEFORE = "~{{";
 static const std::string EXPR_END_TAG_BEFORE = "}}~";
 
+static const std::string BEGIN_TAG_IN_SEQUENCE = "@(";
+static const std::string END_TAG_IN_SEQUENCE = ")@";
+
 static const std::string PREPROCESSOR_FIELD_NAME = "prep";
 static const std::string VARIABLE_DELIMITER = "=";
 static const char END_VALUE = ';';
 static const std::string INSCRIPT_STANDARD_PARAMETER_PATTERN = "#n#";
 
 static const std::string MC_PACKAGE_PREFIX{ "gp" };
-
-// Methods which
-// * either can have different evaluations for the same body and parameters (e.g., eval, which depends on the data pack),
-// * or which have side effects which need to be performed every time (e.g., KILLPIDs).
-// TODO: Inscript method definitions currently don't provide a mechanism to be labelled uncachable.
-static const std::set<std::string> UNCACHABLE_METHODS{
-   "include", "eval", "PIDs", "KILLPIDs", "scriptVar", "setScriptVar", "executeCommand",
-   "vfmheap", "vfmdata", "vfmfunc", "sethard", "printHeap", "METHODs", "stringToHeap", 
-   "listElement", "clearList", "asArray", "printList", "printLists", "pushBack", "openWithOS",
-   "readFile", "executeSystemCommand", "exec", "writeTextToFile", "timestamp", "vfm_variable_declared", "vfm_variable_undeclared",
-   "createRoadGraph", "storeRoadGraph", "connectRoadGraphTo", "runMCJobs", "runMCJob", "generateEnvmodels", "generateTestCases" };
 
  /// Only for internal usage, this symbol is removed from the script
  /// after the translation process is terminated.
@@ -113,12 +105,6 @@ class Script;
 class DummyRepresentable;
 
 using RepresentableAsPDF = std::shared_ptr<Script>;
-
-struct MethodPartBegin {
-   int method_part_begin_{};
-   std::string result_{};
-   bool cachable_{};
-};
 
 struct ScriptMethodDescription {
    std::string method_name_{};
@@ -218,9 +204,6 @@ public:
    std::shared_ptr<FormulaParser> getParser() const;
    std::string getMyPath() const;
 
-   const std::string BEGIN_TAG_IN_SEQUENCE = "@(";
-   const std::string END_TAG_IN_SEQUENCE = ")@";
-
    /// Looks for a sequence of several chunks of
    /// <code>@(...)@@(...)@@(...)@</code> in the code and puts them into
    /// <code>scriptSequence</code>.
@@ -231,7 +214,7 @@ public:
    std::shared_ptr<Script> getRepresentableAsPDF();
    std::string evalItAll(const std::string& n1Str, const std::string& n2Str, const std::function<float(float n1, float n2)> eval);
 
-   /// Retrieves the raw script, but without any <code>@{</code> or <code>@{</code>.
+   /// Retrieves the raw script, but without any <code>@{</code> or <code>}@</code>.
    /// Can be used to get the constant <code>2</code> from raw script
    /// <code>@{2}@</code>. But use carefully, since it actually removes ALL
    /// tags.
@@ -239,7 +222,10 @@ public:
    /// @return  The raw script without any inscript tags.
    std::string getTagFreeRawScript();
 
-   std::string sethard(const std::string& value) { method_part_begins_[getTagFreeRawScript()].result_ = value; return value; }
+   std::string sethard(const std::string& value) { 
+      getScriptData().method_part_begins_[getTagFreeRawScript()].result_ = value; return value; 
+   }
+
    std::string exsmeq(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a <= b; }); }
    std::string exsm(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a < b; }); }
    std::string exgreq(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a >= b; }); }
@@ -273,7 +259,16 @@ public:
    std::string makroPattern(const int i, const std::string& pattern);
    std::string applyMethodString(const std::string& method_name, const std::vector<std::string>& parameters);
 
+   bool isNativeMethod(const std::string& method_name) const;
+   bool isDynamicMethod(const std::string& method_name) const;
+   bool isMethod(const std::string& method_name) const;
+   bool isCachableMethod(const std::string& method_name) const;
+   bool makeMethodCachable(const std::string& method_name);   // Returns false if the method was already cachable.
+   bool makeMethodUnCachable(const std::string& method_name); // Returns false if the method was already uncachable.
+
 private:
+   bool isCachableChain(const std::vector<std::string>& method_chain) const;
+
    /// If you try to avoid assigning the parameter,
    /// be careful, it's not as simple as it seems.
    static std::string createDummyrep(
@@ -462,7 +457,7 @@ private:
    ///          exists, -1 is returned and no side effects occur.
    int findNextInscriptPos();
 
-   ScriptData& getScriptData();
+   ScriptData& getScriptData() const;
 
    /// If the script is embedded in plain text tags, replace all symbols with
    /// placeholders, but leave plain-text tags for later.
@@ -474,7 +469,6 @@ private:
    std::string raw_script_{};
    std::string processed_script_{};
 
-   std::map<std::string, MethodPartBegin> method_part_begins_{};
    std::shared_ptr<DataPack> vfm_data_{};
    std::shared_ptr<FormulaParser> vfm_parser_{};
    std::vector<std::string> scriptSequence_{};
@@ -683,17 +677,59 @@ private:
       }
    };
 
-   // FIBONACCI EXAMPLE
-   // ---
-   // @<<
-   // @{@{@{
-   // @(#0#)@
-   // @(@{@{@{#0#}@*.sub[1].fib}@*}@.add[@{#0#}@*.sub[2].fib])@
-   // }@**.if[@{}@.smeq[#0#, 1]]}@***.newMethod[fib, 0]
-   // 
-   // @{@{5}@.fib}@.eval[0]}@.removeWhiteSpace
-   // >>@
-   // ---
+   ScriptMethodDescription m10{
+      "makeCachable",
+      0,
+      [this](const std::vector<std::string>& parameters) -> std::string
+      {
+         if (!isMethod(getRawScript())) {
+            std::string error{ "Neither dynamic nor native method found with name '" + getRawScript() + "'." };
+            addError(error);
+            return "#INVALID(" + error + ")";
+         }
+
+         return makeMethodCachable(getRawScript()) 
+            ? "Method '" + getRawScript() + "' has been made cachable." 
+            : "Method '" + getRawScript() + "' was already cachable.";
+      }
+   };
+
+   ScriptMethodDescription m11{
+      "makeUnCachable",
+      0,
+      [this](const std::vector<std::string>& parameters) -> std::string
+      {
+         if (!isMethod(getRawScript())) {
+            std::string error{ "Neither dynamic nor native method found with name '" + getRawScript() + "'." };
+            addError(error);
+            return "#INVALID(" + error + ")";
+         }
+
+         return makeMethodUnCachable(getRawScript())
+            ? "Method '" + getRawScript() + "' has been made uncachable. Note that existing cache entries will still remain, unless you call 'resetScriptData'."
+            : "Method '" + getRawScript() + "' was already uncachable.";
+      }
+   };
+
+   ScriptMethodDescription m12{
+      "resetScriptData",
+      0,
+      [this](const std::vector<std::string>& parameters) -> std::string
+      {
+         getScriptData().reset();
+         return "";
+      }
+   };
+
+   ScriptMethodDescription m13{
+      "resetAllData",
+      0,
+      [this](const std::vector<std::string>& parameters) -> std::string
+      {
+         vfm_data_->reset();
+         return "";
+      }
+   };
 
    std::set<ScriptMethodDescription> METHODS{
       m1,
@@ -712,6 +748,10 @@ private:
           // @{}@.runMCJobs[10] 
           // @{}@.generateTestCases[all]
           // >@
+      m10,
+      m11,
+      m12,
+      m13,
       { "serialize", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::vfm); } },
       { "serializeK2", 0, [this](const std::vector<std::string>& parameters) -> std::string { return toK2(getRawScript()); } },
       { "serializeNuXmv", 0, [this](const std::vector<std::string>& parameters) -> std::string { return formatExpression(getRawScript(), SyntaxFormat::nuXmv); } },
@@ -869,7 +909,7 @@ private:
          std::string s{};
 
          for (const auto& method_description : METHODS) {
-            std::string uncachable{ UNCACHABLE_METHODS.count(method_description.method_name_) ? " <uncachable>" : "" };
+            std::string uncachable{ isCachableMethod(method_description.method_name_) ? "" : " <uncachable>" };
             s += method_description.method_name_ + "[" + std::to_string(method_description.par_num_) + "] 'native'" + uncachable + "\n";
          }
 
@@ -878,7 +918,7 @@ private:
             std::string definition{ dynamic_method.second };
             int par_num{ getScriptData().inscriptMethodParNums.at(method_name) };
             std::string pattern{ getScriptData().inscriptMethodParPatterns.at(method_name) };
-            std::string uncachable{ UNCACHABLE_METHODS.count(method_name) ? " <uncachable>" : "" };
+            std::string uncachable{ isCachableMethod(method_name) ? "" : " <uncachable>" };
 
             s += method_name + " (" + std::to_string(par_num) + " " + pattern + ") '" + definition + "'" + uncachable + "\n";
          }

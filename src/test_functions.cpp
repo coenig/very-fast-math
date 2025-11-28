@@ -270,7 +270,7 @@ const auto TEST_SCRIPT_EXPANSION = [](const std::set<std::set<std::string>>& ope
    std::string expected2 = std::to_string(FIBS.at(rand2));
    bool fine = !error1 && !error2 && result1 == expected1 && result2 == expected2;
 
-   if (print && fine) {
+   if (true && fine) {
       Failable::getSingleton()->addNote("Fibonacci scripts expanded correctly to fib(" 
          + std::to_string(rand1) + ") = " + expected1 + " / fibfast(" + std::to_string(rand2) + ") = " + expected2 + ".");
    }
