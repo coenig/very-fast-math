@@ -93,6 +93,17 @@ public:
       const Vec2D& dim = { 500, 100 },
       const RoadDrawingMode mode = RoadDrawingMode::both);
 
+   void paintBezierConnectionsBetweenSections(
+      const std::shared_ptr<RoadGraph> my_r,
+      const Vec2D& dim_raw,
+      const std::shared_ptr<HighwayTranslator> old_trans
+   );
+
+   void paintGraphConnectionsBetweenSections(
+      const std::shared_ptr<RoadGraph> my_r,
+      const std::shared_ptr<HighwayTranslator> old_trans
+   );
+
    void paintRoadGraph(
       const std::shared_ptr<RoadGraph> r,
       const Vec2D& dim,

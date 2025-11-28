@@ -978,131 +978,13 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    return res;
 }
 
-void vfm::HighwayImage::paintRoadGraph(
-   const std::shared_ptr<RoadGraph> r_raw,
-   const Vec2D& dim_raw_raw,
-   const std::map<std::string, std::string>& var_vals,
-   const bool print_agent_ids,
-   const float TRANSLATE_X_raw,
-   const float TRANSLATE_Y_raw)
+void vfm::HighwayImage::paintBezierConnectionsBetweenSections(
+   const std::shared_ptr<RoadGraph> my_r,
+   const Vec2D& dim_raw,
+   const std::shared_ptr<HighwayTranslator> old_trans
+   )
 {
-   auto my_r = PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ ? vfm::test::paintExampleRoadGraphRoundabout(false, r_raw) : r_raw;
-
-   my_r = my_r->copy();
-   my_r->normalizeRoadGraphToEgo();
-   auto old_trans = getHighwayTranslator();
-   const auto all_nodes = my_r->getAllNodes();
-
-   const bool infinite_road{ all_nodes.size() == 1 && my_r->isUnturned() }; // Only a single section, unturned, will be painted as infinite.
-
-   float TRANSLATE_X{ TRANSLATE_X_raw };
-   float TRANSLATE_Y{ TRANSLATE_Y_raw };
-   Vec2D dim_raw{ dim_raw_raw };
-
-   if (infinite_road) {
-      TRANSLATE_X = 0;
-      TRANSLATE_Y = 0;
-      dim_raw = { (float)getWidth(), (float)getHeight() };
-   }
-
-   auto r_ego = my_r->findSectionWithEgoIfAny();
-
-   std::vector<std::shared_ptr<RoadGraph>> all_nodes_ego_in_front{};
-
-   all_nodes_ego_in_front.push_back(r_ego);
-
-   for (const auto r_sub : all_nodes) {
-      if (r_sub != r_ego) all_nodes_ego_in_front.push_back(r_sub);
-   }
-
-   const auto DRAW_STRAIGHT_ROAD_OR_CARS = [this, &all_nodes_ego_in_front, &dim_raw, old_trans, TRANSLATE_X, TRANSLATE_Y, infinite_road, &var_vals, print_agent_ids](const RoadDrawingMode mode) {
-      for (const auto r_sub : all_nodes_ego_in_front) {
-         if (mode == RoadDrawingMode::road && r_sub->isGhost()
-            || mode == RoadDrawingMode::ghosts_only && !r_sub->isGhost()) continue;
-
-         const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
-         preserved_dimension_ = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
-
-         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
-            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };
-            const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
-            Vec2D v{ plain_2d_translator_->translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
-            v.rotate(r_sub->getAngle(), { middle.x, middle.y });
-            auto res = plain_2d_translator_->reverseTranslate(v);
-
-            return {
-               res.x + TRANSLATE_X, 
-               res.y + TRANSLATE_Y,
-               v_raw.z };
-            };
-
-         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
-            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };
-            const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
-
-            Vec2D v{
-               v_raw.x - TRANSLATE_X,
-               v_raw.y - TRANSLATE_Y,
-            };
-
-            v = plain_2d_translator_->translate(v);
-            v.rotate(-r_sub->getAngle(), { middle.x, middle.y });
-            auto res = plain_2d_translator_->reverseTranslate({ v.x, v.y });
-
-            return { res.x - origin.x, res.y - origin.y / LANE_WIDTH, v_raw.z };
-            };
-
-         assert(Vec3D(0, 0, 0).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ 0, 0, 0 }))));
-         assert(Vec3D(0, 0, 0).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ 0, 0, 0 }))));
-         assert(Vec3D(10.3, 11, 5).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ 10.3, 11, 5 }))));
-         assert(Vec3D(10.3, 11, 5).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ 10.3, 11, 5 }))));
-         assert(Vec3D(.3, -11, 3).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ .3, -11, 3 }))));
-         assert(Vec3D(.3, -11, 3).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ .3, -11, 3 }))));
-         assert(Vec3D(-.3, -1.1, 0).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ -.3, -1.1, 0 }))));
-         assert(Vec3D(-.3, -1.1, 0).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ -.3, -1.1, 0 }))));
-
-         if (!infinite_road) {
-            const auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
-               old_trans,
-               wrapper_trans_function,
-               wrapper_reverse_trans_function);
-
-            setTranslator(wrapper_trans);
-
-            if (getHighwayTranslator()->is3D()) {
-               const auto wrapper_trans_2d = std::make_shared<HighwayTranslatorWrapper>(
-                  plain_2d_translator_,
-                  wrapper_trans_function,
-                  wrapper_reverse_trans_function);
-               plain_2d_translator_wrapped_ = wrapper_trans_2d;
-            }
-         }
-
-         r_sub->connectors_ = paintStraightRoadScene(
-            r_sub->getMyRoad(),
-            infinite_road,
-            0,
-            var_vals,
-            print_agent_ids,
-            infinite_road ? dim_raw : preserved_dimension_,
-            mode == RoadDrawingMode::ghosts_only ? RoadDrawingMode::road : mode);
-
-         if (!r_sub->isGhost()) writeAsciiText(10, -1, "Sec" + std::to_string(r_sub->getID()));
-      }
-      };
-
-   DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::road);
-
-   if (old_trans->is3D()) {
-      setTranslator(old_trans);
-   }
-   else {
-      setTranslator(std::make_shared<DefaultHighwayTranslator>());
-   }
-
-   // Draw crossings between sections.
    std::vector<Pol2D> additional_arrows{};
-   //goto label;
 
    for (int i = 0; i <= 30; i++) {
       my_r->applyToMeAndAllMySuccessorsAndPredecessors([this, i, &dim_raw, &additional_arrows, old_trans](const std::shared_ptr<RoadGraph> r) -> void
@@ -1110,7 +992,7 @@ void vfm::HighwayImage::paintRoadGraph(
             for (const auto& r_succ : r->getSuccessors()) {
                for (const auto& A : r->connectors_) {
                   for (const auto& B : r_succ->connectors_) {
-                     if (!r->isGhost() && !r_succ->isGhost() 
+                     if (!r->isGhost() && !r_succ->isGhost()
                         && A.id_ == i && A.id_ == B.id_ && A.side_ == ConnectorPolygonEnding::Side::drain && B.side_ == ConnectorPolygonEnding::Side::source) {
                         auto trans_a = A.my_trans_;
                         auto trans_b = B.my_trans_;
@@ -1246,6 +1128,192 @@ void vfm::HighwayImage::paintRoadGraph(
             }
          }
       }
+   }
+}
+
+void vfm::HighwayImage::paintGraphConnectionsBetweenSections(
+   const std::shared_ptr<RoadGraph> my_r,
+   const std::shared_ptr<HighwayTranslator> old_trans
+)
+{
+   my_r->applyToMeAndAllMySuccessorsAndPredecessors([this](const std::shared_ptr<RoadGraph> r) {
+      for (const auto& r_succ : r->getSuccessors()) {
+         for (const auto& A : r->connectors_) {
+            for (const auto& B : r_succ->connectors_) {
+               if (/* A.id_ == i && */ A.id_ == B.id_ && A.side_ == ConnectorPolygonEnding::Side::drain && B.side_ == ConnectorPolygonEnding::Side::source) {
+                  auto trans_a = A.my_trans_;
+                  auto trans_b = B.my_trans_;
+
+                  assert(*A.col_ == *B.col_);
+
+                  Pol2D p{};
+                  const auto a_connector_basepoint_translated = trans_a->translate(A.connector_.base_point_);
+                  const auto a_connector_direction_translated = trans_a->translate(A.connector_.direction_);
+                  const auto b_connector_basepoint_translated = trans_b->translate(B.connector_.base_point_);
+                  const auto b_connector_direction_translated = trans_b->translate(B.connector_.direction_);
+                  const auto thick_a = 2.0f;
+                  const auto thick_b = 2.0f;
+
+                  auto nice_points = bezier::getNiceBetweenPoints(a_connector_basepoint_translated, a_connector_direction_translated, b_connector_basepoint_translated, b_connector_direction_translated);
+
+                  Vec2D between1 = nice_points[0];
+                  Vec2D between1_dir = nice_points[1];
+                  Vec2D between2 = nice_points[2];
+                  Vec2D between2_dir = nice_points[3];
+
+                  Vec2D between1_dir_ortho{ between1_dir };
+                  between1_dir_ortho.ortho();
+                  between1_dir_ortho.setLength(thick_a / 2);
+
+                  Vec2D between2_dir_ortho{ between2_dir };
+                  between2_dir_ortho.ortho();
+                  between2_dir_ortho.setLength(thick_b / 2);
+
+                  p.bezier(a_connector_basepoint_translated, between1, between2, b_connector_basepoint_translated, 0.01);
+                  Pol2D arrow{};
+
+                  arrow.createArrow(p, thick_a, {}, {}, {}, ARROW_END_PPT_STYLE_1, {}, { 2, 2 });
+
+                  fillPolygon(arrow);
+               }
+            }
+         }
+      }
+   });
+}
+
+void vfm::HighwayImage::paintRoadGraph(
+   const std::shared_ptr<RoadGraph> r_raw,
+   const Vec2D& dim_raw_raw,
+   const std::map<std::string, std::string>& var_vals,
+   const bool print_agent_ids,
+   const float TRANSLATE_X_raw,
+   const float TRANSLATE_Y_raw)
+{
+   auto my_r = PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ ? vfm::test::paintExampleRoadGraphRoundabout(false, r_raw) : r_raw;
+
+   my_r = my_r->copy();
+   my_r->normalizeRoadGraphToEgo();
+   auto old_trans = getHighwayTranslator();
+   const auto all_nodes = my_r->getAllNodes();
+
+   const bool infinite_road{ all_nodes.size() == 1 && my_r->isUnturned() }; // Only a single section, unturned, will be painted as infinite.
+
+   float TRANSLATE_X{ TRANSLATE_X_raw };
+   float TRANSLATE_Y{ TRANSLATE_Y_raw };
+   Vec2D dim_raw{ dim_raw_raw };
+
+   if (infinite_road) {
+      TRANSLATE_X = 0;
+      TRANSLATE_Y = 0;
+      dim_raw = { (float)getWidth(), (float)getHeight() };
+   }
+
+   auto r_ego = my_r->findSectionWithEgoIfAny();
+
+   std::vector<std::shared_ptr<RoadGraph>> all_nodes_ego_in_front{};
+
+   all_nodes_ego_in_front.push_back(r_ego);
+
+   for (const auto r_sub : all_nodes) {
+      if (r_sub != r_ego) all_nodes_ego_in_front.push_back(r_sub);
+   }
+
+   const auto DRAW_STRAIGHT_ROAD_OR_CARS = [this, &all_nodes_ego_in_front, &dim_raw, old_trans, TRANSLATE_X, TRANSLATE_Y, infinite_road, &var_vals, print_agent_ids](const RoadDrawingMode mode) {
+      for (const auto r_sub : all_nodes_ego_in_front) {
+         if (mode == RoadDrawingMode::road && r_sub->isGhost()
+            || mode == RoadDrawingMode::ghosts_only && !r_sub->isGhost()) continue;
+
+         const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
+         preserved_dimension_ = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
+
+         const auto wrapper_trans_function = [this, section_max_lanes, r_sub, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };
+            const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
+            Vec2D v{ plain_2d_translator_->translate({ v_raw.x + origin.x, v_raw.y + origin.y / LANE_WIDTH }) };
+            v.rotate(r_sub->getAngle(), { middle.x, middle.y });
+            auto res = plain_2d_translator_->reverseTranslate(v);
+
+            return {
+               res.x + TRANSLATE_X, 
+               res.y + TRANSLATE_Y,
+               v_raw.z };
+            };
+
+         const auto wrapper_reverse_trans_function = [this, section_max_lanes, r_sub, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+            const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };
+            const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / LANE_WIDTH + (section_max_lanes / 2.0f) - 0.5f });
+
+            Vec2D v{
+               v_raw.x - TRANSLATE_X,
+               v_raw.y - TRANSLATE_Y,
+            };
+
+            v = plain_2d_translator_->translate(v);
+            v.rotate(-r_sub->getAngle(), { middle.x, middle.y });
+            auto res = plain_2d_translator_->reverseTranslate({ v.x, v.y });
+
+            return { res.x - origin.x, res.y - origin.y / LANE_WIDTH, v_raw.z };
+            };
+
+         assert(Vec3D(0, 0, 0).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ 0, 0, 0 }))));
+         assert(Vec3D(0, 0, 0).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ 0, 0, 0 }))));
+         assert(Vec3D(10.3, 11, 5).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ 10.3, 11, 5 }))));
+         assert(Vec3D(10.3, 11, 5).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ 10.3, 11, 5 }))));
+         assert(Vec3D(.3, -11, 3).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ .3, -11, 3 }))));
+         assert(Vec3D(.3, -11, 3).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ .3, -11, 3 }))));
+         assert(Vec3D(-.3, -1.1, 0).isApproxEqual(wrapper_reverse_trans_function(wrapper_trans_function({ -.3, -1.1, 0 }))));
+         assert(Vec3D(-.3, -1.1, 0).isApproxEqual(wrapper_trans_function(wrapper_reverse_trans_function({ -.3, -1.1, 0 }))));
+
+         if (!infinite_road) {
+            const auto wrapper_trans = std::make_shared<HighwayTranslatorWrapper>(
+               old_trans,
+               wrapper_trans_function,
+               wrapper_reverse_trans_function);
+
+            setTranslator(wrapper_trans);
+
+            if (getHighwayTranslator()->is3D()) {
+               const auto wrapper_trans_2d = std::make_shared<HighwayTranslatorWrapper>(
+                  plain_2d_translator_,
+                  wrapper_trans_function,
+                  wrapper_reverse_trans_function);
+               plain_2d_translator_wrapped_ = wrapper_trans_2d;
+            }
+         }
+
+         r_sub->connectors_ = paintStraightRoadScene(
+            r_sub->getMyRoad(),
+            infinite_road,
+            0,
+            var_vals,
+            print_agent_ids,
+            infinite_road ? dim_raw : preserved_dimension_,
+            mode == RoadDrawingMode::ghosts_only ? RoadDrawingMode::road : mode);
+
+         if (!r_sub->isGhost()) writeAsciiText(10, -1, "Sec" + std::to_string(r_sub->getID()));
+      }
+      };
+
+   DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::road);
+
+   if (old_trans->is3D()) {
+      setTranslator(old_trans);
+   }
+   else {
+      setTranslator(std::make_shared<DefaultHighwayTranslator>());
+   }
+
+   //goto label;
+
+   // Draw crossings between sections.
+   const bool topology_only{ true };
+
+   if (topology_only) {
+      paintGraphConnectionsBetweenSections(my_r, old_trans);
+   }
+   else {
+      paintBezierConnectionsBetweenSections(my_r, dim_raw, old_trans);
    }
 
    label:

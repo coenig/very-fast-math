@@ -911,11 +911,11 @@ void MCScene::refreshRarely(void* data)
    auto mc_scene{ static_cast<MCScene*>(data) };
 
    if (mc_scene->logging_output_and_interpreter_->getResult() == EMPTY) {
-      mc_scene->logging_output_and_interpreter_->activate();
+      mc_scene->logging_output_and_interpreter_->readonly(0);
    }
    else {
       if (mc_scene->logging_output_and_interpreter_->getResult() == WAITING) {
-         mc_scene->logging_output_and_interpreter_->deactivate();
+         mc_scene->logging_output_and_interpreter_->readonly(1);
       }
       else {
          std::string result{ mc_scene->logging_output_and_interpreter_->getResult() };
@@ -1394,11 +1394,11 @@ void MCScene::refreshFrequently(void* data)
 
    std::string current_content = StaticHelper::trimAndReturn(static_cast<std::ostringstream*>(ADDITIONAL_LOGGING_PIPE)->str());
    if (!current_content.empty()) {
-      if (mc_scene->logging_output_and_interpreter_->active()) {
-         mc_scene->logging_output_and_interpreter_->appendAndSetCursorToEnd((current_content + "\n").c_str());
+      if (mc_scene->logging_output_and_interpreter_->isReadonly()) {
+         mc_scene->logging_output_and_interpreter_->appendPlain((current_content + "\n").c_str());
       }
       else {
-         mc_scene->logging_output_and_interpreter_->appendPlain((current_content + "\n").c_str());
+         mc_scene->logging_output_and_interpreter_->appendAndSetCursorToEnd((current_content + "\n").c_str());
       }
       
       static_cast<std::ostringstream*>(ADDITIONAL_LOGGING_PIPE)->str("");
