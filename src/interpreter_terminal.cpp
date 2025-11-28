@@ -44,7 +44,7 @@ void vfm::InterpreterTerminal::fool(
    InterpreterTerminal* term,
    const bool only_one_step)
 {
-   term->result_ = macro::Script::processScript(command_str, macro::Script::DataPreparation::none, only_one_step, data, parser, nullptr);
+   term->result_ = macro::Script::processScript(command_str, macro::Script::DataPreparation::none, only_one_step, data, parser, nullptr, macro::Script::SpecialOption::add_default_dynamic_methods);
 }
 
 void vfm::InterpreterTerminal::runCommand(const char* command)
