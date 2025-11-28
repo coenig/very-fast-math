@@ -12,7 +12,7 @@
 using namespace vfm;
 
 InterpreterTerminal::InterpreterTerminal(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser, int X, int Y, int W, int H, const char* L) 
-   : Fl_Text_Editor(X, Y, W, H, L), data_{ data }, parser_{ parser }
+   : EditorForInterpreterTerminal(X, Y, W, H, L), data_{ data }, parser_{ parser }
 {
    buff = new Fl_Text_Buffer();
    buffer(buff);
@@ -59,7 +59,7 @@ void vfm::InterpreterTerminal::runCommand(const char* command)
       output_ << "\n";
       try {
          result_ = WAITING;
-         std::thread t{ fool, command_str, data_, parser_, this, true };
+         std::thread t{ fool, command_str, data_, parser_, this, false };
          t.detach();
       }
       catch (const std::exception& e) {
@@ -77,7 +77,7 @@ void vfm::InterpreterTerminal::expandMultilineScript(const std::string& script, 
    optional_script_ = script;
    last_script_enclosing_begin_tag_ = only_one_step ? BEGIN_TAG_MULTILINE_SCRIPT_SINGLE_STEP : BEGIN_TAG_MULTILINE_SCRIPT;
    last_script_enclosing_end_tag_ = only_one_step ? END_TAG_MULTILINE_SCRIPT_SINGLE_STEP : END_TAG_MULTILINE_SCRIPT;
-   deactivate();
+   readonly(true);
 
    std::thread t{ fool, script, data_, parser_, this, only_one_step };
    t.detach();
