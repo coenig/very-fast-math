@@ -4,6 +4,11 @@
 @{git diff > "@{FULL_GEN_PATH}@.printHeap/git_patch.txt"}@.exec
 
 
+@{
+-- Feasibility
+VAR env.b : boolean;
+}@.if[@{FEASIBILITY}@.eval]
+
 -- Here comes the content stuff.
 --INIT env.veh___609___.lane_1;
 --INIT env.ego_lane_0;
