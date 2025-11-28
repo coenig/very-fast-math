@@ -51,7 +51,7 @@
       "DEBUG": false,
       "DISTANCESCALING": "#{1000}#",
       "EGOLESS": false,
-      "FEASIBILITY": false,
+      "FEASIBILITY": true,
       "KEEP_EGO_FROM_GREEN": true,
       "LANES_MAX_SPEEDS": "@(70)@@(70)@@(0)@",
       "LANES_MIN_SPEEDS": "@(0)@@(-70)@@(-70)@",
@@ -89,7 +89,7 @@
       "ShowLOG": true,
       "TIMESCALING": "#{1000}#",
       "VEHICLE_LENGTH": "#{vehlen}#",
-      "_BP_INCLUDES_FILE_PATH": "../src/examples/feasibility/vfm-includes.txt",
+      "_BP_INCLUDES_FILE_PATH": "../src/examples/ego_less/vfm-includes.txt",
       "_CACHED_PATH": "../examples/tmp",
       "_EXTERNAL_PATH": "../external",
       "_GENERATED_PATH": "../examples/gp"
