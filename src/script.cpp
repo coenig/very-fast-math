@@ -653,18 +653,29 @@ void vfm::macro::Script::addDefaultDynamicMathods()
 {
    getScriptData().inscriptMethodDefinitions.insert({ "fib", R"(@{
 @(#0#)@
-@(@{@{@{#0#}@*.sub[1].fib}@*}@.add[@{#0#}@*.sub[2].fib])@
-}@**.if[@{}@.smeq[#0#, 1]])"});
+@(@{@{@{#0#}@*.subI[1].fib}@*}@.addI[@{#0#}@*.subI[2].fib])@
+}@**.if[@{}@.smeqI[#0#, 1]])"});
    getScriptData().inscriptMethodParNums.insert({ "fib", 0 });
    getScriptData().inscriptMethodParPatterns.insert({ "fib", INSCRIPT_STANDARD_PARAMETER_PATTERN });
 
    getScriptData().inscriptMethodDefinitions.insert({ "fibfast", R"(@{
 @(#0#)@
 @(@{#0#.fibfast}@.sethard[
-@{@{@{@{#0#}@*.sub[1]}@*.fibfast}@*}@.add[@{@{#0#}@*.sub[2]}@*.fibfast]])@
-}@**.if[@{}@.smeq[#0#, 1]])"});
+@{@{@{@{#0#}@*.subI[1]}@*.fibfast}@*}@.addI[@{@{#0#}@*.subI[2]}@*.fibfast]])@
+}@**.if[@{}@.smeqI[#0#, 1]])"});
    getScriptData().inscriptMethodParNums.insert({ "fibfast", 0 });
    getScriptData().inscriptMethodParPatterns.insert({ "fibfast", INSCRIPT_STANDARD_PARAMETER_PATTERN });
+
+   std::stringstream s{};
+   std::vector<std::string> method_names{};
+
+   for (const auto& method : getScriptData().inscriptMethodDefinitions) {
+      method_names.push_back(method.first);
+   }
+
+   s << method_names;
+
+   addNote("The following default dynamic methods have been added to the script processor: " + s.str() + ".");
 }
 
 std::vector<std::string> Script::getMethodParameters(const std::string& conversionTag)
@@ -1373,14 +1384,25 @@ void Script::createInstanceFromScript(const std::string& code)
    processSequence(code, scriptSequence_);
 }
 
-std::string Script::evalItAll(const std::string& n1Str, const std::string& n2Str, const std::function<float(float n1, float n2)> eval) {
+std::string Script::evalItAllF(const std::string& n1Str, const std::string& n2Str, const std::function<float(float n1, float n2)> eval) {
    if (!StaticHelper::isParsableAsFloat(n1Str) || !StaticHelper::isParsableAsFloat(n2Str)) {
-      addError("Operand '" + n1Str + "' and/or '" + n2Str + "' cannot be parsed to float/int.");
+      addError("Operand '" + n1Str + "' and/or '" + n2Str + "' cannot be parsed to float.");
       return "0";
    }
 
    float n1 = std::stof(n1Str);
    float n2 = std::stof(n2Str);
+   return std::to_string(eval(n1, n2));
+}
+
+std::string Script::evalItAllI(const std::string& n1Str, const std::string& n2Str, const std::function<long long(long long n1, long long n2)> eval) {
+   if (!StaticHelper::isParsableAsInt(n1Str) || !StaticHelper::isParsableAsInt(n2Str)) {
+      addError("Operand '" + n1Str + "' and/or '" + n2Str + "' cannot be parsed to int.");
+      return "0";
+   }
+
+   long long n1 = std::stoll(n1Str);
+   long long n2 = std::stoll(n2Str);
    return std::to_string(eval(n1, n2));
 }
 
