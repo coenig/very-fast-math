@@ -1056,7 +1056,6 @@ private:
    std::vector<VariableScaleDescription> variables_{};
 };
 
-} // vfm
 
 template <typename T>
 std::ostream& operator<< (std::ostream& out, const std::vector<T>& v) {
@@ -1077,6 +1076,7 @@ std::ostream& operator<< (std::ostream& out, const std::set<T>& v) {
    }
    return out;
 }
+} // vfm
 
 template<typename S>
 auto selectRandom(const S& s) {
