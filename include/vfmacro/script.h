@@ -217,7 +217,6 @@ public:
    /// @param code  The raw code to process.
    void processSequence(const std::string& code, std::vector<std::string>& script_sequence);
    void createInstanceFromScript(const std::string& code);
-   std::shared_ptr<Script> getRepresentableAsPDF();
    std::string evalItAllF(const std::string& n1Str, const std::string& n2Str, const std::function<float(float n1, float n2)> eval);
    std::string evalItAllI(const std::string& n1Str, const std::string& n2Str, const std::function<long long(long long n1, long long n2)> eval);
 
