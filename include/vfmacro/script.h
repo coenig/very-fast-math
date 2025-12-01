@@ -232,12 +232,12 @@ public:
       getScriptData().method_part_begins_[getTagFreeRawScript()].result_ = value; return value; 
    }
 
-   std::string exsmeq(const std::string& n1Str, const std::string& n2Str) { return evalItAllF(n1Str, n2Str, [](float a, float b) { return a <= b; }); }
-   std::string exsm(const std::string& n1Str, const std::string& n2Str) { return evalItAllF(n1Str, n2Str, [](float a, float b) { return a < b; }); }
-   std::string exgreq(const std::string& n1Str, const std::string& n2Str) { return evalItAllF(n1Str, n2Str, [](float a, float b) { return a >= b; }); }
-   std::string exgr(const std::string& n1Str, const std::string& n2Str) { return evalItAllF(n1Str, n2Str, [](float a, float b) { return a > b; }); }
-   std::string exeq(const std::string& n1Str, const std::string& n2Str) { return evalItAllF(n1Str, n2Str, [](float a, float b) { return a == b; }); }
-   std::string exneq(const std::string& n1Str, const std::string& n2Str) { return evalItAllF(n1Str, n2Str, [](float a, float b) { return a != b; }); }
+   std::string exsmeq(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a <= b; }); }
+   std::string exsm(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a < b; }); }
+   std::string exgreq(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a >= b; }); }
+   std::string exgr(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a > b; }); }
+   std::string exeq(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a == b; }); }
+   std::string exneq(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a != b; }); }
    std::string exadd(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a + b; }); }
    std::string exsub(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a - b; }); }
    std::string exmult(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a * b; }); }
@@ -245,12 +245,12 @@ public:
    std::string expow(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return std::pow(a, b); }); }
    std::string exmod(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return (int) a % (int) b; }); }
 
-   std::string exsmeqI(const std::string& n1Str, const std::string& n2Str) { return evalItAllI(n1Str, n2Str, [](long long a, long long b) { return a <= b; }); }
-   std::string exsmI(const std::string& n1Str, const std::string& n2Str) { return evalItAllI(n1Str, n2Str, [](long long a, long long b) { return a < b; }); }
-   std::string exgreqI(const std::string& n1Str, const std::string& n2Str) { return evalItAllI(n1Str, n2Str, [](long long a, long long b) { return a >= b; }); }
-   std::string exgrI(const std::string& n1Str, const std::string& n2Str) { return evalItAllI(n1Str, n2Str, [](long long a, long long b) { return a > b; }); }
-   std::string exeqI(const std::string& n1Str, const std::string& n2Str) { return evalItAllI(n1Str, n2Str, [](long long a, long long b) { return a == b; }); }
-   std::string exneqI(const std::string& n1Str, const std::string& n2Str) { return evalItAllI(n1Str, n2Str, [](long long a, long long b) { return a != b; }); }
+   std::string exsmeqI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a <= b; }); }
+   std::string exsmI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a < b; }); }
+   std::string exgreqI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a >= b; }); }
+   std::string exgrI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a > b; }); }
+   std::string exeqI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a == b; }); }
+   std::string exneqI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a != b; }); }
    std::string exaddI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a + b; }); }
    std::string exsubI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a - b; }); }
    std::string exmultI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a * b; }); }
@@ -745,24 +745,24 @@ private:
       }
    };
 
-   ScriptMethodDescription arith01f{ "smeq", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exsmeq(parameters.at(0), parameters.at(1)); } };
-   ScriptMethodDescription arith02f{ "sm", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exsm(parameters.at(0), parameters.at(1)); } };
-   ScriptMethodDescription arith03f{ "greq", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exgreq(parameters.at(0), parameters.at(1)); } };
-   ScriptMethodDescription arith04f{ "gr", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exgr(parameters.at(0), parameters.at(1)); } };
-   ScriptMethodDescription arith05f{ "eq", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exeq(parameters.at(0), parameters.at(1)); } };
-   ScriptMethodDescription arith06f{ "neq", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exneq(parameters.at(0), parameters.at(1)); } };
+   ScriptMethodDescription arith01f{ "smeq", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsmeq(parameters.at(0)); } };
+   ScriptMethodDescription arith02f{ "sm", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsm(parameters.at(0)); } };
+   ScriptMethodDescription arith03f{ "greq", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exgreq(parameters.at(0)); } };
+   ScriptMethodDescription arith04f{ "gr", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exgr(parameters.at(0)); } };
+   ScriptMethodDescription arith05f{ "eq", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exeq(parameters.at(0)); } };
+   ScriptMethodDescription arith06f{ "neq", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exneq(parameters.at(0)); } };
    ScriptMethodDescription arith07f{ "add", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exadd(parameters.at(0)); } };
    ScriptMethodDescription arith08f{ "sub", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsub(parameters.at(0)); } };
    ScriptMethodDescription arith09f{ "mult", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmult(parameters.at(0)); } };
    ScriptMethodDescription arith10f{ "div", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exdiv(parameters.at(0)); } };
    ScriptMethodDescription arith11f{ "pow", 1, [this](const std::vector<std::string>& parameters) -> std::string { return expow(parameters.at(0)); } };
    ScriptMethodDescription arith12f{ "mod", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmod(parameters.at(0)); } };
-   ScriptMethodDescription arith01i{ "smeqI", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exsmeqI(parameters.at(0), parameters.at(1)); } };
-   ScriptMethodDescription arith02i{ "smI", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exsmI(parameters.at(0), parameters.at(1)); } };
-   ScriptMethodDescription arith03i{ "greqI", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exgreqI(parameters.at(0), parameters.at(1)); } };
-   ScriptMethodDescription arith04i{ "grI", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exgrI(parameters.at(0), parameters.at(1)); } };
-   ScriptMethodDescription arith05i{ "eqI", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exeqI(parameters.at(0), parameters.at(1)); } };
-   ScriptMethodDescription arith06i{ "neqI", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exneqI(parameters.at(0), parameters.at(1)); } };
+   ScriptMethodDescription arith01i{ "smeqI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsmeqI(parameters.at(0)); } };
+   ScriptMethodDescription arith02i{ "smI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsmI(parameters.at(0)); } };
+   ScriptMethodDescription arith03i{ "greqI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exgreqI(parameters.at(0)); } };
+   ScriptMethodDescription arith04i{ "grI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exgrI(parameters.at(0)); } };
+   ScriptMethodDescription arith05i{ "eqI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exeqI(parameters.at(0)); } };
+   ScriptMethodDescription arith06i{ "neqI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exneqI(parameters.at(0)); } };
    ScriptMethodDescription arith07i{ "addI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exaddI(parameters.at(0)); } };
    ScriptMethodDescription arith08i{ "subI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsubI(parameters.at(0)); } };
    ScriptMethodDescription arith09i{ "multI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmultI(parameters.at(0)); } };

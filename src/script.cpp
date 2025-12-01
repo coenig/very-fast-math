@@ -640,7 +640,7 @@ void vfm::macro::Script::addDefaultDynamicMathods()
    getScriptData().inscriptMethodDefinitions.insert({ "fib", R"(@{
 @(#0#)@
 @(@{@{@{#0#}@*.subI[1].fib}@*}@.addI[@{#0#}@*.subI[2].fib])@
-}@**.if[@{}@.smeqI[#0#, 1]])"});
+}@**.if[@{#0#}@.smeqI[1]])"});
    getScriptData().inscriptMethodParNums.insert({ "fib", 0 });
    getScriptData().inscriptMethodParPatterns.insert({ "fib", INSCRIPT_STANDARD_PARAMETER_PATTERN });
 
@@ -648,7 +648,7 @@ void vfm::macro::Script::addDefaultDynamicMathods()
 @(#0#)@
 @(@{#0#.fibfast}@.sethard[
 @{@{@{@{#0#}@*.subI[1]}@*.fibfast}@*}@.addI[@{@{#0#}@*.subI[2]}@*.fibfast]])@
-}@**.if[@{}@.smeqI[#0#, 1]])"});
+}@**.if[@{#0#}@.smeqI[1]])"});
    getScriptData().inscriptMethodParNums.insert({ "fibfast", 0 });
    getScriptData().inscriptMethodParPatterns.insert({ "fibfast", INSCRIPT_STANDARD_PARAMETER_PATTERN });
 

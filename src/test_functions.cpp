@@ -239,7 +239,7 @@ const auto TEST_SCRIPT_EXPANSION = [](const std::set<std::set<std::string>>& ope
 @{@{
 @(#0#)@
 @(@{@{@{#0#}@*.sub[1].fib}@*}@.add[@{#0#}@*.sub[2].fib])@
-}@**.if[@{}@.smeq[#0#, 1]]}@***.newMethod[fib, 0]
+}@**.if[@{#0#}@.smeq[1]]}@***.newMethod[fib, 0]
 
 ~{@{$}@.fib \0}~
 )", "$", std::to_string(rand1));
@@ -249,7 +249,7 @@ const auto TEST_SCRIPT_EXPANSION = [](const std::set<std::set<std::string>>& ope
 @(#0#)@
 @(@{#0#.fibfast}@.sethard[
 @{@{@{@{#0#}@*.sub[1]}@*.fibfast}@*}@.add[@{@{#0#}@*.sub[2]}@*.fibfast]])@
-}@**.if[@{}@.smeq[#0#, 1]]}@***.newMethod[fibfast, 0]
+}@**.if[@{#0#}@.smeq[1]]}@***.newMethod[fibfast, 0]
 
 ~{@{$}@.fibfast \0}~
 )", "$", std::to_string(rand2));
