@@ -292,12 +292,6 @@ public:
 private:
    bool isCachableChain(const std::vector<std::string>& method_chain) const;
 
-   /// If you try to avoid assigning the parameter,
-   /// be careful, it's not as simple as it seems.
-   static std::string createDummyrep(
-      const std::string& processed,
-      RepresentableAsPDF repToProcess);
-
    /// In a String *EXPR*.m1[p11, p12, ...].m2[p21, p22, ...].m3[...]...
    /// extract the *EXPR* part. *EXPR* is determined by cutting off from position x
    /// which is the position of the first dot "." after which only alpha-numeric

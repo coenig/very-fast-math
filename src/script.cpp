@@ -196,14 +196,7 @@ std::string Script::evaluateChain(const std::string& chain)
 
       if (!methodBegin) { // Possibly regular script.
          repToProcess = repfactory_instanceFromScript(repPart);
-
-         if (!repToProcess) { // String is no script, but plain expression.
-            repToProcess = std::make_shared<Script>(vfm_data_, vfm_parser_);
-            processedChain = createDummyrep(processedChain, repToProcess);
-         }
-         else {
-            processedChain = processedChain.substr(repPart.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length());
-         }
+         processedChain = processedChain.substr(repPart.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length());
       }
       else { // Treat as plain text.
          repToProcess = std::make_shared<Script>(vfm_data_, vfm_parser_);
@@ -224,14 +217,7 @@ std::string Script::evaluateChain(const std::string& chain)
       }
       else { // Assume whole string is expression without method calls.
          repToProcess = repfactory_instanceFromScript(processedChain);
-
-         if (!repToProcess) { // String is no script, but plain expression.
-            repToProcess = std::make_shared<Script>(vfm_data_, vfm_parser_);
-            processedChain = createDummyrep(processedChain, repToProcess);
-         }
-         else {
-            processedChain = "";
-         }
+         processedChain = "";
       }
    }
 
@@ -1111,22 +1097,6 @@ RepresentableAsPDF vfm::macro::Script::repfactory_instanceFromScript(const std::
    addFailableChild(dummy, "");
    dummy->createInstanceFromScript(script);
    return dummy;
-}
-
-std::string vfm::macro::Script::createDummyrep(const std::string& processed_raw, RepresentableAsPDF repToProcess)
-{
-   std::string processed;
-   repToProcess->createInstanceFromScript(processed);
-   std::string extract_expression_part = extractExpressionPart(processed);
-   repToProcess->createInstanceFromScript(extract_expression_part);
-
-   processed = processed.substr(extract_expression_part.length());
-
-   if (StaticHelper::stringStartsWith(processed, METHOD_CHAIN_SEPARATOR)) {
-      processed = processed.substr(METHOD_CHAIN_SEPARATOR.length());
-   }
-
-   return processed;
 }
 
 std::string Script::extractExpressionPart(const std::string& chain2)
