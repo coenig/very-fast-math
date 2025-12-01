@@ -4,9 +4,9 @@
 -- TODO: This is a workaround to add a dot when using methods...
 @{#0#.#1#}@**.newMethod[dot,1]
 
-@{@{#0#}@.car.dot[traversing_to]}@**.newMethod[to, 0]
+@{@{#0#}@.car.dot[traversion_to]}@**.newMethod[to, 0]
 
-@{@{#0#}@.car.dot[traversing_from]}@**.newMethod[from, 0]
+@{@{#0#}@.car.dot[traversion_from]}@**.newMethod[from, 0]
 @{@{#0#}@.car.dot[on_straight_section]}@**.newMethod[sec, 0]
 
 @{outgoing_connection_#1#_of_section_#0#}@**.newMethod[outconn, 1]
