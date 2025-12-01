@@ -58,7 +58,7 @@ struct ScriptData {
       reset();
    }
 
-   std::map<std::string, std::shared_ptr<macro::Script>> known_chains_{};
+   std::map<std::string, std::string> known_chains_{};
    std::map<std::string, std::string> PLACEHOLDER_MAPPING{};
    std::map<std::string, std::string> PLACEHOLDER_INVERSE_MAPPING{};
    std::map<std::string, std::string> inscriptMethodDefinitions{};

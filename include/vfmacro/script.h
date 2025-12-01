@@ -333,10 +333,8 @@ private:
    ///                    or "this", and m1, m2, ... are method signatures.
    /// @param father      The rep {@code this} is a sub-script of.
    ///
-   /// @return  A representable with the methods applied. Can return <code>null
-   ///          </code> when the chain is not valid (e.g. when starting with a
-   ///          variable).
-   std::shared_ptr<Script> evaluateChain(const std::string& chain);
+   /// @return  The evaluated script as string.
+   std::string evaluateChain(const std::string& chain);
 
    /// Goes through the current version of
    /// {@link RepresentableDefault#processedScript} and replaces

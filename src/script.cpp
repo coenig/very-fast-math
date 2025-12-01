@@ -123,8 +123,7 @@ void Script::extractInscriptProcessors(const bool only_one_step)
                });
          }
 
-         RepresentableAsPDF result = evaluateChain(preprocessorScript);
-         placeholder_for_inscript = result->getRawScript();
+         placeholder_for_inscript = evaluateChain(preprocessorScript);
          getScriptData().method_part_begins_[trimmed].result_ = placeholder_for_inscript;
       }
 
@@ -166,7 +165,7 @@ std::string Script::checkForPlainTextTags(const std::string& script)
    return script2;
 }
 
-RepresentableAsPDF Script::evaluateChain(const std::string& chain)
+std::string Script::evaluateChain(const std::string& chain)
 {
    std::string processedChain{ StaticHelper::trimAndReturn(chain) };
    std::string processedRaw{ processedChain };
@@ -242,14 +241,14 @@ RepresentableAsPDF Script::evaluateChain(const std::string& chain)
    bool chachable{ isCachableChain(methodSignaturesArray) && processedRaw.size() <= MAXIMUM_STRING_SIZE_TO_CACHE };
 
    if (StaticHelper::isEmptyExceptWhiteSpaces(processedChain)) {
-      if (chachable) getScriptData().known_chains_[processedRaw] = repToProcess;
-      return repToProcess;
+      if (chachable) getScriptData().known_chains_[processedRaw] = repToProcess->getRawScript();
+      return repToProcess->getRawScript();
    }
 
    RepresentableAsPDF apply_method_chain = applyMethodChain(repToProcess, methodSignaturesArray);
-   if (chachable) getScriptData().known_chains_[processedRaw] = apply_method_chain;
+   if (chachable) getScriptData().known_chains_[processedRaw] = apply_method_chain->getRawScript();
 
-   return apply_method_chain;
+   return apply_method_chain->getRawScript();
 }
 
 /**
@@ -812,8 +811,7 @@ std::vector<std::string> Script::getParametersFor(const std::vector<std::string>
    parameters.resize(rawPars.size());
 
    for (int i = 0; i < rawPars.size(); i++) {
-      RepresentableAsPDF processedPar = evaluateChain(rawPars[i]);
-      parameters[i] = processedPar->getRawScript();
+      parameters[i] = evaluateChain(rawPars[i]);
    }
 
    return parameters;
