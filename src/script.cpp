@@ -14,6 +14,7 @@
 #include "simulation/env2d_simple.h"
 #include "simulation/highway_translators.h"
 #include <cmath>
+#include <sstream>
 
 
 using namespace vfm;
@@ -1419,26 +1420,45 @@ std::string vfm::macro::Script::processScript(
    const std::shared_ptr<Failable> father_failable,
    const SpecialOption option)
 {
+
    auto data = data_raw;
+   std::vector<std::string> messages{};
+   std::stringstream strstr{};
 
    if (data) {
+      messages.push_back("DataPack received");
+
       if (data_prep == DataPreparation::copy_data_pack_before_run || data_prep == DataPreparation::both) {
+         messages.push_back("using new DataPack with data copied from the old one");
          data = std::make_shared<DataPack>();
          data->initializeValuesBy(data_raw);
       }
+      else {
+         messages.push_back("using existing DataPack (not a copy)");
+      }
 
       if (data_prep == DataPreparation::reset_script_data_before_run || data_prep == DataPreparation::both) {
+         messages.push_back("resetting script data");
          data->getScriptData().reset();
       }
+      else {
+         messages.push_back("keeping script data");
+      }
+   }
+   else {
+      messages.push_back("no DataPack received - creating a fresh one");
    }
 
+   if (!messages.empty()) strstr << " <Notes: " << messages << ">";
+
    auto s = std::make_shared<Script>(data, parser);
+   s->addNote("Processing script." + strstr.str());
    
    if (father_failable) {
       father_failable->addFailableChild(s);
    }
 
-   s->addNote("Processing script. Variable '" + MY_PATH_VARNAME + "' is set to '" + s->getMyPath() + "'.");
+   s->addNote("Variable '" + MY_PATH_VARNAME + "' is set to '" + s->getMyPath() + "'.");
 
    if (option == SpecialOption::add_default_dynamic_methods) {
       s->addDefaultDynamicMathods();
