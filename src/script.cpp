@@ -247,12 +247,12 @@ std::string Script::evaluateChain(const std::string& chain)
    bool chachable{ isCachableChain(methodSignaturesArray) && processedRaw.size() <= MAXIMUM_STRING_SIZE_TO_CACHE };
 
    if (StaticHelper::isEmptyExceptWhiteSpaces(processedChain)) {
-      if (chachable) getScriptData().known_chains_[processedRaw] = repToProcess->getRawScript();
+      if (chachable) getScriptData().known_chains_[processedRaw] = repToProcess->getRawScript(); // TODO: It might be inefficient to copy the string here.
       return repToProcess->getRawScript();
    }
 
    RepresentableAsPDF apply_method_chain = applyMethodChain(repToProcess, methodSignaturesArray);
-   if (chachable) getScriptData().known_chains_[processedRaw] = apply_method_chain->getRawScript();
+   if (chachable) getScriptData().known_chains_[processedRaw] = apply_method_chain->getRawScript(); // TODO: It might be inefficient to copy the string here.
 
    return apply_method_chain->getRawScript();
 }
