@@ -51,7 +51,7 @@ static const std::string END_TAG_FOR_NESTED_VARIABLES = "}~)~]";
 
 static const std::string INSCR_BEG_TAG = "@{";
 static const std::string INSCR_END_TAG = "}@";
-static const char INSCR_PRIORITY_SYMB = '*';
+static constexpr char INSCR_PRIORITY_SYMB = '*';
 
 static const std::string FIRST_LETTER_END = INSCR_END_TAG.substr(0, 1);
 static const std::string LAST_LETTER_BEG = INSCR_BEG_TAG.substr(INSCR_BEG_TAG.length() - 1);
@@ -150,8 +150,6 @@ public:
    /// @param only_one_step  Iff only one step of preprocessor application is to be performed.
    /// @return  Debug code if requested, <code>null</code> otherwise.
    void applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step);
-
-   std::shared_ptr<Script> copy() const;
 
    std::string getProcessedScript() const;
    std::string getRawScript() const;
@@ -731,7 +729,7 @@ private:
       [this](const std::vector<std::string>& parameters) -> std::string
       {
          getScriptData().reset();
-         return "";
+         return "Script data has been reset. (vfm data remains untouched.)";
       }
    };
 
@@ -741,7 +739,7 @@ private:
       [this](const std::vector<std::string>& parameters) -> std::string
       {
          vfm_data_->reset();
-         return "";
+         return "All data has been reset.";
       }
    };
 

@@ -52,9 +52,20 @@ vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shar
    putPlaceholderMapping(EXPR_END_TAG_AFTER);
 }
 
+int findLongestChainOfPrioritySymbols(const std::string& sub_script)
+{
+   std::string s{};
+
+   while (StaticHelper::stringContains(sub_script, INSCR_END_TAG + s + INSCR_PRIORITY_SYMB)) {
+      s += INSCR_PRIORITY_SYMB; // TODO: This is not the most efficient way to do it. At least remember where you were and don't start from top every time.
+   }
+
+   return s.size();
+}
+
 void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step)
 {
-   raw_script_ = codeRaw2; // Nothing is done to rawScript code.
+   raw_script_ = codeRaw2;
 
    if (codeRaw2.empty()) {
       processed_script_ = "";
@@ -124,6 +135,15 @@ void Script::extractInscriptProcessors(const bool only_one_step)
          }
 
          placeholder_for_inscript = evaluateChain(preprocessorScript);
+
+         if (StaticHelper::stringContains(placeholder_for_inscript, INSCR_BEG_TAG)) {
+            // @{@{i}@.eval}@*.for[i, 1, 10]
+            // TODO: Just a test. Cannot be efficient...
+            // Remove this whole IF clause to undo.
+            // Should be safe, though, as long as the inner script's effects are local, i.e., don't change anything outside it's @{...}@ borders.
+            placeholder_for_inscript = processScript(placeholder_for_inscript, DataPreparation::none, false, vfm_data_, vfm_parser_, shared_from_this(), SpecialOption::none);
+         }
+
          getScriptData().method_part_begins_[trimmed].result_ = placeholder_for_inscript;
       }
 
@@ -819,12 +839,8 @@ std::string Script::getConversionTag(const std::string& scriptWithoutComments)
 
 int Script::findNextInscriptPos()
 {
-   std::string s{};
-   while (StaticHelper::stringContains(processed_script_, INSCR_END_TAG + s + INSCR_PRIORITY_SYMB)) {
-      s += INSCR_PRIORITY_SYMB;
-   }
-
-   int pos = processed_script_.find(INSCR_END_TAG + s);
+   int length_of_longest_priority_chain{ findLongestChainOfPrioritySymbols(processed_script_)};
+   int pos = processed_script_.find(INSCR_END_TAG + std::string(length_of_longest_priority_chain, INSCR_PRIORITY_SYMB));
    int count = 0;               // Because we start on an end tag.
 
    for (int i = pos; i >= 0; i--) {
@@ -839,7 +855,7 @@ int Script::findNextInscriptPos()
       if (count == 0) {
          int starPos = pos + INSCR_END_TAG.length();
          processed_script_ = processed_script_.substr(0, starPos)
-            + processed_script_.substr(starPos + s.length());
+            + processed_script_.substr(starPos + length_of_longest_priority_chain);
 
          return i;
       }
@@ -1075,20 +1091,6 @@ std::string vfm::macro::Script::getRawScript() const
 void vfm::macro::Script::setRawScript(const std::string& script)
 {
    raw_script_ = script;
-}
-
-RepresentableAsPDF vfm::macro::Script::copy() const
-{
-   auto copy_script = std::make_shared<Script>(vfm_data_, vfm_parser_);
-
-   addFailableChild(copy_script, "");
-
-   copy_script->raw_script_ = raw_script_;
-   copy_script->processed_script_ = processed_script_;
-   copy_script->getScriptData().method_part_begins_ = getScriptData().method_part_begins_;
-   copy_script->scriptSequence_ = scriptSequence_;
-
-   return copy_script;
 }
 
 RepresentableAsPDF vfm::macro::Script::repfactory_instanceFromScript(const std::string& script)
@@ -1379,63 +1381,6 @@ std::string Script::getTagFreeRawScript() {
    return StaticHelper::replaceManyTimes(getRawScript(), { INSCR_BEG_TAG, INSCR_END_TAG }, { "", "" });
 }
 
-std::string vfm::macro::Script::processScript(
-   const std::string& text,
-   const DataPreparation data_prep,
-   const bool only_one_step,
-   const std::shared_ptr<DataPack> data_raw,
-   const std::shared_ptr<FormulaParser> parser,
-   const std::shared_ptr<Failable> father_failable,
-   const SpecialOption option)
-{
-
-   auto data = data_raw;
-   std::vector<std::string> messages{};
-   std::stringstream strstr{};
-
-   if (data) {
-      messages.push_back("DataPack received");
-
-      if (data_prep == DataPreparation::copy_data_pack_before_run || data_prep == DataPreparation::both) {
-         messages.push_back("using new DataPack with data copied from the old one");
-         data = std::make_shared<DataPack>();
-         data->initializeValuesBy(data_raw);
-      }
-      else {
-         messages.push_back("using existing DataPack (not a copy)");
-      }
-
-      if (data_prep == DataPreparation::reset_script_data_before_run || data_prep == DataPreparation::both) {
-         messages.push_back("resetting script data");
-         data->getScriptData().reset();
-      }
-      else {
-         messages.push_back("keeping script data");
-      }
-   }
-   else {
-      messages.push_back("no DataPack received - creating a fresh one");
-   }
-
-   if (!messages.empty()) strstr << " <Notes: " << messages << ">";
-
-   auto s = std::make_shared<Script>(data, parser);
-   s->addNote("Processing script." + strstr.str());
-   
-   if (father_failable) {
-      father_failable->addFailableChild(s);
-   }
-
-   s->addNote("Variable '" + MY_PATH_VARNAME + "' is set to '" + s->getMyPath() + "'.");
-
-   if (option == SpecialOption::add_default_dynamic_methods) {
-      s->addDefaultDynamicMathods();
-   }
-
-   s->applyDeclarationsAndPreprocessors(text, only_one_step);
-   return s->getProcessedScript();
-}
-
 std::string vfm::macro::Script::connectRoadGraphTo(const std::string& id2_str)
 {
    if (!StaticHelper::isParsableAsFloat(getRawScript())) {
@@ -1551,4 +1496,61 @@ std::string vfm::macro::Script::createRoadGraph(const std::string& id)
    else {
       return "#PARSING-ERROR";
    }
+}
+
+std::string vfm::macro::Script::processScript(
+   const std::string& text,
+   const DataPreparation data_prep,
+   const bool only_one_step,
+   const std::shared_ptr<DataPack> data_raw,
+   const std::shared_ptr<FormulaParser> parser,
+   const std::shared_ptr<Failable> father_failable,
+   const SpecialOption option)
+{
+
+   auto data = data_raw;
+   std::vector<std::string> messages{};
+   std::stringstream strstr{};
+
+   if (data) {
+      messages.push_back("DataPack received");
+
+      if (data_prep == DataPreparation::copy_data_pack_before_run || data_prep == DataPreparation::both) {
+         messages.push_back("using new DataPack with data copied from the old one");
+         data = std::make_shared<DataPack>();
+         data->initializeValuesBy(data_raw);
+      }
+      else {
+         messages.push_back("using existing DataPack (not a copy)");
+      }
+
+      if (data_prep == DataPreparation::reset_script_data_before_run || data_prep == DataPreparation::both) {
+         messages.push_back("resetting script data");
+         data->getScriptData().reset();
+      }
+      else {
+         messages.push_back("keeping script data");
+      }
+   }
+   else {
+      messages.push_back("no DataPack received - creating a fresh one");
+   }
+
+   if (!messages.empty()) strstr << " <Notes: " << messages << ">";
+
+   auto s = std::make_shared<Script>(data, parser);
+   s->addNote("Processing script." + strstr.str());
+
+   if (father_failable) {
+      father_failable->addFailableChild(s);
+   }
+
+   s->addNote("Variable '" + MY_PATH_VARNAME + "' is set to '" + s->getMyPath() + "'.");
+
+   if (option == SpecialOption::add_default_dynamic_methods) {
+      s->addDefaultDynamicMathods();
+   }
+
+   s->applyDeclarationsAndPreprocessors(text, only_one_step);
+   return s->getProcessedScript();
 }
