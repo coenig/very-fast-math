@@ -63,7 +63,7 @@ int findLongestChainOfPrioritySymbols(const std::string& sub_script)
    return s.size();
 }
 
-void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step)
+void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step, const bool only_cachable)
 {
    raw_script_ = codeRaw2;
 
@@ -75,7 +75,7 @@ void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2, cons
    std::string codeRaw = inferPlaceholdersForPlainText(codeRaw2);                              // Secure plain-text parts.
    processed_script_ = evaluateAll(codeRaw, EXPR_BEG_TAG_BEFORE, EXPR_END_TAG_BEFORE);         // Evaluate expressions BEFORE run.
 
-   extractInscriptProcessors(only_one_step);                                                   // DO THE ACTUAL THING.
+   extractInscriptProcessors(only_one_step, only_cachable);                                    // DO THE ACTUAL THING.
 
    processed_script_ = undoPlaceholdersForPlainText(processed_script_);                        // Undo placeholder securing.
    processed_script_ = StaticHelper::replaceAll(processed_script_, NOP_SYMBOL, "");            // Clear all NOP symbols from script.
@@ -87,7 +87,7 @@ std::string vfm::macro::Script::getProcessedScript() const
    return processed_script_;
 }
 
-void Script::extractInscriptProcessors(const bool only_one_step)
+void Script::extractInscriptProcessors(const bool only_one_step, const bool only_cachable)
 {
    // Find next preprocessor.
    int indexOfPrep = findNextInscriptPos();
@@ -118,30 +118,36 @@ void Script::extractInscriptProcessors(const bool only_one_step)
       else {
          getScriptData().cache_misses_++;
          std::vector<std::string> methodSignaturesArray = getMethodSinaturesFromChain(methods); // TODO: Done twice for each subscript. Is this expensive?
+         bool is_this_cachable{ isCachableChain(methodSignaturesArray) };
+
+         if (!is_this_cachable && only_cachable) {
+            return; // TODO: No need to actually return, but continuing requires ignoring this script in future iterations.
+         }
 
          if (methodPartBegin != preprocessorScript.length() && methodPartBegin >= 0) {
             int leftTrim = preprocessorScript.size() - StaticHelper::ltrimAndReturn(preprocessorScript).size();
 
             getScriptData().method_part_begins_.insert({
                trimmed,
-               { methodPartBegin - leftTrim, placeholder_for_inscript, isCachableChain(methodSignaturesArray) }
+               { methodPartBegin - leftTrim, placeholder_for_inscript, is_this_cachable }
                });
          }
          else {
             getScriptData().method_part_begins_.insert({
                trimmed,
-               { -1, placeholder_for_inscript, isCachableChain(methodSignaturesArray) }
+               { -1, placeholder_for_inscript, is_this_cachable }
                });
          }
 
          placeholder_for_inscript = evaluateChain(preprocessorScript);
 
-         if (StaticHelper::stringContains(placeholder_for_inscript, INSCR_BEG_TAG)) {
+         if (getScriptData().method_part_begins_[trimmed].cachable_ 
+            && StaticHelper::stringContains(placeholder_for_inscript, INSCR_BEG_TAG)
+            && !StaticHelper::stringContains(partBefore, INSCR_BEG_TAG)) {
             // @{@{i}@.eval}@*.for[i, 1, 10]
             // TODO: Just a test. Cannot be efficient...
             // Remove this whole IF clause to undo.
-            // Should be safe, though, as long as the inner script's effects are local, i.e., don't change anything outside it's @{...}@ borders.
-            placeholder_for_inscript = processScript(placeholder_for_inscript, DataPreparation::none, false, vfm_data_, vfm_parser_, shared_from_this(), SpecialOption::none);
+            placeholder_for_inscript = processScript(placeholder_for_inscript, DataPreparation::none, false, vfm_data_, vfm_parser_, shared_from_this(), SpecialOption::only_cachable);
          }
 
          getScriptData().method_part_begins_[trimmed].result_ = placeholder_for_inscript;
@@ -1551,6 +1557,6 @@ std::string vfm::macro::Script::processScript(
       s->addDefaultDynamicMathods();
    }
 
-   s->applyDeclarationsAndPreprocessors(text, only_one_step);
+   s->applyDeclarationsAndPreprocessors(text, only_one_step, option == SpecialOption::only_cachable);
    return s->getProcessedScript();
 }

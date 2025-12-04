@@ -44,7 +44,7 @@ const static std::set<std::string> UNCACHABLE_METHODS_BASE{
       "listElement", "clearList", "asArray", "printList", "printLists", "pushBack", "openWithOS",
       "readFile", "executeSystemCommand", "exec", "writeTextToFile", "timestamp", "vfm_variable_declared", "vfm_variable_undeclared",
       "createRoadGraph", "storeRoadGraph", "connectRoadGraphTo", "runMCJobs", "runMCJob", "generateEnvmodels", "generateTestCases",
-      "makeUnCachable", "makeCachable", "resetScriptData", "resetAllData" };
+      "makeUnCachable", "makeCachable", "resetScriptData", "resetAllData", "newMethod" };
 
 struct MethodPartBegin {
    int method_part_begin_{};

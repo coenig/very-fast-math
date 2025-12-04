@@ -149,7 +149,7 @@ public:
    /// @param codeRaw2  The code to parse. Comments must have been removed already.
    /// @param only_one_step  Iff only one step of preprocessor application is to be performed.
    /// @return  Debug code if requested, <code>null</code> otherwise.
-   void applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step);
+   void applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step, const bool only_cachable = false);
 
    std::string getProcessedScript() const;
    std::string getRawScript() const;
@@ -176,6 +176,7 @@ public:
 
    enum class SpecialOption {
       add_default_dynamic_methods,
+      only_cachable,
       none
    };
 
@@ -335,10 +336,7 @@ private:
    /// method.</BR>
    /// </BR>
    /// Non-inscript preprocessors are evaluated during declarations evaluation.
-   ///
-   /// @return  Iff there has been a change on
-   ///          {@link RepresentableDefault#processedScript}.
-   void extractInscriptProcessors(const bool only_one_step);
+   void extractInscriptProcessors(const bool only_one_step, const bool only_cachable = false);
 
    /// Searches for plain-text parts <code>"@{ *PLAINTEXT/// }@"</code> in the
    /// script and replaces all symbols within them with placeholders, thereby
