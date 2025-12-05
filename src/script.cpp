@@ -664,8 +664,8 @@ void vfm::macro::Script::addDefaultDynamicMathods()
 {
    getScriptData().inscriptMethodDefinitions.insert({ "fib", R"(@{
 @(#0#)@
-@(@{@{@{#0#}@*.SubI[1].fib}@*}@.AddI[@{#0#}@*.SubI[2].fib])@
-}@**.if[@{#0#}@.SmeqI[1]])"});
+@(@{@{@{#0#}@*.sub[1].fib}@*}@.add[@{#0#}@*.subI[2].fib])@
+}@**.if[@{#0#}@.smeq[1]])"});
    getScriptData().inscriptMethodParNums.insert({ "fib", 0 });
    getScriptData().inscriptMethodParPatterns.insert({ "fib", INSCRIPT_STANDARD_PARAMETER_PATTERN });
 
@@ -679,8 +679,8 @@ void vfm::macro::Script::addDefaultDynamicMathods()
    getScriptData().inscriptMethodDefinitions.insert({ "fibfast", R"(@{
 @(#0#)@
 @(@{#0#.fibfast}@.sethard[
-@{@{@{@{#0#}@*.SubI[1]}@*.fibfast}@*}@.AddI[@{@{#0#}@*.SubI[2]}@*.fibfast]])@
-}@**.if[@{#0#}@.SmeqI[1]])"});
+@{@{@{@{#0#}@*.sub[1]}@*.fibfast}@*}@.add[@{@{#0#}@*.sub[2]}@*.fibfast]])@
+}@**.if[@{#0#}@.smeq[1]])"});
    getScriptData().inscriptMethodParNums.insert({ "fibfast", 0 });
    getScriptData().inscriptMethodParPatterns.insert({ "fibfast", INSCRIPT_STANDARD_PARAMETER_PATTERN });
 
