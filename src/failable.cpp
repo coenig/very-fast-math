@@ -360,7 +360,6 @@ void vfm::Failable::addError(const std::string& message, const bool include_prea
 {
 #ifndef CUT_OUT_ALL_DEBUG_OUTPUT_FOR_RELEASE
    addError(message, ErrorLevelEnum::error, delimiter, include_preamble);
-   std::cin.get();
    //addFatalError("Shutting down.");
 #endif
 }
