@@ -149,7 +149,7 @@ public:
    /// @param codeRaw2  The code to parse. Comments must have been removed already.
    /// @param only_one_step  Iff only one step of preprocessor application is to be performed.
    /// @return  Debug code if requested, <code>null</code> otherwise.
-   void applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step, const bool only_cachable = false);
+   void applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step);
 
    std::string getProcessedScript() const;
    std::string getRawScript() const;
@@ -176,7 +176,6 @@ public:
 
    enum class SpecialOption {
       add_default_dynamic_methods,
-      only_cachable,
       none
    };
 
@@ -336,7 +335,7 @@ private:
    /// method.</BR>
    /// </BR>
    /// Non-inscript preprocessors are evaluated during declarations evaluation.
-   void extractInscriptProcessors(const bool only_one_step, const bool only_cachable = false);
+   void extractInscriptProcessors(const bool only_one_step);
 
    /// Searches for plain-text parts <code>"@{ *PLAINTEXT/// }@"</code> in the
    /// script and replaces all symbols within them with placeholders, thereby
@@ -753,18 +752,18 @@ private:
    ScriptMethodDescription arith10f{ "div", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exdiv(parameters.at(0)); } };
    ScriptMethodDescription arith11f{ "pow", 1, [this](const std::vector<std::string>& parameters) -> std::string { return expow(parameters.at(0)); } };
    ScriptMethodDescription arith12f{ "mod", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmod(parameters.at(0)); } };
-   ScriptMethodDescription arith01i{ "smeqI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsmeqI(parameters.at(0)); } };
-   ScriptMethodDescription arith02i{ "smI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsmI(parameters.at(0)); } };
-   ScriptMethodDescription arith03i{ "greqI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exgreqI(parameters.at(0)); } };
-   ScriptMethodDescription arith04i{ "grI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exgrI(parameters.at(0)); } };
-   ScriptMethodDescription arith05i{ "eqI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exeqI(parameters.at(0)); } };
-   ScriptMethodDescription arith06i{ "neqI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exneqI(parameters.at(0)); } };
-   ScriptMethodDescription arith07i{ "addI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exaddI(parameters.at(0)); } };
-   ScriptMethodDescription arith08i{ "subI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsubI(parameters.at(0)); } };
-   ScriptMethodDescription arith09i{ "multI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmultI(parameters.at(0)); } };
-   ScriptMethodDescription arith10i{ "divI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exdivI(parameters.at(0)); } };
-   ScriptMethodDescription arith11i{ "powI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return expowI(parameters.at(0)); } };
-   ScriptMethodDescription arith12i{ "modI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmodI(parameters.at(0)); } };
+   ScriptMethodDescription arith01i{ "SmeqI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsmeqI(parameters.at(0)); } };
+   ScriptMethodDescription arith02i{ "SmI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsmI(parameters.at(0)); } };
+   ScriptMethodDescription arith03i{ "GreqI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exgreqI(parameters.at(0)); } };
+   ScriptMethodDescription arith04i{ "GrI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exgrI(parameters.at(0)); } };
+   ScriptMethodDescription arith05i{ "EqI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exeqI(parameters.at(0)); } };
+   ScriptMethodDescription arith06i{ "NeqI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exneqI(parameters.at(0)); } };
+   ScriptMethodDescription arith07i{ "AddI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exaddI(parameters.at(0)); } };
+   ScriptMethodDescription arith08i{ "SubI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsubI(parameters.at(0)); } };
+   ScriptMethodDescription arith09i{ "MultI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmultI(parameters.at(0)); } };
+   ScriptMethodDescription arith10i{ "DivI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exdivI(parameters.at(0)); } };
+   ScriptMethodDescription arith11i{ "PowI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return expowI(parameters.at(0)); } };
+   ScriptMethodDescription arith12i{ "ModI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmodI(parameters.at(0)); } };
 
    std::set<ScriptMethodDescription> METHODS{
       m1,
@@ -962,7 +961,7 @@ private:
 
          for (const auto& dynamic_method : getScriptData().inscriptMethodDefinitions) {
             std::string method_name{ dynamic_method.first };
-            std::string definition{ dynamic_method.second };
+            std::string definition{ /*dynamic_method.second*/ "TODO: Definition not printed to avoid self-evaluation." };
             int par_num{ getScriptData().inscriptMethodParNums.at(method_name) };
             std::string pattern{ getScriptData().inscriptMethodParPatterns.at(method_name) };
             std::string uncachable{ isCachableMethod(method_name) ? "" : " <uncachable>" };

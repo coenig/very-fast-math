@@ -63,7 +63,7 @@ int findLongestChainOfPrioritySymbols(const std::string& sub_script)
    return s.size();
 }
 
-void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step, const bool only_cachable)
+void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step)
 {
    raw_script_ = codeRaw2;
 
@@ -75,7 +75,7 @@ void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2, cons
    std::string codeRaw = inferPlaceholdersForPlainText(codeRaw2);                              // Secure plain-text parts.
    processed_script_ = evaluateAll(codeRaw, EXPR_BEG_TAG_BEFORE, EXPR_END_TAG_BEFORE);         // Evaluate expressions BEFORE run.
 
-   extractInscriptProcessors(only_one_step, only_cachable);                                    // DO THE ACTUAL THING.
+   extractInscriptProcessors(only_one_step);                                                   // DO THE ACTUAL THING.
 
    processed_script_ = undoPlaceholdersForPlainText(processed_script_);                        // Undo placeholder securing.
    processed_script_ = StaticHelper::replaceAll(processed_script_, NOP_SYMBOL, "");            // Clear all NOP symbols from script.
@@ -87,7 +87,7 @@ std::string vfm::macro::Script::getProcessedScript() const
    return processed_script_;
 }
 
-void Script::extractInscriptProcessors(const bool only_one_step, const bool only_cachable)
+void Script::extractInscriptProcessors(const bool only_one_step)
 {
    // Find next preprocessor.
    int indexOfPrep = findNextInscriptPos();
@@ -120,10 +120,6 @@ void Script::extractInscriptProcessors(const bool only_one_step, const bool only
          std::vector<std::string> methodSignaturesArray = getMethodSinaturesFromChain(methods); // TODO: Done twice for each subscript. Is this expensive?
          bool is_this_cachable{ isCachableChain(methodSignaturesArray) };
 
-         if (!is_this_cachable && only_cachable) {
-            return; // TODO: No need to actually return, but continuing requires ignoring this script in future iterations.
-         }
-
          if (methodPartBegin != preprocessorScript.length() && methodPartBegin >= 0) {
             int leftTrim = preprocessorScript.size() - StaticHelper::ltrimAndReturn(preprocessorScript).size();
 
@@ -141,13 +137,16 @@ void Script::extractInscriptProcessors(const bool only_one_step, const bool only
 
          placeholder_for_inscript = evaluateChain(preprocessorScript);
 
-         if (getScriptData().method_part_begins_[trimmed].cachable_ 
-            && StaticHelper::stringContains(placeholder_for_inscript, INSCR_BEG_TAG)
-            && !StaticHelper::stringContains(partBefore, INSCR_BEG_TAG)) {
+         if (StaticHelper::startsWithUppercase(methodSignaturesArray.at(0))) {
             // @{@{i}@.eval}@*.for[i, 1, 10]
-            // TODO: Just a test. Cannot be efficient...
             // Remove this whole IF clause to undo.
-            placeholder_for_inscript = processScript(placeholder_for_inscript, DataPreparation::none, false, vfm_data_, vfm_parser_, shared_from_this(), SpecialOption::only_cachable);
+
+            auto s = std::make_shared<Script>(vfm_data_, vfm_parser_);
+            addFailableChild(s);
+            s->raw_script_ = placeholder_for_inscript;
+            s->processed_script_ = placeholder_for_inscript;
+            s->extractInscriptProcessors(false);
+            placeholder_for_inscript = s->processed_script_;
          }
 
          getScriptData().method_part_begins_[trimmed].result_ = placeholder_for_inscript;
@@ -665,16 +664,23 @@ void vfm::macro::Script::addDefaultDynamicMathods()
 {
    getScriptData().inscriptMethodDefinitions.insert({ "fib", R"(@{
 @(#0#)@
-@(@{@{@{#0#}@*.subI[1].fib}@*}@.addI[@{#0#}@*.subI[2].fib])@
-}@**.if[@{#0#}@.smeqI[1]])"});
+@(@{@{@{#0#}@*.SubI[1].fib}@*}@.AddI[@{#0#}@*.SubI[2].fib])@
+}@**.if[@{#0#}@.SmeqI[1]])"});
    getScriptData().inscriptMethodParNums.insert({ "fib", 0 });
    getScriptData().inscriptMethodParPatterns.insert({ "fib", INSCRIPT_STANDARD_PARAMETER_PATTERN });
+
+   getScriptData().inscriptMethodDefinitions.insert({ "Fib", R"(@{
+@(#0#)@
+@(@{@{@{#0#}@*.SubI[1].Fib}@*}@.AddI[@{#0#}@*.SubI[2].Fib])@
+}@**.if[@{#0#}@.SmeqI[1]])"});
+   getScriptData().inscriptMethodParNums.insert({ "Fib", 0 });
+   getScriptData().inscriptMethodParPatterns.insert({ "Fib", INSCRIPT_STANDARD_PARAMETER_PATTERN });
 
    getScriptData().inscriptMethodDefinitions.insert({ "fibfast", R"(@{
 @(#0#)@
 @(@{#0#.fibfast}@.sethard[
-@{@{@{@{#0#}@*.subI[1]}@*.fibfast}@*}@.addI[@{@{#0#}@*.subI[2]}@*.fibfast]])@
-}@**.if[@{#0#}@.smeqI[1]])"});
+@{@{@{@{#0#}@*.SubI[1]}@*.fibfast}@*}@.AddI[@{@{#0#}@*.SubI[2]}@*.fibfast]])@
+}@**.if[@{#0#}@.SmeqI[1]])"});
    getScriptData().inscriptMethodParNums.insert({ "fibfast", 0 });
    getScriptData().inscriptMethodParPatterns.insert({ "fibfast", INSCRIPT_STANDARD_PARAMETER_PATTERN });
 
@@ -1557,6 +1563,6 @@ std::string vfm::macro::Script::processScript(
       s->addDefaultDynamicMathods();
    }
 
-   s->applyDeclarationsAndPreprocessors(text, only_one_step, option == SpecialOption::only_cachable);
+   s->applyDeclarationsAndPreprocessors(text, only_one_step);
    return s->getProcessedScript();
 }
