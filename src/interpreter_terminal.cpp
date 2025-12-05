@@ -116,7 +116,7 @@ int vfm::InterpreterTerminal::handle(int e)
                      line_number++;
                   }
                }
-
+               
                if (line_number < 0 || line_number >= lines.size()) return(1); // Just a sanity check, should never happen.
 
                runCommand(lines[line_number].c_str());
@@ -125,6 +125,31 @@ int vfm::InterpreterTerminal::handle(int e)
 
             return(1); // hide 'Enter' from text widget
          }
+         else if (key == ' ' && Fl::event_state(FL_CTRL)) {
+            const std::string open{ Fl::event_state(FL_SHIFT) 
+               ? BEGIN_TAG_MULTILINE_SCRIPT 
+               : (Fl::event_state(FL_ALT) ? BEGIN_TAG_MULTILINE_SCRIPT_SINGLE_STEP : macro::INSCR_BEG_TAG) };
+            const std::string close{ Fl::event_state(FL_SHIFT) 
+               ? END_TAG_MULTILINE_SCRIPT 
+               : (Fl::event_state(FL_ALT) ? END_TAG_MULTILINE_SCRIPT_SINGLE_STEP : macro::INSCR_END_TAG + macro::METHOD_CHAIN_SEPARATOR + "mymethod[test]")};
+            auto sel = buffer()->primary_selection();
+
+            if (sel->selected()) {
+               const int start = sel->start();
+               const int end = sel->end();
+               const std::string selected_text{ std::string(buffer()->text_range(start, end)) };
+               buffer()->replace(start, end, (open + "\n" + selected_text + "\n" + close).c_str());
+               insert_position(start + open.size() + 1);
+               return 1;
+            }
+            else {
+               const int pos = insert_position();
+               buffer()->insert(pos, (open + "\n\n" + close).c_str());
+               insert_position(pos + open.size() + 1);
+               return 1;
+            }
+         }
+
          break;
       }
    }
