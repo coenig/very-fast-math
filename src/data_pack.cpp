@@ -937,11 +937,6 @@ void DataPack::initializeValuesBy(const DataPack& other)
 #endif
 
    script_data_ = other.script_data_;
-   script_data_.known_chains_.clear(); // TODO: Make this cleaner with copy constructors in ScriptData and Script.
-
-   for (const auto& other_known_chain : other.script_data_.known_chains_) {
-      script_data_.known_chains_.insert({ other_known_chain.first, other_known_chain.second->copy() });
-   }
 }
 
 void vfm::DataPack::initializeValuesBy(const std::shared_ptr<DataPack> other)
