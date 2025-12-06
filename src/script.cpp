@@ -664,7 +664,7 @@ void vfm::macro::Script::addDefaultDynamicMathods()
 {
    getScriptData().inscriptMethodDefinitions.insert({ "fib", R"(@{
 @(#0#)@
-@(@{@{@{#0#}@*.sub[1].fib}@*}@.add[@{#0#}@*.subI[2].fib])@
+@(@{@{@{#0#}@*.sub[1].fib}@*}@.add[@{#0#}@*.sub[2].fib])@
 }@**.if[@{#0#}@.smeq[1]])"});
    getScriptData().inscriptMethodParNums.insert({ "fib", 0 });
    getScriptData().inscriptMethodParPatterns.insert({ "fib", INSCRIPT_STANDARD_PARAMETER_PATTERN });

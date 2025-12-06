@@ -125,13 +125,13 @@ int vfm::InterpreterTerminal::handle(int e)
 
             return(1); // hide 'Enter' from text widget
          }
-         else if (key == ' ' && Fl::event_state(FL_CTRL)) {
-            const std::string open{ Fl::event_state(FL_SHIFT) 
-               ? BEGIN_TAG_MULTILINE_SCRIPT 
-               : (Fl::event_state(FL_ALT) ? BEGIN_TAG_MULTILINE_SCRIPT_SINGLE_STEP : macro::INSCR_BEG_TAG) };
-            const std::string close{ Fl::event_state(FL_SHIFT) 
-               ? END_TAG_MULTILINE_SCRIPT 
-               : (Fl::event_state(FL_ALT) ? END_TAG_MULTILINE_SCRIPT_SINGLE_STEP : macro::INSCR_END_TAG + macro::METHOD_CHAIN_SEPARATOR + "mymethod[test]")};
+         else if (Fl::event_state(FL_CTRL) && (key == 's' || key == 'y' || key == 'w')) {
+            const std::string open{ key == 's'
+               ? macro::INSCR_BEG_TAG
+               : (key == 'y' ? BEGIN_TAG_MULTILINE_SCRIPT_SINGLE_STEP : BEGIN_TAG_MULTILINE_SCRIPT) };
+            const std::string close{ key == 's'
+               ? macro::INSCR_END_TAG + macro::METHOD_CHAIN_SEPARATOR + "mymethod[test]"
+               : (key == 'y' ? END_TAG_MULTILINE_SCRIPT_SINGLE_STEP : END_TAG_MULTILINE_SCRIPT)};
             auto sel = buffer()->primary_selection();
 
             if (sel->selected()) {
