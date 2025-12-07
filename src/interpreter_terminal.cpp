@@ -130,7 +130,7 @@ int vfm::InterpreterTerminal::handle(int e)
                ? macro::INSCR_BEG_TAG
                : (key == 'y' ? BEGIN_TAG_MULTILINE_SCRIPT_SINGLE_STEP : BEGIN_TAG_MULTILINE_SCRIPT) };
             const std::string close{ key == 's'
-               ? macro::INSCR_END_TAG + macro::METHOD_CHAIN_SEPARATOR + "mymethod[test]"
+               ? macro::INSCR_END_TAG + macro::METHOD_CHAIN_SEPARATOR + "mymethod"
                : (key == 'y' ? END_TAG_MULTILINE_SCRIPT_SINGLE_STEP : END_TAG_MULTILINE_SCRIPT)};
             auto sel = buffer()->primary_selection();
 
