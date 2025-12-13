@@ -72,6 +72,22 @@ public:
    void setOptionalScript(const std::string& result);
    void setText(const std::string& test);
 
+   /// <summary>
+   /// Surrounds the selected text with a bracket strcture and positions the cursor within.
+   /// </summary>
+   /// <param name="before">The opening bracket.</param>
+   /// <param name="after">The closing bracket.</param>
+   /// <returns></returns>
+   bool surroundSelectionWithBrackets(const std::string& before, const std::string& after);
+   
+   /// <summary>
+   /// Inserts brackets at the position of the cursor and positions the cursor within.
+   /// </summary>
+   /// <param name="before">The opening bracket.</param>
+   /// <param name="after">The closing bracket.</param>
+   /// <returns></returns>
+   bool insertBrackets(const std::string& before, const std::string& after);
+
    static void fool(
       const std::string& command_str, 
       const std::shared_ptr<DataPack> data, 
