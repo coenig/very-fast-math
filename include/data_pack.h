@@ -44,7 +44,7 @@ const static std::set<std::string> UNCACHABLE_METHODS_BASE{
       "listElement", "clearList", "asArray", "printList", "printLists", "pushBack", "openWithOS",
       "readFile", "executeSystemCommand", "exec", "writeTextToFile", "timestamp", "vfm_variable_declared", "vfm_variable_undeclared",
       "createRoadGraph", "storeRoadGraph", "connectRoadGraphTo", "runMCJobs", "runMCJob", "generateEnvmodels", "generateTestCases",
-      "makeUnCachable", "makeCachable", "resetScriptData", "resetAllData" };
+      "makeUnCachable", "makeCachable", "resetScriptData", "resetAllData", "newMethod" };
 
 struct MethodPartBegin {
    int method_part_begin_{};
@@ -58,7 +58,7 @@ struct ScriptData {
       reset();
    }
 
-   std::map<std::string, std::shared_ptr<macro::Script>> known_chains_{};
+   std::map<std::string, std::string> known_chains_{};
    std::map<std::string, std::string> PLACEHOLDER_MAPPING{};
    std::map<std::string, std::string> PLACEHOLDER_INVERSE_MAPPING{};
    std::map<std::string, std::string> inscriptMethodDefinitions{};

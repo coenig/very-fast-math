@@ -234,12 +234,15 @@ const auto TEST_SCRIPT_EXPANSION = [](const std::set<std::set<std::string>>& ope
    std::srand(seed);
    int rand1 = std::rand() % (max - 0 + 1) + 0;
    int rand2 = std::rand() % FIBS.size();
+   int rand3 = rand2;
+
+   std::cout << rand3 << std::endl;
 
    std::string test_string1 = StaticHelper::replaceAll(R"(
 @{@{
 @(#0#)@
-@(@{@{@{#0#}@*.sub[1].fib}@*}@.add[@{#0#}@*.sub[2].fib])@
-}@**.if[@{}@.smeq[#0#, 1]]}@***.newMethod[fib, 0]
+@(@{@{@{#0#}@*.SubI[1].fib}@*}@.AddI[@{#0#}@*.SubI[2].fib])@
+}@**.if[@{#0#}@.SmeqI[1]]}@***.newMethod[fib, 0]
 
 ~{@{$}@.fib \0}~
 )", "$", std::to_string(rand1));
@@ -248,11 +251,20 @@ const auto TEST_SCRIPT_EXPANSION = [](const std::set<std::set<std::string>>& ope
 @{@{
 @(#0#)@
 @(@{#0#.fibfast}@.sethard[
-@{@{@{@{#0#}@*.sub[1]}@*.fibfast}@*}@.add[@{@{#0#}@*.sub[2]}@*.fibfast]])@
-}@**.if[@{}@.smeq[#0#, 1]]}@***.newMethod[fibfast, 0]
+@{@{@{@{#0#}@*.SubI[1]}@*.fibfast}@*}@.AddI[@{@{#0#}@*.SubI[2]}@*.fibfast]])@
+}@**.if[@{#0#}@.SmeqI[1]]}@***.newMethod[fibfast, 0]
 
 ~{@{$}@.fibfast \0}~
 )", "$", std::to_string(rand2));
+
+   std::string test_string3 = StaticHelper::replaceAll(R"(
+@{@{
+@(#0#)@
+@(@{@{@{#0#}@*.SubI[1].Fib}@*}@.AddI[@{#0#}@*.SubI[2].Fib])@
+}@**.if[@{#0#}@.SmeqI[1]]}@***.newMethod[Fib, 0]
+
+~{@{$}@.Fib \0}~
+)", "$", std::to_string(rand3));
 
    std::shared_ptr<macro::Script> s1 = std::make_shared<macro::Script>(nullptr, nullptr);
    if (!print) s1->setOutputLevels(ErrorLevelEnum::error, ErrorLevelEnum::error);
@@ -264,21 +276,28 @@ const auto TEST_SCRIPT_EXPANSION = [](const std::set<std::set<std::string>>& ope
    s2->applyDeclarationsAndPreprocessors(test_string2, false);
    std::string result2 = StaticHelper::trimAndReturn(s2->getProcessedScript());
 
+   std::shared_ptr<macro::Script> s3 = std::make_shared<macro::Script>(nullptr, nullptr);
+   if (!print) s3->setOutputLevels(ErrorLevelEnum::error, ErrorLevelEnum::error);
+   s3->applyDeclarationsAndPreprocessors(test_string3, false);
+   std::string result3 = StaticHelper::trimAndReturn(s3->getProcessedScript());
+
    bool error1 = s1->hasErrorOccurred();
    bool error2 = s2->hasErrorOccurred();
+   bool error3 = s3->hasErrorOccurred();
    std::string expected1 = std::to_string(FIBS.at(rand1));
    std::string expected2 = std::to_string(FIBS.at(rand2));
-   bool fine = !error1 && !error2 && result1 == expected1 && result2 == expected2;
+   std::string expected3 = std::to_string(FIBS.at(rand3));
+   bool fine = !error1 && !error2 && !error3 && result1 == expected1 && result2 == expected2 && result3 == expected3;
 
    if (print && fine) {
       Failable::getSingleton()->addNote("Fibonacci scripts expanded correctly to fib(" 
-         + std::to_string(rand1) + ") = " + expected1 + " / fibfast(" + std::to_string(rand2) + ") = " + expected2 + ".");
+         + std::to_string(rand1) + ") = " + expected1 + " / fibfast(" + std::to_string(rand2) + ") = " + expected2 + " / Fib(" + std::to_string(rand3) + ") = " + expected3 + ".");
    }
 
    if (!fine) {
       Failable::getSingleton()->addError("Fibonacci scripts did not expand correctly to fib(" 
-         + std::to_string(rand1) + ") = " + expected1 + " / fibfast(" + std::to_string(rand2) + ") = " + expected2 
-         + " . Instead the result was: " + result1 + " / " + result2 + ".");
+         + std::to_string(rand1) + ") = " + expected1 + " / fibfast(" + std::to_string(rand2) + ") = " + expected2 + " / Fib(" + std::to_string(rand3) + ") = " + expected3
+         + ". Instead the result was: " + result1 + " / " + result2 + " / " + result3 + ".");
    }
 
    return fine;
@@ -377,7 +396,7 @@ static const std::vector<TestCase> TEST_CASES{
    /* 9  */ TestCase{"EARLEY RECOGNIZING",    TEST_EARLEY_R,           5,         5,    NO_VARS,                             {},           {},                   "Warnings", count},
    /* 10 */ TestCase{"EARLEY PARSING",        TEST_EARLEY_P,           5,         2,    NO_VARS,                             {},           {},                   "Warnings", count},
    /* 11 */ TestCase{"GENERAL EVALUATION",    TEST_EVAL,               50,       -1,    {},                                  {},           {},                   "Formulas tested", count},
-   /* 12 */ TestCase{"SCRIPT_EXPANSION",      TEST_SCRIPT_EXPANSION,   20,        8,    {},                                  {},           {},                   "",         id},
+   /* 12 */ TestCase{"SCRIPT_EXPANSION",      TEST_SCRIPT_EXPANSION,   30,        8,    {},                                  {},           {},                   "",         id},
    /* 13 */ TestCase{"FIXED_SIMPLIFICATION",  TEST_FIXED_SIMPL,        1,        -1,    {},                                  {},           {},                   "",         id},
 };
 //////// EO TEST CASE DESCRIPTIONS /////////

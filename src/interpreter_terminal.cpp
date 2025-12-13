@@ -83,6 +83,31 @@ void vfm::InterpreterTerminal::expandMultilineScript(const std::string& script, 
    t.detach();
 }
 
+bool vfm::InterpreterTerminal::surroundSelectionWithBrackets(const std::string& before, const std::string& after)
+{
+   auto sel = buffer()->primary_selection();
+
+   if (sel->selected()) {
+      const int start = sel->start();
+      const int end = sel->end();
+      const std::string selected_text{ std::string(buffer()->text_range(start, end)) };
+      buffer()->replace(start, end, (before + "\n" + selected_text + "\n" + after).c_str());
+      insert_position(start + before.size() + 1);
+
+      return true;
+   }
+
+   return false;
+}
+
+bool vfm::InterpreterTerminal::insertBrackets(const std::string& before, const std::string& after)
+{
+   const int pos = insert_position();
+   buffer()->insert(pos, (before + "\n\n" + after).c_str());
+   insert_position(pos + before.size() + 1);
+   return true;
+}
+
 int vfm::InterpreterTerminal::handle(int e)
 {
    int key = Fl::event_key();
@@ -116,7 +141,7 @@ int vfm::InterpreterTerminal::handle(int e)
                      line_number++;
                   }
                }
-
+               
                if (line_number < 0 || line_number >= lines.size()) return(1); // Just a sanity check, should never happen.
 
                runCommand(lines[line_number].c_str());
@@ -125,6 +150,22 @@ int vfm::InterpreterTerminal::handle(int e)
 
             return(1); // hide 'Enter' from text widget
          }
+         else if (Fl::event_state(FL_CTRL) && (key == 's' || key == 'y' || key == 'w')) {
+            const std::string open{ key == 's'
+               ? macro::INSCR_BEG_TAG
+               : (key == 'y' ? BEGIN_TAG_MULTILINE_SCRIPT_SINGLE_STEP : BEGIN_TAG_MULTILINE_SCRIPT) };
+            const std::string close{ key == 's'
+               ? macro::INSCR_END_TAG + macro::METHOD_CHAIN_SEPARATOR + "mymethod"
+               : (key == 'y' ? END_TAG_MULTILINE_SCRIPT_SINGLE_STEP : END_TAG_MULTILINE_SCRIPT)};
+
+            if (surroundSelectionWithBrackets(open, close)) {
+               return 1;
+            }
+            else if (insertBrackets(open, close)) {
+               return 1;
+            }
+         }
+
          break;
       }
    }
