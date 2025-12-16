@@ -4,9 +4,9 @@
 -- TODO: This is a workaround to add a dot when using methods...
 @{#0#.#1#}@**.newMethod[dot,1]
 
-@{@{#0#}@.car.dot[traversion_to]}@**.newMethod[to, 0]
+@{@{#0#}@.car.dot[traversing_to]}@**.newMethod[to, 0]
 
-@{@{#0#}@.car.dot[traversion_from]}@**.newMethod[from, 0]
+@{@{#0#}@.car.dot[traversing_from]}@**.newMethod[from, 0]
 @{@{#0#}@.car.dot[on_straight_section]}@**.newMethod[sec, 0]
 
 @{outgoing_connection_#1#_of_section_#0#}@**.newMethod[outconn, 1]
@@ -75,7 +75,7 @@
 --  TRANS (c0.on_straight_section = sec0_id) & next(c0.on_straight_section) != -1 ->  \
 --    (next(c0.on_straight_section = sec0_id) & (next(c0.on_secpart) = c0.on_secpart | _do_progress_secpart(c0, sec0)) & \
 --     next(c0.on_secpart) <= sec0.n_secparts & \
---     next(c0.traversion_to) = -1 & next(c0.traversion_from) = -1)
+--     next(c0.traversing_to) = -1 & next(c0.traversing_from) = -1)
 --
 @{
   INVAR (@{#0#}@.sec = #1#) -> @{#0#}@.secpart >= 0 & @{#0#}@.secpart <= @{#1#}@.nsecparts; 
@@ -94,7 +94,7 @@
 -- Model the transitions between a section and a junction
 --
 --#define CarTransSectJunc(c0, sec0, sec0_id, junc_big_or) \
---  TRANS willtraverse(c0, sec0_id) -> (cantraverse(c0, sec0) & next(c0.on_secpart) = -1 & next(c0.traversion_from) = sec0_id & next(c0.traversion_to) != -1 & (junc_big_or))
+--  TRANS willtraverse(c0, sec0_id) -> (cantraverse(c0, sec0) & next(c0.on_secpart) = -1 & next(c0.traversing_from) = sec0_id & next(c0.traversing_to) != -1 & (junc_big_or))
 --
 @{
   TRANS @{#0#}@.willtraverse[#1#] -> (@{#0#}@.cantraverse[#1#] & next(@{#0#}@.secpart) = -1 & next(@{#0#}@.from) = #1# & next(@{#0#}@.to) != -1 &
@@ -108,8 +108,8 @@
 --
 --#define behindconds(c0, c1, was_behind_var) \
 --  (((behindsec(c0, c1)) | \
---        (was_behind_var & (c0.on_straight_section = c1.traversion_from | \
---                           c0.on_straight_section = -1 & c0.traversion_to = c1.traversion_to))))
+--        (was_behind_var & (c0.on_straight_section = c1.traversing_from | \
+--                           c0.on_straight_section = -1 & c0.traversing_to = c1.traversing_to))))
 @{
   (@{#0#}@.behindsec[#1#] | (#2# & (@{#0#}@.sec = @{#1#}@.from | @{#0#}@.sec = -1 & @{#0#}@.to = @{#1#}@.to)))
 }@***.newMethod[behindconds, 2]
