@@ -87,7 +87,7 @@ int main(int argc, char* argv[])
    //   false, false, false);
    //termnate();
 
-   //vfm::test::runTests(12);
+   //vfm::test::runTests();
    //termnate();
 
    //runInterpreter();
