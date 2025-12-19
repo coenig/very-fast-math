@@ -51,7 +51,7 @@ static const std::string END_TAG_FOR_NESTED_VARIABLES = "}~)~]";
 
 static const std::string INSCR_BEG_TAG = "@{";
 static const std::string INSCR_END_TAG = "}@";
-static const char INSCR_PRIORITY_SYMB = '*';
+static constexpr char INSCR_PRIORITY_SYMB = '*';
 
 static const std::string FIRST_LETTER_END = INSCR_END_TAG.substr(0, 1);
 static const std::string LAST_LETTER_BEG = INSCR_BEG_TAG.substr(INSCR_BEG_TAG.length() - 1);
@@ -151,8 +151,6 @@ public:
    /// @return  Debug code if requested, <code>null</code> otherwise.
    void applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step);
 
-   std::shared_ptr<Script> copy() const;
-
    std::string getProcessedScript() const;
    std::string getRawScript() const;
    void setRawScript(const std::string& script);
@@ -217,8 +215,8 @@ public:
    /// @param code  The raw code to process.
    void processSequence(const std::string& code, std::vector<std::string>& script_sequence);
    void createInstanceFromScript(const std::string& code);
-   std::shared_ptr<Script> getRepresentableAsPDF();
-   std::string evalItAll(const std::string& n1Str, const std::string& n2Str, const std::function<float(float n1, float n2)> eval);
+   std::string evalItAllF(const std::string& n1Str, const std::string& n2Str, const std::function<float(float n1, float n2)> eval);
+   std::string evalItAllI(const std::string& n1Str, const std::string& n2Str, const std::function<long long(long long n1, long long n2)> eval);
 
    /// Retrieves the raw script, but without any <code>@{</code> or <code>}@</code>.
    /// Can be used to get the constant <code>2</code> from raw script
@@ -232,18 +230,32 @@ public:
       getScriptData().method_part_begins_[getTagFreeRawScript()].result_ = value; return value; 
    }
 
-   std::string exsmeq(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a <= b; }); }
-   std::string exsm(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a < b; }); }
-   std::string exgreq(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a >= b; }); }
-   std::string exgr(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a > b; }); }
-   std::string exeq(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a == b; }); }
-   std::string exneq(const std::string& n1Str, const std::string& n2Str) { return evalItAll(n1Str, n2Str, [](float a, float b) { return a != b; }); }
-   std::string exadd(const std::string& num) { return evalItAll(getTagFreeRawScript(), num, [](float a, float b) { return a + b; }); }
-   std::string exsub(const std::string& num) { return evalItAll(getTagFreeRawScript(), num, [](float a, float b) { return a - b; }); }
-   std::string exmult(const std::string& num) { return evalItAll(getTagFreeRawScript(), num, [](float a, float b) { return a * b; }); }
-   std::string exdiv(const std::string& num) { return evalItAll(getTagFreeRawScript(), num, [](float a, float b) { return a / b; }); }
-   std::string expow(const std::string& num) { return evalItAll(getTagFreeRawScript(), num, [](float a, float b) { return std::pow(a, b); }); }
-   std::string exmod(const std::string& num) { return evalItAll(getTagFreeRawScript(), num, [](float a, float b) { return (int) a % (int) b; }); }
+   std::string exsmeq(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a <= b; }); }
+   std::string exsm(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a < b; }); }
+   std::string exgreq(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a >= b; }); }
+   std::string exgr(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a > b; }); }
+   std::string exeq(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a == b; }); }
+   std::string exneq(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a != b; }); }
+   std::string exadd(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a + b; }); }
+   std::string exsub(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a - b; }); }
+   std::string exmult(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a * b; }); }
+   std::string exdiv(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return a / b; }); }
+   std::string expow(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return std::pow(a, b); }); }
+   std::string exmod(const std::string& num) { return evalItAllF(getTagFreeRawScript(), num, [](float a, float b) { return (int) a % (int) b; }); }
+
+   std::string exsmeqI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a <= b; }); }
+   std::string exsmI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a < b; }); }
+   std::string exgreqI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a >= b; }); }
+   std::string exgrI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a > b; }); }
+   std::string exeqI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a == b; }); }
+   std::string exneqI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a != b; }); }
+   std::string exaddI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a + b; }); }
+   std::string exsubI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a - b; }); }
+   std::string exmultI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a * b; }); }
+   std::string exdivI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return a / b; }); }
+   std::string expowI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return std::pow(a, b); }); }
+   std::string exmodI(const std::string& num) { return evalItAllI(getTagFreeRawScript(), num, [](long long a, long long b) { return (int) a % (int) b; }); }
+
    std::string exnot() { return std::to_string(!StaticHelper::isBooleanTrue(getTagFreeRawScript()));}
    std::string space() { return " "; }
 
@@ -276,12 +288,6 @@ public:
 
 private:
    bool isCachableChain(const std::vector<std::string>& method_chain) const;
-
-   /// If you try to avoid assigning the parameter,
-   /// be careful, it's not as simple as it seems.
-   static std::string createDummyrep(
-      const std::string& processed,
-      RepresentableAsPDF repToProcess);
 
    /// In a String *EXPR*.m1[p11, p12, ...].m2[p21, p22, ...].m3[...]...
    /// extract the *EXPR* part. *EXPR* is determined by cutting off from position x
@@ -318,10 +324,8 @@ private:
    ///                    or "this", and m1, m2, ... are method signatures.
    /// @param father      The rep {@code this} is a sub-script of.
    ///
-   /// @return  A representable with the methods applied. Can return <code>null
-   ///          </code> when the chain is not valid (e.g. when starting with a
-   ///          variable).
-   std::shared_ptr<Script> evaluateChain(const std::string& chain);
+   /// @return  The evaluated script as string.
+   std::string evaluateChain(const std::string& chain);
 
    /// Goes through the current version of
    /// {@link RepresentableDefault#processedScript} and replaces
@@ -331,9 +335,6 @@ private:
    /// method.</BR>
    /// </BR>
    /// Non-inscript preprocessors are evaluated during declarations evaluation.
-   ///
-   /// @return  Iff there has been a change on
-   ///          {@link RepresentableDefault#processedScript}.
    void extractInscriptProcessors(const bool only_one_step);
 
    /// Searches for plain-text parts <code>"@{ *PLAINTEXT/// }@"</code> in the
@@ -725,7 +726,7 @@ private:
       [this](const std::vector<std::string>& parameters) -> std::string
       {
          getScriptData().reset();
-         return "";
+         return "Script data has been reset. (vfm data remains untouched.)";
       }
    };
 
@@ -735,9 +736,34 @@ private:
       [this](const std::vector<std::string>& parameters) -> std::string
       {
          vfm_data_->reset();
-         return "";
+         return "All data has been reset.";
       }
    };
+
+   ScriptMethodDescription arith01f{ "smeq", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsmeq(parameters.at(0)); } };
+   ScriptMethodDescription arith02f{ "sm", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsm(parameters.at(0)); } };
+   ScriptMethodDescription arith03f{ "greq", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exgreq(parameters.at(0)); } };
+   ScriptMethodDescription arith04f{ "gr", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exgr(parameters.at(0)); } };
+   ScriptMethodDescription arith05f{ "eq", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exeq(parameters.at(0)); } };
+   ScriptMethodDescription arith06f{ "neq", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exneq(parameters.at(0)); } };
+   ScriptMethodDescription arith07f{ "add", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exadd(parameters.at(0)); } };
+   ScriptMethodDescription arith08f{ "sub", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsub(parameters.at(0)); } };
+   ScriptMethodDescription arith09f{ "mult", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmult(parameters.at(0)); } };
+   ScriptMethodDescription arith10f{ "div", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exdiv(parameters.at(0)); } };
+   ScriptMethodDescription arith11f{ "pow", 1, [this](const std::vector<std::string>& parameters) -> std::string { return expow(parameters.at(0)); } };
+   ScriptMethodDescription arith12f{ "mod", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmod(parameters.at(0)); } };
+   ScriptMethodDescription arith01i{ "SmeqI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsmeqI(parameters.at(0)); } };
+   ScriptMethodDescription arith02i{ "SmI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsmI(parameters.at(0)); } };
+   ScriptMethodDescription arith03i{ "GreqI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exgreqI(parameters.at(0)); } };
+   ScriptMethodDescription arith04i{ "GrI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exgrI(parameters.at(0)); } };
+   ScriptMethodDescription arith05i{ "EqI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exeqI(parameters.at(0)); } };
+   ScriptMethodDescription arith06i{ "NeqI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exneqI(parameters.at(0)); } };
+   ScriptMethodDescription arith07i{ "AddI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exaddI(parameters.at(0)); } };
+   ScriptMethodDescription arith08i{ "SubI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsubI(parameters.at(0)); } };
+   ScriptMethodDescription arith09i{ "MultI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmultI(parameters.at(0)); } };
+   ScriptMethodDescription arith10i{ "DivI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exdivI(parameters.at(0)); } };
+   ScriptMethodDescription arith11i{ "PowI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return expowI(parameters.at(0)); } };
+   ScriptMethodDescription arith12i{ "ModI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmodI(parameters.at(0)); } };
 
    std::set<ScriptMethodDescription> METHODS{
       m1,
@@ -885,18 +911,30 @@ private:
       { "vfm_variable_declared", 0, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(getData()->isVarDeclared(getRawScript())); } },
       { "vfm_variable_undeclared", 0, [this](const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(!getData()->isVarDeclared(getRawScript())); } },
       { "sethard", 1, [this](const std::vector<std::string>& parameters) -> std::string { return sethard(parameters.at(0)); } },
-      { "smeq", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exsmeq(parameters.at(0), parameters.at(1)); } },
-      { "sm", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exsm(parameters.at(0), parameters.at(1)); } },
-      { "greq", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exgreq(parameters.at(0), parameters.at(1)); } },
-      { "gr", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exgr(parameters.at(0), parameters.at(1)); } },
-      { "eq", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exeq(parameters.at(0), parameters.at(1)); } },
-      { "neq", 2, [this](const std::vector<std::string>& parameters) -> std::string { return exneq(parameters.at(0), parameters.at(1)); } },
-      { "add", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exadd(parameters.at(0)); } },
-      { "sub", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exsub(parameters.at(0)); } },
-      { "mult", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmult(parameters.at(0)); } },
-      { "div", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exdiv(parameters.at(0)); } },
-      { "pow", 1, [this](const std::vector<std::string>& parameters) -> std::string { return expow(parameters.at(0)); } },
-      { "mod", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmod(parameters.at(0)); } },
+      arith01f,
+      arith02f,
+      arith03f,
+      arith04f,
+      arith05f,
+      arith06f,
+      arith07f,
+      arith08f,
+      arith09f,
+      arith10f,
+      arith11f,
+      arith12f,
+      arith01i,
+      arith02i,
+      arith03i,
+      arith04i,
+      arith05i,
+      arith06i,
+      arith07i,
+      arith08i,
+      arith09i,
+      arith10i,
+      arith11i,
+      arith12i,
       { "not", 0, [this](const std::vector<std::string>& parameters) -> std::string { return exnot(); } },
       { "space", 0, [this](const std::vector<std::string>& parameters) -> std::string { return space(); } },
       { "arclengthCubicBezierFromStreetTopology", 3, [this](const std::vector<std::string>& parameters) -> std::string { return arclengthCubicBezierFromStreetTopology(getRawScript(), parameters.at(0), parameters.at(1), parameters.at(2)); } },
@@ -927,6 +965,9 @@ private:
             int par_num{ getScriptData().inscriptMethodParNums.at(method_name) };
             std::string pattern{ getScriptData().inscriptMethodParPatterns.at(method_name) };
             std::string uncachable{ isCachableMethod(method_name) ? "" : " <uncachable>" };
+
+            // Avoid self-evaluation.
+            definition = StaticHelper::replaceAll(StaticHelper::replaceAll(definition, INSCR_BEG_TAG, "{{"), INSCR_END_TAG, "}}");
 
             s += method_name + " (" + std::to_string(par_num) + " " + pattern + ") '" + definition + "'" + uncachable + "\n";
          }

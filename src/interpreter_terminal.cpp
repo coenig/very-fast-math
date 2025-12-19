@@ -83,10 +83,44 @@ void vfm::InterpreterTerminal::expandMultilineScript(const std::string& script, 
    t.detach();
 }
 
+bool vfm::InterpreterTerminal::surroundSelectionWithBrackets(const std::string& before, const std::string& after, const bool include_newlines)
+{
+   auto sel = buffer()->primary_selection();
+   const std::string newline_str = include_newlines ? "\n" : "";
+
+   if (sel->selected()) {
+      const int start = sel->start();
+      const int end = sel->end();
+      const std::string selected_text{ std::string(buffer()->text_range(start, end)) };
+      buffer()->replace(start, end, (before + newline_str + selected_text + newline_str + after).c_str());
+      insert_position(start + before.size() + 1);
+
+      return true;
+   }
+
+   return false;
+}
+
+bool vfm::InterpreterTerminal::insertBrackets(const std::string& before, const std::string& after, const bool include_newlines)
+{
+   const int pos = insert_position();
+   buffer()->insert(pos, (before + (include_newlines ? "\n\n" : "") + after).c_str());
+   insert_position(pos + before.size() -!include_newlines + 1);
+   return true;
+}
+
 int vfm::InterpreterTerminal::handle(int e)
 {
-   int key = Fl::event_key();
+   const int key = Fl::event_key();
    
+   const std::map<char, std::pair<std::pair<std::string, std::string>, bool>> bracket_key_shortcuts{
+      { 's', {{ macro::INSCR_BEG_TAG, macro::INSCR_END_TAG + macro::METHOD_CHAIN_SEPARATOR + "mymethod" }, true } },
+      { 'y', {{ BEGIN_TAG_MULTILINE_SCRIPT_SINGLE_STEP, END_TAG_MULTILINE_SCRIPT_SINGLE_STEP }, true } },
+      { 'w', {{ BEGIN_TAG_MULTILINE_SCRIPT, END_TAG_MULTILINE_SCRIPT }, true } },
+      { 'q', {{ macro::BEGIN_TAG_IN_SEQUENCE, macro::END_TAG_IN_SEQUENCE }, true } },
+      { 'd', {{ macro::METHOD_PARS_BEGIN_TAG, macro::METHOD_PARS_END_TAG }, false } },
+   };
+
    switch (e) {
       case FL_KEYUP: {
          if (key == FL_Enter && !Fl::event_state(FL_SHIFT)) return(1); // hide Enter from editor
@@ -116,7 +150,7 @@ int vfm::InterpreterTerminal::handle(int e)
                      line_number++;
                   }
                }
-
+               
                if (line_number < 0 || line_number >= lines.size()) return(1); // Just a sanity check, should never happen.
 
                runCommand(lines[line_number].c_str());
@@ -125,6 +159,20 @@ int vfm::InterpreterTerminal::handle(int e)
 
             return(1); // hide 'Enter' from text widget
          }
+         else if (Fl::event_state(FL_CTRL) && bracket_key_shortcuts.count(key)) {
+            const std::pair<std::string, std::string> bracket_pair{ bracket_key_shortcuts.at(key).first };
+            const bool include_new_lines{ bracket_key_shortcuts.at(key).second };
+            const std::string open{ bracket_pair.first };
+            const std::string close{ bracket_pair.second };
+
+            if (surroundSelectionWithBrackets(open, close, include_new_lines)) {
+               return 1;
+            }
+            else if (insertBrackets(open, close, include_new_lines)) {
+               return 1;
+            }
+         }
+
          break;
       }
    }
