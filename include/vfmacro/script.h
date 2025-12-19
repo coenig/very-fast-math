@@ -961,10 +961,13 @@ private:
 
          for (const auto& dynamic_method : getScriptData().inscriptMethodDefinitions) {
             std::string method_name{ dynamic_method.first };
-            std::string definition{ /*dynamic_method.second*/ "TODO: Definition not printed to avoid self-evaluation." };
+            std::string definition{ dynamic_method.second };
             int par_num{ getScriptData().inscriptMethodParNums.at(method_name) };
             std::string pattern{ getScriptData().inscriptMethodParPatterns.at(method_name) };
             std::string uncachable{ isCachableMethod(method_name) ? "" : " <uncachable>" };
+
+            // Avoid self-evaluation.
+            definition = StaticHelper::replaceAll(StaticHelper::replaceAll(definition, INSCR_BEG_TAG, "{{"), INSCR_END_TAG, "}}");
 
             s += method_name + " (" + std::to_string(par_num) + " " + pattern + ") '" + definition + "'" + uncachable + "\n";
          }
