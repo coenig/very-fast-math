@@ -138,8 +138,7 @@ void Script::extractInscriptProcessors(const bool only_one_step)
          placeholder_for_inscript = evaluateChain(preprocessorScript);
 
          if (StaticHelper::startsWithUppercase(methodSignaturesArray.at(0))) {
-            // @{@{i}@.eval}@*.for[i, 1, 10]
-            // Remove this whole IF clause to undo.
+            // Expand whole current subscript before anything else, if method starts with uppercase letter.
 
             auto s = std::make_shared<Script>(vfm_data_, vfm_parser_);
             addFailableChild(s);
