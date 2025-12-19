@@ -51,7 +51,7 @@
       "DEBUG": false,
       "DISTANCESCALING": "#{1000}#",
       "EGOLESS": false,
-      "FEASIBILITY": false,
+      "FEASIBILITY": true,
       "KEEP_EGO_FROM_GREEN": true,
       "LANES_MAX_SPEEDS": "@(70)@@(70)@@(0)@",
       "LANES_MIN_SPEEDS": "@(0)@@(-70)@@(-70)@",

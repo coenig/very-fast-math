@@ -1,0 +1,34 @@
+// #vfm-begin
+
+// Inject native functions
+// #vfm-inject[[ @f(++) {x} { x = get(x) + 1 } ]]
+// #vfm-inject[[ @f(vfc::nop) {x} { 0 } ]]
+// #vfm-inject[[ @f(vfc::notEqual) {x, y} { x != y } ]]
+// #vfm-inject[[ @f(vfc::max) {x, y} { max(x, y) } ]]
+
+// Treat left operand (0) of = as pointer: a = b ==> @a = b.
+// #vfm-option[[ pointerize << =#0 ]]
+
+// Treat single operand (0) of ++ as pointer: ++x ==> ++@x.
+// #vfm-option[[ pointerize << ++#0 ]]
+
+// GENERAL MODE: gatekeeper | gatekeeper_with_debug | regular | debug
+// #vfm-option[[ general_mode << regular ]]
+
+// TARGET: nusmv | kratos
+// #vfm-option[[ target_mc << kratos ]]
+
+// OPTIMIZATION: all | inner_only (simplifies only the IF structures for variable array access) | none (use only if you know what you're doing)
+// #vfm-option[[ optimization_mode << inner_only ]]
+
+// INLINE FUNCTIONS: always | never (use "never" only if you know what you're doing, cf. https://inside-docupedia.bosch.com/confluence/display/pace/Automatic+State+Machine+Extraction+With+vfm)
+// #vfm-option[[ inline_functions << always ]]
+
+// ADDITIONAL DEBUG FILES: all | none ("all" currently creates the full formula tree with types as PDF.)
+// #vfm-option[[ create_additional_files << all ]]
+
+// # vfm-kratos-spec[[ !(veh[0].rel_pos > 0 && veh[0].rel_pos < 5) || std::abs(ego.on_lane - veh[0].on_lane) >= 2 ]]
+// #vfm-ltl-spec[[ true ]]
+// #vfm-ctl-spec[[ true ]]
+
+// #vfm-end

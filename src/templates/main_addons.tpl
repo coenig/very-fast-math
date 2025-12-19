@@ -3,6 +3,11 @@
 -- Storing patch in '@{FULL_GEN_PATH}@.printHeap/git_patch.txt'
 @{git diff > "@{FULL_GEN_PATH}@.printHeap/git_patch.txt"}@.exec
 
+@{
+-- Feasibility
+VAR env.b : boolean;
+}@.if[@{FEASIBILITY}@.eval]
+
    --= CROSSING =--
    -- Remove nil from generator to activate.
 @{
