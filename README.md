@@ -36,11 +36,11 @@ Run `vfm(.exe)` from the `bin` folder.
 There are no additional dependencies, except `gtest` if you want to run the tests.
 
 ## Authors
+Lukas Koenig,
 Alexander Georgescu,
 Christian Heinzemann,
 Christian Schildwaechter,
 Michaela Klauck,
 Alberto Griggio,
 Alberto Bombardelli,
-Henning Koch,
-Lukas Koenig
+Henning Koch et al.
