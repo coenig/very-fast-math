@@ -399,7 +399,7 @@ ASSIGN
 @{
 
 -- >>> Car [i] <<<
-@{-- Don't start on zero-length section
+@{-- Do not start on zero-length section
 @{
    INIT section_[sec]_end = 0 -> veh___6[i]9___.is_on_sec_[sec] = 0;
 }@*.for[[sec], 0, @{SECTIONS - 1}@.eval]

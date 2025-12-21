@@ -3,7 +3,7 @@
 }@*********.if[@{#0#}@.vfm_variable_declared]}@**********.newMethod[defaultValue, 1]
 
 -- Note that the below exact formulation is used in regex for caching. 
--- Don't change...
+-- Do not change...
 
 -- Global options
 @{EM_LESS}@*******.defaultValue[false]
@@ -67,4 +67,4 @@
 @{FEASIBILITY}@*******.defaultValue[true] -- Includes defines needed for the ACA4.1 Fesibility study.
 @{CONCRETE_MODEL}@*******.defaultValue[true] -- Uses the "concrete" model, as opposed to Alberto's "abstract" model.
 
--- EO Don't change.
+-- EO Do not change.
