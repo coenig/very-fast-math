@@ -23,7 +23,10 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
             section_[sec]_segment_[seg]_max_lane : 0 .. @{NUMLANES - 1}@.eval[0];
             @{section_[sec]_segment_[seg]_pos_begin}@*.scalingVariable[distance] : @{@(integer)@@(0 .. 1)@}@.if[@{CONCRETE_MODEL}@.eval];
          }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
-   
+		 
+		 @{section_[sec]_end}@*.scalingVariable[distance] : 
+		 @{@(0)@@(@{SECTIONSMINLENGTH}@.eval[0])@}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] .. @{SECTIONSMAXLENGTH}@.eval[0]; -- This is essentially the length of the section.
+
       @{
       FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1..@{SECTIONS - 1}@.eval[0];
       INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Do not connect to self.

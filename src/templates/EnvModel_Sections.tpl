@@ -61,9 +61,6 @@ INIT section_[sec]_segment_[num]_max_lane <= @{(NUMLANES - 1)}@.eval[0];
 
    @{
       FROZENVAR
-         @{section_[sec]_end}@*.scalingVariable[distance] : 
-            @{@(0)@@(@{SECTIONSMINLENGTH}@.eval[0])@}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] .. @{SECTIONSMAXLENGTH}@.eval[0]; -- This is essentially the length of the section.
-
          section_[sec].source.x : integer;
          section_[sec].source.y : integer;
          section_[sec].angle_raw : 0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
