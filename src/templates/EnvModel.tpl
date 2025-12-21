@@ -35,8 +35,6 @@ INIT !ego.abCond_full;
 
 @{
 @( -- EM-less build
-   @{scalingList}@*.pushBack[-- no,time]
-
    @{PLANNER_VARIABLES}@.printHeap
 )@
 @( -- EM-full build

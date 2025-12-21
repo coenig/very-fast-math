@@ -24,7 +24,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
    
       @{
       FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1..@{SECTIONS - 1}@.eval[0];
-      INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Don't connect to self.
+      INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Do not connect to self.
       @{
       INIT outgoing_connection_[con]_of_section_[sec] = -1 -> outgoing_connection_@{[con] + 1}@.eval[0]_of_section_[sec] = -1;
       }@***.if[@{[con] < MAXOUTGOINGCONNECTIONS -1}@.eval] -- Reduce topological permutations
