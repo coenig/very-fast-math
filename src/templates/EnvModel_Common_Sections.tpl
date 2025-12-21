@@ -18,8 +18,8 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
    @{
       FROZENVAR
          @{
-            section_[sec]_segment_[seg]_min_lane : integer;
-            section_[sec]_segment_[seg]_max_lane : integer;
+            section_[sec]_segment_[seg]_min_lane : 0 .. @{NUMLANES - 1}@.eval[0];
+            section_[sec]_segment_[seg]_max_lane : 0 .. @{NUMLANES - 1}@.eval[0];
          }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
    
       @{
