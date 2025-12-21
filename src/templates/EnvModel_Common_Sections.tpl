@@ -10,6 +10,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 }@.for[[num], 0, @{SEGMENTS - 1}@.eval]
 }@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
+
 --------------------------------------------------------
 --  <== EO Segments
 --------------------------------------------------------
@@ -20,6 +21,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
          @{
             section_[sec]_segment_[seg]_min_lane : 0 .. @{NUMLANES - 1}@.eval[0];
             section_[sec]_segment_[seg]_max_lane : 0 .. @{NUMLANES - 1}@.eval[0];
+            @{section_[sec]_segment_[seg]_pos_begin}@*.scalingVariable[distance] : @{@(integer)@@(0 .. 1)@}@.if[@{CONCRETE_MODEL}@.eval];
          }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
    
       @{
@@ -34,3 +36,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 --------------------------------------------------------
 -- EO Sections
 --------------------------------------------------------
+
+VAR
+   num_lanes : 0 .. @{NUMLANES}@.eval[0];
+INVAR num_lanes = @{NUMLANES}@.eval[0];
