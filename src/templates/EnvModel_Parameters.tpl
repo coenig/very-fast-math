@@ -66,5 +66,6 @@
 -- Special purpose parameters.
 @{FEASIBILITY}@*******.defaultValue[true] -- Includes defines needed for the ACA4.1 Fesibility study.
 @{CONCRETE_MODEL}@*******.defaultValue[true] -- Uses the "concrete" model, as opposed to Alberto's "abstract" model.
+@{MAXSECPARTS}@*******.defaultValue[3] -- TODO: Number of segments a section is split into for the abstract model. Should be replaced by scaling (if possible).
 
 -- EO Do not change.
