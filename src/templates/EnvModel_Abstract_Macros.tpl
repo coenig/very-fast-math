@@ -1,6 +1,6 @@
 @{veh___6#0#9___}@**.newMethod[car, 0]
 
-@{@{#0#}@.car.dot[on_secpart]}@**.newMethod[secpart, 0]
+@{@{#0#}@.car.dot[abs_pos]}@**.newMethod[secpart, 0]
 -- TODO: This is a workaround to add a dot when using methods...
 @{#0#.#1#}@**.newMethod[dot,1]
 
@@ -23,15 +23,15 @@
 -- If the two cars are in different sections or in junctions the proposition is false
 --
 --#define behindsec(c0, c1) \
---  (samesec(c0, c1) & (c0.on_secpart < c1.on_secpart))
+--  (samesec(c0, c1) & (c0.abs_pos < c1.abs_pos))
 @{
   (@{#0#}@.samesec[#1#] & @{#0#}@.secpart < @{#1#}@.secpart)
 }@**.newMethod[behindsec, 1]
 
--- True if the car is in the last chunk of the section (\sa on_secpart)
+-- True if the car is in the last chunk of the section (\sa abs_pos)
 --
 --#define car_at_end_of_section(c0, sec_id, sec_n_seg) \
---  (c0.on_straight_section = sec_id & c0.on_secpart = sec_n_seg)
+--  (c0.on_straight_section = sec_id & c0.abs_pos = sec_n_seg)
 --
 -- TODO[AB]: Extend with new MAX_SECPART parameter?
 --@{ @{#0#}@.sec = #1# & @{#0#}@.secpart = #2# }@**.newMethod[carendsect, 2]
@@ -53,7 +53,7 @@
 -- Constraints to move from the current section part to the next one. We ensure that we are in the range with n_secparts variable.
 --
 --#define _do_progress_secpart(c0, sec0) \
---  (c0.on_secpart < sec0.n_secparts & next(c0.on_secpart) = c0.on_secpart + 1)
+--  (c0.abs_pos < sec0.n_secparts & next(c0.abs_pos) = c0.abs_pos + 1)
 --
 @{
   (@{#0#}@.secpart < @{#1#}@.nsecparts & next(@{#0#}@.secpart) = @{#0#}@.secpart + 1)
@@ -62,7 +62,7 @@
 -- True if it is possible to pass from a section to the next one (assuming that c0.on_straight_section = sec0_id)
 --
 --#define cantraverse(c0, sec0) \
---  (c0.on_secpart = sec0.n_secparts)
+--  (c0.abs_pos = sec0.n_secparts)
 --#endif
 --
 @{
@@ -71,10 +71,10 @@
 
 -- Behavior of car while moving inside the section
 --#define CarTransSectInner(c0, sec0, sec0_id) \
---  INVAR (c0.on_straight_section = sec0_id) -> c0.on_secpart >= 0 & c0.on_secpart <= sec0.n_secparts; \
+--  INVAR (c0.on_straight_section = sec0_id) -> c0.abs_pos >= 0 & c0.abs_pos <= sec0.n_secparts; \
 --  TRANS (c0.on_straight_section = sec0_id) & next(c0.on_straight_section) != -1 ->  \
---    (next(c0.on_straight_section = sec0_id) & (next(c0.on_secpart) = c0.on_secpart | _do_progress_secpart(c0, sec0)) & \
---     next(c0.on_secpart) <= sec0.n_secparts & \
+--    (next(c0.on_straight_section = sec0_id) & (next(c0.abs_pos) = c0.abs_pos | _do_progress_secpart(c0, sec0)) & \
+--     next(c0.abs_pos) <= sec0.n_secparts & \
 --     next(c0.traversing_to) = -1 & next(c0.traversing_from) = -1)
 --
 @{
@@ -94,7 +94,7 @@
 -- Model the transitions between a section and a junction
 --
 --#define CarTransSectJunc(c0, sec0, sec0_id, junc_big_or) \
---  TRANS willtraverse(c0, sec0_id) -> (cantraverse(c0, sec0) & next(c0.on_secpart) = -1 & next(c0.traversing_from) = sec0_id & next(c0.traversing_to) != -1 & (junc_big_or))
+--  TRANS willtraverse(c0, sec0_id) -> (cantraverse(c0, sec0) & next(c0.abs_pos) = -1 & next(c0.traversing_from) = sec0_id & next(c0.traversing_to) != -1 & (junc_big_or))
 --
 @{
   TRANS @{#0#}@.willtraverse[#1#] -> (@{#0#}@.cantraverse[#1#] & next(@{#0#}@.secpart) = -1 & next(@{#0#}@.from) = #1# & next(@{#0#}@.to) != -1 &
