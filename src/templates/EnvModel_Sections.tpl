@@ -1,4 +1,3 @@
-@{EnvModel_Common_Sections.tpl}@********.include
 --------------------------------------------------------
 -- Sections
 --  ==> Segments
@@ -52,7 +51,12 @@ INIT section_[sec]_segment_[num]_max_lane <= @{(NUMLANES - 1)}@.eval[0];
 }@.for[[num], 0, @{SEGMENTS - 1}@.eval]
 
 -- INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -- Make sure we always have a drivable lane at the start. TODO: Make flexible.
+@{
+INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lane;
+}@.for[[num], 0, @{SEGMENTS - 1}@.eval]
+
 }@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
 
 --------------------------------------------------------
 --  <== EO Segments
@@ -64,6 +68,23 @@ INIT section_[sec]_segment_[num]_max_lane <= @{(NUMLANES - 1)}@.eval[0];
          section_[sec].source.x : integer;
          section_[sec].source.y : integer;
          section_[sec].angle_raw : 0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
+
+         @{
+            section_[sec]_segment_[seg]_min_lane : 0 .. @{NUMLANES - 1}@.eval[0];
+            section_[sec]_segment_[seg]_max_lane : 0 .. @{NUMLANES - 1}@.eval[0];
+            @{section_[sec]_segment_[seg]_pos_begin}@*.scalingVariable[distance] : @{@(integer)@@(0 .. 1)@}@.if[@{CONCRETE_MODEL}@.eval];
+         }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
+		 
+		 @{section_[sec]_end}@*.scalingVariable[distance] : 
+		 @{@(0)@@(@{SECTIONSMINLENGTH}@.eval[0])@}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] .. @{SECTIONSMAXLENGTH}@.eval[0]; -- This is essentially the length of the section.
+
+      @{
+      FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1..@{SECTIONS - 1}@.eval[0];
+      INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Do not connect to self.
+      @{
+      INIT outgoing_connection_[con]_of_section_[sec] = -1 -> outgoing_connection_@{[con] + 1}@.eval[0]_of_section_[sec] = -1;
+      }@***.if[@{[con] < MAXOUTGOINGCONNECTIONS -1}@.eval] -- Reduce topological permutations
+      }@****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
 
       @{
       INIT section_[sec]_end = 0                               -- Allow straight sections with zero length.
@@ -140,6 +161,8 @@ INIT section_[sec]_segment_[num]_max_lane <= @{(NUMLANES - 1)}@.eval[0];
          }@****.if[@{[sec] != [sec2]}@.eval]
       }@*****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
    }@******.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
+
 
    -- Section 0 always starts at (0/0) and goes horizontally to the right.
    INIT section_0.source.x = 0;

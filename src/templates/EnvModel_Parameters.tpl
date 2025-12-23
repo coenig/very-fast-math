@@ -21,7 +21,8 @@
 @{MAXOUTGOINGCONNECTIONS}@*******.defaultValue[3] -- Maximum number of successors a straight road may have
 @{MINDISTCONNECTIONS}@*******.defaultValue[20]    -- The minimal "X" variable when going from the drain of one road to the source of a connected one
 @{MAXDISTCONNECTIONS}@*******.defaultValue[50]    -- The maximal "X" variable when going from the drain of one road to the source of a connected one
-@{MAXDISTENDPOINTS}@*******.defaultValue[5]    -- Two end points must be at least this apart (approximated by maxvar method)
+@{MAXDISTENDPOINTS}@*******.defaultValue[5]       -- Two end points must be at least this apart (approximated by maxvar method)
+@{MODEL_GEOMETRY}@*******.defaultValue[true]      -- If the length of the junctions is calculated subject to connections etc.
 
 -- Parameters for ego and non-ego vehicles
 @{EGOLESS}@*******.defaultValue[false]
