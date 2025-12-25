@@ -10,19 +10,19 @@
 @{SCENGEN_MODE}@*******.defaultValue[false]
 
 -- Parametrization of road topology features
-@{NUMLANES}@*******.defaultValue[3]               -- Maximum number of lanes a road SEGMENT can have
-@{SEGMENTS}@*******.defaultValue[4]               -- Number of segments per straight road SECTION with flexible length and NUMLANES
-@{SEGMENTSMINLENGTH}@*******.defaultValue[30] 
-@{SECTIONS}@*******.defaultValue[3]               -- Number of straight road SECTIONS which form a road network
+@{NUMLANES}@*******.defaultValue[3]                       -- Maximum number of lanes a road SEGMENT can have
+@{SEGMENTS}@*******.defaultValue[4]                       -- Number of segments per straight road SECTION with flexible length and NUMLANES
+@{SEGMENTSMINLENGTH}@*******.defaultValue[30]         
+@{SECTIONS}@*******.defaultValue[3]                       -- Number of straight road SECTIONS which form a road network
 @{SECTIONSMAXLENGTH}@*******.defaultValue[150]
 @{SECTIONSMINLENGTH}@*******.defaultValue[50]
 @{ALLOW_ZEROLENGTH_SECTIONS}@*******.defaultValue[true]
-@{ANGLEGRANULARITY}@*******.defaultValue[45]      -- Only every n-th angle (DEG) can be used between two sections at connection points (zero degrees is straight ahead)
-@{MAXOUTGOINGCONNECTIONS}@*******.defaultValue[3] -- Maximum number of successors a straight road may have
-@{MINDISTCONNECTIONS}@*******.defaultValue[20]    -- The minimal "X" variable when going from the drain of one road to the source of a connected one
-@{MAXDISTCONNECTIONS}@*******.defaultValue[50]    -- The maximal "X" variable when going from the drain of one road to the source of a connected one
-@{MAXDISTENDPOINTS}@*******.defaultValue[5]       -- Two end points must be at least this apart (approximated by maxvar method)
-@{MODEL_GEOMETRY}@*******.defaultValue[true]      -- If the length of the junctions is calculated subject to connections etc.
+@{ANGLEGRANULARITY}@*******.defaultValue[45]              -- Only every n-th angle (DEG) can be used between two sections at connection points (zero degrees is straight ahead)
+@{MAXOUTGOINGCONNECTIONS}@*******.defaultValue[3]         -- Maximum number of successors a straight road may have
+@{MINDISTCONNECTIONS}@*******.defaultValue[20]            -- The minimal "X" variable when going from the drain of one road to the source of a connected one
+@{MAXDISTCONNECTIONS}@*******.defaultValue[50]            -- The maximal "X" variable when going from the drain of one road to the source of a connected one
+@{MAXDISTENDPOINTS}@*******.defaultValue[5]               -- Two end points must be at least this apart (approximated by maxvar method)
+@{MODEL_INTERSECTION_GEOMETRY}@*******.defaultValue[true] -- If the length of the junctions is calculated subject to connections etc. (Makes calculation slow, but needed at least for multi-lane road networks.)
 
 -- Parameters for ego and non-ego vehicles
 @{EGOLESS}@*******.defaultValue[false]
