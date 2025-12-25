@@ -267,7 +267,7 @@ INVAR section_0_segment_2_max_lane = 0;
 --INIT env.ego_lane_0;
 
 -- Three cars invert their ordering
-@{
+
 INIT env.outgoing_connection_0_of_section_0 = 1;
 INIT env.outgoing_connection_1_of_section_0 = 2;
 INIT env.outgoing_connection_2_of_section_0 = 3;
@@ -294,7 +294,7 @@ INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
 INVAR abs(env.veh___619___.v - env.veh___629___.v) <= 6;
 INVAR env.veh___609___.v <= env.veh___609___.current_seclet_length;
 -- EO Three cars invert their ordering
-}@.nil
+
 
 -- Nudging
 -- INIT env.veh___609___.abs_pos = 0;
