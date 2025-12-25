@@ -3,6 +3,14 @@
   "scopeName": "source.vfmacro",
   "patterns": [
     {
+      "name": "comment.line.double-dash.vfmacro",
+      "match": "--.*$"
+    },
+    {
+      "name": "comment.block.nil.vfmacro",
+      "match": "@\\{[^}]*\\}@\\.nil"
+    },
+    {
       "name": "keyword.control.vfmacro",
       "match": "@\\{[^}]+\\}@"
     },
