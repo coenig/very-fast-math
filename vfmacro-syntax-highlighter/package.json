@@ -4,6 +4,10 @@
   "description": "Syntax highlighting for vfmacro template files.",
   "version": "0.0.1",
   "publisher": "vfm",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/coenig/very-fast-math.git"
+  },
   "engines": {
     "vscode": "^1.50.0"
   },
