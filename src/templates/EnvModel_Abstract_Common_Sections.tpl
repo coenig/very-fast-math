@@ -1,4 +1,8 @@
 
+@{
+NOTE: This file is currently used by the "abstract model" by Alberto only. Despite the naming "common".
+}@.nil
+
 --------------------------------------------------------
 -- Sections
 --  ==> Segments
