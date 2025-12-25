@@ -1,0 +1,30 @@
+{
+  "name": "vfmacro-syntax-highlighter",
+  "displayName": "vfmacro Syntax Highlighter",
+  "description": "Syntax highlighting for vfmacro template files.",
+  "version": "0.0.1",
+  "publisher": "vfm",
+  "engines": {
+    "vscode": "^1.50.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "vfmacro",
+        "aliases": ["vfmacro", "VFMacro"],
+        "extensions": [".vfmacro", ".tpl"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "vfmacro",
+        "scopeName": "source.vfmacro",
+        "path": "./syntaxes/vfmacro.tmLanguage.json"
+      }
+    ]
+  }
+}

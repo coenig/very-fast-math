@@ -40,7 +40,7 @@
 !examples/crypting/*.exe
 
 # Generated documents
-*.json
+src/templates/*.json
 !.vscode/launch.json
 !src/templates/*.tpl.json
 *.pdf
