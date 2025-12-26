@@ -5,7 +5,7 @@
       "#004": "@f(range, x, a, b) { x = array(b - a + 2); @i = get(x); while(i - get(x) < b - a + 1) { i = a + i - get(x); @i = i + 1 }; i = nan() }",
       "#005": "@f(range_dist, x, a, b, c) { x = array((b - a) / c + 1 ); @i = get(x); while(i - get(x) < (b - a) / c + 1) { i = a + (i - get(x)) * c; @i = i +1}; i = nan() }",
       "#006": "@f(range_mult, x, start, cnt, mult) { x = array(cnt + 1); @i = get(x); @val = start; while(i < get(x) + cnt) { i = val; @i = i + 1; @val = val * mult }; i = nan() }",
-      "#007": "range(@nonegos, 3, 7);",
+      "#007": "range(@nonegos, 3, 5);",
       "#008": "range(@lanes, 1, 1);",
       "#009": "range(@segments, 1, 1);",
       "#010": "range(@sections, 5, 8);",
