@@ -345,7 +345,7 @@ ASSIGN
 next(veh___6[i]9___.has_arrived_to_new_seclet_in_last_cycle) := veh___6[i]9___.will_arrive_to_new_seclet_in_next_cycle;
 init(veh___6[i]9___.has_arrived_to_new_seclet_in_last_cycle) := FALSE;
 
-INVAR veh___6[i]9___.will_arrive_to_new_seclet_in_next_cycle -> 
+TRANS veh___6[i]9___.will_arrive_to_new_seclet_in_next_cycle -> 
    (
     @{
       (veh_[j]_and_veh_[i]_on_same_seclet -> veh___6[i]9___.abs_pos > veh___6[j]9___.abs_pos)
