@@ -386,19 +386,22 @@ void McWorkflow::preprocessAndRewriteJSONTemplate(
                   std::string formula_str{ val_str };
 
                   StaticHelper::distributeGetOnlyInner(formula_str, begin + JSON_NUXMV_FORMULA_BEGIN.size(), end);
-                  auto formula{ MathStruct::parseMathStruct(formula_str, parser_, data_, DotTreatment::as_operator) };
 
-                  formula->applyToMeAndMyChildrenIterative([&variables, this](const MathStructPtr m)
-                     {
-                        auto m_var{ m->toVariableIfApplicable() };
-                        if (m_var) {
-                           auto m_var_name{ m_var->getVariableName() };
-                           if (data_->isDeclared(m_var_name)) {
-                              addNote("Found variable in nuXmv formula: " + m->serializeWithinSurroundingFormula());
-                              variables.insert(m_var_name);
-                           }
-                        }
-                     }, TraverseCompoundsType::avoid_compound_structures);
+                  if (!StaticHelper::stringContains(formula_str, macro::INSCR_BEG_TAG)) { // Ignore script SPECs.
+                      auto formula{ MathStruct::parseMathStruct(formula_str, parser_, data_, DotTreatment::as_operator) };
+
+                      formula->applyToMeAndMyChildrenIterative([&variables, this](const MathStructPtr m)
+                          {
+                              auto m_var{ m->toVariableIfApplicable() };
+                              if (m_var) {
+                                  auto m_var_name{ m_var->getVariableName() };
+                                  if (data_->isDeclared(m_var_name)) {
+                                      addNote("Found variable in nuXmv formula: " + m->serializeWithinSurroundingFormula());
+                                      variables.insert(m_var_name);
+                                  }
+                              }
+                          }, TraverseCompoundsType::avoid_compound_structures);
+                  }
                }
             }
          }
@@ -574,28 +577,34 @@ nlohmann::json McWorkflow::instanceFromTemplate(
                      std::string after{};
 
                      StaticHelper::distributeIntoBeforeInnerAfter(before, formula_str, after, begin + JSON_NUXMV_FORMULA_BEGIN.size(), end);
-                     auto formula{ _id(MathStruct::parseMathStruct(formula_str, parser_, data_, DotTreatment::as_operator)->toTermIfApplicable()) };
-
-                     formula->applyToMeAndMyChildrenIterative([&ranges, &counter_vec, this](const MathStructPtr m)
-                        {
-                           auto m_var{ m->toVariableIfApplicable() };
-                           if (m_var) {
-                              auto m_var_name{ m_var->getVariableName() };
-
-                              for (int i = 0; i < ranges.size(); i++) {
-                                 if (ranges[i].first == m_var_name) {
-                                    m_var->replaceJumpOverCompounds(_val(ranges[i].second[counter_vec[i]]));
-                                 }
-                              }
-                           }
-                        }, TraverseCompoundsType::avoid_compound_structures);
-
                      const std::string before_without_bracket{ before.substr(0, before.size() - JSON_NUXMV_FORMULA_BEGIN.size()) };
+                     std::string new_inner{};
                      const std::string after_without_bracket{ after.substr(JSON_NUXMV_FORMULA_END.size()) };
-                     const std::string new_inner{ formula->child0()->isTermVal()
-                        ? formula->child0()->serializePlainOldVFMStyle(MathStruct::SerializationSpecial::enforce_square_array_brackets)    // If it's only a number, use regular serialization since the nusmv one casts to int.
-                        : formula->child0()->serializeNuSMV(data_, parser_) // For larger formulas, print in nusmv style since it goes directly to the model checker.
-                     };
+
+                     if (StaticHelper::stringContains(formula_str, macro::INSCR_BEG_TAG)) {
+                         new_inner = formula_str; // Script-based formula.
+                     }
+                     else {
+                         auto formula{ _id(MathStruct::parseMathStruct(formula_str, parser_, data_, DotTreatment::as_operator)->toTermIfApplicable()) };
+
+                         formula->applyToMeAndMyChildrenIterative([&ranges, &counter_vec, this](const MathStructPtr m)
+                             {
+                                 auto m_var{ m->toVariableIfApplicable() };
+                                 if (m_var) {
+                                     auto m_var_name{ m_var->getVariableName() };
+
+                                     for (int i = 0; i < ranges.size(); i++) {
+                                         if (ranges[i].first == m_var_name) {
+                                             m_var->replaceJumpOverCompounds(_val(ranges[i].second[counter_vec[i]]));
+                                         }
+                                     }
+                                 }
+                             }, TraverseCompoundsType::avoid_compound_structures);
+
+                         new_inner = formula->child0()->isTermVal()
+                             ? formula->child0()->serializePlainOldVFMStyle(MathStruct::SerializationSpecial::enforce_square_array_brackets)    // If it's only a number, use regular serialization since the nusmv one casts to int.
+                             : formula->child0()->serializeNuSMV(data_, parser_); // For larger formulas, print in nusmv style since it goes directly to the model checker.
+                     }
 
                      val_str =
                         before_without_bracket

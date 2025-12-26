@@ -377,7 +377,7 @@ std::string Script::forloop(const std::string& varname, const std::string& from_
    return forloop(varname, from_raw, to_raw, step_raw, "");
 }
 
-std::string Script::forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw, const std::string& step_raw, const std::string& inner_separator)
+std::string Script::forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw, const std::string& step_raw, const std::string& inner_separator, const std::set<std::string>& except)
 {
    if (!StaticHelper::isParsableAsFloat(from_raw) || !StaticHelper::isParsableAsFloat(to_raw) || !StaticHelper::isParsableAsFloat(step_raw)) {
       addError("At least one of the loop limits '" + from_raw + "' and '" + to_raw + "' and/or the step '" + step_raw + "' is not a number.");
@@ -393,7 +393,9 @@ std::string Script::forloop(const std::string& varname, const std::string& from_
    std::vector<std::string> loop_vec{};
 
    for (int i = from; (increasing && i <= to) || (decreasing && i >= to); i += step) {
-      loop_vec.push_back(std::to_string(i));
+       if (!except.count(std::to_string(i))) {
+           loop_vec.push_back(std::to_string(i));
+       }
    }
 
    return forloop(varname, loop_vec, inner_separator);

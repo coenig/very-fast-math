@@ -1615,6 +1615,10 @@ std::string vfm::FormulaParser::preprocessProgramBraceStyleFunctionDenotation(co
          int closing = prog_result.rfind(CLOSING_BRACKET, ind_op_brace);
          int opening = StaticHelper::findMatchingBegTagLevelwise(prog_result, open_round, close_round, closing, { "\"" }, { "\"" });
 
+         if (closing < 0 || opening < 0) {
+             return program; // Malformed program wrt. braces.
+         }
+
          if (prog_result[closing] == CLOSING_BRACKET && prog_result[opening] == OPENING_BRACKET) {
             std::string innerPart = prog_result.substr(ind_op_brace + 1, ind_cl_brace - ind_op_brace - 1);
             std::string before = prog_result.substr(0, opening + 1);

@@ -30,7 +30,7 @@ std::map<std::string, std::pair<std::string, std::string>> MCScene::loadNewBBsFr
    mc_workflow_.evaluateFormulasInJSON(json, formula_evaluation_mutex_);
 
    auto bb_pair = getSpec(JSON_TEMPLATE_DENOTER);
-   std::string bb{ bb_pair.second };
+   const std::string bb{ StaticHelper::stringContains(bb_pair.second, macro::INSCR_BEG_TAG) ? JSON_NUXMV_FORMULA_BEGIN + " _SCRIPT_BASED_SPEC_ " + JSON_NUXMV_FORMULA_END : bb_pair.second };
    std::string bb_str{};
 
    // SPEC
@@ -39,7 +39,11 @@ std::map<std::string, std::pair<std::string, std::string>> MCScene::loadNewBBsFr
       + " = " + bb.substr(JSON_NUXMV_FORMULA_BEGIN.size(), bb.size() - JSON_NUXMV_FORMULA_BEGIN.size() - JSON_NUXMV_FORMULA_END.size() - 1);
 
    mc_workflow_.parser_->resetErrors(ErrorLevelEnum::error);
-   MathStructPtr fmla = MathStruct::parseMathStruct(bb_str, mc_workflow_.parser_, mc_workflow_.data_, DotTreatment::as_operator);
+   MathStructPtr fmla = MathStruct::parseMathStruct(
+       bb_str,
+       mc_workflow_.parser_, 
+       mc_workflow_.data_, 
+       DotTreatment::as_operator);
 
    if (mc_workflow_.parser_->hasErrorOccurred()) {
       last_bb_stuff_.insert({ StaticHelper::removeWhiteSpace(StaticHelper::split(bb_str, "=").at(0)), { bb_str, bb_pair.first } });
@@ -1441,16 +1445,22 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
       std::string type_str{ is_ltl ? "LTLSPEC" : "INVARSPEC" };
 
       spec = StaticHelper::trimAndReturn(StaticHelper::replaceAll(StaticHelper::replaceAll(spec, "LTLSPEC", ""), "INVARSPEC", ""));
-      auto spec_fmla{ MathStruct::parseMathStruct(spec, mc_scene->mc_workflow_.parser_, mc_scene->mc_workflow_.data_, DotTreatment::as_operator)->toTermIfApplicable() };
-      spec_fmla = _id(mc::simplification::simplifyFast(spec_fmla, mc_scene->mc_workflow_.parser_));
 
-      spec_fmla->applyToMeAndMyChildren([](const MathStructPtr m) { // Replace function stuff with variables: "GapLeft(20, 20) ==> GapLeft"
-         if (m->isTermCompound() && !MathStruct::DEFAULT_EXCEPTIONS_FOR_FLATTENING.count(m->getOptorJumpIntoCompound())) {
-            m->replaceJumpOverCompounds(_var(m->getOptorJumpIntoCompound()));
-         }
-      });
+      if (StaticHelper::stringContains(spec, macro::INSCR_BEG_TAG)) {
+        spec = type_str + " " + spec; // From script.
+      }
+      else {
+          auto spec_fmla{ MathStruct::parseMathStruct(spec, mc_scene->mc_workflow_.parser_, mc_scene->mc_workflow_.data_, DotTreatment::as_operator)->toTermIfApplicable() };
+          spec_fmla = _id(mc::simplification::simplifyFast(spec_fmla, mc_scene->mc_workflow_.parser_));
 
-      spec = type_str + " " + spec_fmla->child0()->serializePlainOldVFMStyle(MathStruct::SerializationSpecial::enforce_square_array_brackets);
+          spec_fmla->applyToMeAndMyChildren([](const MathStructPtr m) { // Replace function stuff with variables: "GapLeft(20, 20) ==> GapLeft"
+              if (m->isTermCompound() && !MathStruct::DEFAULT_EXCEPTIONS_FOR_FLATTENING.count(m->getOptorJumpIntoCompound())) {
+                  m->replaceJumpOverCompounds(_var(m->getOptorJumpIntoCompound()));
+              }
+              });
+
+          spec = type_str + " " + spec_fmla->child0()->serializePlainOldVFMStyle(MathStruct::SerializationSpecial::enforce_square_array_brackets);
+      }
 
       auto previews_parent_path{ path_preview_bb.parent_path() / "previews" };
       int cnt{ 0 };

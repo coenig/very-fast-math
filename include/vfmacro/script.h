@@ -265,7 +265,7 @@ public:
    std::string forloop(const std::string& varname, const std::string& loop_vec);
    std::string forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw);
    std::string forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw, const std::string& step_raw);
-   std::string forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw, const std::string& step_raw, const std::string& inner_separator);
+   std::string forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw, const std::string& step_raw, const std::string& inner_separator, const std::set<std::string>& except = {});
    std::string forloop(const std::string& varname, const std::vector<std::string>& loop_vec, const std::string& inner_separator);
    std::string ifChoice(const std::string bool_str);
    std::string element(const std::string& num_str);
@@ -526,6 +526,7 @@ private:
    std::string storeRoadGraph(const std::string& filename);
    std::string createRoadGraph(const std::string& id);
 
+   ScriptMethodDescription m0{ "forExcept", 6, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3), parameters.at(4), { parameters.at(5) }); } };
    ScriptMethodDescription m1{ "for", 2, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1)); } };
    ScriptMethodDescription m2{ "for", 3, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2)); } };
    ScriptMethodDescription m3{ "for", 4, [this](const std::vector<std::string>& parameters) -> std::string { return forloop(parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3)); } };
@@ -766,6 +767,7 @@ private:
    ScriptMethodDescription arith12i{ "ModI", 1, [this](const std::vector<std::string>& parameters) -> std::string { return exmodI(parameters.at(0)); } };
 
    std::set<ScriptMethodDescription> METHODS{
+      m0,
       m1,
       m2,
       m3,

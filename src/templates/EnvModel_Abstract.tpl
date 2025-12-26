@@ -47,17 +47,6 @@ MODULE EnvModel
   }@**.for[[j], 0, @{NONEGOS - 1}@.eval[0]]
   }@**.for[[i], 0, @{NONEGOS - 1}@.eval[0]]
   
-  -- reverse car:
-  LTLSPEC NAME reverse_cars :=
-    ! (
-     --initially the cars are ordered 0,..., n
-    @{@{[i]}@.behindsec[@{[i] + 1}@.eval[0]]}@*.for[[i], 0, @{NONEGOS - 2}@.eval[0],1,&] 
-    & 
-    -- then at some point order is reversed.
-    F (@{@{@{[i]+1}@.eval[0]}@.behindsec[[i]]}@*.for[[i], 0, @{NONEGOS - 2}@.eval[0],1,&])
-
-  )
-
   VAR
    -- TODO: counter as integer slow down verification!!!
    cnt : -1..1;
