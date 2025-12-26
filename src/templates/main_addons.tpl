@@ -285,16 +285,15 @@ INIT env.dist_0_of_section_3_to_4 = 20;
 INIT env.section_4_end = 20;
 }@.nil
 
-INIT env.veh___609___.is_on_sec_0 = 1;
-INIT env.veh___609___.abs_pos = 0;
-INVAR env.veh___609___.v <= env.veh___609___.current_seclet_length;
-
 @{
 INIT env.veh___6[i]9___.is_on_sec_0 = 1;
 INIT env.veh___6[i]9___.abs_pos = @{[i] * 6}@.eval[0];
 INVAR env.veh___6[i]9___.v <= env.veh___6[i]9___.current_seclet_length;
-INVAR abs(env.veh___6@{[i] - 1}@.eval[0]9___.v - env.veh___6[i]9___.v) <= 6;
-}@***.for[[i], 1, @{NONEGOS - 1}@.eval]
+@{
+   INVAR abs(env.veh___6[i]9___.v - env.veh___6[j]9___.v) <= 6;
+}@**.for[[j], @{[i] + 1}@.eval, @{NONEGOS - 1}@.eval]
+}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
+
 
 -- EO Three cars invert their ordering
 
