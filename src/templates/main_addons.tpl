@@ -290,8 +290,10 @@ INIT env.veh___6[i]9___.is_on_sec_0 = 1;
 INIT env.veh___6[i]9___.abs_pos = @{[i] * 6}@.eval[0];
 INVAR env.veh___6[i]9___.v <= env.veh___6[i]9___.current_seclet_length;
 @{
+@{
    INVAR abs(env.veh___6[i]9___.v - env.veh___6[j]9___.v) <= 6;
 }@**.for[[j], @{[i] + 1}@.eval, @{NONEGOS - 1}@.eval]
+}@.nil
 }@***.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 

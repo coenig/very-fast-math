@@ -207,6 +207,8 @@ veh___6[i]9___.halber_tacho := 0;
 DEFINE veh_[i]_and_veh_[j]_on_same_seclet := 
 veh___6[i]9___.on_straight_section = veh___6[j]9___.on_straight_section & veh___6[i]9___.traversion_from = veh___6[j]9___.traversion_from & veh___6[i]9___.traversion_to = veh___6[j]9___.traversion_to;
 
+DEFINE veh_[j]_and_veh_[i]_on_same_seclet := veh_[i]_and_veh_[j]_on_same_seclet;
+
 INVAR -- Non-Ego cars may not collide.
     veh_[i]_and_veh_[j]_on_same_seclet -> (veh___6[i]9___.same_lane_as_veh_[j] -> (abs(veh___6[j]9___.abs_pos - veh___6[i]9___.abs_pos) > (veh_length + (veh___6[i]9___.halber_tacho * @{10 * SAFETY_DISTANCE_FACTOR_NONEGO}@.eval[0]) / 10)));
 
@@ -343,8 +345,20 @@ ASSIGN
 next(veh___6[i]9___.has_arrived_to_new_seclet_in_last_cycle) := veh___6[i]9___.will_arrive_to_new_seclet_in_next_cycle;
 init(veh___6[i]9___.has_arrived_to_new_seclet_in_last_cycle) := FALSE;
 
+INVAR veh___6[i]9___.will_arrive_to_new_seclet_in_next_cycle -> 
+   (
+    @{
+      (veh_[j]_and_veh_[i]_on_same_seclet -> veh___6[i]9___.abs_pos > veh___6[j]9___.abs_pos)
+    }@*.forExcept[[j], 0, @{NONEGOS - 1}@.eval, 1, &, [i]]
+   )
+   ;
+
 INVAR veh___6[i]9___.has_arrived_to_new_seclet_in_last_cycle -> 
-   (@{(veh_[i]_and_veh_[j]_on_same_seclet -> veh___6[i]9___.abs_pos < veh___6[j]9___.abs_pos)}@*.for[[j], 0, @{NONEGOS - 1}@.eval, 1, &])
+   (
+    @{
+      (veh_[j]_and_veh_[i]_on_same_seclet -> veh___6[i]9___.abs_pos < veh___6[j]9___.abs_pos)
+    }@*.forExcept[[j], 0, @{NONEGOS - 1}@.eval, 1, &, [i]]
+   )
    ;
 
 ASSIGN
