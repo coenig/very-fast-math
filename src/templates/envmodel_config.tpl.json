@@ -77,7 +77,7 @@
       "CONCRETE_MODEL": true,
       "MODEL_INTERSECTION_GEOMETRY": false,
       "SIMPLE_LC": true,
-      "SPEC": "#{ !(((env.veh___609___.abs_pos > env.veh___619___.abs_pos) && (env.veh___619___.abs_pos > env.veh___629___.abs_pos) && (env.veh___609___.on_straight_section >= 0) && env.veh___609___.on_straight_section == env.veh___619___.on_straight_section) && env.veh___609___.on_straight_section == env.veh___629___.on_straight_section) }#",
+      "SPEC": "#{ !( env.veh___609___.on_straight_section >= 0 @{ & env.veh___609___.on_straight_section = env.veh___6[i]9___.on_straight_section & env.veh___6@{[i] - 1}@.eval[0]9___.abs_pos > env.veh___6[i]9___.abs_pos}@***.for[[i], 1, @{NONEGOS - 1}@.eval]) }#",
       "SPEC1": "#{ (F(env.cnt == 1)) }#",
       "SPEC2": "#{ (F(env.cnt == 2)) }#",
       "SPEC3": "#{ (F(env.cnt == 3)) }#",
