@@ -65,9 +65,11 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 
    @{
       FROZENVAR
+      @{
          section_[sec].source.x : integer;
          section_[sec].source.y : integer;
          section_[sec].angle_raw : 0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
+      }@******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval]
 
          @{
             section_[sec]_segment_[seg]_min_lane : 0 .. @{NUMLANES - 1}@.eval[0];
