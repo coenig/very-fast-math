@@ -334,9 +334,22 @@ DEFINE
           TRUE : -1;
     esac;
 
+DEFINE
+   veh___6[i]9___.will_arrive_to_new_seclet_in_next_cycle := veh___6[i]9___.next_abs_pos > veh___6[i]9___.current_seclet_length;
+
+VAR veh___6[i]9___.has_arrived_to_new_seclet_in_last_cycle : boolean;
+
+ASSIGN 
+next(veh___6[i]9___.has_arrived_to_new_seclet_in_last_cycle) := veh___6[i]9___.will_arrive_to_new_seclet_in_next_cycle;
+init(veh___6[i]9___.has_arrived_to_new_seclet_in_last_cycle) := FALSE;
+
+INVAR veh___6[i]9___.has_arrived_to_new_seclet_in_last_cycle -> 
+   (@{(veh_[i]_and_veh_[j]_on_same_seclet -> veh___6[i]9___.abs_pos < veh___6[j]9___.abs_pos)}@*.for[[j], 0, @{NONEGOS - 1}@.eval, 1, &])
+   ;
+
 ASSIGN
     next(veh___6[i]9___.abs_pos) := case
-          veh___6[i]9___.next_abs_pos > veh___6[i]9___.current_seclet_length : veh___6[i]9___.next_abs_pos - veh___6[i]9___.current_seclet_length;
+          veh___6[i]9___.will_arrive_to_new_seclet_in_next_cycle : veh___6[i]9___.next_abs_pos - veh___6[i]9___.current_seclet_length;
           TRUE : veh___6[i]9___.next_abs_pos;
     esac;
 
