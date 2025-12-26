@@ -8,7 +8,7 @@
     },
     {
       "name": "comment.block.nil.vfmacro",
-      "match": "@\\{[^}]*\\}@\\.nil"
+      "match": "@\\{[^}]*\\}@[\\*]*\\.nil"
     },
     {
       "name": "keyword.control.vfmacro",
