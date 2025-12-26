@@ -267,6 +267,7 @@ INVAR section_0_segment_2_max_lane = 0;
 --INIT env.ego_lane_0;
 
 -- Three cars invert their ordering
+
 @{
 INIT env.outgoing_connection_0_of_section_0 = 1;
 INIT env.outgoing_connection_1_of_section_0 = 2;
@@ -285,15 +286,16 @@ INIT env.section_4_end = 20;
 }@.nil
 
 INIT env.veh___609___.is_on_sec_0 = 1;
-INIT env.veh___619___.is_on_sec_0 = 1;
-INIT env.veh___629___.is_on_sec_0 = 1;
 INIT env.veh___609___.abs_pos = 0;
-INIT env.veh___619___.abs_pos = 6;
-INIT env.veh___629___.abs_pos = 12;
-
-INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
-INVAR abs(env.veh___619___.v - env.veh___629___.v) <= 6;
 INVAR env.veh___609___.v <= env.veh___609___.current_seclet_length;
+
+@{
+INIT env.veh___6[i]9___.is_on_sec_0 = 1;
+INIT env.veh___6[i]9___.abs_pos = @{[i] * 6}@.eval[0];
+INVAR env.veh___6[i]9___.v <= env.veh___6[i]9___.current_seclet_length;
+INVAR abs(env.veh___6@{[i] - 1}@.eval[0]9___.v - env.veh___6[i]9___.v) <= 6;
+}@***.for[[i], 1, @{NONEGOS - 1}@.eval]
+
 -- EO Three cars invert their ordering
 
 
