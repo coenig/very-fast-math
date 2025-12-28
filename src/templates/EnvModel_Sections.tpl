@@ -78,7 +78,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
          }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
 		 
 		 @{section_[sec]_end}@*.scalingVariable[distance] : 
-		 @{@(0)@@(@{SECTIONSMINLENGTH}@.eval[0])@}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] .. @{SECTIONSMAXLENGTH}@.eval[0]; -- This is essentially the length of the section.
+		 @{@(0)@@(@{SECTIONSMINLENGTH}@.distanceWorldToEnvModelConst)@}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] .. @{SECTIONSMAXLENGTH}@.distanceWorldToEnvModelConst; -- This is essentially the length of the section.
 
       @{
       FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1..@{SECTIONS - 1}@.eval[0];
@@ -90,7 +90,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 
       @{
       INIT section_[sec]_end = 0                               -- Allow straight sections with zero length.
-         | section_[sec]_end >= @{SECTIONSMINLENGTH}@.eval[0];
+         | section_[sec]_end >= @{SECTIONSMINLENGTH}@.distanceWorldToEnvModelConst;
       }@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval]
 
       @{
