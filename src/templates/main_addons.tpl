@@ -287,7 +287,7 @@ INIT env.section_4_end = 20;
 
 @{
 INIT env.veh___6[i]9___.is_on_sec_0 = 1;
-INIT env.veh___6[i]9___.abs_pos = @{[i] * VEHICLE_LENGTH * (DISTANCESCALING / 1000 + 1)}@.eval[0];
+INIT env.veh___6[i]9___.abs_pos = @{[i]}@.eval[0] * (env.veh_length + 1);
 INVAR env.veh___6[i]9___.v <= env.veh___6[i]9___.current_seclet_length;
 @{
 @{
