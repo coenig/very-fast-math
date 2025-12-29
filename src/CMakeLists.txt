@@ -88,10 +88,6 @@ set(VFM_MAIN_SOURCES
    term_fctin.cpp
    term_print.cpp
    term_id.cpp
-   cryptor_encoder.cpp
-   cryptor_rule.cpp
-   cryptor_starter.cpp
-   cryptor_tester.cpp
    cpp_type_struct.cpp
    cpp_type_atomic.cpp
    cpp_type_enum.cpp
