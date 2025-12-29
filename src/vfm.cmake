@@ -162,10 +162,6 @@ SOURCES
    images.cpp
    model_checker.cpp
    type_abstraction_layer.cpp
-   cryptor_encoder.cpp
-   cryptor_rule.cpp
-   cryptor_starter.cpp
-   cryptor_tester.cpp
    cpp_type_struct.cpp
    cpp_type_atomic.cpp
    cpp_type_enum.cpp

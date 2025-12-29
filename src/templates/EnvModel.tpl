@@ -35,8 +35,6 @@ INIT !ego.abCond_full;
 
 @{
 @( -- EM-less build
-   @{scalingList}@*.pushBack[-- no,time]
-
    @{PLANNER_VARIABLES}@.printHeap
 )@
 @( -- EM-full build
@@ -49,7 +47,6 @@ INIT cnt = 0;
 TRANS next(cnt) = cnt + 1;
 
 INVAR num_lanes = @{NUMLANES}@.eval[0];
-
 
 @{EnvModel_Constants.tpl}@********.include
 @{EnvModel_Sections.tpl}@*******.include

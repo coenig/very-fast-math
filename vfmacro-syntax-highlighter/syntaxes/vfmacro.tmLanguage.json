@@ -1,0 +1,24 @@
+{
+  "name": "vfmacro",
+  "scopeName": "source.vfmacro",
+  "patterns": [
+    {
+      "name": "comment.line.double-dash.vfmacro",
+      "match": "--.*$"
+    },
+    {
+      "name": "comment.block.nil.vfmacro",
+      "match": "@\\{[^}]*\\}@[\\*]*\\.nil"
+    },
+    {
+      "name": "keyword.control.vfmacro",
+      "match": "@\\{[^}]+\\}@"
+    },
+    {
+      "name": "entity.name.function.vfmacro",
+      "match": "\\.\\w+\\[.*?\\]"
+    }
+  ],
+  "fileTypes": ["vfmacro"],
+  "uuid": "e1a1c8b0-0000-4000-8000-000000000001"
+}
