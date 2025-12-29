@@ -196,7 +196,7 @@ INVAR
     ego_pressured_by_vehicle_[i]_from_behind ->
             (minimum_dist_to_veh_[i] <= min_dist_long & (veh___6[i]9___.rel_pos < -veh_length));
 
--- Make sure ego and vehicle [i] don't collide in the initial state.
+-- Make sure ego and vehicle [i] do not collide in the initial state.
 INIT abs(veh___6[i]9___.rel_pos) > veh_length | !ego.same_lane_as_veh_[i];
 
 -- This has to go away: handled by veh___609___ logic, and otherwise leads to clashes with the inter-section travel.
@@ -247,7 +247,7 @@ ASSIGN
     next(env_state.time_scaling_factor) := 1; -- TODO: Dummy variable, needs to go away.
     
     init(ego.slow_lane_deadlock_active) := FALSE;
-    next(ego.slow_lane_deadlock_active) := FALSE; -- TODO: For now we don't model slow-lane deadlock
+    next(ego.slow_lane_deadlock_active) := FALSE; -- TODO: For now we do not model slow-lane deadlock
 
 @{ -- Using ASSIGN structure for gaps due to @{NONEGOS}@.eval[0] <= @{THRESHOLD_FOR_USING_ASSIGNS_IN_GAP_STRUCTURE}@.eval[0] non-ego agents.
     init(ego.gaps___609___.v_front) := max_vel; -- Max velocity is indicator of empty gap to the front, 0, to the rear.
