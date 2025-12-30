@@ -336,16 +336,23 @@ DEFINE
           TRUE : -1;
     esac;
 
-DEFINE
-   veh___6[i]9___.will_arrive_to_new_seclet_in_next_cycle := veh___6[i]9___.next_abs_pos > veh___6[i]9___.current_seclet_length;
+    veh___6[i]9___.next_seclet_length := next(veh___6[i]9___.current_seclet_length); 
 
-VAR veh___6[i]9___.has_arrived_to_new_seclet_in_last_cycle : boolean;
+DEFINE
+   veh___6[i]9___.will_arrive_at_next_seclet_in_next_cycle := veh___6[i]9___.next_abs_pos > veh___6[i]9___.current_seclet_length;
+   veh___6[i]9___.will_arrive_at_previous_seclet_in_next_cycle := veh___6[i]9___.next_abs_pos < 0;
+
+VAR veh___6[i]9___.has_arrived_at_next_seclet_in_last_cycle : boolean;
+VAR veh___6[i]9___.has_arrived_at_previous_seclet_in_last_cycle : boolean;
 
 ASSIGN 
-next(veh___6[i]9___.has_arrived_to_new_seclet_in_last_cycle) := veh___6[i]9___.will_arrive_to_new_seclet_in_next_cycle;
-init(veh___6[i]9___.has_arrived_to_new_seclet_in_last_cycle) := FALSE;
+next(veh___6[i]9___.has_arrived_at_next_seclet_in_last_cycle) := veh___6[i]9___.will_arrive_at_next_seclet_in_next_cycle;
+init(veh___6[i]9___.has_arrived_at_next_seclet_in_last_cycle) := FALSE;
 
-TRANS veh___6[i]9___.will_arrive_to_new_seclet_in_next_cycle -> 
+next(veh___6[i]9___.has_arrived_at_previous_seclet_in_last_cycle) := veh___6[i]9___.will_arrive_at_previous_seclet_in_next_cycle;
+init(veh___6[i]9___.has_arrived_at_previous_seclet_in_last_cycle) := FALSE;
+
+TRANS veh___6[i]9___.will_arrive_at_next_seclet_in_next_cycle -> 
    (
     @{
       (veh_[j]_and_veh_[i]_on_same_seclet -> veh___6[i]9___.abs_pos > veh___6[j]9___.abs_pos)
@@ -353,7 +360,7 @@ TRANS veh___6[i]9___.will_arrive_to_new_seclet_in_next_cycle ->
    )
    ;
 
-INVAR veh___6[i]9___.has_arrived_to_new_seclet_in_last_cycle -> 
+INVAR veh___6[i]9___.has_arrived_at_next_seclet_in_last_cycle -> 
    (
     @{
       (veh_[j]_and_veh_[i]_on_same_seclet -> veh___6[i]9___.abs_pos < veh___6[j]9___.abs_pos)
@@ -361,9 +368,26 @@ INVAR veh___6[i]9___.has_arrived_to_new_seclet_in_last_cycle ->
    )
    ;
 
+TRANS veh___6[i]9___.will_arrive_at_previous_seclet_in_next_cycle -> 
+   (
+    @{
+      (veh_[j]_and_veh_[i]_on_same_seclet -> veh___6[i]9___.abs_pos < veh___6[j]9___.abs_pos)
+    }@*.forExcept[[j], 0, @{NONEGOS - 1}@.eval, 1, &, [i]]
+   )
+   ;
+
+INVAR veh___6[i]9___.has_arrived_at_previous_seclet_in_last_cycle -> 
+   (
+    @{
+      (veh_[j]_and_veh_[i]_on_same_seclet -> veh___6[i]9___.abs_pos > veh___6[j]9___.abs_pos)
+    }@*.forExcept[[j], 0, @{NONEGOS - 1}@.eval, 1, &, [i]]
+   )
+   ;
+
 ASSIGN
     next(veh___6[i]9___.abs_pos) := case
-          veh___6[i]9___.will_arrive_to_new_seclet_in_next_cycle : veh___6[i]9___.next_abs_pos - veh___6[i]9___.current_seclet_length;
+          veh___6[i]9___.will_arrive_at_next_seclet_in_next_cycle : veh___6[i]9___.next_abs_pos - veh___6[i]9___.current_seclet_length;
+          veh___6[i]9___.will_arrive_at_previous_seclet_in_next_cycle : veh___6[i]9___.next_abs_pos + veh___6[i]9___.next_seclet_length;
           TRUE : veh___6[i]9___.next_abs_pos;
     esac;
 
@@ -379,11 +403,12 @@ ASSIGN
     -- ### Future pos is straight section ###
        @{
          next(veh___6[i]9___.is_on_sec_[sec2]) := case
-             @{@{
+             @{@{ -- TODO: Only add case if lane allows traversal in that direction
                 @{@{section_[sec2]_end > 0 &}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 1;}@.if[@{[sec] != [sec2]}@.eval]
+                @{@{section_[sec2]_end > 0 &}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] veh___6[i]9___.is_traversing_from_sec_[sec2]_to_sec_[sec] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos < 0 : 1;}@.if[@{[sec] != [sec2]}@.eval]
              }@*.for[[lane], 0, @{NUMLANES - 1}@.eval]
           }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
-             veh___6[i]9___.is_on_sec_[sec2] = 1 & veh___6[i]9___.next_abs_pos > section_[sec2]_end : 0;
+             veh___6[i]9___.is_on_sec_[sec2] = 1 & (veh___6[i]9___.next_abs_pos > section_[sec2]_end | veh___6[i]9___.next_abs_pos < 0) : 0;
              TRUE : veh___6[i]9___.is_on_sec_[sec2];
           esac;
        }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
@@ -394,20 +419,21 @@ ASSIGN
              @{
                 next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) := case
                    -- Regular switch from end of straight section to one of subsequential junctions.
-                   @{
+                   @{  -- TODO: Only add case if lane allows traversal in that direction
                       veh___6[i]9___.is_on_sec_[sec] = 1 & outgoing_connection_[con]_of_section_[sec] = [sec2] & veh___6[i]9___.next_abs_pos > section_[sec]_end : {0, 1};
+                      veh___6[i]9___.is_on_sec_[sec2] = 1 & outgoing_connection_[con]_of_section_[sec] = [sec2] & veh___6[i]9___.next_abs_pos < 0 : {0, 1};
                    }@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval]
 
                    @{@{@{
                       -- Jump over "zero-length" sections.
-                      @{
+                      @{  -- TODO: Case for negative speed missing. Only add case if lane allows traversal in that direction
                       veh___6[i]9___.is_traversing_from_sec_[sec3]_to_sec_[sec] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec3]_to_sec_[sec]_on_lane_[lane]
                           & section_[sec]_end = 0 & (@{outgoing_connection_[con]_of_section_[sec] = 0}@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval, 1, |]) : {0, 1};
                       }@.if[@{[sec3] != [sec]}@.eval]
                    }@**.for[[sec3], 0, @{SECTIONS - 1}@.eval]
                    }@.if[@{ALLOW_ZEROLENGTH_SECTIONS}@******.eval]
 
-                      veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 0; -- Leave this junction when passed over the end.
+                      veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & (veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] | veh___6[i]9___.next_abs_pos < 0) : 0; -- Leave this junction when passed over the end.
                    }@***.for[[lane], 0, @{NUMLANES - 1}@.eval]
                    TRUE : veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]; -- Stay on this junction as long as not passed over the end.
                 esac;
