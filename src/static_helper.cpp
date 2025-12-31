@@ -1777,6 +1777,8 @@ void postprocessTrace(MCTrace& trace)
       }
    }
 
+   std::set<std::pair<int, int>> used_transitions{};
+
    // Create special variables such as the "on_lane" or the "on_straight_section", "traversion_from", "traversion_to" variables.
    for (auto& state : trace.getTrace()) {
       for (auto& varvals : state.second) {
@@ -1838,6 +1840,8 @@ void postprocessTrace(MCTrace& trace)
                on_straight_section[which] = -1;
                traversion_from[which] = from_num;
                traversion_to[which] = to_num;
+
+               used_transitions.insert({ from_num, to_num, });
             }
          }
 
@@ -1877,6 +1881,26 @@ void postprocessTrace(MCTrace& trace)
       state.second["Array.CurrentState"] = "state_EnvironmentModel";
    }
 
+   // Remove unused transitions between junctions.
+   for (auto& state : trace.getTrace()) {
+      for (auto& varvals : state.second) {
+         for (int i = 0; i < 10; i++) {
+             if (StaticHelper::stringContains(varvals.first, "outgoing_connection_") && StaticHelper::stringContains(varvals.first, "_of_section_")) {
+                 auto pair1 = StaticHelper::split(varvals.first, "outgoing_connection_");
+                 auto pair2 = StaticHelper::split(pair1[1], "_of_section_");
+                 auto connection = pair2[0];
+                 auto from = std::stoi(pair2[1]);
+                 auto to = std::stoi(varvals.second);
+
+                 if (!used_transitions.count({from, to})) {
+                     varvals.second = "-1";
+                 }
+             }
+         }
+      }
+   }
+
+   // Add dummy states.
    int size = trace.size();
    for (int i = 0; i < size; i++) {
       trace.getTrace().insert(trace.getTrace().begin() + 2 * i + 1, {"dummy", {{"Array.CurrentState", "state_TacticalPlanner"}}});
