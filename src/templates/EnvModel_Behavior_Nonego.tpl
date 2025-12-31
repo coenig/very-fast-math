@@ -355,7 +355,18 @@ init(veh___6[i]9___.has_arrived_at_previous_seclet_in_last_cycle) := FALSE;
 TRANS veh___6[i]9___.will_arrive_at_next_seclet_in_next_cycle -> 
    (
     @{
-      (veh_[j]_and_veh_[i]_on_same_seclet -> veh___6[i]9___.abs_pos > veh___6[j]9___.abs_pos)
+      (
+         (
+            veh_[j]_and_veh_[i]_on_same_seclet -> veh___6[i]9___.abs_pos > veh___6[j]9___.abs_pos) & 
+            (
+               veh___6[j]9___.will_arrive_at_previous_seclet_in_next_cycle -> ( -- Avoid jumping over each other when going in different directions on seclet border.
+                  next(veh___6[i]9___.on_straight_section) != next(veh___6[j]9___.on_straight_section)
+                  | next(veh___6[i]9___.traversion_from) != next(veh___6[j]9___.traversion_from)
+                  | next(veh___6[i]9___.traversion_to) != next(veh___6[j]9___.traversion_to)
+               )
+            )  
+         )
+      )
     }@*.forExcept[[j], 0, @{NONEGOS - 1}@.eval, 1, &, [i]]
    )
    ;

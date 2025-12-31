@@ -297,14 +297,16 @@ DEFINE
    -- or c) there is a vehicle on the right lane indicating a lane change to our lane (gap[2])
    -- for distances less than 10 m, we go for max brake (or to 0), in all other cases, we take the minimum of the accel allowed by the three cases listed above
    -- Per default not included, the planner is supposed to implement longitudinal control. Set LONGCONTROL = true to activate this.
-   ego.a := case
-          (ego.gaps___619___.s_dist_front < @{CLOSEFRONTDIST}@.distanceWorldToEnvModelConst 
-        | (ego.gaps___609___.s_dist_front < @{CLOSEFRONTDIST}@.distanceWorldToEnvModelConst & ego_pressured_from_ahead_on_left_lane) 
-        | (ego.gaps___629___.s_dist_front < @{CLOSEFRONTDIST}@.distanceWorldToEnvModelConst & ego_pressured_from_ahead_on_right_lane)): max(-1*ego.v, ego.min_accel);
-        TRUE: min(                                           allowed_ego_a_front_center, 
-                min(ego_pressured_from_ahead_on_right_lane ? allowed_ego_a_front_right : ego.max_accel, 
-                    ego_pressured_from_ahead_on_left_lane ? allowed_ego_a_front_left  : ego.max_accel));
-   esac;
+--   ego.a := case
+--          (ego.gaps___619___.s_dist_front < @{CLOSEFRONTDIST}@.distanceWorldToEnvModelConst 
+--        | (ego.gaps___609___.s_dist_front < @{CLOSEFRONTDIST}@.distanceWorldToEnvModelConst & ego_pressured_from_ahead_on_left_lane) 
+--        | (ego.gaps___629___.s_dist_front < @{CLOSEFRONTDIST}@.distanceWorldToEnvModelConst & ego_pressured_from_ahead_on_right_lane)): max(-1*ego.v, ego.min_accel);
+--        TRUE: min(                                           allowed_ego_a_front_center, 
+--                min(ego_pressured_from_ahead_on_right_lane ? allowed_ego_a_front_right : ego.max_accel, 
+--                    ego_pressured_from_ahead_on_left_lane ? allowed_ego_a_front_left  : ego.max_accel));
+--   esac;
+   ego.a := veh___609___.a;
+
    )@
    @(
 VAR
