@@ -160,7 +160,12 @@ const auto VARIABLES_TO_BE_PAINTED = std::make_shared<std::vector<PainterVariabl
       { R"(REGEX:.*env..*.v)", { 3, -11 } },
       { R"(REGEX:.*env..*.a)", { 3, -11 } },
       { R"(REGEX:.*env..*.cycle)", { 3, -11 } },
-      //{ R"(REGEX:.*env.ego..*)", { 3, -11 } },
+      { R"(REGEX:.*env..*.on_straight_section)", { 3, -11 } },
+      { R"(REGEX:.*env..*.traversion_from)", { 3, -11 } },
+      { R"(REGEX:.*env..*.traversion_to)", { 3, -11 } },
+      { R"(REGEX:.*env..*.current_seclet_length)", { 3, -11 } },
+      { R"(REGEX:.*env..*.next_seclet_length)", { 3, -11 } },
+          //{ R"(REGEX:.*env.ego..*)", { 3, -11 } },
       //{ R"(REGEX:.*env.veh___6.*)",   { 3, -11 } },
       //{ R"(REGEX:.*rlc.*)",   { 1, -11 } },
    }
