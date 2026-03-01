@@ -8,6 +8,7 @@
 
 MODULE EnvModel
 
+@{
 -- TODO: Taken over from main.tpl. Check if this makes sense or can cause trouble with C++ planner.
 INIT node.em.filtered_driver_intention_dir = ActionDir____CENTER;
 INIT params.enable_lane_change_driver_request = TRUE;
@@ -19,6 +20,7 @@ INIT !ego.flCond_full;
 --INIT !ego.slCond_full;
 INIT !ego.abCond_full;
 -- EO TODO
+}@.if[@{!UCD}@.eval]
 
 @{
 ## THIS IS JUST AN EXAMPLE OF HOW TO USE THE GEOMETRY FUNCTIONS ##

@@ -14,7 +14,7 @@
 
 namespace vfm {
 
-constexpr int INVALID_NUM = std::numeric_limits<int>::max();
+constexpr int INVALID_NUM = (std::numeric_limits<int>::max)();
 
 class CppTypeEnum : public CppTypeAtomic {
 public:

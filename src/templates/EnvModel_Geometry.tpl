@@ -2,7 +2,7 @@
 -- MATH functions on vfm level which are directly converted to SMV code without further modularizing on their side
 ------------------------------------------------------------------------------------------------------------------
 
--- The vfmacro function 'syntacticSegmentAndLineIntersect' is an implementation of this C++ code:
+-- The vfmacro function syntacticSegmentAndLineIntersect is an implementation of this C++ code:
 -- bool onSegment(Vec2D p, Vec2D q, Vec2D r) {
 --    return (q.x <= std::max(p.x, r.x) && q.x >= std::min(p.x, r.x) &&
 --            q.y <= std::max(p.y, r.y) && q.y >= std::min(p.y, r.y));

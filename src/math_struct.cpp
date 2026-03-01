@@ -176,14 +176,6 @@ int MathStruct::rand_var_count = 0;
 int MathStruct::first_free_private_var_num_ = 0;
 std::shared_ptr<std::vector<std::string>> MathStruct::additional_test_info_ = nullptr;
 
-// This function is licensed under CC-BY-SA-4.0 which is a copy-left license
-// (https://creativecommons.org/licenses/by-sa/4.0/deed.en)!
-template <typename T> // From https://stackoverflow.com/questions/45507041/how-to-check-if-weak-ptr-is-empty-non-assigned
-bool is_initialized(std::weak_ptr<T> const& weak) {
-   using wt = std::weak_ptr<T>;
-   return weak.owner_before(wt{}) || wt{}.owner_before(weak);
-}
-
 bool isAutoExtractedName(const std::string& name)
 {
    return StaticHelper::stringStartsWith(name, "_") && StaticHelper::stringEndsWith(name, "_");

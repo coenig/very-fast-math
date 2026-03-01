@@ -19,7 +19,7 @@
    #pragma comment(lib, "wbemuuid.lib")
    #include <Windows.h>
 #elif __linux__
-
+   #include <unistd.h> // For sysconf(_SC_CLK_TCK)
    #include <iostream>
    #include <filesystem>
    #include <fstream>
@@ -64,7 +64,8 @@ public:
       }
 
 #elif __linux__
-      if (kill(pid, SIGTERM) == 0) {
+      res = kill(pid, SIGTERM) == 0;
+      if (res) {
          addNote("Process with ID " + std::to_string(pid) + " killed successfully.");
       } else {
          addError("Failed to kill process with ID " + std::to_string(pid) + ".");
@@ -249,10 +250,141 @@ public:
       }
 
 #else
-      addError("TODO: No implementation for getPIDs() available.");
+      addError("TODO: No implementation for getPIDs() available on this OS.");
 #endif
 
       return pids;
+   }
+
+   inline double getSystemUptimeSeconds() 
+   {
+      double uptime_seconds{};
+#ifdef _WIN32
+      addError("TODO: No implementation for getSystemUptimeSeconds() available on Windows.");
+#elif __linux__
+      std::ifstream uptime_file("/proc/uptime");
+      if (!uptime_file.is_open()) {
+         std::cerr << "Error: Could not open /proc/uptime" << std::endl;
+         return -1.0;
+      }
+
+      std::string line;
+      std::getline(uptime_file, line);
+      std::istringstream iss(line);
+      iss >> uptime_seconds;
+#else
+      addError("TODO: No implementation for getSystemUptimeSeconds() available on this OS.");
+#endif
+
+      return uptime_seconds;
+   }
+
+   inline long long getProcessStartTimeJiffies(int pid)
+   {
+      long long start_time_jiffies{};
+#ifdef _WIN32
+      addError("TODO: No implementation for getProcessStartTimeJiffies() available on Windows.");
+#elif __linux__
+      std::string stat_path = "/proc/" + std::to_string(pid) + "/stat";
+      std::ifstream stat_file(stat_path);
+
+      if (!stat_file.is_open()) {
+         // Process might not exist or we don't have permissions
+         return -1;
+      }
+
+      std::string line;
+      std::getline(stat_file, line);
+      std::istringstream iss(line);
+
+      std::string token;
+      // We need the 22nd field
+      for (int i = 0; i < 21; ++i) { // Read and discard the first 21 fields
+         iss >> token;
+      }
+
+      iss >> start_time_jiffies;
+#else
+      addError("TODO: No implementation for getProcessStartTimeJiffies() available on this OS.");
+#endif
+
+      return start_time_jiffies;
+   }
+
+   inline long long getProcessRunningDurationSeconds(int pid)
+   {
+      double elapsed_seconds{};
+#ifdef _WIN32
+      HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
+
+      if (hProcess == NULL) {
+         // Process might not exist or we don't have permissions
+         DWORD error = GetLastError();
+         if (error == ERROR_INVALID_PARAMETER) {
+            std::cerr << "Error: Invalid PID " << pid << std::endl;
+         }
+         else if (error == ERROR_ACCESS_DENIED) {
+            std::cerr << "Error: Access denied to process " << pid << ". Try running as administrator." << std::endl;
+         }
+         else {
+            std::cerr << "Error: Could not open process " << pid << ", error code: " << error << std::endl;
+         }
+         return -1;
+      }
+
+      FILETIME ftCreation, ftExit, ftKernel, ftUser;
+      if (!GetProcessTimes(hProcess, &ftCreation, &ftExit, &ftKernel, &ftUser)) {
+         std::cerr << "Error: Could not get process times for PID " << pid << ", error code: " << GetLastError() << std::endl;
+         CloseHandle(hProcess);
+         return -1;
+      }
+
+      FILETIME ftCurrent;
+      GetSystemTimeAsFileTime(&ftCurrent);
+
+      ULARGE_INTEGER ulCreationTime, ulCurrentTime;
+
+      ulCreationTime.LowPart = ftCreation.dwLowDateTime;
+      ulCreationTime.HighPart = ftCreation.dwHighDateTime;
+
+      ulCurrentTime.LowPart = ftCurrent.dwLowDateTime;
+      ulCurrentTime.HighPart = ftCurrent.dwHighDateTime;
+
+      // Time is in 100-nanosecond intervals (1 tick = 100 ns)
+      // 1 second = 10,000,000 100-nanosecond intervals
+      const ULONGLONG HNS_PER_SECOND = 10000000;
+
+      ULONGLONG duration_hns = ulCurrentTime.QuadPart - ulCreationTime.QuadPart;
+      elapsed_seconds = duration_hns / HNS_PER_SECOND;
+
+      CloseHandle(hProcess);
+#elif __linux__
+      double system_uptime_seconds = getSystemUptimeSeconds();
+      if (system_uptime_seconds < 0) {
+         return -1; // Error getting system uptime
+      }
+
+      long long process_start_time_jiffies = getProcessStartTimeJiffies(pid);
+      if (process_start_time_jiffies < 0) {
+         return -1; // Process not found or error
+      }
+
+      long clock_ticks_per_second = sysconf(_SC_CLK_TCK);
+      if (clock_ticks_per_second <= 0) {
+         std::cerr << "Error: Could not get clock ticks per second (_SC_CLK_TCK)" << std::endl;
+         return -1;
+      }
+
+      // Convert process start time from jiffies to seconds since boot
+      double process_start_time_seconds_since_boot = static_cast<double>(process_start_time_jiffies) / clock_ticks_per_second;
+
+      // Calculate elapsed time
+      elapsed_seconds = system_uptime_seconds - process_start_time_seconds_since_boot;
+#else
+      addError("TODO: No implementation for getProcessRunningDurationSeconds() available on this OS.");
+#endif
+
+      return static_cast<long long>(elapsed_seconds);
    }
 };
 

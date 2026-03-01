@@ -26,6 +26,9 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
+   //morty("", "", 0);
+   //termnate();
+
    //for (;;) {
    //   auto traces = StaticHelper::extractMCTracesFromNusmvFile("debug_trace_array.txt");
 
@@ -108,7 +111,7 @@ int main(int argc, char* argv[])
       argvv[3] = "--path-to-nuxmv";
 #ifdef _WIN32
       argvv[4] = "../external/win32/nuXmv.exe";
-#elif __linux__
+#elif defined(__linux__)
       argvv[4] = "../external/linux64/nuXmv";
 #else
       argvv[4] = "../external/linux64/nuXmv";

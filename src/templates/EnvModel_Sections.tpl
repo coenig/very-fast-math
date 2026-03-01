@@ -50,10 +50,17 @@ INIT section_[sec]_segment_[num]_min_lane >= 0;
 INIT section_[sec]_segment_[num]_max_lane <= @{(NUMLANES - 1)}@.eval[0];
 }@.for[[num], 0, @{SEGMENTS - 1}@.eval]
 
--- INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -- Make sure we always have a drivable lane at the start. TODO: Make flexible.
+-- Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just delete!
+@{
+  INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -- Make sure we always have a drivable lane at the start. TODO: Make flexible.
+}@.if[@{UCD}@.eval]
+
+@{
 @{
 INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lane;
 }@.for[[num], 0, @{SEGMENTS - 1}@.eval]
+}@.if[@{!UCD}@.eval]
+-- EO Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just delete!
 
 }@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
@@ -72,8 +79,19 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
       }@******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Optionally remove everything geometry-related. }@**********.nil
 
          @{
+-- Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just undo!
+         @{
+            @(
+            section_[sec]_segment_[seg]_min_lane : integer;
+            section_[sec]_segment_[seg]_max_lane : integer;
+            )@
+            @(
             section_[sec]_segment_[seg]_min_lane : 0 .. @{NUMLANES - 1}@.eval[0];
             section_[sec]_segment_[seg]_max_lane : 0 .. @{NUMLANES - 1}@.eval[0];
+            )@
+         }@.if[@{UCD}@.eval]
+-- EO Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just undo!
+
             @{section_[sec]_segment_[seg]_pos_begin}@*.scalingVariable[distance] : @{@(integer)@@(0 .. 1)@}@.if[@{CONCRETE_MODEL}@.eval];
          }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
 		 

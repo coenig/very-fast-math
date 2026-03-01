@@ -232,7 +232,7 @@ MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
    Fl::add_timeout(TIMEOUT_RARE, refreshRarely, this);
    Fl::add_timeout(TIMEOUT_SOMETIMES, refreshSometimes, this);
 
-   mc_workflow_.copyWaitingForPreviewGIF(getTemplateDir(), mc_workflow_.getGeneratedDir(getTemplateDir(), json_tpl_filename_), previous_write_time_);
+   mc_workflow_.copyWaitingForPreviewGIF(mc_workflow_.getGeneratedDir(getTemplateDir(), json_tpl_filename_), getTemplateDir(), previous_write_time_);
    refreshPreview();
 
    scene_description_->textfont(FL_COURIER_BOLD);
@@ -1697,7 +1697,7 @@ void deleteFolders(MCScene* mc_scene) // Free function that actually does it, ra
       mc_scene->addWarning("Deleting folders not possible due to error: " + std::string(e.what()));
    }
 
-   mc_scene->getMcWorkflow().copyWaitingForPreviewGIF(mc_scene->getTemplateDir(), mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir(), mc_scene->getJsonTplFilename()), mc_scene->previous_write_time_);
+   mc_scene->getMcWorkflow().copyWaitingForPreviewGIF(mc_scene->getMcWorkflow().getGeneratedDir(mc_scene->getTemplateDir(), mc_scene->getJsonTplFilename()), mc_scene->getTemplateDir(), mc_scene->previous_write_time_);
    mc_scene->refreshPreview();
    mc_scene->activateMCButtons(true, ButtonClass::All);
 }

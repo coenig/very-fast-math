@@ -1,0 +1,897 @@
+<?xml version="1.0"?>
+<osm generator="vfm" upload="false" version="0.6">
+   <node id="212" lat="48.999032" lon="9.294092" version="1" visible="true" />
+   <node id="213" lat="48.999608" lon="9.294092" version="1" visible="true" />
+   <node id="214" lat="48.999032" lon="9.294142" version="1" visible="true" />
+   <node id="215" lat="48.999608" lon="9.294142" version="1" visible="true" />
+   <node id="216" lat="48.999608" lon="9.294142" version="1" visible="true" />
+   <node id="217" lat="48.999617" lon="9.294142" version="1" visible="true" />
+   <node id="218" lat="48.999641" lon="9.294154" version="1" visible="true" />
+   <node id="219" lat="48.999663" lon="9.294175" version="1" visible="true" />
+   <node id="220" lat="48.999685" lon="9.294204" version="1" visible="true" />
+   <node id="221" lat="48.999704" lon="9.294240" version="1" visible="true" />
+   <node id="222" lat="48.999719" lon="9.294280" version="1" visible="true" />
+   <node id="223" lat="48.999731" lon="9.294322" version="1" visible="true" />
+   <node id="224" lat="48.999737" lon="9.294364" version="1" visible="true" />
+   <node id="225" lat="48.999738" lon="9.294403" version="1" visible="true" />
+   <node id="226" lat="48.999733" lon="9.294440" version="1" visible="true" />
+   <node id="227" lat="48.999729" lon="9.294451" version="1" visible="true" />
+   <node id="228" lat="48.999758" lon="9.294476" version="1" visible="true" />
+   <node id="229" lat="48.999766" lon="9.294451" version="1" visible="true" />
+   <node id="230" lat="48.999772" lon="9.294407" version="1" visible="true" />
+   <node id="231" lat="48.999771" lon="9.294357" version="1" visible="true" />
+   <node id="232" lat="48.999763" lon="9.294307" version="1" visible="true" />
+   <node id="233" lat="48.999750" lon="9.294258" version="1" visible="true" />
+   <node id="234" lat="48.999732" lon="9.294212" version="1" visible="true" />
+   <node id="235" lat="48.999710" lon="9.294170" version="1" visible="true" />
+   <node id="236" lat="48.999684" lon="9.294135" version="1" visible="true" />
+   <node id="237" lat="48.999656" lon="9.294109" version="1" visible="true" />
+   <node id="238" lat="48.999627" lon="9.294095" version="1" visible="true" />
+   <node id="239" lat="48.999608" lon="9.294092" version="1" visible="true" />
+   <node id="244" lat="48.999608" lon="9.294142" version="1" visible="true" />
+   <node id="245" lat="48.999627" lon="9.294139" version="1" visible="true" />
+   <node id="246" lat="48.999656" lon="9.294125" version="1" visible="true" />
+   <node id="247" lat="48.999684" lon="9.294099" version="1" visible="true" />
+   <node id="248" lat="48.999710" lon="9.294064" version="1" visible="true" />
+   <node id="249" lat="48.999732" lon="9.294022" version="1" visible="true" />
+   <node id="250" lat="48.999750" lon="9.293976" version="1" visible="true" />
+   <node id="251" lat="48.999763" lon="9.293927" version="1" visible="true" />
+   <node id="252" lat="48.999771" lon="9.293876" version="1" visible="true" />
+   <node id="253" lat="48.999772" lon="9.293827" version="1" visible="true" />
+   <node id="254" lat="48.999766" lon="9.293783" version="1" visible="true" />
+   <node id="255" lat="48.999758" lon="9.293758" version="1" visible="true" />
+   <node id="256" lat="48.999729" lon="9.293783" version="1" visible="true" />
+   <node id="257" lat="48.999733" lon="9.293794" version="1" visible="true" />
+   <node id="258" lat="48.999738" lon="9.293831" version="1" visible="true" />
+   <node id="259" lat="48.999737" lon="9.293870" version="1" visible="true" />
+   <node id="260" lat="48.999731" lon="9.293912" version="1" visible="true" />
+   <node id="261" lat="48.999719" lon="9.293954" version="1" visible="true" />
+   <node id="262" lat="48.999704" lon="9.293994" version="1" visible="true" />
+   <node id="263" lat="48.999685" lon="9.294030" version="1" visible="true" />
+   <node id="264" lat="48.999663" lon="9.294059" version="1" visible="true" />
+   <node id="265" lat="48.999641" lon="9.294080" version="1" visible="true" />
+   <node id="266" lat="48.999617" lon="9.294091" version="1" visible="true" />
+   <node id="267" lat="48.999608" lon="9.294092" version="1" visible="true" />
+   <node id="276" lat="48.999758" lon="9.294476" version="1" visible="true" />
+   <node id="277" lat="48.999470" lon="9.295215" version="1" visible="true" />
+   <node id="278" lat="48.999729" lon="9.294451" version="1" visible="true" />
+   <node id="279" lat="48.999440" lon="9.295190" version="1" visible="true" />
+   <node id="280" lat="48.999440" lon="9.295190" version="1" visible="true" />
+   <node id="281" lat="48.999436" lon="9.295200" version="1" visible="true" />
+   <node id="282" lat="48.999417" lon="9.295226" version="1" visible="true" />
+   <node id="283" lat="48.999394" lon="9.295243" version="1" visible="true" />
+   <node id="284" lat="48.999366" lon="9.295255" version="1" visible="true" />
+   <node id="285" lat="48.999336" lon="9.295261" version="1" visible="true" />
+   <node id="286" lat="48.999305" lon="9.295260" version="1" visible="true" />
+   <node id="287" lat="48.999274" lon="9.295253" version="1" visible="true" />
+   <node id="288" lat="48.999246" lon="9.295240" version="1" visible="true" />
+   <node id="289" lat="48.999223" lon="9.295221" version="1" visible="true" />
+   <node id="290" lat="48.999204" lon="9.295195" version="1" visible="true" />
+   <node id="291" lat="48.999199" lon="9.295184" version="1" visible="true" />
+   <node id="292" lat="48.999170" lon="9.295209" version="1" visible="true" />
+   <node id="293" lat="48.999181" lon="9.295232" version="1" visible="true" />
+   <node id="294" lat="48.999203" lon="9.295262" version="1" visible="true" />
+   <node id="295" lat="48.999233" lon="9.295286" version="1" visible="true" />
+   <node id="296" lat="48.999266" lon="9.295302" version="1" visible="true" />
+   <node id="297" lat="48.999302" lon="9.295310" version="1" visible="true" />
+   <node id="298" lat="48.999338" lon="9.295311" version="1" visible="true" />
+   <node id="299" lat="48.999373" lon="9.295304" version="1" visible="true" />
+   <node id="300" lat="48.999406" lon="9.295290" version="1" visible="true" />
+   <node id="301" lat="48.999436" lon="9.295267" version="1" visible="true" />
+   <node id="302" lat="48.999459" lon="9.295238" version="1" visible="true" />
+   <node id="303" lat="48.999470" lon="9.295215" version="1" visible="true" />
+   <node id="312" lat="48.999170" lon="9.295209" version="1" visible="true" />
+   <node id="313" lat="48.998882" lon="9.294470" version="1" visible="true" />
+   <node id="314" lat="48.999199" lon="9.295184" version="1" visible="true" />
+   <node id="315" lat="48.998911" lon="9.294445" version="1" visible="true" />
+   <node id="316" lat="48.998911" lon="9.294445" version="1" visible="true" />
+   <node id="317" lat="48.998907" lon="9.294435" version="1" visible="true" />
+   <node id="318" lat="48.998902" lon="9.294398" version="1" visible="true" />
+   <node id="319" lat="48.998903" lon="9.294360" version="1" visible="true" />
+   <node id="320" lat="48.998910" lon="9.294319" version="1" visible="true" />
+   <node id="321" lat="48.998921" lon="9.294277" version="1" visible="true" />
+   <node id="322" lat="48.998937" lon="9.294238" version="1" visible="true" />
+   <node id="323" lat="48.998956" lon="9.294203" version="1" visible="true" />
+   <node id="324" lat="48.998977" lon="9.294174" version="1" visible="true" />
+   <node id="325" lat="48.998999" lon="9.294154" version="1" visible="true" />
+   <node id="326" lat="48.999023" lon="9.294142" version="1" visible="true" />
+   <node id="327" lat="48.999032" lon="9.294142" version="1" visible="true" />
+   <node id="328" lat="48.999032" lon="9.294092" version="1" visible="true" />
+   <node id="329" lat="48.999013" lon="9.294095" version="1" visible="true" />
+   <node id="330" lat="48.998985" lon="9.294108" version="1" visible="true" />
+   <node id="331" lat="48.998956" lon="9.294134" version="1" visible="true" />
+   <node id="332" lat="48.998931" lon="9.294169" version="1" visible="true" />
+   <node id="333" lat="48.998909" lon="9.294210" version="1" visible="true" />
+   <node id="334" lat="48.998891" lon="9.294255" version="1" visible="true" />
+   <node id="335" lat="48.998877" lon="9.294304" version="1" visible="true" />
+   <node id="336" lat="48.998870" lon="9.294353" version="1" visible="true" />
+   <node id="337" lat="48.998868" lon="9.294402" version="1" visible="true" />
+   <node id="338" lat="48.998874" lon="9.294445" version="1" visible="true" />
+   <node id="339" lat="48.998882" lon="9.294470" version="1" visible="true" />
+   <node id="348" lat="48.999729" lon="9.293783" version="1" visible="true" />
+   <node id="349" lat="48.999440" lon="9.293044" version="1" visible="true" />
+   <node id="350" lat="48.999758" lon="9.293758" version="1" visible="true" />
+   <node id="351" lat="48.999470" lon="9.293019" version="1" visible="true" />
+   <node id="352" lat="48.999470" lon="9.293019" version="1" visible="true" />
+   <node id="353" lat="48.999459" lon="9.292996" version="1" visible="true" />
+   <node id="354" lat="48.999436" lon="9.292967" version="1" visible="true" />
+   <node id="355" lat="48.999407" lon="9.292944" version="1" visible="true" />
+   <node id="356" lat="48.999373" lon="9.292929" version="1" visible="true" />
+   <node id="357" lat="48.999338" lon="9.292923" version="1" visible="true" />
+   <node id="358" lat="48.999302" lon="9.292924" version="1" visible="true" />
+   <node id="359" lat="48.999266" lon="9.292932" version="1" visible="true" />
+   <node id="360" lat="48.999233" lon="9.292948" version="1" visible="true" />
+   <node id="361" lat="48.999203" lon="9.292972" version="1" visible="true" />
+   <node id="362" lat="48.999181" lon="9.293002" version="1" visible="true" />
+   <node id="363" lat="48.999170" lon="9.293024" version="1" visible="true" />
+   <node id="364" lat="48.999199" lon="9.293049" version="1" visible="true" />
+   <node id="365" lat="48.999204" lon="9.293039" version="1" visible="true" />
+   <node id="366" lat="48.999223" lon="9.293013" version="1" visible="true" />
+   <node id="367" lat="48.999246" lon="9.292994" version="1" visible="true" />
+   <node id="368" lat="48.999274" lon="9.292981" version="1" visible="true" />
+   <node id="369" lat="48.999305" lon="9.292974" version="1" visible="true" />
+   <node id="370" lat="48.999336" lon="9.292973" version="1" visible="true" />
+   <node id="371" lat="48.999366" lon="9.292979" version="1" visible="true" />
+   <node id="372" lat="48.999394" lon="9.292991" version="1" visible="true" />
+   <node id="373" lat="48.999417" lon="9.293008" version="1" visible="true" />
+   <node id="374" lat="48.999436" lon="9.293034" version="1" visible="true" />
+   <node id="375" lat="48.999440" lon="9.293044" version="1" visible="true" />
+   <node id="384" lat="48.999199" lon="9.293049" version="1" visible="true" />
+   <node id="385" lat="48.998911" lon="9.293788" version="1" visible="true" />
+   <node id="386" lat="48.999170" lon="9.293024" version="1" visible="true" />
+   <node id="387" lat="48.998882" lon="9.293763" version="1" visible="true" />
+   <node id="388" lat="48.998882" lon="9.293763" version="1" visible="true" />
+   <node id="389" lat="48.998874" lon="9.293789" version="1" visible="true" />
+   <node id="390" lat="48.998868" lon="9.293832" version="1" visible="true" />
+   <node id="391" lat="48.998869" lon="9.293881" version="1" visible="true" />
+   <node id="392" lat="48.998877" lon="9.293930" version="1" visible="true" />
+   <node id="393" lat="48.998891" lon="9.293979" version="1" visible="true" />
+   <node id="394" lat="48.998909" lon="9.294024" version="1" visible="true" />
+   <node id="395" lat="48.998931" lon="9.294065" version="1" visible="true" />
+   <node id="396" lat="48.998956" lon="9.294100" version="1" visible="true" />
+   <node id="397" lat="48.998985" lon="9.294126" version="1" visible="true" />
+   <node id="398" lat="48.999013" lon="9.294139" version="1" visible="true" />
+   <node id="399" lat="48.999032" lon="9.294142" version="1" visible="true" />
+   <node id="400" lat="48.999032" lon="9.294092" version="1" visible="true" />
+   <node id="401" lat="48.999023" lon="9.294092" version="1" visible="true" />
+   <node id="402" lat="48.998999" lon="9.294080" version="1" visible="true" />
+   <node id="403" lat="48.998977" lon="9.294060" version="1" visible="true" />
+   <node id="404" lat="48.998956" lon="9.294031" version="1" visible="true" />
+   <node id="405" lat="48.998937" lon="9.293996" version="1" visible="true" />
+   <node id="406" lat="48.998921" lon="9.293956" version="1" visible="true" />
+   <node id="407" lat="48.998910" lon="9.293915" version="1" visible="true" />
+   <node id="408" lat="48.998903" lon="9.293874" version="1" visible="true" />
+   <node id="409" lat="48.998902" lon="9.293836" version="1" visible="true" />
+   <node id="410" lat="48.998907" lon="9.293799" version="1" visible="true" />
+   <node id="411" lat="48.998911" lon="9.293788" version="1" visible="true" />
+   <way id="210" version="1" visible="true">
+      <nd ref="212" />
+      <nd ref="213" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="211" version="1" visible="true">
+      <nd ref="214" />
+      <nd ref="215" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="209" version="1" visible="true">
+      <nd ref="212" />
+      <nd ref="213" />
+      <tag k="type" v="road_link" />
+      <tag k="rl:meta:country_code" v="276" />
+      <tag k="rl:meta:is_controlled" v="false" />
+      <tag k="rl:meta:is_motorway" v="false" />
+      <tag k="rl:meta:is_separated_structurally" v="false" />
+      <tag k="rl:meta:is_urban" v="false" />
+      <tag k="rl:predecessors" v="" />
+      <tag k="rl:successors" v="" />
+      <tag k="rl:travel_direction" v="along" />
+      <tag k="rl:type" v="no_special" />
+   </way>
+   <relation id="208" version="1" visible="true">
+      <member ref="210" role="left" type="way" />
+      <member ref="211" role="right" type="way" />
+      <tag k="location" v="nonurban" />
+      <tag k="rl:direction" v="along" />
+      <tag k="rl:id" v="209" />
+      <tag k="speed_limit" v="130.000000" />
+      <tag k="subtype" v="highway" />
+      <tag k="type" v="lanelet" />
+   </relation>
+   <way id="242" version="1" visible="true">
+      <nd ref="216" />
+      <nd ref="217" />
+      <nd ref="218" />
+      <nd ref="219" />
+      <nd ref="220" />
+      <nd ref="221" />
+      <nd ref="222" />
+      <nd ref="223" />
+      <nd ref="224" />
+      <nd ref="225" />
+      <nd ref="226" />
+      <nd ref="227" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="243" version="1" visible="true">
+      <nd ref="228" />
+      <nd ref="229" />
+      <nd ref="230" />
+      <nd ref="231" />
+      <nd ref="232" />
+      <nd ref="233" />
+      <nd ref="234" />
+      <nd ref="235" />
+      <nd ref="236" />
+      <nd ref="237" />
+      <nd ref="238" />
+      <nd ref="239" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="241" version="1" visible="true">
+      <nd ref="216" />
+      <nd ref="217" />
+      <nd ref="218" />
+      <nd ref="219" />
+      <nd ref="220" />
+      <nd ref="221" />
+      <nd ref="222" />
+      <nd ref="223" />
+      <nd ref="224" />
+      <nd ref="225" />
+      <nd ref="226" />
+      <nd ref="227" />
+      <tag k="type" v="road_link" />
+      <tag k="rl:meta:country_code" v="276" />
+      <tag k="rl:meta:is_controlled" v="false" />
+      <tag k="rl:meta:is_motorway" v="false" />
+      <tag k="rl:meta:is_separated_structurally" v="false" />
+      <tag k="rl:meta:is_urban" v="false" />
+      <tag k="rl:predecessors" v="" />
+      <tag k="rl:successors" v="" />
+      <tag k="rl:travel_direction" v="along" />
+      <tag k="rl:type" v="no_special" />
+   </way>
+   <relation id="240" version="1" visible="true">
+      <member ref="242" role="left" type="way" />
+      <member ref="243" role="right" type="way" />
+      <tag k="location" v="nonurban" />
+      <tag k="rl:direction" v="along" />
+      <tag k="rl:id" v="241" />
+      <tag k="speed_limit" v="130.000000" />
+      <tag k="subtype" v="highway" />
+      <tag k="type" v="lanelet" />
+   </relation>
+   <way id="270" version="1" visible="true">
+      <nd ref="244" />
+      <nd ref="245" />
+      <nd ref="246" />
+      <nd ref="247" />
+      <nd ref="248" />
+      <nd ref="249" />
+      <nd ref="250" />
+      <nd ref="251" />
+      <nd ref="252" />
+      <nd ref="253" />
+      <nd ref="254" />
+      <nd ref="255" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="271" version="1" visible="true">
+      <nd ref="256" />
+      <nd ref="257" />
+      <nd ref="258" />
+      <nd ref="259" />
+      <nd ref="260" />
+      <nd ref="261" />
+      <nd ref="262" />
+      <nd ref="263" />
+      <nd ref="264" />
+      <nd ref="265" />
+      <nd ref="266" />
+      <nd ref="267" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="269" version="1" visible="true">
+      <nd ref="244" />
+      <nd ref="245" />
+      <nd ref="246" />
+      <nd ref="247" />
+      <nd ref="248" />
+      <nd ref="249" />
+      <nd ref="250" />
+      <nd ref="251" />
+      <nd ref="252" />
+      <nd ref="253" />
+      <nd ref="254" />
+      <nd ref="255" />
+      <tag k="type" v="road_link" />
+      <tag k="rl:meta:country_code" v="276" />
+      <tag k="rl:meta:is_controlled" v="false" />
+      <tag k="rl:meta:is_motorway" v="false" />
+      <tag k="rl:meta:is_separated_structurally" v="false" />
+      <tag k="rl:meta:is_urban" v="false" />
+      <tag k="rl:predecessors" v="" />
+      <tag k="rl:successors" v="" />
+      <tag k="rl:travel_direction" v="along" />
+      <tag k="rl:type" v="no_special" />
+   </way>
+   <relation id="268" version="1" visible="true">
+      <member ref="270" role="left" type="way" />
+      <member ref="271" role="right" type="way" />
+      <tag k="location" v="nonurban" />
+      <tag k="rl:direction" v="along" />
+      <tag k="rl:id" v="269" />
+      <tag k="speed_limit" v="130.000000" />
+      <tag k="subtype" v="highway" />
+      <tag k="type" v="lanelet" />
+   </relation>
+   <way id="274" version="1" visible="true">
+      <nd ref="276" />
+      <nd ref="277" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="275" version="1" visible="true">
+      <nd ref="278" />
+      <nd ref="279" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="273" version="1" visible="true">
+      <nd ref="276" />
+      <nd ref="277" />
+      <tag k="type" v="road_link" />
+      <tag k="rl:meta:country_code" v="276" />
+      <tag k="rl:meta:is_controlled" v="false" />
+      <tag k="rl:meta:is_motorway" v="false" />
+      <tag k="rl:meta:is_separated_structurally" v="false" />
+      <tag k="rl:meta:is_urban" v="false" />
+      <tag k="rl:predecessors" v="" />
+      <tag k="rl:successors" v="" />
+      <tag k="rl:travel_direction" v="along" />
+      <tag k="rl:type" v="no_special" />
+   </way>
+   <relation id="272" version="1" visible="true">
+      <member ref="274" role="left" type="way" />
+      <member ref="275" role="right" type="way" />
+      <tag k="location" v="nonurban" />
+      <tag k="rl:direction" v="along" />
+      <tag k="rl:id" v="273" />
+      <tag k="speed_limit" v="130.000000" />
+      <tag k="subtype" v="highway" />
+      <tag k="type" v="lanelet" />
+   </relation>
+   <way id="306" version="1" visible="true">
+      <nd ref="280" />
+      <nd ref="281" />
+      <nd ref="282" />
+      <nd ref="283" />
+      <nd ref="284" />
+      <nd ref="285" />
+      <nd ref="286" />
+      <nd ref="287" />
+      <nd ref="288" />
+      <nd ref="289" />
+      <nd ref="290" />
+      <nd ref="291" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="307" version="1" visible="true">
+      <nd ref="292" />
+      <nd ref="293" />
+      <nd ref="294" />
+      <nd ref="295" />
+      <nd ref="296" />
+      <nd ref="297" />
+      <nd ref="298" />
+      <nd ref="299" />
+      <nd ref="300" />
+      <nd ref="301" />
+      <nd ref="302" />
+      <nd ref="303" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="305" version="1" visible="true">
+      <nd ref="280" />
+      <nd ref="281" />
+      <nd ref="282" />
+      <nd ref="283" />
+      <nd ref="284" />
+      <nd ref="285" />
+      <nd ref="286" />
+      <nd ref="287" />
+      <nd ref="288" />
+      <nd ref="289" />
+      <nd ref="290" />
+      <nd ref="291" />
+      <tag k="type" v="road_link" />
+      <tag k="rl:meta:country_code" v="276" />
+      <tag k="rl:meta:is_controlled" v="false" />
+      <tag k="rl:meta:is_motorway" v="false" />
+      <tag k="rl:meta:is_separated_structurally" v="false" />
+      <tag k="rl:meta:is_urban" v="false" />
+      <tag k="rl:predecessors" v="" />
+      <tag k="rl:successors" v="" />
+      <tag k="rl:travel_direction" v="along" />
+      <tag k="rl:type" v="no_special" />
+   </way>
+   <relation id="304" version="1" visible="true">
+      <member ref="306" role="left" type="way" />
+      <member ref="307" role="right" type="way" />
+      <tag k="location" v="nonurban" />
+      <tag k="rl:direction" v="along" />
+      <tag k="rl:id" v="305" />
+      <tag k="speed_limit" v="130.000000" />
+      <tag k="subtype" v="highway" />
+      <tag k="type" v="lanelet" />
+   </relation>
+   <way id="310" version="1" visible="true">
+      <nd ref="312" />
+      <nd ref="313" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="311" version="1" visible="true">
+      <nd ref="314" />
+      <nd ref="315" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="309" version="1" visible="true">
+      <nd ref="312" />
+      <nd ref="313" />
+      <tag k="type" v="road_link" />
+      <tag k="rl:meta:country_code" v="276" />
+      <tag k="rl:meta:is_controlled" v="false" />
+      <tag k="rl:meta:is_motorway" v="false" />
+      <tag k="rl:meta:is_separated_structurally" v="false" />
+      <tag k="rl:meta:is_urban" v="false" />
+      <tag k="rl:predecessors" v="" />
+      <tag k="rl:successors" v="" />
+      <tag k="rl:travel_direction" v="along" />
+      <tag k="rl:type" v="no_special" />
+   </way>
+   <relation id="308" version="1" visible="true">
+      <member ref="310" role="left" type="way" />
+      <member ref="311" role="right" type="way" />
+      <tag k="location" v="nonurban" />
+      <tag k="rl:direction" v="along" />
+      <tag k="rl:id" v="309" />
+      <tag k="speed_limit" v="130.000000" />
+      <tag k="subtype" v="highway" />
+      <tag k="type" v="lanelet" />
+   </relation>
+   <way id="342" version="1" visible="true">
+      <nd ref="316" />
+      <nd ref="317" />
+      <nd ref="318" />
+      <nd ref="319" />
+      <nd ref="320" />
+      <nd ref="321" />
+      <nd ref="322" />
+      <nd ref="323" />
+      <nd ref="324" />
+      <nd ref="325" />
+      <nd ref="326" />
+      <nd ref="327" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="343" version="1" visible="true">
+      <nd ref="328" />
+      <nd ref="329" />
+      <nd ref="330" />
+      <nd ref="331" />
+      <nd ref="332" />
+      <nd ref="333" />
+      <nd ref="334" />
+      <nd ref="335" />
+      <nd ref="336" />
+      <nd ref="337" />
+      <nd ref="338" />
+      <nd ref="339" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="341" version="1" visible="true">
+      <nd ref="316" />
+      <nd ref="317" />
+      <nd ref="318" />
+      <nd ref="319" />
+      <nd ref="320" />
+      <nd ref="321" />
+      <nd ref="322" />
+      <nd ref="323" />
+      <nd ref="324" />
+      <nd ref="325" />
+      <nd ref="326" />
+      <nd ref="327" />
+      <tag k="type" v="road_link" />
+      <tag k="rl:meta:country_code" v="276" />
+      <tag k="rl:meta:is_controlled" v="false" />
+      <tag k="rl:meta:is_motorway" v="false" />
+      <tag k="rl:meta:is_separated_structurally" v="false" />
+      <tag k="rl:meta:is_urban" v="false" />
+      <tag k="rl:predecessors" v="" />
+      <tag k="rl:successors" v="" />
+      <tag k="rl:travel_direction" v="along" />
+      <tag k="rl:type" v="no_special" />
+   </way>
+   <relation id="340" version="1" visible="true">
+      <member ref="342" role="left" type="way" />
+      <member ref="343" role="right" type="way" />
+      <tag k="location" v="nonurban" />
+      <tag k="rl:direction" v="along" />
+      <tag k="rl:id" v="341" />
+      <tag k="speed_limit" v="130.000000" />
+      <tag k="subtype" v="highway" />
+      <tag k="type" v="lanelet" />
+   </relation>
+   <way id="346" version="1" visible="true">
+      <nd ref="348" />
+      <nd ref="349" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="347" version="1" visible="true">
+      <nd ref="350" />
+      <nd ref="351" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="345" version="1" visible="true">
+      <nd ref="348" />
+      <nd ref="349" />
+      <tag k="type" v="road_link" />
+      <tag k="rl:meta:country_code" v="276" />
+      <tag k="rl:meta:is_controlled" v="false" />
+      <tag k="rl:meta:is_motorway" v="false" />
+      <tag k="rl:meta:is_separated_structurally" v="false" />
+      <tag k="rl:meta:is_urban" v="false" />
+      <tag k="rl:predecessors" v="" />
+      <tag k="rl:successors" v="" />
+      <tag k="rl:travel_direction" v="along" />
+      <tag k="rl:type" v="no_special" />
+   </way>
+   <relation id="344" version="1" visible="true">
+      <member ref="346" role="left" type="way" />
+      <member ref="347" role="right" type="way" />
+      <tag k="location" v="nonurban" />
+      <tag k="rl:direction" v="along" />
+      <tag k="rl:id" v="345" />
+      <tag k="speed_limit" v="130.000000" />
+      <tag k="subtype" v="highway" />
+      <tag k="type" v="lanelet" />
+   </relation>
+   <way id="378" version="1" visible="true">
+      <nd ref="352" />
+      <nd ref="353" />
+      <nd ref="354" />
+      <nd ref="355" />
+      <nd ref="356" />
+      <nd ref="357" />
+      <nd ref="358" />
+      <nd ref="359" />
+      <nd ref="360" />
+      <nd ref="361" />
+      <nd ref="362" />
+      <nd ref="363" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="379" version="1" visible="true">
+      <nd ref="364" />
+      <nd ref="365" />
+      <nd ref="366" />
+      <nd ref="367" />
+      <nd ref="368" />
+      <nd ref="369" />
+      <nd ref="370" />
+      <nd ref="371" />
+      <nd ref="372" />
+      <nd ref="373" />
+      <nd ref="374" />
+      <nd ref="375" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="377" version="1" visible="true">
+      <nd ref="352" />
+      <nd ref="353" />
+      <nd ref="354" />
+      <nd ref="355" />
+      <nd ref="356" />
+      <nd ref="357" />
+      <nd ref="358" />
+      <nd ref="359" />
+      <nd ref="360" />
+      <nd ref="361" />
+      <nd ref="362" />
+      <nd ref="363" />
+      <tag k="type" v="road_link" />
+      <tag k="rl:meta:country_code" v="276" />
+      <tag k="rl:meta:is_controlled" v="false" />
+      <tag k="rl:meta:is_motorway" v="false" />
+      <tag k="rl:meta:is_separated_structurally" v="false" />
+      <tag k="rl:meta:is_urban" v="false" />
+      <tag k="rl:predecessors" v="" />
+      <tag k="rl:successors" v="" />
+      <tag k="rl:travel_direction" v="along" />
+      <tag k="rl:type" v="no_special" />
+   </way>
+   <relation id="376" version="1" visible="true">
+      <member ref="378" role="left" type="way" />
+      <member ref="379" role="right" type="way" />
+      <tag k="location" v="nonurban" />
+      <tag k="rl:direction" v="along" />
+      <tag k="rl:id" v="377" />
+      <tag k="speed_limit" v="130.000000" />
+      <tag k="subtype" v="highway" />
+      <tag k="type" v="lanelet" />
+   </relation>
+   <way id="382" version="1" visible="true">
+      <nd ref="384" />
+      <nd ref="385" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="383" version="1" visible="true">
+      <nd ref="386" />
+      <nd ref="387" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="381" version="1" visible="true">
+      <nd ref="384" />
+      <nd ref="385" />
+      <tag k="type" v="road_link" />
+      <tag k="rl:meta:country_code" v="276" />
+      <tag k="rl:meta:is_controlled" v="false" />
+      <tag k="rl:meta:is_motorway" v="false" />
+      <tag k="rl:meta:is_separated_structurally" v="false" />
+      <tag k="rl:meta:is_urban" v="false" />
+      <tag k="rl:predecessors" v="" />
+      <tag k="rl:successors" v="" />
+      <tag k="rl:travel_direction" v="along" />
+      <tag k="rl:type" v="no_special" />
+   </way>
+   <relation id="380" version="1" visible="true">
+      <member ref="382" role="left" type="way" />
+      <member ref="383" role="right" type="way" />
+      <tag k="location" v="nonurban" />
+      <tag k="rl:direction" v="along" />
+      <tag k="rl:id" v="381" />
+      <tag k="speed_limit" v="130.000000" />
+      <tag k="subtype" v="highway" />
+      <tag k="type" v="lanelet" />
+   </relation>
+   <way id="414" version="1" visible="true">
+      <nd ref="388" />
+      <nd ref="389" />
+      <nd ref="390" />
+      <nd ref="391" />
+      <nd ref="392" />
+      <nd ref="393" />
+      <nd ref="394" />
+      <nd ref="395" />
+      <nd ref="396" />
+      <nd ref="397" />
+      <nd ref="398" />
+      <nd ref="399" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="415" version="1" visible="true">
+      <nd ref="400" />
+      <nd ref="401" />
+      <nd ref="402" />
+      <nd ref="403" />
+      <nd ref="404" />
+      <nd ref="405" />
+      <nd ref="406" />
+      <nd ref="407" />
+      <nd ref="408" />
+      <nd ref="409" />
+      <nd ref="410" />
+      <nd ref="411" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::LineWidth" v="0.300000" />
+      <tag k="Painting::MarkingType" v="Solid" />
+      <tag k="Painting::SingleLineOffsets" v="-0.000000" />
+      <tag k="Painting::SingleLineWidths" v="0.300000" />
+      <tag k="color" v="white" />
+      <tag k="subtype" v="solid" />
+      <tag k="type" v="line_thick" />
+      <tag k="width" v="0.300000" />
+   </way>
+   <way id="413" version="1" visible="true">
+      <nd ref="388" />
+      <nd ref="389" />
+      <nd ref="390" />
+      <nd ref="391" />
+      <nd ref="392" />
+      <nd ref="393" />
+      <nd ref="394" />
+      <nd ref="395" />
+      <nd ref="396" />
+      <nd ref="397" />
+      <nd ref="398" />
+      <nd ref="399" />
+      <tag k="type" v="road_link" />
+      <tag k="rl:meta:country_code" v="276" />
+      <tag k="rl:meta:is_controlled" v="false" />
+      <tag k="rl:meta:is_motorway" v="false" />
+      <tag k="rl:meta:is_separated_structurally" v="false" />
+      <tag k="rl:meta:is_urban" v="false" />
+      <tag k="rl:predecessors" v="" />
+      <tag k="rl:successors" v="" />
+      <tag k="rl:travel_direction" v="along" />
+      <tag k="rl:type" v="no_special" />
+   </way>
+   <relation id="412" version="1" visible="true">
+      <member ref="414" role="left" type="way" />
+      <member ref="415" role="right" type="way" />
+      <tag k="location" v="nonurban" />
+      <tag k="rl:direction" v="along" />
+      <tag k="rl:id" v="413" />
+      <tag k="speed_limit" v="130.000000" />
+      <tag k="subtype" v="highway" />
+      <tag k="type" v="lanelet" />
+   </relation>
+</osm>

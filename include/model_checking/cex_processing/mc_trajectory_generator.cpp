@@ -244,7 +244,6 @@ void MCinterpretedTrace::applyInterpolation(const int steps_to_insert, const MCT
 	{
 		auto& trajectory = getEditableVehicleTrajectory(vehicle_name);
       interpolate(vehicle_name, trajectory, trace, steps_to_insert);
-      int x{};
 	}
 
    interpolateDataPacks(m_data_trace, steps_to_insert);
@@ -268,17 +267,27 @@ void MCinterpretedTrace::interpolate(const std::string& vehicle_name, FullTrajec
       const int on_straight_section{ (int)std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt)) };
       const int traversion_from{ (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_from", trace_cnt)) };
       const int traversion_to{ (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_to", trace_cnt)) };
+      const int next_on_straight_section{ (int)std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt + 2)) };
+      const int next_traversion_from{ (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_from", trace_cnt + 2)) };
+      const int next_traversion_to{ (int) std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".traversion_to", trace_cnt + 2)) };
 
       if (on_straight_section < 0 && traversion_from < 0 && traversion_to < 0) {
          addError("Car '" + vehicle_name + "' is neither on straight section nor on curved junction.");
       }
 
       const int on_lane{ (int)(std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_lane", trace_cnt)) / 2) };
+      const int next_on_lane{ (int)(std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_lane", trace_cnt + 2)) / 2) }; // Should be the same as on_lane.
       const int current_seclet_length{ (on_straight_section >= 0
             ? (int)std::stof(trace.getLastValueOfVariableAtStep("env.section_" + std::to_string(on_straight_section) + "_end", trace_cnt))
             : (int)std::stof(trace.getLastValueOfVariableAtStep("env.arclength_from_sec_" + std::to_string(traversion_from) + "_to_sec_" + std::to_string(traversion_to) + "_on_lane_" + std::to_string(on_lane), trace_cnt))
             ) };
+      const int next_seclet_length{ (next_on_straight_section >= 0
+            ? (int)std::stof(trace.getLastValueOfVariableAtStep("env.section_" + std::to_string(next_on_straight_section) + "_end", trace_cnt))
+            : (int)std::stof(trace.getLastValueOfVariableAtStep("env.arclength_from_sec_" + std::to_string(next_traversion_from) + "_to_sec_" + std::to_string(next_traversion_to) + "_on_lane_" + std::to_string(next_on_lane), trace_cnt))
+            ) };
       const bool is_switching_towards_next_step{ trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt) != trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt + 2) };
+		const int current_velocity{ (int)std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".v", trace_cnt)) };
+		const int next_velocity{ (int)std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".v", trace_cnt + 2)) };
 
 		for (size_t j = 1; j < (steps_between + 1); j++)
 		{
@@ -289,17 +298,24 @@ void MCinterpretedTrace::interpolate(const std::string& vehicle_name, FullTrajec
          double store_regular_interp_x{ -1 };
 
 			ParameterMap interp_params;
-			for (auto& pp : prev_param)
-			{
+
+			for (auto& pp : prev_param) {
 				PossibleParameter param_key = pp.first;
 				double current_value = pp.second;
 				double next_value = next_param[param_key];
 
 				const ParameterDetails& details = getParameterDetails(param_key);
+				int correction_for_longpos_when_driving_backward{ 0 };
 
             if (is_switching_towards_next_step) {
                if (param_key == PossibleParameter::pos_x) {
-                  store_regular_interp_x = details.interpolation_method_->interpolate(current_value, next_value + current_seclet_length, j * factor);
+						if (next_velocity < 0) { // If going backwards, emulate going forward and turn around afterwards.
+							current_value = current_seclet_length - current_value;
+							next_value = next_seclet_length - next_value;
+							correction_for_longpos_when_driving_backward = 1; // When driving backwards, we want to capture the first frame, rather than the last. (TODO: Check with Alex if that's actually correct...)
+						}
+
+                  store_regular_interp_x = details.interpolation_method_->interpolate(current_value, next_value + current_seclet_length, (j - correction_for_longpos_when_driving_backward) * factor);
                   details.interpolation_method_->addAdditionalData({ (double)current_seclet_length });
                }
                if (param_key == PossibleParameter::on_straight_section || param_key == PossibleParameter::traversion_from || param_key == PossibleParameter::traversion_to) {
@@ -311,7 +327,13 @@ void MCinterpretedTrace::interpolate(const std::string& vehicle_name, FullTrajec
                }
             }
 
-				interp_params[pp.first] = details.interpolation_method_->interpolate(current_value, next_value, j*factor);
+				const int seclet_length{ current_seclet_length <= store_regular_interp_x ? next_seclet_length : current_seclet_length };
+				interp_params[pp.first] = details.interpolation_method_->interpolate(current_value, next_value, (j - correction_for_longpos_when_driving_backward) * factor);
+				
+				if (next_velocity < 0 && param_key == PossibleParameter::pos_x && is_switching_towards_next_step) {
+					interp_params[pp.first] = seclet_length - interp_params[pp.first];
+				}
+
             details.interpolation_method_->clearAdditionalData();
 
 				/*

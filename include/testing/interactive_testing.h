@@ -100,6 +100,7 @@ std::string doParsingRun(
    const std::string& planner_path,
    const std::string& target_dir,
    const std::string& cached_dir, // Can be empty if no caching desired.
+   const std::filesystem::path& template_dir,
    const std::string& gui_name
 );
 
@@ -111,6 +112,8 @@ std::shared_ptr<RoadGraph> paintExampleRoadGraphStrangeJunction(const bool write
 std::shared_ptr<RoadGraph> paintExampleRoadGraphRoundabout(const bool write_to_files = true, const std::shared_ptr<RoadGraph> ego_section = nullptr);
 
 bool isCacheUpToDateWithTemplates(const std::filesystem::path& cached_path, const std::filesystem::path& template_path, const std::string& gui_name);
+
+extern "C" char* expandScript(const char* input, char* result, size_t resultMaxLength);
 
 extern "C" char* morty(const char* input, char* result, size_t resultMaxLength);
 } // test

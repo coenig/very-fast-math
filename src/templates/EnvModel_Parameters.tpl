@@ -26,6 +26,7 @@
 
 -- Parameters for ego and non-ego vehicles
 @{EGOLESS}@*******.defaultValue[false]
+@{UCD}@*******.defaultValue[false]
 @{NONEGOS}@*******.defaultValue[5]
 @{LEFTLC}@*******.defaultValue[true]
 @{RIGHTLC}@*******.defaultValue[false]
@@ -49,11 +50,11 @@
 @{CALCULATE_RIGHT_GAP}@*******.defaultValue[true]
 @{CALCULATE_RIGHT_GAP_REAR}@*******.defaultValue[true] -- Flag to leave out the rear/right gap when not needed, even when right gap is calculated.
 @{LONGDISTMAX}@*******.defaultValue[300]         -- This is the max distance to the front and back of ego.
-@{INITPOSRANGENONEGOS}@*******.defaultValue[50]  -- Range to front where non-egos can be positioned initially. (TODO: Should be replaced by length of resp. section.)
+@{INITPOSRANGENONEGOS}@*******.defaultValue[100]  -- Range to front where non-egos can be positioned initially. (TODO: Should be replaced by length of resp. section.)
 @{CLOSETOEGOPAR}@*******.defaultValue[80]
 @{TIMESCALING}@*******.defaultValue[1000]        -- nondimensionalization constant for time, in milliseconds
 @{DISTANCESCALING}@*******.defaultValue[1000]    -- nondimensionalization constant for distance, in millimeters
-@{SIMPLE_LC}@*******.defaultValue[false]         -- true: Allow non-egos to switch a "half-lane" if time_since_last_lc has passed; false: Christian's version
+@{SIMPLE_LC}@*******.defaultValue[false]         -- true: Allow non-egos to switch a "half-lane" if time_since_last_lc has passed; false: Full version by Christian H.
 
 -- Parameters for "skipping" of CEXs.
 @{DOUBLEMERGEPROTECTION}@*******.defaultValue[true] -- Prohibits non-ego LCs when in danger of a double-merge
@@ -66,7 +67,7 @@
 
 -- Special purpose parameters.
 @{FEASIBILITY}@*******.defaultValue[true] -- Includes defines needed for the ACA4.1 Fesibility study.
-@{CONCRETE_MODEL}@*******.defaultValue[true] -- Uses the "concrete" model, as opposed to Alberto's "abstract" model.
+@{CONCRETE_MODEL}@*******.defaultValue[true] -- Uses the --concrete-- model, as opposed to (deprecated) abstract model be Alberto.
 @{MAXSECPARTS}@*******.defaultValue[3] -- TODO: Number of segments a section is split into for the abstract model. Should be replaced by scaling (if possible).
 
 -- EO Do not change.

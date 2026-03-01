@@ -1133,10 +1133,11 @@ void vfm::HighwayImage::paintBezierConnectionsBetweenSections(
 
 void vfm::HighwayImage::paintGraphConnectionsBetweenSections(
    const std::shared_ptr<RoadGraph> my_r,
+   const std::map<std::string, std::string>& var_vals,
    const std::shared_ptr<HighwayTranslator> old_trans
 )
 {
-   my_r->applyToMeAndAllMySuccessorsAndPredecessors([this](const std::shared_ptr<RoadGraph> r) {
+   my_r->applyToMeAndAllMySuccessorsAndPredecessors([this, &var_vals](const std::shared_ptr<RoadGraph> r) {
       for (const auto& r_succ : r->getSuccessors()) {
          for (const auto& A : r->connectors_) {
             for (const auto& B : r_succ->connectors_) {
@@ -1175,6 +1176,14 @@ void vfm::HighwayImage::paintGraphConnectionsBetweenSections(
                   arrow.createArrow(p, thick_a, {}, {}, {}, ARROW_END_PPT_STYLE_1, {}, { 2, 2 });
 
                   fillPolygon(arrow);
+                  std::string var_name{ "arclength_from_sec_" + std::to_string(r->getID()) + "_to_sec_" + std::to_string(r_succ->getID()) + "_on_lane_0"};
+                  std::string val{ std::to_string((int)std::stof(var_vals.at(var_name))) };
+
+                  auto first_y = p.points_.at(0).y;
+                  auto second_y = p.points_.back().y;
+                  auto y = (first_y * 7 + second_y) / 8;
+
+                  writeAsciiText(p.points_.at(0).x + 30, y, val, CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_YELLOW);
                }
             }
          }
@@ -1197,7 +1206,7 @@ void vfm::HighwayImage::paintRoadGraph(
    auto old_trans = getHighwayTranslator();
    const auto all_nodes = my_r->getAllNodes();
 
-   const bool infinite_road{ all_nodes.size() == 1 && my_r->isUnturned() }; // Only a single section, unturned, will be painted as infinite.
+   const bool infinite_road{ false /*all_nodes.size() == 1 && my_r->isUnturned()*/ }; // Only a single section, unturned, will be painted as infinite.
 
    float TRANSLATE_X{ TRANSLATE_X_raw };
    float TRANSLATE_Y{ TRANSLATE_Y_raw };
@@ -1291,7 +1300,11 @@ void vfm::HighwayImage::paintRoadGraph(
             infinite_road ? dim_raw : preserved_dimension_,
             mode == RoadDrawingMode::ghosts_only ? RoadDrawingMode::road : mode);
 
-         if (!r_sub->isGhost()) writeAsciiText(10, -1, "Sec" + std::to_string(r_sub->getID()));
+         if (!r_sub->isGhost()) {
+            std::string val = var_vals.at("section_" + std::to_string(r_sub->getID()) + "_end");
+            val = std::to_string((int)std::stof(val));
+            writeAsciiText(10, -1, "Sec" + std::to_string(r_sub->getID()) + " (" + val + ")", CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_YELLOW);
+         }
       }
       };
 
@@ -1310,7 +1323,7 @@ void vfm::HighwayImage::paintRoadGraph(
    const bool topology_only{ true };
 
    if (topology_only) {
-      paintGraphConnectionsBetweenSections(my_r, old_trans);
+      paintGraphConnectionsBetweenSections(my_r, var_vals, old_trans);
    }
    else {
       paintBezierConnectionsBetweenSections(my_r, dim_raw, old_trans);

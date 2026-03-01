@@ -115,10 +115,10 @@ int vfm::InterpreterTerminal::handle(int e)
    
    const std::map<char, std::pair<std::pair<std::string, std::string>, bool>> bracket_key_shortcuts{
       { 's', {{ macro::INSCR_BEG_TAG, macro::INSCR_END_TAG + macro::METHOD_CHAIN_SEPARATOR + "mymethod" }, true } },
-      { 'y', {{ BEGIN_TAG_MULTILINE_SCRIPT_SINGLE_STEP, END_TAG_MULTILINE_SCRIPT_SINGLE_STEP }, true } },
-      { 'w', {{ BEGIN_TAG_MULTILINE_SCRIPT, END_TAG_MULTILINE_SCRIPT }, true } },
-      { 'q', {{ macro::BEGIN_TAG_IN_SEQUENCE, macro::END_TAG_IN_SEQUENCE }, true } },
-      { 'd', {{ macro::METHOD_PARS_BEGIN_TAG, macro::METHOD_PARS_END_TAG }, false } },
+      { 'd', {{ BEGIN_TAG_MULTILINE_SCRIPT_SINGLE_STEP, END_TAG_MULTILINE_SCRIPT_SINGLE_STEP }, true } },
+      { 'f', {{ BEGIN_TAG_MULTILINE_SCRIPT, END_TAG_MULTILINE_SCRIPT }, true } },
+      { 'g', {{ macro::BEGIN_TAG_IN_SEQUENCE, macro::END_TAG_IN_SEQUENCE }, true } },
+      { 'h', {{ macro::METHOD_PARS_BEGIN_TAG, macro::METHOD_PARS_END_TAG }, false } },
    };
 
    switch (e) {

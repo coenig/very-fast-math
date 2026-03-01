@@ -53,8 +53,9 @@ void vfm::mc::McWorkflow::generateEnvmodels(
    const auto path_generated{ getGeneratedDir(path_template, json_tpl_filename) };
    const auto path_planner{ getBPIncludesFileDir(path_template, json_tpl_filename) };
    const auto path_cached{ getCachedDir(path_template, json_tpl_filename) };
-   std::string path_json{ path_template + "/" + getJsonFileNameFromJsonTemplateFileName(json_tpl_filename) };
-   std::string path_envmodel{ path_template + "/" + envmodel_entrance_filename };
+   const std::string path_json{ path_template + "/" + getJsonFileNameFromJsonTemplateFileName(json_tpl_filename) };
+   const auto path_envmodel_folder{ getEnvmodelDir(path_template, json_tpl_filename) };
+   const auto path_envmodel{ path_envmodel_folder / envmodel_entrance_filename };
    preprocessAndRewriteJSONTemplate(path_template, json_tpl_filename, formula_evaluation_mutex);
 
    auto envmodeldefs{ test::retrieveEnvModelDefinitionFromJSON(path_json, test::EnvModelCachedMode::always_regenerate) };
@@ -74,13 +75,14 @@ void vfm::mc::McWorkflow::generateEnvmodels(
       addNote("Generating EnvModel " + std::to_string(cnt++) + "/" + std::to_string(max) + ".");
 
       if (envmodeldef.first != JSON_TEMPLATE_DENOTER) {
-         test::doParsingRun( // TODO: go over command line!
+         test::doParsingRun(
             envmodeldef,
             ".",
-            path_envmodel,
-            path_planner.string(),
-            path_generated.string(),
-            path_cached.string(),
+            StaticHelper::toStringGenericPath(path_envmodel),
+            StaticHelper::toStringGenericPath(path_planner),
+            StaticHelper::toStringGenericPath(path_generated),
+            StaticHelper::toStringGenericPath(path_cached),
+            path_envmodel_folder,
             GUI_NAME + "_Related");
       }
    }
@@ -306,7 +308,7 @@ void McWorkflow::deleteMCOutputFromFolder(
    }
    else {
       addNote("Overwriting folder '" + path_generated_preview.string() + "'.");
-      copyWaitingForPreviewGIF(path_template, path_generated, previous_write_time);
+      copyWaitingForPreviewGIF(path_generated, path_template, previous_write_time);
    }
 
    if (std::filesystem::exists(path_prose_description)) {
@@ -349,6 +351,8 @@ nlohmann::json McWorkflow::getJSON(const std::string& path) const
 
    return json;
 }
+
+static const std::string DUMMY_RANGE_VAR_NAME{ "DUMMYVAR" };
 
 void McWorkflow::preprocessAndRewriteJSONTemplate(
    const std::string& path_template, 
@@ -409,7 +413,6 @@ void McWorkflow::preprocessAndRewriteJSONTemplate(
    }
 
    if (variables.empty()) { // Mock some range to get exactly one config.
-      static const std::string DUMMY_RANGE_VAR_NAME{ "DUMMYVAR" };
       variables.insert(DUMMY_RANGE_VAR_NAME);
       int address{ data_->reserveHeap(2) };
       data_->addOrSetSingleVal(DUMMY_RANGE_VAR_NAME, address);
@@ -417,7 +420,7 @@ void McWorkflow::preprocessAndRewriteJSONTemplate(
       data_->setHeapLocation(address + 1, std::numeric_limits<float>::quiet_NaN());
    }
 
-   std::vector<std::pair<std::string, std::vector<float>>> ranges{};
+   std::vector<std::pair<std::string, std::vector<float>>> ranges{}; // Could have only single value, then it's not a real range.
    addNote("Recovering ranges from vfm heap.");
    for (const auto& var : variables) {
       addNote("Range for '" + var + "' is: ", true, "");
@@ -557,7 +560,9 @@ nlohmann::json McWorkflow::instanceFromTemplate(
    std::string name{ "_config" };
 
    for (int i = 0; i < counter_vec.size(); i++) {
-      name += "_" + ranges[i].first + "=" + StaticHelper::floatToStringNoTrailingZeros(ranges[i].second[counter_vec[i]]);
+      if (ranges[i].second.size() > 1 || ranges[i].first == DUMMY_RANGE_VAR_NAME) { // Otherwise it's not a real range, so don't spoil the folder name.
+         name += "_" + ranges[i].first + "=" + StaticHelper::floatToStringNoTrailingZeros(ranges[i].second[counter_vec[i]]);
+      }
    }
 
    nlohmann::json res = { { name.c_str(), {} } };
@@ -730,6 +735,11 @@ std::filesystem::path McWorkflow::getGeneratedDir(const std::string& path_templa
 std::filesystem::path vfm::mc::McWorkflow::getExternalDir(const std::string& path_template, const std::string& filename_json_template) const
 {
    return getValueForJSONKeyAsString("_EXTERNAL_PATH", path_template, filename_json_template, JSON_TEMPLATE_DENOTER);
+}
+
+std::filesystem::path vfm::mc::McWorkflow::getEnvmodelDir(const std::string& path_template, const std::string& filename_json_template) const
+{
+   return getValueForJSONKeyAsString("_ENVMODEL_PATH", path_template, filename_json_template, JSON_TEMPLATE_DENOTER);
 }
 
 std::filesystem::path McWorkflow::getGeneratedParentDir(const std::string& path_template, const std::string& filename_json_template) const

@@ -1,4 +1,4 @@
-MODULE "checkLCConditionsFastLane"(globals)
+MODULE "checkLCConditionsFastLane"("!{loc}")
 DEFINE
   "abCond.cond26_all_conditions_fulfilled_raw" := next("!{abCond.cond26_all_conditions_fulfilled_raw}");
   "flCond.cond26_all_conditions_fulfilled_raw" := next("!{flCond.cond26_all_conditions_fulfilled_raw}");
@@ -6,7 +6,6 @@ VAR
   "!{abCond.cond26_all_conditions_fulfilled_raw}" : boolean;
   "!{flCond.cond26_all_conditions_fulfilled_raw}" : boolean;
 DEFINE
-  "!{loc}" := globals."loc";
   __d0 := TRUE;
   __d29 := ! next("!{flCond.cond26_all_conditions_fulfilled_raw}");
   __d27 := ! next("!{abCond.cond26_all_conditions_fulfilled_raw}");

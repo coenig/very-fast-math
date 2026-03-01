@@ -15,7 +15,7 @@
 --    * n is the maximum number of lanes the section may have on each of its "segments" (see below).
 --   Originally, the EnvModel contained only 1 section with S=(0, 0), and A = 0.
 -- * Segment: longitudinal part of a section (given by its begin and lasting to the begin of the next segment or the end of the section), with individual properties assigned to it, particularly number of lanes <= n. A section fully consists of segments, the first starts at the source, the last ends in the drain, all segment lengths sum up to |SD|.
---   Note that in the nuXmv implementation, a section is given by S and A, while D is derived from these two and the sum of the segments' lengths.
+--   Note that in the nuXmv implementation, a section is given by S and A, while D is derived from these two and the sum of the lengths or the segments.
 -- * Connection: a tuple (j, k) of sections (given by their IDs) with:
 --    * k is an "outgoing connection" of j, and
 --    * j is an "incoming connection" of k.

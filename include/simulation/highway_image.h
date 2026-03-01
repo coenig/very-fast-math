@@ -101,6 +101,7 @@ public:
 
    void paintGraphConnectionsBetweenSections(
       const std::shared_ptr<RoadGraph> my_r,
+      const std::map<std::string, std::string>& var_vals,
       const std::shared_ptr<HighwayTranslator> old_trans
    );
 

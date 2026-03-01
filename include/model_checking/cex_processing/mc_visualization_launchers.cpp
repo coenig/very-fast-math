@@ -362,25 +362,26 @@ bool VisualizationLaunchers::quickGenerateGIFs(
             gen_config_smooth, TESTCASE_MODE_CEX_SMOOTH_BIRDSEYE.second);
       }
 
-      if (modes.count(TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_FULL.first)) {
-         VisualizationLaunchers::interpretAndGenerate(
-            trace,
-            path,
-            TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_FULL.first,
-            SIM_TYPE_SMOOTH_WITH_ARROWS,
-            agents_to_draw_arrows_for,
-            gen_config_smooth, TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_FULL.second);
-      }
+      // TODO: Re-introduce arrows, until then the below cases are already covered by the others.
+      //if (modes.count(TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_FULL.first)) {
+      //   VisualizationLaunchers::interpretAndGenerate(
+      //      trace,
+      //      path,
+      //      TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_FULL.first,
+      //      SIM_TYPE_SMOOTH_WITH_ARROWS,
+      //      agents_to_draw_arrows_for,
+      //      gen_config_smooth, TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_FULL.second);
+      //}
 
-      if (modes.count(TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_BIRDSEYE.first)) {
-         VisualizationLaunchers::interpretAndGenerate(
-            trace,
-            path,
-            TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_BIRDSEYE.first,
-            SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
-            agents_to_draw_arrows_for,
-            gen_config_smooth, TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_BIRDSEYE.second);
-      }
+      //if (modes.count(TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_BIRDSEYE.first)) {
+      //   VisualizationLaunchers::interpretAndGenerate(
+      //      trace,
+      //      path,
+      //      TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_BIRDSEYE.first,
+      //      SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY,
+      //      agents_to_draw_arrows_for,
+      //      gen_config_smooth, TESTCASE_MODE_CEX_SMOOTH_WITH_ARROWS_BIRDSEYE.second);
+      //}
    }
 
    return true;
