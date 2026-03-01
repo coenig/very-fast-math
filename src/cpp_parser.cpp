@@ -4619,7 +4619,7 @@ std::string getFileNameWithPath(const std::string& template_file_path)
       Failable::getSingleton()->addError("Malformed template file description for env model generation: '" + template_file_path + "'.");
    }
 
-   return split.at(1);
+   return StaticHelper::replaceAll(split.at(1), "\\", "/");
 }
 
 std::string vfm::CppParser::getFullPathToStoreCachedVersionIn(

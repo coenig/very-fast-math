@@ -50,7 +50,7 @@ DEFINE
     @{ego.complete_lane_change_earliest_after}@*.timeWorldToEnvModelDef[2] + params.turn_signal_duration;
     @{ego.complete_lane_change_latest_after}@*.timeWorldToEnvModelDef[2] + params.turn_signal_duration;
     -- it seems that there is no parameter given for the duration of the abort, assume same duration to roll back that it took to get to the current pos
-    @{ego.min_time_between_lcs}@*.timeWorldToEnvModelDef[2];                      -- after finisihing one lc, how much time needs to pass before the next one may be started
+    @{ego.min_time_between_lcs}@*.timeWorldToEnvModelDef[MIN_TIME_BETWEEN_LANECHANGES];                      -- after finisihing one lc, how much time needs to pass before the next one may be started
 
     @{max_ego_visibility_range}@*.distanceWorldToEnvModelDef[MAXEGOVISRANGE];                      --how far can the ego sensors see? Vehicles being further away than this cannot be detected and will not be considered
 

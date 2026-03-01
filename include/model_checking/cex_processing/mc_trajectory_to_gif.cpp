@@ -368,6 +368,16 @@ void LiveSimGenerator::generate(
       extra_var_vals.insert({ "ego.gaps___619___.i_agent_rear", std::to_string(current_ego.second.at(PossibleParameter::gap_1_i_agent_rear))});
       extra_var_vals.insert({ "ego.gaps___629___.i_agent_rear", std::to_string(current_ego.second.at(PossibleParameter::gap_2_i_agent_rear))});
 
+      for (const auto& varval : trace.at(0).second) {
+         if ((StaticHelper::stringContains(varval.first, "arclength_from_sec_") 
+            && StaticHelper::stringContains(varval.first, "_to_sec_") 
+            && StaticHelper::stringContains(varval.first, "_on_lane_")) 
+            || (StaticHelper::stringContains(varval.first, "section_")
+               && StaticHelper::stringContains(varval.first, "_end"))) {
+            extra_var_vals.insert({ varval.first, varval.second });
+         }
+      }
+
       // Provide data for other vehicles
       for (const auto& vehicle_name : vehicle_names_without_ego)
       {

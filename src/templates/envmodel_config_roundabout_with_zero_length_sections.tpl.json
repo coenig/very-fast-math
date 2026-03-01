@@ -70,6 +70,8 @@
       "TIMESCALING": "#{1000}#",
       "_BP_INCLUDES_FILE_PATH": "../src/examples/ego_less/vfm-includes.txt",
       "_CACHED_PATH": "../examples/tmp",
-      "_GENERATED_PATH": "../examples/gp"
+      "_GENERATED_PATH": "../examples/gp",
+      "_EXTERNAL_PATH": "../external",
+      "_ENVMODEL_PATH": "../src/templates"
    }
 }

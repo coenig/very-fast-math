@@ -27,7 +27,7 @@ VAR
 )@
 }@******.if[@{SIMPLE_LC}@.eval]
 
-    @{veh___6[i]9___.abs_pos}@*.scalingVariable[distance] : integer; -- absolute position on current section (invalid if in between sections)
+    @{veh___6[i]9___.abs_pos}@*.scalingVariable[distance] : integer; -- absolute position on current seclet
     @{veh___6[i]9___.prev_abs_pos}@*.scalingVariable[distance] : integer;
     @{veh___6[i]9___.prev_rel_pos}@*.scalingVariable[distance] : integer;
     @{veh___6[i]9___.a}@*.scalingVariable[acceleration] : integer;    -- accel in m/s^2, (assume positive accel up to 6m/s^2, which is already a highly tuned sports car)
@@ -69,7 +69,8 @@ VAR
          @{@{@{+ veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]}@.if[@{[sec] != [sec2]}@.eval]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval]}@**.for[[sec2], 0, @{SECTIONS - 1}@.eval] = 1;
 
       @{
-         TRANS veh___6[i]9___.time_since_last_lc < min_time_between_lcs -> veh___6[i]9___.lane_unchanged;
+         TRANS veh___6[i]9___.time_since_last_lc < min_time_between_lcs @{| abs(veh___6[i]9___.v) < 10}@****.if[@{UCD}@.eval] -> veh___6[i]9___.lane_unchanged;
+         @{TRANS veh___6[i]9___.lane_unchanged | veh___6[i]9___.lane_move_down | veh___6[i]9___.lane_move_up;}@.if[@{UCD}@.eval]
       }@******.if[@{SIMPLE_LC}@.eval]
 
 	}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
@@ -123,7 +124,7 @@ esac;
 }@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 -- EO Make sure non-egos do not drive on the GREEN.
--- TODO: KEEP_EGO_FROM_GREEN has not been implemented, yet, with the new approach "ego = veh[0]". (I.e., ego is ALWAYS kept off green, it can't be DEactivated.)
+-- TODO: KEEP_EGO_FROM_GREEN has not been implemented, yet, with the new approach "ego = veh[0]". (I.e., ego is ALWAYS kept off green, it cannot be DEactivated.)
 
 DEFINE
 
@@ -168,8 +169,10 @@ DEFINE
 -- >>> Car [i] <<<
 
 
+@{
 INIT 
    veh___6[i]9___.abs_pos >= @{@(0)@@(@{-INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst)@}@******.if[@{SECTIONS > 1}@.eval] & veh___6[i]9___.abs_pos <= @{INITPOSRANGENONEGOS}@.distanceWorldToEnvModelConst; -- TODO: Should be replaced by length of resp. section.
+}@.if[@{!UCD}@.eval]
 
 DEFINE
    veh___6[i]9___.rel_pos := veh___6[i]9___.abs_pos - ego.abs_pos; -- relative position to ego in m (valid only if ego is on same section), rel_pos < 0 means the rear bumber of the other vehicle is behind the rear bumper of the ego
@@ -179,16 +182,35 @@ INVAR
     veh___6[i]9___.lane_single | veh___6[i]9___.lane_crossing;
 
 INVAR
+-- Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just undo the condition around!
+@{
+   @(
+    (max(-veh___6[i]9___.v, a_min) <= veh___6[i]9___.a & veh___6[i]9___.a <= a_max) &
+    (0 <= veh___6[i]9___.v & veh___6[i]9___.v <= max_vel);
+   )@
+   @(
     (a_min <= veh___6[i]9___.a & veh___6[i]9___.a <= a_max) &
     (-max_vel <= veh___6[i]9___.v & veh___6[i]9___.v <= max_vel);
+   )@
+}@.if[@{UCD}@.eval].nil
+-- EO Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just undo the condition around!
+-- Just ignore backwards comatibility for now.
+    (a_min <= veh___6[i]9___.a & veh___6[i]9___.a <= a_max) &
+    (-max_vel <= veh___6[i]9___.v & veh___6[i]9___.v <= max_vel);
+-- EO Just ignore backwards comatibility for now.
 
 -- MAX/MIN velocities per lane.
+-- Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just remove the condition around!
+@{
 @{
 INVAR veh___6[i]9___.lane_b@{#j}@.eval[0] -> (veh___6[i]9___.v >= @{LANES_MIN_SPEEDS}@.printHeap.at[#j] & veh___6[i]9___.v <= @{LANES_MAX_SPEEDS}@.printHeap.at[#j]);
 }@***.for[#j, 0, @{NUMLANES - 1}@.eval]
+}@****.if[@{!UCD}@.eval]
+-- EO Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just remove the condition around!
 
 -- Lookup table to speed-up non-linear calculations
 DEFINE
+@{
 square_of_veh_v_[i] := case
    @{veh___6[i]9___.v = [x] : @{[x] ** 2}@.eval[0];
    }@*.for[[x], 0, @{@{MAXSPEEDNONEGO}@***.velocityWorldToEnvModelConst - 1}@.eval[0]]
@@ -196,6 +218,7 @@ square_of_veh_v_[i] := case
 esac;
 
 veh___6[i]9___.v_kmh := (veh___6[i]9___.v * 36) / 10;
+}@.if[@{!UCD}@.eval]
 
 veh___6[i]9___.halber_tacho := 0;
 -- case -- comment in for halber tacho calculation.
@@ -247,7 +270,7 @@ ASSIGN
 @{
 @(
    next(veh___6[i]9___.time_since_last_lc) := case
-      veh___6[i]9___.lane_unchanged : veh___6[i]9___.time_since_last_lc + 1;
+      veh___6[i]9___.time_since_last_lc < min_time_between_lcs : veh___6[i]9___.time_since_last_lc + 1;
       TRUE : 0;
    esac;
 )@
@@ -323,6 +346,7 @@ ASSIGN
     next(veh___6[i]9___.prev_rel_pos) := veh___6[i]9___.rel_pos;
     next(veh___6[i]9___.prev_abs_pos) := veh___6[i]9___.abs_pos;
 
+@{
 DEFINE
     veh___6[i]9___.current_seclet_length := case
        @{
@@ -393,20 +417,34 @@ INVAR veh___6[i]9___.has_arrived_at_previous_seclet_in_last_cycle ->
     }@*.forExcept[[j], 0, @{NONEGOS - 1}@.eval, 1, &, [i]]
    )
    ;
+}@.if[@{!UCD}@.eval]
 
 ASSIGN
+    -- TWICE special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just undo condition!
     next(veh___6[i]9___.abs_pos) := case
+    @{
+      @(veh___6[i]9___.is_on_sec_0 = 1 & veh___6[i]9___.next_abs_pos > section_0_end : veh___6[i]9___.next_abs_pos - section_0_end;)@
+      @(
           veh___6[i]9___.will_arrive_at_next_seclet_in_next_cycle : veh___6[i]9___.next_abs_pos - veh___6[i]9___.current_seclet_length;
           veh___6[i]9___.will_arrive_at_previous_seclet_in_next_cycle : veh___6[i]9___.next_abs_pos + veh___6[i]9___.next_seclet_length;
+      )@
+    }@.if[@{UCD}@.eval]
           TRUE : veh___6[i]9___.next_abs_pos;
     esac;
 
     -- update velocity (directly feed-through newly chosen accel)
-    next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, -max_vel), max_vel);
+    @{
+      @(next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, 0), max_vel);)@
+      @(next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, -max_vel), max_vel);)@
+    }@.if[@{UCD}@.eval].nil
+    -- EO TWICE special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just undo condition!
+    -- Do not care about backwards compatibility for the second case.
+      next(veh___6[i]9___.v) := veh___6[i]9___.v + veh___6[i]9___.a;
+    -- EO Do not care about backwards compatibility for the second case.
 
     -- ############ IDEA ###########
-    -- Set future road either to 1/0 if it's clear we'll end or not end up there, or to {0, 1} whenever there IS a connection,
-    -- but we're not sure if there might be another one. Together with the INVAR that makes it sum up to 1,
+    -- Set future road either to 1/0 if it is clear we will end or not end up there, or to {0, 1} whenever there IS a connection,
+    -- but we are not sure if there might be another one. Together with the INVAR that makes it sum up to 1,
     -- we are sure that exactly one will be chosen.
     -- ########## EO IDEA #########
 
@@ -418,7 +456,9 @@ ASSIGN
                 @{@{section_[sec2]_end > 0 &}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] veh___6[i]9___.is_traversing_from_sec_[sec2]_to_sec_[sec] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos < 0 : 1;}@.if[@{[sec] != [sec2]}@.eval]
              }@*.for[[lane], 0, @{NUMLANES - 1}@.eval]
           }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
-             veh___6[i]9___.is_on_sec_[sec2] = 1 & (veh___6[i]9___.next_abs_pos > section_[sec2]_end | veh___6[i]9___.next_abs_pos < 0) : 0;
+          -- Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just delete condition!
+             veh___6[i]9___.is_on_sec_[sec2] = 1 & (veh___6[i]9___.next_abs_pos > section_[sec2]_end     @{| veh___6[i]9___.next_abs_pos < 0}@.if[@{!UCD}@.eval]   ) : 0;
+          -- EO Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just delete condition!
              TRUE : veh___6[i]9___.is_on_sec_[sec2];
           esac;
        }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
@@ -504,6 +544,10 @@ TRANS
 }@******.if[@{!SIMPLE_LC}@.eval]
 
 }@**.for[[i], 0, @{NONEGOS - 1}@.eval]
+
+@{
+INVAR veh___6[i]9___.v <= 0;
+}@.for[[i], @{BACKWARD_DRIVING_CAR_IDS}@.printHeap]
 
 --------------------------------------------------------
 -- End: Non-ego Spec 

@@ -133,6 +133,7 @@ public:
    std::filesystem::path getBPIncludesFileDir(const std::string& path_template, const std::string& filename_json_template) const;
    std::filesystem::path getGeneratedDir(const std::string& path_template, const std::string& filename_json_template) const;
    std::filesystem::path getExternalDir(const std::string& path_template, const std::string& filename_json_template) const;
+   std::filesystem::path getEnvmodelDir(const std::string& path_template, const std::string& filename_json_template) const;
    std::filesystem::path getGeneratedParentDir(const std::string& path_template, const std::string& filename_json_template) const;
 
    std::shared_ptr<DataPack> data_{}; // TODO: make private again.

@@ -163,15 +163,20 @@ std::string StaticHelper::toLowerCase(const std::string& str)
 std::string vfm::StaticHelper::removeLastFileExtension(const std::string& file_path, const std::string& extension_denoter)
 {
    size_t lastindex = file_path.find_last_of(extension_denoter);
-   std::string rawname = lastindex == std::string::npos ? file_path : file_path.substr(0, lastindex); 
+   std::string rawname = lastindex == std::string::npos ? "" : file_path.substr(0, lastindex);
    return rawname;
 }
 
 std::string vfm::StaticHelper::getLastFileExtension(const std::string& file_path, const std::string& extension_denoter)
 {
    size_t lastindex = file_path.find_last_of(extension_denoter);
-   std::string rawname = lastindex == std::string::npos ? "" : file_path.substr(lastindex); 
+   std::string rawname = lastindex == std::string::npos ? file_path : file_path.substr(lastindex);
    return rawname;
+}
+
+std::string vfm::StaticHelper::toStringGenericPath(const std::filesystem::path& path)
+{
+   return replaceAll(path.string(), "\\", "/");
 }
 
 std::string vfm::StaticHelper::substrComplement(const std::string& str, const int begin, const int end)
@@ -369,11 +374,9 @@ std::string vfm::StaticHelper::cleanVarNameOfPossibleRefSymbol(const MathStructP
    return m_var ? cleanVarNameOfPossibleRefSymbol(m_var->getVariableName()) : "";
 }
 
-// This function is licensed under CC-BY-SA-4.0 which is a copy-left license
-// (https://creativecommons.org/licenses/by-sa/4.0/deed.en)!
 bool vfm::StaticHelper::isFloatInteger(const float val)
 {
-   return ::ceilf(val) == val; // From https://stackoverflow.com/a/5797186
+   return ::ceilf(val) == val;
 }
 
 long long vfm::StaticHelper::convertTimeStampToMilliseconds(const std::string& timeStamp) {
@@ -823,15 +826,10 @@ std::string StaticHelper::makeString(char c) {
    return std::string(1, c);
 }
 
-// This function is licensed under CC-BY-SA-4.0 which is a copy-left license
-// (https://creativecommons.org/licenses/by-sa/4.0/deed.en)!
 void StaticHelper::ltrim(std::string& s) {
-   // From https://stackoverflow.com/questions/216823/whats-the-best-way-to-trim-stdstring
    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](int ch) {return !std::isspace(ch); }));
 }
 
-// This function is licensed under CC-BY-SA-4.0 which is a copy-left license
-// (https://creativecommons.org/licenses/by-sa/4.0/deed.en)!
 void StaticHelper::rtrim(std::string& s) {
    s.erase(std::find_if(s.rbegin(), s.rend(), [](int ch) {return !std::isspace(ch); }).base(), s.end());
 }
@@ -1425,7 +1423,8 @@ std::vector<std::string> vfm::StaticHelper::tokenizeCharacterwise(const std::str
 
 std::string BracketStructure::getContentAt(const std::vector<int> path_through_tree) 
 {
-   StaticHelper::serializeBracketStructure(shared_from_this());
+   StaticHelper::serializeBracketStructure(shared_from_this()); // TODO: Pretty sure this can be removed.
+
    if (path_through_tree.empty()) {
       if (children_.empty()) {
          return StaticHelper::serializeBracketStructure(shared_from_this());
@@ -1462,9 +1461,6 @@ std::string vfm::BracketStructure::serialize(const std::string& opening_bracket,
    return ob + res + cb;
 }
 
-// From https://stackoverflow.com/questions/236129/the-most-elegant-way-to-iterate-the-words-of-a-string
-// This function is licensed under CC-BY-SA-4.0 which is a copy-left license
-// (https://creativecommons.org/licenses/by-sa/4.0/deed.en)!
 template<typename Out>
 void StaticHelper::split(const std::string& s, char delim, Out result) 
 {
@@ -3037,39 +3033,9 @@ std::string vfm::StaticHelper::tokensAsString(const std::vector<std::string>& to
    return tokens_as_string;
 }
 
-// https://stackoverflow.com/a/70237726
-// This function is licensed under CC-BY-SA-4.0 which is a copy-left license
-// (https://creativecommons.org/licenses/by-sa/4.0/deed.en)!
-size_t vfm::StaticHelper::levensteinDistance(const std::string& a, const std::string& b)
+size_t vfm::StaticHelper::levensteinDistance(const std::string& first, const std::string& second)
 {
-   std::vector<size_t> d_((a.size() + 1) * (b.size() + 1), size_t(-1));
-   auto d = [&](size_t ia, size_t ib) -> size_t & {
-      return d_[ia * (b.size() + 1) + ib];
-   };
-
-   std::function<size_t(size_t, size_t)> LevensteinInt =
-      [&](size_t ia, size_t ib) -> size_t {
-      if (d(ia, ib) != size_t(-1))
-         return d(ia, ib);
-      size_t dist = 0;
-      if (ib >= b.size())
-         dist = a.size() - ia;
-      else if (ia >= a.size())
-         dist = b.size() - ib;
-      else if (a[ia] == b[ib])
-         dist = LevensteinInt(ia + 1, ib + 1);
-      else
-         dist = 1 + std::min(
-            std::min(
-               LevensteinInt(ia, ib + 1),
-               LevensteinInt(ia + 1, ib)
-            ), LevensteinInt(ia + 1, ib + 1)
-         );
-      d(ia, ib) = dist;
-      return dist;
-   };
-
-   return LevensteinInt(0, 0);
+   return (size_t)(std::abs((int) first.size() - (int) second.size()));
 }
 
 std::tuple<size_t, size_t> vfm::StaticHelper::findClosest(const std::vector<std::string>& strs, const std::string& query)
@@ -3573,10 +3539,8 @@ std::pair<double, double> vfm::StaticHelper::cartesianToWGS84(const double x, co
    return { LAT_ZERO + x / 111000.0, LON_ZERO - y / 75000.0 };
 }
 
-// This function is licensed under CC-BY-SA-4.0 which is a copy-left license
-// (https://creativecommons.org/licenses/by-sa/4.0/deed.en)!
 void vfm::StaticHelper::fakeCallWithCommandLineArguments(const std::string& argv_combined, std::function<void(int argc, char* argv[])> to_do)
-{ // From: https://stackoverflow.com/a/1511885
+{
    std::vector<char*> args{};
    std::istringstream iss{ argv_combined };
 

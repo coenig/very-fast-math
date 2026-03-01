@@ -261,14 +261,6 @@ private:
 class StaticHelper
 {
 public:
-   // This function is licensed under CC-BY-SA-4.0 which is a copy-left license
-   // (https://creativecommons.org/licenses/by-sa/4.0/deed.en)!
-   inline static constexpr unsigned int stringToIntCompiletime(const char* str, int h = 0)
-   {
-      // From: https://stackoverflow.com/a/16388610
-      return !str[h] ? 5381 : (stringToIntCompiletime(str, h + 1) * 33) ^ str[h];
-   }
-
    static int deriveParNum(const std::shared_ptr<Term> formula);
 
    static std::string firstLetterCapital(const std::string& text);
@@ -276,8 +268,36 @@ public:
    static std::string toUpperCase(const std::string& str);
    static std::string toLowerCase(const std::string& str);
 
+   /// <summary>
+   /// Removes the last part of a string which is separated by a given denoter. For example:
+   ///   removeLastFileExtension("a.b.c") ==> "a.b"
+   ///   removeLastFileExtension("a/b/c", "/") ==> "a/b"
+   /// </summary>
+   /// <param name="file_path">The string to strip.</param>
+   /// <param name="extension_denoter">The extension denoter.</param>
+   /// <returns>The stripped string (the original parameter is not changed). If extension denoter is empty, the empty string is returned.</returns>
    static std::string removeLastFileExtension(const std::string& file_path, const std::string& extension_denoter = ".");
+
+   /// <summary>
+   /// Returns the last part of a string which is separated by a given denoter. For example:
+   ///   removeLastFileExtension("a.b.c") ==> "c"
+   ///   removeLastFileExtension("a/b/c", "/") ==> "c"
+   /// </summary>
+   /// <param name="file_path">The string to strip.</param>
+   /// <param name="extension_denoter">The extension denoter.</param>
+   /// <returns>The stripped string (the original parameter is not changed). If extension denoter is empty, the whole string is returned.</returns>
    static std::string getLastFileExtension(const std::string& file_path, const std::string& extension_denoter = ".");
+
+   /// <summary>
+   /// Replaces all backslashes with slashes, independent of OS. Note that backslash is a
+   /// valid character on Unix file paths, so technically this could break paths! So use
+   /// with a little care.
+   /// 
+   /// (Background: std::filesystem::string() returns slashes and backslashes mixed for relative paths.)
+   /// </summary>
+   /// <param name="path">The path to get the string for.</param>
+   /// <returns>The string representation of the path.</returns>
+   static std::string toStringGenericPath(const std::filesystem::path& path);
 
    static std::string substrComplement(const std::string& str, const int begin, const int end); /// Cuts only the substr part out.
 
@@ -767,7 +787,7 @@ public:
 
    static std::string tokensAsString(const std::vector<std::string>& tokens, const bool remove_trailing_delimiter = false, const std::string& delimiter = " ");
 
-   static size_t levensteinDistance(const std::string& a, const std::string& b);
+   static size_t levensteinDistance(const std::string& first, const std::string& second);
    static std::tuple<size_t, size_t> findClosest(const std::vector<std::string>& strs, const std::string& query);
    static std::string getClosest(const std::vector<std::string>& strs, const std::string& query, const std::vector<std::string>& real_ones = {});
 

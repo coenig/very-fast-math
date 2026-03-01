@@ -110,10 +110,12 @@ public:
       const float crop_right,
       const std::shared_ptr<RoadGraph>& road_graph) const
    {
+      const bool infinite_highway{ false /*road_graph->getNodeCount() == 1*/ };
+
       if (true || !outside_view_) { // TODO: Can we optimize that for performance?
          outside_view_ = std::make_shared<HighwayImage>(
-            getImageWidth(MAX_NUM_LANES_SIMPLE) * (road_graph->getNodeCount() > 1 ? 1 : 1), // TODO: Remove factor (make more intelligent)
-            getImageHeight()  * (road_graph->getNodeCount() > 1 ? 7 : 1),                   // TODO: Remove factor (make more intelligent)
+            getImageWidth(MAX_NUM_LANES_SIMPLE) * (!infinite_highway ? 1 : 1), // TODO: Remove factor (make more intelligent)
+            getImageHeight()  * (!infinite_highway ? 7 : 1),                   // TODO: Remove factor (make more intelligent)
             std::make_shared<Plain2DTranslator>(), 
             road_graph->getMyRoad().getNumLanes());
       }
@@ -127,13 +129,11 @@ public:
 
       std::map<int, std::pair<float, float>> others_future_vec{}; // TODO: Future vec not yet working.
       //createOthersVecs2(others_future_vec, agents_to_draw_arrows_for, road_graph, future_data);
-
-      const bool infinite_highway{ road_graph->getNodeCount() == 1 };
       
       Rec2D bounding_box{ infinite_highway ? Rec2D{} : road_graph->getBoundingBox() };
       const float offset_x{ infinite_highway
-         ? 60.0f 
-         : 30.0f //-bounding_box.upper_left_.x + 15
+         ? -50.0f - ego_pos_x_
+         : -58.0f - ego_pos_x_ //-bounding_box.upper_left_.x + 15
       };
 
       const float offset_y{ 
@@ -147,7 +147,7 @@ public:
 
       outside_view_->paintRoadGraph(
          road_graph,
-         { 500, 60 },
+         { 500, 30 },
          additional_var_vals,
          true, offset_x, offset_y);
 

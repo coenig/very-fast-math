@@ -287,16 +287,29 @@ INIT env.section_4_end = 20;
 
 @{
 INIT env.veh___6[i]9___.is_on_sec_0 = 1;
+INIT env.veh___6[i]9___.lane_0;
 INIT env.veh___6[i]9___.abs_pos = @{[i]}@.eval[0] * (env.veh_length + 1);
 INVAR env.veh___6[i]9___.v <= env.veh___6[i]9___.current_seclet_length;
+--INVAR env.veh___6[i]9___.v >= 5;
+--TRANS (env.veh___6[i]9___.lane_move_down | env.veh___6[i]9___.lane_move_up) -> (env.veh___6[i]9___.v = env.veh___609___.v); -- All have same velocity on LCs.
 TRANS env.veh___6[i]9___.v >= -env.veh___6[i]9___.next_seclet_length;
+INVAR env.veh___6[i]9___.on_straight_section < 0 -> (env.veh___6[i]9___.abs_pos >= env.veh_length & env.veh___6[i]9___.abs_pos <= env.veh___6[i]9___.current_seclet_length - env.veh_length); -- Don't collide too soon on junction entries.
+
 @{
-@{
-   INVAR abs(env.veh___6[i]9___.v - env.veh___6[j]9___.v) <= 6;
+   -- INVAR abs(env.veh___6[i]9___.v - env.veh___6[j]9___.v) <= 6;
+   -- INVAR env.veh___6[i]9___.on_straight_section < 0 -> abs(env.veh___6[i]9___.abs_pos - env.veh___6[j]9___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+   -- TRANS (env.veh___6[i]9___.lane_move_down | env.veh___6[i]9___.lane_move_up) -> !(env.veh___6[j]9___.lane_move_down | env.veh___6[j]9___.lane_move_up);
 }@**.for[[j], @{[i] + 1}@.eval, @{NONEGOS - 1}@.eval]
-}@.nil
 }@***.for[[i], 0, @{NONEGOS - 1}@.eval]
 
+@{
+@{@{INIT env.section_[i].angle != env.section_[j].angle;
+}@.for[[j], @{[i] + 1}@.eval, @{SECTIONS - 1}@.eval]}@*.for[[i], 0, @{SECTIONS - 1}@.eval]
+}@.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval]
+
+@{
+-- INVAR env.veh___6[i]9___.v = env.veh___6@{[i] + 1}@.eval[0]9___.v; -- All have same speed
+}@***.for[[i], 0, @{NONEGOS - 2}@.eval]
 
 -- EO Three cars invert their ordering
 

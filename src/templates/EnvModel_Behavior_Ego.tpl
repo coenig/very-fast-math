@@ -276,7 +276,7 @@ ego_pressured_from_ahead_on_left_lane  := ego.gaps___609___.i_agent_front != emp
 ego_pressured_from_ahead_on_right_lane := ego.gaps___629___.i_agent_front != empty_gap_indicator & (ego.gaps___629___.turn_signals_front = ActionDir____LEFT @{| ego.mode = ActionType____LANECHANGE_RIGHT}@.if[@{RIGHTLC}@.eval]);
 
 @{
--- Prohibit the cars in ego's front gaps from braking harder than ego could possibly react on.
+-- Prohibit the cars in the front gaps of ego from braking harder than ego could possibly react on.
 INVAR
     ego_pressured_from_ahead_on_own_lane   -> (ego.gaps___619___.a_front > veh_length - ego.gaps___619___.s_dist_front - ego.gaps___619___.v_front + ego.v + a_min);
 
@@ -721,9 +721,14 @@ VAR
    @{ego.abs_pos}@*.scalingVariable[distance] : integer;
 
 @{FROZENVAR}@******.if[@{(EGOLESS)}@.eval]
-   @{ego.v}@*.scalingVariable[velocity] : -ego.max_vel .. ego.max_vel; -- @{2}@.velocityWorldToEnvModelConst;
+@{
+   @(ego.v : 0 .. 0; -- ego.max_vel;
 
--- INIT ego.abs_pos = 0;
+ASSIGN
+   next(ego.abs_pos) := next(veh___609___.abs_pos);)@
+   @(@{ego.v}@*.scalingVariable[velocity] : -ego.max_vel .. ego.max_vel; -- @{2}@.velocityWorldToEnvModelConst;)@
+}@.if[@{UCD}@.eval]
+
 
 
 

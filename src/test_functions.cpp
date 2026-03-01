@@ -236,7 +236,7 @@ const auto TEST_SCRIPT_EXPANSION = [](const std::set<std::set<std::string>>& ope
    int rand2 = std::rand() % FIBS.size();
    int rand3 = rand2;
 
-   std::cout << rand3 << std::endl;
+   //std::cout << rand3 << std::endl;
 
    std::string test_string1 = StaticHelper::replaceAll(R"(
 @{@{
@@ -268,18 +268,15 @@ const auto TEST_SCRIPT_EXPANSION = [](const std::set<std::set<std::string>>& ope
 
    std::shared_ptr<macro::Script> s1 = std::make_shared<macro::Script>(nullptr, nullptr);
    if (!print) s1->setOutputLevels(ErrorLevelEnum::error, ErrorLevelEnum::error);
-   s1->applyDeclarationsAndPreprocessors(test_string1, false);
-   std::string result1 = StaticHelper::trimAndReturn(s1->getProcessedScript());
+   std::string result1 = StaticHelper::trimAndReturn(s1->applyDeclarationsAndPreprocessors(test_string1, false));
 
    std::shared_ptr<macro::Script> s2 = std::make_shared<macro::Script>(nullptr, nullptr);
    if (!print) s2->setOutputLevels(ErrorLevelEnum::error, ErrorLevelEnum::error);
-   s2->applyDeclarationsAndPreprocessors(test_string2, false);
-   std::string result2 = StaticHelper::trimAndReturn(s2->getProcessedScript());
+   std::string result2 = StaticHelper::trimAndReturn(s2->applyDeclarationsAndPreprocessors(test_string2, false));
 
    std::shared_ptr<macro::Script> s3 = std::make_shared<macro::Script>(nullptr, nullptr);
    if (!print) s3->setOutputLevels(ErrorLevelEnum::error, ErrorLevelEnum::error);
-   s3->applyDeclarationsAndPreprocessors(test_string3, false);
-   std::string result3 = StaticHelper::trimAndReturn(s3->getProcessedScript());
+   std::string result3 = StaticHelper::trimAndReturn(s3->applyDeclarationsAndPreprocessors(test_string3, false));
 
    bool error1 = s1->hasErrorOccurred();
    bool error2 = s2->hasErrorOccurred();

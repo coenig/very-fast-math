@@ -24,8 +24,20 @@ using namespace macro;
 std::map<int, std::shared_ptr<RoadGraph>> vfm::macro::Script::road_graphs_{};
 std::map<std::string, std::shared_ptr<StraightRoadSection>> straight_road_sections_{};
 
+std::string removeInscrTagsIfAny(const std::string& proc)
+{
+   if (StaticHelper::stringStartsWith(proc, INSCR_BEG_TAG) && StaticHelper::stringEndsWith(proc, INSCR_END_TAG)) {
+      return proc.substr(INSCR_BEG_TAG.length(), proc.length() - INSCR_END_TAG.length() - INSCR_BEG_TAG.length());
+   }
+
+   return proc;
+}
+
 vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser)
-   : Failable("ScriptMacro"), vfm_data_(data ? data : std::make_shared<DataPack>()), vfm_parser_(parser ? parser : SingletonFormulaParser::getInstance())
+   : Failable("Script-" + std::to_string(first_free_script_id)), // Anticipate id below. Might be inconsistent in rare cases with threading.
+     vfm_data_(data ? data : std::make_shared<DataPack>()), 
+     vfm_parser_(parser ? parser : SingletonFormulaParser::getInstance()),
+     id_{ first_free_script_id++ }
 {
    if (KEEP_COMMENTS_IN_PLAIN_TEXT) {
       putPlaceholderMapping(BEGIN_COMMENT);
@@ -63,41 +75,41 @@ int findLongestChainOfPrioritySymbols(const std::string& sub_script)
    return s.size();
 }
 
-void Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step)
+std::string Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step)
 {
-   raw_script_ = codeRaw2;
-
    if (codeRaw2.empty()) {
-      processed_script_ = "";
-      return;
+      return "";
    }
 
-   std::string codeRaw = inferPlaceholdersForPlainText(codeRaw2);                              // Secure plain-text parts.
-   processed_script_ = evaluateAll(codeRaw, EXPR_BEG_TAG_BEFORE, EXPR_END_TAG_BEFORE);         // Evaluate expressions BEFORE run.
+   running_scripts.insert({ id_, shared_from_this() });
 
-   extractInscriptProcessors(only_one_step);                                                   // DO THE ACTUAL THING.
+   std::string processed_script{};
 
-   processed_script_ = undoPlaceholdersForPlainText(processed_script_);                        // Undo placeholder securing.
-   processed_script_ = StaticHelper::replaceAll(processed_script_, NOP_SYMBOL, "");            // Clear all NOP symbols from script.
-   processed_script_ = evaluateAll(processed_script_, EXPR_BEG_TAG_AFTER, EXPR_END_TAG_AFTER); // Evaluate expressions AFTER run.
+   std::string codeRaw = inferPlaceholdersForPlainText(codeRaw2);                            // Secure plain-text parts.
+   processed_script = evaluateAll(codeRaw, EXPR_BEG_TAG_BEFORE, EXPR_END_TAG_BEFORE);        // Evaluate expressions BEFORE run.
+
+   extractInscriptProcessors(processed_script, only_one_step);                               // DO THE ACTUAL THING.
+
+   processed_script = undoPlaceholdersForPlainText(processed_script);                        // Undo placeholder securing.
+   processed_script = StaticHelper::replaceAll(processed_script, NOP_SYMBOL, "");            // Clear all NOP symbols from script.
+   processed_script = evaluateAll(processed_script, EXPR_BEG_TAG_AFTER, EXPR_END_TAG_AFTER); // Evaluate expressions AFTER run.
+
+   running_scripts.erase(id_);
+
+   return processed_script;
 }
 
-std::string vfm::macro::Script::getProcessedScript() const
-{
-   return processed_script_;
-}
-
-void Script::extractInscriptProcessors(const bool only_one_step)
+void Script::extractInscriptProcessors(std::string& processed_script, const bool only_one_step)
 {
    // Find next preprocessor.
-   int indexOfPrep = findNextInscriptPos();
+   int indexOfPrep = findNextInscriptPos(processed_script);
    int i{};
 
-   while (indexOfPrep >= 0) {
-      std::string preprocessorScript = *StaticHelper::extractFirstSubstringLevelwise(processed_script_, INSCR_BEG_TAG, INSCR_END_TAG, indexOfPrep);
+   while (!stop_me_ && indexOfPrep >= 0) {
+      std::string preprocessorScript = *StaticHelper::extractFirstSubstringLevelwise(processed_script, INSCR_BEG_TAG, INSCR_END_TAG, indexOfPrep);
       int lengthOfPreprocessor = preprocessorScript.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length();
-      std::string partBefore = processed_script_.substr(0, indexOfPrep);
-      std::string partAfter = processed_script_.substr(indexOfPrep + lengthOfPreprocessor);
+      std::string partBefore = processed_script.substr(0, indexOfPrep);
+      std::string partAfter = processed_script.substr(indexOfPrep + lengthOfPreprocessor);
 
       int indexCurr = getNextNonInscriptPosition(partAfter);
       indexCurr = (std::min)(indexCurr, (int)partAfter.length());
@@ -140,33 +152,30 @@ void Script::extractInscriptProcessors(const bool only_one_step)
          if (StaticHelper::startsWithUppercase(methodSignaturesArray.at(0))) {
             // Expand whole current subscript before anything else, if method starts with uppercase letter.
 
-            auto s = std::make_shared<Script>(vfm_data_, vfm_parser_);
-            addFailableChild(s);
-            s->raw_script_ = placeholder_for_inscript;
-            s->processed_script_ = placeholder_for_inscript;
-            s->extractInscriptProcessors(false);
-            placeholder_for_inscript = s->processed_script_;
+            processed_script = placeholder_for_inscript;
+            extractInscriptProcessors(processed_script, false);
+            placeholder_for_inscript = processed_script;
          }
 
          getScriptData().method_part_begins_[trimmed].result_ = placeholder_for_inscript;
       }
 
       std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
-      processed_script_ = partBefore + placeholderFinal + partAfter;
+      processed_script = partBefore + placeholderFinal + partAfter;
 
       if (i++ % 100 == 0) {
          addNote(""
             + std::to_string(getScriptData().known_chains_.size()) + " known_chains_; "
             + std::to_string(getScriptData().method_part_begins_.size()) + " method_part_begins_; "
             + std::to_string(getScriptData().list_data_.size()) + " list_data_; "
-            + std::to_string(processed_script_.size()) + " script size; "
+            + std::to_string(processed_script.size()) + " script size; "
             + std::to_string(getScriptData().cache_hits_) + "/" + std::to_string(getScriptData().cache_misses_) + " cache hits/misses; "
          );
       }
 
       if (only_one_step) return;
 
-      indexOfPrep = findNextInscriptPos();
+      indexOfPrep = findNextInscriptPos(processed_script);
    }
 }
 
@@ -201,7 +210,7 @@ std::string Script::evaluateChain(const std::string& chain)
 
    getScriptData().cache_misses_++;
 
-   RepresentableAsPDF repToProcess{};
+   std::string repToProcess{};
    std::shared_ptr<int> methodBegin = getScriptData().method_part_begins_.count(processedRaw) && getScriptData().method_part_begins_.at(processedRaw).method_part_begin_ >= 0
       ? std::make_shared<int>(getScriptData().method_part_begins_.at(processedRaw).method_part_begin_)
       : nullptr;
@@ -219,12 +228,11 @@ std::string Script::evaluateChain(const std::string& chain)
          0);
 
       if (!methodBegin) { // Possibly regular script.
-         repToProcess = repfactory_instanceFromScript(repPart);
+         repToProcess = removeInscrTagsIfAny(repPart);
          processedChain = processedChain.substr(repPart.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length());
       }
       else { // Treat as plain text.
-         repToProcess = std::make_shared<Script>(vfm_data_, vfm_parser_);
-         repToProcess->createInstanceFromScript(INSCR_BEG_TAG + repPart + INSCR_END_TAG);
+         repToProcess = INSCR_BEG_TAG + repPart + INSCR_END_TAG;
          processedChain = processedRaw.substr(*methodBegin + 1);
       }
    }
@@ -232,33 +240,26 @@ std::string Script::evaluateChain(const std::string& chain)
       if (methodBegin) { // String is script without delimiters, but with method calls.
          std::string script = processedRaw.substr(0, *methodBegin);
          processedChain = processedRaw.substr(*methodBegin + 1);
-         repToProcess = repfactory_instanceFromScript(script);
-
-         if (!repToProcess) { // String is no script, but plain expression.
-            repToProcess = std::make_shared<Script>(vfm_data_, vfm_parser_);
-            repToProcess->createInstanceFromScript(script);
-         }
+         repToProcess = removeInscrTagsIfAny(script);
       }
       else { // Assume whole string is expression without method calls.
-         repToProcess = repfactory_instanceFromScript(processedChain);
+         repToProcess = removeInscrTagsIfAny(processedChain);
          processedChain = "";
       }
    }
-
-   addFailableChild(repToProcess, "");
 
    std::vector<std::string> methodSignaturesArray = getMethodSinaturesFromChain(processedChain);
    bool chachable{ isCachableChain(methodSignaturesArray) && processedRaw.size() <= MAXIMUM_STRING_SIZE_TO_CACHE };
 
    if (StaticHelper::isEmptyExceptWhiteSpaces(processedChain)) {
-      if (chachable) getScriptData().known_chains_[processedRaw] = repToProcess->getRawScript(); // TODO: It might be inefficient to copy the string here.
-      return repToProcess->getRawScript();
+      if (chachable) getScriptData().known_chains_[processedRaw] = repToProcess; // TODO: It might be inefficient to copy the string here.
+      return repToProcess;
    }
 
-   RepresentableAsPDF apply_method_chain = applyMethodChain(repToProcess, methodSignaturesArray);
-   if (chachable) getScriptData().known_chains_[processedRaw] = apply_method_chain->getRawScript(); // TODO: It might be inefficient to copy the string here.
+   applyMethodChain(repToProcess, methodSignaturesArray);
+   if (chachable) getScriptData().known_chains_[processedRaw] = repToProcess; // TODO: It might be inefficient to copy the string here.
 
-   return apply_method_chain->getRawScript();
+   return repToProcess;
 }
 
 /**
@@ -274,20 +275,16 @@ std::string Script::evaluateChain(const std::string& chain)
  *
  * @return  A new representable with the methods applied.
  */
-RepresentableAsPDF Script::applyMethodChain(const RepresentableAsPDF original, const std::vector<std::string>& methodsToApply)
+void Script::applyMethodChain(std::string& original, const std::vector<std::string>& methodsToApply)
 {
-   RepresentableAsPDF newRep = original;
-
    for (const auto& methodSignature : methodsToApply) {
-      newRep = applyMethod(newRep, methodSignature);
+      applyMethod(original, methodSignature);
    }
-
-   return newRep;
 }
 
-RepresentableAsPDF Script::applyMethod(const RepresentableAsPDF rep, const std::string& methodSignature)
+void Script::applyMethod(std::string& rep, const std::string& methodSignature)
 {
-   std::string conversionTag = getConversionTag(
+   const std::string conversionTag = getConversionTag(
       CONVERSION_PREFIX
       + methodSignature
       + CONVERSION_POSTFIX);
@@ -296,9 +293,7 @@ RepresentableAsPDF Script::applyMethod(const RepresentableAsPDF rep, const std::
    std::vector<std::string> pars = getMethodParameters(conversionTag);
 
    std::vector<std::string> actualParameters = getParametersFor(pars);
-   std::string newScript = rep->applyMethodString(methodName, actualParameters);
-
-   return repfactory_instanceFromScript(newScript);
+   rep = applyMethodString(rep, methodName, actualParameters);
 }
 
 std::string Script::fromBooltoString(const bool b)
@@ -355,29 +350,29 @@ std::string Script::arclengthCubicBezierFromStreetTopology(
       ;
 }
 
-std::string Script::forloop(const std::string& varname, const std::string& loop_vec)
+std::string Script::forloop(const std::string& body, const std::string& varname, const std::string& loop_vec)
 {
-   return forloop(varname, loop_vec, "");
+   return forloop(body, varname, loop_vec, "");
 }
 
-std::string Script::forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw)
+std::string Script::forloop(const std::string& body, const std::string& varname, const std::string& from_raw, const std::string& to_raw)
 {
    if (from_raw.empty() || StaticHelper::stringStartsWith(from_raw, BEGIN_TAG_IN_SEQUENCE)) { // Regular sequence @()@@()@...
       std::vector<std::string> loop_vec{};
       processSequence(from_raw, loop_vec);
-      return forloop(varname, loop_vec, to_raw);
+      return forloop(body, varname, loop_vec, to_raw);
    }
    else {
-      return forloop(varname, from_raw, to_raw, "1");
+      return forloop(body, varname, from_raw, to_raw, "1");
    }
 }
 
-std::string Script::forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw, const std::string& step_raw)
+std::string Script::forloop(const std::string& body, const std::string& varname, const std::string& from_raw, const std::string& to_raw, const std::string& step_raw)
 {
-   return forloop(varname, from_raw, to_raw, step_raw, "");
+   return forloop(body, varname, from_raw, to_raw, step_raw, "");
 }
 
-std::string Script::forloop(const std::string& varname, const std::string& from_raw, const std::string& to_raw, const std::string& step_raw, const std::string& inner_separator, const std::set<std::string>& except)
+std::string Script::forloop(const std::string& body, const std::string& varname, const std::string& from_raw, const std::string& to_raw, const std::string& step_raw, const std::string& inner_separator, const std::set<std::string>& except)
 {
    if (!StaticHelper::isParsableAsFloat(from_raw) || !StaticHelper::isParsableAsFloat(to_raw) || !StaticHelper::isParsableAsFloat(step_raw)) {
       addError("At least one of the loop limits '" + from_raw + "' and '" + to_raw + "' and/or the step '" + step_raw + "' is not a number.");
@@ -398,15 +393,15 @@ std::string Script::forloop(const std::string& varname, const std::string& from_
        }
    }
 
-   return forloop(varname, loop_vec, inner_separator);
+   return forloop(body, varname, loop_vec, inner_separator);
 }
 
-std::string Script::forloop(const std::string& varname, const std::vector<std::string>& loop_vec, const std::string& inner_separator) {
+std::string Script::forloop(const std::string& body, const std::string& varname, const std::vector<std::string>& loop_vec, const std::string& inner_separator) {
    std::string loopedVal = "";
    bool first{ true };
 
    for (const auto& i : loop_vec) {
-      std::string currVal = StaticHelper::replaceAll(getRawScript(), varname, i);
+      std::string currVal = StaticHelper::replaceAll(body, varname, i);
       loopedVal += (!first ? StaticHelper::replaceAll(inner_separator, varname, i) : "") + currVal;
       first = false;
    }
@@ -414,46 +409,48 @@ std::string Script::forloop(const std::string& varname, const std::vector<std::s
    return loopedVal;
 }
 
-std::string Script::ifChoice(const std::string bool_str)
+std::string Script::ifChoice(const std::string& sequence_str, const std::string bool_str)
 {
    bool boolVal{ StaticHelper::isBooleanTrue(bool_str) };
+   const std::vector<std::string> script_sequence{ processSequence(sequence_str) };
 
-   int count = scriptSequence_.size();
+   int count = script_sequence.size();
 
    if (count > 2) { // Error case 1.
-      addError(std::to_string(count) + " objects given to IF clause in '" + getRawScript() + "'.");
+      addError(std::to_string(count) + " objects given to IF clause in '" + sequence_str + "'.");
       return "#INVALID";
    }
    //else if (bool_str != "false" && bool_str != "true" && bool_str != "0" && bool_str != "1") { // Error case 2.
    //   addError("'" + bool_str + "' is not a Boolean value.");
    //}
    else if (boolVal) { // True case.
-      return count > 0 ? scriptSequence_.at(0) : "";
+      return count > 0 ? script_sequence.at(0) : "";
    }
    else { // False case.
-      if (scriptSequence_.size() < 2) { // No ELSE case defined.
+      if (script_sequence.size() < 2) { // No ELSE case defined.
          return "";
       }
       else {
-         return scriptSequence_.at(1);
+         return script_sequence.at(1);
       }
    }
 }
 
-std::string Script::element(const std::string& num_str)
+std::string Script::element(const std::string& sequence_str, const std::string& num_str)
 {
    if (!StaticHelper::isParsableAsFloat(num_str)) {
       addError("Sequence index '" + num_str + "' cannot be parsed to float/int.");
       return "#INVALID";
    }
 
-   int num = std::stof(num_str);
+   const std::vector<std::string> script_sequence{ processSequence(sequence_str) };
+   const int num = std::stof(num_str);
 
-   if (num < scriptSequence_.size()) {
-      return scriptSequence_.at(num);
+   if (num < script_sequence.size()) {
+      return script_sequence.at(num);
    }
 
-   addError("Element with index " + std::to_string(num) + " not available in sequence of length " + std::to_string(scriptSequence_.size()));
+   addError("Element with index " + std::to_string(num) + " not available in sequence of length " + std::to_string(script_sequence.size()));
    return "#INVALID";
 }
 
@@ -468,7 +465,7 @@ float Script::stringToFloat(const std::string& str)
    }
 }
 
-std::string Script::substring(const std::string& beg, const std::string& end)
+std::string Script::substring(const std::string& body, const std::string& beg, const std::string& end)
 {
    float begin{ stringToFloat(beg) };
    float ending{ stringToFloat(end) };
@@ -478,16 +475,16 @@ std::string Script::substring(const std::string& beg, const std::string& end)
       return "#INVALID";
    }
    else {
-      return getRawScript().substr(begin, ending);
+      return body.substr(begin, ending);
    }
 }
 
-std::string Script::newMethod(const std::string& methodName, const std::string& numPars)
+std::string Script::newMethod(const std::string& body, const std::string& methodName, const std::string& numPars)
 {
-   return newMethodD(methodName, numPars, INSCRIPT_STANDARD_PARAMETER_PATTERN);
+   return newMethodD(body, methodName, numPars, INSCRIPT_STANDARD_PARAMETER_PATTERN);
 }
 
-std::string Script::newMethodD(const std::string& methodName, const std::string& numPars, const std::string& parameterPattern)
+std::string Script::newMethodD(const std::string& body, const std::string& methodName, const std::string& numPars, const std::string& parameterPattern)
 {
    if (getScriptData().inscriptMethodDefinitions.count(methodName)) {
       addWarning("Dynamic method '" + methodName + "' already exists. I will override it.");
@@ -498,7 +495,7 @@ std::string Script::newMethodD(const std::string& methodName, const std::string&
       return "";
    }
 
-   getScriptData().inscriptMethodDefinitions.insert({ methodName, getRawScript() });
+   getScriptData().inscriptMethodDefinitions.insert({ methodName, body });
    getScriptData().inscriptMethodParNums.insert({ methodName, (int)std::stof(numPars) });
    getScriptData().inscriptMethodParPatterns.insert({ methodName, parameterPattern });
 
@@ -509,7 +506,7 @@ std::string Script::newMethodD(const std::string& methodName, const std::string&
    return "";
 }
 
-std::string Script::executeCommand(const std::string& methodName, const std::vector<std::string>& pars)
+std::string Script::executeCommand(const std::string& body, const std::string& methodName, const std::vector<std::string>& pars)
 {
    std::string methodBody = getScriptData().inscriptMethodDefinitions.at(methodName);
    std::string pattern = getScriptData().inscriptMethodParPatterns.at(methodName);
@@ -522,7 +519,7 @@ std::string Script::executeCommand(const std::string& methodName, const std::vec
    replacementList.resize(numRepl);
 
    searchList[0] = makroPattern(0, pattern);
-   replacementList[0] = getRawScript();
+   replacementList[0] = body;
 
    for (int i = 1; i < numRepl; i++) {
       searchList[i] = makroPattern(i, pattern);
@@ -542,11 +539,11 @@ std::string Script::makroPattern(const int i, const std::string& pattern)
    return makroPar;
 }
 
-std::string Script::applyMethodString(const std::string& method_name, const std::vector<std::string>& parameters)
+std::string Script::applyMethodString(const std::string& body, const std::string& method_name, const std::vector<std::string>& parameters)
 {
    for (const auto& method_description : METHODS) {
       if (method_description.method_name_ == method_name && parameters.size() == method_description.par_num_) {
-         return method_description.function_(parameters);
+         return method_description.function_(body, parameters);
       }
    }
 
@@ -557,15 +554,15 @@ std::string Script::applyMethodString(const std::string& method_name, const std:
          appended += "," + parameters[i];
       }
 
-      return applyMethodString(method_name, { appended });
+      return applyMethodString(body, method_name, { appended });
    }
 
    if (getScriptData().inscriptMethodDefinitions.count(method_name) && getScriptData().inscriptMethodParNums.at(method_name) == parameters.size()) {
-      return executeCommand(method_name, parameters);
+      return executeCommand(body, method_name, parameters);
    }
 
    int cnt{ 0 };
-   std::string pars{ "'" + getRawScript() + "' (self (" + std::to_string(cnt++) + "))"};
+   std::string pars{ "'" + body + "' (self (" + std::to_string(cnt++) + "))"};
    for (const auto& s : parameters) {
       pars += ", '" + s + "' (" + std::to_string(cnt++) + ")";
    }
@@ -850,25 +847,25 @@ std::string Script::getConversionTag(const std::string& scriptWithoutComments)
    return conversionTag;
 }
 
-int Script::findNextInscriptPos()
+int Script::findNextInscriptPos(std::string& script)
 {
-   int length_of_longest_priority_chain{ findLongestChainOfPrioritySymbols(processed_script_)};
-   int pos = processed_script_.find(INSCR_END_TAG + std::string(length_of_longest_priority_chain, INSCR_PRIORITY_SYMB));
+   int length_of_longest_priority_chain{ findLongestChainOfPrioritySymbols(script)};
+   int pos = script.find(INSCR_END_TAG + std::string(length_of_longest_priority_chain, INSCR_PRIORITY_SYMB));
    int count = 0;               // Because we start on an end tag.
 
    for (int i = pos; i >= 0; i--) {
-      if (StaticHelper::stringStartsWith(processed_script_, INSCR_BEG_TAG, i)) {
+      if (StaticHelper::stringStartsWith(script, INSCR_BEG_TAG, i)) {
          count++;
       }
 
-      if (StaticHelper::stringStartsWith(processed_script_, INSCR_END_TAG, i)) {
+      if (StaticHelper::stringStartsWith(script, INSCR_END_TAG, i)) {
          count--;
       }
 
       if (count == 0) {
          int starPos = pos + INSCR_END_TAG.length();
-         processed_script_ = processed_script_.substr(0, starPos)
-            + processed_script_.substr(starPos + length_of_longest_priority_chain);
+         script = script.substr(0, starPos)
+            + script.substr(starPos + length_of_longest_priority_chain);
 
          return i;
       }
@@ -1096,24 +1093,6 @@ int nextIndex(const std::string& script, const int current_index)
    return -1;
 }
 
-std::string vfm::macro::Script::getRawScript() const
-{
-   return raw_script_;
-}
-
-void vfm::macro::Script::setRawScript(const std::string& script)
-{
-   raw_script_ = script;
-}
-
-RepresentableAsPDF vfm::macro::Script::repfactory_instanceFromScript(const std::string& script)
-{
-   std::shared_ptr<Script> dummy = std::make_shared<Script>(vfm_data_, vfm_parser_);
-   addFailableChild(dummy, "");
-   dummy->createInstanceFromScript(script);
-   return dummy;
-}
-
 std::string Script::extractExpressionPart(const std::string& chain2)
 {
    std::string chain = overwriteBrackets(chain2);
@@ -1328,7 +1307,14 @@ inline std::shared_ptr<FormulaParser> Script::getParser() const
 
 inline std::string Script::getMyPath() const
 {
-   return StaticHelper::absPath(getData()->printHeap(MY_PATH_VARNAME, "."));
+   return getData()->printHeap(MY_PATH_VARNAME, ".");
+}
+
+std::vector<std::string> vfm::macro::Script::processSequence(const std::string& code)
+{
+   std::vector<std::string> dummy{};
+   processSequence(code, dummy);
+   return dummy;
 }
 
 void Script::processSequence(const std::string& code, std::vector<std::string>& script_sequence) {
@@ -1361,13 +1347,6 @@ void Script::processSequence(const std::string& code, std::vector<std::string>& 
    processSequence(rest, script_sequence);
 }
 
-void Script::createInstanceFromScript(const std::string& code)
-{
-   setRawScript(code);
-   scriptSequence_.clear();
-   processSequence(code, scriptSequence_);
-}
-
 std::string Script::evalItAllF(const std::string& n1Str, const std::string& n2Str, const std::function<float(float n1, float n2)> eval) {
    if (!StaticHelper::isParsableAsFloat(n1Str) || !StaticHelper::isParsableAsFloat(n2Str)) {
       addError("Operand '" + n1Str + "' and/or '" + n2Str + "' cannot be parsed to float.");
@@ -1390,14 +1369,14 @@ std::string Script::evalItAllI(const std::string& n1Str, const std::string& n2St
    return std::to_string(eval(n1, n2));
 }
 
-std::string Script::getTagFreeRawScript() {
-   return StaticHelper::replaceManyTimes(getRawScript(), { INSCR_BEG_TAG, INSCR_END_TAG }, { "", "" });
+std::string Script::getTagFreeRawScript(const std::string& body) {
+   return StaticHelper::replaceManyTimes(body, { INSCR_BEG_TAG, INSCR_END_TAG }, { "", "" });
 }
 
-std::string vfm::macro::Script::connectRoadGraphTo(const std::string& id2_str)
+std::string vfm::macro::Script::connectRoadGraphTo(const std::string& body, const std::string& id2_str)
 {
-   if (!StaticHelper::isParsableAsFloat(getRawScript())) {
-      addError("RoadGraph ID '" + getRawScript() + "' is not an integer.");
+   if (!StaticHelper::isParsableAsFloat(body)) {
+      addError("RoadGraph ID '" + body + "' is not an integer.");
       return "#ERROR";
    }
    if (!StaticHelper::isParsableAsFloat(id2_str)) {
@@ -1405,7 +1384,7 @@ std::string vfm::macro::Script::connectRoadGraphTo(const std::string& id2_str)
       return "#ERROR";
    }
 
-   int id1{ (int)std::stof(getRawScript()) };
+   int id1{ (int)std::stof(body) };
    int id2{ (int)std::stof(id2_str) };
 
    for (const auto& id : { id1, id2 }) {
@@ -1420,14 +1399,14 @@ std::string vfm::macro::Script::connectRoadGraphTo(const std::string& id2_str)
    return "Road graph '" + std::to_string(id1) + "' connected to '" + std::to_string(id2) + "'.";
 }
 
-std::string vfm::macro::Script::storeRoadGraph(const std::string& filename)
+std::string vfm::macro::Script::storeRoadGraph(const std::string& body, const std::string& filename)
 {
-   if (!StaticHelper::isParsableAsFloat(getRawScript())) {
-      addError("RoadGraph ID '" + getRawScript() + "' is not an integer.");
+   if (!StaticHelper::isParsableAsFloat(body)) {
+      addError("RoadGraph ID '" + body + "' is not an integer.");
       return "#ERROR";
    }
 
-   int id{ (int) std::stof(getRawScript()) };
+   int id{ (int) std::stof(body) };
 
    if (!road_graphs_.count(id)) {
       addError("RoadGraph with ID '" + std::to_string(id) + "' not found.");
@@ -1477,7 +1456,7 @@ std::string vfm::macro::Script::storeRoadGraph(const std::string& filename)
    return "Road graph '" + std::to_string(id) + "' stored in '" + StaticHelper::absPath(filename) + "'.";
 }
 
-std::string vfm::macro::Script::createRoadGraph(const std::string& id)
+std::string vfm::macro::Script::createRoadGraph(const std::string& body, const std::string& id)
 {
    if (!StaticHelper::isParsableAsFloat(id)) {
       addError("RoadGraph with ID '" + id + "' CANNOT be created, because ID is not an integer.");
@@ -1487,7 +1466,7 @@ std::string vfm::macro::Script::createRoadGraph(const std::string& id)
    int rg_id{ std::stoi(id) };
 
    if (road_graphs_.count(rg_id)) {
-      if (road_graphs_.at(rg_id)->parseProgram(getRawScript())) {
+      if (road_graphs_.at(rg_id)->parseProgram(body)) {
          return "Existing road graph '" + id + "' updated.";
       }
       else {
@@ -1503,7 +1482,7 @@ std::string vfm::macro::Script::createRoadGraph(const std::string& id)
 
    road_graphs_[rg_id] = rg;
 
-   if (rg->parseProgram(getRawScript())) {
+   if (rg->parseProgram(body)) {
       return "Road graph '" + id + "' created.";
    } 
    else {
@@ -1518,10 +1497,10 @@ std::string vfm::macro::Script::processScript(
    const std::shared_ptr<DataPack> data_raw,
    const std::shared_ptr<FormulaParser> parser,
    const std::shared_ptr<Failable> father_failable,
-   const SpecialOption option)
+   const SpecialOption option,
+   const std::shared_ptr<Script> script_this)
 {
-
-   auto data = data_raw;
+   auto data = data_raw ? data_raw : (script_this ? script_this->vfm_data_ : nullptr);
    std::vector<std::string> messages{};
    std::stringstream strstr{};
 
@@ -1551,7 +1530,11 @@ std::string vfm::macro::Script::processScript(
 
    if (!messages.empty()) strstr << " <Notes: " << messages << ">";
 
-   auto s = std::make_shared<Script>(data, parser);
+   auto s = script_this ? script_this : std::make_shared<Script>(data, parser);
+
+   if (data) s->vfm_data_ = data;       // In case we received a script with its own data and parser.
+   if (parser) s->vfm_parser_ = parser; // In case we received a script with its own data and parser.
+
    s->addNote("Processing script." + strstr.str());
 
    if (father_failable) {
@@ -1564,6 +1547,5 @@ std::string vfm::macro::Script::processScript(
       s->addDefaultDynamicMathods();
    }
 
-   s->applyDeclarationsAndPreprocessors(text, only_one_step);
-   return s->getProcessedScript();
+   return s->applyDeclarationsAndPreprocessors(text, only_one_step);
 }

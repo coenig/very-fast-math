@@ -5,6 +5,8 @@ CMAKE_MINIMUM_REQUIRED(VERSION 3.11.0)
 
 # Locate GTest
 find_package(GTest REQUIRED)
+set(GTEST_LIBRARIES "GTest::gtest_main")
+
 include_directories(${GTEST_INCLUDE_DIRS})
 
 
