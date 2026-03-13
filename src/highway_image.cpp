@@ -252,8 +252,8 @@ void HighwayImage::plotCar2D(
    const Vec2Df& pos_car, 
    const Color& fill_color, 
    const Color& car_frame_color, 
-   const Vec2D scale, 
-   const float angle_rad)
+   const Vec2D scale = {1, 1},
+   const float angle_rad = 0)
 {
    const float thikko{ (-thick + 1) / 30 };
    static constexpr float eps{ 0.001 };
@@ -910,7 +910,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
             }
          }
 
-         plotCar2D(thick, pos, car_id == 0 ? EGO_COLOR : CAR_COLOR, car_frame_color, Vec2D{1, 1}, 0.2);
+         plotCar2D(thick, pos, car_id == 0 ? EGO_COLOR : CAR_COLOR, car_frame_color);
 
          // vehicle speed number
          writeAsciiText(text_pos_x, pos.y, std::to_string(pair.car_velocity_), CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
@@ -936,7 +936,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
          createArrows(0, future_pos_x, 0, future_pos_y, arrow_polygons);
       }
 
-      if (ego) plotCar2D(3, { ego_rel_pos, getHighwayTranslator()->is3D() ? ego_lane : 0 }, RED, CAR_FRAME_COLOR, Vec2D{ 1, 1 }, 0.2);
+      if (ego) plotCar2D(3, { ego_rel_pos, getHighwayTranslator()->is3D() ? ego_lane : 0 }, RED, CAR_FRAME_COLOR);
 
       for (const auto& pol : arrow_polygons) {
          fillPolygon(pol, DARK_GREY);
