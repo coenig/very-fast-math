@@ -61,16 +61,15 @@
 @{MAX_LAT_ACCEL}@*******.defaultValue[1]               -- Only if ANGLE_BASED_LC
 @{MIN_LC_DURATION_SEC}@*******.defaultValue[3]         -- Only if ANGLE_BASED_LC
 @{MAX_LC_DURATION_SEC}@*******.defaultValue[8]         -- Only if ANGLE_BASED_LC
-@{LANE_WIDTH}@*******.defaultValue[3.75]               -- Only if ANGLE_BASED_LC -- Deliberately separating this from scaling (could discuss in future)
 -- TODO: The above angle-based lanechange is a work in progress and does nothing productive so far.
 
 @{SIMPLE_LC}@*******.defaultValue[false]               -- Only if !ANGLE_BASED_LC: Allow non-egos to switch a "half-lane" if time_since_last_lc has passed (true); otherwise full version by Christian H.
 
--- Below: Extend the simple LC by allowing more fine-granular steps between the lanes. Using 1 is the default which is equivalent to how it was before (given matching widths).
+-- Below: Extend the simple LC by allowing more fine-granular steps between the lanes.
 -- We do not keep this in synch with the full Christian implementation for now. I.e., use the default parameters to activate this.
-@{LATERAL_LC_GRANULARITY}@*******.defaultValue[1]      -- Independent of ANGLE_BASED_LC -- Deliberately separating this from scaling (could discuss in future)
-@{LANE_WIDTH}@*******.defaultValue[3.75]
-@{VEHICLE_WIDTH}@*******.defaultValue[2.0]
+@{LATERAL_LC_GRANULARITY}@*******.defaultValue[1]      -- 1 is equivalent to how it was before (given default widths). Independent of ANGLE_BASED_LC -- Deliberately separating this from scaling (could discuss in future)
+@{LANE_WIDTH}@*******.defaultValue[375]
+@{VEHICLE_WIDTH}@*******.defaultValue[200]
 
 
 -- Parameters for "skipping" of CEXs.
@@ -89,3 +88,6 @@
 
 -- EO Do not change.
 
+
+
+@{@NUM_TECHNICAL_LANES = NUMLANES + LATERAL_LC_GRANULARITY - 1}@*******.eval.nil

@@ -33,7 +33,7 @@
          esac;
    }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
    esac;
-   }@***.for[[lane], 0, @{NUMLANES - 1}@.eval]
+   }@***.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
 
    @{
 INIT 0 = @{section_[sec]_segment_0_pos_begin}@*.scalingVariable[distance];
@@ -47,12 +47,12 @@ INIT abs(section_[sec]_segment_[num]_max_lane - section_[sec]_segment_@{[num] + 
 @{
 INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lane;
 INIT section_[sec]_segment_[num]_min_lane >= 0;
-INIT section_[sec]_segment_[num]_max_lane <= @{(NUMLANES - 1)}@.eval[0];
+INIT section_[sec]_segment_[num]_max_lane <= @{(NUM_TECHNICAL_LANES - 1)}@.eval[0];
 }@.for[[num], 0, @{SEGMENTS - 1}@.eval]
 
 -- Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just delete!
 @{
-  INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @{(NUMLANES - 1)}@.eval[0]; -- Make sure we always have a drivable lane at the start. TODO: Make flexible.
+  INIT section_[sec]_segment_0_min_lane = 0 & section_[sec]_segment_0_max_lane = @{(NUM_TECHNICAL_LANES - 1)}@.eval[0]; -- Make sure we always have a drivable lane at the start. TODO: Make flexible.
 }@.if[@{UCD}@.eval]
 
 @{
@@ -86,8 +86,8 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
             section_[sec]_segment_[seg]_max_lane : integer;
             )@
             @(
-            section_[sec]_segment_[seg]_min_lane : 0 .. @{NUMLANES - 1}@.eval[0];
-            section_[sec]_segment_[seg]_max_lane : 0 .. @{NUMLANES - 1}@.eval[0];
+            section_[sec]_segment_[seg]_min_lane : 0 .. @{NUM_TECHNICAL_LANES - 1}@.eval[0];
+            section_[sec]_segment_[seg]_max_lane : 0 .. @{NUM_TECHNICAL_LANES - 1}@.eval[0];
             )@
          }@.if[@{UCD}@.eval]
 -- EO Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just undo!
@@ -173,12 +173,12 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
                @{
                   @{arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane]}@*.scalingVariable[distance] := case
                      @{@{
-                              angle_from_sec_[sec]_to_sec_[sec2] = [angle] & connection_distance_sec_[sec]_to_sec_[sec2] = [dist] : @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[[angle], [dist], @{NUMLANES}@.eval[0]]}@.distanceWorldToEnvModelConst;
+                              angle_from_sec_[sec]_to_sec_[sec2] = [angle] & connection_distance_sec_[sec]_to_sec_[sec2] = [dist] : @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[[angle], [dist], @{NUM_TECHNICAL_LANES}@.eval[0]]}@.distanceWorldToEnvModelConst;
                         }@*.for[[dist], @{MINDISTCONNECTIONS}@.eval, @{MAXDISTCONNECTIONS}@.eval]
                      }@**.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
                      TRUE : -1;
                   esac;
-               }@***.for[[lane], 0, @{NUMLANES - 1}@.eval]
+               }@***.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
             }@****.if[@{[sec] != [sec2]}@.eval]
          }@*****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
       }@******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Optionally remove everything geometry-related. }@**********.nil
@@ -189,7 +189,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
             @{
                @{
                   @{arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane]}@*.scalingVariable[distance] : @{MINDISTCONNECTIONS}@.eval[0] .. @{MAXDISTCONNECTIONS}@.eval[0];
-               }@***.for[[lane], 0, @{NUMLANES - 1}@.eval]
+               }@***.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
             }@****.if[@{[sec] != [sec2]}@.eval]
          }@*****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
       }@******.if[@{!MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Insert this geometry-agnostic code when geometry removed. }@**********.nil

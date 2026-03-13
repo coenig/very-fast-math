@@ -44,11 +44,13 @@ INIT !ego.abCond_full;
 VAR
    cnt : integer;
    num_lanes : integer;
+   num_technical_lanes : integer;
 
 INIT cnt = 0;
 TRANS next(cnt) = cnt + 1;
 
 INVAR num_lanes = @{NUMLANES}@.eval[0];
+INVAR num_technical_lanes = @{NUM_TECHNICAL_LANES}@.eval[0];
 
 @{EnvModel_Constants.tpl}@********.include
 @{EnvModel_Sections.tpl}@*******.include
