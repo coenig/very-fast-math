@@ -70,7 +70,7 @@ VAR
 
       @{
          TRANS veh___6[i]9___.time_since_last_lc < min_time_between_lcs @{| abs(veh___6[i]9___.v) < 10}@****.if[@{UCD}@.eval] -> veh___6[i]9___.lane_unchanged;
-         @{TRANS veh___6[i]9___.lane_unchanged | veh___6[i]9___.lane_move_down | veh___6[i]9___.lane_move_up;}@.if[@{UCD}@.eval]
+         TRANS veh___6[i]9___.lane_unchanged | veh___6[i]9___.lane_move_down | veh___6[i]9___.lane_move_up;
       }@******.if[@{SIMPLE_LC}@.eval]
 
 	}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
