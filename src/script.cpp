@@ -827,7 +827,14 @@ std::vector<std::string> Script::getParametersFor(const std::vector<std::string>
    parameters.resize(rawPars.size());
 
    for (int i = 0; i < rawPars.size(); i++) {
-      parameters[i] = evaluateChain(rawPars[i]);
+      // Always first evaluate parameters before applying method. TODO: Do we want to be able to deactivate this?
+      if (StaticHelper::stringContains(rawPars[i], INSCR_BEG_TAG)) {
+         parameters[i] = rawPars[i];
+         extractInscriptProcessors(parameters[i], false);
+      }
+      else {
+         parameters[i] = evaluateChain(rawPars[i]);
+      }
    }
 
    return parameters;
@@ -936,7 +943,7 @@ int Script::getNextNonInscriptPosition(const std::string& partAfter)
                return i; // No methods more to come (particularly at pos 0 if no methods at all).
             }
          }
-         else if (!std::isalnum(currChar)
+         else if (!StaticHelper::isAlphaNumericOrUnderscore(currStr)
             && currStr != METHOD_PARS_BEGIN_TAG
             && currStr != METHOD_PARS_END_TAG
             && currStr != METHOD_CHAIN_SEPARATOR) {
@@ -1549,3 +1556,4 @@ std::string vfm::macro::Script::processScript(
 
    return s->applyDeclarationsAndPreprocessors(text, only_one_step);
 }
+

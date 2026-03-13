@@ -54,7 +54,24 @@
 @{CLOSETOEGOPAR}@*******.defaultValue[80]
 @{TIMESCALING}@*******.defaultValue[1000]        -- nondimensionalization constant for time, in milliseconds
 @{DISTANCESCALING}@*******.defaultValue[1000]    -- nondimensionalization constant for distance, in millimeters
-@{SIMPLE_LC}@*******.defaultValue[false]         -- true: Allow non-egos to switch a "half-lane" if time_since_last_lc has passed; false: Full version by Christian H.
+
+-- Lanechange parameters
+@{ANGLE_BASED_LC}@*******.defaultValue[false]          -- Do the angle-based LC as opposed to the "classic" lane-based one.
+@{@{LC_ANGLE_GRANULARITY_DEG}@*******.defaultValue[1]  -- Only if ANGLE_BASED_LC -- TODO: Do we need this? For now only full degrees as int.}@*******************.nil
+@{MAX_LAT_ACCEL}@*******.defaultValue[1]               -- Only if ANGLE_BASED_LC
+@{MIN_LC_DURATION_SEC}@*******.defaultValue[3]         -- Only if ANGLE_BASED_LC
+@{MAX_LC_DURATION_SEC}@*******.defaultValue[8]         -- Only if ANGLE_BASED_LC
+@{LANE_WIDTH}@*******.defaultValue[3.75]               -- Only if ANGLE_BASED_LC -- Deliberately separating this from scaling (could discuss in future)
+-- TODO: The above angle-based lanechange is a work in progress and does nothing productive so far.
+
+@{SIMPLE_LC}@*******.defaultValue[false]               -- Only if !ANGLE_BASED_LC: Allow non-egos to switch a "half-lane" if time_since_last_lc has passed (true); otherwise full version by Christian H.
+
+-- Below: Extend the simple LC by allowing more fine-granular steps between the lanes. Using 1 is the default which is equivalent to how it was before (given matching widths).
+-- We do not keep this in synch with the full Christian implementation for now. I.e., use the default parameters to activate this.
+@{LATERAL_LC_GRANULARITY}@*******.defaultValue[1]      -- Independent of ANGLE_BASED_LC -- Deliberately separating this from scaling (could discuss in future)
+@{LANE_WIDTH}@*******.defaultValue[3.75]
+@{VEHICLE_WIDTH}@*******.defaultValue[2.0]
+
 
 -- Parameters for "skipping" of CEXs.
 @{DOUBLEMERGEPROTECTION}@*******.defaultValue[true] -- Prohibits non-ego LCs when in danger of a double-merge
@@ -71,3 +88,4 @@
 @{MAXSECPARTS}@*******.defaultValue[3] -- TODO: Number of segments a section is split into for the abstract model. Should be replaced by scaling (if possible).
 
 -- EO Do not change.
+

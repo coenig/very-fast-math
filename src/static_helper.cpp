@@ -3033,39 +3033,9 @@ std::string vfm::StaticHelper::tokensAsString(const std::vector<std::string>& to
    return tokens_as_string;
 }
 
-// This function is licensed under CC-BY-SA-4.0
-// (https://creativecommons.org/licenses/by-sa/4.0/deed.en)!
-// https://stackoverflow.com/a/70237726
-size_t vfm::StaticHelper::levensteinDistance(const std::string& a, const std::string& b)
+size_t vfm::StaticHelper::levensteinDistance(const std::string& first, const std::string& second)
 {
-   std::vector<size_t> d_((a.size() + 1) * (b.size() + 1), size_t(-1));
-   auto d = [&](size_t ia, size_t ib) -> size_t& {
-      return d_[ia * (b.size() + 1) + ib];
-      };
-
-   std::function<size_t(size_t, size_t)> LevensteinInt =
-      [&](size_t ia, size_t ib) -> size_t {
-      if (d(ia, ib) != size_t(-1))
-         return d(ia, ib);
-      size_t dist = 0;
-      if (ib >= b.size())
-         dist = a.size() - ia;
-      else if (ia >= a.size())
-         dist = b.size() - ib;
-      else if (a[ia] == b[ib])
-         dist = LevensteinInt(ia + 1, ib + 1);
-      else
-         dist = 1 + std::min(
-            std::min(
-               LevensteinInt(ia, ib + 1),
-               LevensteinInt(ia + 1, ib)
-            ), LevensteinInt(ia + 1, ib + 1)
-         );
-      d(ia, ib) = dist;
-      return dist;
-      };
-
-   return LevensteinInt(0, 0);
+   return (size_t)(std::abs((int) first.size() - (int) second.size()));
 }
 
 std::tuple<size_t, size_t> vfm::StaticHelper::findClosest(const std::vector<std::string>& strs, const std::string& query)
@@ -3569,9 +3539,6 @@ std::pair<double, double> vfm::StaticHelper::cartesianToWGS84(const double x, co
    return { LAT_ZERO + x / 111000.0, LON_ZERO - y / 75000.0 };
 }
 
-// This function is licensed under CC-BY-SA-4.0
-// (https://creativecommons.org/licenses/by-sa/4.0/deed.en)!
-// From: https://stackoverflow.com/a/1511885
 void vfm::StaticHelper::fakeCallWithCommandLineArguments(const std::string& argv_combined, std::function<void(int argc, char* argv[])> to_do)
 {
    std::vector<char*> args{};

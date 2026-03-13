@@ -136,6 +136,19 @@ DEFINE
     veh___6[i]9___.lane_[k] := @{@{!}@.if[@{[k] != [j]}@.eval]veh___6[i]9___.lane_b[j] }@*.for[[j], 0, @{NUMLANES - 1}@.eval, 1, &];
     }@**.for[[k], 1, @{NUMLANES - 1}@.eval]
 
+    @{
+    @{0}@.setScriptVar[normalized_lane_counter, force].nil
+    veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@.scriptVar := veh___6[i]9___.lane_0;
+
+    @{
+    @{@{1 + @{normalized_lane_counter}@.scriptVar}@.eval[0]}@.setScriptVar[normalized_lane_counter, force].nil
+    veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@.scriptVar := veh___6[i]9___.lane_@{[k]-1}@.eval[0][k];
+
+    @{@{1 + @{normalized_lane_counter}@.scriptVar}@.eval[0]}@.setScriptVar[normalized_lane_counter, force].nil
+    veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@.scriptVar := veh___6[i]9___.lane_[k];
+    }@**.for[[k], 1, @{NUMLANES - 1}@.eval]
+   }@.removeBlankLines
+
     veh___6[i]9___.lane_min := veh___6[i]9___.lane_0;
     veh___6[i]9___.lane_max := veh___6[i]9___.lane_@{NUMLANES - 1}@.eval[0];
     veh___6[i]9___.lane_single := @{veh___6[i]9___.lane_[j] }@*.for[[j], 0, @{NUMLANES - 1}@.eval, 1, |];
@@ -154,9 +167,9 @@ DEFINE
 
 
    @{################# NOTE THAT THIS PART IS CHANGED AS COMPARED TO TACAS VERSION (might be inefficient) ###################}@.nil
-   @{################# FORMERLY: veh___6[i]9___.same_lane_as_veh_[j] := ((veh___6[i]9___.lane_b1 & veh___6[j]9___.lane_b1) | (veh___6[i]9___.lane_b2 & veh___6[j]9___.lane_b2) | (veh___6[i]9___.lane_b3 & veh___6[j]9___.lane_b3)); ###################}@.nil
+   @{################# FORMERLY: veh___6[i]9___.laterally_overlapping_with_veh_[j] := ((veh___6[i]9___.lane_b1 & veh___6[j]9___.lane_b1) | (veh___6[i]9___.lane_b2 & veh___6[j]9___.lane_b2) | (veh___6[i]9___.lane_b3 & veh___6[j]9___.lane_b3)); ###################}@.nil
 	@{
-   veh___6[i]9___.same_lane_as_veh_[k] := (FALSE
+   veh___6[i]9___.laterally_overlapping_with_veh_[k] := (FALSE
       @{| ((veh___6[k]9___.lane_b[j] & veh___6[i]9___.lane_b[j]) @{) --}@******.if[@{EGOLESS}@.eval]  @{& !(veh___6[k]9___.lane_b@{[j]-1}@.eval[0] & veh___6[i]9___.lane_b@{[j]+1}@.eval[0]) & !(veh___6[k]9___.lane_b@{[j]+1}@.eval[0] & veh___6[i]9___.lane_b@{[j]-1}@.eval[0])}@.if[@{[j] > 0 && [j] < NUMLANES - 1}@.eval] )
       }@*.for[[j], 0, @{NUMLANES - 1}@.eval]
    );
@@ -233,12 +246,12 @@ veh___6[i]9___.on_straight_section = veh___6[j]9___.on_straight_section & veh___
 DEFINE veh_[j]_and_veh_[i]_on_same_seclet := veh_[i]_and_veh_[j]_on_same_seclet;
 
 INVAR -- Non-Ego cars may not collide.
-    veh_[i]_and_veh_[j]_on_same_seclet -> (veh___6[i]9___.same_lane_as_veh_[j] -> (abs(veh___6[j]9___.abs_pos - veh___6[i]9___.abs_pos) > (veh_length + (veh___6[i]9___.halber_tacho * @{10 * SAFETY_DISTANCE_FACTOR_NONEGO}@.eval[0]) / 10)));
+    veh_[i]_and_veh_[j]_on_same_seclet -> (veh___6[i]9___.laterally_overlapping_with_veh_[j] -> (abs(veh___6[j]9___.abs_pos - veh___6[i]9___.abs_pos) > (veh_length + (veh___6[i]9___.halber_tacho * @{10 * SAFETY_DISTANCE_FACTOR_NONEGO}@.eval[0]) / 10)));
 
 INVAR -- Non-Ego cars may not "jump" over each other.
     veh_[i]_and_veh_[j]_on_same_seclet -> (
-       !(veh___6[i]9___.same_lane_as_veh_[j] & (veh___6[j]9___.prev_abs_pos < veh___6[i]9___.prev_abs_pos) & (veh___6[j]9___.abs_pos >= veh___6[i]9___.abs_pos)) &
-       !(veh___6[i]9___.same_lane_as_veh_[j] & (veh___6[i]9___.prev_abs_pos < veh___6[j]9___.prev_abs_pos) & (veh___6[i]9___.abs_pos >= veh___6[j]9___.abs_pos)));
+       !(veh___6[i]9___.laterally_overlapping_with_veh_[j] & (veh___6[j]9___.prev_abs_pos < veh___6[i]9___.prev_abs_pos) & (veh___6[j]9___.abs_pos >= veh___6[i]9___.abs_pos)) &
+       !(veh___6[i]9___.laterally_overlapping_with_veh_[j] & (veh___6[i]9___.prev_abs_pos < veh___6[j]9___.prev_abs_pos) & (veh___6[i]9___.abs_pos >= veh___6[j]9___.abs_pos)));
 	
 }@.for[[j], 0, @{[i]}@.sub[1]]}@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 

@@ -498,7 +498,7 @@ private:
 
       getScriptData().list_data_[varname] = { body };
 
-      return "";
+      return body;
    }
 
    inline std::string listElement(const std::string& body, const std::vector<std::string>& parameters)
@@ -808,7 +808,7 @@ private:
             id = (int)std::stof(body);
          }
          else {
-            addError("Body '" + body + "' is not an id.");
+            addError("Body '" + body + "' is not an id. Returning self.");
             return shared_from_this();
          }
       }
@@ -817,7 +817,7 @@ private:
          return running_scripts[id];
       }
       else {
-         addError("No running script with id '" + body + "' found.");
+         addError("No running script with id '" + body + "' found. Returning self.");
          return shared_from_this();
       }
    }

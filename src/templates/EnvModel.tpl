@@ -55,6 +55,7 @@ INVAR num_lanes = @{NUMLANES}@.eval[0];
 @{EnvModel_Behavior_Nonego.tpl}@********.include
 @{EnvModel_Behavior_Ego.tpl}@********.include
 @{EnvModel_Feasibility.tpl}@*******.include
+@{EnvModel_AngleBasedLC.tpl}@*******.include
 
 )@
 }@**.if[@{EM_LESS}@.eval]

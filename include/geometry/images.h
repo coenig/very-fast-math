@@ -391,17 +391,6 @@ public:
       return reverseTranslatePolygonCore(pol);
    }
 
-   inline Pol2D reverseTranslate(const Pol2D& pol)
-   {
-      Pol2D result{};
-
-      for (const auto& point : pol.points_) {
-         result.add(reverseTranslate(point).projectToXY());
-      }
-
-      return result;
-   }
-
    virtual inline void setPerspective(const std::shared_ptr<VisPerspective> perspective)
    {
       perspective_ = perspective;

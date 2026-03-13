@@ -247,9 +247,16 @@ void findMinMax(const CarPars& agent, int& min_lane, int& max_lane)
 static constexpr float LONG_FACTOR{ 5 };
 static constexpr float CAR_FINAL_WIDTH{ CAR_WIDTH / LANE_WIDTH };
 
-void HighwayImage::plotCar2D(const float thick, const Vec2Df& pos_car, const Color& fill_color, const Color& car_frame_color, const Vec2D scale, const float angle_rad)
+void HighwayImage::plotCar2D(
+   const float thick, 
+   const Vec2Df& pos_car, 
+   const Color& fill_color, 
+   const Color& car_frame_color, 
+   const Vec2D scale, 
+   const float angle_rad)
 {
    const float thikko{ (-thick + 1) / 30 };
+   static constexpr float eps{ 0.001 };
 
    if (thick > 1) {
       float width1  = (CAR_LENGTH - thikko * LONG_FACTOR) * scale.x;
@@ -268,8 +275,16 @@ void HighwayImage::plotCar2D(const float thick, const Vec2Df& pos_car, const Col
       Pol2D p1{ tl1, { tl1.x, br1.y }, br1, { br1.x, tl1.y } };
       Pol2D p2{ tl2, { tl2.x, br2.y }, br2, { br2.x, tl2.y } };
 
-      p1.rotate(angle_rad);
-      p2.rotate(angle_rad);
+      if (std::abs(angle_rad) > eps) {
+         p1 = getHighwayTranslator()->translatePolygon(p1);
+         p2 = getHighwayTranslator()->translatePolygon(p2);
+
+         p1.rotate(angle_rad);
+         p2.rotate(angle_rad);
+
+         p1 = getHighwayTranslator()->reverseTranslatePolygon(p1).projectToXY();
+         p2 = getHighwayTranslator()->reverseTranslatePolygon(p2).projectToXY();
+      }
 
       fillPolygon(p1, car_frame_color);
       fillPolygon(p2, fill_color);
@@ -280,7 +295,12 @@ void HighwayImage::plotCar2D(const float thick, const Vec2Df& pos_car, const Col
    }
 }
 
-void HighwayImage::plotCar3D(const Vec2Df& pos_car, const Color& fill_color, const Color& car_frame_color, const Vec2D scale, const float angle_rad)
+void HighwayImage::plotCar3D(
+   const Vec2Df& pos_car, 
+   const Color& fill_color, 
+   const Color& car_frame_color, 
+   const Vec2D scale, 
+   const float angle_rad)
 {
    auto pale_filling{ fill_color };
    auto less_pale_filling{ fill_color };
@@ -382,7 +402,7 @@ void vfm::HighwayImage::doShoulder(
       }
 
       temp_arrow.createArrow(getTranslator()->translatePolygon(temp_base_points), THIN);
-      fillPolygon(plain_2d_translator_->reverseTranslate(temp_arrow), LANE_MARKER_COLOR);
+      fillPolygon(plain_2d_translator_->reverseTranslatePolygon(temp_arrow), LANE_MARKER_COLOR);
    }
 }
 
@@ -606,7 +626,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
       overpaint.add(0, min_lane ? Vec2D{ br_orig.x, tl_orig.y } : br_orig);
 
       fillPolygon(overpaint, GRASS_COLOR);
-      fillPolygon(plain_2d_translator_->reverseTranslate(arrow), LANE_MARKER_COLOR);
+      fillPolygon(plain_2d_translator_->reverseTranslatePolygon(arrow), LANE_MARKER_COLOR);
 
       //drawPolygon(overpaint, RED, true, true, true);
       //drawPolygon(arrow, BLUE, true, true, true);
@@ -794,7 +814,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    const float street_width{ (float)((max_lane - min_lane) + 1) };
    const float street_right_border{ street_left_border + street_width };
 
-   constexpr static float METERS_TO_LOOK_BEHIND{ 300 };
+   constexpr static float METERS_TO_LOOK_BEHIND{ 2000 };
    constexpr static float METERS_TO_LOOK_AHEAD{ METERS_TO_LOOK_BEHIND };
 
    tl_orig.x = -METERS_TO_LOOK_BEHIND;
@@ -890,7 +910,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
             }
          }
 
-         plotCar2D(thick, pos, car_id == 0 ? EGO_COLOR : CAR_COLOR, car_frame_color);
+         plotCar2D(thick, pos, car_id == 0 ? EGO_COLOR : CAR_COLOR, car_frame_color, Vec2D{1, 1}, 0.2);
 
          // vehicle speed number
          writeAsciiText(text_pos_x, pos.y, std::to_string(pair.car_velocity_), CoordTrans::do_it, true, FUNC_IGNORE_BLACK_CONVERT_TO_BLACK);
@@ -916,7 +936,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
          createArrows(0, future_pos_x, 0, future_pos_y, arrow_polygons);
       }
 
-      if (ego) plotCar2D(3, { ego_rel_pos, getHighwayTranslator()->is3D() ? ego_lane : 0 }, RED, CAR_FRAME_COLOR);
+      if (ego) plotCar2D(3, { ego_rel_pos, getHighwayTranslator()->is3D() ? ego_lane : 0 }, RED, CAR_FRAME_COLOR, Vec2D{ 1, 1 }, 0.2);
 
       for (const auto& pol : arrow_polygons) {
          fillPolygon(pol, DARK_GREY);
