@@ -246,12 +246,11 @@ INVAR
 -- EO Just ignore backwards comatibility for now.
 
 -- MAX/MIN velocities per lane.
--- Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just remove the condition around!
+@{@FACTOR = NUMLANES / NUM_TECHNICAL_LANES}@.eval.nil
+
 @{
-@{
-INVAR veh___6[i]9___.lane_b@{#j}@.eval[0] -> (veh___6[i]9___.v >= @{LANES_MIN_SPEEDS}@.printHeap.at[#j] & veh___6[i]9___.v <= @{LANES_MAX_SPEEDS}@.printHeap.at[#j]);
+INVAR veh___6[i]9___.lane_b@{#j}@.eval[0] -> (veh___6[i]9___.v >= @{LANES_MIN_SPEEDS}@.printHeap.at[@{trunc(FACTOR * #j)}@.eval[0]] & veh___6[i]9___.v <= @{LANES_MAX_SPEEDS}@.printHeap.at[@{trunc(FACTOR * #j)}@.eval[0]]);
 }@***.for[#j, 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
-}@****.if[@{!UCD}@.eval]
 -- EO Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just remove the condition around!
 
 -- Lookup table to speed-up non-linear calculations
