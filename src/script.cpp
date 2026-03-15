@@ -1435,7 +1435,7 @@ std::string vfm::macro::Script::storeRoadGraph(const std::string& body, const st
       Env2D::getImageWidth(MAX_NUM_LANES_SIMPLE) * (infinite_highway ? 1 : (int) vfm_data_->getSingleVal("WIDTH_FACTOR_NON_INFINITE")),
       Env2D::getImageHeight() * (rg->getNodeCount() > 1 ? (int) vfm_data_->getSingleVal("HEIGHT_FACTOR_NON_INFINITE") : 1),
       std::make_shared<Plain2DTranslator>(),
-      rg->getMyRoad().getNumLanes() };
+      rg->getMyRoad().getNumActualLanes() };
 
    image.fillImg(BROWN);
 
@@ -1448,7 +1448,7 @@ std::string vfm::macro::Script::storeRoadGraph(const std::string& body, const st
    const float offset_y{
       infinite_highway
       ?
-      (float)rg->getMyRoad().getNumLanes() / 2.0f
+      (float)rg->getMyRoad().getNumActualLanes() / 2.0f
       : (int)vfm_data_->getSingleVal("OFFSET_Y_NON_INFINITE")
    };
 

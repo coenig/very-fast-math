@@ -423,7 +423,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
 
    std::map<int, std::vector<std::pair<float, float>>> shoulders{};
 
-   for (int i = 0; i < lane_structure.getNumLanes(); i++) {
+   for (int i = 0; i < lane_structure.getNumActualLanes(); i++) {
       shoulders[i] = {};
    }
 
@@ -537,7 +537,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             4,
             getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
 
-         for (int i = FIRST_LANE_CONNECTOR_ID; i < FIRST_LANE_CONNECTOR_ID + lane_structure.getNumLanes(); i++) { // Lane center lines
+         for (int i = FIRST_LANE_CONNECTOR_ID; i < FIRST_LANE_CONNECTOR_ID + lane_structure.getNumActualLanes(); i++) { // Lane center lines
             const float lane_width{ getHighwayTranslator()->translate({0, LANE_WIDTH}).length() };
             auto top_right_corner_lane = top_right_corner;
             auto top_right_second_lane = top_right_second;
@@ -580,7 +580,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
 
          for (auto& connection : connections) {
             if (connection.id_ == 3 || connection.id_ == 4) {
-               const float MAGIC_NUMBER{ (0.034f + (lane_structure.getNumLanes() - 1) * 0.0125f) * 11 }; // TODO: For roundabout it was 0.0125...
+               const float MAGIC_NUMBER{ (0.034f + (lane_structure.getNumActualLanes() - 1) * 0.0125f) * 11 }; // TODO: For roundabout it was 0.0125...
                Vec2D middle_basepoint{ connection.connector_.base_point_ };
                Vec2D middle_second{ connection.connector_.direction_ };
 
@@ -723,7 +723,7 @@ void vfm::HighwayImage::paintStraightRoadSceneFromData(StraightRoadSection& lane
       }
    }
 
-   lane_structure.setNumLanes(3);
+   lane_structure.setNumActualLanes(3);
    lane_structure.setEgo(std::make_shared<CarPars>(ego_lane, 0, (int)ego_v, RoadGraph::EGO_MOCK_ID));
    lane_structure.setOthers({ { veh0_lane, veh0_rel_pos, (int)veh0_v, 0 }, { veh1_lane, veh1_rel_pos, (int)veh1_v, 1 } });
    lane_structure.setFuturePositionsOfOthers(future_data ? std::map<int, std::pair<float, float>>
@@ -784,7 +784,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    const auto fix_for_connections = !road_length;
 
    int min_lane = lane_structure.isValid() ? 0 : -1;
-   int max_lane = lane_structure.isValid() ? lane_structure.getNumLanes() - 1 : -1;
+   int max_lane = lane_structure.isValid() ? lane_structure.getNumActualLanes() - 1 : -1;
 
    if (min_lane < 0) {
       for (const auto& pair : others) {
@@ -802,7 +802,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 
    num_lanes = 1 + max_lane - min_lane;
 
-   lane_structure.setNumLanes(num_lanes);
+   lane_structure.setNumActualLanes(num_lanes);
    lane_structure.cleanUp(false);
 
    setPerspective(street_height, num_lanes, ego_offset_x, street_top, ego_lane, dim);
@@ -1253,7 +1253,7 @@ void vfm::HighwayImage::paintRoadGraph(
          if (mode == RoadDrawingMode::road && r_sub->isGhost()
             || mode == RoadDrawingMode::ghosts_only && !r_sub->isGhost()) continue;
 
-         const float section_max_lanes = r_sub->getMyRoad().getNumLanes();
+         const float section_max_lanes = r_sub->getMyRoad().getNumActualLanes();
          preserved_dimension_ = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
 
          const auto wrapper_trans_function = [this, section_max_lanes, r_sub, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {

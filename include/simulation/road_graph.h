@@ -168,10 +168,11 @@ public:
    // (min_lane, max_lane, begin)
    bool parseProgram(const std::string& program) override;
 
-private:
-   float begin_{};
+   // TODO: Make private again when hack for smoothing lateral movement is cleaned up.
    int min_lane_{}; // 0: right-most, 1: right-most as emergency, 2: right-most - 1 etc.
    int max_lane_{};
+private:
+   float begin_{};
 };
 
 static constexpr int MIN_DISTANCE_BETWEEN_SEGMENTS{ 10 };
@@ -188,14 +189,16 @@ static constexpr int MIN_DISTANCE_BETWEEN_SEGMENTS{ 10 };
 class StraightRoadSection : public Parsable {
 public:
    StraightRoadSection(); // Constructs an invalid lane structure.
-   StraightRoadSection(const int lane_num, const float section_end);
-   StraightRoadSection(const int lane_num, const float section_end, const std::vector<LaneSegment>& segments);
+   StraightRoadSection(const int actual_lane_num, const int technical_lane_num, const float section_end);
+   StraightRoadSection(const int actual_lane_num, const int technical_lane_num, const float section_end, const std::vector<LaneSegment>& segments);
 
    void addLaneSegment(const LaneSegment& segment);
    void cleanUp(bool add_note);
    std::string toString() const;
-   void setNumLanes(const int num_lanes) const;
-   int getNumLanes() const;
+   void setNumActualLanes(const int num_lanes) const;
+   void setNumTechnicalLanes(const int num_lanes) const;
+   int getNumActualLanes() const;
+   int getNumTechnicalLanes() const;
    bool isValid() const;
    std::map<float, LaneSegment> getSegments() const;
    std::map<float, LaneSegment>& getSegmentsRef();
@@ -217,7 +220,8 @@ public:
 
 private:
    std::map<float, LaneSegment> segments_{};
-   mutable int num_lanes_{ -1 }; // We have lane ids: 0 .. (num_lanes_ - 1) * 2
+   mutable int num_actual_lanes_{ -1 }; // We have lane ids: 0 .. (num_lanes_ - 1) * 2
+   mutable int num_technical_lanes_{ -1 }; // These are the virtual lanes used for smoothing lateral movement.
    std::shared_ptr<CarPars> ego_{}; // Ego may or may not (nullptr) be within this road section.
    CarParsVec others_{};
    std::map<int, std::pair<float, float>> future_positions_of_others_{};

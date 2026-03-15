@@ -67,7 +67,7 @@
       "MINDISTCONNECTIONS": "#{20}#",
       "MIN_TIME_BETWEEN_LANECHANGES": 1,
       "LATERAL_LC_GRANULARITY": 4,
-      "VEHICLE_WIDTH": 200,
+      "VEHICLE_WIDTH": 400,
       "NONEGOS": "#{nonegos}#",
       "NUMLANES": "#{lanes}#",
       "SCENGEN_EXISTENTIAL_PROPERTIES": "1-9",

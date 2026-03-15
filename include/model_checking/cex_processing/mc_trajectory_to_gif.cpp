@@ -186,14 +186,15 @@ std::shared_ptr<RoadGraph> LiveSimGenerator::getRoadGraphTopologyFrom(const MCTr
 
    for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
       road_graphs.push_back(std::make_shared<RoadGraph>(sec));
-      StraightRoadSection lane_structure{ std::stoi(first_state.at("num_technical_lanes")), std::stof(first_state.at("section_" + std::to_string(sec) + "_end")) };
-      lane_structure.setNumLanes(std::stoi(trace.at(0).second.at("num_technical_lanes")));
+      StraightRoadSection lane_structure{ std::stoi(first_state.at("num_lanes")), std::stoi(first_state.at("num_technical_lanes")), std::stof(first_state.at("section_" + std::to_string(sec) + "_end")) };
+      lane_structure.setNumActualLanes(std::stoi(trace.at(0).second.at("num_lanes")));
+      lane_structure.setNumTechnicalLanes(std::stoi(trace.at(0).second.at("num_technical_lanes")));
 
       for (int seg = 0; first_state.count(segment_min_lane_name(sec, seg)); seg++) {
          lane_structure.addLaneSegment({
             std::stof(first_state.at(segment_begin_name(sec, seg))),
-            (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_max_lane_name(sec, seg)))) * 2, // Remove "* 2"...
-            (lane_structure.getNumLanes() - 1 - std::stoi(first_state.at(segment_min_lane_name(sec, seg)))) * 2, // ...to activate hard shoulders.
+            (lane_structure.getNumActualLanes() - 1 - std::stoi(first_state.at(segment_max_lane_name(sec, seg)))) * 2, // Remove "* 2"...
+            (lane_structure.getNumActualLanes() - 1 - std::stoi(first_state.at(segment_min_lane_name(sec, seg)))) * 2, // ...to activate hard shoulders.
             }
             );
       }
@@ -240,7 +241,7 @@ void vfm::mc::trajectory_generator::LiveSimGenerator::equipRoadGraphWithCars(
 
    //const float car_lane, const float car_rel_pos, const int car_velocity, const int car_id
    const auto ego = std::make_shared<CarPars>(
-      r->getMyRoad().getNumLanes() - 1 + current_ego.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH, // Lane
+      r->getMyRoad().getNumActualLanes() - 1 + current_ego.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH, // Lane
       current_ego.second.at(PossibleParameter::pos_x),                                                                           // Position
       current_ego.second.at(PossibleParameter::vel_x) / x_scaling,                                                               // Velocity
       vfm::RoadGraph::EGO_MOCK_ID                                                                                                // ID
@@ -288,10 +289,10 @@ void vfm::mc::trajectory_generator::LiveSimGenerator::equipRoadGraphWithCars(
          "veh___6") };
 
       const CarPars veh{
-         (float) (r->getMyRoad().getNumLanes() - 1 + traj_pos.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH), // Lane
-         (float) (traj_pos.second.at(PossibleParameter::pos_x)),                                                                           // Position
-         (int) (traj_pos.second.at(PossibleParameter::vel_x) / x_scaling),                                                                 // Velocity
-         vehicle_index                                                                                                                     // ID
+         (float) (r->getMyRoad().getNumActualLanes() - 1 + traj_pos.second.at(PossibleParameter::pos_y) / mc::trajectory_generator::LANE_WIDTH), // Lane
+         (float) (traj_pos.second.at(PossibleParameter::pos_x)),                                                                                 // Position
+         (int) (traj_pos.second.at(PossibleParameter::vel_x) / x_scaling),                                                                       // Velocity
+         vehicle_index                                                                                                                           // ID
       };
 
       if (on_straight_section >= 0) {

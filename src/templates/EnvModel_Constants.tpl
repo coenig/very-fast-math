@@ -5,6 +5,9 @@
 ------------------------------------------
 
 DEFINE
+   lane_width := @{LANE_WIDTH}@.eval[0];
+   car_width := @{VEHICLE_WIDTH}@.eval[0];
+
     ---------------- Begin of non-ego lc parameterization -----------------
 @{
 
