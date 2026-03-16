@@ -30,6 +30,7 @@ static StraightRoadSection TEST_LANES{
    (int)MAX_NUM_LANES_SIMPLE,
    (int)MAX_NUM_LANES_SIMPLE,
    400,
+   LANE_WIDTH_M,
    { {-55, 0, 4}, {-30, 0, 7}, {10, 0, 7}, {40, 1, 8}, {70, 1, 8}, {90, 2, 8}, {150, 2, 7}, {210, 2, 6}, {250, 2, 5}, {300, 2, 4} } 
 }; // TODO: Delete eventually.
 

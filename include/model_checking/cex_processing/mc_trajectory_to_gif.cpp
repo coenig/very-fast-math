@@ -186,7 +186,12 @@ std::shared_ptr<RoadGraph> LiveSimGenerator::getRoadGraphTopologyFrom(const MCTr
 
    for (int sec = 0; first_state.count(segment_begin_name(sec, 0)); sec++) {
       road_graphs.push_back(std::make_shared<RoadGraph>(sec));
-      StraightRoadSection lane_structure{ std::stoi(first_state.at("num_lanes")), std::stoi(first_state.at("num_technical_lanes")), std::stof(first_state.at("section_" + std::to_string(sec) + "_end")) };
+      StraightRoadSection lane_structure{ 
+         std::stoi(first_state.at("num_lanes")), 
+         std::stoi(first_state.at("num_technical_lanes")), 
+         std::stof(first_state.at("section_" + std::to_string(sec) + "_end")),
+         std::stof(first_state.at("lane_width")) / 100.0f
+      };
       lane_structure.setNumActualLanes(std::stoi(trace.at(0).second.at("num_lanes")));
       lane_structure.setNumTechnicalLanes(std::stoi(trace.at(0).second.at("num_technical_lanes")));
 

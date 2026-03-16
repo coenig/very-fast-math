@@ -189,8 +189,8 @@ static constexpr int MIN_DISTANCE_BETWEEN_SEGMENTS{ 10 };
 class StraightRoadSection : public Parsable {
 public:
    StraightRoadSection(); // Constructs an invalid lane structure.
-   StraightRoadSection(const int actual_lane_num, const int technical_lane_num, const float section_end);
-   StraightRoadSection(const int actual_lane_num, const int technical_lane_num, const float section_end, const std::vector<LaneSegment>& segments);
+   StraightRoadSection(const int actual_lane_num, const int technical_lane_num, const float section_end, const float lane_width);
+   StraightRoadSection(const int actual_lane_num, const int technical_lane_num, const float section_end, const float lane_width, const std::vector<LaneSegment>& segments);
 
    void addLaneSegment(const LaneSegment& segment);
    void cleanUp(bool add_note);
@@ -199,6 +199,7 @@ public:
    void setNumTechnicalLanes(const int num_lanes) const;
    int getNumActualLanes() const;
    int getNumTechnicalLanes() const;
+   float getLaneWidth() const;
    bool isValid() const;
    std::map<float, LaneSegment> getSegments() const;
    std::map<float, LaneSegment>& getSegmentsRef();
@@ -222,6 +223,7 @@ private:
    std::map<float, LaneSegment> segments_{};
    mutable int num_actual_lanes_{ -1 }; // We have lane ids: 0 .. (num_lanes_ - 1) * 2
    mutable int num_technical_lanes_{ -1 }; // These are the virtual lanes used for smoothing lateral movement.
+   mutable float lane_width_{ -1 };
    std::shared_ptr<CarPars> ego_{}; // Ego may or may not (nullptr) be within this road section.
    CarParsVec others_{};
    std::map<int, std::pair<float, float>> future_positions_of_others_{};

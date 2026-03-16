@@ -308,19 +308,25 @@ float deg2Rad(const float deg)
 }
 
 std::string Script::arclengthCubicBezierFromStreetTopology(
-   const std::string& lane_str, const std::string& angle_str, const std::string& distance_str, const std::string& num_lanes_str)
+   const std::string& lane_str, 
+   const std::string& angle_str, 
+   const std::string& distance_str, 
+   const std::string& num_lanes_str,
+   const std::string& lane_width_str)
 {
    if (!StaticHelper::isParsableAsInt(lane_str)) addError("Lane '" + lane_str + "' is not parsable as int in 'arclengthCubicBezierFromStreetTopology'.");
    if (!StaticHelper::isParsableAsFloat(angle_str)) addError("Angle '" + angle_str + "' is not parsable as float in 'arclengthCubicBezierFromStreetTopology'.");
    if (!StaticHelper::isParsableAsFloat(distance_str)) addError("Distance '" + distance_str + "' is not parsable as float in 'arclengthCubicBezierFromStreetTopology'.");
    if (!StaticHelper::isParsableAsInt(num_lanes_str)) addError("NumLanes '" + num_lanes_str + "' is not parsable as float in 'arclengthCubicBezierFromStreetTopology'.");
+   if (!StaticHelper::isParsableAsInt(lane_width_str)) addError("Lane width '" + lane_width_str + "' is not parsable as float in 'arclengthCubicBezierFromStreetTopology'.");
    if (hasErrorOccurred()) return "#ERROR-Check-Log";
 
    const int num_lanes{ std::stoi(num_lanes_str) };
    const int lane{ num_lanes - std::stoi(lane_str) - 1 };
    const float angle{ deg2Rad(std::stof(angle_str)) };
    const float distance{ std::stof(distance_str) };
-   const float l{ (lane - (num_lanes - 1.0f) / 2.0f) * LANE_WIDTH };
+   const float lane_width{ std::stof(lane_width_str) };
+   const float l{ (lane - (num_lanes - 1.0f) / 2.0f) * lane_width };
 
    const Vec2D v{ std::cos(angle - deg2Rad(180)), sin(angle - deg2Rad(180)) };
    const Vec2D vr{ std::cos(angle + deg2Rad(90)), sin(angle + deg2Rad(90)) };

@@ -24,7 +24,7 @@
 @{MAXDISTENDPOINTS}@*******.defaultValue[5]               -- Two end points must be at least this apart (approximated by maxvar method)
 @{MODEL_INTERSECTION_GEOMETRY}@*******.defaultValue[true] -- If the length of the junctions is calculated subject to connections etc. (Makes calculation slow, but needed at least for multi-lane road networks.)
 
--- Parameters for ego and non-ego vehicles
+-- Parameters for ego and non-ego vehicles (vehicle length is below in LC section)
 @{EGOLESS}@*******.defaultValue[false]
 @{UCD}@*******.defaultValue[false]
 @{NONEGOS}@*******.defaultValue[5]
@@ -41,7 +41,6 @@
 @{MINACCELNONEGO}@*******.defaultValue[-8]
 @{MAXACCELNONEGO}@*******.defaultValue[6]
 @{MIN_TIME_BETWEEN_LANECHANGES}@*******.defaultValue[2]
-@{VEHICLE_LENGTH}@*******.defaultValue[5]
 @{SAFETY_DISTANCE_FACTOR_NONEGO}@*******.defaultValue[0.4] -- The factor to multiply the "halber Tacho" safety distance with (one decimal precision).
 @{MAXEGOVISRANGE}@*******.defaultValue[250]
 @{CLOSEFRONTDIST}@*******.defaultValue[10]
@@ -68,8 +67,9 @@
 -- Below: Extend the simple LC by allowing more fine-granular steps between the lanes.
 -- We do not keep this in synch with the full Christian implementation for now. I.e., use the default parameters to activate this.
 @{LATERAL_LC_GRANULARITY}@*******.defaultValue[1]      -- 1 is equivalent to how it was before (given default widths). Independent of ANGLE_BASED_LC -- Deliberately separating this from scaling (could discuss in future)
-@{LANE_WIDTH}@*******.defaultValue[375]
-@{VEHICLE_WIDTH}@*******.defaultValue[200]
+@{LANE_WIDTH}@*******.defaultValue[400]                -- Default value from highway-env (highway_env/road/lane.py).          Note that we have 375 in vfm...   (include/geometry/images.h)
+@{VEHICLE_WIDTH}@*******.defaultValue[200]             -- Default value from highway-env (highway_env/vehicle/kinematics.py). Note that we have 185.2 in vfm... (include/geometry/images.h)
+@{VEHICLE_LENGTH}@*******.defaultValue[500]            -- Default value from highway-env (highway_env/vehicle/kinematics.py). Note that we have 492.3 in vfm... (include/geometry/images.h)
 
 
 -- Parameters for "skipping" of CEXs.

@@ -64,13 +64,13 @@ bool LaneSegment::parseProgram(const std::string& program)
    return true;
 }
 
-StraightRoadSection::StraightRoadSection() : StraightRoadSection(-1, -1, -1) {} // Constructs an invalid lane structure.
+StraightRoadSection::StraightRoadSection() : StraightRoadSection(-1, -1, -1, -1) {} // Constructs an invalid lane structure.
 
-StraightRoadSection::StraightRoadSection(const int actual_lane_num, const int technical_lane_num, const float section_end)
-   : StraightRoadSection(actual_lane_num, technical_lane_num, section_end, std::vector<LaneSegment>{}) {}
+StraightRoadSection::StraightRoadSection(const int actual_lane_num, const int technical_lane_num, const float section_end, const float lane_width)
+   : StraightRoadSection(actual_lane_num, technical_lane_num, section_end, lane_width, std::vector<LaneSegment>{}) {}
 
-StraightRoadSection::StraightRoadSection(const int actual_lane_num, const int technical_lane_num, const float section_end, const std::vector<LaneSegment>& segments)
-   : num_actual_lanes_(actual_lane_num), num_technical_lanes_{technical_lane_num}, section_end_(section_end), Parsable("StraightRoadSection") {
+StraightRoadSection::StraightRoadSection(const int actual_lane_num, const int technical_lane_num, const float section_end, const float lane_width, const std::vector<LaneSegment>& segments)
+   : num_actual_lanes_(actual_lane_num), num_technical_lanes_{ technical_lane_num }, lane_width_{lane_width}, section_end_(section_end), Parsable("StraightRoadSection") {
    for (const auto& segment : segments) {
       addLaneSegment(segment);
    }
@@ -183,6 +183,11 @@ void StraightRoadSection::setNumTechnicalLanes(const int num_lanes) const
 int StraightRoadSection::getNumTechnicalLanes() const
 {
    return num_technical_lanes_;
+}
+
+float vfm::StraightRoadSection::getLaneWidth() const
+{
+   return lane_width_;
 }
 
 bool StraightRoadSection::isValid() const
@@ -511,7 +516,7 @@ void vfm::RoadGraph::normalizeRoadGraphToEgo()
 
    const auto ego_road = r_ego->my_road_;
    const auto ego_car = ego_road.getEgo();
-   const Vec2D specialPointBase{ Vec2D{ ego_car->car_rel_pos_, (ego_car->car_lane_ - ego_road.getNumActualLanes() / 2) * LANE_WIDTH }};
+   const Vec2D specialPointBase{ Vec2D{ ego_car->car_rel_pos_, (ego_car->car_lane_ - ego_road.getNumActualLanes() / 2) * ego_road.getLaneWidth() }};
    const float theta{ -r_ego->getAngle() };
 
    static constexpr bool FOLLOW_ANGLE_TOO{ false }; // NOTE: If set to true, don't copy the graph in paintRoadGraph(). (TODO: Fix this!)
@@ -586,7 +591,7 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
             lane_correction_dir_origin.ortho();
             lane_correction_dir_target.ortho();
 
-            float lane_correction_length{ LANE_WIDTH * (MIDDLE_OF_ROAD / 2.0f - car.car_lane_) };
+            float lane_correction_length{ orig_section->my_road_.getLaneWidth() * (MIDDLE_OF_ROAD / 2.0f - car.car_lane_) };
             lane_correction_dir_origin.setLength(lane_correction_length);
             lane_correction_dir_target.setLength(-lane_correction_length);
             arc_origin.add(lane_correction_dir_origin);
@@ -609,7 +614,7 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
 
             auto node = std::make_shared<RoadGraph>(free_id++);
             node->makeGhost();
-            node->setMyRoad(StraightRoadSection{ orig_section->getMyRoad().getNumActualLanes(), orig_section->getMyRoad().getNumTechnicalLanes(), SOME_LENGTH });
+            node->setMyRoad(StraightRoadSection{ orig_section->getMyRoad().getNumActualLanes(), orig_section->getMyRoad().getNumTechnicalLanes(), SOME_LENGTH, orig_section->my_road_.getLaneWidth() });
             r->removeNonegoFromCrossingTowards(r_target, car.car_id_);
 
             if (car.car_id_ == EGO_MOCK_ID) {
@@ -874,7 +879,8 @@ std::shared_ptr<xml::CodeXML> vfm::Way::getNodesXML() const
    auto drain = my_road_graph_->getDrainPoint();
    Vec2D dir_lat{ drain - origin };
    dir_lat.ortho();
-   dir_lat.setLength(LANE_WIDTH / 2);
+   const float lane_width{ my_road_graph_->my_road_.getLaneWidth() };
+   dir_lat.setLength(lane_width / 2); // Assuming all roads have equal lane width.
 
    Vec2D origin_left{ origin - dir_lat };
    Vec2D origin_right{ origin + dir_lat };
@@ -903,14 +909,14 @@ std::shared_ptr<xml::CodeXML> vfm::Way::getNodesXML() const
 
       Vec2D dir_lat_succ{ drain_succ - origin_succ };
       dir_lat_succ.ortho();
-      dir_lat_succ.setLength(LANE_WIDTH / 2);
+      dir_lat_succ.setLength(lane_width / 2);
       Vec2D origin_left_succ{ origin_succ - dir_lat_succ };
       Vec2D origin_right_succ{ origin_succ + dir_lat_succ };
 
       Pol2D pol{};
       Pol2D arrow{};
       pol.bezier(drain, drain + dir_mine, origin_succ + dir_succ, origin_succ, 0.1, true);
-      arrow.createArrow(pol, LANE_WIDTH, { drain_right, drain_left }, { origin_right_succ, origin_left_succ });
+      arrow.createArrow(pol, lane_width, { drain_right, drain_left }, { origin_right_succ, origin_left_succ });
 
       std::vector<int> node_ids_left{};
       std::vector<int> node_ids_right{};

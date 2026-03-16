@@ -37,14 +37,16 @@ public:
       const Vec2Df& pos_ego, 
       const Color& fill_color, 
       const Color& car_frame_color,
-      const Vec2D scale, 
-      const float angle_rad);
+      const float lane_width,
+      const Vec2D scale = { 1, 1 },
+      const float angle_rad = 0);
 
    void plotCar3D(
       const Vec2Df& pos_ego, 
       const Color& fill_color, 
       const Color& car_frame_color, 
-      const Vec2D scale = Vec2D{ 1, 1 }, 
+      const float lane_width,
+      const Vec2D scale = Vec2D{ 1, 1 },
       const float angle_rad = 0);
 
    void doShoulder(
@@ -69,6 +71,7 @@ public:
 
    void setPerspective(
       const float street_height,
+      const float lane_width,
       const float num_lanes,
       const float ego_offset_x,
       const float street_top,

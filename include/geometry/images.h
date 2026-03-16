@@ -150,9 +150,9 @@ const Color GAP_2_FRONT_COLOR = BLUE;
 const Color GAP_2_REAR_COLOR = DARK_BLUE;
 const float INDICATOR_LENGTH = 1;
 const float INDICATOR_HEIGHT = 0.1;
-constexpr float LANE_WIDTH = 3.75;  // in m.  TODO: Should come from model checker (only fallback as constant).
-constexpr float CAR_LENGTH = 4.923; // in m.
-constexpr float CAR_WIDTH = 2.0;  // in m.    TODO: Should come from model checker (only fallback as constant).
+constexpr float LANE_WIDTH_M = 3.75;  // in m.  Comes from MC, only fallback for other usecases.
+constexpr float CAR_LENGTH = 4.923; // in m.  Comes from MC, only fallback for other usecases.
+constexpr float CAR_WIDTH = 1.852;  // in m.  Comes from MC, only fallback for other usecases.
 constexpr float CAR_HEIGHT = 1;   // in m.
 constexpr float DASH_WIDTH = 3.5;   // in m.
 
@@ -497,7 +497,7 @@ public:
    void rectangle(const float x0, const float y0, const float width, const float height, const Color& c, const bool center = true, const float elevation = 0, const bool paint_nodes = false, const bool print_coordinates = false);
    void fillRectangle(const float x0, const float y0, const float width, const float height, const Color& c, const bool center = true, const float elevation = 0); /// Non-center not yet implemented.
    void fillRectangle(const Vec2Df& tl, const Vec2Df& br, const Color& c, const bool center = true, const float elevation = 0);
-   void fillBlinker(const Vec2Df& pos, const double side);
+   void fillBlinker(const Vec2Df& pos, const double side, const float lane_width);
    void overpaintLanes(const bool min_lanes);
 
    Image copyArea(const int x0, const int y0, const int x1, const int y1) const;
