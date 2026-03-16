@@ -760,7 +760,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    const float ego_offset_x,
    const ExtraVehicleArgs& var_vals,
    const bool print_agent_ids, 
-   const Vec2D& dim,
+   const Vec2D& dim_raw,
    const RoadDrawingMode mode)
 {
    std::vector<ConnectorPolygonEnding> res{};
@@ -771,6 +771,10 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    const int gap_0_rear = var_vals.count("ego.gaps___609___.i_agent_rear") ? std::stoi(var_vals.at("ego.gaps___609___.i_agent_rear")) : -1;
    const int gap_1_rear = var_vals.count("ego.gaps___619___.i_agent_rear") ? std::stoi(var_vals.at("ego.gaps___619___.i_agent_rear")) : -1;
    const int gap_2_rear = var_vals.count("ego.gaps___629___.i_agent_rear") ? std::stoi(var_vals.at("ego.gaps___629___.i_agent_rear")) : -1;
+   const float lane_width{ lane_structure.getLaneWidth() };
+
+   static constexpr float LANE_WIDTH_FACTOR{ 0.5 };
+   const Vec2D dim{ dim_raw.x, dim_raw.y * lane_width * LANE_WIDTH_FACTOR };
 
    const float street_height = dim.y * 0.8;
    const float street_top = (dim.y - street_height) / 2;
@@ -786,7 +790,6 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    const auto road_length = infinite_road ? 300 : lane_structure.getLength();
    const float road_begin = infinite_road ? -300 : 0;
    const auto fix_for_connections = !road_length;
-   const float lane_width{ lane_structure.getLaneWidth() };
 
    int min_lane = lane_structure.isValid() ? 0 : -1;
    int max_lane = lane_structure.isValid() ? lane_structure.getNumActualLanes() - 1 : -1;

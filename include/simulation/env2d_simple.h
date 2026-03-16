@@ -134,8 +134,8 @@ public:
       
       Rec2D bounding_box{ infinite_highway ? Rec2D{} : road_graph->getBoundingBox() };
       const float offset_x{ infinite_highway
-         ? -50.0f - ego_pos_x_
-         : -58.0f - ego_pos_x_ //-bounding_box.upper_left_.x + 15
+         ? -5.0f - ego_pos_x_
+         : -5.0f - ego_pos_x_ //-bounding_box.upper_left_.x + 15
       };
 
       const float offset_y{ 
