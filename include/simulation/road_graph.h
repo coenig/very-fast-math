@@ -8,6 +8,7 @@
 
 #include "geometry/vector_2d.h"
 #include "geometry/polygon_2d.h"
+#include "geometry/images.h"
 #include "xml/xml_generator.h"
 #include "failable.h"
 #include "static_helper.h"
@@ -54,16 +55,17 @@ struct ConnectorPolygonEnding
 };
 
 struct CarPars {
-   inline CarPars() : CarPars(0.0f, 0.0f, 0, -1) {}
+   inline CarPars() : CarPars(0.0f, 0.0f, 0, -1, CarDimensions{}) {}
 
-   inline CarPars(const float car_lane, const float car_rel_pos, const int car_velocity, const int car_id)
-      : car_lane_{ car_lane }, car_rel_pos_{ car_rel_pos }, car_velocity_{ car_velocity }, car_id_{ car_id }
+   inline CarPars(const float car_lane, const float car_rel_pos, const int car_velocity, const int car_id, const CarDimensions& dim)
+      : car_lane_{ car_lane }, car_rel_pos_{ car_rel_pos }, car_velocity_{ car_velocity }, car_id_{ car_id }, car_dim_{dim}
    {}
 
    float car_lane_{};
    float car_rel_pos_{};
    int car_velocity_{};
    int car_id_{};
+   CarDimensions car_dim_{};
 
    inline bool operator<(const CarPars& other) const
    {

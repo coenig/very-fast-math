@@ -1490,7 +1490,7 @@ std::string vfm::macro::Script::createRoadGraph(const std::string& body, const s
    auto rg = std::make_shared<RoadGraph>(rg_id);
 
    if (rg_id == 0) {
-      rg->my_road_.setEgo(std::make_shared<CarPars>(0, 0, 0, RoadGraph::EGO_MOCK_ID));
+      rg->my_road_.setEgo(std::make_shared<CarPars>(0, 0, 0, RoadGraph::EGO_MOCK_ID, DEFAULT_CAR_DIMENSIONS_M));
    }
 
    road_graphs_[rg_id] = rg;

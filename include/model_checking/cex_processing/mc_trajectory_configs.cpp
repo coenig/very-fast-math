@@ -45,7 +45,7 @@ namespace trajectory_generator {
 			std::make_shared<InterpretableKey<double>>(
 				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double lane) {
 
-					double lane_y = lane * LANE_WIDTH_HALF;
+					double lane_y = lane * traj.getLaneWidth() / 2;
 					traj.pushVehicleParameter(ego_vehicle_name, lane_y, PossibleParameter::pos_y);
 
 				})},
@@ -182,7 +182,7 @@ namespace trajectory_generator {
 
 					// Set the y position according to the lane (interpolation will happen in postprocessing)
 					auto vehicle_name = key_elements[0];
-					traj.pushVehicleParameter(vehicle_name, lane_index * LANE_WIDTH_HALF, PossibleParameter::pos_y);
+					traj.pushVehicleParameter(vehicle_name, lane_index * traj.getLaneWidth() / 2, PossibleParameter::pos_y);
 
 				})},
 
@@ -275,10 +275,9 @@ namespace trajectory_generator {
 			traj.noteVehicle(ego_vehicle_name);
 		};
 
-		auto lane_width = LANE_WIDTH;
 		auto step_time = 1.0; // default step time
 
-		auto postprocessing = [ego_vehicle_name, lane_width, step_time](MCinterpretedTrace& traj) {
+		auto postprocessing = [ego_vehicle_name, step_time](MCinterpretedTrace& traj) {
 
          // TODO: The below comment is not true anymore. Ego has an abs_pos now.
 			// Make the ego move along its x based on its velocity (because in the trace, the ego is always at x == 0)

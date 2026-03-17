@@ -38,6 +38,8 @@ public:
       const Color& fill_color, 
       const Color& car_frame_color,
       const float lane_width,
+      const float car_width,
+      const float car_length,
       const Vec2D scale = { 1, 1 },
       const float angle_rad = 0);
 
@@ -46,6 +48,8 @@ public:
       const Color& fill_color, 
       const Color& car_frame_color, 
       const float lane_width,
+      const float car_width,
+      const float car_length,
       const Vec2D scale = Vec2D{ 1, 1 },
       const float angle_rad = 0);
 
@@ -81,7 +85,8 @@ public:
    void paintStraightRoadSceneFromData(
       StraightRoadSection& lane_structure, 
       const DataPack& data, 
-      const std::shared_ptr<DataPack> future_data);
+      const std::shared_ptr<DataPack> future_data, 
+      const CarDimensions& dim);
 
    void paintStraightRoadSceneSimple(
       const CarPars& ego,

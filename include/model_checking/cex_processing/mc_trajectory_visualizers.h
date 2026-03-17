@@ -119,7 +119,7 @@ class LiveSimGenerator : public Failable
 public:
 	LiveSimGenerator(
 			const MCinterpretedTrace vehicles_trajectory) : Failable("Visu_GIF"),
-		m_trajectory_provider(vehicles_trajectory)
+		m_trajectory_provider_(vehicles_trajectory)
 	{};
 
 	enum LiveSimType : int {
@@ -138,7 +138,11 @@ public:
    /// </summary>
    std::shared_ptr<RoadGraph> getRoadGraphTopologyFrom(const MCTrace& trace);
    
-   void equipRoadGraphWithCars(const std::shared_ptr<RoadGraph> r, const size_t trajectory_index, const double x_scaling);
+   void equipRoadGraphWithCars(
+      const std::shared_ptr<RoadGraph> r, 
+      const size_t trajectory_index, 
+      const double x_scaling,
+      const CarDimensions& car_dim);
 
 	/// \brief So far, "live" simulation means creating image files on the fly
 	/// while a smart image viewer such as Sumatra PDF (can also handle PNGs) can be used
@@ -155,7 +159,7 @@ public:
 		const long sleep_for_ms = 100);
 
 private:
-	const MCinterpretedTrace m_trajectory_provider;
+	const MCinterpretedTrace m_trajectory_provider_;
 
 	class GifRecorder
 	{

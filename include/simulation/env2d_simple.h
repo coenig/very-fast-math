@@ -72,12 +72,14 @@ public:
    ) const
    {
       const float LANE_CONSTANT{ ((float)road_graph->getMyRoad().getNumActualLanes() - 1) * 2}; // TODO: What is different sections have different numbers of lanes?
+      StraightRoadSection& ego_road{ road_graph->findSectionWithEgoIfAny()->getMyRoad() }; // TODO: Can be null??
+      const CarDimensions dim{ ego_road.getEgo()->car_dim_ };
 
-      road_graph->findSectionWithEgoIfAny()->getMyRoad().setEgo(std::make_shared<CarPars>(ego_pos_y_, ego_pos_x_, ego_vx_ * SPEED_DIVISOR_FOR_STEP_SMOOTHNESS, RoadGraph::EGO_MOCK_ID));
+      ego_road.setEgo(std::make_shared<CarPars>(ego_pos_y_, ego_pos_x_, ego_vx_ * SPEED_DIVISOR_FOR_STEP_SMOOTHNESS, RoadGraph::EGO_MOCK_ID, dim));
 
       for (int i{}; i < num_cars_; i++) {
          CarParsVec others_vec{ road_graph->findSectionWithCar(i)->getMyRoad().getOthers() };
-         others_vec.push_back({ agents_pos_y_[i], agents_pos_x_[i], (int)((agents_vx_rel_[i] + ego_vx_) * SPEED_DIVISOR_FOR_STEP_SMOOTHNESS), i });
+         others_vec.push_back({ agents_pos_y_[i], agents_pos_x_[i], (int)((agents_vx_rel_[i] + ego_vx_) * SPEED_DIVISOR_FOR_STEP_SMOOTHNESS), i, dim });
          road_graph->findSectionWithCar(i)->getMyRoad().setOthers(others_vec);
 
          if (future_data && agents_to_draw_arrows_for.count(i)) {
@@ -100,7 +102,7 @@ public:
    }
 
    mutable std::map<int, std::pair<float, float>> others_past_vec_{};
-   mutable CarPars past_ego_{ CarPars{ -std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(), (std::numeric_limits<int>::min)(), RoadGraph::EGO_MOCK_ID } };
+   mutable CarPars past_ego_{ CarPars{ -std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(), (std::numeric_limits<int>::min)(), RoadGraph::EGO_MOCK_ID, DEFAULT_CAR_DIMENSIONS_M } };
    mutable int count_{ 0 };
 
    inline std::shared_ptr<Image> getBirdseyeView(

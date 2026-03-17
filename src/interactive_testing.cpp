@@ -883,8 +883,8 @@ void vfm::test::cameraRotationTester()
    auto perspective{ trans->getPerspective() };
    constexpr float PI{ 3.14159265359 };
    StraightRoadSection lanes{ 3, 3, LANE_WIDTH_M, {} };
-   CarPars ego{ 1, 0, 0, RoadGraph::EGO_MOCK_ID };
-   CarParsVec others{ { 2, 100, 100, 0 }, { 0, 150, 150, 1 }, { 1, 130, 130, 2 } };
+   CarPars ego{ 1, 0, 0, RoadGraph::EGO_MOCK_ID, DEFAULT_CAR_DIMENSIONS_M };
+   CarParsVec others{ { 2, 100, 100, 0, DEFAULT_CAR_DIMENSIONS_M }, { 0, 150, 150, 1, DEFAULT_CAR_DIMENSIONS_M }, { 1, 130, 130, 2, DEFAULT_CAR_DIMENSIONS_M } };
    lanes.addLaneSegment(LaneSegment(-50, 0, 4));
    lanes.addLaneSegment(LaneSegment(0, 2, 2));
    lanes.addLaneSegment(LaneSegment(50, 0, 4));
@@ -905,7 +905,7 @@ void vfm::test::cameraRotationTester()
    for (float i = 0; i > -300; i += 1) {
       HighwayImage img_new{ 1000, 1000, trans, 3 };
       img_new.startOrKeepUpPDF();
-      lanes.setEgo(std::make_shared<CarPars>(ego.car_lane_, ego.car_rel_pos_, ego.car_velocity_, RoadGraph::EGO_MOCK_ID));
+      lanes.setEgo(std::make_shared<CarPars>(ego.car_lane_, ego.car_rel_pos_, ego.car_velocity_, RoadGraph::EGO_MOCK_ID, DEFAULT_CAR_DIMENSIONS_M));
       lanes.setOthers(others);
       lanes.setFuturePositionsOfOthers({});
 
@@ -1098,7 +1098,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphCrossing(
    sectiona3.addLaneSegment(segment32);
    sectiona4.addLaneSegment(segment41);
    sectiona4.addLaneSegment(segment42);
-   std::shared_ptr<CarPars> egoa = std::make_shared<CarPars>(20, 40, 13, RoadGraph::EGO_MOCK_ID);
+   std::shared_ptr<CarPars> egoa = std::make_shared<CarPars>(20, 40, 13, RoadGraph::EGO_MOCK_ID, DEFAULT_CAR_DIMENSIONS_M);
    std::map<int, std::pair<float, float>> future_positions_of_others1{};
    std::map<int, std::pair<float, float>> future_positions_of_others2{};
    std::map<int, std::pair<float, float>> future_positions_of_others3{};
@@ -1207,15 +1207,15 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(
    sectiona3.addLaneSegment(segment32);
    sectiona4.addLaneSegment(segment41);
    sectiona4.addLaneSegment(segment42);
-   std::shared_ptr<CarPars> egoa = std::make_shared<CarPars>(2, 40, 13, RoadGraph::EGO_MOCK_ID);
+   std::shared_ptr<CarPars> egoa = std::make_shared<CarPars>(2, 40, 13, RoadGraph::EGO_MOCK_ID, DEFAULT_CAR_DIMENSIONS_M);
    std::map<int, std::pair<float, float>> future_positions_of_others1{};
    std::map<int, std::pair<float, float>> future_positions_of_others2{};
    std::map<int, std::pair<float, float>> future_positions_of_others3{};
    std::map<int, std::pair<float, float>> future_positions_of_others4{};
-   CarParsVec othersa1{ { 1, -20, 1, 0 }, { 2, -50, 11, 1 } };
-   CarParsVec othersa2{ { 2, 4, 3, 2 }, { 1, 22, 11, 3 } };
-   CarParsVec othersa3{ { 2, 40, 3, 4 }, { 1, 22, 11, 5 } };
-   CarParsVec othersa4{ { 1, 50, 3, 6 }, { 1, 22, 11, 6 } };
+   CarParsVec othersa1{ { 1, -20, 1, 0, DEFAULT_CAR_DIMENSIONS_M }, { 2, -50, 11, 1, DEFAULT_CAR_DIMENSIONS_M } };
+   CarParsVec othersa2{ { 2, 4, 3, 2, DEFAULT_CAR_DIMENSIONS_M }, { 1, 22, 11, 3, DEFAULT_CAR_DIMENSIONS_M } };
+   CarParsVec othersa3{ { 2, 40, 3, 4, DEFAULT_CAR_DIMENSIONS_M }, { 1, 22, 11, 5, DEFAULT_CAR_DIMENSIONS_M } };
+   CarParsVec othersa4{ { 1, 50, 3, 6, DEFAULT_CAR_DIMENSIONS_M }, { 1, 22, 11, 6, DEFAULT_CAR_DIMENSIONS_M } };
    sectiona1.setEgo(egoa);
    sectiona1.setOthers(othersa1);
    sectiona1.setFuturePositionsOfOthers(future_positions_of_others1);
@@ -1328,10 +1328,10 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
    section5.addLaneSegment(segment5);
    section6.addLaneSegment(segment6);
    section7.addLaneSegment(segment7);
-   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 0, 0, RoadGraph::EGO_MOCK_ID);
+   std::shared_ptr<CarPars> ego = std::make_shared<CarPars>(2, 0, 0, RoadGraph::EGO_MOCK_ID, DEFAULT_CAR_DIMENSIONS_M);
    std::map<int, std::pair<float, float>> future_positions_of_others{};
-   CarParsVec others0{ { 0, 10, 0, 0 } };
-   CarParsVec others1{ { 0, 40, 0, 1 } };
+   CarParsVec others0{ { 0, 10, 0, 0, DEFAULT_CAR_DIMENSIONS_M } };
+   CarParsVec others1{ { 0, 40, 0, 1, DEFAULT_CAR_DIMENSIONS_M } };
    CarParsVec others2{};
    CarParsVec others3{};
    CarParsVec others4{};

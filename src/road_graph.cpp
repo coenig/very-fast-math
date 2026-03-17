@@ -401,7 +401,7 @@ RoadGraph::CarLocation vfm::RoadGraph::findEgo() const
                   if (car.car_id_ == EGO_MOCK_ID) {
                      location.on_section_or_origin_section_ = r;
                      location.optional_target_section_ = succ;
-                     location.the_car_ = std::make_shared<CarPars>(car.car_lane_, car.car_rel_pos_, car.car_velocity_, car.car_id_);
+                     location.the_car_ = std::make_shared<CarPars>(car.car_lane_, car.car_rel_pos_, car.car_velocity_, car.car_id_, DEFAULT_CAR_DIMENSIONS_M);
 
                      return true;
                   }
@@ -623,13 +623,15 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
                   (float)MIDDLE_OF_ROAD / 2, // This lane ID marks the middle of the road.
                      0,
                      car.car_velocity_,
-                     car.car_id_ ));
+                     car.car_id_,
+                     car.car_dim_));
             } else {
-               node->my_road_.setOthers({ CarPars{ 
+               node->my_road_.setOthers({ CarPars(
                   (float)MIDDLE_OF_ROAD / 2, // This lane ID marks the middle of the road.
                   0, 
                   car.car_velocity_, 
-                  car.car_id_ } });
+                  car.car_id_,
+                  car.car_dim_) });
             }
 
             node->setAngle((Vec2D{0, 0} - dir).angle({ 1, 0 }));
