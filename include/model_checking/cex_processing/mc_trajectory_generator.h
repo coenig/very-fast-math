@@ -79,6 +79,16 @@ public:
       return lane_width_;
    }
 
+   inline float getTechnicalLanes() const
+   {
+      return technical_lanes_;
+   }
+
+   inline float getActualLanes() const
+   {
+      return actual_lanes_;
+   }
+
 private:
 	void startState(const std::string state_name);
 	void endState();

@@ -45,8 +45,9 @@ namespace trajectory_generator {
 			std::make_shared<InterpretableKey<double>>(
 				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double lane) {
 
-					double lane_y = lane * traj.getLaneWidth() / 2;
-					traj.pushVehicleParameter(ego_vehicle_name, lane_y, PossibleParameter::pos_y);
+               const float factor{ traj.getActualLanes() / traj.getTechnicalLanes() };
+					double lane_y = lane * factor * traj.getLaneWidth() / 2;
+               traj.pushVehicleParameter(ego_vehicle_name, lane_y, PossibleParameter::pos_y);
 
 				})},
 
@@ -182,7 +183,8 @@ namespace trajectory_generator {
 
 					// Set the y position according to the lane (interpolation will happen in postprocessing)
 					auto vehicle_name = key_elements[0];
-					traj.pushVehicleParameter(vehicle_name, lane_index * traj.getLaneWidth() / 2, PossibleParameter::pos_y);
+               const float factor{ traj.getActualLanes() / traj.getTechnicalLanes() };
+					traj.pushVehicleParameter(vehicle_name, lane_index * traj.getLaneWidth() * factor / 2, PossibleParameter::pos_y);
 
 				})},
 

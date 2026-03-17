@@ -262,8 +262,8 @@ void HighwayImage::plotCar2D(
    float CAR_FINAL_WIDTH{ car_width / lane_width };
 
    if (thick > 1) {
-      float width1  = (car_width - thikko * LONG_FACTOR) * scale.x;
-      float height1 = (CAR_FINAL_WIDTH - thikko) * scale.y;
+      float width1  = (car_length - thikko * LONG_FACTOR) * scale.x;
+      float height1 = (CAR_FINAL_WIDTH - thikko) * scale.y; 
       float width2  = (car_length) * scale.x;
       float height2 = (CAR_FINAL_WIDTH) * scale.y;
       float ww1 = width1 / 2;
@@ -427,7 +427,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
 {
    auto ego = ego_raw ? *ego_raw : CarPars{};
    auto infinite_road_correction = infinite_road ? ego.car_rel_pos_ : 0;
-   const float lane_width{ lane_structure.getLaneWidth() };
+   const float lane_width_raw{ lane_structure.getLaneWidth() };
    std::map<int, std::vector<std::pair<float, float>>> shoulders{};
 
    for (int i = 0; i < lane_structure.getNumActualLanes(); i++) {
@@ -545,7 +545,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
             getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
 
          for (int i = FIRST_LANE_CONNECTOR_ID; i < FIRST_LANE_CONNECTOR_ID + lane_structure.getNumActualLanes(); i++) { // Lane center lines
-            const float lane_width{ getHighwayTranslator()->translate({0, lane_width}).length() };
+            const float lane_width{ getHighwayTranslator()->translate({0, lane_width_raw}).length() };
             auto top_right_corner_lane = top_right_corner;
             auto top_right_second_lane = top_right_second;
             auto top_left_corner_lane = top_left_corner;
@@ -592,12 +592,12 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
                Vec2D middle_second{ connection.connector_.direction_ };
 
                if (connection.side_ == ConnectorPolygonEnding::Side::drain) {
-                  connection.thick_ = (float)lane_structure.getSegments().rbegin()->second.getNumLanes() * (lane_width - LANE_MARKER_THICKNESS); // TODO: Something is not QUITE exact here
+                  connection.thick_ = (float)lane_structure.getSegments().rbegin()->second.getNumLanes() * (lane_width_raw - LANE_MARKER_THICKNESS); // TODO: Something is not QUITE exact here
                   middle_basepoint.add(bottom_right_corner);
                   middle_second.add(bottom_right_second);
                }
                else if (connection.side_ == ConnectorPolygonEnding::Side::source) {
-                  connection.thick_ = (float)lane_structure.getSegments().begin()->second.getNumLanes() * (lane_width - LANE_MARKER_THICKNESS); // TODO: Something is not QUITE exact here
+                  connection.thick_ = (float)lane_structure.getSegments().begin()->second.getNumLanes() * (lane_width_raw - LANE_MARKER_THICKNESS); // TODO: Something is not QUITE exact here
                   middle_basepoint.add(bottom_left_corner);
                   middle_second.add(bottom_left_second);
                }
@@ -761,6 +761,8 @@ void vfm::HighwayImage::paintStraightRoadSceneSimple(
    
    paintStraightRoadScene(dummy, true, ego_offset_x, var_vals, print_agent_ids, { (float) getWidth(), (float) getHeight() });
 }
+
+int xx{};
 
 std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    StraightRoadSection& lane_structure,
