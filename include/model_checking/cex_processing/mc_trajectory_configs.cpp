@@ -43,10 +43,17 @@ namespace trajectory_generator {
 
 			{"ego.on_lane",
 			std::make_shared<InterpretableKey<double>>(
-				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double lane) {
+				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double lane) { // TODO: Double code with "on_lane"
+               const double actual_lanes{traj.getActualLanes()};
+               const double technical_lanes{ traj.getTechnicalLanes()};
+               const double factor{ actual_lanes / technical_lanes };
+               const double max_actual_lane{ (actual_lanes - 1) * 2 };
+               const double max_technical_lane{ (technical_lanes - 1) * 2 };
+					const double max_lane_y_actual = max_actual_lane * traj.getLaneWidth() / 2;
+					const double max_lane_y_technical = max_technical_lane * factor * traj.getLaneWidth() / 2;
+               const double offset{ (max_lane_y_technical - max_lane_y_actual) / 2 };
+					const double lane_y = lane * factor * traj.getLaneWidth() / 2 - offset;
 
-               const float factor{ traj.getActualLanes() / traj.getTechnicalLanes() };
-					double lane_y = lane * factor * traj.getLaneWidth() / 2;
                traj.pushVehicleParameter(ego_vehicle_name, lane_y, PossibleParameter::pos_y);
 
 				})},
@@ -179,12 +186,21 @@ namespace trajectory_generator {
 
 			{"on_lane",
 			std::make_shared<InterpretableKey<double>>(
-				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double lane_index) {
+				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double lane) {
 
 					// Set the y position according to the lane (interpolation will happen in postprocessing)
 					auto vehicle_name = key_elements[0];
-               const float factor{ traj.getActualLanes() / traj.getTechnicalLanes() };
-					traj.pushVehicleParameter(vehicle_name, lane_index * traj.getLaneWidth() * factor / 2, PossibleParameter::pos_y);
+               const double actual_lanes{ traj.getActualLanes() };
+               const double technical_lanes{ traj.getTechnicalLanes() };
+               const double factor{ actual_lanes / technical_lanes };
+               const double max_actual_lane{ (actual_lanes - 1) * 2 };
+               const double max_technical_lane{ (technical_lanes - 1) * 2 };
+               const double max_lane_y_actual = max_actual_lane * traj.getLaneWidth() / 2;
+               const double max_lane_y_technical = max_technical_lane * factor * traj.getLaneWidth() / 2;
+               const double offset{ (max_lane_y_technical - max_lane_y_actual) / 2 };
+               const double lane_y = lane * factor * traj.getLaneWidth() / 2 - offset;
+
+               traj.pushVehicleParameter(vehicle_name, lane_y, PossibleParameter::pos_y);
 
 				})},
 
