@@ -80,7 +80,7 @@
       "SEGMENTS": "#{segments}#",
       "SEGMENTSMINLENGTH": 10,
       "SIMPLE_LC": true,
-      "SPEC": "#{ !(env.veh___619___.lane_b5 && !(env.veh___619___.lane_b4) && env.veh___609___.lane_b0 && !(env.veh___609___.lane_b1) && env.veh___609___.abs_pos == env.veh___619___.abs_pos) }#",
+      "SPEC": "#{ !(env.veh___609___.abs_pos == env.veh___619___.abs_pos && env.veh___609___.abs_pos == env.veh___629___.abs_pos && env.veh___609___.abs_pos == env.veh___639___.abs_pos && env.veh___609___.abs_pos == env.veh___649___.abs_pos) }#",
       "SPEC1": "#{ (F(env.cnt == 1)) }#",
       "SPEC2": "#{ (F(env.cnt == 2)) }#",
       "SPEC3": "#{ (F(env.cnt == 3)) }#",

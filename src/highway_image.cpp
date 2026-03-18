@@ -259,7 +259,7 @@ void HighwayImage::plotCar2D(
 {
    const float thikko{ (-thick + 1) / 30 };
    static constexpr float eps{ 0.001 };
-   float CAR_FINAL_WIDTH{ car_width / lane_width };
+   float CAR_FINAL_WIDTH{ (car_width - 0.4f) / lane_width }; // TODO: magic number?? How much "thinner" do we want the cars?
 
    if (thick > 1) {
       float width1  = (car_length - thikko * LONG_FACTOR) * scale.x;
