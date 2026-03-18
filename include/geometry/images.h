@@ -150,11 +150,28 @@ const Color GAP_2_FRONT_COLOR = BLUE;
 const Color GAP_2_REAR_COLOR = DARK_BLUE;
 const float INDICATOR_LENGTH = 1;
 const float INDICATOR_HEIGHT = 0.1;
-constexpr float LANE_WIDTH = 3.75;  // in m.
-constexpr float CAR_LENGTH = 4.923; // in m.
-constexpr float CAR_WIDTH = 1.852;  // in m.
+constexpr float LANE_WIDTH_M = 3.75;  // in m.  Comes from MC, only fallback for other usecases.
+constexpr float CAR_LENGTH_M = 4.923; // in m.  Comes from MC, only fallback for other usecases.
+constexpr float CAR_WIDTH_M = 1.852;  // in m.  Comes from MC, only fallback for other usecases.
 constexpr float CAR_HEIGHT = 1;   // in m.
 constexpr float DASH_WIDTH = 3.5;   // in m.
+
+class CarDimensions {
+public:
+   inline float getCarLength() const
+   {
+      return x;
+   }
+
+   inline float getCarWidth() const
+   {
+      return y;
+   }
+
+   float x, y;
+};
+
+static constexpr CarDimensions DEFAULT_CAR_DIMENSIONS_M{ CAR_LENGTH_M, CAR_WIDTH_M };
 
 typedef std::map<std::string, std::string> ExtraVehicleArgs;
 
@@ -391,17 +408,6 @@ public:
       return reverseTranslatePolygonCore(pol);
    }
 
-   inline Pol2D reverseTranslate(const Pol2D& pol)
-   {
-      Pol2D result{};
-
-      for (const auto& point : pol.points_) {
-         result.add(reverseTranslate(point).projectToXY());
-      }
-
-      return result;
-   }
-
    virtual inline void setPerspective(const std::shared_ptr<VisPerspective> perspective)
    {
       perspective_ = perspective;
@@ -508,7 +514,7 @@ public:
    void rectangle(const float x0, const float y0, const float width, const float height, const Color& c, const bool center = true, const float elevation = 0, const bool paint_nodes = false, const bool print_coordinates = false);
    void fillRectangle(const float x0, const float y0, const float width, const float height, const Color& c, const bool center = true, const float elevation = 0); /// Non-center not yet implemented.
    void fillRectangle(const Vec2Df& tl, const Vec2Df& br, const Color& c, const bool center = true, const float elevation = 0);
-   void fillBlinker(const Vec2Df& pos, const double side);
+   void fillBlinker(const Vec2Df& pos, const double side, const float lane_width, const float car_length, const float car_width);
    void overpaintLanes(const bool min_lanes);
 
    Image copyArea(const int x0, const int y0, const int x1, const int y1) const;

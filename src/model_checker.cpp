@@ -11,7 +11,7 @@
 using namespace vfm;
 
 const ModelConfiguration MC::CONFIG_HELLO_WORLD = {
-   { { { 0, 0, 0, 0 }, { {0, 9, 0, 1 } } } },
+   { { { 0, 0, 0, 0, DEFAULT_CAR_DIMENSIONS_M }, { {0, 9, 0, 1, DEFAULT_CAR_DIMENSIONS_M } } } },
    [](const SystemState& state) {
       std::vector<SystemState> vec;
       SystemState s = state;
@@ -146,7 +146,7 @@ void doEgoBehaviorOvertake(SystemState& s)
    if (MC::getEgoLane(s) < LANES - 1) {
       auto front_r = front_r_vec[0];
       auto behind_r = behind_r_vec[0];
-      bool can_merge_right = -MC::getPos(behind_r) > CAR_LENGTH + 1 && MC::getPos(front_r) > MIN_GAP_TO_MERGE;;
+      bool can_merge_right = -MC::getPos(behind_r) > CAR_LENGTH_M + 1 && MC::getPos(front_r) > MIN_GAP_TO_MERGE;;
 
       if (can_merge_right) {
          MC::setEgoLane(s, MC::getEgoLane(s) + 1);
@@ -155,13 +155,13 @@ void doEgoBehaviorOvertake(SystemState& s)
 }
 
 const ModelConfiguration MC::CONFIG_OVERTAKE = {
-   { { CarPars{ 1, 0, lane_speed_min(1), RoadGraph::EGO_MOCK_ID },
-    { {0, -DISTANCE_STEP_OVERTAKE * 14, lane_speed_min(0), 0 },
-      {0, DISTANCE_STEP_OVERTAKE, lane_speed_max(0), 1 },
-      {1, -DISTANCE_MAX_OVERTAKE, lane_speed_min(1), 2 },
-      {1, DISTANCE_STEP_OVERTAKE * 14, lane_speed_min(1), 3 },
-      {2, -DISTANCE_MAX_OVERTAKE, lane_speed_min(2), 4 },
-      {2, DISTANCE_STEP_OVERTAKE * 7, lane_speed_min(2), 5 } } } },
+   { { CarPars{ 1, 0, lane_speed_min(1), RoadGraph::EGO_MOCK_ID, DEFAULT_CAR_DIMENSIONS_M },
+    { {0, -DISTANCE_STEP_OVERTAKE * 14, lane_speed_min(0), 0, DEFAULT_CAR_DIMENSIONS_M },
+      {0, DISTANCE_STEP_OVERTAKE, lane_speed_max(0), 1, DEFAULT_CAR_DIMENSIONS_M },
+      {1, -DISTANCE_MAX_OVERTAKE, lane_speed_min(1), 2, DEFAULT_CAR_DIMENSIONS_M },
+      {1, DISTANCE_STEP_OVERTAKE * 14, lane_speed_min(1), 3, DEFAULT_CAR_DIMENSIONS_M },
+      {2, -DISTANCE_MAX_OVERTAKE, lane_speed_min(2), 4, DEFAULT_CAR_DIMENSIONS_M },
+      {2, DISTANCE_STEP_OVERTAKE * 7, lane_speed_min(2), 5, DEFAULT_CAR_DIMENSIONS_M } } } },
    [](const SystemState& state) {
       SystemState st = state;
       float ego_speed = getEgoSpeed(st);
@@ -367,7 +367,7 @@ SystemStateVec vfm::MC::generateFullSystemSeedACC()
 
    for (;;) {
       if (vals[2] != DISTANCE_MAX_ACC || vals[1] == 0) {
-         SystemState state = { { 0, 0, (int) vals[0], 0 }, { { 0, vals[2], (int) vals[1], 1 } } };
+         SystemState state = { { 0, 0, (int) vals[0], 0, DEFAULT_CAR_DIMENSIONS_M }, { { 0, vals[2], (int) vals[1], 1, DEFAULT_CAR_DIMENSIONS_M } } };
          vec.push_back(state);
       }
 

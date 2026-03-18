@@ -28,7 +28,9 @@ constexpr static float MAX_NUM_LANES_SIMPLE = 5;
 
 static StraightRoadSection TEST_LANES{ 
    (int)MAX_NUM_LANES_SIMPLE,
+   (int)MAX_NUM_LANES_SIMPLE,
    400,
+   LANE_WIDTH_M,
    { {-55, 0, 4}, {-30, 0, 7}, {10, 0, 7}, {40, 1, 8}, {70, 1, 8}, {90, 2, 8}, {150, 2, 7}, {210, 2, 6}, {250, 2, 5}, {300, 2, 4} } 
 }; // TODO: Delete eventually.
 
@@ -69,13 +71,15 @@ public:
       const DataPackPtr future_data
    ) const
    {
-      const float LANE_CONSTANT{ ((float)road_graph->getMyRoad().getNumLanes() - 1) * 2}; // TODO: What is different sections have different numbers of lanes?
+      const float LANE_CONSTANT{ ((float)road_graph->getMyRoad().getNumActualLanes() - 1) * 2}; // TODO: What is different sections have different numbers of lanes?
+      StraightRoadSection& ego_road{ road_graph->findSectionWithEgoIfAny()->getMyRoad() }; // TODO: Can be null??
+      const CarDimensions dim{ ego_road.getEgo()->car_dim_ };
 
-      road_graph->findSectionWithEgoIfAny()->getMyRoad().setEgo(std::make_shared<CarPars>(ego_pos_y_, ego_pos_x_, ego_vx_ * SPEED_DIVISOR_FOR_STEP_SMOOTHNESS, RoadGraph::EGO_MOCK_ID));
+      ego_road.setEgo(std::make_shared<CarPars>(ego_pos_y_, ego_pos_x_, ego_vx_ * SPEED_DIVISOR_FOR_STEP_SMOOTHNESS, RoadGraph::EGO_MOCK_ID, dim));
 
       for (int i{}; i < num_cars_; i++) {
          CarParsVec others_vec{ road_graph->findSectionWithCar(i)->getMyRoad().getOthers() };
-         others_vec.push_back({ agents_pos_y_[i], agents_pos_x_[i], (int)((agents_vx_rel_[i] + ego_vx_) * SPEED_DIVISOR_FOR_STEP_SMOOTHNESS), i });
+         others_vec.push_back({ agents_pos_y_[i], agents_pos_x_[i], (int)((agents_vx_rel_[i] + ego_vx_) * SPEED_DIVISOR_FOR_STEP_SMOOTHNESS), i, dim });
          road_graph->findSectionWithCar(i)->getMyRoad().setOthers(others_vec);
 
          if (future_data && agents_to_draw_arrows_for.count(i)) {
@@ -98,7 +102,7 @@ public:
    }
 
    mutable std::map<int, std::pair<float, float>> others_past_vec_{};
-   mutable CarPars past_ego_{ CarPars{ -std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(), (std::numeric_limits<int>::min)(), RoadGraph::EGO_MOCK_ID } };
+   mutable CarPars past_ego_{ CarPars{ -std::numeric_limits<float>::infinity(), -std::numeric_limits<float>::infinity(), (std::numeric_limits<int>::min)(), RoadGraph::EGO_MOCK_ID, DEFAULT_CAR_DIMENSIONS_M } };
    mutable int count_{ 0 };
 
    inline std::shared_ptr<Image> getBirdseyeView(
@@ -117,7 +121,7 @@ public:
             getImageWidth(MAX_NUM_LANES_SIMPLE) * (!infinite_highway ? 1 : 1), // TODO: Remove factor (make more intelligent)
             getImageHeight()  * (!infinite_highway ? 7 : 1),                   // TODO: Remove factor (make more intelligent)
             std::make_shared<Plain2DTranslator>(), 
-            road_graph->getMyRoad().getNumLanes());
+            road_graph->getMyRoad().getNumActualLanes());
       }
 
       if (start_pdf) {
@@ -132,14 +136,14 @@ public:
       
       Rec2D bounding_box{ infinite_highway ? Rec2D{} : road_graph->getBoundingBox() };
       const float offset_x{ infinite_highway
-         ? -50.0f - ego_pos_x_
-         : -58.0f - ego_pos_x_ //-bounding_box.upper_left_.x + 15
+         ? -5.0f - ego_pos_x_
+         : -5.0f - ego_pos_x_ //-bounding_box.upper_left_.x + 15
       };
 
       const float offset_y{ 
          infinite_highway
          ? 
-         (float)road_graph->getMyRoad().getNumLanes() / 2.0f
+         (float)road_graph->getMyRoad().getNumActualLanes() / 2.0f
          : 20.0f
          //-bounding_box.upper_left_.y + 15 
          //-getImageHeight() * (getImageHeight() / outside_view_->getHeight() / 2) + 25
@@ -172,7 +176,7 @@ public:
       //auto trans_cpvm{ std::make_shared<Plain3DTranslator>(true) };
 
       if (!cockpit_view_ || cockpit_view_->getWidth() != width || cockpit_view_->getHeight() != height) {
-         cockpit_view_ = std::make_shared<HighwayImage>(width, height, trans_cpv, road_graph->getMyRoad().getNumLanes());
+         cockpit_view_ = std::make_shared<HighwayImage>(width, height, trans_cpv, road_graph->getMyRoad().getNumActualLanes());
          //cockpit_view_mirror_ = std::make_shared<HighwayImage>(mirror_width, mirror_height, trans_cpvm, road_graph->getMyRoad().getNumLanes());
       }
 

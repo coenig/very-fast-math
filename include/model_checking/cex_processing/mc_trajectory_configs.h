@@ -14,9 +14,6 @@ namespace trajectory_generator {
 
 using DataPackTrace = std::vector<DataPackPtr>;
 
-constexpr double LANE_WIDTH = 3.5; // meter
-constexpr double LANE_WIDTH_HALF = LANE_WIDTH / 2.0;
-
 constexpr double STATE_INVALID = 0;
 constexpr double STATE_ENVIRONMENT_MODEL = 1;
 constexpr double STATE_TACTICAL_PLANNER = 2;
@@ -181,7 +178,6 @@ constexpr double STATE_TACTICAL_PLANNER = 2;
 	template <class T>
 	struct InterpretableKey : public InterpretableKeyInterface
 	{
-		InterpretableKey() {};
 
 		InterpretableKey(std::function<void(MCinterpretedTrace&, std::vector<std::string>, T)> interpreter) :
 			m_interpreter(interpreter) {};

@@ -35,7 +35,7 @@ VAR
 
     @{
     veh___6[i]9___.lane_b[j] : boolean;
-    }@.for[[j], 0, @{NUMLANES - 1}@.eval]
+    }@.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
 
     -- TODO: Assigning sections to cars MIGHT be more efficient the other way around,
     -- i.e., having logic for the three integer variables and calculating the bools from that.
@@ -70,7 +70,7 @@ VAR
 
       @{
          TRANS veh___6[i]9___.time_since_last_lc < min_time_between_lcs @{| abs(veh___6[i]9___.v) < 10}@****.if[@{UCD}@.eval] -> veh___6[i]9___.lane_unchanged;
-         @{TRANS veh___6[i]9___.lane_unchanged | veh___6[i]9___.lane_move_down | veh___6[i]9___.lane_move_up;}@.if[@{UCD}@.eval]
+         TRANS veh___6[i]9___.lane_unchanged | veh___6[i]9___.lane_move_down | veh___6[i]9___.lane_move_up;
       }@******.if[@{SIMPLE_LC}@.eval]
 
 	}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
@@ -83,7 +83,7 @@ DEFINE
 @{
 veh___6[i]9___.on_lane_min := case
    @{veh___6[i]9___.lane_b[j] : [j];
-   }@.for[[j], 0, @{NUMLANES - 2}@.eval]TRUE : @{NUMLANES - 1}@.eval[0];
+   }@.for[[j], 0, @{NUM_TECHNICAL_LANES - 2}@.eval]TRUE : @{NUM_TECHNICAL_LANES - 1}@.eval[0];
 esac;
 
 }@*.for[[i], 0, @{NONEGOS - 1}@.eval]
@@ -91,18 +91,18 @@ esac;
 
 veh___6[i]9___.on_lane_max := case
    @{veh___6[i]9___.lane_b[j] : [j];
-   }@.for[[j], @{NUMLANES - 1}@.eval, 1, -1]TRUE : 0;
+   }@.for[[j], @{NUM_TECHNICAL_LANES - 1}@.eval, 1, -1]TRUE : 0;
 esac;
 
 }@*.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 @{@{
    -- veh___6[i]9___.prohibit_lanes_up_to_[j] := @{!veh___6[i]9___.lane_b[k]}@.for[[k], 0, [j], 1, &];
-}@*.for[[j], 0, @{NUMLANES - 2}@.eval]}@**.for[[i], 0, @{NONEGOS - 1}@.eval].nil
+}@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 2}@.eval]}@**.for[[i], 0, @{NONEGOS - 1}@.eval].nil
 
 @{@{
-   -- veh___6[i]9___.prohibit_lanes_from_[j] := @{!veh___6[i]9___.lane_b[k]}@.for[[k], [j], @{NUMLANES - 1}@.eval, 1, &];
-}@*.for[[j], 1, @{NUMLANES - 1}@.eval]}@**.for[[i], 0, @{NONEGOS - 1}@.eval].nil
+   -- veh___6[i]9___.prohibit_lanes_from_[j] := @{!veh___6[i]9___.lane_b[k]}@.for[[k], [j], @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
+}@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval]}@**.for[[i], 0, @{NONEGOS - 1}@.eval].nil
 
 @{
 @{
@@ -127,41 +127,87 @@ esac;
 -- TODO: KEEP_EGO_FROM_GREEN has not been implemented, yet, with the new approach "ego = veh[0]". (I.e., ego is ALWAYS kept off green, it cannot be DEactivated.)
 
 DEFINE
+   distance_between_normalized_lanes_cm := @{LANE_WIDTH * (NUMLANES / NUM_TECHNICAL_LANES / 2)}@.eval[0]; -- This is the distance between half-lanes on the "technical" level, i.e., the most fine-granular lateral distance we have.
 
 	@{
     -- >>> Car [i] <<<
-    veh___6[i]9___.lane_0 := veh___6[i]9___.lane_b0 @{& !veh___6[i]9___.lane_b[j]}@.for[[j], 1, @{NUMLANES - 1}@.eval];
+    veh___6[i]9___.lane_0 := veh___6[i]9___.lane_b0 @{& !veh___6[i]9___.lane_b[j]}@.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
     @{
-    veh___6[i]9___.lane_@{[k]-1}@.eval[0][k] := @{@{!}@.if[@{[j] != [k] - 1 && [j] != [k]}@.eval]veh___6[i]9___.lane_b[j] }@*.for[[j], 0, @{NUMLANES - 1}@.eval, 1, &];
-    veh___6[i]9___.lane_[k] := @{@{!}@.if[@{[k] != [j]}@.eval]veh___6[i]9___.lane_b[j] }@*.for[[j], 0, @{NUMLANES - 1}@.eval, 1, &];
-    }@**.for[[k], 1, @{NUMLANES - 1}@.eval]
+    veh___6[i]9___.lane_@{[k]-1}@.eval[0][k] := @{@{!}@.if[@{[j] != [k] - 1 && [j] != [k]}@.eval]veh___6[i]9___.lane_b[j] }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
+    veh___6[i]9___.lane_[k] := @{@{!}@.if[@{[k] != [j]}@.eval]veh___6[i]9___.lane_b[j] }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
+    }@**.for[[k], 1, @{NUM_TECHNICAL_LANES - 1}@.eval]
+
+    @{
+    @{0}@.setScriptVar[normalized_lane_counter, force].nil
+    veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@.scriptVar := veh___6[i]9___.lane_0;
+
+   @{}@.setScriptVar[on_normalized_lane_logic, force].nil
+   @{########### on_normalized_lane_logic ##########}@.nil
+   @{@{on_normalized_lane_logic}@.scriptVar
+        veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@.scriptVar : @{normalized_lane_counter}@.scriptVar;}@.setScriptVar[on_normalized_lane_logic, force].nil
+   @{########### EO on_normalized_lane_logic ##########}@.nil
+
+    @{
+    @{@{1 + @{normalized_lane_counter}@.scriptVar}@.eval[0]}@.setScriptVar[normalized_lane_counter, force].nil
+    veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@.scriptVar := veh___6[i]9___.lane_@{[k]-1}@.eval[0][k];
+
+   @{########### on_normalized_lane_logic ##########}@.nil
+   @{@{on_normalized_lane_logic}@.scriptVar
+        veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@.scriptVar : @{normalized_lane_counter}@.scriptVar;}@.setScriptVar[on_normalized_lane_logic, force].nil
+   @{########### EO on_normalized_lane_logic ##########}@.nil
+
+    @{@{1 + @{normalized_lane_counter}@.scriptVar}@.eval[0]}@.setScriptVar[normalized_lane_counter, force].nil
+    veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@.scriptVar := veh___6[i]9___.lane_[k];
+
+   @{########### on_normalized_lane_logic ##########}@.nil
+   @{@{on_normalized_lane_logic}@.scriptVar
+        veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@.scriptVar : @{normalized_lane_counter}@.scriptVar;}@.setScriptVar[on_normalized_lane_logic, force].nil
+   @{########### EO on_normalized_lane_logic ##########}@.nil
+
+    }@**.for[[k], 1, @{NUM_TECHNICAL_LANES - 1}@.eval]
+   }@.removeBlankLines
+
+
+    veh___6[i]9___.on_normalized_lane := case
+        @{on_normalized_lane_logic}@.scriptVar
+        TRUE: 0; -- Can never happen.
+    esac;
 
     veh___6[i]9___.lane_min := veh___6[i]9___.lane_0;
-    veh___6[i]9___.lane_max := veh___6[i]9___.lane_@{NUMLANES - 1}@.eval[0];
-    veh___6[i]9___.lane_single := @{veh___6[i]9___.lane_[j] }@*.for[[j], 0, @{NUMLANES - 1}@.eval, 1, |];
-    veh___6[i]9___.lane_crossing := FALSE @{| veh___6[i]9___.lane_@{[j]-1}@.eval[0][j]}@*.for[[j], 1, @{NUMLANES - 1}@.eval];
-    veh___6[i]9___.lane_unchanged := @{veh___6[i]9___.lane_b[j] = next(veh___6[i]9___.lane_b[j])}@.for[[j], 0, @{NUMLANES - 1}@.eval, 1, &];
+    veh___6[i]9___.lane_max := veh___6[i]9___.lane_@{NUM_TECHNICAL_LANES - 1}@.eval[0];
+    veh___6[i]9___.lane_single := @{veh___6[i]9___.lane_[j] }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, |];
+    veh___6[i]9___.lane_crossing := FALSE @{| veh___6[i]9___.lane_@{[j]-1}@.eval[0][j]}@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
+    veh___6[i]9___.lane_unchanged := @{veh___6[i]9___.lane_b[j] = next(veh___6[i]9___.lane_b[j])}@.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
     veh___6[i]9___.lane_move_down := 
                       (veh___6[i]9___.lane_0 -> next(veh___6[i]9___.lane_0))
                       @{& (veh___6[i]9___.lane_@{[j]-1}@.eval[0][j] -> next(veh___6[i]9___.lane_@{[j]-1}@.eval[0]))
                       & (veh___6[i]9___.lane_[j] -> next(veh___6[i]9___.lane_@{[j]-1}@.eval[0][j]))
-                      }@*.for[[j], 1, @{NUMLANES - 1}@.eval];
+                      }@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
     veh___6[i]9___.lane_move_up :=
-                      (veh___6[i]9___.lane_@{NUMLANES - 1}@.eval[0] -> next(veh___6[i]9___.lane_@{NUMLANES - 1}@.eval[0]))
+                      (veh___6[i]9___.lane_@{NUM_TECHNICAL_LANES - 1}@.eval[0] -> next(veh___6[i]9___.lane_@{NUM_TECHNICAL_LANES - 1}@.eval[0]))
                       @{& (veh___6[i]9___.lane_@{[j]-1}@.eval[0][j] -> next(veh___6[i]9___.lane_[j]))
                       & (veh___6[i]9___.lane_@{[j]-1}@.eval[0] -> next(veh___6[i]9___.lane_@{[j]-1}@.eval[0][j]))
-                      }@*.for[[j], 1, @{NUMLANES - 1}@.eval];
+                      }@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
 
 
    @{################# NOTE THAT THIS PART IS CHANGED AS COMPARED TO TACAS VERSION (might be inefficient) ###################}@.nil
-   @{################# FORMERLY: veh___6[i]9___.same_lane_as_veh_[j] := ((veh___6[i]9___.lane_b1 & veh___6[j]9___.lane_b1) | (veh___6[i]9___.lane_b2 & veh___6[j]9___.lane_b2) | (veh___6[i]9___.lane_b3 & veh___6[j]9___.lane_b3)); ###################}@.nil
-	@{
-   veh___6[i]9___.same_lane_as_veh_[k] := (FALSE
-      @{| ((veh___6[k]9___.lane_b[j] & veh___6[i]9___.lane_b[j]) @{) --}@******.if[@{EGOLESS}@.eval]  @{& !(veh___6[k]9___.lane_b@{[j]-1}@.eval[0] & veh___6[i]9___.lane_b@{[j]+1}@.eval[0]) & !(veh___6[k]9___.lane_b@{[j]+1}@.eval[0] & veh___6[i]9___.lane_b@{[j]-1}@.eval[0])}@.if[@{[j] > 0 && [j] < NUMLANES - 1}@.eval] )
-      }@*.for[[j], 0, @{NUMLANES - 1}@.eval]
+   @{################# FORMERLY: veh___6[i]9___.laterally_overlapping_with_veh_[j] := ((veh___6[i]9___.lane_b1 & veh___6[j]9___.lane_b1) | (veh___6[i]9___.lane_b2 & veh___6[j]9___.lane_b2) | (veh___6[i]9___.lane_b3 & veh___6[j]9___.lane_b3)); ###################}@.nil
+   @{################# We now change this part again for the "smoother lane changes" feature (2026-03-13) ###################}@.nil
+	@{################# FORMERLY:
+   @{
+   veh___6[i]9___.laterally_overlapping_with_veh_[k] := (FALSE
+      @{| ((veh___6[k]9___.lane_b[j] & veh___6[i]9___.lane_b[j]) @{) --}@******.if[@{EGOLESS}@.eval]  @{& !(veh___6[k]9___.lane_b@{[j]-1}@.eval[0] & veh___6[i]9___.lane_b@{[j]+1}@.eval[0]) & !(veh___6[k]9___.lane_b@{[j]+1}@.eval[0] & veh___6[i]9___.lane_b@{[j]-1}@.eval[0])}@.if[@{[j] > 0 && [j] < NUM_TECHNICAL_LANES - 1}@.eval] )
+      }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
    );
-   }@**.for[[k], 0, @{[i]}@.sub[1]]
+   }@**.for[[k], 0, @{[i]}@.sub[1]]}@.nil
 	
+   @{
+      veh___6[i]9___.lateral_normalized_distance_to_veh_[k] := abs(veh___6[i]9___.on_normalized_lane - veh___6[k]9___.on_normalized_lane);
+      veh___6[i]9___.lateral_distance_to_veh_[k] := distance_between_normalized_lanes_cm * veh___6[i]9___.lateral_normalized_distance_to_veh_[k];
+      veh___6[i]9___.laterally_overlapping_with_veh_[k] := veh___6[i]9___.lateral_distance_to_veh_[k] <= @{VEHICLE_WIDTH}@.eval[0]; -- TODO: This might be inefficient. We can create a purely boolean structure as before at compile time.
+
+   }@**.for[[k], 0, @{[i]}@.sub[1]]
+
 	}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 
@@ -200,12 +246,11 @@ INVAR
 -- EO Just ignore backwards comatibility for now.
 
 -- MAX/MIN velocities per lane.
--- Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just remove the condition around!
+@{@FACTOR = NUMLANES / NUM_TECHNICAL_LANES}@.eval.nil
+
 @{
-@{
-INVAR veh___6[i]9___.lane_b@{#j}@.eval[0] -> (veh___6[i]9___.v >= @{LANES_MIN_SPEEDS}@.printHeap.at[#j] & veh___6[i]9___.v <= @{LANES_MAX_SPEEDS}@.printHeap.at[#j]);
-}@***.for[#j, 0, @{NUMLANES - 1}@.eval]
-}@****.if[@{!UCD}@.eval]
+INVAR veh___6[i]9___.lane_b@{#j}@.eval[0] -> (veh___6[i]9___.v >= @{LANES_MIN_SPEEDS}@.printHeap.at[@{trunc(FACTOR * #j)}@.eval[0]] & veh___6[i]9___.v <= @{LANES_MAX_SPEEDS}@.printHeap.at[@{trunc(FACTOR * #j)}@.eval[0]]);
+}@***.for[#j, 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
 -- EO Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just remove the condition around!
 
 -- Lookup table to speed-up non-linear calculations
@@ -233,12 +278,12 @@ veh___6[i]9___.on_straight_section = veh___6[j]9___.on_straight_section & veh___
 DEFINE veh_[j]_and_veh_[i]_on_same_seclet := veh_[i]_and_veh_[j]_on_same_seclet;
 
 INVAR -- Non-Ego cars may not collide.
-    veh_[i]_and_veh_[j]_on_same_seclet -> (veh___6[i]9___.same_lane_as_veh_[j] -> (abs(veh___6[j]9___.abs_pos - veh___6[i]9___.abs_pos) > (veh_length + (veh___6[i]9___.halber_tacho * @{10 * SAFETY_DISTANCE_FACTOR_NONEGO}@.eval[0]) / 10)));
+    veh_[i]_and_veh_[j]_on_same_seclet -> (veh___6[i]9___.laterally_overlapping_with_veh_[j] -> (abs(veh___6[j]9___.abs_pos - veh___6[i]9___.abs_pos) > (veh_length + (veh___6[i]9___.halber_tacho * @{10 * SAFETY_DISTANCE_FACTOR_NONEGO}@.eval[0]) / 10)));
 
 INVAR -- Non-Ego cars may not "jump" over each other.
     veh_[i]_and_veh_[j]_on_same_seclet -> (
-       !(veh___6[i]9___.same_lane_as_veh_[j] & (veh___6[j]9___.prev_abs_pos < veh___6[i]9___.prev_abs_pos) & (veh___6[j]9___.abs_pos >= veh___6[i]9___.abs_pos)) &
-       !(veh___6[i]9___.same_lane_as_veh_[j] & (veh___6[i]9___.prev_abs_pos < veh___6[j]9___.prev_abs_pos) & (veh___6[i]9___.abs_pos >= veh___6[j]9___.abs_pos)));
+       !(veh___6[i]9___.laterally_overlapping_with_veh_[j] & (veh___6[j]9___.prev_abs_pos < veh___6[i]9___.prev_abs_pos) & (veh___6[j]9___.abs_pos >= veh___6[i]9___.abs_pos)) &
+       !(veh___6[i]9___.laterally_overlapping_with_veh_[j] & (veh___6[i]9___.prev_abs_pos < veh___6[j]9___.prev_abs_pos) & (veh___6[i]9___.abs_pos >= veh___6[j]9___.abs_pos)));
 	
 }@.for[[j], 0, @{[i]}@.sub[1]]}@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 
@@ -354,7 +399,7 @@ DEFINE
           @{
             @{
                @{veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] : arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane];}@.if[@{[sec] != [sec2]}@.eval]
-            }@*.for[[lane], 0, @{NUMLANES - 1}@.eval]
+            }@*.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
           }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
        }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
           TRUE : -1;
@@ -454,7 +499,7 @@ ASSIGN
              @{@{ -- TODO: Only add case if lane allows traversal in that direction
                 @{@{section_[sec2]_end > 0 &}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] : 1;}@.if[@{[sec] != [sec2]}@.eval]
                 @{@{section_[sec2]_end > 0 &}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] veh___6[i]9___.is_traversing_from_sec_[sec2]_to_sec_[sec] = 1 & veh___6[i]9___.lane_[lane] & veh___6[i]9___.next_abs_pos < 0 : 1;}@.if[@{[sec] != [sec2]}@.eval]
-             }@*.for[[lane], 0, @{NUMLANES - 1}@.eval]
+             }@*.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
           }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
           -- Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just delete condition!
              veh___6[i]9___.is_on_sec_[sec2] = 1 & (veh___6[i]9___.next_abs_pos > section_[sec2]_end     @{| veh___6[i]9___.next_abs_pos < 0}@.if[@{!UCD}@.eval]   ) : 0;
@@ -484,7 +529,7 @@ ASSIGN
                    }@.if[@{ALLOW_ZEROLENGTH_SECTIONS}@******.eval]
 
                       veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 & veh___6[i]9___.lane_[lane] & (veh___6[i]9___.next_abs_pos > arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane] | veh___6[i]9___.next_abs_pos < 0) : 0; -- Leave this junction when passed over the end.
-                   }@***.for[[lane], 0, @{NUMLANES - 1}@.eval]
+                   }@***.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
                    TRUE : veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]; -- Stay on this junction as long as not passed over the end.
                 esac;
              }@.if[@{[sec] != [sec2]}@.eval]

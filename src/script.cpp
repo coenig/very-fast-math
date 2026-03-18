@@ -308,19 +308,25 @@ float deg2Rad(const float deg)
 }
 
 std::string Script::arclengthCubicBezierFromStreetTopology(
-   const std::string& lane_str, const std::string& angle_str, const std::string& distance_str, const std::string& num_lanes_str)
+   const std::string& lane_str, 
+   const std::string& angle_str, 
+   const std::string& distance_str, 
+   const std::string& num_lanes_str,
+   const std::string& lane_width_str)
 {
    if (!StaticHelper::isParsableAsInt(lane_str)) addError("Lane '" + lane_str + "' is not parsable as int in 'arclengthCubicBezierFromStreetTopology'.");
    if (!StaticHelper::isParsableAsFloat(angle_str)) addError("Angle '" + angle_str + "' is not parsable as float in 'arclengthCubicBezierFromStreetTopology'.");
    if (!StaticHelper::isParsableAsFloat(distance_str)) addError("Distance '" + distance_str + "' is not parsable as float in 'arclengthCubicBezierFromStreetTopology'.");
    if (!StaticHelper::isParsableAsInt(num_lanes_str)) addError("NumLanes '" + num_lanes_str + "' is not parsable as float in 'arclengthCubicBezierFromStreetTopology'.");
+   if (!StaticHelper::isParsableAsInt(lane_width_str)) addError("Lane width '" + lane_width_str + "' is not parsable as float in 'arclengthCubicBezierFromStreetTopology'.");
    if (hasErrorOccurred()) return "#ERROR-Check-Log";
 
    const int num_lanes{ std::stoi(num_lanes_str) };
    const int lane{ num_lanes - std::stoi(lane_str) - 1 };
    const float angle{ deg2Rad(std::stof(angle_str)) };
    const float distance{ std::stof(distance_str) };
-   const float l{ (lane - (num_lanes - 1.0f) / 2.0f) * LANE_WIDTH };
+   const float lane_width{ std::stof(lane_width_str) };
+   const float l{ (lane - (num_lanes - 1.0f) / 2.0f) * lane_width };
 
    const Vec2D v{ std::cos(angle - deg2Rad(180)), sin(angle - deg2Rad(180)) };
    const Vec2D vr{ std::cos(angle + deg2Rad(90)), sin(angle + deg2Rad(90)) };
@@ -827,7 +833,14 @@ std::vector<std::string> Script::getParametersFor(const std::vector<std::string>
    parameters.resize(rawPars.size());
 
    for (int i = 0; i < rawPars.size(); i++) {
-      parameters[i] = evaluateChain(rawPars[i]);
+      // Always first evaluate parameters before applying method. TODO: Do we want to be able to deactivate this?
+      if (StaticHelper::stringContains(rawPars[i], INSCR_BEG_TAG)) {
+         parameters[i] = rawPars[i];
+         extractInscriptProcessors(parameters[i], false);
+      }
+      else {
+         parameters[i] = evaluateChain(rawPars[i]);
+      }
    }
 
    return parameters;
@@ -936,7 +949,7 @@ int Script::getNextNonInscriptPosition(const std::string& partAfter)
                return i; // No methods more to come (particularly at pos 0 if no methods at all).
             }
          }
-         else if (!std::isalnum(currChar)
+         else if (!StaticHelper::isAlphaNumericOrUnderscore(currStr)
             && currStr != METHOD_PARS_BEGIN_TAG
             && currStr != METHOD_PARS_END_TAG
             && currStr != METHOD_CHAIN_SEPARATOR) {
@@ -1428,7 +1441,7 @@ std::string vfm::macro::Script::storeRoadGraph(const std::string& body, const st
       Env2D::getImageWidth(MAX_NUM_LANES_SIMPLE) * (infinite_highway ? 1 : (int) vfm_data_->getSingleVal("WIDTH_FACTOR_NON_INFINITE")),
       Env2D::getImageHeight() * (rg->getNodeCount() > 1 ? (int) vfm_data_->getSingleVal("HEIGHT_FACTOR_NON_INFINITE") : 1),
       std::make_shared<Plain2DTranslator>(),
-      rg->getMyRoad().getNumLanes() };
+      rg->getMyRoad().getNumActualLanes() };
 
    image.fillImg(BROWN);
 
@@ -1441,7 +1454,7 @@ std::string vfm::macro::Script::storeRoadGraph(const std::string& body, const st
    const float offset_y{
       infinite_highway
       ?
-      (float)rg->getMyRoad().getNumLanes() / 2.0f
+      (float)rg->getMyRoad().getNumActualLanes() / 2.0f
       : (int)vfm_data_->getSingleVal("OFFSET_Y_NON_INFINITE")
    };
 
@@ -1477,7 +1490,7 @@ std::string vfm::macro::Script::createRoadGraph(const std::string& body, const s
    auto rg = std::make_shared<RoadGraph>(rg_id);
 
    if (rg_id == 0) {
-      rg->my_road_.setEgo(std::make_shared<CarPars>(0, 0, 0, RoadGraph::EGO_MOCK_ID));
+      rg->my_road_.setEgo(std::make_shared<CarPars>(0, 0, 0, RoadGraph::EGO_MOCK_ID, DEFAULT_CAR_DIMENSIONS_M));
    }
 
    road_graphs_[rg_id] = rg;
@@ -1549,3 +1562,4 @@ std::string vfm::macro::Script::processScript(
 
    return s->applyDeclarationsAndPreprocessors(text, only_one_step);
 }
+

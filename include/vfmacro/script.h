@@ -250,7 +250,7 @@ public:
 
    std::string fromBooltoString(const bool b);
 
-   std::string arclengthCubicBezierFromStreetTopology(const std::string& lane, const std::string& angle, const std::string& distance, const std::string& num_lanes);
+   std::string arclengthCubicBezierFromStreetTopology(const std::string& lane, const std::string& angle, const std::string& distance, const std::string& num_lanes, const std::string& lane_width);
    std::string forloop(const std::string& body, const std::string& varname, const std::string& loop_vec);
    std::string forloop(const std::string& body, const std::string& varname, const std::string& from_raw, const std::string& to_raw);
    std::string forloop(const std::string& body, const std::string& varname, const std::string& from_raw, const std::string& to_raw, const std::string& step_raw);
@@ -498,7 +498,7 @@ private:
 
       getScriptData().list_data_[varname] = { body };
 
-      return "";
+      return body;
    }
 
    inline std::string listElement(const std::string& body, const std::vector<std::string>& parameters)
@@ -808,7 +808,7 @@ private:
             id = (int)std::stof(body);
          }
          else {
-            addError("Body '" + body + "' is not an id.");
+            addError("Body '" + body + "' is not an id. Returning self.");
             return shared_from_this();
          }
       }
@@ -817,7 +817,7 @@ private:
          return running_scripts[id];
       }
       else {
-         addError("No running script with id '" + body + "' found.");
+         addError("No running script with id '" + body + "' found. Returning self.");
          return shared_from_this();
       }
    }
@@ -1070,7 +1070,7 @@ private:
       arith12i,
       { "not", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return exnot(body); } },
       { "space", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return space(); } },
-      { "arclengthCubicBezierFromStreetTopology", 3, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return arclengthCubicBezierFromStreetTopology(body, parameters.at(0), parameters.at(1), parameters.at(2)); } },
+      { "arclengthCubicBezierFromStreetTopology", 4, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return arclengthCubicBezierFromStreetTopology(body, parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3)); } },
       { "PIDs", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
          const auto pids = Process().getPIDs(body);
          std::string pids_str{};

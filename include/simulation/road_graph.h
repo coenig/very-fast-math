@@ -8,6 +8,7 @@
 
 #include "geometry/vector_2d.h"
 #include "geometry/polygon_2d.h"
+#include "geometry/images.h"
 #include "xml/xml_generator.h"
 #include "failable.h"
 #include "static_helper.h"
@@ -54,16 +55,17 @@ struct ConnectorPolygonEnding
 };
 
 struct CarPars {
-   inline CarPars() : CarPars(0.0f, 0.0f, 0, -1) {}
+   inline CarPars() : CarPars(0.0f, 0.0f, 0, -1, CarDimensions{}) {}
 
-   inline CarPars(const float car_lane, const float car_rel_pos, const int car_velocity, const int car_id)
-      : car_lane_{ car_lane }, car_rel_pos_{ car_rel_pos }, car_velocity_{ car_velocity }, car_id_{ car_id }
+   inline CarPars(const float car_lane, const float car_rel_pos, const int car_velocity, const int car_id, const CarDimensions& dim)
+      : car_lane_{ car_lane }, car_rel_pos_{ car_rel_pos }, car_velocity_{ car_velocity }, car_id_{ car_id }, car_dim_{dim}
    {}
 
    float car_lane_{};
    float car_rel_pos_{};
    int car_velocity_{};
    int car_id_{};
+   CarDimensions car_dim_{};
 
    inline bool operator<(const CarPars& other) const
    {
@@ -168,10 +170,11 @@ public:
    // (min_lane, max_lane, begin)
    bool parseProgram(const std::string& program) override;
 
-private:
-   float begin_{};
+   // TODO: Make private again when hack for smoothing lateral movement is cleaned up.
    int min_lane_{}; // 0: right-most, 1: right-most as emergency, 2: right-most - 1 etc.
    int max_lane_{};
+private:
+   float begin_{};
 };
 
 static constexpr int MIN_DISTANCE_BETWEEN_SEGMENTS{ 10 };
@@ -188,14 +191,17 @@ static constexpr int MIN_DISTANCE_BETWEEN_SEGMENTS{ 10 };
 class StraightRoadSection : public Parsable {
 public:
    StraightRoadSection(); // Constructs an invalid lane structure.
-   StraightRoadSection(const int lane_num, const float section_end);
-   StraightRoadSection(const int lane_num, const float section_end, const std::vector<LaneSegment>& segments);
+   StraightRoadSection(const int actual_lane_num, const int technical_lane_num, const float section_end, const float lane_width);
+   StraightRoadSection(const int actual_lane_num, const int technical_lane_num, const float section_end, const float lane_width, const std::vector<LaneSegment>& segments);
 
    void addLaneSegment(const LaneSegment& segment);
    void cleanUp(bool add_note);
    std::string toString() const;
-   void setNumLanes(const int num_lanes) const;
-   int getNumLanes() const;
+   void setNumActualLanes(const int num_lanes) const;
+   void setNumTechnicalLanes(const int num_lanes) const;
+   int getNumActualLanes() const;
+   int getNumTechnicalLanes() const;
+   float getLaneWidth() const;
    bool isValid() const;
    std::map<float, LaneSegment> getSegments() const;
    std::map<float, LaneSegment>& getSegmentsRef();
@@ -217,7 +223,9 @@ public:
 
 private:
    std::map<float, LaneSegment> segments_{};
-   mutable int num_lanes_{ -1 }; // We have lane ids: 0 .. (num_lanes_ - 1) * 2
+   mutable int num_actual_lanes_{ -1 }; // We have lane ids: 0 .. (num_lanes_ - 1) * 2
+   mutable int num_technical_lanes_{ -1 }; // These are the virtual lanes used for smoothing lateral movement.
+   mutable float lane_width_{ -1 };
    std::shared_ptr<CarPars> ego_{}; // Ego may or may not (nullptr) be within this road section.
    CarParsVec others_{};
    std::map<int, std::pair<float, float>> future_positions_of_others_{};

@@ -14,3 +14,4 @@ EnvModel_Sections.tpl
 EnvModel_Abstract.tpl
 EnvModel_Abstract_Common_Sections.tpl
 EnvModel_Abstract_Macros.tpl
+EnvModel_AngleBasedLC.tpl

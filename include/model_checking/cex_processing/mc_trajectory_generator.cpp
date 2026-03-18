@@ -58,6 +58,14 @@ MCinterpretedTrace::MCinterpretedTrace(
 
 	for (const auto& state : traces.at(trace_num).getConstTrace()) // for every state
 	{
+      if (actual_lanes_ == 0 && technical_lanes_ == 0 && lane_width_ == 0) {
+         // In the first state we expect these values to be present.
+         // Should this ever change, we can use traces.at(trace_num).getLastValueOfVariableAtStep(...)         
+         actual_lanes_ = std::stof(state.second.at("num_lanes"));
+         technical_lanes_ = std::stof(state.second.at("num_technical_lanes"));
+         lane_width_ = std::stof(state.second.at("lane_width")) / 100;
+      }
+
 		startState(state.first);
 
 		for (const auto& varVal : state.second) // for every entry in that state

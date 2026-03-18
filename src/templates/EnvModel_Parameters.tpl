@@ -24,7 +24,7 @@
 @{MAXDISTENDPOINTS}@*******.defaultValue[5]               -- Two end points must be at least this apart (approximated by maxvar method)
 @{MODEL_INTERSECTION_GEOMETRY}@*******.defaultValue[true] -- If the length of the junctions is calculated subject to connections etc. (Makes calculation slow, but needed at least for multi-lane road networks.)
 
--- Parameters for ego and non-ego vehicles
+-- Parameters for ego and non-ego vehicles (vehicle length is below in LC section)
 @{EGOLESS}@*******.defaultValue[false]
 @{UCD}@*******.defaultValue[false]
 @{NONEGOS}@*******.defaultValue[5]
@@ -41,7 +41,6 @@
 @{MINACCELNONEGO}@*******.defaultValue[-8]
 @{MAXACCELNONEGO}@*******.defaultValue[6]
 @{MIN_TIME_BETWEEN_LANECHANGES}@*******.defaultValue[2]
-@{VEHICLE_LENGTH}@*******.defaultValue[5]
 @{SAFETY_DISTANCE_FACTOR_NONEGO}@*******.defaultValue[0.4] -- The factor to multiply the "halber Tacho" safety distance with (one decimal precision).
 @{MAXEGOVISRANGE}@*******.defaultValue[250]
 @{CLOSEFRONTDIST}@*******.defaultValue[10]
@@ -54,7 +53,24 @@
 @{CLOSETOEGOPAR}@*******.defaultValue[80]
 @{TIMESCALING}@*******.defaultValue[1000]        -- nondimensionalization constant for time, in milliseconds
 @{DISTANCESCALING}@*******.defaultValue[1000]    -- nondimensionalization constant for distance, in millimeters
-@{SIMPLE_LC}@*******.defaultValue[false]         -- true: Allow non-egos to switch a "half-lane" if time_since_last_lc has passed; false: Full version by Christian H.
+
+-- Lanechange parameters
+@{ANGLE_BASED_LC}@*******.defaultValue[false]          -- Do the angle-based LC as opposed to the "classic" lane-based one.
+@{@{LC_ANGLE_GRANULARITY_DEG}@*******.defaultValue[1]  -- Only if ANGLE_BASED_LC -- TODO: Do we need this? For now only full degrees as int.}@*******************.nil
+@{MAX_LAT_ACCEL}@*******.defaultValue[1]               -- Only if ANGLE_BASED_LC
+@{MIN_LC_DURATION_SEC}@*******.defaultValue[3]         -- Only if ANGLE_BASED_LC
+@{MAX_LC_DURATION_SEC}@*******.defaultValue[8]         -- Only if ANGLE_BASED_LC
+-- TODO: The above angle-based lanechange is a work in progress and does nothing productive so far.
+
+@{SIMPLE_LC}@*******.defaultValue[false]               -- Only if !ANGLE_BASED_LC: Allow non-egos to switch a "half-lane" if time_since_last_lc has passed (true); otherwise full version by Christian H.
+
+-- Below: Extend the simple LC by allowing more fine-granular steps between the lanes.
+-- We do not keep this in synch with the full Christian implementation for now. I.e., use the default parameters to activate this.
+@{LATERAL_LC_GRANULARITY}@*******.defaultValue[0]      -- 0 is how it was before, n > 0 increases technical number of lanes by n. Independent of ANGLE_BASED_LC -- Deliberately separating this from scaling (could discuss in future)
+@{LANE_WIDTH}@*******.defaultValue[400]                -- Default value from highway-env (highway_env/road/lane.py).          Note that we have 375 in vfm...   (include/geometry/images.h)
+@{VEHICLE_WIDTH}@*******.defaultValue[200]             -- Default value from highway-env (highway_env/vehicle/kinematics.py). Note that we have 185.2 in vfm... (include/geometry/images.h)
+@{VEHICLE_LENGTH}@*******.defaultValue[500]            -- Default value from highway-env (highway_env/vehicle/kinematics.py). Note that we have 492.3 in vfm... (include/geometry/images.h)
+
 
 -- Parameters for "skipping" of CEXs.
 @{DOUBLEMERGEPROTECTION}@*******.defaultValue[true] -- Prohibits non-ego LCs when in danger of a double-merge
@@ -71,3 +87,7 @@
 @{MAXSECPARTS}@*******.defaultValue[3] -- TODO: Number of segments a section is split into for the abstract model. Should be replaced by scaling (if possible).
 
 -- EO Do not change.
+
+
+
+@{@NUM_TECHNICAL_LANES = NUMLANES + LATERAL_LC_GRANULARITY}@*******.eval.nil

@@ -74,6 +74,21 @@ public:
 	void appendDummyDataAtTheEndOfTrace();
 	DataPackTrace getDataTrace() const;
 
+   inline float getLaneWidth() const
+   {
+      return lane_width_;
+   }
+
+   inline float getTechnicalLanes() const
+   {
+      return technical_lanes_;
+   }
+
+   inline float getActualLanes() const
+   {
+      return actual_lanes_;
+   }
+
 private:
 	void startState(const std::string state_name);
 	void endState();
@@ -94,6 +109,10 @@ private:
 
 	DataPackPtr m_current_data{};
 	DataPackTrace m_data_trace{};
+
+   float actual_lanes_{};
+   float technical_lanes_{};
+   float lane_width_{};
 };
 
 std::shared_ptr<Image> selectImage(const std::shared_ptr<vfm::Image> img1, const std::shared_ptr<vfm::HighwayImage> img2);

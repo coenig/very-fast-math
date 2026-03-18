@@ -10,7 +10,7 @@ VAR
     -- Ego physical state
     @{
     ego_lane_b[j] : boolean;
-    }@.for[[j], 0, @{NUMLANES - 1}@.eval]
+    }@.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
 
     env_state.time_scaling_factor : 0..1;  -- TODO: Dummy variable, needs to go away.
     
@@ -55,30 +55,30 @@ INVAR tar_dir = ActionDir____LEFT; -- TODO: This is only needed as interface tow
 
 
 DEFINE
-    ego_lane_0 := ego_lane_b0 @{& !ego_lane_b[j]}@.for[[j], 1, @{NUMLANES - 1}@.eval];
+    ego_lane_0 := ego_lane_b0 @{& !ego_lane_b[j]}@.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
     @{
-    ego_lane_@{[k]-1}@.eval[0][k] := @{@{!}@.if[@{[j] != [k] - 1 && [j] != [k]}@.eval]ego_lane_b[j] }@*.for[[j], 0, @{NUMLANES - 1}@.eval, 1, &];
-    ego_lane_[k] := @{@{!}@.if[@{[k] != [j]}@.eval]ego_lane_b[j] }@*.for[[j], 0, @{NUMLANES - 1}@.eval, 1, &];
-    }@**.for[[k], 1, @{NUMLANES - 1}@.eval]
+    ego_lane_@{[k]-1}@.eval[0][k] := @{@{!}@.if[@{[j] != [k] - 1 && [j] != [k]}@.eval]ego_lane_b[j] }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
+    ego_lane_[k] := @{@{!}@.if[@{[k] != [j]}@.eval]ego_lane_b[j] }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
+    }@**.for[[k], 1, @{NUM_TECHNICAL_LANES - 1}@.eval]
 
     ego_lane_min := ego_lane_0;
-    ego_lane_max := ego_lane_@{NUMLANES - 1}@.eval[0];
-    ego_lane_max_free := !ego_lane_b@{NUMLANES - 1}@.eval[0];
+    ego_lane_max := ego_lane_@{NUM_TECHNICAL_LANES - 1}@.eval[0];
+    ego_lane_max_free := !ego_lane_b@{NUM_TECHNICAL_LANES - 1}@.eval[0];
 
-    ego_lane_single := @{ego_lane_[j] }@*.for[[j], 0, @{NUMLANES - 1}@.eval, 1, |];
-    ego_lane_crossing := FALSE @{| ego_lane_@{[j]-1}@.eval[0][j]}@*.for[[j], 1, @{NUMLANES - 1}@.eval];
-    ego_lane_unchanged := @{ego_lane_b[j] = next(ego_lane_b[j])}@.for[[j], 0, @{NUMLANES - 1}@.eval, 1, &];
+    ego_lane_single := @{ego_lane_[j] }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, |];
+    ego_lane_crossing := FALSE @{| ego_lane_@{[j]-1}@.eval[0][j]}@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
+    ego_lane_unchanged := @{ego_lane_b[j] = next(ego_lane_b[j])}@.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
 
     ego_lane_move_down := 
                       (ego_lane_0 -> next(ego_lane_0))
                       @{& (ego_lane_@{[j]-1}@.eval[0][j] -> next(ego_lane_@{[j]-1}@.eval[0]))
                       & (ego_lane_[j] -> next(ego_lane_@{[j]-1}@.eval[0][j]))
-                      }@*.for[[j], 1, @{NUMLANES - 1}@.eval];
+                      }@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
     ego_lane_move_up :=
-                      (ego_lane_@{NUMLANES - 1}@.eval[0] -> next(ego_lane_@{NUMLANES - 1}@.eval[0]))
+                      (ego_lane_@{NUM_TECHNICAL_LANES - 1}@.eval[0] -> next(ego_lane_@{NUM_TECHNICAL_LANES - 1}@.eval[0]))
                       @{& (ego_lane_@{[j]-1}@.eval[0][j] -> next(ego_lane_[j]))
                       & (ego_lane_@{[j]-1}@.eval[0] -> next(ego_lane_@{[j]-1}@.eval[0][j]))
-                      }@*.for[[j], 1, @{NUMLANES - 1}@.eval];
+                      }@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
 
 
 DEFINE
@@ -134,15 +134,15 @@ DEFINE
     @{
     ego.right_of_veh_[i]_lane := FALSE
        @{| (ego_lane_@{[j]-1}@.eval[0] & veh___6[i]9___.lane_[j]) | (ego_lane_@{[j]-1}@.eval[0] & veh___6[i]9___.lane_~{[j]-1\0}~[j])
-       }@*.for[[j], 1, @{NUMLANES - 1}@.eval, 1, | (ego_lane_~{[j]-2\0}~~{[j]-1\0}~ & veh___6[i]9___.lane_~{[j]-1\0}~[j]) | (ego_lane_~{[j]-2\0}~~{[j]-1\0}~ & veh___6[i]9___.lane_~{[j]-1\0}~)];
+       }@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, | (ego_lane_~{[j]-2\0}~~{[j]-1\0}~ & veh___6[i]9___.lane_~{[j]-1\0}~[j]) | (ego_lane_~{[j]-2\0}~~{[j]-1\0}~ & veh___6[i]9___.lane_~{[j]-1\0}~)];
 
     ego.left_of_veh_[i]_lane := FALSE
        @{| (ego_lane_[j] & veh___6[i]9___.lane_@{[j]-1}@.eval[0]) | (ego_lane_[j] & veh___6[i]9___.lane_@{[j]-1}@.eval[0][j])
-       }@*.for[[j], 1, @{NUMLANES - 1}@.eval, 1, | (ego_lane_~{[j]-1\0}~~{[j]\0}~ & veh___6[i]9___.lane_~{[j]-2\0}~~{[j]-1\0}~) | (ego_lane_~{[j]-1\0}~~{[j]\0}~ & veh___6[i]9___.lane_~{[j]-1\0}~)];
+       }@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, | (ego_lane_~{[j]-1\0}~~{[j]\0}~ & veh___6[i]9___.lane_~{[j]-2\0}~~{[j]-1\0}~) | (ego_lane_~{[j]-1\0}~~{[j]\0}~ & veh___6[i]9___.lane_~{[j]-1\0}~)];
 
-   ego.same_lane_as_veh_[i] := (FALSE
-      @{| ((ego_lane_b[j] & veh___6[i]9___.lane_b[j]) @{& !(ego_lane_b@{[j]-1}@.eval[0] & veh___6[i]9___.lane_b@{[j]+1}@.eval[0]) & !(ego_lane_b@{[j]+1}@.eval[0] & veh___6[i]9___.lane_b@{[j]-1}@.eval[0])}@.if[@{[j] > 0 && [j] < NUMLANES - 1}@.eval] )
-      }@*.for[[j], 0, @{NUMLANES - 1}@.eval]
+   ego.laterally_overlapping_with_veh_[i] := (FALSE
+      @{| ((ego_lane_b[j] & veh___6[i]9___.lane_b[j]) @{& !(ego_lane_b@{[j]-1}@.eval[0] & veh___6[i]9___.lane_b@{[j]+1}@.eval[0]) & !(ego_lane_b@{[j]+1}@.eval[0] & veh___6[i]9___.lane_b@{[j]-1}@.eval[0])}@.if[@{[j] > 0 && [j] < NUM_TECHNICAL_LANES - 1}@.eval] )
+      }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
    );
 
 -- ####### TODO: This part is not yet adapted for n lanes (currently only 3 lanes). ####### --
@@ -167,10 +167,10 @@ DEFINE
 --	                               ;
 -- ####### EO TODO: This part is not yet adapted for n lanes (currently only 3 lanes). ####### --
 
-	ego.crash_with_veh_[i] := ego.same_lane_as_veh_[i] & (veh___6[i]9___.rel_pos >= -veh_length & veh___6[i]9___.rel_pos <= veh_length);
-	ego.blamable_crash_with_veh_[i] := ego.same_lane_as_veh_[i] & (veh___6[i]9___.rel_pos >= 0 & veh___6[i]9___.rel_pos <= veh_length);
+	ego.crash_with_veh_[i] := ego.laterally_overlapping_with_veh_[i] & (veh___6[i]9___.rel_pos >= -veh_length & veh___6[i]9___.rel_pos <= veh_length);
+	ego.blamable_crash_with_veh_[i] := ego.laterally_overlapping_with_veh_[i] & (veh___6[i]9___.rel_pos >= 0 & veh___6[i]9___.rel_pos <= veh_length);
 
-   ego_pressured_by_vehicle_[i] := FALSE -- ego.same_lane_as_veh_[i] -- TODO adjust to seclets 
+   ego_pressured_by_vehicle_[i] := FALSE -- ego.laterally_overlapping_with_veh_[i] -- TODO adjust to seclets 
         @{| (veh___6[i]9___.lc_direction = ActionDir____RIGHT & ego.right_of_veh_[i]_lane & veh___6[i]9___.change_lane_now = 1)
         | (veh___6[i]9___.lc_direction = ActionDir____LEFT & ego.left_of_veh_[i]_lane   & veh___6[i]9___.change_lane_now = 1)}@******.if[@{!SIMPLE_LC}@.eval];
 
@@ -197,12 +197,12 @@ INVAR
             (minimum_dist_to_veh_[i] <= min_dist_long & (veh___6[i]9___.rel_pos < -veh_length));
 
 -- Make sure ego and vehicle [i] do not collide in the initial state.
-INIT abs(veh___6[i]9___.rel_pos) > veh_length | !ego.same_lane_as_veh_[i];
+INIT abs(veh___6[i]9___.rel_pos) > veh_length | !ego.laterally_overlapping_with_veh_[i];
 
 -- This has to go away: handled by veh___609___ logic, and otherwise leads to clashes with the inter-section travel.
 -- INVAR -- Ego may not "jump" over non-ego cars.
---     !(ego.same_lane_as_veh_[i] & (veh___6[i]9___.prev_rel_pos < 0) & (veh___6[i]9___.rel_pos >= 0)) &
---     !(ego.same_lane_as_veh_[i] & (veh___6[i]9___.prev_rel_pos > 0) & (veh___6[i]9___.rel_pos <= 0));
+--     !(ego.laterally_overlapping_with_veh_[i] & (veh___6[i]9___.prev_rel_pos < 0) & (veh___6[i]9___.rel_pos >= 0)) &
+--     !(ego.laterally_overlapping_with_veh_[i] & (veh___6[i]9___.prev_rel_pos > 0) & (veh___6[i]9___.rel_pos <= 0));
 }@**.for[[i], 1, @{NONEGOS - 1}@.eval]
     
 
@@ -492,35 +492,35 @@ INVAR ego.gaps___609___.s_dist_rear = max_ego_visibility_range + 1;
 -- GAPS[1] ==> On Ego lane
 -- FRONT
 INVAR
-@{(ego.same_lane_as_veh_[i] & veh___6[i]9___.is_visible_in_front & (ego.gaps___619___.s_dist_front = veh___6[i]9___.rel_pos - veh_length)) | 
+@{(ego.laterally_overlapping_with_veh_[i] & veh___6[i]9___.is_visible_in_front & (ego.gaps___619___.s_dist_front = veh___6[i]9___.rel_pos - veh_length)) | 
 }@.for[[i], 1, @{NONEGOS - 1}@.eval]
 (ego.gaps___619___.s_dist_front = max_ego_visibility_range + 1);
 
 INVAR
-@{((ego.same_lane_as_veh_[i] & veh___6[i]9___.is_visible_in_front) -> (ego.gaps___619___.s_dist_front <= veh___6[i]9___.rel_pos - veh_length)) & 
+@{((ego.laterally_overlapping_with_veh_[i] & veh___6[i]9___.is_visible_in_front) -> (ego.gaps___619___.s_dist_front <= veh___6[i]9___.rel_pos - veh_length)) & 
 }@.for[[i], 1, @{NONEGOS - 1}@.eval]
-((@{!(ego.same_lane_as_veh_[i] & veh___6[i]9___.is_visible_in_front) &
+((@{!(ego.laterally_overlapping_with_veh_[i] & veh___6[i]9___.is_visible_in_front) &
 }@.for[[i], 1, @{NONEGOS - 1}@.eval] TRUE) <-> (ego.gaps___619___.s_dist_front = max_ego_visibility_range + 1));
 
 INVAR
-@{(((ego.gaps___619___.s_dist_front = veh___6[i]9___.rel_pos - veh_length) & ego.same_lane_as_veh_[i]) <-> ego.gaps___619___.i_agent_front = [i]) & 
+@{(((ego.gaps___619___.s_dist_front = veh___6[i]9___.rel_pos - veh_length) & ego.laterally_overlapping_with_veh_[i]) <-> ego.gaps___619___.i_agent_front = [i]) & 
 }@.for[[i], 1, @{NONEGOS - 1}@.eval]
 TRUE;
 
 --REAR
 INVAR
-@{(ego.same_lane_as_veh_[i] & veh___6[i]9___.is_visible_behind & (ego.gaps___619___.s_dist_rear = -veh___6[i]9___.rel_pos - veh_length)) | 
+@{(ego.laterally_overlapping_with_veh_[i] & veh___6[i]9___.is_visible_behind & (ego.gaps___619___.s_dist_rear = -veh___6[i]9___.rel_pos - veh_length)) | 
 }@.for[[i], 1, @{NONEGOS - 1}@.eval]
 (ego.gaps___619___.s_dist_rear = max_ego_visibility_range + 1);
 
 INVAR
-@{((ego.same_lane_as_veh_[i] & veh___6[i]9___.is_visible_behind) -> (ego.gaps___619___.s_dist_rear <= -veh___6[i]9___.rel_pos - veh_length)) & 
+@{((ego.laterally_overlapping_with_veh_[i] & veh___6[i]9___.is_visible_behind) -> (ego.gaps___619___.s_dist_rear <= -veh___6[i]9___.rel_pos - veh_length)) & 
 }@.for[[i], 1, @{NONEGOS - 1}@.eval]
-((@{!(ego.same_lane_as_veh_[i] & veh___6[i]9___.is_visible_behind) &
+((@{!(ego.laterally_overlapping_with_veh_[i] & veh___6[i]9___.is_visible_behind) &
 }@.for[[i], 1, @{NONEGOS - 1}@.eval] TRUE) <-> (ego.gaps___619___.s_dist_rear = max_ego_visibility_range + 1));
 
 INVAR
-@{(((ego.gaps___619___.s_dist_rear = -veh___6[i]9___.rel_pos - veh_length) & ego.same_lane_as_veh_[i]) <-> ego.gaps___619___.i_agent_rear = [i]) & 
+@{(((ego.gaps___619___.s_dist_rear = -veh___6[i]9___.rel_pos - veh_length) & ego.laterally_overlapping_with_veh_[i]) <-> ego.gaps___619___.i_agent_rear = [i]) & 
 }@.for[[i], 1, @{NONEGOS - 1}@.eval]
 TRUE;
 )@
@@ -589,20 +589,20 @@ DEFINE
     @{ego.gaps___609___.lane_availability}@*.scalingVariable[distance] := case
         @{
            ego_lane_[i] | ego_lane_[i]@{[i]+1}@.eval[0] : ego.lane_@{[i] + 1}@.eval[0]_availability;
-        }@*.for[[i], 0, @{NUMLANES - 2}@.eval]TRUE : 0;
+        }@*.for[[i], 0, @{NUM_TECHNICAL_LANES - 2}@.eval]TRUE : 0;
     esac;
 
     @{ego.gaps___619___.lane_availability}@*.scalingVariable[distance] := case
         @{
            ego_lane_[i] : ego.lane_@{[i]}@.eval[0]_availability;
            ego_lane_[i]@{[i]+1}@.eval[0] : min(ego.lane_@{[i]}@.eval[0]_availability, ego.lane_@{[i]+1}@.eval[0]_availability);
-        }@*.for[[i], 0, @{NUMLANES - 2}@.eval]TRUE : 0;
+        }@*.for[[i], 0, @{NUM_TECHNICAL_LANES - 2}@.eval]TRUE : 0;
     esac;
     
     @{ego.gaps___629___.lane_availability}@*.scalingVariable[distance] := case
         @{
            ego_lane_[i] | ego_lane_@{[i]-1}@.eval[0][i] : ego.lane_@{[i] - 1}@.eval[0]_availability;
-        }@*.for[[i], 1, @{NUMLANES - 1}@.eval]TRUE : 0;
+        }@*.for[[i], 1, @{NUM_TECHNICAL_LANES - 1}@.eval]TRUE : 0;
     esac;
 
 
@@ -661,7 +661,7 @@ DEFINE
 TRANS (next(ego.left_of_veh_[i]_lane)  & next(veh___6[i]9___.rel_pos) >= -veh_length & next(veh___6[i]9___.rel_pos) <= veh_length) -> !veh___6[i]9___.lane_move_up;
 TRANS (next(ego.right_of_veh_[i]_lane) & next(veh___6[i]9___.rel_pos) >= -veh_length & next(veh___6[i]9___.rel_pos) <= veh_length) -> !veh___6[i]9___.lane_move_down;
 }@.for[[i], 1, @{NONEGOS - 1}@.eval]
-}@******.if[@{DOUBLEMERGEPROTECTION}@.eval]
+}@******.if[@{DOUBLEMERGEPROTECTION && !SIMPLE_LC}@.eval]
 
 --------------------------------------------------------
 -- Standing cars
@@ -672,17 +672,17 @@ TRANS next(veh___6[i]9___.abs_pos) = veh___6[i]9___.abs_pos;
 INVAR veh___6[i]9___.v = 0;
 @{
 TRANS next(veh___6[i]9___.lane_b@{[j]}@.eval[0]) = veh___6[i]9___.lane_b@{[j]}@.eval[0];
-}@*.for[[j], 0, ~{{NUMLANES - 1}}~]
+}@*.for[[j], 0, ~{{NUM_TECHNICAL_LANES - 1}}~]
 }@**.for[[i], 1, @{STANDINGCARSUPTOID}@.eval]
 
 @{@{
    next(ego_lane_b[j]) := ego_lane_b[j];
-}@*.for[[j], 0, @{NUMLANES - 1}@.eval]}@******.if[@{KEEPEGOFIXEDTOLANE}@.eval]
+}@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]}@******.if[@{KEEPEGOFIXEDTOLANE}@.eval]
 
  -- Synch EGO with veh___609___.
 @{
 INVAR ego_lane_b[j] = veh___609___.lane_b[j];
-}@.for[[j], 0, @{NUMLANES - 1}@.eval]
+}@.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
 INVAR ego.v = veh___609___.v;
 INVAR ego.a = veh___609___.a;
 INVAR ego.abs_pos = veh___609___.abs_pos;

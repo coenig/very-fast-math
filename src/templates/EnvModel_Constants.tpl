@@ -5,6 +5,10 @@
 ------------------------------------------
 
 DEFINE
+   lane_width := @{LANE_WIDTH}@.eval[0];   -- Deliberately not scaled (for now), since lateral.
+   car_width := @{VEHICLE_WIDTH}@.eval[0]; -- Deliberately not scaled (for now), since lateral.
+   -- The corresponding "veh_length" is below, in meter, and scaled, since long.
+
     ---------------- Begin of non-ego lc parameterization -----------------
 @{
 
@@ -32,7 +36,7 @@ DEFINE
     @{a_min}@*.accelerationWorldToEnvModelDef[MINACCELNONEGO];
     @{a_max}@*.accelerationWorldToEnvModelDef[MAXACCELNONEGO];
     @{min_dist_long}@*.distanceWorldToEnvModelDef[-1];                            -- the minimum distance kept by other vehicle to preceding ego, we use -1 meaning one meter behind
-    @{veh_length}@*.distanceWorldToEnvModelDef[VEHICLE_LENGTH];                   -- we assume a vehicle length of 5m for distance calculation to the front
+    @{veh_length}@*.distanceWorldToEnvModelDef[VEHICLE_LENGTH];             -- we assume a vehicle length of 5m for distance calculation to the front per default
     @{max_vel}@*.velocityWorldToEnvModelDef[MAXSPEEDNONEGO];
 
     @{ego.max_vel}@*.velocityWorldToEnvModelDef[MAXSPEEDEGO]; -- Leave this even in ego-less mode.

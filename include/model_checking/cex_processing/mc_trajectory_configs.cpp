@@ -43,10 +43,18 @@ namespace trajectory_generator {
 
 			{"ego.on_lane",
 			std::make_shared<InterpretableKey<double>>(
-				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double lane) {
+				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double lane) { // TODO: Double code with "on_lane"
+               const double actual_lanes{traj.getActualLanes()};
+               const double technical_lanes{ traj.getTechnicalLanes()};
+               const double factor{ actual_lanes / technical_lanes };
+               const double max_actual_lane{ (actual_lanes - 1) * 2 };
+               const double max_technical_lane{ (technical_lanes - 1) * 2 };
+					const double max_lane_y_actual = max_actual_lane * traj.getLaneWidth() / 2;
+					const double max_lane_y_technical = max_technical_lane * factor * traj.getLaneWidth() / 2;
+               const double offset{ (max_lane_y_technical - max_lane_y_actual) / 2 };
+					const double lane_y = lane * factor * traj.getLaneWidth() / 2 - offset;
 
-					double lane_y = lane * LANE_WIDTH_HALF;
-					traj.pushVehicleParameter(ego_vehicle_name, lane_y, PossibleParameter::pos_y);
+               traj.pushVehicleParameter(ego_vehicle_name, lane_y, PossibleParameter::pos_y);
 
 				})},
 
@@ -178,11 +186,21 @@ namespace trajectory_generator {
 
 			{"on_lane",
 			std::make_shared<InterpretableKey<double>>(
-				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double lane_index) {
+				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double lane) {
 
 					// Set the y position according to the lane (interpolation will happen in postprocessing)
 					auto vehicle_name = key_elements[0];
-					traj.pushVehicleParameter(vehicle_name, lane_index * LANE_WIDTH_HALF, PossibleParameter::pos_y);
+               const double actual_lanes{ traj.getActualLanes() };
+               const double technical_lanes{ traj.getTechnicalLanes() };
+               const double factor{ actual_lanes / technical_lanes };
+               const double max_actual_lane{ (actual_lanes - 1) * 2 };
+               const double max_technical_lane{ (technical_lanes - 1) * 2 };
+               const double max_lane_y_actual = max_actual_lane * traj.getLaneWidth() / 2;
+               const double max_lane_y_technical = max_technical_lane * factor * traj.getLaneWidth() / 2;
+               const double offset{ (max_lane_y_technical - max_lane_y_actual) / 2 };
+               const double lane_y = lane * factor * traj.getLaneWidth() / 2 - offset;
+
+               traj.pushVehicleParameter(vehicle_name, lane_y, PossibleParameter::pos_y);
 
 				})},
 
@@ -275,10 +293,9 @@ namespace trajectory_generator {
 			traj.noteVehicle(ego_vehicle_name);
 		};
 
-		auto lane_width = LANE_WIDTH;
 		auto step_time = 1.0; // default step time
 
-		auto postprocessing = [ego_vehicle_name, lane_width, step_time](MCinterpretedTrace& traj) {
+		auto postprocessing = [ego_vehicle_name, step_time](MCinterpretedTrace& traj) {
 
          // TODO: The below comment is not true anymore. Ego has an abs_pos now.
 			// Make the ego move along its x based on its velocity (because in the trace, the ego is always at x == 0)

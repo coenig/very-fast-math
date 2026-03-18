@@ -64,13 +64,13 @@ bool LaneSegment::parseProgram(const std::string& program)
    return true;
 }
 
-StraightRoadSection::StraightRoadSection() : StraightRoadSection(-1, -1) {} // Constructs an invalid lane structure.
+StraightRoadSection::StraightRoadSection() : StraightRoadSection(-1, -1, -1, -1) {} // Constructs an invalid lane structure.
 
-StraightRoadSection::StraightRoadSection(const int lane_num, const float section_end)
-   : StraightRoadSection(lane_num, section_end, std::vector<LaneSegment>{}) {}
+StraightRoadSection::StraightRoadSection(const int actual_lane_num, const int technical_lane_num, const float section_end, const float lane_width)
+   : StraightRoadSection(actual_lane_num, technical_lane_num, section_end, lane_width, std::vector<LaneSegment>{}) {}
 
-StraightRoadSection::StraightRoadSection(const int lane_num, const float section_end, const std::vector<LaneSegment>& segments)
-   : num_lanes_(lane_num), section_end_(section_end), Parsable("StraightRoadSection") {
+StraightRoadSection::StraightRoadSection(const int actual_lane_num, const int technical_lane_num, const float section_end, const float lane_width, const std::vector<LaneSegment>& segments)
+   : num_actual_lanes_(actual_lane_num), num_technical_lanes_{ technical_lane_num }, lane_width_{lane_width}, section_end_(section_end), Parsable("StraightRoadSection") {
    for (const auto& segment : segments) {
       addLaneSegment(segment);
    }
@@ -78,15 +78,19 @@ StraightRoadSection::StraightRoadSection(const int lane_num, const float section
 
 void StraightRoadSection::addLaneSegment(const LaneSegment& segment)
 {
-   if (!segments_.insert({ segment.getBegin(), segment }).second) {
-      addError("Segment " + segment.toString() + " cannot override " + segments_.at(segment.getBegin()).toString() + " already present in StraightRoadSection.");
+   auto copy{ segment }; // TODO: Remove this hack when smoother lateral movement is cleaned up.
+   copy.min_lane_ = std::max(copy.min_lane_, 0);
+   copy.max_lane_ = std::min(copy.max_lane_, (num_actual_lanes_ - 1) * 2);
+
+   if (!segments_.insert({ copy.getBegin(), copy }).second) {
+      addError("Segment " + copy.toString() + " cannot override " + segments_.at(segment.getBegin()).toString() + " already present in StraightRoadSection.");
    }
 }
 
 void StraightRoadSection::cleanUp(bool add_note)
 {
    constexpr int overall_min_lane = 0;
-   const     int overall_max_lane = (num_lanes_ - 1) * 2;
+   const     int overall_max_lane = (num_actual_lanes_ - 1) * 2;
    int last_segment_min{ -1 };
    int last_segment_max{ -1 };
    bool change_occurred{};
@@ -98,7 +102,7 @@ void StraightRoadSection::cleanUp(bool add_note)
 
    for (auto& segment : segments_) {
       if (segment.second.getMaxLane() > overall_max_lane || segment.second.getMinLane() < overall_min_lane) {
-         addFatalError("Invalid segment " + segment.second.toString() + " for lane number " + std::to_string(num_lanes_) + ". Skipping this segment.");
+         addFatalError("Invalid segment " + segment.second.toString() + " for lane number " + std::to_string(num_actual_lanes_) + ". Skipping this segment.");
          segment.second.screwUpBegin();
          change_occurred = true;
       }
@@ -150,7 +154,7 @@ void StraightRoadSection::cleanUp(bool add_note)
 
 std::string StraightRoadSection::toString() const
 {
-   std::string s{ "{" + std::to_string(num_lanes_) + ", " };
+   std::string s{ "{" + std::to_string(num_actual_lanes_) + ", " + std::to_string(num_technical_lanes_) + ", " };
    std::string comma{};
 
    for (const auto& segment : segments_) {
@@ -161,19 +165,34 @@ std::string StraightRoadSection::toString() const
    return s + "}";
 }
 
-void StraightRoadSection::setNumLanes(const int num_lanes) const
+void StraightRoadSection::setNumActualLanes(const int num_lanes) const
 {
-   num_lanes_ = num_lanes;
+   num_actual_lanes_ = num_lanes;
 }
 
-int StraightRoadSection::getNumLanes() const
+int StraightRoadSection::getNumActualLanes() const
 {
-   return num_lanes_;
+   return num_actual_lanes_;
+}
+
+void StraightRoadSection::setNumTechnicalLanes(const int num_lanes) const
+{
+   num_technical_lanes_ = num_lanes;
+}
+
+int StraightRoadSection::getNumTechnicalLanes() const
+{
+   return num_technical_lanes_;
+}
+
+float vfm::StraightRoadSection::getLaneWidth() const
+{
+   return lane_width_;
 }
 
 bool StraightRoadSection::isValid() const
 {
-   return getNumLanes() >= 0;
+   return getNumActualLanes() >= 0;
 }
 
 std::map<float, LaneSegment> StraightRoadSection::getSegments() const
@@ -234,29 +253,37 @@ bool StraightRoadSection::parseProgram(const std::string& program_raw)
    auto bracket_structure = StaticHelper::extractArbitraryBracketStructure(StaticHelper::removeWhiteSpace(program_raw), "(", ")", ",");
    std::string program{ bracket_structure->serialize("(", ")", ",") };
 
-   if (bracket_structure->children_.size() == 2) {
-      addNote("Number of top-level arguments is 2. Assuming you left out the segments, I'll induce a default segment.");
+   if (bracket_structure->children_.size() == 3) {
+      addNote("Number of top-level arguments is 3. Assuming you left out the segments, I'll induce a default segment.");
       auto fake_begin = std::make_shared<BracketStructure>("0", std::vector<std::shared_ptr<BracketStructure>>{});
       auto fake_min_lanes = std::make_shared<BracketStructure>("0", std::vector<std::shared_ptr<BracketStructure>>{});
-      auto fake_max_lanes = std::make_shared<BracketStructure>(bracket_structure->children_.at(0)->content_, std::vector<std::shared_ptr<BracketStructure>>{});
-      auto fake_segment = std::make_shared<BracketStructure>("", std::vector<std::shared_ptr<BracketStructure>>{fake_min_lanes, fake_max_lanes, fake_begin});
+      auto fake_max_actual_lanes = std::make_shared<BracketStructure>(bracket_structure->children_.at(0)->content_, std::vector<std::shared_ptr<BracketStructure>>{});
+      auto fake_max_technical_lanes = std::make_shared<BracketStructure>(bracket_structure->children_.at(1)->content_, std::vector<std::shared_ptr<BracketStructure>>{});
+      auto fake_segment = std::make_shared<BracketStructure>("", std::vector<std::shared_ptr<BracketStructure>>{fake_min_lanes, fake_max_actual_lanes, fake_max_technical_lanes, fake_begin});
       fake_segment = std::make_shared<BracketStructure>("", std::vector<std::shared_ptr<BracketStructure>>{ fake_segment });
       bracket_structure->children_.push_back(fake_segment);
    }
-   else if (bracket_structure->children_.size() != 3) {
-      addError("Cannot parse program '" + program + "'. Number of top-level arguments is not equal to 3.");
+   else if (bracket_structure->children_.size() != 4) {
+      addError("Cannot parse program '" + program + "'. Number of top-level arguments is not equal to 4.");
       return false;
    }
 
-   std::string max_lanes = bracket_structure->children_.at(0)->content_;
-   std::string section_end = bracket_structure->children_.at(1)->content_;
+   std::string max_actual_lanes = bracket_structure->children_.at(0)->content_;
+   std::string max_technical_lanes = bracket_structure->children_.at(1)->content_;
+   std::string section_end = bracket_structure->children_.at(2)->content_;
 
-   if (!StaticHelper::isParsableAsFloat(max_lanes)) {
-      addError("Cannot parse program '" + program + "'. Argument '" + max_lanes + "' is not a number.");
+   if (!StaticHelper::isParsableAsFloat(max_actual_lanes)) {
+      addError("Cannot parse program '" + program + "'. Argument '" + max_actual_lanes + "' is not a number.");
       return false;
    }
 
-   num_lanes_ = std::stof(max_lanes);
+   if (!StaticHelper::isParsableAsFloat(max_technical_lanes)) {
+      addError("Cannot parse program '" + program + "'. Argument '" + max_technical_lanes + "' is not a number.");
+      return false;
+   }
+
+   num_actual_lanes_ = std::stof(max_actual_lanes);
+   num_technical_lanes_ = std::stof(max_technical_lanes);
 
    if (!StaticHelper::isParsableAsFloat(section_end)) {
       addError("Cannot parse program '" + program + "'. Argument '" + section_end + "' is not a number.");
@@ -374,7 +401,7 @@ RoadGraph::CarLocation vfm::RoadGraph::findEgo() const
                   if (car.car_id_ == EGO_MOCK_ID) {
                      location.on_section_or_origin_section_ = r;
                      location.optional_target_section_ = succ;
-                     location.the_car_ = std::make_shared<CarPars>(car.car_lane_, car.car_rel_pos_, car.car_velocity_, car.car_id_);
+                     location.the_car_ = std::make_shared<CarPars>(car.car_lane_, car.car_rel_pos_, car.car_velocity_, car.car_id_, DEFAULT_CAR_DIMENSIONS_M);
 
                      return true;
                   }
@@ -489,7 +516,7 @@ void vfm::RoadGraph::normalizeRoadGraphToEgo()
 
    const auto ego_road = r_ego->my_road_;
    const auto ego_car = ego_road.getEgo();
-   const Vec2D specialPointBase{ Vec2D{ ego_car->car_rel_pos_, (ego_car->car_lane_ - ego_road.getNumLanes() / 2) * LANE_WIDTH }};
+   const Vec2D specialPointBase{ Vec2D{ ego_car->car_rel_pos_, (ego_car->car_lane_ - ego_road.getNumActualLanes() / 2) * ego_road.getLaneWidth() }};
    const float theta{ -r_ego->getAngle() };
 
    static constexpr bool FOLLOW_ANGLE_TOO{ false }; // NOTE: If set to true, don't copy the graph in paintRoadGraph(). (TODO: Fix this!)
@@ -544,7 +571,7 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
    int free_id{ orig_section->findFirstFreeID() };
 
    applyToMeAndAllMySuccessorsAndPredecessors([orig_section, &ghosts, &free_id](const std::shared_ptr<RoadGraph> r) {
-      const float MIDDLE_OF_ROAD{ orig_section->getMyRoad().getNumLanes() - 1.0f };
+      const float MIDDLE_OF_ROAD{ orig_section->getMyRoad().getNumActualLanes() - 1.0f };
       constexpr float SOME_LENGTH{ 10 }; // Length of the dummy section, should be completely arbitrary.
 
       for (const auto& cars_pair : r->getNonegosOnCrossingTowardsAllSuccessors()) {
@@ -564,7 +591,7 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
             lane_correction_dir_origin.ortho();
             lane_correction_dir_target.ortho();
 
-            float lane_correction_length{ LANE_WIDTH * (MIDDLE_OF_ROAD / 2.0f - car.car_lane_) };
+            float lane_correction_length{ orig_section->my_road_.getLaneWidth() * (MIDDLE_OF_ROAD / 2.0f - car.car_lane_) };
             lane_correction_dir_origin.setLength(lane_correction_length);
             lane_correction_dir_target.setLength(-lane_correction_length);
             arc_origin.add(lane_correction_dir_origin);
@@ -587,7 +614,7 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
 
             auto node = std::make_shared<RoadGraph>(free_id++);
             node->makeGhost();
-            node->setMyRoad(StraightRoadSection{ orig_section->getMyRoad().getNumLanes(), SOME_LENGTH });
+            node->setMyRoad(StraightRoadSection{ orig_section->getMyRoad().getNumActualLanes(), orig_section->getMyRoad().getNumTechnicalLanes(), SOME_LENGTH, orig_section->my_road_.getLaneWidth() });
             r->removeNonegoFromCrossingTowards(r_target, car.car_id_);
 
             if (car.car_id_ == EGO_MOCK_ID) {
@@ -596,13 +623,15 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
                   (float)MIDDLE_OF_ROAD / 2, // This lane ID marks the middle of the road.
                      0,
                      car.car_velocity_,
-                     car.car_id_ ));
+                     car.car_id_,
+                     car.car_dim_));
             } else {
-               node->my_road_.setOthers({ CarPars{ 
+               node->my_road_.setOthers({ CarPars(
                   (float)MIDDLE_OF_ROAD / 2, // This lane ID marks the middle of the road.
                   0, 
                   car.car_velocity_, 
-                  car.car_id_ } });
+                  car.car_id_,
+                  car.car_dim_) });
             }
 
             node->setAngle((Vec2D{0, 0} - dir).angle({ 1, 0 }));
@@ -852,7 +881,8 @@ std::shared_ptr<xml::CodeXML> vfm::Way::getNodesXML() const
    auto drain = my_road_graph_->getDrainPoint();
    Vec2D dir_lat{ drain - origin };
    dir_lat.ortho();
-   dir_lat.setLength(LANE_WIDTH / 2);
+   const float lane_width{ my_road_graph_->my_road_.getLaneWidth() };
+   dir_lat.setLength(lane_width / 2); // Assuming all roads have equal lane width.
 
    Vec2D origin_left{ origin - dir_lat };
    Vec2D origin_right{ origin + dir_lat };
@@ -881,14 +911,14 @@ std::shared_ptr<xml::CodeXML> vfm::Way::getNodesXML() const
 
       Vec2D dir_lat_succ{ drain_succ - origin_succ };
       dir_lat_succ.ortho();
-      dir_lat_succ.setLength(LANE_WIDTH / 2);
+      dir_lat_succ.setLength(lane_width / 2);
       Vec2D origin_left_succ{ origin_succ - dir_lat_succ };
       Vec2D origin_right_succ{ origin_succ + dir_lat_succ };
 
       Pol2D pol{};
       Pol2D arrow{};
       pol.bezier(drain, drain + dir_mine, origin_succ + dir_succ, origin_succ, 0.1, true);
-      arrow.createArrow(pol, LANE_WIDTH, { drain_right, drain_left }, { origin_right_succ, origin_left_succ });
+      arrow.createArrow(pol, lane_width, { drain_right, drain_left }, { origin_right_succ, origin_left_succ });
 
       std::vector<int> node_ids_left{};
       std::vector<int> node_ids_right{};

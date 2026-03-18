@@ -23,9 +23,85 @@ using namespace test;
 using namespace xml;
 using namespace mc::trajectory_generator;
 
+void generatePreviewsForMorty()
+{
+   std::string output_path = "./";
+   auto traces = StaticHelper::extractMCTracesFromNusmvFile("debug_trace_array.txt");
+   auto trace = traces.at(0);
+
+   auto nameA1 = vfm::mc::TESTCASE_MODE_PREVIEW_2.first;
+   auto nameA2 = vfm::mc::TESTCASE_MODE_PREVIEW_2.second;
+   auto nameB1 = vfm::mc::TESTCASE_MODE_CEX_SMOOTH_BIRDSEYE.first;
+   auto nameB2 = vfm::mc::TESTCASE_MODE_CEX_SMOOTH_BIRDSEYE.second;
+
+   if (!trace.empty()) {
+      auto src = std::filesystem::path("./morty/waiting.png");
+      auto dest_pathA = output_path + nameA1;
+      StaticHelper::createDirectoriesSafe(dest_pathA);
+
+      static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF = static_cast<mc::trajectory_generator::LiveSimGenerator::LiveSimType>(
+         mc::trajectory_generator::LiveSimGenerator::LiveSimType::birdseye
+         | mc::trajectory_generator::LiveSimGenerator::LiveSimType::incremental_image_output
+         );
+
+      mc::trajectory_generator::VisualizationScales gen_config_non_smooth{};
+      gen_config_non_smooth.x_scaling = 1;
+      gen_config_non_smooth.duration_scale = 1;
+      gen_config_non_smooth.frames_per_second_gif = 0;
+      gen_config_non_smooth.frames_per_second_osc = 0;
+      gen_config_non_smooth.gif_duration_scale = 1;
+
+      mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
+         trace,
+         output_path,
+         nameA1,
+         SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
+         {},
+         gen_config_non_smooth, nameA2);
+
+      auto dest_pathB = output_path + nameB1;
+      StaticHelper::createDirectoriesSafe(dest_pathB);
+
+      auto gen_config_smooth = mc::trajectory_generator::VisualizationScales{ gen_config_non_smooth };
+      gen_config_smooth.frames_per_second_gif = 40;
+      gen_config_smooth.frames_per_second_osc = 40;
+
+      static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY_SMOOTH = static_cast<mc::trajectory_generator::LiveSimGenerator::LiveSimType>(
+         mc::trajectory_generator::LiveSimGenerator::LiveSimType::birdseye
+         | mc::trajectory_generator::LiveSimGenerator::LiveSimType::gif_animation
+         );
+
+      //mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
+      //   trace,
+      //   output_path,
+      //   nameB1,
+      //   SIM_TYPE_REGULAR_BIRDSEYE_ONLY_SMOOTH,
+      //   {},
+      //   gen_config_smooth, nameB2);
+   }
+}
+
 
 int main(int argc, char* argv[])
 {
+//   std::string s{ R"(
+//      @{ 
+//@{}@.StopScript
+//
+//#1# 
+//
+// }@*.newMethod[test, 1]
+//
+//      @{}@.test[   @{test}@.for[e, 1, 4]   ]
+//
+//)" };
+//
+//   std::cout << macro::Script::processScript(s) << std::endl;
+//   termnate();
+
+   //generatePreviewsForMorty();
+   //termnate();
+
    //morty("", "", 0);
    //termnate();
 

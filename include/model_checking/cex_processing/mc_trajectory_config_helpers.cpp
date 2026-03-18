@@ -104,7 +104,7 @@ namespace helpers {
 		return lane_changes;
 	}
 
-	std::vector<LaneChange> detect_lane_changes_from_states(FullTrajectory trajectory_positions)
+	std::vector<LaneChange> detect_lane_changes_from_states(FullTrajectory trajectory_positions, const float lane_width)
 	{
 		enum class LaneChangeState
 		{
@@ -175,7 +175,7 @@ namespace helpers {
 				else
 				{
 					// reached a new full lane or the end of the trace
-					if (std::fmod(params[PossibleParameter::pos_y], LANE_WIDTH) < 0.01 || state_index == (total_states - 1))
+					if (std::fmod(params[PossibleParameter::pos_y], lane_width) < 0.01 || state_index == (total_states - 1))
 					{
 						current_lane_change.end_index = state_index;
 						current_lane_change.y_at_end = params[PossibleParameter::pos_y];
