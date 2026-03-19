@@ -179,10 +179,10 @@ DEFINE
     veh___6[i]9___.lane_crossing := FALSE @{| veh___6[i]9___.lane_@{[j]-1}@.eval[0][j]}@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
     veh___6[i]9___.lane_unchanged := @{veh___6[i]9___.lane_b[j] = next(veh___6[i]9___.lane_b[j])}@.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
     veh___6[i]9___.lane_move_down := 
-                      @{(veh___6[i]9___.normalized_lane_[j] -> (@{next(veh___6[i]9___.normalized_lane_@{max(0, [k])}@.eval[0])}@*.for[[k], @{[j] - MAX_JUMP_OVER_TECHNICAL_LANES}@.eval, @{[j] - 1}@.eval, 1, |]))
+                      @{(veh___6[i]9___.normalized_lane_[j] ->next(@{veh___6[i]9___.normalized_lane_@{max(0, [k])}@.eval[0]}@*.for[[k], @{[j] - MAX_JUMP_OVER_TECHNICAL_LANES}@.eval, @{[j] - 1}@.eval, 1, |]))
                       }@**.for[[j], 0, @{normalized_lane_counter}@.scriptVar, 1, &];
     veh___6[i]9___.lane_move_up :=
-                      @{(veh___6[i]9___.normalized_lane_[j] -> (@{next(veh___6[i]9___.normalized_lane_@{min(@{normalized_lane_counter}@.scriptVar, [k])}@.eval[0])}@*.for[[k], @{[j] + 1}@.eval, @{[j] + MAX_JUMP_OVER_TECHNICAL_LANES}@.eval, 1, |]))
+                      @{(veh___6[i]9___.normalized_lane_[j] -> next(@{veh___6[i]9___.normalized_lane_@{min(@{normalized_lane_counter}@.scriptVar, [k])}@.eval[0]}@*.for[[k], @{[j] + 1}@.eval, @{[j] + MAX_JUMP_OVER_TECHNICAL_LANES}@.eval, 1, |]))
                       }@**.for[[j], 0, @{normalized_lane_counter}@.scriptVar, 1, &];
 
 

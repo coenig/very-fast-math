@@ -95,7 +95,7 @@
       "VEHICLE_LENGTH": "#{vehlen}#",
       "VEHICLE_WIDTH": "#{vehwidth}#",
       "LANE_WIDTH": 400,
-      "MAX_JUMP_OVER_TECHNICAL_LANES": 5,
+      "MAX_JUMP_OVER_TECHNICAL_LANES": 8,
       "_BP_INCLUDES_FILE_PATH": "../src/examples/ego_less/vfm-includes.txt",
       "_CACHED_PATH": "../examples/tmp",
       "_ENVMODEL_PATH": "../src/templates",
