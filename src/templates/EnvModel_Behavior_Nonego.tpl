@@ -138,30 +138,30 @@ DEFINE
     }@**.for[[k], 1, @{NUM_TECHNICAL_LANES - 1}@.eval]
 
     @{
-    @{0}@.setScriptVar[normalized_lane_counter, force].nil
-    veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@.scriptVar := veh___6[i]9___.lane_0;
+    @{0}@*.setScriptVar[normalized_lane_counter, force].nil
+    veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@*.scriptVar := veh___6[i]9___.lane_0;
 
-   @{}@.setScriptVar[on_normalized_lane_logic, force].nil
+   @{}@*.setScriptVar[on_normalized_lane_logic, force].nil
    @{########### on_normalized_lane_logic ##########}@.nil
-   @{@{on_normalized_lane_logic}@.scriptVar
-        veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@.scriptVar : @{normalized_lane_counter}@.scriptVar;}@.setScriptVar[on_normalized_lane_logic, force].nil
+   @{@{on_normalized_lane_logic}@*.scriptVar
+        veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@*.scriptVar : @{normalized_lane_counter}@*.scriptVar;}@.setScriptVar[on_normalized_lane_logic, force].nil
    @{########### EO on_normalized_lane_logic ##########}@.nil
 
     @{
-    @{@{1 + @{normalized_lane_counter}@.scriptVar}@.eval[0]}@.setScriptVar[normalized_lane_counter, force].nil
-    veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@.scriptVar := veh___6[i]9___.lane_@{[k]-1}@.eval[0][k];
+    @{@{1 + @{normalized_lane_counter}@*.scriptVar}@*.eval[0]}@*.setScriptVar[normalized_lane_counter, force].nil
+    veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@*.scriptVar := veh___6[i]9___.lane_@{[k]-1}@*.eval[0][k];
 
    @{########### on_normalized_lane_logic ##########}@.nil
-   @{@{on_normalized_lane_logic}@.scriptVar
-        veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@.scriptVar : @{normalized_lane_counter}@.scriptVar;}@.setScriptVar[on_normalized_lane_logic, force].nil
+   @{@{on_normalized_lane_logic}@*.scriptVar
+        veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@*.scriptVar : @{normalized_lane_counter}@*.scriptVar;}@*.setScriptVar[on_normalized_lane_logic, force].nil
    @{########### EO on_normalized_lane_logic ##########}@.nil
 
-    @{@{1 + @{normalized_lane_counter}@.scriptVar}@.eval[0]}@.setScriptVar[normalized_lane_counter, force].nil
-    veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@.scriptVar := veh___6[i]9___.lane_[k];
+    @{@{1 + @{normalized_lane_counter}@*.scriptVar}@*.eval[0]}@*.setScriptVar[normalized_lane_counter, force].nil
+    veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@*.scriptVar := veh___6[i]9___.lane_[k];
 
    @{########### on_normalized_lane_logic ##########}@.nil
-   @{@{on_normalized_lane_logic}@.scriptVar
-        veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@.scriptVar : @{normalized_lane_counter}@.scriptVar;}@.setScriptVar[on_normalized_lane_logic, force].nil
+   @{@{on_normalized_lane_logic}@*.scriptVar
+        veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@*.scriptVar : @{normalized_lane_counter}@*.scriptVar;}@*.setScriptVar[on_normalized_lane_logic, force].nil
    @{########### EO on_normalized_lane_logic ##########}@.nil
 
     }@**.for[[k], 1, @{NUM_TECHNICAL_LANES - 1}@.eval]
@@ -169,8 +169,8 @@ DEFINE
 
 
     veh___6[i]9___.on_normalized_lane := case
-        @{on_normalized_lane_logic}@.scriptVar
-        TRUE: 0; -- Can never happen.
+        @{on_normalized_lane_logic}@*.scriptVar
+        TRUE: 0;
     esac;
 
     veh___6[i]9___.lane_min := veh___6[i]9___.lane_0;
@@ -179,10 +179,8 @@ DEFINE
     veh___6[i]9___.lane_crossing := FALSE @{| veh___6[i]9___.lane_@{[j]-1}@.eval[0][j]}@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
     veh___6[i]9___.lane_unchanged := @{veh___6[i]9___.lane_b[j] = next(veh___6[i]9___.lane_b[j])}@.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
     veh___6[i]9___.lane_move_down := 
-                      (veh___6[i]9___.lane_0 -> next(veh___6[i]9___.lane_0))
-                      @{& (veh___6[i]9___.lane_@{[j]-1}@.eval[0][j] -> next(veh___6[i]9___.lane_@{[j]-1}@.eval[0]))
-                      & (veh___6[i]9___.lane_[j] -> next(veh___6[i]9___.lane_@{[j]-1}@.eval[0][j]))
-                      }@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
+                      @{(veh___6[i]9___.normalized_lane_[j] -> next(veh___6[i]9___.normalized_lane_@{max(0, [j]-1)}@.eval[0]))
+                      }@*.for[[j], 0, @{normalized_lane_counter}@.scriptVar, 1, &];
     veh___6[i]9___.lane_move_up :=
                       (veh___6[i]9___.lane_@{NUM_TECHNICAL_LANES - 1}@.eval[0] -> next(veh___6[i]9___.lane_@{NUM_TECHNICAL_LANES - 1}@.eval[0]))
                       @{& (veh___6[i]9___.lane_@{[j]-1}@.eval[0][j] -> next(veh___6[i]9___.lane_[j]))
@@ -204,7 +202,7 @@ DEFINE
    @{
       veh___6[i]9___.lateral_normalized_distance_to_veh_[k] := abs(veh___6[i]9___.on_normalized_lane - veh___6[k]9___.on_normalized_lane);
       veh___6[i]9___.lateral_distance_to_veh_[k] := distance_between_normalized_lanes_cm * veh___6[i]9___.lateral_normalized_distance_to_veh_[k];
-      veh___6[i]9___.laterally_overlapping_with_veh_[k] := veh___6[i]9___.lateral_distance_to_veh_[k] <= @{VEHICLE_WIDTH}@.eval[0]; -- TODO: This might be inefficient. We can create a purely boolean structure as before at compile time.
+      veh___6[i]9___.laterally_overlapping_with_veh_[k] := veh___6[i]9___.lateral_distance_to_veh_[k] <= @{VEHICLE_WIDTH}@.eval[0]; -- TODO: This might be inefficient. Theoretically, we can create a purely boolean structure as before at compile time.
 
    }@**.for[[k], 0, @{[i]}@.sub[1]]
 
