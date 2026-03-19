@@ -182,10 +182,8 @@ DEFINE
                       @{(veh___6[i]9___.normalized_lane_[j] -> next(veh___6[i]9___.normalized_lane_@{max(0, [j]-1)}@.eval[0]))
                       }@*.for[[j], 0, @{normalized_lane_counter}@.scriptVar, 1, &];
     veh___6[i]9___.lane_move_up :=
-                      (veh___6[i]9___.lane_@{NUM_TECHNICAL_LANES - 1}@.eval[0] -> next(veh___6[i]9___.lane_@{NUM_TECHNICAL_LANES - 1}@.eval[0]))
-                      @{& (veh___6[i]9___.lane_@{[j]-1}@.eval[0][j] -> next(veh___6[i]9___.lane_[j]))
-                      & (veh___6[i]9___.lane_@{[j]-1}@.eval[0] -> next(veh___6[i]9___.lane_@{[j]-1}@.eval[0][j]))
-                      }@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
+                      @{(veh___6[i]9___.normalized_lane_[j] -> next(veh___6[i]9___.normalized_lane_@{min(@{normalized_lane_counter}@.scriptVar, [j]+1)}@.eval[0]))
+                      }@*.for[[j], 0, @{normalized_lane_counter}@.scriptVar, 1, &];
 
 
    @{################# NOTE THAT THIS PART IS CHANGED AS COMPARED TO TACAS VERSION (might be inefficient) ###################}@.nil
