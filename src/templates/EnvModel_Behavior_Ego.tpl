@@ -69,17 +69,6 @@ DEFINE
     ego_lane_crossing := FALSE @{| ego_lane_@{[j]-1}@.eval[0][j]}@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
     ego_lane_unchanged := @{ego_lane_b[j] = next(ego_lane_b[j])}@.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
 
-    ego_lane_move_down := 
-                      (ego_lane_0 -> next(ego_lane_0))
-                      @{& (ego_lane_@{[j]-1}@.eval[0][j] -> next(ego_lane_@{[j]-1}@.eval[0]))
-                      & (ego_lane_[j] -> next(ego_lane_@{[j]-1}@.eval[0][j]))
-                      }@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
-    ego_lane_move_up :=
-                      (ego_lane_@{NUM_TECHNICAL_LANES - 1}@.eval[0] -> next(ego_lane_@{NUM_TECHNICAL_LANES - 1}@.eval[0]))
-                      @{& (ego_lane_@{[j]-1}@.eval[0][j] -> next(ego_lane_[j]))
-                      & (ego_lane_@{[j]-1}@.eval[0] -> next(ego_lane_@{[j]-1}@.eval[0][j]))
-                      }@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
-
 
 DEFINE
 -- Schematic for ego.right_of_veh_*_lane

@@ -66,10 +66,11 @@
 
 -- Below: Extend the simple LC by allowing more fine-granular steps between the lanes.
 -- We do not keep this in synch with the full Christian implementation for now. I.e., use the default parameters to activate this.
-@{LATERAL_LC_GRANULARITY}@*******.defaultValue[0]      -- 0 is how it was before, n > 0 increases technical number of lanes by n. Independent of ANGLE_BASED_LC -- Deliberately separating this from scaling (could discuss in future)
-@{LANE_WIDTH}@*******.defaultValue[400]                -- Default value from highway-env (highway_env/road/lane.py).          Note that we have 375 in vfm...   (include/geometry/images.h)
-@{VEHICLE_WIDTH}@*******.defaultValue[200]             -- Default value from highway-env (highway_env/vehicle/kinematics.py). Note that we have 185.2 in vfm... (include/geometry/images.h)
-@{VEHICLE_LENGTH}@*******.defaultValue[500]            -- Default value from highway-env (highway_env/vehicle/kinematics.py). Note that we have 492.3 in vfm... (include/geometry/images.h)
+@{LATERAL_LC_GRANULARITY}@*******.defaultValue[0]        -- 0 is how it was before, n > 0 increases technical number of lanes by n. Independent of ANGLE_BASED_LC -- Deliberately separating this from scaling (could discuss in future)
+@{LANE_WIDTH}@*******.defaultValue[400]                  -- Default value from highway-env (highway_env/road/lane.py).          Note that we have 375 in vfm...   (include/geometry/images.h)
+@{VEHICLE_WIDTH}@*******.defaultValue[200]               -- Default value from highway-env (highway_env/vehicle/kinematics.py). Note that we have 185.2 in vfm... (include/geometry/images.h)
+@{VEHICLE_LENGTH}@*******.defaultValue[500]              -- Default value from highway-env (highway_env/vehicle/kinematics.py). Note that we have 492.3 in vfm... (include/geometry/images.h)
+@{MAX_JUMP_OVER_TECHNICAL_LANES}@*******.defaultValue[1] -- For SIMPLE_LC, how big a step can be in one cycle by changing from one lane to another.
 
 
 -- Parameters for "skipping" of CEXs.
