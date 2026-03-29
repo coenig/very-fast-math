@@ -48,6 +48,8 @@ pip install gymnasium
 pip install "gymnasium[other]"
 pip install highway-env
 ```
+(TODO: Probably `pip install moviepy` suffices rather than installing all 'other' of gymnasium.)
+
 Then, run:
 ```
 python3 morty/morty.py
