@@ -2,6 +2,10 @@
     @(-- Undeclared variable #0# found during generation of EnvModel. Setting to default value #1#. @{@#0# = #1#}@********.eval.nil)@
 }@*********.if[@{#0#}@.vfm_variable_declared]}@**********.newMethod[defaultValue, 1]
 
+@{@{@(-- Found variable #0# with value @{#0#}@*******.printHeap during generation of EnvModel (default would be #1#).)@
+    @(-- Undeclared variable #0# found during generation of EnvModel. Setting to default value #1#. @{@#0# = #1#}@********.eval.nil)@
+}@*********.if[@{#0#}@.vfm_variable_declared]}@**********.newMethodString[defaultValue, 1]
+
 -- Note that the below exact formulation is used in regex for caching. 
 -- Do not change...
 
