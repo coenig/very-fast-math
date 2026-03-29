@@ -890,6 +890,19 @@ private:
       return res;
    }};
 
+   std::string includeMe(const std::string& body)
+   {
+      std::string filepath{ StaticHelper::absPath(getMyPath()) + "/" + body };
+
+      if (StaticHelper::existsFileSafe(filepath)) {
+         return StaticHelper::readFile(filepath);
+      }
+      else {
+         addFatalError("File '" + filepath + "' not found.");
+         return "#FILE_NOT_FOUND<" + filepath + ">";
+      }
+   }
+
    std::set<ScriptMethodDescription> METHODS{
       m0,
       m1,
@@ -1030,16 +1043,11 @@ private:
 
          return getScriptData().list_data_.at(varname).at(0);
       } },
-      { "include", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
-         std::string filepath{ StaticHelper::absPath(getMyPath()) + "/" + body };
-
-         if (StaticHelper::existsFileSafe(filepath)) {
-            return StaticHelper::readFile(filepath);
-         }
-         else {
-            addFatalError("File '" + filepath + "' not found.");
-            return "#FILE_NOT_FOUND<" + filepath + ">";
-         }
+      { "include", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         return includeMe(body);
+      } },
+      { "Include", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         return includeMe(body);
       } },
       { "vfm_variable_declared", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(getData()->isVarDeclared(body)); } },
       { "vfm_variable_undeclared", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(!getData()->isVarDeclared(body)); } },

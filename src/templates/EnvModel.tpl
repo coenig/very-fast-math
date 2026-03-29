@@ -1,6 +1,6 @@
 @{EnvModel_Header.tpl}@********.include
 @{EnvModel_Scaling.tpl}@********.include
-@{EnvModel_Parameters.tpl}@********.include -- Needs to be loaded before parameters (like CONCRETE_MODEL) are evaluated below.
+@{EnvModel_Parameters.tpl}@********.Include -- Needs to be loaded before parameters (like CONCRETE_MODEL) are evaluated below.
 
 @{
 @(

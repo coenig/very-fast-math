@@ -69,7 +69,7 @@ std::map<std::string, std::string> getRelevantVariablesFromEnvModel(
 {
    std::map<std::string, std::string> res{};
 
-   std::regex variableRegex1(R"(\bFound variable (\w+) with value (\S+) during generation of EnvModel)");
+   std::regex variableRegex1(R"(\bFound variable (\w+) with value (\S*) during generation of EnvModel)");
    std::smatch match1;
    std::string::const_iterator searchStart1(env_model.cbegin());
 
@@ -79,7 +79,7 @@ std::map<std::string, std::string> getRelevantVariablesFromEnvModel(
       searchStart1 = match1.suffix().first;
    }
 
-   std::regex variableRegex2(R"(\bUndeclared variable (\w+) found during generation of EnvModel\. Setting to default value (\S+))");
+   std::regex variableRegex2(R"(\bUndeclared variable (\w+) found during generation of EnvModel\. Setting to default value (\S*)\.)");
    std::smatch match2;
    std::string::const_iterator searchStart2(env_model.cbegin());
 
@@ -90,7 +90,7 @@ std::map<std::string, std::string> getRelevantVariablesFromEnvModel(
    }
 
    std::string envmodel_copy{ env_model };
-   std::regex pattern("-- Found variable (\\w+) with value (\\S+) during generation of EnvModel \\(default would be (\\S+)\\).");
+   std::regex pattern("-- Found variable (\\w+) with value (\\S*) during generation of EnvModel \\(default would be (\\S*)\\)\.");
    std::smatch matches;
 
    std::string::const_iterator searchStart(envmodel_copy.cbegin());
@@ -111,8 +111,11 @@ bool checkEqual(const std::string& val_desired, const std::string& val_cached)
 {
    bool equals{ true };
 
-   std::string actual_val_desired{ StaticHelper::toLowerCase(StaticHelper::trimAndReturn(val_desired)) };
-   std::string actual_val_cached{ StaticHelper::toLowerCase(StaticHelper::trimAndReturn(val_cached)) };
+
+   const std::string actual_val_desired_orig{ StaticHelper::trimAndReturn(val_desired) };
+   const std::string actual_val_cached_orig{ StaticHelper::trimAndReturn(val_cached) };
+   std::string actual_val_desired{ StaticHelper::toLowerCase(actual_val_desired_orig) };
+   std::string actual_val_cached{ StaticHelper::toLowerCase(actual_val_cached_orig) };
 
    if (actual_val_desired == "true") actual_val_desired = "1";
    if (actual_val_desired == "false") actual_val_desired = "0";
@@ -121,6 +124,11 @@ bool checkEqual(const std::string& val_desired, const std::string& val_cached)
 
    if (StaticHelper::isParsableAsFloat(actual_val_desired)) actual_val_desired = StaticHelper::floatToStringNoTrailingZeros(std::stof(actual_val_desired));
    if (StaticHelper::isParsableAsFloat(actual_val_cached)) actual_val_cached = StaticHelper::floatToStringNoTrailingZeros(std::stof(actual_val_cached));
+
+   if (StaticHelper::stringStartsWith(actual_val_desired, STRING_PREFIX_ENVMODEL_GEN)) { // It's a string.
+      const std::string content_part{ actual_val_desired_orig.substr(STRING_PREFIX_ENVMODEL_GEN.size()) };
+      actual_val_desired = StaticHelper::fromSafeString(content_part);
+   }
 
    if (actual_val_desired != actual_val_cached) equals = false;
 
