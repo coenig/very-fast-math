@@ -149,6 +149,8 @@ parser.add_argument('--record_video', action='store_true',
                     help='Record a video of the run. Default: False')
 parser.add_argument('--detailed_archive', action='store_true',
                     help='Stores detailed archive of the run in a subfolder. Default: False')
+parser.add_argument('--headless', action='store_true',
+                    help='Run without opening the simulation UI window. Default: False')
 args = parser.parse_args()
 
 output_folder = args.output + "/"
@@ -288,7 +290,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
     first = True
     for global_counter in range(args.steps_per_run):
-        env.render()
+        if not args.headless:
+            env.render()
         obs, reward, done, truncated, info = env.step(action)
 
         mcinput = ""
