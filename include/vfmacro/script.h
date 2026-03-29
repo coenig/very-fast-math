@@ -1100,12 +1100,14 @@ private:
             }
          }
          
-         std::string message{ StaticHelper::timeStamp() + ": " + std::to_string(num) + " PIDs based on '" + body + "' have been killed after '" + parameters[0] + "' seconds of runtime." };
-
-         addNote(message);
+         std::string message{};
+         if (num > 0) {
+            message = "\n" + StaticHelper::timeStamp() + ": " + std::to_string(num) + " PIDs based on '" + body + "' have been killed after '" + parameters[0] + "' seconds of runtime.";
+            addNote(message);
+         }
 
          std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-         return "@{" + body + "}@.killAfter[" + parameters[0] + "]" + (num > 0 ? "\n" + message : "");
+         return "@{" + body + "}@.killAfter[" + parameters[0] + "]" + message;
       } },
       { "METHODs", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
          std::string s{};
