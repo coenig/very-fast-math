@@ -294,7 +294,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     for global_counter in range(args.steps_per_run):
         if not args.headless:
             env.render()
-
         obs, reward, done, truncated, info = env.step(action)
 
         mcinput = ""
