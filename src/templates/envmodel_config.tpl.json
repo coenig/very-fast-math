@@ -86,7 +86,7 @@
       "ShowLOG": true,
       "TIMESCALING": "#{1000}#",
       "LANES_MAX_SPEEDS": "@(15)@@(16)@@(17)@",
-      "LANES_MIN_SPEEDS": "@(0)@@(1)@@(2)@",
+      "LANES_MIN_SPEEDS": "@(0)@@(0)@@(0)@",
       "ANGLE_BASED_LC": false,
       "NUMLANES": "#{lanes}#",
       "LATERAL_LC_GRANULARITY": 1,

@@ -3,7 +3,7 @@
 }@*********.if[@{#0#}@.vfm_variable_declared]}@**********.newMethod[defaultValue, 1]
 
 @{@{@(-- Found variable #0# with value @{#0#}@*******.printHeap during generation of EnvModel (default would be #1#).)@
-    @(-- Undeclared variable #0# found during generation of EnvModel. Setting to default value #1#. @{#1#}@********.stringToHeap[#0#])@
+    @(-- Undeclared variable #0# found during generation of EnvModel. Setting to default value #1#. @{#1#}@********.stringToHeap[#0#].nil)@
 }@*********.if[@{#0#}@.vfm_variable_declared]}@**********.newMethod[defaultValueString, 1]
 
 -- Note that the below exact formulation is used in regex for caching. 
@@ -58,7 +58,9 @@
 @{TIMESCALING}@*******.defaultValue[1000]        -- nondimensionalization constant for time, in milliseconds
 @{DISTANCESCALING}@*******.defaultValue[1000]    -- nondimensionalization constant for distance, in millimeters
 
-@{LANES_MAX_SPEEDS}@*******.defaultValue[@(15)@@(16)@@(17)@]
+@{LANES_MAX_SPEEDS}@*******.defaultValueString[@(70)@@(70)@@(70)@]
+@{LANES_MIN_SPEEDS}@*******.defaultValueString[@(0)@@(0)@@(0)@]
+@{BACKWARD_DRIVING_CAR_IDS}@*******.defaultValueString[@{}@]
 
 -- Lanechange parameters
 @{ANGLE_BASED_LC}@*******.defaultValue[false]          -- Do the angle-based LC as opposed to the "classic" lane-based one.
