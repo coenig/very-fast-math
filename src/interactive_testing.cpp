@@ -35,7 +35,9 @@ std::map<std::string, std::string> vfm::test::retrieveEnvModelDefinitionFromJSON
    i >> j;
 
    for (auto& [key_config, value_config] : j.items()) {
-      std::string env_model_definition{ cached_mode == EnvModelCachedMode::always_regenerate ? "G" : "" };
+      std::string env_model_definition{ cached_mode == EnvModelCachedMode::always_regenerate 
+         ? NATIVE_SMV_ENV_MODEL_DENOTER_ALWAYS_REGENERATE 
+         : "" };
 
       for (auto& [key, value] : value_config.items()) {
          std::string val_str{ nlohmann::to_string(value) };

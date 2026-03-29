@@ -98,7 +98,7 @@ SPECS.append(r"""INVARSPEC FALSE;""") # 6: Benchmark 2.
 TARGET_DIST_NUDGING_FRONT = 300 # Target distance for the next spec.
 TARGET_DIST_NUDGING_BACK = 10 # Target distance for the next spec.
 TARGET_DIST_NUDGING = 300 # Target distance for the next spec.
-SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos + {TARGET_DIST_NUDGING});") # 7
+SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos + {TARGET_DIST_NUDGING} & env.veh___619___.abs_pos >= 0);") # 7
 #SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= {TARGET_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos <= {TARGET_DIST_NUDGING_BACK});") # 7
 
 
