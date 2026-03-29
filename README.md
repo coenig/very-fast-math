@@ -42,7 +42,7 @@ sudo apt-get install libglew-dev
 ```
 
 ## M²oRTy
-For the ultra-cooperative driving framework you need additionally `gymnasium` and `highway-env` (as well as python3/pip which we assume you have):
+For the ultra-cooperative driving framework you need additionally `gymnasium` and `highway-env` (as well as python3/pip):
 ```
 pip install gymnasium
 pip install "gymnasium[other]"
@@ -53,7 +53,11 @@ Then, run:
 python3 morty/morty.py
 ```
 ### Troubleshoot
-For the `--record_video` option to work, you'll need to use a specific older version of highway-env: `pip install highway-env==1.10.1`.
+For the `--record_video` option to work, you'll need to use specific older versions of highway-env and gymnasium: 
+```
+pip install highway-env==1.10.1
+pip install gymnasium==0.29.1
+```
 
 ## Authors
 Lukas Koenig,
