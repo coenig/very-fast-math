@@ -54,6 +54,8 @@
 @{TIMESCALING}@*******.defaultValue[1000]        -- nondimensionalization constant for time, in milliseconds
 @{DISTANCESCALING}@*******.defaultValue[1000]    -- nondimensionalization constant for distance, in millimeters
 
+@{LANES_MAX_SPEEDS}@*******.defaultValue[@(15)@@(16)@@(17)@]
+
 -- Lanechange parameters
 @{ANGLE_BASED_LC}@*******.defaultValue[false]          -- Do the angle-based LC as opposed to the "classic" lane-based one.
 @{@{LC_ANGLE_GRANULARITY_DEG}@*******.defaultValue[1]  -- Only if ANGLE_BASED_LC -- TODO: Do we need this? For now only full degrees as int.}@*******************.nil
