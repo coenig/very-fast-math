@@ -157,6 +157,9 @@ parser.add_argument('--headless', action='store_true',
                     help='Run without opening the simulation UI window. Default: False')
 args = parser.parse_args()
 
+if args.headless:
+    os.environ['SDL_VIDEODRIVER'] = 'offscreen'
+
 output_folder = args.output + "/"
 
 
