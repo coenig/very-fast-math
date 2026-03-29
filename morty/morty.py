@@ -16,7 +16,8 @@ import json
 with open('morty/envmodel_config.tpl.json') as f:
     d = json.load(f)
     nonegos = d["#TEMPLATE"]["NONEGOS"]
-    numlanes = d["#TEMPLATE"]["NUMLANES"]
+    num_actual_lanes = d["#TEMPLATE"]["NUMLANES"]
+    num_technical_lanes = d["#TEMPLATE"]["LATERAL_LC_GRANULARITY"] + num_actual_lanes
     maxspeed = d["#TEMPLATE"]["MAXSPEEDNONEGO"]
     backward_driving_car_ids_str = d["#TEMPLATE"]["BACKWARD_DRIVING_CAR_IDS"]
     min_time_between_lcs = d["#TEMPLATE"]["MIN_TIME_BETWEEN_LANECHANGES"]
@@ -96,7 +97,10 @@ SPECS.append(r"""INVARSPEC FALSE;""") # 6: Benchmark 2.
 
 TARGET_DIST_NUDGING_FRONT = 300 # Target distance for the next spec.
 TARGET_DIST_NUDGING_BACK = 10 # Target distance for the next spec.
-SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= {TARGET_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos <= {TARGET_DIST_NUDGING_BACK});") # 7
+TARGET_DIST_NUDGING = 300 # Target distance for the next spec.
+SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos + {TARGET_DIST_NUDGING});") # 7
+#SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= {TARGET_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos <= {TARGET_DIST_NUDGING_BACK});") # 7
+
 
 SUCC_CONDS.append(lambda: all(x < 1 for x in egos_v))
 SUCC_CONDS.append(lambda: all(abs(x - TARGET_VEL) < 1 for x in egos_v))
@@ -242,7 +246,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "simulation_frequency": 60,  # [Hz]
         "policy_frequency": 2,  # [Hz]
         "controlled_vehicles": nonegos,
-        "lanes_count": numlanes,
+        "lanes_count": num_actual_lanes,
         "vehicles_count": 0,
         "screen_width": 1500,
         "screen_height": 200,
@@ -326,7 +330,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             archive(seedo, global_counter)
             break
 
-        mcinput += "$$$1$$$" + str(args.debug) + "$$$" + str(args.heading_adaptation) + "$$$" + str(seedo) + "$$$" + str(crashed) + "$$$" + str(global_counter) + "$$$" + output_folder + "$$$" + ("/" if output_folder[0] == "/" else ".") + "$$$" + str(numlanes)
+        mcinput += "$$$1$$$" + str(args.debug) + "$$$" + str(args.heading_adaptation) + "$$$" + str(seedo) + "$$$" + str(crashed) + "$$$" + str(global_counter) + "$$$" + output_folder + "$$$" + ("/" if output_folder[0] == "/" else ".") + "$$$" + str(num_actual_lanes)
         
         first = False
         
@@ -425,7 +429,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 dpoints_delta[i] = 0 # Don't care about cases with no ongoing LC since delta is zero, then.
                 lc_time[i] = 0
             
-            dpoints_y[i] = max(min(dpoints_y[i], numlanes * 3), 0)
+            dpoints_y[i] = max(min(dpoints_y[i], num_actual_lanes * 3), 0)
             
             # Best so far:
             # accel = sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
