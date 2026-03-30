@@ -49,6 +49,7 @@ VAR
   env : EnvModel;
   planner : "checkLCConditionsFastLane"(globals."loc");
 
+INVAR env.ego.v = veh___609___.v;
 """
 
 
@@ -98,8 +99,8 @@ SPECS.append(r"""INVARSPEC FALSE;""") # 6: Benchmark 2.
 TARGET_DIST_NUDGING_FRONT = 300 # Target distance for the next spec.
 TARGET_DIST_NUDGING_BACK = 10 # Target distance for the next spec.
 TARGET_DIST_NUDGING = 300 # Target distance for the next spec.
-SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos + {TARGET_DIST_NUDGING} & env.veh___619___.abs_pos >= 0);") # 7
-#SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= {TARGET_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos <= {TARGET_DIST_NUDGING_BACK});") # 7
+#SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos + {TARGET_DIST_NUDGING} & env.veh___619___.abs_pos >= 0);") # 7
+SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= {TARGET_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos <= {TARGET_DIST_NUDGING_BACK});") # 7
 
 
 SUCC_CONDS.append(lambda: all(x < 1 for x in egos_v))
@@ -167,7 +168,7 @@ MAIN_TEMPLATE += addons[args.exp_num]
 
 # Best so far:
 # ACCEL_RANGE = 6
-ACCEL_RANGE = 6
+ACCEL_RANGE = 60
 
 MAX_EXPs = args.num_runs
 
@@ -282,7 +283,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             if cnt == 0:
                 vehicle.position[0] = 0
             if cnt == 1:
-                vehicle.position[0] = (nonegos - 1) * 400 / nonegos
+                vehicle.position[0] = (nonegos - 1) * 500 / nonegos
             if cnt > 1:
                 vehicle.position[0] = (cnt - 1) * 400 / nonegos
                 vehicle.speed = 0
@@ -331,7 +332,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             archive(seedo, global_counter)
             break
 
-        mcinput += "$$$1$$$" + str(args.debug) + "$$$" + str(args.heading_adaptation) + "$$$" + str(seedo) + "$$$" + str(crashed) + "$$$" + str(global_counter) + "$$$" + output_folder + "$$$" + ("/" if output_folder[0] == "/" else ".") + "$$$" + str(num_actual_lanes)
+        mcinput += "$$$1$$$" + str(args.debug) + "$$$" + str(args.heading_adaptation) + "$$$" + str(seedo) + "$$$" + str(crashed) + "$$$" + str(global_counter) + "$$$" + output_folder + "$$$" + ("/" if output_folder[0] == "/" else ".") + "$$$" + str(num_actual_lanes) + "$$$" + str(args.detailed_archive)
         
         first = False
         
@@ -341,10 +342,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         res_str = res.decode()
         successed = SUCC_CONDS[args.exp_num]()
         
-        # We check both the MC result and the success condition to determine if we are done. Reason:
-        # The MC result alone is not sufficient because the MC cares only about the SPEC being satisfied in the last step.
+        # We check both (1) the MC result and (2) the success condition to determine if we are done. Reason:
+        # (1) alone is not sufficient because the MC cares only about the SPEC being satisfied in the last step.
         # Here we check AFTER the last step, a situation which is not guaranteed to have a solution, as well, so we might
-        # get a false negative. Checking only the success condition would be possible; we add the additional
+        # get a false negative. Checking only (2) would be possible; we add the additional
         # MC check to make it easier to implement new SPECs. Then, a first impression is possible even
         # if no success condition is given or if it is not implemented in a precise way. 
         if res_str == "FINISHED" or successed:
