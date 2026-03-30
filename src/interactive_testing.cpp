@@ -1762,9 +1762,9 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    
    mc_script = StaticHelper::replaceAll(
       StaticHelper::replaceAll(
-         StaticHelper::replaceAll(mc_script, 
-            "$0$", OUTPUT_PATH), 
-         "$1$", path_to_external_folder), 
+         StaticHelper::replaceAll(mc_script,
+            "$0$", OUTPUT_PATH),
+         "$1$", path_to_external_folder),
       "$2$", ROOT_DIR);
 
    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now(); // Note that this measured time should be largely overestimated...

@@ -74,7 +74,7 @@
       "SIMPLE_LC": true,
       "LANE_WIDTH": 400,
       "VEHICLE_WIDTH": 200,
-      "VEHICLE_LENGTH": 5,
+      "VEHICLE_LENGTH": 10,
       "SCENGEN_EXISTENTIAL_PROPERTIES": "1-9",
       "SCENGEN_MODE": false,
       "SCENGEN_UNIVERSAL_PROPERTIES": "0-0",
