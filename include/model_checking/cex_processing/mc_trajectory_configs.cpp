@@ -41,7 +41,7 @@ namespace trajectory_generator {
 
 				})},
 
-			{"ego.on_lane",
+			{"veh___609___.on_lane", // Use zeroth vehicle for ego.on_lane might be missing.
 			std::make_shared<InterpretableKey<double>>(
 				[=](MCinterpretedTrace& traj, std::vector<std::string> key_elements, double lane) { // TODO: Double code with "on_lane"
                const double actual_lanes{traj.getActualLanes()};
