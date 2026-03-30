@@ -1656,6 +1656,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    const std::string OUTPUT_PATH{ vec[7] };
    const std::string ROOT_DIR{ vec[8] }; // "." or "/", depending on weather we have an absolute ar a relative path.
    const int NUM_LANES{ std::stoi(vec[9]) };
+   const bool DETAILED_ARCHIVE{ std::string(vec[10]) == std::string("True") };
 
    auto cars = StaticHelper::split(input_str, ";");
    auto main_file = StaticHelper::readFile(OUTPUT_PATH + "main.tpl") + "\n";
@@ -1783,7 +1784,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
       + std::to_string(ITERATION) + ";"
       + "\n", OUTPUT_PATH + "morty_mc_results.txt", true);
 
-   if (DEBUG) {
+   if (DEBUG || DETAILED_ARCHIVE) {
       generatePreviewsForMorty(trace, OUTPUT_PATH); // Actual preview in case everything went fine.
    }
 
