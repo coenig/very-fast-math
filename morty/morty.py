@@ -49,7 +49,7 @@ VAR
   env : EnvModel;
   planner : "checkLCConditionsFastLane"(globals."loc");
 
-INVAR env.ego.v = veh___609___.v;
+INVAR env.ego.v = env.veh___609___.v;
 """
 
 
@@ -120,6 +120,8 @@ SUCC_CONDS.append(
 addons = [''] * len(SPECS)
 
 addons[7] = r"""
+INVAR env.veh___609___.v >= 5;
+INVAR env.veh___619___.v <= -5;
 INVAR env.veh___609___.v >= 0;
 INVAR env.veh___619___.v <= 0;
 """
@@ -331,7 +333,16 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             archive(seedo, global_counter)
             break
 
-        mcinput += "$$$1$$$" + str(args.debug) + "$$$" + str(args.heading_adaptation) + "$$$" + str(seedo) + "$$$" + str(crashed) + "$$$" + str(global_counter) + "$$$" + output_folder + "$$$" + ("/" if output_folder[0] == "/" else ".") + "$$$" + str(num_actual_lanes) + "$$$" + str(args.detailed_archive)
+        mcinput += "$$$1$$$" + str(args.debug) \
+                 + "$$$" + str(args.heading_adaptation) \
+                 + "$$$" + str(seedo) \
+                 + "$$$" + str(crashed) \
+                 + "$$$" + str(global_counter) \
+                 + "$$$" + output_folder \
+                 + "$$$" + ("/" if output_folder[0] == "/" else ".") \
+                 + "$$$" + str(num_actual_lanes) \
+                 + "$$$" + str(args.detailed_archive) \
+                 + "$$$" + "True"    # Smooth GIF
         
         first = False
         

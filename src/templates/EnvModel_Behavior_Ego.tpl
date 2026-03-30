@@ -709,11 +709,9 @@ VAR
 
    @{ego.abs_pos}@*.scalingVariable[distance] : integer;
 
-@{FROZENVAR}@******.if[@{(EGOLESS)}@.eval]
+@{VAR ego.v : integer;}@******.if[@{(EGOLESS)}@.eval]
 @{
-   @(ego.v : 0 .. 0; -- ego.max_vel;
-
-ASSIGN
+   @(ASSIGN
    next(ego.abs_pos) := next(veh___609___.abs_pos);)@
    @(@{ego.v}@*.scalingVariable[velocity] : -ego.max_vel .. ego.max_vel; -- @{2}@.velocityWorldToEnvModelConst;)@
 }@.if[@{UCD}@.eval]

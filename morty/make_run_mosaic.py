@@ -165,6 +165,46 @@ def build_column_mosaics(
     print(f"Saved {len(col_map)} column mosaic(s) to: {out_dir}")
 
 
+def build_iteration_mosaics(
+    run_dir: Path,
+    iterations: dict[int, list[tuple[int, Path]] | object],
+    row_height: int,
+) -> None:
+    """For each iteration_j, save a mosaic.png inside that folder with images stacked vertically."""
+    saved = 0
+    for j in sorted(iterations.keys()):
+        iter_dir = run_dir / f"iteration_{j}"
+        if iterations[j] is _BLIND:
+            img = add_border(make_red_image(200, row_height - 2))
+            canvas = Image.new("RGB", img.size, (255, 255, 255))
+            canvas.paste(img, (0, 0))
+            canvas.save(iter_dir / "mosaic.png")
+            saved += 1
+            continue
+
+        cells: list[Image.Image] = []
+        for _k, path in iterations[j]:  # type: ignore[union-attr]
+            img = crop_background(Image.open(path).convert("RGBA"))
+            scale = (row_height - 2) / img.height
+            new_w = max(1, round(img.width * scale))
+            cells.append(add_border(img.resize((new_w, row_height - 2), Image.LANCZOS).convert("RGB")))
+
+        if not cells:
+            continue
+
+        canvas_w = max(c.width for c in cells)
+        canvas_h = len(cells) * row_height
+        canvas = Image.new("RGB", (canvas_w, canvas_h), (255, 255, 255))
+        y = 0
+        for cell in cells:
+            canvas.paste(cell, (0, y))
+            y += row_height
+        canvas.save(iter_dir / "mosaic.png")
+        saved += 1
+
+    print(f"Saved {saved} iteration mosaic(s) into their respective folders under {run_dir}")
+
+
 def build_mosaic(
     iterations: dict[int, list[tuple[int, Path]] | object], row_height: int
 ) -> Image.Image:
@@ -206,7 +246,7 @@ def build_mosaic(
 
     return canvas.convert("RGB")
 
-# Run like this: python3 morty/make_run_mosaic.py detailed_results/run_0 --exclude-image detailed_results/run_0/iteration_0/preview2/preview2_42.png --column-mosaics
+# Run like this: python3 morty/make_run_mosaic.py detailed_results/run_0 --exclude-image morty/waiting.png --column-mosaics --iteration-mosaics
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Mosaic all preview2 images from a run_i folder.")
@@ -218,9 +258,11 @@ def main() -> None:
     parser.add_argument("--exclude-image", type=Path, default=None,
                         help="Path to a PNG whose duplicates should be excluded from the mosaic.")
     parser.add_argument("--column-mosaics", action="store_true",
-                        help="Also produce per-column mosaics (mosaic_k.png), one per distinct k.")
+                        help="Produce per-column mosaics (mosaic_k.png), one per distinct k.")
     parser.add_argument("--column-out-dir", type=Path, default=None,
                         help="Directory for column mosaics. Defaults to <run_dir>/column_mosaics/")
+    parser.add_argument("--iteration-mosaics", action="store_true",
+                        help="Produce per-iteration mosaics saved as mosaic.png inside each iteration_j folder.")
     args = parser.parse_args()
 
     run_dir: Path = args.run_dir.resolve()
@@ -242,10 +284,14 @@ def main() -> None:
         sys.exit(f"No iteration_j/preview2/preview2_k.png files found under '{run_dir}'.")
 
     print(f"Found {len(iterations)} iteration(s). Building mosaic …")
+    if args.iteration_mosaics:
+        build_iteration_mosaics(run_dir, iterations, args.row_height)
+        
     if args.column_mosaics:
         col_dir = args.column_out_dir if args.column_out_dir else run_dir / "column_mosaics"
         build_column_mosaics(iterations, args.row_height, col_dir)
-    else:
+    
+    if not args.iteration_mosaics and not args.column_mosaics: # Build the full mosaic only if no others requested.
         mosaic = build_mosaic(iterations, args.row_height)
         mosaic.save(out_path)
         print(f"Saved: {out_path}  ({mosaic.width}x{mosaic.height} px)")
