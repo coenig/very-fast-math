@@ -890,6 +890,19 @@ private:
       return res;
    }};
 
+   std::string includeMe(const std::string& body)
+   {
+      std::string filepath{ StaticHelper::absPath(getMyPath()) + "/" + body };
+
+      if (StaticHelper::existsFileSafe(filepath)) {
+         return StaticHelper::readFile(filepath);
+      }
+      else {
+         addFatalError("File '" + filepath + "' not found.");
+         return "#FILE_NOT_FOUND<" + filepath + ">";
+      }
+   }
+
    std::set<ScriptMethodDescription> METHODS{
       m0,
       m1,
@@ -1030,16 +1043,11 @@ private:
 
          return getScriptData().list_data_.at(varname).at(0);
       } },
-      { "include", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
-         std::string filepath{ StaticHelper::absPath(getMyPath()) + "/" + body };
-
-         if (StaticHelper::existsFileSafe(filepath)) {
-            return StaticHelper::readFile(filepath);
-         }
-         else {
-            addFatalError("File '" + filepath + "' not found.");
-            return "#FILE_NOT_FOUND<" + filepath + ">";
-         }
+      { "include", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         return includeMe(body);
+      } },
+      { "Include", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         return includeMe(body);
       } },
       { "vfm_variable_declared", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(getData()->isVarDeclared(body)); } },
       { "vfm_variable_undeclared", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(!getData()->isVarDeclared(body)); } },
@@ -1100,12 +1108,16 @@ private:
             }
          }
          
-         std::string message{ StaticHelper::timeStamp() + ": " + std::to_string(num) + " PIDs based on '" + body + "' have been killed after '" + parameters[0] + "' seconds of runtime." };
-
+         std::string message{ "\n" + StaticHelper::timeStamp() + ": " };
+         if (num > 0) {
+            message += std::to_string(num) + " PIDs based on '" + body + "' have been killed after '" + parameters[0] + "' seconds of runtime.";
+         } else {
+            message += "No '" + body + "'-based PID running long enough to be killed.";
+         }
+         
          addNote(message);
-
          std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-         return "@{" + body + "}@.killAfter[" + parameters[0] + "]" + (num > 0 ? "\n" + message : "");
+         return "@{" + body + "}@.killAfter[" + parameters[0] + "]" + message;
       } },
       { "METHODs", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
          std::string s{};

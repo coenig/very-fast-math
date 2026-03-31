@@ -2,6 +2,10 @@
     @(-- Undeclared variable #0# found during generation of EnvModel. Setting to default value #1#. @{@#0# = #1#}@********.eval.nil)@
 }@*********.if[@{#0#}@.vfm_variable_declared]}@**********.newMethod[defaultValue, 1]
 
+@{@{@(-- Found variable #0# with value @{#0#}@*******.printHeap during generation of EnvModel (default would be #1#).)@
+    @(-- Undeclared variable #0# found during generation of EnvModel. Setting to default value #1#. @{#1#}@********.stringToHeap[#0#].nil)@
+}@*********.if[@{#0#}@.vfm_variable_declared]}@**********.newMethod[defaultValueString, 1]
+
 -- Note that the below exact formulation is used in regex for caching. 
 -- Do not change...
 
@@ -54,6 +58,10 @@
 @{TIMESCALING}@*******.defaultValue[1000]        -- nondimensionalization constant for time, in milliseconds
 @{DISTANCESCALING}@*******.defaultValue[1000]    -- nondimensionalization constant for distance, in millimeters
 
+@{LANES_MAX_SPEEDS}@*******.defaultValueString[@(70)@@(70)@@(70)@]
+@{LANES_MIN_SPEEDS}@*******.defaultValueString[@(0)@@(0)@@(0)@]
+@{BACKWARD_DRIVING_CAR_IDS}@*******.defaultValueString[@{}@]
+
 -- Lanechange parameters
 @{ANGLE_BASED_LC}@*******.defaultValue[false]          -- Do the angle-based LC as opposed to the "classic" lane-based one.
 @{@{LC_ANGLE_GRANULARITY_DEG}@*******.defaultValue[1]  -- Only if ANGLE_BASED_LC -- TODO: Do we need this? For now only full degrees as int.}@*******************.nil
@@ -66,10 +74,11 @@
 
 -- Below: Extend the simple LC by allowing more fine-granular steps between the lanes.
 -- We do not keep this in synch with the full Christian implementation for now. I.e., use the default parameters to activate this.
-@{LATERAL_LC_GRANULARITY}@*******.defaultValue[0]      -- 0 is how it was before, n > 0 increases technical number of lanes by n. Independent of ANGLE_BASED_LC -- Deliberately separating this from scaling (could discuss in future)
-@{LANE_WIDTH}@*******.defaultValue[400]                -- Default value from highway-env (highway_env/road/lane.py).          Note that we have 375 in vfm...   (include/geometry/images.h)
-@{VEHICLE_WIDTH}@*******.defaultValue[200]             -- Default value from highway-env (highway_env/vehicle/kinematics.py). Note that we have 185.2 in vfm... (include/geometry/images.h)
-@{VEHICLE_LENGTH}@*******.defaultValue[500]            -- Default value from highway-env (highway_env/vehicle/kinematics.py). Note that we have 492.3 in vfm... (include/geometry/images.h)
+@{LATERAL_LC_GRANULARITY}@*******.defaultValue[0]        -- 0 is how it was before, n > 0 increases technical number of lanes by n. Independent of ANGLE_BASED_LC -- Deliberately separating this from scaling (could discuss in future)
+@{LANE_WIDTH}@*******.defaultValue[375]                  -- In cm. Default value 400 from highway-env (highway_env/road/lane.py).          Note that we have 375 in vfm...   (include/geometry/images.h)
+@{VEHICLE_WIDTH}@*******.defaultValue[185]               -- In cm. Default value 200 from highway-env (highway_env/vehicle/kinematics.py). Note that we have 185.2 in vfm... (include/geometry/images.h)
+@{VEHICLE_LENGTH}@*******.defaultValue[5]                -- In m(!). Default value 5.0 from highway-env (highway_env/vehicle/kinematics.py). Note that we have 4.923 in vfm... (include/geometry/images.h)
+@{MAX_JUMP_OVER_TECHNICAL_LANES}@*******.defaultValue[1] -- For SIMPLE_LC, how big a step can be in one cycle by changing from one lane to another.
 
 
 -- Parameters for "skipping" of CEXs.

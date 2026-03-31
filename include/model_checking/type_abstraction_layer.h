@@ -16,10 +16,6 @@
 namespace vfm {
 namespace mc {
 
-const std::string LTL_GLOBALLY = "G";
-const std::string LTL_FINALLY = "F";
-const std::string LTL_NEXT = "X";
-const std::string LTL_UNTIL = "U";
 const std::string NO_INIT_DENOTER = "noinit";
 
 using MCInitialValue = std::string;

@@ -35,7 +35,9 @@ std::map<std::string, std::string> vfm::test::retrieveEnvModelDefinitionFromJSON
    i >> j;
 
    for (auto& [key_config, value_config] : j.items()) {
-      std::string env_model_definition{ cached_mode == EnvModelCachedMode::always_regenerate ? "G" : "" };
+      std::string env_model_definition{ cached_mode == EnvModelCachedMode::always_regenerate 
+         ? NATIVE_SMV_ENV_MODEL_DENOTER_ALWAYS_REGENERATE 
+         : "" };
 
       for (auto& [key, value] : value_config.items()) {
          std::string val_str{ nlohmann::to_string(value) };
@@ -67,7 +69,7 @@ std::map<std::string, std::string> getRelevantVariablesFromEnvModel(
 {
    std::map<std::string, std::string> res{};
 
-   std::regex variableRegex1(R"(\bFound variable (\w+) with value (\S+) during generation of EnvModel)");
+   std::regex variableRegex1(R"(\bFound variable (\w+) with value (\S*) during generation of EnvModel)");
    std::smatch match1;
    std::string::const_iterator searchStart1(env_model.cbegin());
 
@@ -77,7 +79,7 @@ std::map<std::string, std::string> getRelevantVariablesFromEnvModel(
       searchStart1 = match1.suffix().first;
    }
 
-   std::regex variableRegex2(R"(\bUndeclared variable (\w+) found during generation of EnvModel\. Setting to default value (\S+))");
+   std::regex variableRegex2(R"(\bUndeclared variable (\w+) found during generation of EnvModel\. Setting to default value (\S*)\.)");
    std::smatch match2;
    std::string::const_iterator searchStart2(env_model.cbegin());
 
@@ -88,7 +90,7 @@ std::map<std::string, std::string> getRelevantVariablesFromEnvModel(
    }
 
    std::string envmodel_copy{ env_model };
-   std::regex pattern("-- Found variable (\\w+) with value (\\S+) during generation of EnvModel \\(default would be (\\S+)\\).");
+   std::regex pattern("-- Found variable (\\w+) with value (\\S*) during generation of EnvModel \\(default would be (\\S*)\\)\\.");
    std::smatch matches;
 
    std::string::const_iterator searchStart(envmodel_copy.cbegin());
@@ -109,8 +111,11 @@ bool checkEqual(const std::string& val_desired, const std::string& val_cached)
 {
    bool equals{ true };
 
-   std::string actual_val_desired{ StaticHelper::toLowerCase(StaticHelper::trimAndReturn(val_desired)) };
-   std::string actual_val_cached{ StaticHelper::toLowerCase(StaticHelper::trimAndReturn(val_cached)) };
+
+   const std::string actual_val_desired_orig{ StaticHelper::trimAndReturn(val_desired) };
+   const std::string actual_val_cached_orig{ StaticHelper::trimAndReturn(val_cached) };
+   std::string actual_val_desired{ StaticHelper::toLowerCase(actual_val_desired_orig) };
+   std::string actual_val_cached{ StaticHelper::toLowerCase(actual_val_cached_orig) };
 
    if (actual_val_desired == "true") actual_val_desired = "1";
    if (actual_val_desired == "false") actual_val_desired = "0";
@@ -119,6 +124,11 @@ bool checkEqual(const std::string& val_desired, const std::string& val_cached)
 
    if (StaticHelper::isParsableAsFloat(actual_val_desired)) actual_val_desired = StaticHelper::floatToStringNoTrailingZeros(std::stof(actual_val_desired));
    if (StaticHelper::isParsableAsFloat(actual_val_cached)) actual_val_cached = StaticHelper::floatToStringNoTrailingZeros(std::stof(actual_val_cached));
+
+   if (StaticHelper::stringStartsWith(actual_val_desired, STRING_PREFIX_ENVMODEL_GEN)) { // It's a string.
+      const std::string content_part{ actual_val_desired_orig.substr(STRING_PREFIX_ENVMODEL_GEN.size()) };
+      actual_val_desired = StaticHelper::fromSafeString(content_part);
+   }
 
    if (actual_val_desired != actual_val_cached) equals = false;
 
@@ -1543,7 +1553,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 
 // --- EO remaining comments from main.cpp ---
 
-void generatePreviewsForMorty(const MCTrace& trace, const std::string& output_path)
+void generatePreviewsForMorty(const MCTrace& trace, const std::string& output_path, const bool include_smooth)
 {
    auto nameA1 = vfm::mc::TESTCASE_MODE_PREVIEW_2.first;
    auto nameA2 = vfm::mc::TESTCASE_MODE_PREVIEW_2.second;
@@ -1595,13 +1605,15 @@ void generatePreviewsForMorty(const MCTrace& trace, const std::string& output_pa
          | mc::trajectory_generator::LiveSimGenerator::LiveSimType::gif_animation
          );
 
-      mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
-         trace,
-         output_path,
-         nameB1,
-         SIM_TYPE_REGULAR_BIRDSEYE_ONLY_SMOOTH,
-         {},
-         gen_config_smooth, nameB2);
+      if (include_smooth) {
+         mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            output_path,
+            nameB1,
+            SIM_TYPE_REGULAR_BIRDSEYE_ONLY_SMOOTH,
+            {},
+            gen_config_smooth, nameB2);
+      }
    }
 }
 
@@ -1646,6 +1658,8 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    const std::string OUTPUT_PATH{ vec[7] };
    const std::string ROOT_DIR{ vec[8] }; // "." or "/", depending on weather we have an absolute ar a relative path.
    const int NUM_LANES{ std::stoi(vec[9]) };
+   const bool DETAILED_ARCHIVE{ StaticHelper::isBooleanTrue(vec[10]) };
+   const bool SMOOTH_GIF{ StaticHelper::isBooleanTrue(vec[11]) };
 
    auto cars = StaticHelper::split(input_str, ";");
    auto main_file = StaticHelper::readFile(OUTPUT_PATH + "main.tpl") + "\n";
@@ -1726,7 +1740,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
       auto traces_dummy{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_PATH + "debug_trace_array.txt") };
       MCTrace trace_dummy = traces_dummy.empty() ? MCTrace{} : traces_dummy.at(0);
 
-      generatePreviewsForMorty(trace_dummy, OUTPUT_PATH); // First preview in case there is no CEX for the actual run.
+      generatePreviewsForMorty(trace_dummy, OUTPUT_PATH, SMOOTH_GIF); // First preview in case there is no CEX for the actual run.
    }
 
    StaticHelper::writeTextToFile(main_file, OUTPUT_PATH + "main.smv");
@@ -1752,9 +1766,9 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    
    mc_script = StaticHelper::replaceAll(
       StaticHelper::replaceAll(
-         StaticHelper::replaceAll(mc_script, 
-            "$0$", OUTPUT_PATH), 
-         "$1$", path_to_external_folder), 
+         StaticHelper::replaceAll(mc_script,
+            "$0$", OUTPUT_PATH),
+         "$1$", path_to_external_folder),
       "$2$", ROOT_DIR);
 
    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now(); // Note that this measured time should be largely overestimated...
@@ -1773,8 +1787,8 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
       + std::to_string(ITERATION) + ";"
       + "\n", OUTPUT_PATH + "morty_mc_results.txt", true);
 
-   if (DEBUG) {
-      generatePreviewsForMorty(trace, OUTPUT_PATH); // Actual preview in case everything went fine.
+   if (DEBUG || DETAILED_ARCHIVE) {
+      generatePreviewsForMorty(trace, OUTPUT_PATH, SMOOTH_GIF); // Actual preview in case everything went fine.
    }
 
    std::vector<VarValsFloat> deltas{};
