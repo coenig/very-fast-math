@@ -69,7 +69,7 @@ VAR
          @{@{@{+ veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]}@.if[@{[sec] != [sec2]}@.eval]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval]}@**.for[[sec2], 0, @{SECTIONS - 1}@.eval] = 1;
 
       @{
-         TRANS veh___6[i]9___.time_since_last_lc < min_time_between_lcs @{| abs(veh___6[i]9___.v) < 10}@****.if[@{UCD}@.eval] -> veh___6[i]9___.lane_unchanged;
+         TRANS veh___6[i]9___.time_since_last_lc < min_time_between_lcs @{| abs(veh___6[i]9___.v) < 5}@****.if[@{UCD}@.eval] -> veh___6[i]9___.lane_unchanged;
          TRANS veh___6[i]9___.lane_unchanged | veh___6[i]9___.lane_move_down | veh___6[i]9___.lane_move_up;
       }@******.if[@{SIMPLE_LC}@.eval]
 
