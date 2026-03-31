@@ -122,8 +122,10 @@ def main() -> None:
     print(f"Total frames in output: {max_frames}")
 
     # Build composite canvas width (max row width after borders).
+    # Use the max width across all frames (not just frame 0) because crop_background
+    # can produce slightly different widths per frame due to rounding in the resize.
     canvas_w = max(
-        (fl[0].shape[1] + 2 for fl in all_frame_lists if fl is not None),
+        (max(frame.shape[1] for frame in fl) + 2 for fl in all_frame_lists if fl is not None),
         default=ref_width + 2,
     )
     canvas_h = (J + 1) * row_height
