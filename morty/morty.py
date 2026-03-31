@@ -313,9 +313,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             egos_y[i] = el[0][2]
             egos_v[i] = el[0][3] * egos_backward[i]
             egos_headings[i] = el[0][5] - np.pi * (1 - egos_backward[i]) / 2
+            car_i = i  # Save index before incrementing, so heading check below uses the correct car.
             i = i + 1
             for num, val in enumerate(el[0]): # Generate input for model checker.
-                if egos_backward[i] == -1 and num == 5:
+                if egos_backward[car_i] == -1 and num == 5:
                     mcinput += str(-val) + ","
                 else:
                     mcinput += str(val) + ","
@@ -342,7 +343,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                  + "$$$" + ("/" if output_folder[0] == "/" else ".") \
                  + "$$$" + str(num_actual_lanes) \
                  + "$$$" + str(args.detailed_archive) \
-                 + "$$$" + "True"    # Smooth GIF
+                 + "$$$" + "False"    # Smooth GIF
         
         first = False
         
