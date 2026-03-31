@@ -285,7 +285,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             if cnt == 0:
                 vehicle.position[0] = 0
             if cnt == 1:
-                vehicle.position[0] = (nonegos - 1) * 500 / nonegos
+                vehicle.position[0] = (nonegos - 1) * 400 / nonegos
             if cnt > 1:
                 vehicle.position[0] = (cnt - 1) * 400 / nonegos
                 vehicle.speed = 0

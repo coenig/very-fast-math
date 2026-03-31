@@ -218,7 +218,7 @@ INIT
 
 DEFINE
    veh___6[i]9___.rel_pos := veh___6[i]9___.abs_pos - ego.abs_pos; -- relative position to ego in m (valid only if ego is on same section), rel_pos < 0 means the rear bumber of the other vehicle is behind the rear bumper of the ego
-   veh___6[i]9___.next_abs_pos := veh___6[i]9___.abs_pos + next(veh___6[i]9___.v);
+   veh___6[i]9___.next_abs_pos := veh___6[i]9___.abs_pos + veh___6[i]9___.v; -- Use current v (explicit Euler), not next(v), to avoid overshooting position by 'a' per step.
 
 INVAR
     veh___6[i]9___.lane_single | veh___6[i]9___.lane_crossing;
