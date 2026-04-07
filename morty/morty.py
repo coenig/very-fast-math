@@ -124,6 +124,8 @@ INVAR env.veh___609___.v >= 5;
 INVAR env.veh___619___.v <= -5;
 INVAR env.veh___609___.v >= 0;
 INVAR env.veh___619___.v <= 0;
+INVAR env.veh___609___.lane_b1;
+INVAR !env.veh___609___.lane_b0;
 """
 
 for i in range(2, nonegos):
@@ -283,10 +285,13 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         if args.exp_num == 7:
             if cnt == 0:
                 vehicle.position[0] = 0
+                vehicle.position[1] = 0  # Start car 0 in lane 0 (y=0m): clear lane, drives straight.
             if cnt == 1:
                 vehicle.position[0] = (nonegos - 1) * 500 / nonegos
+                vehicle.position[1] = 4  # Start car 1 in lane 1 (y=4m): different lane from car 0.
             if cnt > 1:
-                vehicle.position[0] = (cnt - 1) * 400 / nonegos
+                vehicle.position[0] = 385 - (cnt - 2) * 40  # Obstacles at x=385,345,305,265,225: spaced 40m, car1 avoids in b1.
+                vehicle.position[1] = 4  # All static obstacles in lane 1 (car 1's lane) so car 1 must navigate them.
                 vehicle.speed = 0
         
         cnt = cnt + 1
@@ -333,7 +338,11 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 if egos_backward[car_i] == -1 and num == 5:
                     mcinput += str(-val) + ","
                 elif num == 2:  # y coordinate: shift to centre of technical lane group, then scale to T lanes.
-                    mcinput += str((val + y_offset_m) * y_to_mc_scale) + ","
+                    # When an LC is in progress (dpoints_delta!=0), send the target lane centre (dpoints_y)
+                    # so the MC sees the car as already at the destination and plans from there without
+                    # hitting the proximity INVAR at step 0.  When no LC is active, use actual observation.
+                    y_for_mc = dpoints_y[car_i] if dpoints_delta[car_i] != 0 else val
+                    mcinput += str((y_for_mc + y_offset_m) * y_to_mc_scale) + ","
                 else:
                     mcinput += str(val) + ","
                 
@@ -350,7 +359,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             archive(seedo, global_counter)
             break
 
-        mcinput += "$$$1$$$" + str(args.debug) \
+        mcinput += "$$$2$$$" + str(args.debug) \
                  + "$$$" + str(args.heading_adaptation) \
                  + "$$$" + str(seedo) \
                  + "$$$" + str(crashed) \
@@ -417,8 +426,11 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     if el3:
                         if i2 == 1:
                             lanes += "   " + el3
-                            if i3 == LANE_CHANGE_DURATION:
-                                sum_lan_by_car[i1] += float(el3)
+                            # Read the LC signal at EXACTLY step LANE_CHANGE_DURATION.
+                            # Deferred LC signals (planned for later steps) are intentionally ignored;
+                            # the MC will return an immediate signal when the time comes.
+                            if i3 == LANE_CHANGE_DURATION and float(el3) != 0.0:
+                                sum_lan_by_car[i1] = float(el3)
                         else:
                             accels += "   " + el3
                             if i3 == 0:
@@ -447,10 +459,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 lc_time[i] = 0
                 
                 if sum_lan_by_car[i] < 0:
-                    dpoints_delta[i] = tech_step_m   # one step in the 2T-1 normalized-lane grid
+                    dpoints_delta[i] = lane_width_m   # full lane width: jump directly to destination centre
                     dpoints_y[i] += dpoints_delta[i]
                 elif sum_lan_by_car[i] > 0:
-                    dpoints_delta[i] = -tech_step_m
+                    dpoints_delta[i] = -lane_width_m
                     dpoints_y[i] += dpoints_delta[i]
             
             if lc_time[i] > MAXTIME_FOR_LC and dpoints_delta[i] != 0:
@@ -458,19 +470,16 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 dpoints_delta[i] = 0 # Don't care about cases with no ongoing LC since delta is zero, then.
                 lc_time[i] = 0
             
-            dpoints_y[i] = max(min(dpoints_y[i], (2 * num_technical_lanes - 1) * tech_step_m), 0)  # clamp to [0, last-tech-lane-centre]
+            dpoints_y[i] = max(min(dpoints_y[i], (num_actual_lanes - 0.5) * lane_width_m), 0)  # clamp to [0, last-lane-centre + half lane]; = [0, 6] for A=2, w=4m
             
             # Best so far:
             # accel = sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
             accel = egos_backward[i] * sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
 
-            # Best so far:
+            # best so far:
             # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i]) / 3.1415
+            # egos_headings[i] is already adjusted for backward cars (heading=pi subtracted), so use it directly.
             angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
-            
-            if egos_backward[i] == -1: # If the car is backward-driving, we have to adapt the angle to the different perspective.
-                print(angle)
-                # input("Press Enter to continue...")
             
             action_list.append([accel, angle])
         
