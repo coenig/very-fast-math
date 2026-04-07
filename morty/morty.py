@@ -253,7 +253,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "vehicles_count": 0,
         "screen_width": 1500,
         "screen_height": 200,
-        "scaling": 3,
+        "scaling": 7,
         "show_trajectories": True,
     })
 
@@ -284,7 +284,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             if cnt == 0:
                 vehicle.position[0] = 0
             if cnt == 1:
-                vehicle.position[0] = (nonegos - 1) * 400 / nonegos
+                vehicle.position[0] = (nonegos - 1) * 500 / nonegos
             if cnt > 1:
                 vehicle.position[0] = (cnt - 1) * 400 / nonegos
                 vehicle.speed = 0
@@ -305,6 +305,20 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
         mcinput = ""
         i = 0
+        # One normalized-lane step in the MC's 2T-1 grid maps to this many metres in highway-env.
+        # Formula: A * lane_width_m / (2 * T).  For T=A=2 this is exactly 2.0 m (legacy value).
+        lane_width_m = env.unwrapped.config.get("lane_width", 4)  # highway-env lane width in metres.
+        tech_step_m = num_actual_lanes * lane_width_m / (2 * num_technical_lanes)
+        # Scale factor applied to y before sending to mortylib so it interprets T technical lanes
+        # instead of A actual ones.  For T=A this is 1.0 (no change).
+        y_to_mc_scale = num_technical_lanes / num_actual_lanes
+        # Highway-env places lane k centreline at y = k * lane_width (origin at the leftmost lane).
+        # The C++ grid expects y = 0 at the centre of the leftmost *technical* lane group, but with the
+        # simple scaling above y=0 lands at the outer boundary of that group instead of its centre.
+        # Adding this offset shifts each car to the centre of its technical lane group.
+        # Derivation: group centre offset = (T/A - 1) / 2 * LANE_WIDTH_CPP; in HW metres = lane_width_m * (T-A) / (2*T).
+        # For T=A this is exactly 0, so backward compatibility is preserved.
+        y_offset_m = lane_width_m * (num_technical_lanes - num_actual_lanes) / (2 * num_technical_lanes)
         for el in obs: # Use only el[0] because it contains the abs values from the resp. car's perspective.
             if first:
                 dpoints_y[i] = el[0][2] # Set desired lateral position to the actual position in the first step.
@@ -318,6 +332,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             for num, val in enumerate(el[0]): # Generate input for model checker.
                 if egos_backward[car_i] == -1 and num == 5:
                     mcinput += str(-val) + ","
+                elif num == 2:  # y coordinate: shift to centre of technical lane group, then scale to T lanes.
+                    mcinput += str((val + y_offset_m) * y_to_mc_scale) + ","
                 else:
                     mcinput += str(val) + ","
                 
@@ -341,7 +357,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                  + "$$$" + str(global_counter) \
                  + "$$$" + output_folder \
                  + "$$$" + ("/" if output_folder[0] == "/" else ".") \
-                 + "$$$" + str(num_actual_lanes) \
+                 + "$$$" + str(num_technical_lanes) \
                  + "$$$" + str(args.detailed_archive) \
                  + "$$$" + "False"    # Smooth GIF
         
@@ -431,10 +447,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 lc_time[i] = 0
                 
                 if sum_lan_by_car[i] < 0:
-                    dpoints_delta[i] = 2
+                    dpoints_delta[i] = tech_step_m   # one step in the 2T-1 normalized-lane grid
                     dpoints_y[i] += dpoints_delta[i]
                 elif sum_lan_by_car[i] > 0:
-                    dpoints_delta[i] = -2
+                    dpoints_delta[i] = -tech_step_m
                     dpoints_y[i] += dpoints_delta[i]
             
             if lc_time[i] > MAXTIME_FOR_LC and dpoints_delta[i] != 0:
@@ -442,7 +458,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 dpoints_delta[i] = 0 # Don't care about cases with no ongoing LC since delta is zero, then.
                 lc_time[i] = 0
             
-            dpoints_y[i] = max(min(dpoints_y[i], num_actual_lanes * 3), 0)
+            dpoints_y[i] = max(min(dpoints_y[i], (2 * num_technical_lanes - 1) * tech_step_m), 0)  # clamp to [0, last-tech-lane-centre]
             
             # Best so far:
             # accel = sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
