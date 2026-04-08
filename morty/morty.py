@@ -115,8 +115,7 @@ SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(
     lambda: egos_x[0] >= TARGET_DIST_NUDGING_FRONT and egos_x[1] <= TARGET_DIST_NUDGING_BACK
     )
-SUCC_CONDS.append(lambda: False) # 8: Car 609 in rightmost lane.
-
+SUCC_CONDS.append(lambda: False) # 8
 
 # Add to main.smv depending on the experiment.
 addons = [''] * len(SPECS)
@@ -134,7 +133,6 @@ for i in range(2, nonegos):
 addons[8] = "INVAR env.veh___609___.v >= 5;\n"
 for i in range(1, nonegos):
     addons[8] += f"INVAR env.veh___6{i}9___.v = 0;\n"
-
 
 DEFAULT_EXP_ID = 7
 
@@ -259,7 +257,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "vehicles_count": 0,
         "screen_width": 1500,
         "screen_height": 200,
-        "scaling": 7,
+        "scaling": 3,
         "show_trajectories": True,
     })
 
@@ -289,18 +287,15 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         if args.exp_num == 7:
             if cnt == 0:
                 vehicle.position[0] = 0
-                vehicle.position[1] = 0  # Start car 0 in lane 0 (y=0m): clear lane, drives straight.
             if cnt == 1:
-                vehicle.position[0] = (nonegos - 1) * 500 / nonegos
-                vehicle.position[1] = 4  # Start car 1 in lane 1 (y=4m): different lane from car 0.
+                vehicle.position[0] = (nonegos - 1) * 400 / nonegos
             if cnt > 1:
-                vehicle.position[0] = 385 - (cnt - 2) * 40  # Obstacles at x=385,345,305,265,225: spaced 40m, car1 avoids in b1.
-                vehicle.position[1] = 4  # All static obstacles in lane 1 (car 1's lane) so car 1 must navigate them.
+                vehicle.position[0] = (cnt - 1) * 400 / nonegos
                 vehicle.speed = 0
         if args.exp_num == 8:
             if cnt == 0:
                 vehicle.position[0] = 0
-                vehicle.position[1] = 4 * (num_actual_lanes - 1) # start at rightmost lane center (y=4m)
+                vehicle.position[1] = 0 # start at rightmost lane center (y=4m)
         
         cnt = cnt + 1
 
@@ -318,22 +313,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
         mcinput = ""
         i = 0
-        # One normalized-lane (on_lane) unit in the MC maps to this many metres in highway-env.
-        # The on_lane encoding has (2*T - 1) positions spanning the total road width (A * lane_width_m),
-        # so one step = (A-1)*W / (2*(T-1)).  For A=T=2 this is 2.0 m; for A=2,T=3 it is 1.0 m; for A=T=5 it is 2.0 m.
-        # Bug fix: old formula W/(2*(T-1)) missed the (A-1) factor and was wrong for A>2 (gave 0.5 m for A=5 instead of 2.0 m).
-        lane_width_m = env.unwrapped.config.get("lane_width", 4)  # highway-env lane width in metres.
-        tech_step_m = (num_actual_lanes - 1) * lane_width_m / (2 * (num_technical_lanes - 1))
-        # Scale factor applied to y before sending to mortylib so it interprets T technical lanes
-        # instead of A actual ones.  For T=A this is 1.0 (no change).
-        y_to_mc_scale = num_technical_lanes / num_actual_lanes
-        # Highway-env places lane k centreline at y = k * lane_width (origin at the leftmost lane).
-        # The C++ grid expects y = 0 at the centre of the leftmost *technical* lane group, but with the
-        # simple scaling above y=0 lands at the outer boundary of that group instead of its centre.
-        # Adding this offset shifts each car to the centre of its technical lane group.
-        # Derivation: group centre offset = (T/A - 1) / 2 * LANE_WIDTH_CPP; in HW metres = lane_width_m * (T-A) / (2*T).
-        # For T=A this is exactly 0, so backward compatibility is preserved.
-        y_offset_m = lane_width_m * (num_technical_lanes - num_actual_lanes) / (2 * num_technical_lanes)
         for el in obs: # Use only el[0] because it contains the abs values from the resp. car's perspective.
             if first:
                 dpoints_y[i] = el[0][2] # Set desired lateral position to the actual position in the first step.
@@ -347,12 +326,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             for num, val in enumerate(el[0]): # Generate input for model checker.
                 if egos_backward[car_i] == -1 and num == 5:
                     mcinput += str(-val) + ","
-                elif num == 2:  # y coordinate: shift to centre of technical lane group, then scale to T lanes.
-                    # When an LC is in progress (dpoints_delta!=0), send the target lane centre (dpoints_y)
-                    # so the MC sees the car as already at the destination and plans from there without
-                    # hitting the proximity INVAR at step 0.  When no LC is active, use actual observation.
-                    y_for_mc = dpoints_y[car_i] if dpoints_delta[car_i] != 0 else val
-                    mcinput += str((y_for_mc + y_offset_m) * y_to_mc_scale) + ","
                 else:
                     mcinput += str(val) + ","
                 
@@ -369,14 +342,14 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             archive(seedo, global_counter)
             break
 
-        mcinput += "$$$2$$$" + str(args.debug) \
+        mcinput += "$$$1$$$" + str(args.debug) \
                  + "$$$" + str(args.heading_adaptation) \
                  + "$$$" + str(seedo) \
                  + "$$$" + str(crashed) \
                  + "$$$" + str(global_counter) \
                  + "$$$" + output_folder \
                  + "$$$" + ("/" if output_folder[0] == "/" else ".") \
-                 + "$$$" + str(num_technical_lanes) \
+                 + "$$$" + str(num_actual_lanes) \
                  + "$$$" + str(args.detailed_archive) \
                  + "$$$" + "False"    # Smooth GIF
         
@@ -436,11 +409,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     if el3:
                         if i2 == 1:
                             lanes += "   " + el3
-                            # Read the LC signal at EXACTLY step LANE_CHANGE_DURATION.
-                            # Deferred LC signals (planned for later steps) are intentionally ignored;
-                            # the MC will return an immediate signal when the time comes.
-                            if i3 == LANE_CHANGE_DURATION and float(el3) != 0.0:
-                                sum_lan_by_car[i1] = float(el3)
+                            if i3 == LANE_CHANGE_DURATION:
+                                sum_lan_by_car[i1] += float(el3)
                         else:
                             accels += "   " + el3
                             if i3 == 0:
@@ -461,9 +431,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # MAXTIME_FOR_LC = 60
         MAXTIME_FOR_LC = 60
         
-        # "arrived" = within one technical half-step of the current target.
-        # Bug fix: was hardcoded to 1 m; now scales with tech_step_m so gran>0 works correctly.
-        eps = tech_step_m
+        eps = 1
         for i, el in enumerate(sum_vel_by_car):
             lc_time[i] += 1
             
@@ -471,12 +439,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 lc_time[i] = 0
                 
                 if sum_lan_by_car[i] < 0:
-                    # Bug fix: was always ±lane_width_m regardless of signal magnitude or granularity.
-                    # Each on_lane unit = tech_step_m metres; cap at one full lane width.
-                    dpoints_delta[i] = min(abs(sum_lan_by_car[i]) * tech_step_m, lane_width_m)
+                    dpoints_delta[i] = 2
                     dpoints_y[i] += dpoints_delta[i]
                 elif sum_lan_by_car[i] > 0:
-                    dpoints_delta[i] = -min(abs(sum_lan_by_car[i]) * tech_step_m, lane_width_m)
+                    dpoints_delta[i] = -2
                     dpoints_y[i] += dpoints_delta[i]
             
             if lc_time[i] > MAXTIME_FOR_LC and dpoints_delta[i] != 0:
@@ -484,16 +450,19 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 dpoints_delta[i] = 0 # Don't care about cases with no ongoing LC since delta is zero, then.
                 lc_time[i] = 0
             
-            dpoints_y[i] = max(min(dpoints_y[i], (num_actual_lanes - 0.5) * lane_width_m), 0)  # clamp to [0, last-lane-centre + half lane]; = [0, 6] for A=2, w=4m
+            dpoints_y[i] = max(min(dpoints_y[i], num_actual_lanes * 3), 0)
             
             # Best so far:
             # accel = sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
             accel = egos_backward[i] * sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
 
-            # best so far:
+            # Best so far:
             # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i]) / 3.1415
-            # egos_headings[i] is already adjusted for backward cars (heading=pi subtracted), so use it directly.
             angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
+            
+            if egos_backward[i] == -1: # If the car is backward-driving, we have to adapt the angle to the different perspective.
+                print(angle)
+                # input("Press Enter to continue...")
             
             action_list.append([accel, angle])
         
