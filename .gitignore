@@ -60,6 +60,7 @@ morty/main.smv
 morty/mc_runtimes.txt
 morty/scaling_info.txt
 enc_temp_folder
+videos
 
 !src/examples/aca4/**/*
 
