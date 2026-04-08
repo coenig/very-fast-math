@@ -351,7 +351,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                  + "$$$" + ("/" if output_folder[0] == "/" else ".") \
                  + "$$$" + str(num_actual_lanes) \
                  + "$$$" + str(args.detailed_archive) \
-                 + "$$$" + "False"    # Smooth GIF
+                 + "$$$" + "False" \
+                 + "$$$" + str(num_technical_lanes)  # Num technical lanes (T = A + LATERAL_LC_GRANULARITY)
         
         first = False
         
@@ -432,6 +433,11 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         MAXTIME_FOR_LC = 60
         
         eps = 1
+        LANE_WIDTH_HE = 4.0  # highway-env lane width in meters
+        on_lane_step_y = 2.0 * num_actual_lanes / num_technical_lanes  # y-distance per MC on_lane position
+        # Compute valid y range based on technical lane positions.
+        y_min_tech = -LANE_WIDTH_HE / 2.0 + LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
+        y_max_tech = -LANE_WIDTH_HE / 2.0 + (2 * num_technical_lanes - 1) * LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
         for i, el in enumerate(sum_vel_by_car):
             lc_time[i] += 1
             
@@ -439,10 +445,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 lc_time[i] = 0
                 
                 if sum_lan_by_car[i] < 0:
-                    dpoints_delta[i] = 2
+                    dpoints_delta[i] = on_lane_step_y
                     dpoints_y[i] += dpoints_delta[i]
                 elif sum_lan_by_car[i] > 0:
-                    dpoints_delta[i] = -2
+                    dpoints_delta[i] = -on_lane_step_y
                     dpoints_y[i] += dpoints_delta[i]
             
             if lc_time[i] > MAXTIME_FOR_LC and dpoints_delta[i] != 0:
@@ -450,7 +456,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 dpoints_delta[i] = 0 # Don't care about cases with no ongoing LC since delta is zero, then.
                 lc_time[i] = 0
             
-            dpoints_y[i] = max(min(dpoints_y[i], num_actual_lanes * 3), 0)
+            dpoints_y[i] = max(min(dpoints_y[i], y_max_tech), y_min_tech)
             
             # Best so far:
             # accel = sum_vel_by_car[i] * 6/3 / ACCEL_RANGE

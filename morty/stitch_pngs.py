@@ -246,7 +246,7 @@ def build_mosaic(
 
     return canvas.convert("RGB")
 
-# Run like this: python3 morty/make_run_mosaic.py detailed_results/run_0 --exclude-image morty/waiting.png --column-mosaics --iteration-mosaics
+# Run like this: python3 morty/stitch_pngs.py detailed_results/run_0 --exclude-image morty/waiting.png --column-mosaics --iteration-mosaics
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Mosaic all preview2 images from a run_i folder.")

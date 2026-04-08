@@ -133,7 +133,7 @@ DEFINE
     -- >>> Car [i] <<<
     veh___6[i]9___.lane_0 := veh___6[i]9___.lane_b0 @{& !veh___6[i]9___.lane_b[j]}@.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
     @{
-    veh___6[i]9___.lane_@{[k]-1}@.eval[0][k] := @{@{!}@.if[@{[j] != [k] - 1 && [j] != [k]}@.eval]veh___6[i]9___.lane_b[j] }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
+    veh___6[i]9___.lane_@{[k]-1}@.eval[0]_[k] := @{@{!}@.if[@{[j] != [k] - 1 && [j] != [k]}@.eval]veh___6[i]9___.lane_b[j] }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
     veh___6[i]9___.lane_[k] := @{@{!}@.if[@{[k] != [j]}@.eval]veh___6[i]9___.lane_b[j] }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
     }@***.for[[k], 1, @{NUM_TECHNICAL_LANES - 1}@.eval]
 
@@ -149,7 +149,7 @@ DEFINE
 
     @{
     @{@{1 + @{normalized_lane_counter}@**.scriptVar}@**.eval[0]}@**.setScriptVar[normalized_lane_counter, force].nil
-    veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@**.scriptVar := veh___6[i]9___.lane_@{[k]-1}@**.eval[0][k];
+    veh___6[i]9___.normalized_lane_@{normalized_lane_counter}@**.scriptVar := veh___6[i]9___.lane_@{[k]-1}@**.eval[0]_[k];
 
    @{########### on_normalized_lane_logic ##########}@.nil
    @{@{on_normalized_lane_logic}@**.scriptVar
@@ -176,7 +176,7 @@ DEFINE
     veh___6[i]9___.lane_min := veh___6[i]9___.lane_0;
     veh___6[i]9___.lane_max := veh___6[i]9___.lane_@{NUM_TECHNICAL_LANES - 1}@.eval[0];
     veh___6[i]9___.lane_single := @{veh___6[i]9___.lane_[j] }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, |];
-    veh___6[i]9___.lane_crossing := FALSE @{| veh___6[i]9___.lane_@{[j]-1}@.eval[0][j]}@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
+    veh___6[i]9___.lane_crossing := FALSE @{| veh___6[i]9___.lane_@{[j]-1}@.eval[0]_[j]}@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
     veh___6[i]9___.lane_unchanged := @{veh___6[i]9___.lane_b[j] = next(veh___6[i]9___.lane_b[j])}@.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
     veh___6[i]9___.lane_move_down := 
                       @{(veh___6[i]9___.normalized_lane_[j] ->next(@{veh___6[i]9___.normalized_lane_@{max(0, [k])}@.eval[0]}@*.for[[k], @{[j] - MAX_JUMP_OVER_TECHNICAL_LANES}@.eval, @{[j] - 1}@.eval, 1, |]))
