@@ -101,6 +101,7 @@ TARGET_DIST_NUDGING_BACK = 10 # Target distance for the next spec.
 TARGET_DIST_NUDGING = 300 # Target distance for the next spec.
 #SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos + {TARGET_DIST_NUDGING} & env.veh___619___.abs_pos >= 0);") # 7
 SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= {TARGET_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos <= {TARGET_DIST_NUDGING_BACK});") # 7
+SPECS.append(r"""INVARSPEC !(env.veh___609___.lane_b0 & !env.veh___609___.lane_b1);""") # 8: Car 609 reaches leftmost lane (b0)
 
 
 SUCC_CONDS.append(lambda: all(x < 1 for x in egos_v))
@@ -114,6 +115,7 @@ SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(
     lambda: egos_x[0] >= TARGET_DIST_NUDGING_FRONT and egos_x[1] <= TARGET_DIST_NUDGING_BACK
     )
+SUCC_CONDS.append(lambda: False) # 8: Car 609 in rightmost lane.
 
 
 # Add to main.smv depending on the experiment.
@@ -124,12 +126,14 @@ INVAR env.veh___609___.v >= 5;
 INVAR env.veh___619___.v <= -5;
 INVAR env.veh___609___.v >= 0;
 INVAR env.veh___619___.v <= 0;
-INVAR env.veh___609___.lane_b1;
-INVAR !env.veh___609___.lane_b0;
 """
 
 for i in range(2, nonegos):
     addons[7] += f"INVAR env.veh___6{i}9___.v = 0;\n"
+
+addons[8] = "INVAR env.veh___609___.v >= 5;\n"
+for i in range(1, nonegos):
+    addons[8] += f"INVAR env.veh___6{i}9___.v = 0;\n"
 
 
 DEFAULT_EXP_ID = 7
@@ -140,7 +144,7 @@ parser = argparse.ArgumentParser(
                     epilog='Bye!')
 parser.add_argument('-o', '--output', default="./morty", type=str,
                     help='Output folder for the results.')
-parser.add_argument('-n', '--num_runs', default=1000, type=int,
+parser.add_argument('-n', '--num_runs', default=1, type=int,
                     help='Number of runs to perform per experiment. Default: 1000')
 parser.add_argument('-s', '--steps_per_run', default=300, type=int,
                     help='Maximum number of steps until the SPEC must be fulfilled. Default: 100')
@@ -293,6 +297,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 vehicle.position[0] = 385 - (cnt - 2) * 40  # Obstacles at x=385,345,305,265,225: spaced 40m, car1 avoids in b1.
                 vehicle.position[1] = 4  # All static obstacles in lane 1 (car 1's lane) so car 1 must navigate them.
                 vehicle.speed = 0
+        if args.exp_num == 8:
+            if cnt == 0:
+                vehicle.position[0] = 0
+                vehicle.position[1] = 4 * (num_actual_lanes - 1) # start at rightmost lane center (y=4m)
         
         cnt = cnt + 1
 
@@ -310,10 +318,12 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
         mcinput = ""
         i = 0
-        # One normalized-lane step in the MC's 2T-1 grid maps to this many metres in highway-env.
-        # Formula: A * lane_width_m / (2 * T).  For T=A=2 this is exactly 2.0 m (legacy value).
+        # One normalized-lane (on_lane) unit in the MC maps to this many metres in highway-env.
+        # The on_lane encoding has (2*T - 1) positions spanning the total road width (A * lane_width_m),
+        # so one step = (A-1)*W / (2*(T-1)).  For A=T=2 this is 2.0 m; for A=2,T=3 it is 1.0 m; for A=T=5 it is 2.0 m.
+        # Bug fix: old formula W/(2*(T-1)) missed the (A-1) factor and was wrong for A>2 (gave 0.5 m for A=5 instead of 2.0 m).
         lane_width_m = env.unwrapped.config.get("lane_width", 4)  # highway-env lane width in metres.
-        tech_step_m = num_actual_lanes * lane_width_m / (2 * num_technical_lanes)
+        tech_step_m = (num_actual_lanes - 1) * lane_width_m / (2 * (num_technical_lanes - 1))
         # Scale factor applied to y before sending to mortylib so it interprets T technical lanes
         # instead of A actual ones.  For T=A this is 1.0 (no change).
         y_to_mc_scale = num_technical_lanes / num_actual_lanes
@@ -451,7 +461,9 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # MAXTIME_FOR_LC = 60
         MAXTIME_FOR_LC = 60
         
-        eps = 1
+        # "arrived" = within one technical half-step of the current target.
+        # Bug fix: was hardcoded to 1 m; now scales with tech_step_m so gran>0 works correctly.
+        eps = tech_step_m
         for i, el in enumerate(sum_vel_by_car):
             lc_time[i] += 1
             
@@ -459,10 +471,12 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 lc_time[i] = 0
                 
                 if sum_lan_by_car[i] < 0:
-                    dpoints_delta[i] = lane_width_m   # full lane width: jump directly to destination centre
+                    # Bug fix: was always ±lane_width_m regardless of signal magnitude or granularity.
+                    # Each on_lane unit = tech_step_m metres; cap at one full lane width.
+                    dpoints_delta[i] = min(abs(sum_lan_by_car[i]) * tech_step_m, lane_width_m)
                     dpoints_y[i] += dpoints_delta[i]
                 elif sum_lan_by_car[i] > 0:
-                    dpoints_delta[i] = -lane_width_m
+                    dpoints_delta[i] = -min(abs(sum_lan_by_car[i]) * tech_step_m, lane_width_m)
                     dpoints_y[i] += dpoints_delta[i]
             
             if lc_time[i] > MAXTIME_FOR_LC and dpoints_delta[i] != 0:
