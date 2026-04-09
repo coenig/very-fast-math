@@ -82,8 +82,8 @@
 
 
 -- Parameters for "skipping" of CEXs.
-@{DOUBLEMERGEPROTECTION}@*******.defaultValue[true] -- Prohibits non-ego LCs when in danger of a double-merge
-@{BRAKEINHIBITION}@*******.defaultValue[true]       -- Prohibits non-egos in the front gaps to brake so hard that ego could not react on it in one step.
+@{DOUBLEMERGEPROTECTION}@*******.defaultValue[false] -- Prohibits non-ego LCs when in danger of a double-merge
+@{BRAKEINHIBITION}@*******.defaultValue[false]       -- Prohibits non-egos in the front gaps to brake so hard that ego could not react on it in one step.
 @{HARDBRAKEPREVENTION}@*******.defaultValue[-8]     -- Cuts out traces with very hard decelerations. Set to MINACCELEGO to deactivate.
 @{STANDINGCARSUPTOID}@*******.defaultValue[-1]
 @{FARMERGINGCARS}@*******.defaultValue[false]
