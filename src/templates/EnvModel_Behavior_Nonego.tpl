@@ -481,11 +481,8 @@ ASSIGN
     @{
       @(next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, 0), max_vel);)@
       @(next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, -max_vel), max_vel);)@
-    }@.if[@{UCD}@.eval].nil
+    }@.if[@{UCD}@.eval]
     -- EO TWICE special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just undo condition!
-    -- Do not care about backwards compatibility for the second case.
-      next(veh___6[i]9___.v) := veh___6[i]9___.v + veh___6[i]9___.a;
-    -- EO Do not care about backwards compatibility for the second case.
 
     -- ############ IDEA ###########
     -- Set future road either to 1/0 if it is clear we will end or not end up there, or to {0, 1} whenever there IS a connection,
