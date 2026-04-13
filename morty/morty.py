@@ -151,8 +151,9 @@ parser.add_argument('--detailed_archive', action='store_true',
                     help='Stores detailed archive of the run in a subfolder. Default: False')
 args = parser.parse_args()
 
-output_folder = args.output + "/"
+os.environ['SDL_VIDEODRIVER'] = 'offscreen'
 
+output_folder = args.output + "/"
 
 MAIN_TEMPLATE += addons[args.exp_num]
 
@@ -268,7 +269,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     cnt = 0
     for vehicle in env.unwrapped.controlled_vehicles:
         vehicle.heading = np.pi * (1 - egos_backward[cnt]) / 2 # 0 for forward, pi for backward.
-        vehicle.speed = np.random.uniform(5, 15)
+        vehicle.speed = np.random.uniform(20, 30)
         if args.exp_num == 7:
             if cnt == 0:
                 vehicle.position[0] = 0
@@ -288,7 +289,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
     first = True
     for global_counter in range(args.steps_per_run):
-        env.render()
+#        env.render()
         obs, reward, done, truncated, info = env.step(action)
 
         mcinput = ""
