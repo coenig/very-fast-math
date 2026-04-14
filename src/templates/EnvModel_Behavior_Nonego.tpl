@@ -7,7 +7,7 @@
 
    @{
 VAR
-      ego.a : 0..0;  -- Mock EGO interface...
+      ego.a : integer;  -- Mock EGO interface...
    }@******.if[@{EGOLESS}@.eval]
 
 	@{

@@ -164,7 +164,7 @@ parser.add_argument('--headless', action='store_true',
                     help='Run without opening the simulation UI window. Default: False')
 args = parser.parse_args()
 
-if not args.headless:
+if args.headless:
     os.environ['SDL_VIDEODRIVER'] = 'offscreen'
 
 output_folder = args.output + "/"
@@ -173,7 +173,7 @@ MAIN_TEMPLATE += addons[args.exp_num]
 
 # Best so far:
 # ACCEL_RANGE = 6
-ACCEL_RANGE = 60
+ACCEL_RANGE = 6
 
 MAX_EXPs = args.num_runs
 
