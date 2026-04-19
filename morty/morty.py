@@ -16,7 +16,8 @@ import json
 with open('morty/envmodel_config.tpl.json') as f:
     d = json.load(f)
     nonegos = d["#TEMPLATE"]["NONEGOS"]
-    numlanes = d["#TEMPLATE"]["NUMLANES"]
+    num_actual_lanes = d["#TEMPLATE"]["NUMLANES"]
+    num_technical_lanes = d["#TEMPLATE"]["LATERAL_LC_GRANULARITY"] + num_actual_lanes
     maxspeed = d["#TEMPLATE"]["MAXSPEEDNONEGO"]
     backward_driving_car_ids_str = d["#TEMPLATE"]["BACKWARD_DRIVING_CAR_IDS"]
     min_time_between_lcs = d["#TEMPLATE"]["MIN_TIME_BETWEEN_LANECHANGES"]
@@ -48,6 +49,7 @@ VAR
   env : EnvModel;
   planner : "checkLCConditionsFastLane"(globals."loc");
 
+-- INVAR env.ego.v = env.veh___609___.v;
 """
 
 
@@ -96,7 +98,11 @@ SPECS.append(r"""INVARSPEC FALSE;""") # 6: Benchmark 2.
 
 TARGET_DIST_NUDGING_FRONT = 300 # Target distance for the next spec.
 TARGET_DIST_NUDGING_BACK = 10 # Target distance for the next spec.
+TARGET_DIST_NUDGING = 300 # Target distance for the next spec.
+#SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos + {TARGET_DIST_NUDGING} & env.veh___619___.abs_pos >= 0);") # 7
 SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= {TARGET_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos <= {TARGET_DIST_NUDGING_BACK});") # 7
+SPECS.append(r"""INVARSPEC !(env.veh___609___.lane_b0 & !env.veh___609___.lane_b1);""") # 8: Car 609 reaches leftmost lane (b0)
+
 
 SUCC_CONDS.append(lambda: all(x < 1 for x in egos_v))
 SUCC_CONDS.append(lambda: all(abs(x - TARGET_VEL) < 1 for x in egos_v))
@@ -109,12 +115,14 @@ SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(
     lambda: egos_x[0] >= TARGET_DIST_NUDGING_FRONT and egos_x[1] <= TARGET_DIST_NUDGING_BACK
     )
-
+SUCC_CONDS.append(lambda: False) # 8
 
 # Add to main.smv depending on the experiment.
 addons = [''] * len(SPECS)
 
 addons[7] = r"""
+INVAR env.veh___609___.v >= 5;
+INVAR env.veh___619___.v <= -5;
 INVAR env.veh___609___.v >= 0;
 INVAR env.veh___619___.v <= 0;
 """
@@ -122,6 +130,9 @@ INVAR env.veh___619___.v <= 0;
 for i in range(2, nonegos):
     addons[7] += f"INVAR env.veh___6{i}9___.v = 0;\n"
 
+addons[8] = "INVAR env.veh___609___.v >= 5;\n"
+for i in range(1, nonegos):
+    addons[8] += f"INVAR env.veh___6{i}9___.v = 0;\n"
 
 DEFAULT_EXP_ID = 7
 
@@ -131,7 +142,7 @@ parser = argparse.ArgumentParser(
                     epilog='Bye!')
 parser.add_argument('-o', '--output', default="./morty", type=str,
                     help='Output folder for the results.')
-parser.add_argument('-n', '--num_runs', default=1000, type=int,
+parser.add_argument('-n', '--num_runs', default=1, type=int,
                     help='Number of runs to perform per experiment. Default: 1000')
 parser.add_argument('-s', '--steps_per_run', default=300, type=int,
                     help='Maximum number of steps until the SPEC must be fulfilled. Default: 100')
@@ -153,7 +164,7 @@ parser.add_argument('--headless', action='store_true',
                     help='Run without opening the simulation UI window. Default: False')
 args = parser.parse_args()
 
-if not args.headless:
+if args.headless:
     os.environ['SDL_VIDEODRIVER'] = 'offscreen'
 
 output_folder = args.output + "/"
@@ -242,7 +253,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "simulation_frequency": 60,  # [Hz]
         "policy_frequency": 2,  # [Hz]
         "controlled_vehicles": nonegos,
-        "lanes_count": numlanes,
+        "lanes_count": num_actual_lanes,
         "vehicles_count": 0,
         "screen_width": 1500,
         "screen_height": 200,
@@ -281,6 +292,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             if cnt > 1:
                 vehicle.position[0] = (cnt - 1) * 400 / nonegos
                 vehicle.speed = 0
+        if args.exp_num == 8:
+            if cnt == 0:
+                vehicle.position[0] = 0
+                vehicle.position[1] = 0 # start at rightmost lane center (y=4m)
         
         cnt = cnt + 1
 
@@ -294,7 +309,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     for global_counter in range(args.steps_per_run):
         if not args.headless:
             env.render()
-
         obs, reward, done, truncated, info = env.step(action)
 
         mcinput = ""
@@ -307,9 +321,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             egos_y[i] = el[0][2]
             egos_v[i] = el[0][3] * egos_backward[i]
             egos_headings[i] = el[0][5] - np.pi * (1 - egos_backward[i]) / 2
+            car_i = i  # Save index before incrementing, so heading check below uses the correct car.
             i = i + 1
             for num, val in enumerate(el[0]): # Generate input for model checker.
-                if egos_backward[i] == -1 and num == 5:
+                if egos_backward[car_i] == -1 and num == 5:
                     mcinput += str(-val) + ","
                 else:
                     mcinput += str(val) + ","
@@ -327,7 +342,17 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             archive(seedo, global_counter)
             break
 
-        mcinput += "$$$1$$$" + str(args.debug) + "$$$" + str(args.heading_adaptation) + "$$$" + str(seedo) + "$$$" + str(crashed) + "$$$" + str(global_counter) + "$$$" + output_folder + "$$$" + ("/" if output_folder[0] == "/" else ".") + "$$$" + str(numlanes)
+        mcinput += "$$$1$$$" + str(args.debug) \
+                 + "$$$" + str(args.heading_adaptation) \
+                 + "$$$" + str(seedo) \
+                 + "$$$" + str(crashed) \
+                 + "$$$" + str(global_counter) \
+                 + "$$$" + output_folder \
+                 + "$$$" + ("/" if output_folder[0] == "/" else ".") \
+                 + "$$$" + str(num_actual_lanes) \
+                 + "$$$" + str(args.detailed_archive) \
+                 + "$$$" + "False" \
+                 + "$$$" + str(num_technical_lanes)  # Num technical lanes (T = A + LATERAL_LC_GRANULARITY)
         
         first = False
         
@@ -337,10 +362,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         res_str = res.decode()
         successed = SUCC_CONDS[args.exp_num]()
         
-        # We check both the MC result and the success condition to determine if we are done. Reason:
-        # The MC result alone is not sufficient because the MC cares only about the SPEC being satisfied in the last step.
+        # We check both (1) the MC result and (2) the success condition to determine if we are done. Reason:
+        # (1) alone is not sufficient because the MC cares only about the SPEC being satisfied in the last step.
         # Here we check AFTER the last step, a situation which is not guaranteed to have a solution, as well, so we might
-        # get a false negative. Checking only the success condition would be possible; we add the additional
+        # get a false negative. Checking only (2) would be possible; we add the additional
         # MC check to make it easier to implement new SPECs. Then, a first impression is possible even
         # if no success condition is given or if it is not implemented in a precise way. 
         if res_str == "FINISHED" or successed:
@@ -408,6 +433,11 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         MAXTIME_FOR_LC = 60
         
         eps = 1
+        LANE_WIDTH_HE = 4.0  # highway-env lane width in meters
+        on_lane_step_y = 2.0 * num_actual_lanes / num_technical_lanes  # y-distance per MC on_lane position
+        # Compute valid y range based on technical lane positions.
+        y_min_tech = -LANE_WIDTH_HE / 2.0 + LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
+        y_max_tech = -LANE_WIDTH_HE / 2.0 + (2 * num_technical_lanes - 1) * LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
         for i, el in enumerate(sum_vel_by_car):
             lc_time[i] += 1
             
@@ -415,10 +445,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 lc_time[i] = 0
                 
                 if sum_lan_by_car[i] < 0:
-                    dpoints_delta[i] = 2
+                    dpoints_delta[i] = on_lane_step_y
                     dpoints_y[i] += dpoints_delta[i]
                 elif sum_lan_by_car[i] > 0:
-                    dpoints_delta[i] = -2
+                    dpoints_delta[i] = -on_lane_step_y
                     dpoints_y[i] += dpoints_delta[i]
             
             if lc_time[i] > MAXTIME_FOR_LC and dpoints_delta[i] != 0:
@@ -426,7 +456,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 dpoints_delta[i] = 0 # Don't care about cases with no ongoing LC since delta is zero, then.
                 lc_time[i] = 0
             
-            dpoints_y[i] = max(min(dpoints_y[i], numlanes * 3), 0)
+            dpoints_y[i] = max(min(dpoints_y[i], y_max_tech), y_min_tech)
             
             # Best so far:
             # accel = sum_vel_by_car[i] * 6/3 / ACCEL_RANGE

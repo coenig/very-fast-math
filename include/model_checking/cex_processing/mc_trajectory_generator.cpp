@@ -136,12 +136,12 @@ MCinterpretedTrace::MCinterpretedTrace(
 	if (m_current_state_name != "")
 		endState();
 
-	printDebug("BEFORE POSTPROCESSING");
+	// printDebug("BEFORE POSTPROCESSING");
 
 	config.m_postprocessing(*this);
 
 	// print warnings
-	std::cout << "WARNINGS" << std::endl;
+	// std::cout << "WARNINGS" << std::endl;
 
 	for (const TraceStepWarning& warning : m_trace_step_warnings)
 	{
@@ -283,8 +283,14 @@ void MCinterpretedTrace::interpolate(const std::string& vehicle_name, FullTrajec
          addError("Car '" + vehicle_name + "' is neither on straight section nor on curved junction.");
       }
 
-      const int on_lane{ (int)(std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_lane", trace_cnt)) / 2) };
-      const int next_on_lane{ (int)(std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_lane", trace_cnt + 2)) / 2) }; // Should be the same as on_lane.
+      const int on_lane{ vehicle_name == "ego"
+		? (int)(std::stof(trace.getLastValueOfVariableAtStep("veh___609___.on_lane", trace_cnt)) / 2)
+		: (int)(std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_lane", trace_cnt)) / 2) 
+	};
+      const int next_on_lane{ vehicle_name == "ego"
+		? (int)(std::stof(trace.getLastValueOfVariableAtStep("veh___609___.on_lane", trace_cnt + 2)) / 2)
+		: (int)(std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".on_lane", trace_cnt + 2)) / 2)
+	}; // Should be the same as on_lane.
       const int current_seclet_length{ (on_straight_section >= 0
             ? (int)std::stof(trace.getLastValueOfVariableAtStep("env.section_" + std::to_string(on_straight_section) + "_end", trace_cnt))
             : (int)std::stof(trace.getLastValueOfVariableAtStep("env.arclength_from_sec_" + std::to_string(traversion_from) + "_to_sec_" + std::to_string(traversion_to) + "_on_lane_" + std::to_string(on_lane), trace_cnt))
