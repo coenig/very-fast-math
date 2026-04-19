@@ -1660,7 +1660,6 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    const int NUM_LANES{ std::stoi(vec[9]) };
    const bool DETAILED_ARCHIVE{ StaticHelper::isBooleanTrue(vec[10]) };
    const bool SMOOTH_GIF{ StaticHelper::isBooleanTrue(vec[11]) };
-   const int NUM_TECH_LANES{ std::stoi(vec[12]) }; // T = NUM_LANES + LATERAL_LC_GRANULARITY
 
    auto cars = StaticHelper::split(input_str, ";");
    auto main_file = StaticHelper::readFile(OUTPUT_PATH + "main.tpl") + "\n";
@@ -1697,39 +1696,30 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          
          std::set<int> lanes{};
          const float heading_factor{ vy * HEAD_CONST };
+         
+         // if (y < 0 + EPS + heading_factor) {
+         //    lanes.insert(NUM_LANES - 1);
+         // } else if (y >= (NUM_LANES - 1) * LANE_WIDTH - EPS + heading_factor) {
+         //    lanes.insert(0);
+         // } 
 
-         std::cout << "y: " << y << ", NUM_LANES: " << NUM_LANES << ", NUM_TECH_LANES: " << NUM_TECH_LANES << ", LANE_WIDTH: " << LANE_WIDTH << std::endl;
+         std::cout << "y: " << y << ", NUM_LANES: " << NUM_LANES << ", LANE_WIDTH: " << LANE_WIDTH << std::endl;
          std::cout << "EPS: " << EPS << ", heading_factor: " << heading_factor << std::endl;
 
-         // Map highway-env y to MC on_lane position, accounting for technical lanes.
-         // MC lane numbering is inverted relative to highway-env y direction:
-         //   lane_b0 = highest y (bottom of road), lane_b(T-1) = lowest y (top of road).
-         // Technical lane t center in highway-env: y_center(t) = -LANE_WIDTH/2 + (t + 0.5) * A * LANE_WIDTH / T
-         // The MC reversal means lane_b0 corresponds to the tech lane at highest y.
-         //
-         // Forward position (in y-direction, 0 at topmost tech lane center):
-         //   pos_fwd = (y_adj + LANE_WIDTH/2) * T / (A * LANE_WIDTH) * 2 - 1
-         // Inverted to MC on_lane:
-         //   mc_on_lane = 2*(T-1) - pos_fwd
-         {
-            const float y_adj = y + heading_factor;
-            const float road_width = NUM_LANES * LANE_WIDTH; // Total road width = A * W
-            const float pos_fwd_raw = (y_adj + LANE_WIDTH / 2.0f) * NUM_TECH_LANES / road_width * 2.0f - 1.0f;
-            const float mc_on_lane_raw = 2.0f * (NUM_TECH_LANES - 1) - pos_fwd_raw;
-            int mc_on_lane = (int)std::round(mc_on_lane_raw);
-            mc_on_lane = (std::max)(0, (std::min)(mc_on_lane, 2 * (NUM_TECH_LANES - 1)));
-
-            if (mc_on_lane % 2 == 0) {
-               // Even: car is on center of technical lane mc_on_lane/2.
-               lanes.insert(mc_on_lane / 2);
-            } else {
-               // Odd: car is between technical lanes mc_on_lane/2 and mc_on_lane/2 + 1.
-               lanes.insert(mc_on_lane / 2);
-               lanes.insert(mc_on_lane / 2 + 1);
+         if (false) {} else {
+            for (int lane = NUM_LANES - 1; lane >= 0; lane--) {
+               if (y >= lane * LANE_WIDTH - EPS + heading_factor && y < lane * LANE_WIDTH + EPS + heading_factor) {
+                  lanes.insert(NUM_LANES - lane - 1);
+                  break; // We might insert negative numbers, as well...
+               } else if (y >= lane * LANE_WIDTH + EPS + heading_factor && y < (lane + 1) * LANE_WIDTH - EPS + heading_factor) {
+                  lanes.insert(NUM_LANES - lane - 1);
+                  lanes.insert(NUM_LANES - lane - 2);
+                  break; // ...But we don't care since later we loop only over the actually existing lanes.
+               }
             }
          }
 
-         for (int lane = 0; lane < NUM_TECH_LANES; lane++) {
+         for (int lane = 0; lane < NUM_LANES; lane++) {
             main_file += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
          }
       }

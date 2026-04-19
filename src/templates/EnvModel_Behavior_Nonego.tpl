@@ -69,7 +69,7 @@ VAR
          @{@{@{+ veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]}@.if[@{[sec] != [sec2]}@.eval]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval]}@**.for[[sec2], 0, @{SECTIONS - 1}@.eval] = 1;
 
       @{
-         TRANS veh___6[i]9___.time_since_last_lc < min_time_between_lcs @{| abs(veh___6[i]9___.v) < 5}@****.if[@{UCD}@.eval] -> veh___6[i]9___.lane_unchanged;
+         TRANS veh___6[i]9___.time_since_last_lc < min_time_between_lcs @{| abs(veh___6[i]9___.v) < 10}@****.if[@{UCD}@.eval] -> veh___6[i]9___.lane_unchanged;
          TRANS veh___6[i]9___.lane_unchanged | veh___6[i]9___.lane_move_down | veh___6[i]9___.lane_move_up;
       }@******.if[@{SIMPLE_LC}@.eval]
 
@@ -218,7 +218,7 @@ INIT
 
 DEFINE
    veh___6[i]9___.rel_pos := veh___6[i]9___.abs_pos - ego.abs_pos; -- relative position to ego in m (valid only if ego is on same section), rel_pos < 0 means the rear bumber of the other vehicle is behind the rear bumper of the ego
-   veh___6[i]9___.next_abs_pos := veh___6[i]9___.abs_pos + veh___6[i]9___.v; -- Use current v (explicit Euler), not next(v), to avoid overshooting position by 'a' per step.
+   veh___6[i]9___.next_abs_pos := veh___6[i]9___.abs_pos + next(veh___6[i]9___.v);
 
 INVAR
     veh___6[i]9___.lane_single | veh___6[i]9___.lane_crossing;

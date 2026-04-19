@@ -49,7 +49,7 @@ VAR
   env : EnvModel;
   planner : "checkLCConditionsFastLane"(globals."loc");
 
-INVAR env.ego.v = env.veh___609___.v;
+-- INVAR env.ego.v = env.veh___609___.v;
 """
 
 
