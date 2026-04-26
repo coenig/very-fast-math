@@ -21,6 +21,9 @@ with open('morty/envmodel_config.tpl.json') as f:
     maxspeed = d["#TEMPLATE"]["MAXSPEEDNONEGO"]
     backward_driving_car_ids_str = d["#TEMPLATE"]["BACKWARD_DRIVING_CAR_IDS"]
     min_time_between_lcs = d["#TEMPLATE"]["MIN_TIME_BETWEEN_LANECHANGES"]
+    max_speed = d["#TEMPLATE"]["MAXSPEEDNONEGO"]
+    max_start_speed = min(d["#TEMPLATE"]["MAXSTARTSPEEDNONEGO_UCD"], max_speed)
+    min_start_speed = min(d["#TEMPLATE"]["MINSTARTSPEEDNONEGO_UCD"], max_start_speed)
 
     if backward_driving_car_ids_str.endswith(')@'):
         backward_driving_car_ids_str = backward_driving_car_ids_str[:-2]
@@ -284,7 +287,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     for vehicle in env.unwrapped.controlled_vehicles:
         vehicle.color = (255, 255, 255)
         vehicle.heading = np.pi * (1 - egos_backward[cnt]) / 2 # 0 for forward, pi for backward.
-        vehicle.speed = np.random.uniform(20, 30)
+        vehicle.speed = np.random.uniform(min_start_speed, max_start_speed)
         if args.exp_num == 7:
             if cnt == 0:
                 vehicle.position[0] = 0
@@ -307,11 +310,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         env.start_video_recorder()
 
     first = True
+    obs = env.unwrapped.observation_type.observe()
     for global_counter in range(args.steps_per_run):
-        if not args.headless:
-            env.render()
-        obs, reward, done, truncated, info = env.step(action)
-
         mcinput = ""
         i = 0
         for el in obs: # Use only el[0] because it contains the abs values from the resp. car's perspective.
@@ -391,6 +391,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             for i in range(nonegos):
                 env.unwrapped.controlled_vehicles[i].color = (min(cex_length * 15, 255), 200, min(cex_length * 15, 255))
 
+        for i in range(nonegos):
+            if env.unwrapped.controlled_vehicles[i].crashed:
+                env.unwrapped.controlled_vehicles[i].color = (255, 0, 0)
+            
     
         #print(f"result: {res_str}")
         #### EO MODEL CHECKER CALL ####
@@ -486,6 +490,11 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         #print(action_list_lane)
         
         action = tuple(action_list)
+
+        if not args.headless:
+            env.render()
+        obs, reward, done, truncated, info = env.step(action)
+
         archive(seedo, global_counter)
         
     with open(f"{output_folder}results.txt", "a") as f:
