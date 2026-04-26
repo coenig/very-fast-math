@@ -282,6 +282,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     np.random.seed(seedo)
     cnt = 0
     for vehicle in env.unwrapped.controlled_vehicles:
+        vehicle.color = (255, 255, 255)
         vehicle.heading = np.pi * (1 - egos_backward[cnt]) / 2 # 0 for forward, pi for backward.
         vehicle.speed = np.random.uniform(20, 30)
         if args.exp_num == 7:
@@ -379,11 +380,18 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         
         if res_str == empty_cex:
             print("No CEX found")
+            for i in range(nonegos): # Set blue when blind.
+                env.unwrapped.controlled_vehicles[i].color = (100, 100, 255)
             if nocex_count > args.allow_blind_steps: # Allow up to this many times being blind per run. (If in doubt: 10)
                 archive(seedo, global_counter)
                 break
             nocex_count += 1
+        else:
+            cex_length = len(res_str.split(';')[0].split('|')[0].split(','))
+            for i in range(nonegos):
+                env.unwrapped.controlled_vehicles[i].color = (min(cex_length * 15, 255), 200, min(cex_length * 15, 255))
 
+    
         #print(f"result: {res_str}")
         #### EO MODEL CHECKER CALL ####
 
