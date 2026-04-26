@@ -224,22 +224,8 @@ INVAR
     veh___6[i]9___.lane_single | veh___6[i]9___.lane_crossing;
 
 INVAR
--- Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just undo the condition around!
-@{
-   @(
-    (max(-veh___6[i]9___.v, a_min) <= veh___6[i]9___.a & veh___6[i]9___.a <= a_max) &
-    (0 <= veh___6[i]9___.v & veh___6[i]9___.v <= max_vel);
-   )@
-   @(
     (a_min <= veh___6[i]9___.a & veh___6[i]9___.a <= a_max) &
     (-max_vel <= veh___6[i]9___.v & veh___6[i]9___.v <= max_vel);
-   )@
-}@.if[@{UCD}@.eval].nil
--- EO Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just undo the condition around!
--- Just ignore backwards comatibility for now.
-    (a_min <= veh___6[i]9___.a & veh___6[i]9___.a <= a_max) &
-    (-max_vel <= veh___6[i]9___.v & veh___6[i]9___.v <= max_vel);
--- EO Just ignore backwards comatibility for now.
 
 -- MAX/MIN velocities per lane.
 @{@FACTOR = NUMLANES / NUM_TECHNICAL_LANES}@.eval.nil

@@ -322,7 +322,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             egos_v[i] = el[0][3] * egos_backward[i]
             egos_headings[i] = el[0][5] - np.pi * (1 - egos_backward[i]) / 2
             for num, val in enumerate(el[0]): # Generate input for model checker.
-                if egos_backward[car_i] == -1 and num == 5:
+                if egos_backward[i] == -1 and num == 5:
                     mcinput += str(-val) + ","
                 else:
                     mcinput += str(val) + ","
@@ -456,7 +456,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 dpoints_delta[i] = 0 # Don't care about cases with no ongoing LC since delta is zero, then.
                 lc_time[i] = 0
             
-            dpoints_y[i] = max(min(dpoints_y[i], num_lanes * 3), 0)
+            dpoints_y[i] = max(min(dpoints_y[i], num_actual_lanes * 3), 0)
             # COP suggestion (below) backwards-compatible only for 4 lanes, therefore, we go back to original line (above).
             # dpoints_y[i] = max(min(dpoints_y[i], y_max_tech), y_min_tech)
             
