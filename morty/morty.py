@@ -49,7 +49,7 @@ VAR
   env : EnvModel;
   planner : "checkLCConditionsFastLane"(globals."loc");
 
--- INVAR env.ego.v = env.veh___609___.v;
+  INVAR env.ego.v = env.veh___609___.v;
 """
 
 
@@ -321,15 +321,13 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             egos_y[i] = el[0][2]
             egos_v[i] = el[0][3] * egos_backward[i]
             egos_headings[i] = el[0][5] - np.pi * (1 - egos_backward[i]) / 2
-            car_i = i  # Save index before incrementing, so heading check below uses the correct car.
-            i = i + 1
             for num, val in enumerate(el[0]): # Generate input for model checker.
                 if egos_backward[car_i] == -1 and num == 5:
                     mcinput += str(-val) + ","
                 else:
                     mcinput += str(val) + ","
-                
             mcinput += ";"
+            i = i + 1
         
         crashed = False # Check if any car has crashed.
         for vehicle in env.unwrapped.road.vehicles:
@@ -352,7 +350,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                  + "$$$" + str(num_actual_lanes) \
                  + "$$$" + str(args.detailed_archive) \
                  + "$$$" + "False" \
-                 + "$$$" + str(num_technical_lanes)  # Num technical lanes (T = A + LATERAL_LC_GRANULARITY)
+                 + "$$$" + str(num_technical_lanes)  # Last 2: do detailed archive (hardcoded for now); num_actual_lanes + LATERAL_LC_GRANULARITY
         
         first = False
         
@@ -433,11 +431,13 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         MAXTIME_FOR_LC = 60
         
         eps = 1
+        #### COP VARIABLES ### 
         LANE_WIDTH_HE = 4.0  # highway-env lane width in meters
         on_lane_step_y = 2.0 * num_actual_lanes / num_technical_lanes  # y-distance per MC on_lane position
         # Compute valid y range based on technical lane positions.
         y_min_tech = -LANE_WIDTH_HE / 2.0 + LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
         y_max_tech = -LANE_WIDTH_HE / 2.0 + (2 * num_technical_lanes - 1) * LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
+        #### EO COP VARIABLES ### 
         for i, el in enumerate(sum_vel_by_car):
             lc_time[i] += 1
             
@@ -445,10 +445,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 lc_time[i] = 0
                 
                 if sum_lan_by_car[i] < 0:
-                    dpoints_delta[i] = on_lane_step_y
+                    dpoints_delta[i] = on_lane_step_y # Formerly 2, which is consistent with the smoothening variables, so doesn't break anything.
                     dpoints_y[i] += dpoints_delta[i]
                 elif sum_lan_by_car[i] > 0:
-                    dpoints_delta[i] = -on_lane_step_y
+                    dpoints_delta[i] = -on_lane_step_y # Formerly 2, which is consistent with the smoothening variables, so doesn't break anything.
                     dpoints_y[i] += dpoints_delta[i]
             
             if lc_time[i] > MAXTIME_FOR_LC and dpoints_delta[i] != 0:
@@ -456,7 +456,9 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 dpoints_delta[i] = 0 # Don't care about cases with no ongoing LC since delta is zero, then.
                 lc_time[i] = 0
             
-            dpoints_y[i] = max(min(dpoints_y[i], y_max_tech), y_min_tech)
+            dpoints_y[i] = max(min(dpoints_y[i], num_lanes * 3), 0)
+            # COP suggestion (below) backwards-compatible only for 4 lanes, therefore, we go back to original line (above).
+            # dpoints_y[i] = max(min(dpoints_y[i], y_max_tech), y_min_tech)
             
             # Best so far:
             # accel = sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
