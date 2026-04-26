@@ -37,8 +37,8 @@ static std::vector<std::string>& getSAFE_CHARACTERS_ASCII_LIKE() {
    return SAFE_CHARACTERS_ASCII_LIKE;
 }
 
-static std::map<std::string, int>& getSAFE_CHARACTERS_ASCII_LIKE_REVERSE() {
-   static auto SAFE_CHARACTERS_ASCII_LIKE_REVERSE = std::map<std::string, int>();
+static std::map<std::string, char>& getSAFE_CHARACTERS_ASCII_LIKE_REVERSE() {
+   static auto SAFE_CHARACTERS_ASCII_LIKE_REVERSE = std::map<std::string, char>();
    return SAFE_CHARACTERS_ASCII_LIKE_REVERSE;
 }
 
@@ -3219,8 +3219,10 @@ std::string vfm::StaticHelper::safeString(const std::string& arbitrary_string)
    std::string res;
 
    for (const auto& c : arbitrary_string) {
-      res += getSAFE_CHARACTERS_ASCII_LIKE()[(uint8_t) c];
+      res += getSAFE_CHARACTERS_ASCII_LIKE()[(char) c];
    }
+
+   assert(fromSafeString(res) == arbitrary_string);
 
    return res;
 }
@@ -3235,8 +3237,11 @@ std::string vfm::StaticHelper::fromSafeString(const std::string& safe_string)
 
    for (size_t i = 0; i + 1 < safe_string.size(); i += 2) {
       std::string pair = makeString(safe_string[i]) + makeString(safe_string[i + 1]);
-      res += getSAFE_CHARACTERS_ASCII_LIKE_REVERSE()[pair];
+      const char decrypted{ getSAFE_CHARACTERS_ASCII_LIKE_REVERSE()[pair] };
+      res += decrypted;
    }
+
+   //assert(safeString(res) == safe_string);
 
    return res;
 }

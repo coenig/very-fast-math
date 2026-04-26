@@ -414,7 +414,7 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
    assert(interpreted_trace.getEgoTrajectory().size() == interpreted_trace.getDataTrace().size());
 
    interpreted_trace.applyScaling(settings.x_scaling, 1.0, settings.duration_scale);
-   interpreted_trace.printDebug("FINAL");
+   // interpreted_trace.printDebug("FINAL");
 
    if (generate_osc)
    {
@@ -425,7 +425,7 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
       std::string osc_with_ego = OSCgenerator(interpreted_trace_osc).generate(final_name, true);
       std::string csv_with_ego = OSCgenerator(interpreted_trace_osc).generate_as_csv();
 
-      std::cout << "OSC WITH EGO: \n" << osc_with_ego << std::endl;
+      // std::cout << "OSC WITH EGO: \n" << osc_with_ego << std::endl;
 
       std::ofstream file_without_ego(out_path + "_free_ego.osc");
       file_without_ego << osc_without_ego;

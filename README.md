@@ -33,7 +33,33 @@ Steered by the MC, a fleet of cars provably* obeys a given SPEC, in this case: i
 
 Run `vfm(.exe)` from the `bin` folder.
 
-There are no additional dependencies, except `gtest` if you want to run the tests.
+### Troubleshoot
+There are no additional dependencies, except `gtest` if you want to run the tests, and `opengl` if you want to compile fltk agains it. These dependencies are technically optional, but in the recent versions they are required for the build script to work. Should you receive errors, do:
+```
+sudo apt-get update
+sudo apt-get install libgtest-dev
+sudo apt-get install libglew-dev
+```
+
+## M²oRTy
+For the ultra-cooperative driving framework you need additionally `gymnasium` and `highway-env` (as well as python3/pip):
+```
+pip install gymnasium
+pip install "gymnasium[other]"
+pip install highway-env
+```
+(TODO: Probably `pip install moviepy` suffices rather than installing all 'other' of gymnasium.)
+
+Then, run:
+```
+python3 morty/morty.py
+```
+### Troubleshoot
+For the `--record_video` option to work, you'll need to use specific older versions of highway-env and gymnasium: 
+```
+pip install highway-env==1.10.1
+pip install gymnasium==0.29.1
+```
 
 ## Authors
 Lukas Koenig,
