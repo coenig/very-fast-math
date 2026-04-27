@@ -131,5 +131,11 @@ std::string prepareOutputForMortyUCD(const long long seed, const int iteration, 
 #endif
 
 extern "C" VFM_API char* expandScript(const char* input, char* result, size_t resultMaxLength);
+
+// C ABI entry points used by the Python/Morty interface. Arguments are
+// semicolon-separated for the generation and GIF helpers.
+extern "C" VFM_API char* morty(const char* input, char* result, size_t resultMaxLength);
+extern "C" VFM_API char* generate_smv_files(const char* argv);
+extern "C" VFM_API void generate_cex_gif(const char* argv);
 } // test
 } // vfm
