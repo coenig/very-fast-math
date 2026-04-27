@@ -1660,6 +1660,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    const int NUM_LANES{ std::stoi(vec[9]) };
    const bool DETAILED_ARCHIVE{ StaticHelper::isBooleanTrue(vec[10]) };
    const bool SMOOTH_GIF{ StaticHelper::isBooleanTrue(vec[11]) };
+   const int NUM_TECHNICAL_LANES{ std::stoi(vec[12]) };
 
    auto cars = StaticHelper::split(input_str, ";");
    auto main_file = StaticHelper::readFile(OUTPUT_PATH + "main.tpl") + "\n";
@@ -1693,33 +1694,30 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          if (i == 0) null_pos = (int) (x);
 
          static constexpr float LANE_WIDTH = 4.0f;
-         
-         std::set<int> lanes{};
+         const float road_width = NUM_LANES * LANE_WIDTH;
          const float heading_factor{ vy * HEAD_CONST };
-         
-         // if (y < 0 + EPS + heading_factor) {
-         //    lanes.insert(NUM_LANES - 1);
-         // } else if (y >= (NUM_LANES - 1) * LANE_WIDTH - EPS + heading_factor) {
-         //    lanes.insert(0);
-         // } 
+         const float y_adj = y - heading_factor;
 
-         std::cout << "y: " << y << ", NUM_LANES: " << NUM_LANES << ", LANE_WIDTH: " << LANE_WIDTH << std::endl;
-         std::cout << "EPS: " << EPS << ", heading_factor: " << heading_factor << std::endl;
+         // Map highway-env y-position to MC on_lane position using technical lanes.
+         // on_lane formula: p = (2*T - 1) - 2*T*(y_adj + W/2) / (A*W)
+         // where T = NUM_TECHNICAL_LANES, A = NUM_LANES, W = LANE_WIDTH.
+         const float continuous_on_lane = (2.0f * NUM_TECHNICAL_LANES - 1.0f)
+            - 2.0f * NUM_TECHNICAL_LANES * (y_adj + LANE_WIDTH / 2.0f) / road_width;
+         const int max_on_lane = 2 * (NUM_TECHNICAL_LANES - 1);
+         int on_lane = (std::max)(0, (std::min)(max_on_lane, (int)std::round(continuous_on_lane)));
 
-         if (false) {} else {
-            for (int lane = NUM_LANES - 1; lane >= 0; lane--) {
-               if (y >= lane * LANE_WIDTH - EPS + heading_factor && y < lane * LANE_WIDTH + EPS + heading_factor) {
-                  lanes.insert(NUM_LANES - lane - 1);
-                  break; // We might insert negative numbers, as well...
-               } else if (y >= lane * LANE_WIDTH + EPS + heading_factor && y < (lane + 1) * LANE_WIDTH - EPS + heading_factor) {
-                  lanes.insert(NUM_LANES - lane - 1);
-                  lanes.insert(NUM_LANES - lane - 2);
-                  break; // ...But we don't care since later we loop only over the actually existing lanes.
-               }
-            }
+         std::set<int> lanes{};
+         if (on_lane % 2 == 0) {
+            lanes.insert(on_lane / 2);  // On a technical lane center.
+         } else {
+            lanes.insert(on_lane / 2);      // Between two adjacent technical lanes.
+            lanes.insert(on_lane / 2 + 1);
          }
 
-         for (int lane = 0; lane < NUM_LANES; lane++) {
+         std::cout << "y: " << y << ", y_adj: " << y_adj << ", on_lane: " << on_lane
+                   << ", NUM_TECHNICAL_LANES: " << NUM_TECHNICAL_LANES << std::endl;
+
+         for (int lane = 0; lane < NUM_TECHNICAL_LANES; lane++) {
             main_file += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
          }
       }

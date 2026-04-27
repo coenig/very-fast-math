@@ -468,9 +468,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 dpoints_delta[i] = 0 # Don't care about cases with no ongoing LC since delta is zero, then.
                 lc_time[i] = 0
             
-            dpoints_y[i] = max(min(dpoints_y[i], num_actual_lanes * 3), 0)
-            # COP suggestion (below) backwards-compatible only for 4 lanes, therefore, we go back to original line (above).
-            # dpoints_y[i] = max(min(dpoints_y[i], y_max_tech), y_min_tech)
+            dpoints_y[i] = max(min(dpoints_y[i], y_max_tech), y_min_tech)
             
             # Best so far:
             # accel = sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
