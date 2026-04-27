@@ -34,11 +34,11 @@ done
 mkdir build
 cd build
 if [ -z "$DEBUGOPTSCMAKE" ]; then
-   cmake $DEBUGOPTSCMAKE -DCMAKE_BUILD_TYPE=Debug ..
+   cmake $DEBUGOPTSCMAKE -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..
    make $DEBUGOPTSMAKE -j16
 else
    printf "Redirecting cmake and make outputs to files due to debug mode."
-   cmake $DEBUGOPTSCMAKE -DCMAKE_BUILD_TYPE=Debug .. > cmake.log 2> cmake.err
+   cmake $DEBUGOPTSCMAKE -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .. > cmake.log 2> cmake.err
    make $DEBUGOPTSMAKE -j16 > make.log 2> make.err
 fi
 

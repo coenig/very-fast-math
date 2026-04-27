@@ -116,5 +116,10 @@ bool isCacheUpToDateWithTemplates(const std::filesystem::path& cached_path, cons
 extern "C" char* expandScript(const char* input, char* result, size_t resultMaxLength);
 
 extern "C" char* morty(const char* input, char* result, size_t resultMaxLength);
+
+// Arguments are separated with ';'
+extern "C" char* generate_smv_files(const char* argv);
+
+extern "C" void generate_cex_gif(const char* _argv);
 } // test
 } // vfm
