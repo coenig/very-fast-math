@@ -60,22 +60,6 @@ with open('morty/envmodel_config.json') as f:
 # (because of Highway-env's low-level control model which is not symmetrical when driving backwards),
 # only on MC side as backward-driving, forward-facing. This has to be modeled on the interface.
 
-MAIN_TEMPLATE = r"""#include "planner.cpp_combined.k2.smv"
-#include "EnvModel.smv"
-
-MODULE Globals
-VAR
-"loc" : boolean;
-
-MODULE main
-VAR
-  globals : Globals; 
-  env : EnvModel;
-  planner : "checkLCConditionsFastLane"(globals."loc");
-
-  INVAR env.ego.v = env.veh___609___.v;
-"""
-
 
 
 SPECS = []      # Predefined specs as checked in the experiments. (Collision-freedom is implicit.)
@@ -187,7 +171,7 @@ if args.headless:
 
 output_folder = args.output + "/"
 
-MAIN_TEMPLATE += addons[args.exp_num]
+MAIN_ADDONS = addons[args.exp_num]
 
 # Best so far:
 # ACCEL_RANGE = 6
@@ -229,8 +213,6 @@ open(f'{output_folder}morty_mc_results.txt', 'w').close() # Delete old results f
 specification = create_string_buffer(2000)
 spec_res = morty_lib.expandScript(SPECS[args.exp_num].encode('utf-8'), specification, sizeof(specification)).decode()
 
-with open(f'{output_folder}main.tpl', "w") as text_file:
-    text_file.write(MAIN_TEMPLATE + spec_res)
 
 def archive(seedo, global_counter):
     if args.detailed_archive:

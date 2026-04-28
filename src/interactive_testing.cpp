@@ -1741,7 +1741,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
       @{./src/templates/}@.stringToHeap[MY_PATH]
       @{nuXmv}@.killAfter[15].Detach.setScriptVar[scriptID, force]
 
-      @{../../morty/envmodel_config.json}@.runMCJobs[1]
+      @{../../morty/envmodel_config.tpl.json}@.runMCJobs[1]
 
       @{scriptID}@.scriptVar.StopScript
       )" };
