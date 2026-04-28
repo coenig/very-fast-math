@@ -186,9 +186,17 @@ void McWorkflow::runMCJob(
 
       data_->addStringToDataPack(path_template, macro::MY_PATH_VARNAME); // Set the script processors home path (for the case it's not already been set during EnvModel generation).
 
+      // COP Fix: Fall back to the EnvModel directory for template files (main.tpl, script.tpl)
+      // if they are not found in path_template (e.g., in the morty/Python flow where
+      // path_template points to the JSON config directory, not the templates directory).
+      std::string template_files_dir{ path_template };
+      if (!StaticHelper::existsFileSafe(template_files_dir + "/main.tpl")) {
+         template_files_dir = getEnvmodelDir(path_template, json_tpl_filename).string();
+      }
+
       std::string main_smv{ StaticHelper::readFile(path_generated_config_level / "main.smv") };
-      std::string script_template{ StaticHelper::readFile(path_template + "/script.tpl") };
-      std::string main_template{ StaticHelper::readFile(path_template + "/main.tpl") };
+      std::string script_template{ StaticHelper::readFile(template_files_dir + "/script.tpl") };
+      std::string main_template{ StaticHelper::readFile(template_files_dir + "/main.tpl") };
       std::string generated_script{ CppParser::generateScript(script_template, data_, parser_) };
       StaticHelper::writeTextToFile(generated_script, path_generated_config_level / "script.cmd");
 
