@@ -12,9 +12,7 @@ VAR
   env : EnvModel;
   planner : "@{PLANNER_ENTRY_FILENAME}@.printHeap"(globals."loc"@{PLANNER_PARAMETERS}@.printHeap);
 
-@{
 @{               
-@{
 @(
  env.veh___6TEMPORARRAY19___.v : integer;
 )@
@@ -24,6 +22,7 @@ cnt : -1..1;
 )@
 }@.if[@{CONCRETE_MODEL}@.eval]
 
+@{
 @(
 
 
@@ -49,6 +48,7 @@ INVARSPEC
 --      );
 )@
 @(
+@{
    lane_changed : boolean;
    lane_change_aborted : boolean;
 
