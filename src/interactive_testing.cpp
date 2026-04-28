@@ -1630,22 +1630,6 @@ char* expandScript(const char* input, char* result, size_t resultMaxLength)
 extern "C"
 char* morty(const char* input, char* result, size_t resultMaxLength)
 {
-   std::string script{ R"(
-@{./src/templates/}@.stringToHeap[MY_PATH]
-@{../../morty/envmodel_config.tpl.json}@.generateEnvmodels
-)" };
-
-   macro::Script::processScript(script);
-
-   std::string sourcepath{ "./examples/gp_config/EnvModel.smv" };
-   std::string destpath{ "./morty/EnvModel.smv" };
-
-   if (StaticHelper::existsFileSafe(sourcepath)) {
-      std::filesystem::copy(sourcepath, destpath, std::filesystem::copy_options::update_existing);
-   } else {
-      Failable::getSingleton()->addError("File '" + sourcepath + "' not found, cannot copy newly created EnvModel. Continuing with existing.");
-   }
-
    const std::string input_str_full{ input };
    const auto vec = StaticHelper::split(input_str_full, "$$$");
    const std::string input_str{ vec[0] };
@@ -1757,18 +1741,11 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
       @{./src/templates/}@.stringToHeap[MY_PATH]
       @{nuXmv}@.killAfter[15].Detach.setScriptVar[scriptID, force]
 
-      @{$0$}@.convenienceArtifactRunHardcodedMC[$1$, $2$]
+      @{../../morty/envmodel_config.json}@.runMCJobs[1]
 
       @{scriptID}@.scriptVar.StopScript
       )" };
    
-   mc_script = StaticHelper::replaceAll(
-      StaticHelper::replaceAll(
-         StaticHelper::replaceAll(mc_script,
-            "$0$", OUTPUT_PATH),
-         "$1$", path_to_external_folder),
-      "$2$", ROOT_DIR);
-
    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now(); // Note that this measured time should be largely overestimated...
    macro::Script::processScript(mc_script);
    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();   // ...since the run does many things (like initialization) every time which could be optimized.

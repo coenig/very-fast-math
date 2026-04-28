@@ -12,18 +12,39 @@ from typing import List
 import distutils.dir_util
 import json
 
+# Prepare connection to morty lib.
+morty_lib = CDLL('./lib/libvfm.so')
+morty_lib.expandScript.argtypes = [c_char_p, c_char_p, c_size_t]
+morty_lib.expandScript.restype = c_char_p
+morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
+morty_lib.morty.restype = c_char_p
+
+# Create EnvModels.
+dummy_result = create_string_buffer(2000)
+script_envmodels = r"""
+@{./src/templates/}@.stringToHeap[MY_PATH]
+@{../../morty/envmodel_config.tpl.json}@.generateEnvmodels
+)" };
+"""
+dummy_result = morty_lib.expandScript(script_envmodels.encode('utf-8'), dummy_result, sizeof(dummy_result)).decode()
+# EO Create EnvModels.
+
 # Load parameters from JSON.
 with open('morty/envmodel_config.tpl.json') as f:
     d = json.load(f)
-    nonegos = d["#TEMPLATE"]["NONEGOS"]
-    num_actual_lanes = d["#TEMPLATE"]["NUMLANES"]
-    num_technical_lanes = d["#TEMPLATE"]["LATERAL_LC_GRANULARITY"] + num_actual_lanes
-    maxspeed = d["#TEMPLATE"]["MAXSPEEDNONEGO"]
-    backward_driving_car_ids_str = d["#TEMPLATE"]["BACKWARD_DRIVING_CAR_IDS"]
-    min_time_between_lcs = d["#TEMPLATE"]["MIN_TIME_BETWEEN_LANECHANGES"]
-    max_speed = d["#TEMPLATE"]["MAXSPEEDNONEGO"]
-    max_start_speed = min(d["#TEMPLATE"]["MAXSTARTSPEEDNONEGO_UCD"], max_speed)
-    min_start_speed = min(d["#TEMPLATE"]["MINSTARTSPEEDNONEGO_UCD"], max_start_speed)
+    ucd_config_prios_str = d["#TEMPLATE"]["UCD_CONFIG_PRIOS"].split(';')
+    
+with open('morty/envmodel_config.json') as f:
+    d = json.load(f) # Take only the [0]th config here because on Python side there are no differences for now.
+    nonegos = d[ucd_config_prios_str[0]]["NONEGOS"]
+    num_actual_lanes = d[ucd_config_prios_str[0]]["NUMLANES"]
+    num_technical_lanes = d[ucd_config_prios_str[0]]["LATERAL_LC_GRANULARITY"] + num_actual_lanes
+    maxspeed = d[ucd_config_prios_str[0]]["MAXSPEEDNONEGO"]
+    backward_driving_car_ids_str = d[ucd_config_prios_str[0]]["BACKWARD_DRIVING_CAR_IDS"]
+    min_time_between_lcs = d[ucd_config_prios_str[0]]["MIN_TIME_BETWEEN_LANECHANGES"]
+    max_speed = d[ucd_config_prios_str[0]]["MAXSPEEDNONEGO"]
+    max_start_speed = min(d[ucd_config_prios_str[0]]["MAXSTARTSPEEDNONEGO_UCD"], max_speed)
+    min_start_speed = min(d[ucd_config_prios_str[0]]["MINSTARTSPEEDNONEGO_UCD"], max_start_speed)
 
     if backward_driving_car_ids_str.endswith(')@'):
         backward_driving_car_ids_str = backward_driving_car_ids_str[:-2]
@@ -55,12 +76,6 @@ VAR
   INVAR env.ego.v = env.veh___609___.v;
 """
 
-
-morty_lib = CDLL('./lib/libvfm.so')
-morty_lib.expandScript.argtypes = [c_char_p, c_char_p, c_size_t]
-morty_lib.expandScript.restype = c_char_p
-morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
-morty_lib.morty.restype = c_char_p
 
 
 SPECS = []      # Predefined specs as checked in the experiments. (Collision-freedom is implicit.)
@@ -216,12 +231,6 @@ spec_res = morty_lib.expandScript(SPECS[args.exp_num].encode('utf-8'), specifica
 
 with open(f'{output_folder}main.tpl', "w") as text_file:
     text_file.write(MAIN_TEMPLATE + spec_res)
-
-if not os.path.samefile(output_folder, "./morty/"):
-    shutil.copyfile("./morty/EnvModel.smv", output_folder + "EnvModel.smv")
-    shutil.copyfile("./morty/planner.cpp_combined.k2", output_folder + "planner.cpp_combined.k2")
-    shutil.copyfile("./morty/script.cmd", output_folder + "script.cmd")
-
 
 def archive(seedo, global_counter):
     if args.detailed_archive:
