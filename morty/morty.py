@@ -225,12 +225,22 @@ for ucd_config_str in ucd_config_prios_str:
     with open(generated_path_prefix + ucd_config_str + "/main.smv", "r+") as f:
         content = f.read()
 
-        begin_idx = content.find(ADDONS_BEGIN_DENOTER)
+        begin_idx = content.find(ADDONS_BEGIN_DENOTER) # Cut out addons, if there, and replace with new ones.
         end_idx = content.find(ADDONS_END_DENOTER)
         if begin_idx != -1 and end_idx != -1:
             content = content[:begin_idx] + content[end_idx + len(ADDONS_END_DENOTER):]
 
         content = content.replace("--EO-ADDONS", addons[args.exp_num] + "\n--EO-ADDONS")
+
+        invarspec_idx = content.find("INVARSPEC") # Cut out SPEC and replace with new one.
+        if invarspec_idx == -1:
+            print(f"Error: no INVARSPEC found in {generated_path_prefix + ucd_config_str + '/main.smv'}. Failing fast...")
+            exit(1)
+        else:
+            semicolon_idx = content.find(";", invarspec_idx)
+            if semicolon_idx != -1:
+                content = content[:invarspec_idx] + spec_res + content[semicolon_idx + 1:]
+
         f.seek(0)
         f.write(content)
         f.truncate()
