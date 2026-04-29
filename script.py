@@ -1,8 +1,75 @@
 import os
 import time
 import json
+import subprocess
+import networkx as nx
+from pathlib import Path
 from itertools import product
+import matplotlib.pyplot as plt
+from pyvis.network import Network
+import xml.etree.ElementTree as ET
+from collections import defaultdict
 from ctypes import CDLL, c_char_p, c_size_t
+
+class NuXmvConn:
+    process: subprocess.Popen
+    property_map: dict[str, int]
+
+    def __init__(self, nuxmv_args) -> None:
+        self.process = subprocess.Popen(
+                nuxmv_args,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,
+                universal_newlines=True
+                )
+        self.property_map = dict()
+
+        # first prompt.
+        _ = self._read_response()
+
+        self._send("go_msat", ignore_output=True)
+
+    def _read_response(self):
+        """
+        This method works under the assumption that there will, eventually be
+        a respone from nuXmv's side. Usually used along with _send. It's blocking.
+        """
+        assert(self.process.stdout)
+        output = ""
+        while True:
+            byte = self.process.stdout.read(1)
+            if not byte:
+                raise Exception(f"nuXmv internal error while reading response. Output captured: {output}")
+            output += byte
+
+            # NurV finished, since its showing the prompt
+            if output.endswith("nuXmv > "):
+                break
+        return output[:-len("nuXmv > ")]
+
+    def _send(self, messages: list | str, ignore_output=False):
+        """
+        Send a list of commands to nuXmv. It accepts either a list or a single
+        command.
+        """
+        if not isinstance(messages, list):
+            messages = [messages]
+        elif not isinstance(messages, str):
+            raise Exception("NuRV Commands are in the form of strings!!!")
+
+        # For pyright type checking.
+        assert(self.process.stdin)
+        assert(self.process.stdout)
+
+        for msg in messages:
+            msg += "\n"
+            self.process.stdin.write(msg)
+        self.process.stdin.flush()
+        if ignore_output:
+            output = self._read_response()
 
 class Morty:
     def __init__(self):
@@ -13,7 +80,60 @@ class Morty:
         self.morty_lib.morty.restype = c_char_p
 
     def generate_smv_files(self, args: list[str]):
+        self.args = args
         self.morty_lib.generate_smv_files(";".join(args).encode('utf-8'))
+        main_smv = Path(args[5]) / "main.smv"
+        self.nuxmv = NuXmvConn([
+            "nuXmv", "-quiet", "-int", main_smv
+            ])
+
+    def model_check(self, cex_file):
+        self.nuxmv._send(
+                f"msat_check_invar_bmc -i -a falsification -k 100",
+                ignore_output=True
+                )
+
+        output_cex = Path(self.args[5]) / cex_file
+        self.nuxmv._send(
+                f"show_traces -p 6 -o {output_cex} 1",
+                ignore_output=True
+                )
+
+        return output_cex
+
+class GraphBuilder:
+    def __init__(self):
+        pass
+
+    def build_from_xml_cex(self, cex_file):
+        tree = ET.parse(cex_file)
+        root = tree.getroot()
+        node = root.find('node')
+        assert(node is not None)
+        state = node.find('state')
+        assert(state is not None)
+        temp_dict = defaultdict(list)
+        for child in state:
+            variable = child.get('variable')
+            if variable and "outgoing_connection" in variable:
+                [_, _, start, _, _, end] = variable.split("_")
+                temp_dict[f'S{int(start)}'].append(f'E{int(end)}')
+                print(f'adding edge from {start} to {end}')
+
+        graph = nx.DiGraph(temp_dict)
+
+        self.graph = graph 
+
+    def dump_graph(self, html_file='digraph.html'):
+
+        net = Network(notebook=True, directed=True, cdn_resources='remote')
+
+        net.from_nx(self.graph)
+        net.show_buttons(filter_=['physics'])
+
+        net.show(html_file)
+
+
 
 def get_parameters_test_enumeration():
     # 007, NONEGOS -> non_egos
@@ -23,13 +143,13 @@ def get_parameters_test_enumeration():
     # SECTIONSMINLENGTH -> min section length
     # MODEL_INTERSECTION_GEOMETRY -> allow angles
     return {
-      'nonegos':  [i for i in range(3, 6)],
-      'sections': [i for i in range(3, 7)],
-      'numlanes': [1],
-      'section_max_length': [1000],
-      'section_min_length': [100],
-      'geometry': [1],
-    }
+            'nonegos':  [i for i in range(3, 6)],
+            'sections': [i for i in range(3, 7)],
+            'numlanes': [1],
+            'section_max_length': [1000],
+            'section_min_length': [100],
+            'geometry': [1],
+            }
 
 def identity(x):
     return x
@@ -37,23 +157,23 @@ def identity(x):
 
 def get_parameters_simplest_geometries():
     return {
-      'nonegos':  [5],
-      'sections': [3],
-      'numlanes': [1],
-      'section_max_length': [1000],
-      'section_min_length': [100],
-      'geometry': [0],
-    }
+            'nonegos':  [5],
+            'sections': [3],
+            'numlanes': [1],
+            'section_max_length': [1000],
+            'section_min_length': [100],
+            'geometry': [0],
+            }
 
 def get_param_simple(neg, sec, lanes, maxlen=1000, minlen=100, geom=1):
     return {
-      'nonegos':  [neg],
-      'sections': [sec],
-      'numlanes': [lanes],
-      'section_max_length': [maxlen],
-      'section_min_length': [minlen],
-      'geometry': [geom],
-    }
+            'nonegos':  [neg],
+            'sections': [sec],
+            'numlanes': [lanes],
+            'section_max_length': [maxlen],
+            'section_min_length': [minlen],
+            'geometry': [geom],
+            }
 
 def parametrize_model_config_with_dict(input_config, output_config, new_config):
     with open(input_config) as f:
@@ -70,22 +190,22 @@ def parametrize_model_config_with_dict(input_config, output_config, new_config):
 def main():
     parameters = get_param_simple(
             neg=3, sec=2, lanes=1
-    )
+            )
     # parameters = get_parameters_simplest_geometries()
 
     configs = [
-      dict(zip(parameters.keys(), p))
-      for p in product(*parameters.values())
-    ]
+            dict(zip(parameters.keys(), p))
+            for p in product(*parameters.values())
+            ]
 
     replace_config_key = {
-      'nonegos': [("#007", identity), ("NONEGOS", identity)],
-      'numlanes': [("#008", identity), ("NUMLANES", identity)],
-      'sections': [("#010", identity), ("SECTIONS", identity)],
-      'section_max_length': [("SECTIONSMAXLENGTH", identity)],
-      'section_min_length': [("SECTIONSMINLENGTH", identity)],
-      'geometry': [("MODEL_INTERSECTION_GEOMETRY", identity)],
-    }
+            'nonegos': [("#007", identity), ("NONEGOS", identity)],
+            'numlanes': [("#008", identity), ("NUMLANES", identity)],
+            'sections': [("#010", identity), ("SECTIONS", identity)],
+            'section_max_length': [("SECTIONSMAXLENGTH", identity)],
+            'section_min_length': [("SECTIONSMINLENGTH", identity)],
+            'geometry': [("MODEL_INTERSECTION_GEOMETRY", identity)],
+            }
 
     all_configs = []
     for config in configs:
@@ -109,30 +229,34 @@ def main():
 
         ###
         args = [
-            # json template
-            output_config, # "/tmp/envmodel_config.tpl.json",
-            # directory substring
-            "0",
-            # root dir
-            ".",
-            # envmodel tpl
-            "src/templates/EnvModel.tpl",
-            # planner path
-            "src/examples/ego_less/vfm-includes.txt",
-            # target directory
-            f"SMV_GEN/scenario{int(time.time())}",
-            # cached directory
-            "examples/tmp",
-            # template directory
-            "src/templates",
-        ]
+                # 0: json template
+                output_config, # "/tmp/envmodel_config.tpl.json",
+                # 1: directory substring
+                "0",
+                # 2: root dir
+                ".",
+                # 3: envmodel tpl
+                "src/templates/EnvModel.tpl",
+                # 4: planner path
+                "src/examples/ego_less/vfm-includes.txt",
+                # 5: target directory
+                f"SMV_GEN/scenario{int(time.time())}",
+                # 6: cached directory
+                "examples/tmp",
+                # 7: template directory
+                "src/templates",
+                ]
 
         morty = Morty()
         morty.generate_smv_files(args)
         ###
 
-        morty.generate_smv_files(f"{experiments_dir}/{i:03d}") # type: ignore
 
+def graph_builder_test():
+    gb = GraphBuilder()
+    gb.build_from_xml_cex('cex.xml')
+    gb.dump_graph('graph.html')
 
 if __name__ == "__main__":
-    main()
+    graph_builder_test()
+    # main()
