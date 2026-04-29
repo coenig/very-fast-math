@@ -1553,70 +1553,6 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 
 // --- EO remaining comments from main.cpp ---
 
-void generatePreviewsForMorty(const MCTrace& trace, const std::string& output_path, const bool include_smooth)
-{
-   auto nameA1 = vfm::mc::TESTCASE_MODE_PREVIEW_2.first;
-   auto nameA2 = vfm::mc::TESTCASE_MODE_PREVIEW_2.second;
-   auto nameB1 = vfm::mc::TESTCASE_MODE_CEX_SMOOTH_BIRDSEYE.first;
-   auto nameB2 = vfm::mc::TESTCASE_MODE_CEX_SMOOTH_BIRDSEYE.second;
-
-   if (!trace.empty()) {
-      auto src = std::filesystem::path("./morty/waiting.png");
-      auto dest_pathA = output_path + nameA1;
-      StaticHelper::createDirectoriesSafe(dest_pathA);
-
-      for (const auto& entry : std::filesystem::directory_iterator(dest_pathA))
-         if (StaticHelper::stringContains(entry.path().string(), ".png"))
-            std::filesystem::copy_file(src, entry.path(), std::filesystem::copy_options::overwrite_existing);
-
-      static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF = static_cast<mc::trajectory_generator::LiveSimGenerator::LiveSimType>(
-         mc::trajectory_generator::LiveSimGenerator::LiveSimType::birdseye
-         | mc::trajectory_generator::LiveSimGenerator::LiveSimType::incremental_image_output
-         );
-
-      mc::trajectory_generator::VisualizationScales gen_config_non_smooth{};
-      gen_config_non_smooth.x_scaling = 1;
-      gen_config_non_smooth.duration_scale = 1;
-      gen_config_non_smooth.frames_per_second_gif = 0;
-      gen_config_non_smooth.frames_per_second_osc = 0;
-      gen_config_non_smooth.gif_duration_scale = 1;
-
-      mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
-         trace,
-         output_path,
-         nameA1,
-         SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
-         {},
-         gen_config_non_smooth, nameA2);
-
-      auto dest_pathB = output_path + nameB1;
-      StaticHelper::createDirectoriesSafe(dest_pathB);
-
-      auto gen_config_smooth = mc::trajectory_generator::VisualizationScales{ gen_config_non_smooth };
-      gen_config_smooth.frames_per_second_gif = 40;
-      gen_config_smooth.frames_per_second_osc = 40;
-
-      for (const auto& entry : std::filesystem::directory_iterator(dest_pathB))
-         if (StaticHelper::stringContains(entry.path().string(), ".gif"))
-            std::filesystem::copy_file(src, entry.path(), std::filesystem::copy_options::overwrite_existing);
-
-      static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY_SMOOTH = static_cast<mc::trajectory_generator::LiveSimGenerator::LiveSimType>(
-         mc::trajectory_generator::LiveSimGenerator::LiveSimType::birdseye
-         | mc::trajectory_generator::LiveSimGenerator::LiveSimType::gif_animation
-         );
-
-      if (include_smooth) {
-         mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
-            trace,
-            output_path,
-            nameB1,
-            SIM_TYPE_REGULAR_BIRDSEYE_ONLY_SMOOTH,
-            {},
-            gen_config_smooth, nameB2);
-      }
-   }
-}
-
 extern "C"
 char* expandScript(const char* input, char* result, size_t resultMaxLength)
 {
@@ -1627,9 +1563,19 @@ char* expandScript(const char* input, char* result, size_t resultMaxLength)
    return result;
 }
 
+// std::string McWorkflow::getValueForJSONKeyAsString(
+//    const std::string& key_to_find,
+//    const std::string& path_template,
+//    const std::string& filename_json_template,
+//    const std::string& config_name) const
+
 extern "C"
 char* morty(const char* input, char* result, size_t resultMaxLength)
 {
+   const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json") };
+   const std::string ucd_config_prios_str{ mc::McWorkflow().getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
+   const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
+
    const std::string input_str_full{ input };
    const auto vec = StaticHelper::split(input_str_full, "$$$");
    const std::string input_str{ vec[0] };
@@ -1639,18 +1585,16 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    const int SEED{ std::stoi(vec[4]) };  // The current seed this run is part of on Python side.
    const bool CRASH{ StaticHelper::isBooleanTrue(vec[5]) };
    const int ITERATION{ std::stoi(vec[6]) };  // The iteration within the current seed on Python side.
-   const std::string OUTPUT_BASE_PATH{ vec[7] };
-   const std::string ROOT_DIR{ vec[8] }; // "." or "/", depending on weather we have an absolute ar a relative path.
-   const int NUM_LANES{ std::stoi(vec[9]) };
-   const bool DETAILED_ARCHIVE{ StaticHelper::isBooleanTrue(vec[10]) };
-   const bool SMOOTH_GIF{ StaticHelper::isBooleanTrue(vec[11]) };
-   const int NUM_TECHNICAL_LANES{ std::stoi(vec[12]) };
+   const int NUM_LANES{ std::stoi(vec[7]) };
+   const bool DETAILED_ARCHIVE{ StaticHelper::isBooleanTrue(vec[8]) };
+   const bool SMOOTH_GIF{ StaticHelper::isBooleanTrue(vec[9]) };
+   const int NUM_TECHNICAL_LANES{ std::stoi(vec[10]) };
 
    auto cars = StaticHelper::split(input_str, ";");
-   auto main_file = StaticHelper::readFile(OUTPUT_PATH + "main.tpl") + "\n";
    int null_pos{};
 
    cars.erase(cars.end() - 1);
+   std::string main_file_additions{};
 
    for (int i = 0; i < cars.size(); i++) {
       auto car = cars[i];
@@ -1672,8 +1616,8 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          x = (std::max)((std::min)(x, (std::numeric_limits<float>::max)()), (std::numeric_limits<float>::min)());
          vx = (std::max)((std::min)(vx, 70.0f), -70.0f);
 
-         main_file += "INIT env.veh___6" + std::to_string(i) + "9___.abs_pos = " + std::to_string((int)(x)) + ";\n";
-         main_file += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx)) + ";\n";
+         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.abs_pos = " + std::to_string((int)(x)) + ";\n";
+         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx)) + ";\n";
 
          if (i == 0) null_pos = (int) (x);
 
@@ -1702,40 +1646,26 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
                    << ", NUM_TECHNICAL_LANES: " << NUM_TECHNICAL_LANES << std::endl;
 
          for (int lane = 0; lane < NUM_TECHNICAL_LANES; lane++) {
-            main_file += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
+            main_file_additions += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
          }
       }
    }
 
-   main_file += "INIT env.ego.abs_pos = " + std::to_string(null_pos) + ";\n";
-   auto main_file_dummy = StaticHelper::removeMultiLineComments(main_file, "--SPEC-STUFF", "--EO-SPEC-STUFF");
-   main_file_dummy += "INVARSPEC env.cnt < 0;";
+   // auto main_file = StaticHelper::readFile(OUTPUT_PATH + "main.tpl") + "\n";
+   // main_file += "INIT env.ego.abs_pos = " + std::to_string(null_pos) + ";\n";
+   // auto main_file_dummy = StaticHelper::removeMultiLineComments(main_file, "--SPEC-STUFF", "--EO-SPEC-STUFF");
+   // main_file_dummy += "INVARSPEC env.cnt < 0;";
 
-   const std::string path_to_external_folder{ ROOT_DIR == "." 
-      ? "./external" 
-      : "/vfm/external" // Hard-coded for the "docker" case. If not in docker, relative path needs to be given. This is not pretty, but for now the simplest solution.
-   };
+   // if (DEBUG) {
+   //    StaticHelper::writeTextToFile(main_file_dummy, OUTPUT_PATH + "main.smv");
+   //    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, OUTPUT_PATH, "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", path_to_external_folder, ROOT_DIR);
+   //    auto traces_dummy{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_PATH + "debug_trace_array.txt") };
+   //    MCTrace trace_dummy = traces_dummy.empty() ? MCTrace{} : traces_dummy.at(0);
 
-   if (DEBUG) {
-      StaticHelper::writeTextToFile(main_file_dummy, OUTPUT_PATH + "main.smv");
-      test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, OUTPUT_PATH, "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", path_to_external_folder, ROOT_DIR);
-      auto traces_dummy{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_PATH + "debug_trace_array.txt") };
-      MCTrace trace_dummy = traces_dummy.empty() ? MCTrace{} : traces_dummy.at(0);
+   //    generatePreviewsForMorty(trace_dummy, OUTPUT_PATH, SMOOTH_GIF); // First preview in case there is no CEX for the actual run.
+   // }
 
-      generatePreviewsForMorty(trace_dummy, OUTPUT_PATH, SMOOTH_GIF); // First preview in case there is no CEX for the actual run.
-   }
-
-   StaticHelper::writeTextToFile(main_file, OUTPUT_PATH + "main.smv");
-
-   // test::convenienceArtifactRunHardcoded(
-   //    test::MCExecutionType::mc,
-   //    OUTPUT_PATH, 
-   //    "fake-json-config-path", 
-   //    "fake-template-path", 
-   //    "fake-includes-path", 
-   //    "fake-cache-path", 
-   //    path_to_external_folder, 
-   //    ROOT_DIR);
+   // StaticHelper::writeTextToFile(main_file, OUTPUT_PATH + "main.smv");
 
    std::string mc_script{ R"(
       @{./src/templates/}@.stringToHeap[MY_PATH]
@@ -1751,72 +1681,52 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();   // ...since the run does many things (like initialization) every time which could be optimized.
    auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count();
 
-   auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_PATH + "debug_trace_array.txt") };
-   MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
-
-   StaticHelper::writeTextToFile(
-      std::to_string(SEED) + ";" 
-      + std::to_string(trace.size() / 2) + ";" 
-      + std::to_string(runtime) + ";"
-      + std::to_string(CRASH) + ";"
-      + std::to_string(ITERATION) + ";"
-      + "\n", OUTPUT_PATH + "morty_mc_results.txt", true);
-
-   if (DEBUG || DETAILED_ARCHIVE) {
-      generatePreviewsForMorty(trace, OUTPUT_PATH, SMOOTH_GIF); // Actual preview in case everything went fine.
+   for (const auto& config_name : ucd_config_prios_vec) {
+      auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_BASE_PATH + config_name + "/debug_trace_array.txt") };
+      MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
    }
 
-   std::vector<VarValsFloat> deltas{};
-   std::set<std::string> variables{};
+   std::cin.get();
 
-   for (int i = 0; i < cars.size(); i++) {
-      variables.insert("veh___6" + std::to_string(i) + "9___.v");
-      variables.insert("veh___6" + std::to_string(i) + "9___.on_lane");
-   }
+   // StaticHelper::writeTextToFile(
+   //    std::to_string(SEED) + ";" 
+   //    + std::to_string(trace.size() / 2) + ";" 
+   //    + std::to_string(runtime) + ";"
+   //    + std::to_string(CRASH) + ";"
+   //    + std::to_string(ITERATION) + ";"
+   //    + "\n", OUTPUT_PATH + "morty_mc_results.txt", true);
 
-   deltas = trace.getAllDeltas(variables);
+   // std::vector<VarValsFloat> deltas{};
+   // std::set<std::string> variables{};
 
-   std::string res{};
+   // for (int i = 0; i < cars.size(); i++) {
+   //    variables.insert("veh___6" + std::to_string(i) + "9___.v");
+   //    variables.insert("veh___6" + std::to_string(i) + "9___.on_lane");
+   // }
 
-   if (trace.size() == 2) {
-      res = "FINISHED";
-   } else {
-      for (int i = 0; i < cars.size(); i++) {
-         for (const auto& delta : deltas) {
-            res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.v")) + ",";
-         }
+   // deltas = trace.getAllDeltas(variables);
+
+   // std::string res{};
+
+   // if (trace.size() == 2) {
+   //    res = "FINISHED";
+   // } else {
+   //    for (int i = 0; i < cars.size(); i++) {
+   //       for (const auto& delta : deltas) {
+   //          res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.v")) + ",";
+   //       }
          
-         res += "|";
+   //       res += "|";
 
-         for (const auto& delta : deltas) {
-            res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.on_lane")) + ",";
-         }
+   //       for (const auto& delta : deltas) {
+   //          res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.on_lane")) + ",";
+   //       }
 
-         res += ";";
-      }
-   }
-   //for (int i = 0; i < cars.size(); i++) {
-   //   auto d_ol = delta_ol.at("veh___6" + std::to_string(i) + "9___.on_lane");
-   //   auto d_ve = delta_ve.at("veh___6" + std::to_string(i) + "9___.v");
+   //       res += ";";
+   //    }
+   // }
 
-   //   if (d_ol < 0) {
-   //      res += "LANE_LEFT;";
-   //   }
-   //   else if (d_ol > 0) {
-   //      res += "LANE_RIGHT;";
-   //   }
-   //   else if (d_ve > 0) {
-   //      res += "FASTER;";
-   //   }
-   //   else if (d_ve < 0) {
-   //      res += "SLOWER;";
-   //   }
-   //   else {
-   //      res += "IDLE;";
-   //   }
-   //}
-
-   snprintf(result, resultMaxLength, "%s", res.c_str());
+   // snprintf(result, resultMaxLength, "%s", res.c_str());
 
    return result;
 }

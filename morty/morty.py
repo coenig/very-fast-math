@@ -169,7 +169,7 @@ parser.add_argument('-e', '--exp_num', default=DEFAULT_EXP_ID, type=int, choices
                     help='Experiment id to run. Choose from 0 to {}'.format(len(SPECS)-1))
 parser.add_argument('--record_video', action='store_true',
                     help='Record a video of the run. Default: False')
-parser.add_argument('--detailed_archive', action='store_false',
+parser.add_argument('--detailed_archive', action='store_true',
                     help='Stores detailed archive of the run in a subfolder. Default: False')
 parser.add_argument('--headless', action='store_true',
                     help='Run without opening the simulation UI window. Default: False')
@@ -259,8 +259,6 @@ def archive(seedo, global_counter):
         ensure_empty_file(f'{generated_path_prefix}/mc_runtimes.txt')  # Delete "mc_runtimes.txt" which is not used in this context.
         for filename in ucd_config_prios_str:
             distutils.dir_util.copy_tree(generated_path_prefix + filename, archive_path + filename)
-
-archive(0, 100)
 
 for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
@@ -377,8 +375,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                  + "$$$" + str(seedo) \
                  + "$$$" + str(crashed) \
                  + "$$$" + str(global_counter) \
-                 + "$$$" + output_folder \
-                 + "$$$" + ("/" if output_folder[0] == "/" else ".") \
                  + "$$$" + str(num_actual_lanes) \
                  + "$$$" + str(args.detailed_archive) \
                  + "$$$" + "False" \
