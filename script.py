@@ -100,6 +100,13 @@ class Morty:
 
         return output_cex
 
+    def get_target_path(self):
+        return Path(self.args[5])
+
+    def block_topology(self, topology):
+        # TODO 1: implement blocking the latest topology
+        pass
+
 class GraphBuilder:
     def __init__(self):
         pass
@@ -119,19 +126,16 @@ class GraphBuilder:
                 temp_dict[f'S{int(start)}'].append(f'E{int(end)}')
                 print(f'adding edge from {start} to {end}')
 
-        graph = nx.DiGraph(temp_dict)
+        return nx.DiGraph(temp_dict)
 
-        self.graph = graph 
+def dump_graph(graph, html_file='digraph.html'):
 
-    def dump_graph(self, html_file='digraph.html'):
+    net = Network(notebook=True, directed=True, cdn_resources='remote')
 
-        net = Network(notebook=True, directed=True, cdn_resources='remote')
+    net.from_nx(graph)
+    net.show_buttons(filter_=['physics'])
 
-        net.from_nx(self.graph)
-        net.show_buttons(filter_=['physics'])
-
-        net.show(html_file)
-
+    net.show(html_file)
 
 
 def get_parameters_test_enumeration():
@@ -250,11 +254,42 @@ def main():
         morty.generate_smv_files(args)
         ###
 
+        #  Main Loop.
+        #  while True:
+        #    1. model check.
+        #    2. create graph from cex.
+        #    3. if planar:
+        #    4.   break
+        #    5. Block topology of cex.
+
+        #  Merge graph with the counter example, with 
+        #  real units.
+
+        iteration = 0
+        gb = GraphBuilder()
+        current_target_path = morty.get_target_path()
+        while True:
+            cex_file = morty.model_check(f'cex_it_{iteration}.xml')
+            graph = gb.build_from_xml_cex(cex_file)
+            dump_graph(
+                graph,
+                str(current_target_path / f'graph_it_{iteration}.html')
+            )
+            is_plannar, embedding = nx.check_planarity(graph)
+            if is_plannar:
+                concrete_graph = nx.combinatorial_embedding_to_pos(embedding)
+                # TODO 2: show the final concrete graph
+                break
+
+            morty.block_topology(graph)
+
+        # TODO 3: merge the stuff
+
 
 def graph_builder_test():
     gb = GraphBuilder()
-    gb.build_from_xml_cex('cex.xml')
-    gb.dump_graph('graph.html')
+    graph = gb.build_from_xml_cex(Path('cex.xml'))
+    dump_graph(graph, 'graph.html')
 
 if __name__ == "__main__":
     graph_builder_test()
