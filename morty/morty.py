@@ -32,7 +32,8 @@ dummy_result = morty_lib.expandScript(script_envmodels.encode('utf-8'), dummy_re
 # Load parameters from JSON.
 with open('morty/envmodel_config.tpl.json') as f:
     d = json.load(f)
-    ucd_config_prios_str = d["#TEMPLATE"]["UCD_CONFIG_PRIOS"].split(';')
+    ucd_config_prios_str = [s for s in d["#TEMPLATE"]["UCD_CONFIG_PRIOS"].split(';') if s] # only non-empty strings
+    generated_path_prefix = d["#TEMPLATE"]["_GENERATED_PATH"]
     
 with open('morty/envmodel_config.json') as f:
     d = json.load(f) # Take only the [0]th config here because on Python side there are no differences for now.
@@ -119,10 +120,16 @@ SUCC_CONDS.append(
     )
 SUCC_CONDS.append(lambda: False) # 8
 
-# Add to main.smv depending on the experiment.
-addons = [''] * len(SPECS)
+addons = [''] * len(SPECS) # Add to main.smv depending on the experiment.
+ADDONS_CORE_DENOTER = "UCD addons"
+ADDONS_BEGIN_DENOTER = "-- " + ADDONS_CORE_DENOTER + " --\n"
+ADDONS_END_DENOTER = "-- EO " + ADDONS_CORE_DENOTER + " --\n"
 
-addons[7] = r"""
+for i in range(0, len(SPECS)):
+    addons[i] += ADDONS_BEGIN_DENOTER
+    addons[i] += f"-- UCD experiment{i} --\n"
+
+addons[7] += r"""
 INVAR env.veh___609___.v >= 5;
 INVAR env.veh___619___.v <= -5;
 INVAR env.veh___609___.v >= 0;
@@ -132,9 +139,12 @@ INVAR env.veh___619___.v <= 0;
 for i in range(2, nonegos):
     addons[7] += f"INVAR env.veh___6{i}9___.v = 0;\n"
 
-addons[8] = "INVAR env.veh___609___.v >= 5;\n"
+addons[8] += "INVAR env.veh___609___.v >= 5;\n"
 for i in range(1, nonegos):
     addons[8] += f"INVAR env.veh___6{i}9___.v = 0;\n"
+
+for i in range(0, len(SPECS)):
+    addons[i] += ADDONS_END_DENOTER
 
 DEFAULT_EXP_ID = 7
 
@@ -170,8 +180,6 @@ if args.headless:
     os.environ['SDL_VIDEODRIVER'] = 'offscreen'
 
 output_folder = args.output + "/"
-
-MAIN_ADDONS = addons[args.exp_num]
 
 # Best so far:
 # ACCEL_RANGE = 6
@@ -213,6 +221,19 @@ open(f'{output_folder}morty_mc_results.txt', 'w').close() # Delete old results f
 specification = create_string_buffer(2000)
 spec_res = morty_lib.expandScript(SPECS[args.exp_num].encode('utf-8'), specification, sizeof(specification)).decode()
 
+for ucd_config_str in ucd_config_prios_str:
+    with open(generated_path_prefix + ucd_config_str + "/main.smv", "r+") as f:
+        content = f.read()
+
+        begin_idx = content.find(ADDONS_BEGIN_DENOTER)
+        end_idx = content.find(ADDONS_END_DENOTER)
+        if begin_idx != -1 and end_idx != -1:
+            content = content[:begin_idx] + content[end_idx + len(ADDONS_END_DENOTER):]
+
+        content = content.replace("--EO-ADDONS", addons[args.exp_num] + "\n--EO-ADDONS")
+        f.seek(0)
+        f.write(content)
+        f.truncate()
 
 def archive(seedo, global_counter):
     if args.detailed_archive:

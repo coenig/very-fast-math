@@ -86,7 +86,7 @@ TRANS env.ego.abCond_full = planner."abCond.cond26_all_conditions_fulfilled_raw"
 --ADDONS
 -- Working in folder '@{FULL_GEN_PATH}@.printHeap'.
 -- This run is based on GIT commit: @{git rev-parse HEAD}@.exec
--- Storing patch in '@{FULL_GEN_PATH}@.printHeap/git_patch.txt'
+-- Storing patch in '@{FULL_GEN_PATH}@.printHeap/git_patch.txt' in case the current state is dirty.
 @{git diff > "@{FULL_GEN_PATH}@.printHeap/git_patch.txt"}@.exec
 
 @{main_addons.tpl}@********.include.if[@{!UCD}@.eval]
