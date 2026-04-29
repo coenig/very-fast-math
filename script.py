@@ -5,7 +5,6 @@ import subprocess
 import networkx as nx
 from pathlib import Path
 from itertools import product
-import matplotlib.pyplot as plt
 from pyvis.network import Network
 import xml.etree.ElementTree as ET
 from collections import defaultdict
@@ -45,7 +44,7 @@ class NuXmvConn:
                 raise Exception(f"nuXmv internal error while reading response. Output captured: {output}")
             output += byte
 
-            # NurV finished, since its showing the prompt
+            # nuXmv finished, since its showing the prompt
             if output.endswith("nuXmv > "):
                 break
         return output[:-len("nuXmv > ")]
@@ -58,7 +57,7 @@ class NuXmvConn:
         if not isinstance(messages, list):
             messages = [messages]
         elif not isinstance(messages, str):
-            raise Exception("NuRV Commands are in the form of strings!!!")
+            raise Exception("nuXmv Commands are in the form of strings!!!")
 
         # For pyright type checking.
         assert(self.process.stdin)
@@ -69,7 +68,7 @@ class NuXmvConn:
             self.process.stdin.write(msg)
         self.process.stdin.flush()
         if ignore_output:
-            output = self._read_response()
+            _ = self._read_response()
 
 class Morty:
     def __init__(self):
