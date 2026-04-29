@@ -11,6 +11,7 @@ import numpy as np
 from typing import List
 import distutils.dir_util
 import json
+from pathlib import Path
 
 # Prepare connection to morty lib.
 morty_lib = CDLL('./lib/libvfm.so')
@@ -152,8 +153,6 @@ parser = argparse.ArgumentParser(
                     prog='morty',
                     description='Model Checking based planning',
                     epilog='Bye!')
-parser.add_argument('-o', '--output', default="./morty", type=str,
-                    help='Output folder for the results.')
 parser.add_argument('-n', '--num_runs', default=1, type=int,
                     help='Number of runs to perform per experiment. Default: 1000')
 parser.add_argument('-s', '--steps_per_run', default=300, type=int,
@@ -170,7 +169,7 @@ parser.add_argument('-e', '--exp_num', default=DEFAULT_EXP_ID, type=int, choices
                     help='Experiment id to run. Choose from 0 to {}'.format(len(SPECS)-1))
 parser.add_argument('--record_video', action='store_true',
                     help='Record a video of the run. Default: False')
-parser.add_argument('--detailed_archive', action='store_true',
+parser.add_argument('--detailed_archive', action='store_false',
                     help='Stores detailed archive of the run in a subfolder. Default: False')
 parser.add_argument('--headless', action='store_true',
                     help='Run without opening the simulation UI window. Default: False')
@@ -179,8 +178,6 @@ args = parser.parse_args()
 if args.headless:
     os.environ['SDL_VIDEODRIVER'] = 'offscreen'
 
-output_folder = args.output + "/"
-
 # Best so far:
 # ACCEL_RANGE = 6
 ACCEL_RANGE = 6
@@ -188,6 +185,17 @@ ACCEL_RANGE = 6
 MAX_EXPs = args.num_runs
 
 good_ones = []
+
+
+def ensure_empty_file(path: str) -> None:
+    p = Path(path)
+
+    if p.exists() and not p.is_file():
+        return
+
+    p.parent.mkdir(parents=True, exist_ok=True)
+    with p.open('w'):
+        pass
 
 def min_max_curr(successful_so_far, done_so_far, max_to_expect):
     percent = 100 * successful_so_far / done_so_far
@@ -213,10 +221,8 @@ def inverseSortingArray(egos_x: List[float]):
         b = b and (egos_x[i + 1] < egos_x[i])
     return b
 
-open(f'{output_folder}results.txt', 'w').close()          # Delete old results from Python side
-open(f'{output_folder}morty_mc_results.txt', 'w').close() # Delete old results from MC side (these are a super set of the above)
-# if os.path.exists(f"{output_folder}../detailed_results"):
-#     distutils.dir_util.remove_tree(f"{output_folder}../detailed_results") # Delete old detailed results
+ensure_empty_file(f'{generated_path_prefix}/results.txt')  # Delete old results from Python side
+ensure_empty_file(f'{generated_path_prefix}/morty_mc_results.txt')  # Delete old results from MC side (these are a super set of the above)
 
 specification = create_string_buffer(2000)
 spec_res = morty_lib.expandScript(SPECS[args.exp_num].encode('utf-8'), specification, sizeof(specification)).decode()
@@ -247,11 +253,14 @@ for ucd_config_str in ucd_config_prios_str:
 
 def archive(seedo, global_counter):
     if args.detailed_archive:
-        archive_path = f'{output_folder}../detailed_results/run_{seedo}/iteration_{global_counter}/'
+        archive_path = f'{generated_path_prefix}/detailed_results/run_{seedo}/iteration_{global_counter}/'
         if not os.path.exists(archive_path):
             os.makedirs(archive_path)
-        open(f'{output_folder}mc_runtimes.txt', 'w').close() # Delete "mc_runtimes.txt" which is not used in this context.
-        distutils.dir_util.copy_tree(output_folder, archive_path)
+        ensure_empty_file(f'{generated_path_prefix}/mc_runtimes.txt')  # Delete "mc_runtimes.txt" which is not used in this context.
+        for filename in ucd_config_prios_str:
+            distutils.dir_util.copy_tree(generated_path_prefix + filename, archive_path + filename)
+
+archive(0, 100)
 
 for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={

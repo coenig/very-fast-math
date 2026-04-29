@@ -1639,7 +1639,7 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    const int SEED{ std::stoi(vec[4]) };  // The current seed this run is part of on Python side.
    const bool CRASH{ StaticHelper::isBooleanTrue(vec[5]) };
    const int ITERATION{ std::stoi(vec[6]) };  // The iteration within the current seed on Python side.
-   const std::string OUTPUT_PATH{ vec[7] };
+   const std::string OUTPUT_BASE_PATH{ vec[7] };
    const std::string ROOT_DIR{ vec[8] }; // "." or "/", depending on weather we have an absolute ar a relative path.
    const int NUM_LANES{ std::stoi(vec[9]) };
    const bool DETAILED_ARCHIVE{ StaticHelper::isBooleanTrue(vec[10]) };
