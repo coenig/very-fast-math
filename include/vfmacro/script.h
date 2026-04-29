@@ -542,19 +542,21 @@ private:
       const std::string& config_name)
    {
       std::string json_tpl_filename{ DEFAULT_FILE_NAME_JSON_TEMPLATE };
-      std::string path_template{ getMyPath() };
+      std::string path_json{ getMyPath() };
 
       if (!relative_path_to_json_tpl_file.empty()) {
          json_tpl_filename = StaticHelper::getLastFileExtension(relative_path_to_json_tpl_file, "/");
-         path_template = path_template + "/" + StaticHelper::removeLastFileExtension(relative_path_to_json_tpl_file, "/");
+         path_json = path_json + "/" + StaticHelper::removeLastFileExtension(relative_path_to_json_tpl_file, "/");
       }
 
       std::map<std::string, std::string> map{};
-      const std::string path_generated_parent{ workflow.getGeneratedParentDir(path_template, json_tpl_filename).string() };
-      const std::string path_generated{ workflow.getGeneratedDir(path_template, json_tpl_filename).string() + config_name };
-      const std::string path_cached{ workflow.getCachedDir(path_template, json_tpl_filename).string() };
-      const std::string path_external{ workflow.getExternalDir(path_template, json_tpl_filename).string() };
+      const std::string path_generated_parent{ workflow.getGeneratedParentDir(path_json, json_tpl_filename).string() };
+      const std::string path_generated{ workflow.getGeneratedDir(path_json, json_tpl_filename).string() + config_name };
+      const std::string path_cached{ workflow.getCachedDir(path_json, json_tpl_filename).string() };
+      const std::string path_external{ workflow.getExternalDir(path_json, json_tpl_filename).string() };
+      const std::string path_template{ workflow.getEnvmodelDir(path_json, json_tpl_filename).string() };
 
+      map.insert({ "path_json", path_json });
       map.insert({ "path_template", path_template });
       map.insert({ "path_generated", path_generated });
       map.insert({ "path_generated_parent", path_generated_parent });
@@ -590,28 +592,10 @@ private:
             paths.at("path_generated"),
             config_name,
             paths.at("path_template"),
+            paths.at("path_json"),
             DEFAULT_FILE_NAME_JSON_TEMPLATE);
 
          return "MC run via script finished for '" + config_name + "'.";
-      } 
-   };
-
-   ScriptMethodDescription m5b{
-      "convenienceArtifactRunHardcodedMC", 
-      2, 
-      [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string 
-      { 
-         test::convenienceArtifactRunHardcoded(
-            test::MCExecutionType::mc,
-            body, 
-            "fake-json-config-path", 
-            "fake-template-path", 
-            "fake-includes-path", 
-            "fake-cache-path", 
-            parameters[0],
-            parameters[1]);
-
-         return "MC run via script and 'convenienceArtifactRunHardcoded' executed.";
       } 
    };
 
@@ -633,6 +617,7 @@ private:
             std::filesystem::path(paths.at("path_generated")), // TODO: Don't need this parameter.
             [](const std::string& folder) -> bool { return true; },
             paths.at("path_template"),
+            paths.at("path_json"),
             DEFAULT_FILE_NAME_JSON_TEMPLATE, 
             std::stoi(num_threads_str));
 
@@ -648,7 +633,7 @@ private:
          auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_, body.empty());
          std::map<std::string, std::string> paths{ retrievePaths(mc_workflow, body, "") }; // Note that only path_template is used, the others might be broken.
 
-         mc_workflow.generateEnvmodels(paths.at("path_template"), DEFAULT_FILE_NAME_JSON_TEMPLATE, FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
+         mc_workflow.generateEnvmodels(paths.at("path_json"), DEFAULT_FILE_NAME_JSON_TEMPLATE, FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
 
          return "Envmodel generation via script finished.";
       }
@@ -682,7 +667,7 @@ private:
          auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_, body.empty());
          const std::map<std::string, std::string> paths{ retrievePaths(mc_workflow, body, "") };
          const std::string path_generated_parent{ paths.at("path_generated_parent") };
-         const std::string path_template{ paths.at("path_template") };
+         const std::string path_json{ paths.at("path_json") };
 
          std::vector<std::string> sec_ids{};
 
@@ -714,7 +699,7 @@ private:
 
          std::string json_tpl_filename{ body.empty() ? DEFAULT_FILE_NAME_JSON_TEMPLATE : body };
 
-         mc_workflow.createTestCases(modes, path_template, json_tpl_filename, sec_ids);
+         mc_workflow.createTestCases(modes, path_json, json_tpl_filename, sec_ids);
 
          return "Test case generation via script finished for these modes: '" + modes_str + " '.";
       }
@@ -911,7 +896,6 @@ private:
       m4,
           // In the following examples, the json template filename is the default, but can also explicitly be given as @{SOME_NAME.tpl.json}@.
       m5, // Example: @{}@.runMCJob[_config_d=1000_lanes=1_maxaccel=3_maxaccelego=3_minaccel=-8_minaccelego=-8_nonegos=3_sections=5_segments=1_t=1100_vehlen=5]
-      m5b,
       m6, // Example: @{}@.runMCJobs[10]
       m7, // Example: @{}@.generateEnvmodels
       m8, // Example: @{}@.generateTestCases       ==> Will fail, but present list of available modes.

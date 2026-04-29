@@ -1590,6 +1590,8 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    const bool SMOOTH_GIF{ StaticHelper::isBooleanTrue(vec[9]) };
    const int NUM_TECHNICAL_LANES{ std::stoi(vec[10]) };
 
+   const std::string MC_SCRIPT{ vec[11] };
+
    auto cars = StaticHelper::split(input_str, ";");
    int null_pos{};
 
@@ -1651,10 +1653,14 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
       }
    }
 
-   // auto main_file = StaticHelper::readFile(OUTPUT_PATH + "main.tpl") + "\n";
-   // main_file += "INIT env.ego.abs_pos = " + std::to_string(null_pos) + ";\n";
-   // auto main_file_dummy = StaticHelper::removeMultiLineComments(main_file, "--SPEC-STUFF", "--EO-SPEC-STUFF");
-   // main_file_dummy += "INVARSPEC env.cnt < 0;";
+   const std::string INIT_CONSTRAINTS_BEGIN{ "-- INIT CONSTRAINTS" };
+   const std::string INIT_CONSTRAINTS_END{ "-- EO INIT CONSTRAINTS" };
+   for (const auto& config_name : ucd_config_prios_vec) {
+      std::string main_smv{ StaticHelper::readFile(OUTPUT_BASE_PATH + config_name + "/main.smv") };
+      main_smv = StaticHelper::removeMultiLineComments(main_smv, INIT_CONSTRAINTS_BEGIN, INIT_CONSTRAINTS_END);
+      main_smv = StaticHelper::replaceAll(main_smv, "--EO-SPEC-STUFF", INIT_CONSTRAINTS_BEGIN + "\n" + main_file_additions + "\n" + INIT_CONSTRAINTS_END + "\n--EO-SPEC-STUFF");
+      StaticHelper::writeTextToFile(main_smv, OUTPUT_BASE_PATH + config_name + "/main.smv");
+   }
 
    // if (DEBUG) {
    //    StaticHelper::writeTextToFile(main_file_dummy, OUTPUT_PATH + "main.smv");
@@ -1665,19 +1671,8 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    //    generatePreviewsForMorty(trace_dummy, OUTPUT_PATH, SMOOTH_GIF); // First preview in case there is no CEX for the actual run.
    // }
 
-   // StaticHelper::writeTextToFile(main_file, OUTPUT_PATH + "main.smv");
-
-   std::string mc_script{ R"(
-      @{./src/templates/}@.stringToHeap[MY_PATH]
-      @{nuXmv}@.killAfter[15].Detach.setScriptVar[scriptID, force]
-
-      @{../../morty/envmodel_config.tpl.json}@.runMCJobs[1]
-
-      @{scriptID}@.scriptVar.StopScript
-      )" };
-   
    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now(); // Note that this measured time should be largely overestimated...
-   macro::Script::processScript(mc_script);
+   macro::Script::processScript(MC_SCRIPT);
    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();   // ...since the run does many things (like initialization) every time which could be optimized.
    auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count();
 

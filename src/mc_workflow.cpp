@@ -92,6 +92,7 @@ std::vector<std::string> vfm::mc::McWorkflow::runMCJobs(
    const std::filesystem::path& path_generated_config_level,
    const std::function<bool(const std::string& folder)> job_selector,
    const std::string& path_template, 
+   const std::string& path_json, 
    const std::string& json_tpl_filename, 
    const int num_threads)
 {
@@ -101,6 +102,7 @@ std::vector<std::string> vfm::mc::McWorkflow::runMCJobs(
       path_generated_config_level,
       job_selector, 
       path_template, 
+      path_json, 
       json_tpl_filename,
       dummy_time,
       nullptr, num_threads);
@@ -110,6 +112,7 @@ std::vector<std::string> McWorkflow::runMCJobs(
    const std::filesystem::path& path_generated_config_level,
    const std::function<bool(const std::string& folder)> job_selector,
    const std::string& path_template,
+   const std::string& path_json,
    const std::string& json_tpl_filename,
    std::filesystem::file_time_type& previous_write_time,
    const std::shared_ptr<std::mutex> formula_evaluation_mutex,
@@ -135,8 +138,8 @@ std::vector<std::string> McWorkflow::runMCJobs(
          const std::string config_name{ std::filesystem::path(folder).filename().string() };
 
          if (job_selector(config_name)) {
-            pool.enqueue([this, &folder, &path_generated_parent, &prefix, &path_template, &json_tpl_filename, &previous_write_time, formula_evaluation_mutex] {
-               runMCJob(folder, folder.substr(path_generated_parent.string().size() + prefix.size() + 1), path_template, json_tpl_filename, previous_write_time, formula_evaluation_mutex);
+            pool.enqueue([this, &folder, &path_generated_parent, &prefix, &path_template, &path_json, &json_tpl_filename, &previous_write_time, formula_evaluation_mutex] {
+               runMCJob(folder, folder.substr(path_generated_parent.string().size() + prefix.size() + 1), path_template, path_json, json_tpl_filename, previous_write_time, formula_evaluation_mutex);
             });
          }
       }
@@ -149,6 +152,7 @@ void McWorkflow::runMCJob(
    const std::filesystem::path& path_generated_config_level,
    const std::string& config_name,
    const std::string& path_template, 
+   const std::string& path_json,
    const std::string& json_tpl_filename)
 {
    std::filesystem::file_time_type dummy_time{};
@@ -157,6 +161,7 @@ void McWorkflow::runMCJob(
       path_generated_config_level,
       config_name,
       path_template,
+      path_json,
       json_tpl_filename,
       dummy_time,
       nullptr);
@@ -166,37 +171,39 @@ void McWorkflow::runMCJob(
    const std::filesystem::path& path_generated_config_level,
    const std::string& config_name,
    const std::string& path_template,
+   const std::string& path_json,
    const std::string& json_tpl_filename,
    std::filesystem::file_time_type& previous_write_time, 
    const std::shared_ptr<std::mutex> formula_evaluation_mutex
 )
 {
-   const auto path_cached{ getCachedDir(path_template, json_tpl_filename) };
-   const auto path_external{ getExternalDir(path_template, json_tpl_filename) };
+   const auto path_cached{ getCachedDir(path_json, json_tpl_filename) };
+   const auto path_external{ getExternalDir(path_json, json_tpl_filename) };
 
+   std::cout << "path_cached: " << path_cached << std::endl;
+   std::cout << "path_external: " << path_external << std::endl;
+   std::cout << "path_generated_config_level: " << path_generated_config_level << std::endl;
+   std::cout << "config_name: " << config_name << std::endl;
+   std::cout << "path_template: " << path_template << std::endl;
+   std::cout << "path_json: " << path_json << std::endl;
+   std::cout << "json_tpl_filename: " << json_tpl_filename << std::endl;
+   std::cin.get();
+   
    {
       std::lock_guard<std::mutex> lock{ main_file_mutex_ };
 
       addNote("Running model checker and creating preview for folder '" + path_generated_config_level.string() + "' (config: '" + config_name + "').");
-      deleteMCOutputFromFolder(path_generated_config_level, true, path_template, previous_write_time);
-      preprocessAndRewriteJSONTemplate(path_template, json_tpl_filename, formula_evaluation_mutex);
+      deleteMCOutputFromFolder(path_generated_config_level, true, path_json, previous_write_time);
+      preprocessAndRewriteJSONTemplate(path_json, json_tpl_filename, formula_evaluation_mutex);
 
-      if (!putJSONIntoDataPack(path_template, json_tpl_filename)) return;
-      if (!putJSONIntoDataPack(path_template, json_tpl_filename, config_name)) return;
+      if (!putJSONIntoDataPack(path_json, json_tpl_filename)) return;
+      if (!putJSONIntoDataPack(path_json, json_tpl_filename, config_name)) return;
 
       data_->addStringToDataPack(path_template, macro::MY_PATH_VARNAME); // Set the script processors home path (for the case it's not already been set during EnvModel generation).
 
-      // COP Fix: Fall back to the EnvModel directory for template files (main.tpl, script.tpl)
-      // if they are not found in path_template (e.g., in the morty/Python flow where
-      // path_template points to the JSON config directory, not the templates directory).
-      std::string template_files_dir{ path_template };
-      if (!StaticHelper::existsFileSafe(template_files_dir + "/main.tpl")) {
-         template_files_dir = getEnvmodelDir(path_template, json_tpl_filename).string();
-      }
-
       std::string main_smv{ StaticHelper::readFile(path_generated_config_level / "main.smv") };
-      std::string script_template{ StaticHelper::readFile(template_files_dir + "/script.tpl") };
-      std::string main_template{ StaticHelper::readFile(template_files_dir + "/main.tpl") };
+      std::string script_template{ StaticHelper::readFile(path_template + "/script.tpl") };
+      std::string main_template{ StaticHelper::readFile(path_template + "/main.tpl") };
       std::string generated_script{ CppParser::generateScript(script_template, data_, parser_) };
       StaticHelper::writeTextToFile(generated_script, path_generated_config_level / "script.cmd");
 
@@ -217,8 +224,11 @@ void McWorkflow::runMCJob(
       main_smv += spec_part + "\n";
       main_smv += SPEC_END + "\n";
 
-      StaticHelper::writeTextToFile(main_smv, path_generated_config_level / "main.smv");
+      if (!StaticHelper::stringContains(spec_part, "MORTY_PLACEHOLDER_SPEC")) {
+         StaticHelper::writeTextToFile(main_smv, path_generated_config_level / "main.smv");
+      }
    }
+   std::cin.get();
 
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, path_generated_config_level.string(), "FAKE_PATH_NOT_USED", path_template, "FAKE_PATH_NOT_USED", path_cached.string(), path_external.string());
    generatePreview(path_generated_config_level, 0);

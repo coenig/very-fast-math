@@ -370,6 +370,17 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             archive(seedo, global_counter)
             break
 
+        # The script to run the MC on C++ side.
+        MC_SCRIPT = r"""
+            @{./src/templates/}@.stringToHeap[MY_PATH]
+            @{@{nuXmv}@.killAfter[15].Detach.setScriptVar[scriptID, force]}@***.nil
+
+            @{../../morty/envmodel_config.tpl.json}@.runMCJobs[1]
+
+            @{scriptID}@.scriptVar.StopScript
+        """
+
+        # Last 2 before script: do detailed archive (hardcoded for now); num_actual_lanes + LATERAL_LC_GRANULARITY
         mcinput += "$$$1$$$" + str(args.debug) \
                  + "$$$" + str(args.heading_adaptation) \
                  + "$$$" + str(seedo) \
@@ -378,7 +389,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                  + "$$$" + str(num_actual_lanes) \
                  + "$$$" + str(args.detailed_archive) \
                  + "$$$" + "False" \
-                 + "$$$" + str(num_technical_lanes)  # Last 2: do detailed archive (hardcoded for now); num_actual_lanes + LATERAL_LC_GRANULARITY
+                 + "$$$" + str(num_technical_lanes) \
+                 + "$$$" + MC_SCRIPT
         
         first = False
         

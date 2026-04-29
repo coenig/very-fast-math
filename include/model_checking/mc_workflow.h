@@ -45,6 +45,7 @@ public:
       const std::filesystem::path& path_generated_config_level,
       const std::function<bool(const std::string& folder)> job_selector,
       const std::string& path_template,
+      const std::string& path_json,
       const std::string& json_tpl_filename,
       const int num_threads
    );
@@ -53,6 +54,7 @@ public:
       const std::filesystem::path& path_generated_config_level,
       const std::function<bool(const std::string& folder)> job_selector,
       const std::string& path_template,
+      const std::string& path_json,
       const std::string& json_tpl_filename,
       std::filesystem::file_time_type& previous_write_time,
       const std::shared_ptr<std::mutex> formula_evaluation_mutex,
@@ -63,12 +65,14 @@ public:
       const std::filesystem::path& path_generated_config_level,
       const std::string& config_name,
       const std::string& path_template,
+      const std::string& path_json,
       const std::string& json_tpl_filename);
 
    void runMCJob(
       const std::filesystem::path& path_generated_config_level,
       const std::string& config_name,
       const std::string& path_template,
+      const std::string& path_json,
       const std::string& json_tpl_filename,
       std::filesystem::file_time_type& previous_write_time,
       const std::shared_ptr<std::mutex> formula_evaluation_mutex
