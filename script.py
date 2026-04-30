@@ -7,7 +7,6 @@ from pathlib import Path
 from itertools import product
 from pyvis.network import Network
 import xml.etree.ElementTree as ET
-from collections import defaultdict
 from ctypes import CDLL, c_char_p, c_size_t
 
 class NuXmvConn:
@@ -88,15 +87,15 @@ class Morty:
 
     def model_check(self, cex_file):
         self.nuxmv._send(
-                f"msat_check_invar_bmc -i -a falsification -k 100",
-                ignore_output=True
-                )
+            f"msat_check_invar_bmc -i -a falsification -k 100",
+            ignore_output=True
+        )
 
         output_cex = Path(self.args[5]) / cex_file
         self.nuxmv._send(
-                f"show_traces -p 6 -o {output_cex} 1",
-                ignore_output=True
-                )
+            f"show_traces -p 6 -o {output_cex} 1",
+            ignore_output=True
+        )
 
         return output_cex
 
@@ -105,14 +104,21 @@ class Morty:
 
     def block_topology(self, topology: nx.DiGraph):
         edges_as_variables = []
-        for start_node, end in topology.edges():
-            [_, start, n] = start_node.split("_")
+        for start_node, end_node in topology.edges():
+            n = topology[start_node][end_node].get('conn_number')
+
+            # the edge is a section, not a connection.
+            if n is None:
+                continue
+
+            start, end = start_node[2:], end_node[2:]
             edges_as_variables.append(
                 f"env.outgoing_connection_{n}_of_section_{start} = {end}"
             )
 
-        bool_exp_topology = "& ".join(edges_as_variables)
+        bool_exp_topology = " & ".join(edges_as_variables)
         init_constraint = f"INIT !( {bool_exp_topology} )"
+
         main_smv = Path(self.args[5]) / "main.smv"
         with open(main_smv, 'a') as f:
             f.write(init_constraint)
@@ -128,16 +134,31 @@ class GraphBuilder:
         assert(node is not None)
         state = node.find('state')
         assert(state is not None)
-        temp_dict = defaultdict(list)
+
+        # adjacency list with the number of connection as attribute.
+        temp_list = []
+
+        # the set we use to define the edges of the sections (start to end).
+        # this edge as empty attribute, since is not connection.
+        processed_sections = set()
         for child in state:
             variable = child.get('variable')
             if variable and "outgoing_connection" in variable:
                 [_, _, conn_number, _, _, start] = variable.split("_")
                 end = child.text
-                if end != '-1':
-                    temp_dict[f'S_{start}_{conn_number}'].append(f'E{end}')
 
-        return nx.DiGraph(temp_dict)
+                # outgoing_connection_{n}_of_section_{start} = end
+                if start not in processed_sections:
+                    temp_list.append((
+                        f'S_{start}', f'E_{start}', {}
+                    ))
+
+                if end != '-1':
+                    temp_list.append((
+                        f'E_{start}', f'S_{end}', {'conn_number':conn_number}
+                    ))
+
+        return nx.DiGraph(temp_list)
 
 def dump_graph(graph, html_file='digraph.html'):
 
@@ -246,7 +267,7 @@ def main():
                 # 0: json template
                 output_config, # "/tmp/envmodel_config.tpl.json",
                 # 1: directory substring
-                "0",
+                "",
                 # 2: root dir
                 ".",
                 # 3: envmodel tpl
@@ -282,14 +303,15 @@ def main():
         while True:
             cex_file = morty.model_check(f'cex_it_{iteration}.xml')
             graph = gb.build_from_xml_cex(cex_file)
-            dump_graph(
-                graph,
-                str(current_target_path / f'graph_it_{iteration}.html')
-            )
             is_plannar, embedding = nx.check_planarity(graph)
             if is_plannar:
-                concrete_graph = nx.combinatorial_embedding_to_pos(embedding)
                 # TODO 2: show the final concrete graph
+                concrete_graph = nx.combinatorial_embedding_to_pos(embedding)
+                print("The graph is plannar, visualizing it")
+                dump_graph(
+                    graph,
+                    str(current_target_path / f'graph_it_{iteration}.html')
+                )
                 break
 
             morty.block_topology(graph)
@@ -303,5 +325,5 @@ def graph_builder_test():
     dump_graph(graph, 'graph.html')
 
 if __name__ == "__main__":
-    graph_builder_test()
-    # main()
+    # graph_builder_test()
+    main()
