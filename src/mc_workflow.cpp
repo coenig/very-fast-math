@@ -179,15 +179,7 @@ void McWorkflow::runMCJob(
 {
    const auto path_cached{ getCachedDir(path_json, json_tpl_filename) };
    const auto path_external{ getExternalDir(path_json, json_tpl_filename) };
-
-   std::cout << "path_cached: " << path_cached << std::endl;
-   std::cout << "path_external: " << path_external << std::endl;
-   std::cout << "path_generated_config_level: " << path_generated_config_level << std::endl;
-   std::cout << "config_name: " << config_name << std::endl;
-   std::cout << "path_template: " << path_template << std::endl;
-   std::cout << "path_json: " << path_json << std::endl;
-   std::cout << "json_tpl_filename: " << json_tpl_filename << std::endl;
-   std::cin.get();
+   bool generate_preview{ false };
    
    {
       std::lock_guard<std::mutex> lock{ main_file_mutex_ };
@@ -226,12 +218,13 @@ void McWorkflow::runMCJob(
 
       if (!StaticHelper::stringContains(spec_part, "MORTY_PLACEHOLDER_SPEC")) {
          StaticHelper::writeTextToFile(main_smv, path_generated_config_level / "main.smv");
+         generate_preview = true;
       }
    }
-   std::cin.get();
 
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, path_generated_config_level.string(), "FAKE_PATH_NOT_USED", path_template, "FAKE_PATH_NOT_USED", path_cached.string(), path_external.string());
-   generatePreview(path_generated_config_level, 0);
+
+   if (generate_preview) generatePreview(path_generated_config_level, 0);
 
    addNote("Model checker run finished for folder '" + path_generated_config_level.string() + "'.");
 }
@@ -256,6 +249,7 @@ void McWorkflow::createTestCase(
 void vfm::mc::McWorkflow::createTestCases(
    const std::map<std::string, std::string>& modes,
    const std::string& path_template,
+   const std::string& path_json,
    const std::string& json_tpl_filename,
    const std::vector<std::string>& sec_ids)
 {
@@ -269,7 +263,7 @@ void vfm::mc::McWorkflow::createTestCases(
          if (numThreads < test::MAX_THREADS) {
             threads.emplace_back(std::thread(
                createTestCase,
-               getGeneratedParentDir(path_template, json_tpl_filename).string(),
+               getGeneratedParentDir(path_json, json_tpl_filename).string(),
                sec_id,
                //sec.slider_->value(),
                modes));

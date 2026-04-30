@@ -1862,6 +1862,7 @@ void MCScene::createTestCases(MCScene* mc_scene, const std::map<std::string, std
    mc_scene->getMcWorkflow().createTestCases(
       modes,
       mc_scene->getTemplateDir(),
+      mc_scene->getTemplateDir(), // TODO: So far json must be in template dir.
       mc_scene->getJsonTplFilename(),
       sec_ids);
 

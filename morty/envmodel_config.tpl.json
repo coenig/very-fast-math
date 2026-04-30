@@ -85,6 +85,7 @@
       "MINSTARTSPEEDNONEGO_UCD": 15,
       "MAXSTARTSPEEDNONEGO_UCD": 20,
       "UCD_CONFIG_PRIOS": "_config_vehwidth=280;_config_vehwidth=180;",
+      "UCD_EXP_NUM": 4,
       "SECTIONSMAXLENGTH": "#{10000}#",
       "SECTIONSMINLENGTH": "#{10000}#",
       "SEGMENTS": "#{segments}#",

@@ -47,6 +47,7 @@ with open('morty/envmodel_config.json') as f:
     max_speed = d[ucd_config_prios_str[0]]["MAXSPEEDNONEGO"]
     max_start_speed = min(d[ucd_config_prios_str[0]]["MAXSTARTSPEEDNONEGO_UCD"], max_speed)
     min_start_speed = min(d[ucd_config_prios_str[0]]["MINSTARTSPEEDNONEGO_UCD"], max_start_speed)
+    exp_num = d[ucd_config_prios_str[0]]["UCD_EXP_NUM"]
 
     if backward_driving_car_ids_str.endswith(')@'):
         backward_driving_car_ids_str = backward_driving_car_ids_str[:-2]
@@ -147,8 +148,6 @@ for i in range(1, nonegos):
 for i in range(0, len(SPECS)):
     addons[i] += ADDONS_END_DENOTER
 
-DEFAULT_EXP_ID = 7
-
 parser = argparse.ArgumentParser(
                     prog='morty',
                     description='Model Checking based planning',
@@ -165,8 +164,6 @@ parser.add_argument('-c', '--allow_crashed_steps', default=1, type=int,
                     help='How many steps with crashes are allowed before the run is aborted. Default: 100')
 parser.add_argument('-d', '--debug', default=0, type=int,
                     help='Enable writing images in each step to see what the MC thinks (0 or 1). Default: 0')
-parser.add_argument('-e', '--exp_num', default=DEFAULT_EXP_ID, type=int, choices=range(len(SPECS)),
-                    help='Experiment id to run. Choose from 0 to {}'.format(len(SPECS)-1))
 parser.add_argument('--record_video', action='store_true',
                     help='Record a video of the run. Default: False')
 parser.add_argument('--detailed_archive', action='store_true',
@@ -225,7 +222,7 @@ ensure_empty_file(f'{generated_path_prefix}/results.txt')  # Delete old results 
 ensure_empty_file(f'{generated_path_prefix}/morty_mc_results.txt')  # Delete old results from MC side (these are a super set of the above)
 
 specification = create_string_buffer(2000)
-spec_res = morty_lib.expandScript(SPECS[args.exp_num].encode('utf-8'), specification, sizeof(specification)).decode()
+spec_res = morty_lib.expandScript(SPECS[exp_num].encode('utf-8'), specification, sizeof(specification)).decode()
 
 for ucd_config_str in ucd_config_prios_str:
     with open(generated_path_prefix + ucd_config_str + "/main.smv", "r+") as f:
@@ -236,7 +233,7 @@ for ucd_config_str in ucd_config_prios_str:
         if begin_idx != -1 and end_idx != -1:
             content = content[:begin_idx] + content[end_idx + len(ADDONS_END_DENOTER):]
 
-        content = content.replace("--EO-ADDONS", addons[args.exp_num] + "\n--EO-ADDONS")
+        content = content.replace("--EO-ADDONS", addons[exp_num] + "\n--EO-ADDONS")
 
         invarspec_idx = content.find("INVARSPEC") # Cut out SPEC and replace with new one.
         if invarspec_idx == -1:
@@ -317,7 +314,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         vehicle.color = (255, 255, 255)
         vehicle.heading = np.pi * (1 - egos_backward[cnt]) / 2 # 0 for forward, pi for backward.
         vehicle.speed = np.random.uniform(min_start_speed, max_start_speed)
-        if args.exp_num == 7:
+        if exp_num == 7:
             if cnt == 0:
                 vehicle.position[0] = 0
             if cnt == 1:
@@ -325,7 +322,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             if cnt > 1:
                 vehicle.position[0] = (cnt - 1) * 400 / nonegos
                 vehicle.speed = 0
-        if args.exp_num == 8:
+        if exp_num == 8:
             if cnt == 0:
                 vehicle.position[0] = 0
                 vehicle.position[1] = 0 # start at rightmost lane center (y=4m)
@@ -376,9 +373,13 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             @{@{nuXmv}@.killAfter[15].Detach.setScriptVar[scriptID, force]}@***.nil
 
             @{../../morty/envmodel_config.tpl.json}@.runMCJobs[1]
+            @{../../morty/envmodel_config.tpl.json}@.generateTestCases[cex-smooth-birdseye]
 
             @{scriptID}@.scriptVar.StopScript
         """
+        # Generate test cases´:
+        # Please add 'all' or '/'-separated selection of these as parameter: [cex-birdseye/cex-cockpit-only/cex-full/cex-smooth-birdseye/cex-smooth-full/cex-smooth-with-arrows-birdseye/cex-smooth-with-arrows-full/preview/preview2]
+        # EO The script to run the MC on C++ side.
 
         # Last 2 before script: do detailed archive (hardcoded for now); num_actual_lanes + LATERAL_LC_GRANULARITY
         mcinput += "$$$1$$$" + str(args.debug) \
@@ -398,7 +399,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         result = create_string_buffer(10000)
         res = morty_lib.morty(mcinput.encode('utf-8'), result, sizeof(result))
         res_str = res.decode()
-        successed = SUCC_CONDS[args.exp_num]()
+        successed = SUCC_CONDS[exp_num]()
         
         # We check both (1) the MC result and (2) the success condition to determine if we are done. Reason:
         # (1) alone is not sufficient because the MC cares only about the SPEC being satisfied in the last step.

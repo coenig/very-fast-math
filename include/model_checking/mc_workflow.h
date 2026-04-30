@@ -86,6 +86,7 @@ public:
    void createTestCases(
       const std::map<std::string, std::string>& modes, 
       const std::string& path_template,
+      const std::string& path_json,
       const std::string& json_tpl_filename,
       const std::vector<std::string>& sec_ids);
 

@@ -655,7 +655,9 @@ private:
       0,
       [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string
       {
-         return std::string("No modes given. Please add 'all' or '/'-separated selection of these as parameter: ") + "[" + allModesStr() + "]";
+         std::string result{ std::string("No modes given for method 'generateTestCases'. Please add 'all' or '/'-separated selection of these as parameter: ") + "[" + allModesStr() + "]" };
+         addNote(result);
+         return result;
       }
    };
 
@@ -668,6 +670,7 @@ private:
          const std::map<std::string, std::string> paths{ retrievePaths(mc_workflow, body, "") };
          const std::string path_generated_parent{ paths.at("path_generated_parent") };
          const std::string path_json{ paths.at("path_json") };
+         const std::string path_template{ paths.at("path_template") };
 
          std::vector<std::string> sec_ids{};
 
@@ -699,7 +702,7 @@ private:
 
          std::string json_tpl_filename{ body.empty() ? DEFAULT_FILE_NAME_JSON_TEMPLATE : body };
 
-         mc_workflow.createTestCases(modes, path_json, json_tpl_filename, sec_ids);
+         mc_workflow.createTestCases(modes, path_template, path_json, json_tpl_filename, sec_ids);
 
          return "Test case generation via script finished for these modes: '" + modes_str + " '.";
       }
