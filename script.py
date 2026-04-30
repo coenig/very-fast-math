@@ -112,8 +112,8 @@ class Morty:
                 f"env.outgoing_connection_{end_int}_of_section_{start_int}"
             )
 
-        bool_exp_topology = "&".join(edges_as_variables)
-        init_constraint = f"INIT {bool_exp_topology}"
+        bool_exp_topology = "& ".join(edges_as_variables)
+        init_constraint = f"INIT !( {bool_exp_topology} )"
         main_smv = Path(self.args[5]) / "main.smv"
         with open(main_smv, 'a') as f:
             f.write(init_constraint)
