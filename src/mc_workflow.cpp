@@ -253,6 +253,8 @@ void vfm::mc::McWorkflow::createTestCases(
    const std::string& json_tpl_filename,
    const std::vector<std::string>& sec_ids)
 {
+   // COP fix:
+   const std::string json_tpl_filename_only{ std::filesystem::path(json_tpl_filename).filename().string() };
    std::vector<std::thread> threads{};
    int numThreads{ 0 };
 
@@ -263,7 +265,7 @@ void vfm::mc::McWorkflow::createTestCases(
          if (numThreads < test::MAX_THREADS) {
             threads.emplace_back(std::thread(
                createTestCase,
-               getGeneratedParentDir(path_json, json_tpl_filename).string(),
+               getGeneratedParentDir(path_json, json_tpl_filename_only).string(), // COP fix.
                sec_id,
                //sec.slider_->value(),
                modes));
