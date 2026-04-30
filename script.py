@@ -103,9 +103,20 @@ class Morty:
     def get_target_path(self):
         return Path(self.args[5])
 
-    def block_topology(self, topology):
-        # TODO 1: implement blocking the latest topology
-        pass
+    def block_topology(self, topology: nx.DiGraph):
+        edges_as_variables = []
+        for start, end in topology.edges():
+            # env.outgoing_connection_{end}_of_section_{start}
+            start_int, end_int = int(start[1:]), int(end[1:])
+            edges_as_variables.append(
+                f"env.outgoing_connection_{end_int}_of_section_{start_int}"
+            )
+
+        bool_exp_topology = "&".join(edges_as_variables)
+        init_constraint = f"INIT {bool_exp_topology}"
+        main_smv = Path(self.args[5]) / "main.smv"
+        with open(main_smv, 'a') as f:
+            f.write(init_constraint)
 
 class GraphBuilder:
     def __init__(self):
@@ -122,7 +133,7 @@ class GraphBuilder:
         for child in state:
             variable = child.get('variable')
             if variable and "outgoing_connection" in variable:
-                [_, _, start, _, _, end] = variable.split("_")
+                [_, _, end, _, _, start] = variable.split("_")
                 temp_dict[f'S{int(start)}'].append(f'E{int(end)}')
                 print(f'adding edge from {start} to {end}')
 
