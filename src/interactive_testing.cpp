@@ -1653,6 +1653,8 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
       }
    }
 
+   main_file_additions += "INIT env.ego.abs_pos = " + std::to_string(null_pos) + ";\n";
+
    const std::string INIT_CONSTRAINTS_BEGIN{ "-- INIT CONSTRAINTS" };
    const std::string INIT_CONSTRAINTS_END{ "-- EO INIT CONSTRAINTS" };
    for (const auto& config_name : ucd_config_prios_vec) {
