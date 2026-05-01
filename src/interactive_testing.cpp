@@ -1563,20 +1563,12 @@ char* expandScript(const char* input, char* result, size_t resultMaxLength)
    return result;
 }
 
-// std::string McWorkflow::getValueForJSONKeyAsString(
-//    const std::string& key_to_find,
-//    const std::string& path_template,
-//    const std::string& filename_json_template,
-//    const std::string& config_name) const
-
-extern "C"
-char* morty(const char* input, char* result, size_t resultMaxLength)
+void prepareInputForMortyUCD(const std::string& input_str_full)
 {
    const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json") };
    const std::string ucd_config_prios_str{ mc::McWorkflow().getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
    const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
 
-   const std::string input_str_full{ input };
    const auto vec = StaticHelper::split(input_str_full, "$$$");
    const std::string input_str{ vec[0] };
    const float EPS{ std::stof(vec[1]) };  // Corridor around middle of lane that is considered exactly on the lane (outside is between lanes). EPS = 1 treats "on lane" and "between lanes" symmetrically, EPS = 2 would be all "on lane".
@@ -1603,11 +1595,6 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
 
       if (!car.empty()) {
          auto data = StaticHelper::split(car, ",");
-
-         // std::cout << data[1] << std::endl;
-         // std::cout << i << ": " << data[2] << std::endl;
-         // std::cout << data[3] << std::endl;
-         // std::cout << data[4] << std::endl;
 
          float x{ std::stof(data[1]) };
          float y{ std::stof(data[2]) };
@@ -1657,31 +1644,32 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
 
    const std::string INIT_CONSTRAINTS_BEGIN{ "-- INIT CONSTRAINTS" };
    const std::string INIT_CONSTRAINTS_END{ "-- EO INIT CONSTRAINTS" };
+
    for (const auto& config_name : ucd_config_prios_vec) {
       std::string main_smv{ StaticHelper::readFile(OUTPUT_BASE_PATH + config_name + "/main.smv") };
       main_smv = StaticHelper::removeMultiLineComments(main_smv, INIT_CONSTRAINTS_BEGIN, INIT_CONSTRAINTS_END);
       main_smv = StaticHelper::replaceAll(main_smv, "--EO-SPEC-STUFF", INIT_CONSTRAINTS_BEGIN + "\n" + main_file_additions + "\n" + INIT_CONSTRAINTS_END + "\n--EO-SPEC-STUFF");
       StaticHelper::writeTextToFile(main_smv, OUTPUT_BASE_PATH + config_name + "/main.smv");
    }
+}
 
-   // if (DEBUG) {
-   //    StaticHelper::writeTextToFile(main_file_dummy, OUTPUT_PATH + "main.smv");
-   //    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, OUTPUT_PATH, "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", path_to_external_folder, ROOT_DIR);
-   //    auto traces_dummy{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_PATH + "debug_trace_array.txt") };
-   //    MCTrace trace_dummy = traces_dummy.empty() ? MCTrace{} : traces_dummy.at(0);
+extern "C"
+char* morty(const char* input, char* result, size_t resultMaxLength)
+{
+   prepareInputForMortyUCD(input);
 
-   //    generatePreviewsForMorty(trace_dummy, OUTPUT_PATH, SMOOTH_GIF); // First preview in case there is no CEX for the actual run.
-   // }
+   const std::string MC_SCRIPT{ StaticHelper::split(std::string(input), "$$$").at(11) };
 
    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now(); // Note that this measured time should be largely overestimated...
-   macro::Script::processScript(MC_SCRIPT);
+   macro::Script::processScript(MC_SCRIPT); //////////////////////////////////////
    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();   // ...since the run does many things (like initialization) every time which could be optimized.
    auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count();
 
-   for (const auto& config_name : ucd_config_prios_vec) {
-      auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_BASE_PATH + config_name + "/debug_trace_array.txt") };
-      MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
-   }
+   const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json") };
+   // for (const auto& config_name : ucd_config_prios_vec) {
+   //    auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_BASE_PATH + config_name + "/debug_trace_array.txt") };
+   //    MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
+   // }
 
    std::cin.get();
 
