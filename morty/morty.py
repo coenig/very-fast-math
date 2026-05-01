@@ -368,36 +368,39 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             break
 
         # The script to run the MC on C++ side.
-        MC_SCRIPT = r"""
-            @{./src/templates/}@.stringToHeap[MY_PATH]
-            @{@{nuXmv}@.killAfter[15].Detach.setScriptVar[scriptID, force]}@***.nil
+        MC_SCRIPT = f"""
+            @{{./src/templates/}}@.stringToHeap[MY_PATH]
+            @{{@{{nuXmv}}@.killAfter[15].Detach.setScriptVar[scriptID, force]}}@***.nil
 
-            @{../../morty/envmodel_config.tpl.json}@.runMCJobs[1]
-            @{../../morty/envmodel_config.tpl.json}@.generateTestCases[cex-smooth-birdseye]
+            @{{{mcinput}}}@.prepareInputForMortyUCD[{args.heading_adaptation}, {num_actual_lanes}, {num_technical_lanes}]
+            @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[1]
+            @{{../../morty/envmodel_config.tpl.json}}@.generateTestCases[cex-smooth-birdseye]
 
-            @{scriptID}@.scriptVar.StopScript
+            @{{scriptID}}@.scriptVar.StopScript
         """
         # Generate test cases´:
         # Please add 'all' or '/'-separated selection of these as parameter: [cex-birdseye/cex-cockpit-only/cex-full/cex-smooth-birdseye/cex-smooth-full/cex-smooth-with-arrows-birdseye/cex-smooth-with-arrows-full/preview/preview2]
         # EO The script to run the MC on C++ side.
 
-        # Last 2 before script: do detailed archive (hardcoded for now); num_actual_lanes + LATERAL_LC_GRANULARITY
-        mcinput += "$$$1$$$" + str(args.debug) \
-                 + "$$$" + str(args.heading_adaptation) \
-                 + "$$$" + str(seedo) \
-                 + "$$$" + str(crashed) \
-                 + "$$$" + str(global_counter) \
-                 + "$$$" + str(num_actual_lanes) \
-                 + "$$$" + str(args.detailed_archive) \
-                 + "$$$" + "False" \
-                 + "$$$" + str(num_technical_lanes) \
-                 + "$$$" + MC_SCRIPT
+        print(MC_SCRIPT)
+
+        # # Last 2 before script: do detailed archive (hardcoded for now); num_actual_lanes + LATERAL_LC_GRANULARITY
+        # mcinput += "$$$1$$$" + str(args.debug) \
+        #          + "$$$" + str(args.heading_adaptation) \
+        #          + "$$$" + str(seedo) \
+        #          + "$$$" + str(crashed) \
+        #          + "$$$" + str(global_counter) \
+        #          + "$$$" + str(num_actual_lanes) \
+        #          + "$$$" + str(args.detailed_archive) \
+        #          + "$$$" + "False" \
+        #          + "$$$" + str(num_technical_lanes) \
+        #          + "$$$" + MC_SCRIPT
         
         first = False
         
         #### MODEL CHECKER CALL ####
         result = create_string_buffer(10000)
-        res = morty_lib.morty(mcinput.encode('utf-8'), result, sizeof(result))
+        res = morty_lib.morty(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
         res_str = res.decode()
         successed = SUCC_CONDS[exp_num]()
         

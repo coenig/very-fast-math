@@ -1553,36 +1553,11 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 
 // --- EO remaining comments from main.cpp ---
 
-extern "C"
-char* expandScript(const char* input, char* result, size_t resultMaxLength)
-{
-   std::string res{ macro::Script::processScript(input) };
-
-   snprintf(result, resultMaxLength, "%s", res.c_str());
-
-   return result;
-}
-
-void prepareInputForMortyUCD(const std::string& input_str_full)
+void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const float head_const, const int num_lanes, const int num_technical_lanes)
 {
    const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json") };
    const std::string ucd_config_prios_str{ mc::McWorkflow().getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
    const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
-
-   const auto vec = StaticHelper::split(input_str_full, "$$$");
-   const std::string input_str{ vec[0] };
-   const float EPS{ std::stof(vec[1]) };  // Corridor around middle of lane that is considered exactly on the lane (outside is between lanes). EPS = 1 treats "on lane" and "between lanes" symmetrically, EPS = 2 would be all "on lane".
-   const bool DEBUG{ StaticHelper::isBooleanTrue(vec[2]) };
-   const float HEAD_CONST{ std::stof(vec[3]) };  // Heading of car in rad.
-   const int SEED{ std::stoi(vec[4]) };  // The current seed this run is part of on Python side.
-   const bool CRASH{ StaticHelper::isBooleanTrue(vec[5]) };
-   const int ITERATION{ std::stoi(vec[6]) };  // The iteration within the current seed on Python side.
-   const int NUM_LANES{ std::stoi(vec[7]) };
-   const bool DETAILED_ARCHIVE{ StaticHelper::isBooleanTrue(vec[8]) };
-   const bool SMOOTH_GIF{ StaticHelper::isBooleanTrue(vec[9]) };
-   const int NUM_TECHNICAL_LANES{ std::stoi(vec[10]) };
-
-   const std::string MC_SCRIPT{ vec[11] };
 
    auto cars = StaticHelper::split(input_str, ";");
    int null_pos{};
@@ -1603,7 +1578,7 @@ void prepareInputForMortyUCD(const std::string& input_str_full)
          float heading{ std::stof(data[5]) };
 
          x = (std::max)((std::min)(x, (std::numeric_limits<float>::max)()), (std::numeric_limits<float>::min)());
-         vx = (std::max)((std::min)(vx, 70.0f), -70.0f);
+         // vx = (std::max)((std::min)(vx, 70.0f), -70.0f);
 
          main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.abs_pos = " + std::to_string((int)(x)) + ";\n";
          main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx)) + ";\n";
@@ -1611,16 +1586,16 @@ void prepareInputForMortyUCD(const std::string& input_str_full)
          if (i == 0) null_pos = (int) (x);
 
          static constexpr float LANE_WIDTH = 4.0f;
-         const float road_width = NUM_LANES * LANE_WIDTH;
-         const float heading_factor{ vy * HEAD_CONST };
+         const float road_width = num_lanes * LANE_WIDTH;
+         const float heading_factor{ vy * head_const };
          const float y_adj = y - heading_factor;
 
          // Map highway-env y-position to MC on_lane position using technical lanes.
          // on_lane formula: p = (2*T - 1) - 2*T*(y_adj + W/2) / (A*W)
-         // where T = NUM_TECHNICAL_LANES, A = NUM_LANES, W = LANE_WIDTH.
-         const float continuous_on_lane = (2.0f * NUM_TECHNICAL_LANES - 1.0f)
-            - 2.0f * NUM_TECHNICAL_LANES * (y_adj + LANE_WIDTH / 2.0f) / road_width;
-         const int max_on_lane = 2 * (NUM_TECHNICAL_LANES - 1);
+         // where T = num_technical_lanes, A = num_lanes, W = LANE_WIDTH.
+         const float continuous_on_lane = (2.0f * num_technical_lanes - 1.0f)
+            - 2.0f * num_technical_lanes * (y_adj + LANE_WIDTH / 2.0f) / road_width;
+         const int max_on_lane = 2 * (num_technical_lanes - 1);
          int on_lane = (std::max)(0, (std::min)(max_on_lane, (int)std::round(continuous_on_lane)));
 
          std::set<int> lanes{};
@@ -1632,9 +1607,9 @@ void prepareInputForMortyUCD(const std::string& input_str_full)
          }
 
          std::cout << "y: " << y << ", y_adj: " << y_adj << ", on_lane: " << on_lane
-                   << ", NUM_TECHNICAL_LANES: " << NUM_TECHNICAL_LANES << std::endl;
+                   << ", num_technical_lanes: " << num_technical_lanes << std::endl;
 
-         for (int lane = 0; lane < NUM_TECHNICAL_LANES; lane++) {
+         for (int lane = 0; lane < num_technical_lanes; lane++) {
             main_file_additions += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
          }
       }
@@ -1654,18 +1629,28 @@ void prepareInputForMortyUCD(const std::string& input_str_full)
 }
 
 extern "C"
+char* expandScript(const char* input, char* result, size_t resultMaxLength)
+{
+   std::string res{ macro::Script::processScript(input) };
+   snprintf(result, resultMaxLength, "%s", res.c_str());
+   return result;
+}
+
+extern "C"
 char* morty(const char* input, char* result, size_t resultMaxLength)
 {
-   prepareInputForMortyUCD(input);
-
-   const std::string MC_SCRIPT{ StaticHelper::split(std::string(input), "$$$").at(11) };
+   const std::string MC_SCRIPT{ input };
 
    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now(); // Note that this measured time should be largely overestimated...
    macro::Script::processScript(MC_SCRIPT); //////////////////////////////////////
    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();   // ...since the run does many things (like initialization) every time which could be optimized.
    auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count();
 
-   const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json") };
+   // const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json") };
+   // const int SEED{ std::stoi(vec[4]) };  // The current seed this run is part of on Python side.
+   // const int ITERATION{ std::stoi(vec[6]) };  // The iteration within the current seed on Python side.
+   // const bool CRASH{ StaticHelper::isBooleanTrue(vec[5]) };
+
    // for (const auto& config_name : ucd_config_prios_vec) {
    //    auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_BASE_PATH + config_name + "/debug_trace_array.txt") };
    //    MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
