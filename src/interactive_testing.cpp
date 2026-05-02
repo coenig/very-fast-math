@@ -1646,6 +1646,8 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();   // ...since the run does many things (like initialization) every time which could be optimized.
    auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count();
 
+   std::cin.get();
+
    // const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json") };
    // const int SEED{ std::stoi(vec[4]) };  // The current seed this run is part of on Python side.
    // const int ITERATION{ std::stoi(vec[6]) };  // The iteration within the current seed on Python side.
@@ -1656,7 +1658,6 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
    //    MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
    // }
 
-   std::cin.get();
 
    // StaticHelper::writeTextToFile(
    //    std::to_string(SEED) + ";" 

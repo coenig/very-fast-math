@@ -374,15 +374,12 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
             @{{{mcinput}}}@.prepareInputForMortyUCD[{args.heading_adaptation}, {num_actual_lanes}, {num_technical_lanes}]
             @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[1]
+            @{{scriptID}}@.scriptVar.StopScript
             @{{../../morty/envmodel_config.tpl.json}}@.generateTestCases[cex-smooth-birdseye]
 
-            @{{scriptID}}@.scriptVar.StopScript
         """
-        # Generate test cases´:
-        # Please add 'all' or '/'-separated selection of these as parameter: [cex-birdseye/cex-cockpit-only/cex-full/cex-smooth-birdseye/cex-smooth-full/cex-smooth-with-arrows-birdseye/cex-smooth-with-arrows-full/preview/preview2]
+        # Generate test cases´: all or [cex-birdseye/cex-cockpit-only/cex-full/cex-smooth-birdseye/cex-smooth-full/cex-smooth-with-arrows-birdseye/cex-smooth-with-arrows-full/preview/preview2]
         # EO The script to run the MC on C++ side.
-
-        print(MC_SCRIPT)
 
         # # Last 2 before script: do detailed archive (hardcoded for now); num_actual_lanes + LATERAL_LC_GRANULARITY
         # mcinput += "$$$1$$$" + str(args.debug) \
