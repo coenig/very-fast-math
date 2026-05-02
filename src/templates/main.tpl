@@ -11,8 +11,8 @@ VAR
   globals : Globals; 
   env : EnvModel;
   planner : "@{PLANNER_ENTRY_FILENAME}@.printHeap"(globals."loc"@{PLANNER_PARAMETERS}@.printHeap);
-                   
-@{
+
+@{               
 @(
  env.veh___6TEMPORARRAY19___.v : integer;
 )@
@@ -48,6 +48,7 @@ INVARSPEC
 --      );
 )@
 @(
+@{
    lane_changed : boolean;
    lane_change_aborted : boolean;
 
@@ -75,14 +76,20 @@ TRANS next(lane_change_aborted) = ((lane_change_aborted | planner."abCond.cond26
 --TRANS next(env.ego.abCond_full) = planner."abCond.cond26_all_conditions_fulfilled_raw";
 TRANS env.ego.flCond_full = planner."flCond.cond26_all_conditions_fulfilled_raw";
 TRANS env.ego.abCond_full = planner."abCond.cond26_all_conditions_fulfilled_raw";
-
+}@.if[@{!UCD}@.eval]
+@{INVAR env.ego.v = env.veh___609___.v;}@.if[@{UCD}@.eval]
 
 --SPEC-STUFF
 -- Do not change the wording of the above line and its corresponding closing line! It is used to detect the SPEC part
 -- to be able to replace just it when running the MC without re-generating the EnvModel. It is also used for UCD.
 
 --ADDONS
-@{main_addons.tpl}@********.include
+-- Working in folder '@{FULL_GEN_PATH}@.printHeap'.
+-- This run is based on GIT commit: @{git rev-parse HEAD}@.exec
+-- Storing patch in '@{FULL_GEN_PATH}@.printHeap/git_patch.txt' in case the current state is dirty.
+@{git diff > "@{FULL_GEN_PATH}@.printHeap/git_patch.txt"}@.exec
+
+@{main_addons.tpl}@********.include.if[@{!UCD}@.eval]
 --EO-ADDONS
 
 @{

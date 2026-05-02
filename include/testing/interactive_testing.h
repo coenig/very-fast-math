@@ -113,8 +113,9 @@ std::shared_ptr<RoadGraph> paintExampleRoadGraphRoundabout(const bool write_to_f
 
 bool isCacheUpToDateWithTemplates(const std::filesystem::path& cached_path, const std::filesystem::path& template_path, const std::string& gui_name);
 
-extern "C" char* expandScript(const char* input, char* result, size_t resultMaxLength);
+void prepareInputForMortyUCD(const std::string& input_str, const float head_const, const int num_lanes, const int num_technical_lanes);
+std::string prepareOutputForMortyUCD(const long long seed, const int iteration, const long long runtime, const bool crash);
 
-extern "C" char* morty(const char* input, char* result, size_t resultMaxLength);
+extern "C" char* expandScript(const char* input, char* result, size_t resultMaxLength);
 } // test
 } // vfm

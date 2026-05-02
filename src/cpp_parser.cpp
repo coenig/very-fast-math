@@ -5837,6 +5837,11 @@ void vfm::CppParser::generateMainFileForNativeEnvModel(
       data_->addStringToDataPack(k2_parameters, "PLANNER_PARAMETERS");
       data_->addStringToDataPack(k2_output, "TRANSITIONS_PLANNER_TO_ENVMODEL");
       data_->addStringToDataPack(main_function_name_, "PLANNER_ENTRY_FILENAME");
+      data_->addStringToDataPack( // COP Fix
+         TARGET_PATH_FOR_MORTY_GUY_PROGRESS.empty()
+            ? StaticHelper::removeLastFileExtension(generated_folder, "/")
+            : StaticHelper::removeLastFileExtension(TARGET_PATH_FOR_MORTY_GUY_PROGRESS, "/"),
+         "FULL_GEN_PATH");
 
       std::string processed{ em->generateEnvModel(em) };
 
