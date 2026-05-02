@@ -376,7 +376,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
             @{{{mcinput}}}@.prepareInputForMortyUCD[{args.heading_adaptation}, {num_actual_lanes}, {num_technical_lanes}]
 
-            @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[1]
+            @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[16]
             @{{@{{scriptID}}@.scriptVar.StopScript}}@***.nil
 
             {"@{{../../morty/envmodel_config.tpl.json}}@.generateTestCases[cex-birdseye/cex-smooth-birdseye]" if args.debug else ""}
@@ -394,7 +394,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             empty_cex += "|;"
         
         #### MODEL CHECKER CALL ####
-        result = create_string_buffer(10000)
+        result = create_string_buffer(25000)
         res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
         res_str = res.decode().strip()
         
