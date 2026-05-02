@@ -146,20 +146,26 @@ for i in range(1, nonegos):
 for i in range(0, len(SPECS)):
     addons[i] += ADDONS_END_DENOTER
 
+DEFAULT_NUM_RUNS = 100
+DEFAULT_NUM_STEPS_PER_RUN = 300
+DEFAULT_HEADING_ADAPTATION = -0.5
+DEFAULT_ALLOW_BLIND_STEPS = DEFAULT_NUM_STEPS_PER_RUN
+DEFAULT_ALLOW_CRASHED_STEPS = 1
+
 parser = argparse.ArgumentParser(
                     prog='morty',
                     description='Model Checking based planning',
                     epilog='Bye!')
-parser.add_argument('-n', '--num_runs', default=1, type=int,
-                    help='Number of runs to perform per experiment. Default: 1000')
-parser.add_argument('-s', '--steps_per_run', default=300, type=int,
-                    help='Maximum number of steps until the SPEC must be fulfilled. Default: 100')
-parser.add_argument('-a', '--heading_adaptation', default=-0.5, type=float,
-                    help='How much the heading of the cars is used to adapt their lateral position (see MC code for details). Default: -0.5')
-parser.add_argument('-b', '--allow_blind_steps', default=300, type=int,
-                    help='How many times the MC is allowed to be blind (no CEX) before the run is aborted. Default: 100')
-parser.add_argument('-c', '--allow_crashed_steps', default=1, type=int,
-                    help='How many steps with crashes are allowed before the run is aborted. Default: 100')
+parser.add_argument('-n', '--num_runs', default=DEFAULT_NUM_RUNS, type=int,
+                    help=f'Number of runs to perform per experiment. Default: {DEFAULT_NUM_RUNS}')
+parser.add_argument('-s', '--steps_per_run', default=DEFAULT_NUM_STEPS_PER_RUN, type=int,
+                    help=f'Maximum number of steps until the SPEC must be fulfilled. Default: {DEFAULT_NUM_STEPS_PER_RUN}')
+parser.add_argument('-a', '--heading_adaptation', default=DEFAULT_HEADING_ADAPTATION, type=float,
+                    help=f'How much the heading of the cars is used to adapt their lateral position (see MC code for details). Default: {DEFAULT_HEADING_ADAPTATION}')
+parser.add_argument('-b', '--allow_blind_steps', default=DEFAULT_ALLOW_BLIND_STEPS, type=int,
+                    help=f'How many times the MC is allowed to be blind (no CEX) before the run is aborted. Default: {DEFAULT_ALLOW_BLIND_STEPS}')
+parser.add_argument('-c', '--allow_crashed_steps', default=DEFAULT_ALLOW_CRASHED_STEPS, type=int,
+                    help='How many steps with crashes are allowed before the run is aborted. Default: {DEFAULT_ALLOW_CRASHED_STEPS}')
 parser.add_argument('-d', '--debug', default=0, type=int,
                     help='Enable writing images in each step to see what the MC thinks (0 or 1). Default: 0')
 parser.add_argument('--record_video', action='store_true',
@@ -373,7 +379,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[1]
             @{{@{{scriptID}}@.scriptVar.StopScript}}@***.nil
 
-            @{{@{{../../morty/envmodel_config.tpl.json}}@.generateTestCases[cex-smooth-birdseye]}}@***.nil
+            {"@{{../../morty/envmodel_config.tpl.json}}@.generateTestCases[cex-birdseye/cex-smooth-birdseye]" if args.debug else ""}
             }}@.nil
             @{{}}@.prepareOutputForMortyUCD[{str(seedo)}, {str(global_counter)}, {0}, {str(crashed)}]
         """
