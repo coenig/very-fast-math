@@ -17,8 +17,6 @@ from pathlib import Path
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.expandScript.argtypes = [c_char_p, c_char_p, c_size_t]
 morty_lib.expandScript.restype = c_char_p
-morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
-morty_lib.morty.restype = c_char_p
 
 # Create EnvModels.
 dummy_result = create_string_buffer(2000)
@@ -367,8 +365,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             archive(seedo, global_counter)
             break
 
-        # The script to run the MC on C++ side.
-        MC_SCRIPT = f"""
+        MC_SCRIPT = f"""@{{
             @{{./src/templates/}}@.stringToHeap[MY_PATH]
             @{{@{{nuXmv}}@.killAfter[15].Detach.setScriptVar[scriptID, force]}}@***.nil
 
@@ -376,28 +373,17 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[1]
             @{{scriptID}}@.scriptVar.StopScript
             @{{../../morty/envmodel_config.tpl.json}}@.generateTestCases[cex-smooth-birdseye]
-
+            }}@.nil
+            @{{}}@.prepareOutputForMortyUCD[{str(seedo)}, {str(global_counter)}, {0}, {str(crashed)}]
         """
-        # Generate test cases´: all or [cex-birdseye/cex-cockpit-only/cex-full/cex-smooth-birdseye/cex-smooth-full/cex-smooth-with-arrows-birdseye/cex-smooth-with-arrows-full/preview/preview2]
+        # Test cases´: all or [cex-birdseye/cex-cockpit-only/cex-full/cex-smooth-birdseye/cex-smooth-full/cex-smooth-with-arrows-birdseye/cex-smooth-with-arrows-full/preview/preview2]
         # EO The script to run the MC on C++ side.
-
-        # # Last 2 before script: do detailed archive (hardcoded for now); num_actual_lanes + LATERAL_LC_GRANULARITY
-        # mcinput += "$$$1$$$" + str(args.debug) \
-        #          + "$$$" + str(args.heading_adaptation) \
-        #          + "$$$" + str(seedo) \
-        #          + "$$$" + str(crashed) \
-        #          + "$$$" + str(global_counter) \
-        #          + "$$$" + str(num_actual_lanes) \
-        #          + "$$$" + str(args.detailed_archive) \
-        #          + "$$$" + "False" \
-        #          + "$$$" + str(num_technical_lanes) \
-        #          + "$$$" + MC_SCRIPT
         
         first = False
         
         #### MODEL CHECKER CALL ####
         result = create_string_buffer(10000)
-        res = morty_lib.morty(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
+        res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
         res_str = res.decode()
         successed = SUCC_CONDS[exp_num]()
         

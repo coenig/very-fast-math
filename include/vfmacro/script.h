@@ -589,11 +589,33 @@ private:
           && StaticHelper::isParsableAsFloat(parameters[2]))
           {
             test::prepareInputForMortyUCD(body, std::stof(parameters[0]), (int)std::stoi(parameters[1]), (int)std::stoi(parameters[2]));
+             return "";
           } else {
             addError("Malformed input for 'prepareInputForMortyUCD'.");
-          }
+            return "#ERROR";
+         }
+      } 
+   };
 
-          return "";
+   ScriptMethodDescription prepareOutputForMortyUCDMethod{
+      "prepareOutputForMortyUCD", 
+      4, 
+      [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string 
+      { 
+         if (StaticHelper::isParsableAsLongLong(parameters[0]) // Seed
+            && StaticHelper::isParsableAsInt(parameters[1]) // Iteration
+            && StaticHelper::isParsableAsLongLong(parameters[2]) // Runtime
+            && StaticHelper::isParsableAsBoolean(parameters[3])) // Crash
+          {
+            return test::prepareOutputForMortyUCD(
+               StaticHelper::parseLongLong(parameters[0]).value(),
+               std::stoi(parameters[1]), 
+               StaticHelper::parseLongLong(parameters[2]).value(),
+               StaticHelper::isBooleanTrue(parameters[3]));
+          } else {
+            addError("Malformed input for 'prepareOutputForMortyUCD'.");
+            return "#ERROR";
+          }
       } 
    };
 
@@ -910,6 +932,7 @@ private:
    }
 
    std::set<ScriptMethodDescription> METHODS{
+      prepareOutputForMortyUCDMethod,
       prepareInputForMortyUCDMethod,
       m0,
       m1,

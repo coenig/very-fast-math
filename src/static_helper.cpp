@@ -23,6 +23,8 @@
 #include <regex>
 #include <sstream>
 #include <stack>
+#include <string_view>
+#include <charconv>
 
 #if defined(ASMJIT_ENABLED)
 #include "asmjit.h"
@@ -911,6 +913,12 @@ bool StaticHelper::isParsableAsFloat(const std::string& float_string)
    return iss.eof() && !iss.fail(); 
 }
 
+bool isParsableAsDouble(const std::string_view s) {
+   double value;
+   const auto result = std::from_chars(s.data(), s.data() + s.size(), value);
+   return result.ec == std::errc() && result.ptr == s.data() + s.size();
+}
+
 bool vfm::StaticHelper::isParsableAsInt(const std::string& int_string, const bool allow_empty)
 {
    std::string s = int_string.empty() || int_string[0] != '+' && int_string[0] != '-' ? int_string : int_string.substr(1);
@@ -920,6 +928,26 @@ bool vfm::StaticHelper::isParsableAsInt(const std::string& int_string, const boo
    }
 
    return s.find_first_not_of("0123456789") == std::string::npos;
+}
+
+bool vfm::StaticHelper::isParsableAsLongLong(const std::string_view s) 
+{
+   long long value;
+   const auto result = std::from_chars(s.data(), s.data() + s.size(), value);
+   return result.ec == std::errc() && result.ptr == s.data() + s.size();
+}
+
+
+// Returns the parsed value on success, or an empty optional on failure.
+std::optional<long long> vfm::StaticHelper::parseLongLong(const std::string_view s) {
+   long long value;
+   const auto result = std::from_chars(s.data(), s.data() + s.size(), value);
+
+   if (result.ec == std::errc() && result.ptr == s.data() + s.size()) {
+      return value;
+   }
+
+   return std::nullopt;
 }
 
 bool StaticHelper::isAlphaNumericOrOneOfThese(const std::string& str, const std::string& additionally_allowed)
@@ -1714,6 +1742,18 @@ bool StaticHelper::isBooleanTrue(const std::string& bool_str)
    }
 
    return result;
+}
+
+bool vfm::StaticHelper::isParsableAsBoolean(const std::string& bool_str)
+{
+   auto str = StaticHelper::toLowerCase(StaticHelper::trimAndReturn(bool_str));
+   bool parsable = StaticHelper::isParsableAsFloat(str);
+
+   if (!parsable && str != "false" && str != "true") {
+      return false;
+   }
+
+   return true;
 }
 
 int vfm::StaticHelper::extractIntegerAfterSubstring(const std::string& str, const std::string& substring) {

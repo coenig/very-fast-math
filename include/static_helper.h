@@ -22,6 +22,7 @@
 #include <queue>
 #include <mutex>
 #include <condition_variable>
+#include <optional>
 
 #if __cplusplus >= 201703L // https://stackoverflow.com/a/51536462/7302562 and https://stackoverflow.com/a/60052191/7302562
 #include <numeric>
@@ -706,7 +707,10 @@ public:
    static std::string replaceAllRegex(const std::string& str, const std::string& from_regex, const std::string& to_regex);
 
    static bool isParsableAsFloat(const std::string& float_string);
+   static bool isParsableAsDouble(const std::string_view s);
    static bool isParsableAsInt(const std::string& int_string, const bool allow_empty = false);
+   static bool isParsableAsLongLong(const std::string_view s);
+   static std::optional<long long> parseLongLong(const std::string_view s);
    static bool isAlpha(const std::string& str);
    static bool isAlphaNumeric(const std::string& str);
    static bool isAlphaNumericOrUnderscore(const std::string& str);
@@ -736,6 +740,7 @@ public:
    }
 
    static bool isBooleanTrue(const std::string& bool_str);
+   static bool isParsableAsBoolean(const std::string& bool_str);
 
    static std::string getFileNameFromPath(const std::string& path);
    static std::string getFileNameFromPathWithoutExt(const std::string& path);

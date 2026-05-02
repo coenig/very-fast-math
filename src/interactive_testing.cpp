@@ -1555,7 +1555,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 
 void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const float head_const, const int num_lanes, const int num_technical_lanes)
 {
-   const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json") };
+   const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json").string() };
    const std::string ucd_config_prios_str{ mc::McWorkflow().getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
    const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
 
@@ -1628,76 +1628,64 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
    }
 }
 
+std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int iteration, const long long runtime, const bool crash)
+{
+   const std::string ucd_config_prios_str{ mc::McWorkflow().getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
+   const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
+   const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json").string() };
+
+   for (const auto& config_name : ucd_config_prios_vec) {
+      const int num_cars{ std::stoi(mc::McWorkflow().getValueForJSONKeyAsString("NONEGOS", "./morty/", "envmodel_config.json", config_name)) };
+      auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_BASE_PATH + config_name + "/debug_trace_array.txt") };
+      MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
+
+      StaticHelper::writeTextToFile(
+         std::to_string(seed) + ";"
+         + std::to_string(trace.size() / 2) + ";"
+         + std::to_string(runtime) + ";"
+         + std::to_string(crash) + ";"
+         + std::to_string(iteration) + ";"
+         + "\n", OUTPUT_BASE_PATH + config_name + "/morty_mc_results.txt", true);
+
+      std::vector<VarValsFloat> deltas{};
+      std::set<std::string> variables{};
+
+      for (int i = 0; i < num_cars; i++) {
+         variables.insert("veh___6" + std::to_string(i) + "9___.v");
+         variables.insert("veh___6" + std::to_string(i) + "9___.on_lane");
+      }
+
+      deltas = trace.getAllDeltas(variables);
+
+      std::string res{};
+
+      if (trace.size() == 2) {
+         res = "FINISHED";
+      }
+      else {
+         for (int i = 0; i < num_cars; i++) {
+            for (const auto& delta : deltas) {
+               res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.v")) + ",";
+            }
+
+            res += "|";
+
+            for (const auto& delta : deltas) {
+               res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.on_lane")) + ",";
+            }
+
+            res += ";";
+         }
+      }
+
+      return res; // TODO: Eventually, we need to return all.
+   }
+}
+
 extern "C"
 char* expandScript(const char* input, char* result, size_t resultMaxLength)
 {
    std::string res{ macro::Script::processScript(input) };
    snprintf(result, resultMaxLength, "%s", res.c_str());
-   return result;
-}
-
-extern "C"
-char* morty(const char* input, char* result, size_t resultMaxLength)
-{
-   const std::string MC_SCRIPT{ input };
-
-   std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now(); // Note that this measured time should be largely overestimated...
-   macro::Script::processScript(MC_SCRIPT); //////////////////////////////////////
-   std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();   // ...since the run does many things (like initialization) every time which could be optimized.
-   auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count();
-
-   std::cin.get();
-
-   // const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json") };
-   // const int SEED{ std::stoi(vec[4]) };  // The current seed this run is part of on Python side.
-   // const int ITERATION{ std::stoi(vec[6]) };  // The iteration within the current seed on Python side.
-   // const bool CRASH{ StaticHelper::isBooleanTrue(vec[5]) };
-
-   // for (const auto& config_name : ucd_config_prios_vec) {
-   //    auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_BASE_PATH + config_name + "/debug_trace_array.txt") };
-   //    MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
-   // }
-
-
-   // StaticHelper::writeTextToFile(
-   //    std::to_string(SEED) + ";" 
-   //    + std::to_string(trace.size() / 2) + ";" 
-   //    + std::to_string(runtime) + ";"
-   //    + std::to_string(CRASH) + ";"
-   //    + std::to_string(ITERATION) + ";"
-   //    + "\n", OUTPUT_PATH + "morty_mc_results.txt", true);
-
-   // std::vector<VarValsFloat> deltas{};
-   // std::set<std::string> variables{};
-
-   // for (int i = 0; i < cars.size(); i++) {
-   //    variables.insert("veh___6" + std::to_string(i) + "9___.v");
-   //    variables.insert("veh___6" + std::to_string(i) + "9___.on_lane");
-   // }
-
-   // deltas = trace.getAllDeltas(variables);
-
-   // std::string res{};
-
-   // if (trace.size() == 2) {
-   //    res = "FINISHED";
-   // } else {
-   //    for (int i = 0; i < cars.size(); i++) {
-   //       for (const auto& delta : deltas) {
-   //          res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.v")) + ",";
-   //       }
-         
-   //       res += "|";
-
-   //       for (const auto& delta : deltas) {
-   //          res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.on_lane")) + ",";
-   //       }
-
-   //       res += ";";
-   //    }
-   // }
-
-   // snprintf(result, resultMaxLength, "%s", res.c_str());
-
    return result;
 }
