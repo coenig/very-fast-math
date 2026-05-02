@@ -1664,7 +1664,7 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
       deltas = trace.getAllDeltas(variables);
 
       if (trace.size() == 2) {
-         res = "FINISHED";
+         res += "FINISHED";
       }
       else {
          for (int i = 0; i < num_cars; i++) {

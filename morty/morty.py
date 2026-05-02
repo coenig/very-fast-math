@@ -402,6 +402,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         all_results_dict = {}
         for single_res in res_str.split('\n'):
             if single_res:
+                print("\n'" + single_res + "'\n")
                 config_name, res_str = single_res.split(':') # initiate res_str with ANY of the results, will get updated later if none-blind exists.
                 all_results_dict[config_name] = res_str
         
