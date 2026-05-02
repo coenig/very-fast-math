@@ -217,12 +217,12 @@ def inverseSortingArray(egos_x: List[float]):
     return b
 
 ensure_empty_file(f'{generated_path_prefix}/results.txt')  # Delete old results from Python side
-ensure_empty_file(f'{generated_path_prefix}/morty_mc_results.txt')  # Delete old results from MC side (these are a super set of the above)
-
 specification = create_string_buffer(2000)
 spec_res = morty_lib.expandScript(SPECS[exp_num].encode('utf-8'), specification, sizeof(specification)).decode()
 
 for ucd_config_str in ucd_config_prios_str:
+    ensure_empty_file(f'{generated_path_prefix + ucd_config_str}/morty_mc_results.txt')  # Delete old results from MC side (these are a super set of the above)
+
     with open(generated_path_prefix + ucd_config_str + "/main.smv", "r+") as f:
         content = f.read()
 
@@ -251,7 +251,6 @@ def archive(seedo, global_counter):
         archive_path = f'{generated_path_prefix}/detailed_results/run_{seedo}/iteration_{global_counter}/'
         if not os.path.exists(archive_path):
             os.makedirs(archive_path)
-        ensure_empty_file(f'{generated_path_prefix}/mc_runtimes.txt')  # Delete "mc_runtimes.txt" which is not used in this context.
         for filename in ucd_config_prios_str:
             distutils.dir_util.copy_tree(generated_path_prefix + filename, archive_path + filename)
 
@@ -370,9 +369,11 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             @{{@{{nuXmv}}@.killAfter[15].Detach.setScriptVar[scriptID, force]}}@***.nil
 
             @{{{mcinput}}}@.prepareInputForMortyUCD[{args.heading_adaptation}, {num_actual_lanes}, {num_technical_lanes}]
+
             @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[1]
-            @{{scriptID}}@.scriptVar.StopScript
-            @{{../../morty/envmodel_config.tpl.json}}@.generateTestCases[cex-smooth-birdseye]
+            @{{@{{scriptID}}@.scriptVar.StopScript}}@***.nil
+
+            @{{@{{../../morty/envmodel_config.tpl.json}}@.generateTestCases[cex-smooth-birdseye]}}@***.nil
             }}@.nil
             @{{}}@.prepareOutputForMortyUCD[{str(seedo)}, {str(global_counter)}, {0}, {str(crashed)}]
         """
@@ -384,7 +385,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         #### MODEL CHECKER CALL ####
         result = create_string_buffer(10000)
         res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
-        res_str = res.decode()
+        res_str = res.decode().strip()
+        #### EO MODEL CHECKER CALL ####
+
+        # TODO: Shouldn't this check come AFTER the application of the MC instructions? It shouldn't fundamentally hurt, but delays the success recognition for one iteration.
         successed = SUCC_CONDS[exp_num]()
         
         # We check both (1) the MC result and (2) the success condition to determine if we are done. Reason:
@@ -420,10 +424,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         for i in range(nonegos):
             if env.unwrapped.controlled_vehicles[i].crashed:
                 env.unwrapped.controlled_vehicles[i].color = (255, 0, 0)
-            
-    
-        #print(f"result: {res_str}")
-        #### EO MODEL CHECKER CALL ####
 
         sum_vel_by_car = []
         sum_lan_by_car = []
@@ -453,9 +453,9 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                             if i3 == 0:
                                 sum_vel_by_car[i1] += float(el3)
 
-        with open(f"{output_folder}lanes.txt", "w") as text_file:
+        with open(f"{generated_path_prefix}/lanes.txt", "w") as text_file:
             text_file.write(lanes)
-        with open(f"{output_folder}accels.txt", "w") as text_file:
+        with open(f"{generated_path_prefix}/accels.txt", "w") as text_file:
             text_file.write(accels)
 
         print(f"summed velocity: {sum_vel_by_car}")
@@ -521,7 +521,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
         archive(seedo, global_counter)
         
-    with open(f"{output_folder}results.txt", "a") as f:
+    with open(f"{generated_path_prefix}/results.txt", "a") as f:
         f.write("{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
 
     if args.record_video:
