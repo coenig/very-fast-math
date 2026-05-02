@@ -388,10 +388,32 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         
         first = False
         
+        empty_cex = ""
+        
+        for _i in range(nonegos):
+            empty_cex += "|;"
+        
         #### MODEL CHECKER CALL ####
         result = create_string_buffer(10000)
         res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
         res_str = res.decode().strip()
+        
+        ### POSTPROCESS RESULT ###
+        all_results_dict = {}
+        for single_res in res_str.split('\n'):
+            if single_res:
+                config_name, res_str = single_res.split(':') # initiate res_str with ANY of the results, will get updated later if none-blind exists.
+                all_results_dict[config_name] = res_str
+        
+        for cnt, config_name in enumerate(ucd_config_prios_str):
+            if (all_results_dict[config_name] == empty_cex):
+                print(f"CEX #{cnt} is EMPTY.")
+            else:
+                res_str = all_results_dict[config_name]
+                print(f"Took CEX #{cnt}[{config_name}] which is the first non-empty one.")
+                break;
+                
+        ### EO POSTPROCESS RESULT ###
         #### EO MODEL CHECKER CALL ####
 
         # TODO: Shouldn't this check come AFTER the application of the MC instructions? It shouldn't fundamentally hurt, but delays the success recognition for one iteration.
@@ -408,12 +430,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             good_ones.append(seedo)
             archive(seedo, global_counter)
             break
-        
-        empty_cex = ""
-        
-        for _i in range(nonegos):
-            empty_cex += "|;"
-        
+       
         if res_str == empty_cex:
             print("No CEX found")
             for i in range(nonegos): # Set blue when blind.
