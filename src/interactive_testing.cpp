@@ -1634,7 +1634,13 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
    const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
    const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json").string() };
 
+   std::string res{};
+
    for (const auto& config_name : ucd_config_prios_vec) {
+      if (config_name.empty()) continue;
+
+      res += "\n" + config_name + ":";
+
       const int num_cars{ std::stoi(mc::McWorkflow().getValueForJSONKeyAsString("NONEGOS", "./morty/", "envmodel_config.json", config_name)) };
       auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_BASE_PATH + config_name + "/debug_trace_array.txt") };
       MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
@@ -1657,8 +1663,6 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
 
       deltas = trace.getAllDeltas(variables);
 
-      std::string res{};
-
       if (trace.size() == 2) {
          res = "FINISHED";
       }
@@ -1677,9 +1681,9 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
             res += ";";
          }
       }
-
-      return res; // TODO: Eventually, we need to return all.
    }
+
+   return res;
 }
 
 extern "C"
