@@ -102,12 +102,14 @@ const std::vector<std::pair<ArithType, distr_description>> DISTRIBUTIVE_TERMS = 
    {ArithType::right, {{{_div, _minus}, {SYMB_DIV, SYMB_MINUS}}, 1}}
 };
 
+const fct_type_one_par _identity = [](const std::shared_ptr<Term> t) -> std::shared_ptr<Term> { return t; };
+
 const std::vector<std::pair<ArithType, neutral_description>> NEUTRAL_ELEMENTS = {
-   {ArithType::right, {{_minus, _id}, {SYMB_MINUS, 0}}},
-   {ArithType::both, {{_plus, _id}, {SYMB_PLUS, 0}}},
-   {ArithType::both, {{_mult, _id}, {SYMB_MULT, 1}}},
-   {ArithType::right, {{_div, _id}, {SYMB_DIV, 1}}},
-   {ArithType::right, {{_pow, _id}, {SYMB_POW, 1}}},
+   {ArithType::right, {{_minus, _identity}, {SYMB_MINUS, 0}}},
+   {ArithType::both, {{_plus, _identity}, {SYMB_PLUS, 0}}},
+   {ArithType::both, {{_mult, _identity}, {SYMB_MULT, 1}}},
+   {ArithType::right, {{_div, _identity}, {SYMB_DIV, 1}}},
+   {ArithType::right, {{_pow, _identity}, {SYMB_POW, 1}}},
    {ArithType::both, {{_and, _boolify}, {SYMB_AND, 1}}},
    {ArithType::both, {{_or, _boolify}, {SYMB_OR, 0}}}
 };
@@ -135,8 +137,8 @@ const std::vector<CountableOperator> COUNTABLE_OPERATORS = {
       { SYMB_PLUS, _plus },
       { SYMB_PLUS, _plus },
       { SYMB_MULT, _mult },
-      { SYMB_ID, _id },
-      { SYMB_ID, _id },
+      { SYMB_ID, _identity },
+      { SYMB_ID, _identity },
       0,
       1
    },
@@ -145,7 +147,7 @@ const std::vector<CountableOperator> COUNTABLE_OPERATORS = {
       { SYMB_MINUS, _minus },
       { SYMB_MULT, _mult },
       { SYMB_NEG, _neg },
-      { SYMB_ID, _id },
+      { SYMB_ID, _identity },
       0,
       1
    },
@@ -153,7 +155,7 @@ const std::vector<CountableOperator> COUNTABLE_OPERATORS = {
       { SYMB_MULT, _mult },
       { SYMB_MULT, _mult },
       { SYMB_POW, _pow },
-      { SYMB_ID, _id },
+      { SYMB_ID, _identity },
       { SYMB_LN, _ln },
       1,
       1
