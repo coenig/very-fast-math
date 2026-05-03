@@ -372,10 +372,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
         MC_SCRIPT = f"""@{{
             @{{./src/templates/}}@.stringToHeap[MY_PATH]
-            @{{@{{nuXmv}}@.killAfter[15].Detach.setScriptVar[scriptID, force]}}@***.nil
 
             @{{{mcinput}}}@.prepareInputForMortyUCD[{args.heading_adaptation}, {num_actual_lanes}, {num_technical_lanes}]
 
+            @{{@{{nuXmv}}@.killAfter[15].Detach.setScriptVar[scriptID, force]}}@***.nil
             @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[16]
             @{{@{{scriptID}}@.scriptVar.StopScript}}@***.nil
 
