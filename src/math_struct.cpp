@@ -4179,6 +4179,7 @@ std::set<MetaRule> vfm::MathStruct::getSimplificationRules(const std::shared_ptr
                { _eq(_vard(), _vare()), ConditionType::is_constant_and_evaluates_to_false },                  // d and e cannot be equal
                { _div(powcomp(_vare()), powcomp(_vard())), ConditionType::is_constant_integer },              // e is divisible by d
                { _eq(_div(_vare(), _vard()), _vare()), ConditionType::is_constant_and_evaluates_to_false },   // but d is not 1
+               { _eq(_div(powcomp(_vard()), powcomp(_vare())), _vard()), ConditionType::is_constant_and_evaluates_to_false },   // but e is not 1
             },
             ConditionType::has_no_sideeffects, parser));
 
@@ -4191,6 +4192,7 @@ std::set<MetaRule> vfm::MathStruct::getSimplificationRules(const std::shared_ptr
                { _eq(_vard(), _vare()), ConditionType::is_constant_and_evaluates_to_false },                  // d and e cannot be equal
                { _div(powcomp(_vard()), powcomp(_vare())), ConditionType::is_constant_integer },              // d is divisible by e
                { _eq(_div(_vard(), _vare()), _vard()), ConditionType::is_constant_and_evaluates_to_false },   // but e is not 1
+               { _eq(_div(powcomp(_vare()), powcomp(_vard())), _vare()), ConditionType::is_constant_and_evaluates_to_false },   // but d is not 1
             },
             ConditionType::has_no_sideeffects, parser));
 
@@ -4203,6 +4205,7 @@ std::set<MetaRule> vfm::MathStruct::getSimplificationRules(const std::shared_ptr
                { _eq(_vard(), _vare()), ConditionType::is_constant_and_evaluates_to_false },                  // d and e cannot be equal
                { _div(powcomp(_vare()), powcomp(_vard())), ConditionType::is_constant_integer },              // e is divisible by d
                { _eq(_div(_vare(), _vard()), _vare()), ConditionType::is_constant_and_evaluates_to_false },   // but d is not 1
+               { _eq(_div(powcomp(_vard()), powcomp(_vare())), _vard()), ConditionType::is_constant_and_evaluates_to_false },   // but e is not 1
             },
             ConditionType::has_no_sideeffects, parser));
 
@@ -4215,6 +4218,7 @@ std::set<MetaRule> vfm::MathStruct::getSimplificationRules(const std::shared_ptr
                { _eq(_vard(), _vare()), ConditionType::is_constant_and_evaluates_to_false },                  // d and e cannot be equal
                { _div(powcomp(_vard()), powcomp(_vare())), ConditionType::is_constant_integer },              // d is divisible by e
                { _eq(_div(_vare(), _vard()), _vare()), ConditionType::is_constant_and_evaluates_to_false },   // but d is not 1
+               { _eq(_div(powcomp(_vard()), powcomp(_vare())), _vard()), ConditionType::is_constant_and_evaluates_to_false },   // but e is not 1
             },
             ConditionType::has_no_sideeffects, parser));
 
