@@ -709,7 +709,7 @@ VAR
 
    @{ego.abs_pos}@*.scalingVariable[distance] : integer;
 
-@{VAR ego.v : integer;}@******.if[@{(EGOLESS)}@.eval]
+@{VAR ego.v : integer;}@******.if[@{(EGOLESS && UCD)}@.eval]
 @{
    @(ASSIGN
    next(ego.abs_pos) := next(veh___609___.abs_pos);)@
