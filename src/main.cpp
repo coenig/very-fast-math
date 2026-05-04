@@ -84,6 +84,11 @@ void generatePreviewsForMorty()
 
 int main(int argc, char* argv[])
 {
+   code_block::CodeGenerator::deleteAndWriteSimplificationRulesToFile(code_block::CodeGenerationMode::positive, "../include/simplification/simplification_pos.h");     // Normal mode.
+   code_block::CodeGenerator::deleteAndWriteSimplificationRulesToFile(code_block::CodeGenerationMode::negative, "../include/simplification/simplification.h"); // Normal mode (negative).
+   code_block::CodeGenerator::deleteAndWriteSimplificationRulesToFile(code_block::CodeGenerationMode::negative, "../include/model_checking/simplification.h", nullptr, true); // MC mode (negative).
+   termnate();
+
 //   std::string s{ R"(
 //      @{ 
 //@{}@.StopScript
