@@ -340,6 +340,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
     first = True
     obs = env.unwrapped.observation_type.observe()
+    blind_stats = ""
+    
     for global_counter in range(args.steps_per_run):
         mcinput = ""
         i = 0
@@ -406,14 +408,18 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 config_name, res_str = single_res.split(':') # initiate res_str with ANY of the results, will get updated later if none-blind exists.
                 all_results_dict[config_name] = res_str
         
+        blind = "|X"
         for cnt, config_name in enumerate(ucd_config_prios_str):
             if (all_results_dict[config_name] == empty_cex):
                 print(f"CEX #{cnt} is EMPTY.")
             else:
                 res_str = all_results_dict[config_name]
                 print(f"Took CEX #{cnt}[{config_name}] which is the first non-empty one.")
+                blind = "|" + str(cnt)
                 break;
-                
+        
+        blind_stats += blind
+        
         ### EO POSTPROCESS RESULT ###
         #### EO MODEL CHECKER CALL ####
 
@@ -546,7 +552,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         archive(seedo, global_counter)
         
     with open(f"{generated_path_prefix}/results.txt", "a") as f:
-        f.write("{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
+        f.write("{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} " + str(len(good_ones)) + " succeeded [" + str(nocex_count) + " blind; " + blind_stats + "|]\n")
 
     if args.record_video:
         env.close_video_recorder()
