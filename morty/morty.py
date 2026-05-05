@@ -552,7 +552,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         archive(seedo, global_counter)
         
     with open(f"{generated_path_prefix}/results.txt", "a") as f:
-        f.write("{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} " + str(len(good_ones)) + " succeeded [" + str(nocex_count) + " blind; " + blind_stats + "|]\n")
+        outcome = "succeeded" if seedo in good_ones else "failed"
+        f.write("{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} " + str(seedo) + " " + outcome + " [" + str(nocex_count) + " blind; " + blind_stats + "|]\n")
 
     if args.record_video:
         env.close_video_recorder()
