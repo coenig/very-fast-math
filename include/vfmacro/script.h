@@ -1126,9 +1126,11 @@ private:
          const auto pids = Process().getPIDs(body);
          const int wait_seconds{ (int)std::stof(parameters.at(0)) };
          int num{};
+         std::string runtimes{};
 
          for (const auto& pid : pids) {
             long long running_time{ Process().getProcessRunningDurationSeconds(pid) };
+            runtimes += std::to_string(running_time) + " ";
 
             if (running_time >= wait_seconds) {
                if (Process().killByPID(pid)) {
@@ -1141,7 +1143,7 @@ private:
          if (num > 0) {
             message += std::to_string(num) + " PIDs based on '" + body + "' have been killed after '" + parameters[0] + "' seconds of runtime.";
          } else {
-            message += "No '" + body + "'-based PID running long enough to be killed.";
+            message += "No '" + body + "'-based PID ran long enough to be killed. Runtimes (s): " + runtimes;
          }
          
          addNote(message);
