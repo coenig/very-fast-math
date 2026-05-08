@@ -557,5 +557,15 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
     if args.record_video:
         env.close_video_recorder()
+        suffix = ""
+        if crashed_count > 0:
+            suffix += "_crashed"
+        if nocex_count > 0:
+            suffix += f"_blind{nocex_count}"
+        if suffix:
+            import glob
+            for video_file in glob.glob(f"videos/vid_{seedo}*"):
+                new_name = video_file.replace(f"vid_{seedo}", f"vid_{seedo}{suffix}", 1)
+                os.rename(video_file, new_name)
     
 print(good_ones)
