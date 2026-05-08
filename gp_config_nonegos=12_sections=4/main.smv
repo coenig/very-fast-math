@@ -1,0 +1,358 @@
+#include "planner.cpp_combined.k2.smv"
+#include "EnvModel.smv"
+
+
+MODULE Globals
+VAR
+"loc" : boolean;
+
+MODULE main
+VAR
+  globals : Globals; 
+  env : EnvModel;
+  planner : "checkLCConditionsFastLane"(globals."loc");
+                   
+
+ env.veh___6TEMPORARRAY19___.v : integer;
+
+
+
+   lane_changed : boolean;
+   lane_change_aborted : boolean;
+
+   env.node.em.filtered_driver_intention_dir : {ActionDir____LEFT, ActionDir____CENTER, ActionDir____RIGHT};
+   env.params.enable_lane_change_driver_request : boolean;
+   env.params.enable_lanechanges : boolean;
+   env.params.slow_lane_is_on_the_right : boolean;
+
+INIT !lane_changed;
+INIT !lane_change_aborted;
+
+-- TRANS env.abCond.cond26_all_conditions_fulfilled_raw = planner."abCond.cond26_all_conditions_fulfilled_raw";
+-- TRANS env.flCond.cond26_all_conditions_fulfilled_raw = planner."flCond.cond26_all_conditions_fulfilled_raw";
+
+
+--TRANS env.ego.abCond_full = ((env.ego_timer > 0) & !planner."agent.slCond_full" & !planner."agent.flCond_full");
+TRANS next(lane_changed) = (lane_changed | planner."flCond.cond26_all_conditions_fulfilled_raw");
+TRANS next(lane_change_aborted) = ((lane_change_aborted | planner."abCond.cond26_all_conditions_fulfilled_raw" & env.ego_lane_crossing));
+
+--DEFINE
+--env.ego.flCond_full := planner."flCond.cond26_all_conditions_fulfilled_raw";
+--env.ego.abCond_full := planner."abCond.cond26_all_conditions_fulfilled_raw";
+
+--TRANS next(env.ego.flCond_full) = planner."flCond.cond26_all_conditions_fulfilled_raw";
+--TRANS next(env.ego.abCond_full) = planner."abCond.cond26_all_conditions_fulfilled_raw";
+TRANS env.ego.flCond_full = planner."flCond.cond26_all_conditions_fulfilled_raw";
+TRANS env.ego.abCond_full = planner."abCond.cond26_all_conditions_fulfilled_raw";
+
+
+
+--SPEC-STUFF
+
+-- Do not change the wording of the above line and its corresponding closing line! It is used to detect the SPEC part
+-- to be able to replace just it when running the MC without re-generating the EnvModel. It is also used for UCD.
+
+--ADDONS
+-- Working in folder '../examples\gp_config_nonegos=12_sections=4'.
+-- This run is based on GIT commit: ff38d3939ff35f566f68876f63d2b0c682940a3b
+
+-- Storing patch in '../examples\gp_config_nonegos=12_sections=4/git_patch.txt'
+
+
+   --= CROSSING =--
+   -- Remove nil from generator to activate.
+
+
+   --= ROUNDABOUT with straight sections which can be made ROUND by the below tweak with zero-length sections =--
+   -- Remove nil from generator to activate.
+
+
+
+   --= "Round" ROUNDABOUT (this is NOT the completely circular one) =--
+   -- Remove nil from generator to activate.
+
+
+   --= For Stop&Go =--
+   -- Remove nil from generator to activate.
+
+
+
+--= General "Section" Stuff =--
+-- INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
+-- -- INVAR env.ego.v = 0;
+-- -- INVAR env.ego.abs_pos = 0;
+-- INIT env.veh___609___.is_on_sec_0 = 1;
+-- INIT env.veh___619___.is_on_sec_0 = 1;
+-- INIT env.veh___609___.abs_pos = 10;
+-- INIT env.veh___619___.abs_pos = 20;
+-- INIT env.section_0_end = 30;
+-- INIT env.section_1_end = 30;
+-- INIT env.section_2_end = 50;
+-- INIT env.section_3_end = 30;
+
+--INVAR env.veh___609___.v > env.veh___619___.v + 1;
+
+------------------------------------------------------- 
+-- INIT env.outgoing_connection_0_of_section_0 = 1;
+-- INIT env.outgoing_connection_1_of_section_0 = 2;
+-- INIT env.outgoing_connection_0_of_section_1 = 3;
+-- INIT env.outgoing_connection_0_of_section_2 = 3;
+-- INIT env.dist_0_of_section_0_to_1 = 20 | env.dist_0_of_section_0_to_1 = 40;
+-- INIT env.dist_1_of_section_0_to_2 = 20 | env.dist_1_of_section_0_to_2 = 40;
+-- INIT env.dist_0_of_section_1_to_3 = 20 | env.dist_0_of_section_1_to_3 = 40;
+-- INIT env.dist_0_of_section_2_to_3 = 20 | env.dist_0_of_section_2_to_3 = 40;
+------------------------------------------------------- 
+
+--INIT env.veh___609___.lane_1;
+--INIT env.ego_lane_0;
+
+-- Three cars invert their ordering
+
+
+
+INIT env.veh___609___.is_on_sec_0 = 1;
+INIT env.veh___609___.abs_pos = 0 * (env.veh_length + 1);
+INVAR env.veh___609___.v <= env.veh___609___.current_seclet_length;
+TRANS env.veh___609___.v >= -env.veh___609___.next_seclet_length;
+INVAR env.veh___609___.on_straight_section < 0 -> (env.veh___609___.abs_pos >= env.veh_length & env.veh___609___.abs_pos <= env.veh___609___.current_seclet_length - env.veh_length); -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___609___.v - env.veh___619___.v) <= 6;
+   -- INVAR env.veh___609___.on_straight_section < 0 -> abs(env.veh___609___.abs_pos - env.veh___619___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___609___.v - env.veh___629___.v) <= 6;
+   -- INVAR env.veh___609___.on_straight_section < 0 -> abs(env.veh___609___.abs_pos - env.veh___629___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___609___.v - env.veh___639___.v) <= 6;
+   -- INVAR env.veh___609___.on_straight_section < 0 -> abs(env.veh___609___.abs_pos - env.veh___639___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___609___.v - env.veh___649___.v) <= 6;
+   -- INVAR env.veh___609___.on_straight_section < 0 -> abs(env.veh___609___.abs_pos - env.veh___649___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___609___.v - env.veh___659___.v) <= 6;
+   -- INVAR env.veh___609___.on_straight_section < 0 -> abs(env.veh___609___.abs_pos - env.veh___659___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___609___.v - env.veh___669___.v) <= 6;
+   -- INVAR env.veh___609___.on_straight_section < 0 -> abs(env.veh___609___.abs_pos - env.veh___669___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___609___.v - env.veh___679___.v) <= 6;
+   -- INVAR env.veh___609___.on_straight_section < 0 -> abs(env.veh___609___.abs_pos - env.veh___679___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___609___.v - env.veh___689___.v) <= 6;
+   -- INVAR env.veh___609___.on_straight_section < 0 -> abs(env.veh___609___.abs_pos - env.veh___689___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___609___.v - env.veh___699___.v) <= 6;
+   -- INVAR env.veh___609___.on_straight_section < 0 -> abs(env.veh___609___.abs_pos - env.veh___699___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___609___.v - env.veh___6109___.v) <= 6;
+   -- INVAR env.veh___609___.on_straight_section < 0 -> abs(env.veh___609___.abs_pos - env.veh___6109___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___609___.v - env.veh___6119___.v) <= 6;
+   -- INVAR env.veh___609___.on_straight_section < 0 -> abs(env.veh___609___.abs_pos - env.veh___6119___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+
+INIT env.veh___619___.is_on_sec_0 = 1;
+INIT env.veh___619___.abs_pos = 1 * (env.veh_length + 1);
+INVAR env.veh___619___.v <= env.veh___619___.current_seclet_length;
+TRANS env.veh___619___.v >= -env.veh___619___.next_seclet_length;
+INVAR env.veh___619___.on_straight_section < 0 -> (env.veh___619___.abs_pos >= env.veh_length & env.veh___619___.abs_pos <= env.veh___619___.current_seclet_length - env.veh_length); -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___619___.v - env.veh___629___.v) <= 6;
+   -- INVAR env.veh___619___.on_straight_section < 0 -> abs(env.veh___619___.abs_pos - env.veh___629___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___619___.v - env.veh___639___.v) <= 6;
+   -- INVAR env.veh___619___.on_straight_section < 0 -> abs(env.veh___619___.abs_pos - env.veh___639___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___619___.v - env.veh___649___.v) <= 6;
+   -- INVAR env.veh___619___.on_straight_section < 0 -> abs(env.veh___619___.abs_pos - env.veh___649___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___619___.v - env.veh___659___.v) <= 6;
+   -- INVAR env.veh___619___.on_straight_section < 0 -> abs(env.veh___619___.abs_pos - env.veh___659___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___619___.v - env.veh___669___.v) <= 6;
+   -- INVAR env.veh___619___.on_straight_section < 0 -> abs(env.veh___619___.abs_pos - env.veh___669___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___619___.v - env.veh___679___.v) <= 6;
+   -- INVAR env.veh___619___.on_straight_section < 0 -> abs(env.veh___619___.abs_pos - env.veh___679___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___619___.v - env.veh___689___.v) <= 6;
+   -- INVAR env.veh___619___.on_straight_section < 0 -> abs(env.veh___619___.abs_pos - env.veh___689___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___619___.v - env.veh___699___.v) <= 6;
+   -- INVAR env.veh___619___.on_straight_section < 0 -> abs(env.veh___619___.abs_pos - env.veh___699___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___619___.v - env.veh___6109___.v) <= 6;
+   -- INVAR env.veh___619___.on_straight_section < 0 -> abs(env.veh___619___.abs_pos - env.veh___6109___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___619___.v - env.veh___6119___.v) <= 6;
+   -- INVAR env.veh___619___.on_straight_section < 0 -> abs(env.veh___619___.abs_pos - env.veh___6119___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+
+INIT env.veh___629___.is_on_sec_0 = 1;
+INIT env.veh___629___.abs_pos = 2 * (env.veh_length + 1);
+INVAR env.veh___629___.v <= env.veh___629___.current_seclet_length;
+TRANS env.veh___629___.v >= -env.veh___629___.next_seclet_length;
+INVAR env.veh___629___.on_straight_section < 0 -> (env.veh___629___.abs_pos >= env.veh_length & env.veh___629___.abs_pos <= env.veh___629___.current_seclet_length - env.veh_length); -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___629___.v - env.veh___639___.v) <= 6;
+   -- INVAR env.veh___629___.on_straight_section < 0 -> abs(env.veh___629___.abs_pos - env.veh___639___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___629___.v - env.veh___649___.v) <= 6;
+   -- INVAR env.veh___629___.on_straight_section < 0 -> abs(env.veh___629___.abs_pos - env.veh___649___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___629___.v - env.veh___659___.v) <= 6;
+   -- INVAR env.veh___629___.on_straight_section < 0 -> abs(env.veh___629___.abs_pos - env.veh___659___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___629___.v - env.veh___669___.v) <= 6;
+   -- INVAR env.veh___629___.on_straight_section < 0 -> abs(env.veh___629___.abs_pos - env.veh___669___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___629___.v - env.veh___679___.v) <= 6;
+   -- INVAR env.veh___629___.on_straight_section < 0 -> abs(env.veh___629___.abs_pos - env.veh___679___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___629___.v - env.veh___689___.v) <= 6;
+   -- INVAR env.veh___629___.on_straight_section < 0 -> abs(env.veh___629___.abs_pos - env.veh___689___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___629___.v - env.veh___699___.v) <= 6;
+   -- INVAR env.veh___629___.on_straight_section < 0 -> abs(env.veh___629___.abs_pos - env.veh___699___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___629___.v - env.veh___6109___.v) <= 6;
+   -- INVAR env.veh___629___.on_straight_section < 0 -> abs(env.veh___629___.abs_pos - env.veh___6109___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___629___.v - env.veh___6119___.v) <= 6;
+   -- INVAR env.veh___629___.on_straight_section < 0 -> abs(env.veh___629___.abs_pos - env.veh___6119___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+
+INIT env.veh___639___.is_on_sec_0 = 1;
+INIT env.veh___639___.abs_pos = 3 * (env.veh_length + 1);
+INVAR env.veh___639___.v <= env.veh___639___.current_seclet_length;
+TRANS env.veh___639___.v >= -env.veh___639___.next_seclet_length;
+INVAR env.veh___639___.on_straight_section < 0 -> (env.veh___639___.abs_pos >= env.veh_length & env.veh___639___.abs_pos <= env.veh___639___.current_seclet_length - env.veh_length); -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___639___.v - env.veh___649___.v) <= 6;
+   -- INVAR env.veh___639___.on_straight_section < 0 -> abs(env.veh___639___.abs_pos - env.veh___649___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___639___.v - env.veh___659___.v) <= 6;
+   -- INVAR env.veh___639___.on_straight_section < 0 -> abs(env.veh___639___.abs_pos - env.veh___659___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___639___.v - env.veh___669___.v) <= 6;
+   -- INVAR env.veh___639___.on_straight_section < 0 -> abs(env.veh___639___.abs_pos - env.veh___669___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___639___.v - env.veh___679___.v) <= 6;
+   -- INVAR env.veh___639___.on_straight_section < 0 -> abs(env.veh___639___.abs_pos - env.veh___679___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___639___.v - env.veh___689___.v) <= 6;
+   -- INVAR env.veh___639___.on_straight_section < 0 -> abs(env.veh___639___.abs_pos - env.veh___689___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___639___.v - env.veh___699___.v) <= 6;
+   -- INVAR env.veh___639___.on_straight_section < 0 -> abs(env.veh___639___.abs_pos - env.veh___699___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___639___.v - env.veh___6109___.v) <= 6;
+   -- INVAR env.veh___639___.on_straight_section < 0 -> abs(env.veh___639___.abs_pos - env.veh___6109___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___639___.v - env.veh___6119___.v) <= 6;
+   -- INVAR env.veh___639___.on_straight_section < 0 -> abs(env.veh___639___.abs_pos - env.veh___6119___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+
+INIT env.veh___649___.is_on_sec_0 = 1;
+INIT env.veh___649___.abs_pos = 4 * (env.veh_length + 1);
+INVAR env.veh___649___.v <= env.veh___649___.current_seclet_length;
+TRANS env.veh___649___.v >= -env.veh___649___.next_seclet_length;
+INVAR env.veh___649___.on_straight_section < 0 -> (env.veh___649___.abs_pos >= env.veh_length & env.veh___649___.abs_pos <= env.veh___649___.current_seclet_length - env.veh_length); -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___649___.v - env.veh___659___.v) <= 6;
+   -- INVAR env.veh___649___.on_straight_section < 0 -> abs(env.veh___649___.abs_pos - env.veh___659___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___649___.v - env.veh___669___.v) <= 6;
+   -- INVAR env.veh___649___.on_straight_section < 0 -> abs(env.veh___649___.abs_pos - env.veh___669___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___649___.v - env.veh___679___.v) <= 6;
+   -- INVAR env.veh___649___.on_straight_section < 0 -> abs(env.veh___649___.abs_pos - env.veh___679___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___649___.v - env.veh___689___.v) <= 6;
+   -- INVAR env.veh___649___.on_straight_section < 0 -> abs(env.veh___649___.abs_pos - env.veh___689___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___649___.v - env.veh___699___.v) <= 6;
+   -- INVAR env.veh___649___.on_straight_section < 0 -> abs(env.veh___649___.abs_pos - env.veh___699___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___649___.v - env.veh___6109___.v) <= 6;
+   -- INVAR env.veh___649___.on_straight_section < 0 -> abs(env.veh___649___.abs_pos - env.veh___6109___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___649___.v - env.veh___6119___.v) <= 6;
+   -- INVAR env.veh___649___.on_straight_section < 0 -> abs(env.veh___649___.abs_pos - env.veh___6119___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+
+INIT env.veh___659___.is_on_sec_0 = 1;
+INIT env.veh___659___.abs_pos = 5 * (env.veh_length + 1);
+INVAR env.veh___659___.v <= env.veh___659___.current_seclet_length;
+TRANS env.veh___659___.v >= -env.veh___659___.next_seclet_length;
+INVAR env.veh___659___.on_straight_section < 0 -> (env.veh___659___.abs_pos >= env.veh_length & env.veh___659___.abs_pos <= env.veh___659___.current_seclet_length - env.veh_length); -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___659___.v - env.veh___669___.v) <= 6;
+   -- INVAR env.veh___659___.on_straight_section < 0 -> abs(env.veh___659___.abs_pos - env.veh___669___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___659___.v - env.veh___679___.v) <= 6;
+   -- INVAR env.veh___659___.on_straight_section < 0 -> abs(env.veh___659___.abs_pos - env.veh___679___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___659___.v - env.veh___689___.v) <= 6;
+   -- INVAR env.veh___659___.on_straight_section < 0 -> abs(env.veh___659___.abs_pos - env.veh___689___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___659___.v - env.veh___699___.v) <= 6;
+   -- INVAR env.veh___659___.on_straight_section < 0 -> abs(env.veh___659___.abs_pos - env.veh___699___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___659___.v - env.veh___6109___.v) <= 6;
+   -- INVAR env.veh___659___.on_straight_section < 0 -> abs(env.veh___659___.abs_pos - env.veh___6109___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___659___.v - env.veh___6119___.v) <= 6;
+   -- INVAR env.veh___659___.on_straight_section < 0 -> abs(env.veh___659___.abs_pos - env.veh___6119___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+
+INIT env.veh___669___.is_on_sec_0 = 1;
+INIT env.veh___669___.abs_pos = 6 * (env.veh_length + 1);
+INVAR env.veh___669___.v <= env.veh___669___.current_seclet_length;
+TRANS env.veh___669___.v >= -env.veh___669___.next_seclet_length;
+INVAR env.veh___669___.on_straight_section < 0 -> (env.veh___669___.abs_pos >= env.veh_length & env.veh___669___.abs_pos <= env.veh___669___.current_seclet_length - env.veh_length); -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___669___.v - env.veh___679___.v) <= 6;
+   -- INVAR env.veh___669___.on_straight_section < 0 -> abs(env.veh___669___.abs_pos - env.veh___679___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___669___.v - env.veh___689___.v) <= 6;
+   -- INVAR env.veh___669___.on_straight_section < 0 -> abs(env.veh___669___.abs_pos - env.veh___689___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___669___.v - env.veh___699___.v) <= 6;
+   -- INVAR env.veh___669___.on_straight_section < 0 -> abs(env.veh___669___.abs_pos - env.veh___699___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___669___.v - env.veh___6109___.v) <= 6;
+   -- INVAR env.veh___669___.on_straight_section < 0 -> abs(env.veh___669___.abs_pos - env.veh___6109___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___669___.v - env.veh___6119___.v) <= 6;
+   -- INVAR env.veh___669___.on_straight_section < 0 -> abs(env.veh___669___.abs_pos - env.veh___6119___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+
+INIT env.veh___679___.is_on_sec_0 = 1;
+INIT env.veh___679___.abs_pos = 7 * (env.veh_length + 1);
+INVAR env.veh___679___.v <= env.veh___679___.current_seclet_length;
+TRANS env.veh___679___.v >= -env.veh___679___.next_seclet_length;
+INVAR env.veh___679___.on_straight_section < 0 -> (env.veh___679___.abs_pos >= env.veh_length & env.veh___679___.abs_pos <= env.veh___679___.current_seclet_length - env.veh_length); -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___679___.v - env.veh___689___.v) <= 6;
+   -- INVAR env.veh___679___.on_straight_section < 0 -> abs(env.veh___679___.abs_pos - env.veh___689___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___679___.v - env.veh___699___.v) <= 6;
+   -- INVAR env.veh___679___.on_straight_section < 0 -> abs(env.veh___679___.abs_pos - env.veh___699___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___679___.v - env.veh___6109___.v) <= 6;
+   -- INVAR env.veh___679___.on_straight_section < 0 -> abs(env.veh___679___.abs_pos - env.veh___6109___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___679___.v - env.veh___6119___.v) <= 6;
+   -- INVAR env.veh___679___.on_straight_section < 0 -> abs(env.veh___679___.abs_pos - env.veh___6119___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+
+INIT env.veh___689___.is_on_sec_0 = 1;
+INIT env.veh___689___.abs_pos = 8 * (env.veh_length + 1);
+INVAR env.veh___689___.v <= env.veh___689___.current_seclet_length;
+TRANS env.veh___689___.v >= -env.veh___689___.next_seclet_length;
+INVAR env.veh___689___.on_straight_section < 0 -> (env.veh___689___.abs_pos >= env.veh_length & env.veh___689___.abs_pos <= env.veh___689___.current_seclet_length - env.veh_length); -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___689___.v - env.veh___699___.v) <= 6;
+   -- INVAR env.veh___689___.on_straight_section < 0 -> abs(env.veh___689___.abs_pos - env.veh___699___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___689___.v - env.veh___6109___.v) <= 6;
+   -- INVAR env.veh___689___.on_straight_section < 0 -> abs(env.veh___689___.abs_pos - env.veh___6109___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___689___.v - env.veh___6119___.v) <= 6;
+   -- INVAR env.veh___689___.on_straight_section < 0 -> abs(env.veh___689___.abs_pos - env.veh___6119___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+
+INIT env.veh___699___.is_on_sec_0 = 1;
+INIT env.veh___699___.abs_pos = 9 * (env.veh_length + 1);
+INVAR env.veh___699___.v <= env.veh___699___.current_seclet_length;
+TRANS env.veh___699___.v >= -env.veh___699___.next_seclet_length;
+INVAR env.veh___699___.on_straight_section < 0 -> (env.veh___699___.abs_pos >= env.veh_length & env.veh___699___.abs_pos <= env.veh___699___.current_seclet_length - env.veh_length); -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___699___.v - env.veh___6109___.v) <= 6;
+   -- INVAR env.veh___699___.on_straight_section < 0 -> abs(env.veh___699___.abs_pos - env.veh___6109___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___699___.v - env.veh___6119___.v) <= 6;
+   -- INVAR env.veh___699___.on_straight_section < 0 -> abs(env.veh___699___.abs_pos - env.veh___6119___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+
+INIT env.veh___6109___.is_on_sec_0 = 1;
+INIT env.veh___6109___.abs_pos = 10 * (env.veh_length + 1);
+INVAR env.veh___6109___.v <= env.veh___6109___.current_seclet_length;
+TRANS env.veh___6109___.v >= -env.veh___6109___.next_seclet_length;
+INVAR env.veh___6109___.on_straight_section < 0 -> (env.veh___6109___.abs_pos >= env.veh_length & env.veh___6109___.abs_pos <= env.veh___6109___.current_seclet_length - env.veh_length); -- Don't collide too soon on junction entries.
+-- INVAR abs(env.veh___6109___.v - env.veh___6119___.v) <= 6;
+   -- INVAR env.veh___6109___.on_straight_section < 0 -> abs(env.veh___6109___.abs_pos - env.veh___6119___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+
+INIT env.veh___6119___.is_on_sec_0 = 1;
+INIT env.veh___6119___.abs_pos = 11 * (env.veh_length + 1);
+INVAR env.veh___6119___.v <= env.veh___6119___.current_seclet_length;
+TRANS env.veh___6119___.v >= -env.veh___6119___.next_seclet_length;
+INVAR env.veh___6119___.on_straight_section < 0 -> (env.veh___6119___.abs_pos >= env.veh_length & env.veh___6119___.abs_pos <= env.veh___6119___.current_seclet_length - env.veh_length); -- Don't collide too soon on junction entries.
+
+
+
+INIT env.section_1.angle != env.section_2.angle & env.section_0.angle != env.section_2.angle & env.section_1.angle != env.section_0.angle;
+
+
+-- EO Three cars invert their ordering
+
+
+-- Nudging
+-- INIT env.veh___609___.abs_pos = 0;
+-- INIT env.veh___619___.abs_pos > 80;
+-- INIT env.veh___629___.abs_pos > 80;
+-- INIT env.veh___639___.abs_pos > 80;
+-- INIT env.veh___649___.abs_pos > 80;
+-- INIT env.veh___659___.abs_pos > 80;
+-- INIT env.veh___669___.abs_pos > 80;
+-- 
+-- INIT env.section_0_segment_0_min_lane != env.section_0_segment_1_min_lane | env.section_0_segment_0_max_lane != env.section_0_segment_1_max_lane;
+-- INIT env.section_0_segment_1_min_lane != env.section_0_segment_2_min_lane | env.section_0_segment_1_max_lane != env.section_0_segment_2_max_lane;
+-- INIT env.section_0_segment_2_min_lane != env.section_0_segment_3_min_lane | env.section_0_segment_2_max_lane != env.section_0_segment_3_max_lane;
+-- INIT env.section_0_segment_3_min_lane != env.section_0_segment_4_min_lane | env.section_0_segment_3_max_lane != env.section_0_segment_4_max_lane;
+-- 
+-- INIT env.section_0_segment_2_min_lane = env.section_0_segment_2_max_lane;
+-- 
+-- INIT env.section_0_segment_0_pos_begin = 0;
+-- INIT env.section_0_segment_1_pos_begin = 20;
+-- INIT env.section_0_segment_2_pos_begin = 40;
+-- INIT env.section_0_segment_3_pos_begin = 60;
+-- INIT env.section_0_segment_4_pos_begin = 80;
+-- EO Nudging
+
+--EO-ADDONS
+
+
+
+INVARSPEC  !( env.veh___609___.on_straight_section >= 0 & env.veh___609___.on_straight_section = env.veh___619___.on_straight_section & env.veh___609___.abs_pos > env.veh___619___.abs_pos& env.veh___609___.on_straight_section = env.veh___629___.on_straight_section & env.veh___619___.abs_pos > env.veh___629___.abs_pos& env.veh___609___.on_straight_section = env.veh___639___.on_straight_section & env.veh___629___.abs_pos > env.veh___639___.abs_pos& env.veh___609___.on_straight_section = env.veh___649___.on_straight_section & env.veh___639___.abs_pos > env.veh___649___.abs_pos& env.veh___609___.on_straight_section = env.veh___659___.on_straight_section & env.veh___649___.abs_pos > env.veh___659___.abs_pos& env.veh___609___.on_straight_section = env.veh___669___.on_straight_section & env.veh___659___.abs_pos > env.veh___669___.abs_pos& env.veh___609___.on_straight_section = env.veh___679___.on_straight_section & env.veh___669___.abs_pos > env.veh___679___.abs_pos& env.veh___609___.on_straight_section = env.veh___689___.on_straight_section & env.veh___679___.abs_pos > env.veh___689___.abs_pos& env.veh___609___.on_straight_section = env.veh___699___.on_straight_section & env.veh___689___.abs_pos > env.veh___699___.abs_pos& env.veh___609___.on_straight_section = env.veh___6109___.on_straight_section & env.veh___699___.abs_pos > env.veh___6109___.abs_pos& env.veh___609___.on_straight_section = env.veh___6119___.on_straight_section & env.veh___6109___.abs_pos > env.veh___6119___.abs_pos) ;
+
+
+
+
+
+--EO-SPEC-STUFF
