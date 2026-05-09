@@ -4658,7 +4658,7 @@ std::string vfm::CppParser::generateEnvModel(
 
    std::string templates_generated_path{ env_model_generated_path + "/templates_archive/"};
    addNote("Copying templates directory '" + pure_path + "' to generated location ('" + templates_generated_path + "').");
-   std::filesystem::copy(pure_path, templates_generated_path, std::filesystem::copy_options::overwrite_existing);
+   std::filesystem::copy(pure_path, templates_generated_path, std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
 
    if (!std::filesystem::exists(file_name_with_path)) {
       addError("EnvModel template file '" + file_name_with_path + "' not found.");
