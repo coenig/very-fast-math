@@ -6163,7 +6163,7 @@ void printVfmOutro(const bool result, const vfm::CppParser& cppp, const std::chr
 }
 
 extern "C"
-bool performFSMCodeGeneration(
+VFM_API bool performFSMCodeGeneration(
    const char* path_to_file_list_file_code, 
    const char* path_to_file_list_file_env_model, 
    const char* target_path_for_generated_code,

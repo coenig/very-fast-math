@@ -536,7 +536,17 @@ private:
    mutable Options options_{};
 };
 
-extern "C" bool performFSMCodeGeneration(
+#ifdef _WIN32
+  #ifdef VFM_EXPORTS
+    #define VFM_API __declspec(dllexport)
+  #else
+    #define VFM_API __declspec(dllimport)
+  #endif
+#else
+  #define VFM_API
+#endif
+
+extern "C" VFM_API bool performFSMCodeGeneration(
    const char* path_to_file_list_file_code, 
    const char* path_to_file_list_file_env_model, 
    const char* target_path_for_generated_code,

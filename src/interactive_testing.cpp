@@ -1687,7 +1687,7 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
 }
 
 extern "C"
-char* expandScript(const char* input, char* result, size_t resultMaxLength)
+VFM_API char* expandScript(const char* input, char* result, size_t resultMaxLength)
 {
    std::string res{ macro::Script::processScript(input) };
    snprintf(result, resultMaxLength, "%s", res.c_str());

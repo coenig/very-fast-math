@@ -30,7 +30,11 @@ def _patched_get_color(cls, vehicle, transparent=False):
 VehicleGraphics.get_color = _patched_get_color
 
 # Prepare connection to morty lib.
-morty_lib = CDLL('./lib/libvfm.so')
+import platform
+if platform.system() == 'Windows':
+    morty_lib = CDLL('./bin/VFM_MAIN_LIB.dll')
+else:
+    morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.expandScript.argtypes = [c_char_p, c_char_p, c_size_t]
 morty_lib.expandScript.restype = c_char_p
 
@@ -39,7 +43,6 @@ dummy_result = create_string_buffer(2000)
 script_envmodels = r"""
 @{./src/templates/}@.stringToHeap[MY_PATH]
 @{../../morty/envmodel_config.tpl.json}@.generateEnvmodels
-)" };
 """
 dummy_result = morty_lib.expandScript(script_envmodels.encode('utf-8'), dummy_result, sizeof(dummy_result)).decode()
 # EO Create EnvModels.
