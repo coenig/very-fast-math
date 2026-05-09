@@ -196,7 +196,10 @@ parser.add_argument('--headless', action='store_true',
 args = parser.parse_args()
 
 if args.headless:
-    os.environ['SDL_VIDEODRIVER'] = 'offscreen'
+    if platform.system() == 'Windows':
+        os.environ['SDL_VIDEODRIVER'] = 'dummy'
+    else:
+        os.environ['SDL_VIDEODRIVER'] = 'offscreen'
 
 # Best so far:
 # ACCEL_RANGE = 6
@@ -355,7 +358,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         env = RecordVideo(env, video_folder="videos", name_prefix=f"vid_{seedo}",
                     episode_trigger=lambda e: True)  # record all episodes
         env.unwrapped.set_record_video_wrapper(env)
-        env.start_video_recorder()
+        env.start_recording(f"vid_{seedo}")
 
     first = True
     obs = env.unwrapped.observation_type.observe()
@@ -575,7 +578,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         f.write("{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} " + str(seedo) + " " + outcome + " [" + str(nocex_count) + " blind; " + blind_stats + "|]\n")
 
     if args.record_video:
-        env.close_video_recorder()
+        env.stop_recording()
         suffix = ""
         if crashed_count > 0:
             suffix += "_crashed"

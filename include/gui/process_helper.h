@@ -218,7 +218,7 @@ public:
             if (commandLine.find(wstr) != std::wstring::npos) {
                hres_ = pclsObj->Get(L"ProcessId", 0, &vtProp, 0, 0);
                addNote("Found process " + std::to_string(vtProp.intVal) + " matching '" + command_line_str + "'.");
-               addError(commandLine, ErrorLevelEnum::note);
+               addError(std::string(commandLine.begin(), commandLine.end()), ErrorLevelEnum::note);
                pids.insert(vtProp.intVal);
             }
             VariantClear(&vtProp);
