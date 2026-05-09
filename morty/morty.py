@@ -279,9 +279,29 @@ def archive(seedo, global_counter):
         archive_path = f'{generated_path_prefix}/detailed_results/run_{seedo}/iteration_{global_counter}/'
         if not os.path.exists(archive_path):
             os.makedirs(archive_path)
-        for filename in ucd_config_prios_str:
-            distutils.dir_util.copy_tree(generated_path_prefix + filename, archive_path + filename)
+        for config_name in ucd_config_prios_str:
+            config_dir = generated_path_prefix + config_name
+            baseline = baseline_files.get(config_name, set())
+            for dirpath, dirnames, filenames in os.walk(config_dir):
+                for fname in filenames:
+                    full_path = os.path.join(dirpath, fname)
+                    rel_path = os.path.relpath(full_path, config_dir)
+                    if rel_path not in baseline:
+                        dest = os.path.join(archive_path + config_name, rel_path)
+                        os.makedirs(os.path.dirname(dest), exist_ok=True)
+                        shutil.copy2(full_path, dest)
 
+# Snapshot baseline files in each config folder before the simulation loop.
+baseline_files = {}
+for config_name in ucd_config_prios_str:
+    config_dir = generated_path_prefix + config_name
+    baseline = set()
+    for dirpath, dirnames, filenames in os.walk(config_dir):
+        for fname in filenames:
+            full_path = os.path.join(dirpath, fname)
+            baseline.add(os.path.relpath(full_path, config_dir))
+    baseline_files[config_name] = baseline
+ 
 for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         "action": {
