@@ -13,6 +13,22 @@ import distutils.dir_util
 import json
 from pathlib import Path
 
+# COP: Patch VehicleGraphics.get_color so that crashed always takes priority over custom color.
+# Without this, highway-env checks vehicle.color BEFORE vehicle.crashed, so any custom
+# color (blue for blind, green for CEX) would suppress the native red crash rendering —
+# including during the intermediate simulation sub-steps within env.step().
+from highway_env.vehicle.graphics import VehicleGraphics
+_original_get_color = VehicleGraphics.get_color
+@classmethod
+def _patched_get_color(cls, vehicle, transparent=False):
+    if vehicle.crashed:
+        color = cls.RED
+        if transparent:
+            color = (color[0], color[1], color[2], 30)
+        return color
+    return _original_get_color.__func__(cls, vehicle, transparent)
+VehicleGraphics.get_color = _patched_get_color
+
 # Prepare connection to morty lib.
 morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.expandScript.argtypes = [c_char_p, c_char_p, c_size_t]
@@ -341,6 +357,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     first = True
     obs = env.unwrapped.observation_type.observe()
     blind_stats = ""
+    crashed = False
     
     for global_counter in range(args.steps_per_run):
         mcinput = ""
@@ -360,17 +377,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     mcinput += str(val) + ","
             mcinput += ";"
             i = i + 1
-        
-        crashed = False # Check if any car has crashed.
-        for vehicle in env.unwrapped.road.vehicles:
-            crashed = crashed or vehicle.crashed
-        
-        if crashed:
-            crashed_count += 1
-        
-        if crashed_count > args.allow_crashed_steps: # Allow these many crashes per run.
-            archive(seedo, global_counter)
-            break
 
         MC_SCRIPT = f"""@{{
             @{{./src/templates/}}@.stringToHeap[MY_PATH]
@@ -423,7 +429,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         ### EO POSTPROCESS RESULT ###
         #### EO MODEL CHECKER CALL ####
 
-        # TODO: Shouldn't this check come AFTER the application of the MC instructions? It shouldn't fundamentally hurt, but delays the success recognition for one iteration.
         successed = SUCC_CONDS[exp_num]()
         
         # We check both (1) the MC result and (2) the success condition to determine if we are done. Reason:
@@ -441,7 +446,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         if res_str == empty_cex:
             print("No CEX found")
             for i in range(nonegos): # Set blue when blind.
-                env.unwrapped.controlled_vehicles[i].color = (100, 100, 255)
+                if not env.unwrapped.controlled_vehicles[i].crashed:
+                    env.unwrapped.controlled_vehicles[i].color = (100, 100, 255)
             if nocex_count > args.allow_blind_steps: # Allow up to this many times being blind per run. (If in doubt: 10)
                 archive(seedo, global_counter)
                 break
@@ -449,11 +455,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         else:
             cex_length = len(res_str.split(';')[0].split('|')[0].split(','))
             for i in range(nonegos):
-                env.unwrapped.controlled_vehicles[i].color = (min(cex_length * 15, 255), 200, min(cex_length * 15, 255))
-
-        for i in range(nonegos):
-            if env.unwrapped.controlled_vehicles[i].crashed:
-                env.unwrapped.controlled_vehicles[i].color = (255, 0, 0)
+                if not env.unwrapped.controlled_vehicles[i].crashed:
+                    env.unwrapped.controlled_vehicles[i].color = (min(cex_length * 15, 255), 200, min(cex_length * 15, 255))
 
         sum_vel_by_car = []
         sum_lan_by_car = []
@@ -545,11 +548,24 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         
         action = tuple(action_list)
 
-        if not args.headless:
-            env.render()
+        # === APPLY MC INSTRUCTIONS ===
         obs, reward, done, truncated, info = env.step(action)
 
+        # === CHECK CRASHES (after applying MC instructions) ===
+        crashed = False
+        for vehicle in env.unwrapped.road.vehicles:
+            crashed = crashed or vehicle.crashed
+        if crashed:
+            crashed_count += 1
+
+        # === RENDER ===
+        if not args.headless:
+            env.render()
+
         archive(seedo, global_counter)
+
+        if crashed_count > args.allow_crashed_steps: # Allow these many crashes per run.
+            break
         
     with open(f"{generated_path_prefix}/results.txt", "a") as f:
         outcome = "succeeded" if seedo in good_ones else "failed"

@@ -69,7 +69,7 @@
       "MINDISTCONNECTIONS": "#{10}#",
       "MIN_TIME_BETWEEN_LANECHANGES": 3,
       "NONEGOS": 5,
-      "NUMLANES": 4,
+      "NUMLANES": 2,
       "LATERAL_LC_GRANULARITY": 10,
       "MAX_JUMP_OVER_TECHNICAL_LANES": 1,
       "SIMPLE_LC": true,
