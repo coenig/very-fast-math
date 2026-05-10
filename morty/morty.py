@@ -460,7 +460,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[16]
             @{{scriptID}}@.scriptVar.StopScript
 
-            {"@{{../../morty/envmodel_config.tpl.json}}@.generateTestCases[cex-birdseye/cex-smooth-birdseye]" if args.debug else ""}
+            {"@{../../morty/envmodel_config.tpl.json}@.generateTestCases[cex-birdseye/cex-smooth-birdseye]" if args.debug else ""}
             }}@.nil
             @{{}}@.prepareOutputForMortyUCD[{str(seedo)}, {str(global_counter)}, {0}, {str(crashed)}]
         """
@@ -593,12 +593,13 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             
             if abs(dpoints_y[i] - egos_y[i]) < eps: # If we're close to the desired lateral position, we can start a new lane change.
                 lc_time[i] = 0
+                num_tech_lanes = abs(sum_lan_by_car[i])
                 
                 if sum_lan_by_car[i] < 0:
-                    dpoints_delta[i] = on_lane_step_y # Formerly 2, which is consistent with the smoothening variables, so doesn't break anything.
+                    dpoints_delta[i] = num_tech_lanes * on_lane_step_y
                     dpoints_y[i] += dpoints_delta[i]
                 elif sum_lan_by_car[i] > 0:
-                    dpoints_delta[i] = -on_lane_step_y # Formerly 2, which is consistent with the smoothening variables, so doesn't break anything.
+                    dpoints_delta[i] = -num_tech_lanes * on_lane_step_y
                     dpoints_y[i] += dpoints_delta[i]
             
             if lc_time[i] > MAXTIME_FOR_LC and dpoints_delta[i] != 0:
