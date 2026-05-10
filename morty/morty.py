@@ -196,14 +196,13 @@ parser.add_argument('--headless', action='store_true',
 args = parser.parse_args()
 
 if args.headless:
-    if platform.system() == 'Windows':
-        if not args.record_video:
-            os.environ['SDL_VIDEODRIVER'] = 'dummy'
-        else:
-            os.environ['SDL_VIDEODRIVER'] = 'windows'
-            os.environ['SDL_VIDEO_WINDOW_POS'] = '-10000,-10000'
+    if not args.record_video:
+        os.environ['SDL_VIDEODRIVER'] = 'dummy'  # No rendering at all.
+    elif platform.system() == 'Windows':
+        os.environ['SDL_VIDEODRIVER'] = 'windows'
+        os.environ['SDL_VIDEO_WINDOW_POS'] = '-32000,-32000'
     else:
-        os.environ['SDL_VIDEODRIVER'] = 'offscreen'
+        os.environ['SDL_VIDEODRIVER'] = 'offscreen'  # Render to memory buffer, no X11.
 
 # Best so far:
 # ACCEL_RANGE = 6
