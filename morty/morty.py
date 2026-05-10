@@ -151,8 +151,10 @@ for i in range(0, len(SPECS)):
 addons[7] += r"""
 INVAR env.veh___609___.v >= 5;
 INVAR env.veh___619___.v <= -5;
-INVAR env.veh___609___.v >= 0;
-INVAR env.veh___619___.v <= 0;
+TRANS (((env.veh___619___.abs_pos - env.veh___609___.abs_pos) < 0)
+       != ((next(env.veh___619___.abs_pos) - next(env.veh___609___.abs_pos)) < 0))
+       -> ((env.veh___609___.on_normalized_lane = next(env.veh___609___.on_normalized_lane)) & 
+          (env.veh___619___.on_normalized_lane = next(env.veh___619___.on_normalized_lane)));
 """
 
 for i in range(2, nonegos):
