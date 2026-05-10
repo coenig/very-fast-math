@@ -278,37 +278,61 @@ for ucd_config_str in ucd_config_prios_str:
         f.write(content)
         f.truncate()
 
+import hashlib
+
+def _hash_file(path):
+    h = hashlib.md5()
+    with open(path, 'rb') as f:
+        for chunk in iter(lambda: f.read(8192), b''):
+            h.update(chunk)
+    return h.hexdigest()
+
+def _snapshot_configs():
+    """Return {config_name: {rel_path: md5_hex}} for all config dirs."""
+    snap = {}
+    for config_name in ucd_config_prios_str:
+        config_dir = generated_path_prefix + config_name
+        file_hashes = {}
+        for dirpath, _, filenames in os.walk(config_dir):
+            for fname in filenames:
+                full_path = os.path.join(dirpath, fname)
+                rel_path = os.path.relpath(full_path, config_dir)
+                file_hashes[rel_path] = _hash_file(full_path)
+        snap[config_name] = file_hashes
+    return snap
+
+def _save_snapshot_to_archive(seedo):
+    """Copy all config files into the detailed archive as the 'snapshot' entry."""
+    archive_path = f'{generated_path_prefix}/detailed_archive/run_{seedo}/snapshot/'
+    for config_name in ucd_config_prios_str:
+        config_dir = generated_path_prefix + config_name
+        for dirpath, _, filenames in os.walk(config_dir):
+            for fname in filenames:
+                full_path = os.path.join(dirpath, fname)
+                rel_path = os.path.relpath(full_path, config_dir)
+                dest = os.path.join(archive_path + config_name, rel_path)
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                shutil.copy2(full_path, dest)
+
+baseline_hashes = {}  # Populated per-run after first MC call.
+
 def archive(seedo, global_counter):
     if args.detailed_archive:
-        archive_path = f'{generated_path_prefix}/detailed_results/run_{seedo}/iteration_{global_counter}/'
+        archive_path = f'{generated_path_prefix}/detailed_archive/run_{seedo}/iteration_{global_counter}/'
         if not os.path.exists(archive_path):
             os.makedirs(archive_path)
         for config_name in ucd_config_prios_str:
             config_dir = generated_path_prefix + config_name
-            baseline = baseline_files.get(config_name, set())
-            for dirpath, dirnames, filenames in os.walk(config_dir):
+            baseline = baseline_hashes.get(config_name, {})
+            for dirpath, _, filenames in os.walk(config_dir):
                 for fname in filenames:
                     full_path = os.path.join(dirpath, fname)
                     rel_path = os.path.relpath(full_path, config_dir)
-                    is_new_file = rel_path not in baseline
-                    is_modified = os.path.getmtime(full_path) > baseline_time
-                    if is_new_file or is_modified:
+                    current_hash = _hash_file(full_path)
+                    if rel_path not in baseline or baseline[rel_path] != current_hash:
                         dest = os.path.join(archive_path + config_name, rel_path)
                         os.makedirs(os.path.dirname(dest), exist_ok=True)
                         shutil.copy2(full_path, dest)
-
-# Snapshot baseline files in each config folder before the simulation loop.
-import time
-baseline_files = {}
-for config_name in ucd_config_prios_str:
-    config_dir = generated_path_prefix + config_name
-    baseline = set()
-    for dirpath, dirnames, filenames in os.walk(config_dir):
-        for fname in filenames:
-            full_path = os.path.join(dirpath, fname)
-            baseline.add(os.path.relpath(full_path, config_dir))
-    baseline_files[config_name] = baseline
-baseline_time = time.time()
  
 for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
@@ -439,6 +463,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         result = create_string_buffer(25000)
         res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
         res_str = res.decode().strip()
+
+        if args.detailed_archive and global_counter == 0:
+            baseline_hashes = _snapshot_configs()
+            _save_snapshot_to_archive(seedo)
         
         ### POSTPROCESS RESULT ###
         all_results_dict = {}
