@@ -287,34 +287,43 @@ def _hash_file(path):
             h.update(chunk)
     return h.hexdigest()
 
-def _snapshot_configs():
-    """Return {config_name: {rel_path: md5_hex}} for all config dirs."""
+def _snapshot_configs(restrict_to=None):
+    """Return {config_name: {rel_path: md5_hex}} for all config dirs.
+    If restrict_to is given, only include rel_paths present in that dict."""
     snap = {}
     for config_name in ucd_config_prios_str:
         config_dir = generated_path_prefix + config_name
+        allowed = restrict_to.get(config_name) if restrict_to else None
         file_hashes = {}
         for dirpath, _, filenames in os.walk(config_dir):
             for fname in filenames:
                 full_path = os.path.join(dirpath, fname)
                 rel_path = os.path.relpath(full_path, config_dir)
+                if allowed is not None and rel_path not in allowed:
+                    continue
                 file_hashes[rel_path] = _hash_file(full_path)
         snap[config_name] = file_hashes
     return snap
 
-def _save_snapshot_to_archive(seedo):
-    """Copy all config files into the detailed archive as the 'snapshot' entry."""
-    archive_path = f'{generated_path_prefix}/detailed_archive/run_{seedo}/snapshot/'
+def _save_configs_to_archive(seedo, subfolder, restrict_to=None):
+    """Copy config files into the detailed archive under the given subfolder.
+    If restrict_to is given ({config_name: set_of_rel_paths}), only copy those files."""
+    archive_path = f'{generated_path_prefix}/detailed_archive/run_{seedo}/{subfolder}/'
     for config_name in ucd_config_prios_str:
         config_dir = generated_path_prefix + config_name
+        allowed = restrict_to.get(config_name) if restrict_to else None
         for dirpath, _, filenames in os.walk(config_dir):
             for fname in filenames:
                 full_path = os.path.join(dirpath, fname)
                 rel_path = os.path.relpath(full_path, config_dir)
+                if allowed is not None and rel_path not in allowed:
+                    continue
                 dest = os.path.join(archive_path + config_name, rel_path)
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
                 shutil.copy2(full_path, dest)
 
-baseline_hashes = {}  # Populated per-run after first MC call.
+baseline_hashes = {}  # Pre-loop file set (before any MC call).
+snapshot_hashes = {}  # Post-first-MC-call hashes (only baseline files).
 
 def archive(seedo, global_counter):
     if args.detailed_archive:
@@ -323,7 +332,7 @@ def archive(seedo, global_counter):
             os.makedirs(archive_path)
         for config_name in ucd_config_prios_str:
             config_dir = generated_path_prefix + config_name
-            baseline = baseline_hashes.get(config_name, {})
+            baseline = snapshot_hashes.get(config_name, {})
             for dirpath, _, filenames in os.walk(config_dir):
                 for fname in filenames:
                     full_path = os.path.join(dirpath, fname)
@@ -333,7 +342,11 @@ def archive(seedo, global_counter):
                         dest = os.path.join(archive_path + config_name, rel_path)
                         os.makedirs(os.path.dirname(dest), exist_ok=True)
                         shutil.copy2(full_path, dest)
- 
+
+# Take pre-loop baseline: record which files exist before any MC call.
+if args.detailed_archive:
+    baseline_hashes = _snapshot_configs()
+
 for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         "action": {
@@ -416,7 +429,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     obs = env.unwrapped.observation_type.observe()
     blind_stats = ""
     crashed = False
-    
+
+    if args.detailed_archive:
+        _save_configs_to_archive(seedo, '0_pristine')
+
     for global_counter in range(args.steps_per_run):
         mcinput = ""
         i = 0
@@ -465,8 +481,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         res_str = res.decode().strip()
 
         if args.detailed_archive and global_counter == 0:
-            baseline_hashes = _snapshot_configs()
-            _save_snapshot_to_archive(seedo)
+            # Processed snapshot: only re-hash files that existed in the baseline
+            # (excludes iteration-specific artifacts like debug folders).
+            snapshot_hashes = _snapshot_configs(restrict_to=baseline_hashes)
+            _save_configs_to_archive(seedo, '1_initialized', restrict_to={cn: set(baseline_hashes[cn]) for cn in baseline_hashes})
         
         ### POSTPROCESS RESULT ###
         all_results_dict = {}
