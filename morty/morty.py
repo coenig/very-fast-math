@@ -290,12 +290,15 @@ def archive(seedo, global_counter):
                 for fname in filenames:
                     full_path = os.path.join(dirpath, fname)
                     rel_path = os.path.relpath(full_path, config_dir)
-                    if rel_path not in baseline:
+                    is_new_file = rel_path not in baseline
+                    is_modified = os.path.getmtime(full_path) > baseline_time
+                    if is_new_file or is_modified:
                         dest = os.path.join(archive_path + config_name, rel_path)
                         os.makedirs(os.path.dirname(dest), exist_ok=True)
                         shutil.copy2(full_path, dest)
 
 # Snapshot baseline files in each config folder before the simulation loop.
+import time
 baseline_files = {}
 for config_name in ucd_config_prios_str:
     config_dir = generated_path_prefix + config_name
@@ -305,6 +308,7 @@ for config_name in ucd_config_prios_str:
             full_path = os.path.join(dirpath, fname)
             baseline.add(os.path.relpath(full_path, config_dir))
     baseline_files[config_name] = baseline
+baseline_time = time.time()
  
 for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
