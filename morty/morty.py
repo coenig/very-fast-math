@@ -197,7 +197,11 @@ args = parser.parse_args()
 
 if args.headless:
     if platform.system() == 'Windows':
-        os.environ['SDL_VIDEODRIVER'] = 'dummy'
+        if not args.record_video:
+            os.environ['SDL_VIDEODRIVER'] = 'dummy'
+        else:
+            os.environ['SDL_VIDEODRIVER'] = 'windows'
+            os.environ['SDL_VIDEO_WINDOW_POS'] = '-10000,-10000'
     else:
         os.environ['SDL_VIDEODRIVER'] = 'offscreen'
 
