@@ -460,11 +460,7 @@ ASSIGN
     esac;
 
     -- update velocity (directly feed-through newly chosen accel)
-    @{
-      @(next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, 0), max_vel);)@
-      @(next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, -max_vel), max_vel);)@
-    }@.if[@{UCD}@.eval]
-    -- EO TWICE special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just undo condition!
+    next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, -max_vel), max_vel);
 
     -- ############ IDEA ###########
     -- Set future road either to 1/0 if it is clear we will end or not end up there, or to {0, 1} whenever there IS a connection,
