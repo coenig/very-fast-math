@@ -23,6 +23,7 @@
 #include <memory>
 #include <utility>
 #include <limits>
+#include <tuple>
 
 namespace vfm {
 namespace macro {
@@ -701,6 +702,25 @@ private:
       }
    };
 
+   std::tuple<std::string, std::map<std::string, std::string>> getModes(const std::string& pars0)
+   {
+      const std::string raw_modes{ pars0 == "all" ? allModesStr() : pars0 };
+      std::map<std::string, std::string> modes{};
+      std::string modes_str{};
+
+      for (const auto& mode : StaticHelper::split(raw_modes, "/")) {
+         if (mc::ALL_TESTCASE_MODES.count(mode)) {
+            modes.insert({ mode, mc::ALL_TESTCASE_MODES.at(mode) });
+            modes_str += " " + mode;
+         }
+         else {
+            addWarning("Mode candidate '" + mode + "' is not an available mode. Will be ignored.");
+         }
+      }
+
+      return std::make_tuple(modes_str, modes);
+   }
+
    ScriptMethodDescription m9{
       "generateTestCases",
       1,
@@ -726,25 +746,32 @@ private:
             addError("Error occurred during collection of packages for test case generation: '" + std::string(ex.what()) + "'");
          }
 
-         const std::string raw_modes{ parameters[0] == "all" ? allModesStr() : parameters[0]};
-         std::map<std::string, std::string> modes{};
-         std::string modes_str{};
-
-         for (const auto& mode : StaticHelper::split(raw_modes, "/")) {
-            if (mc::ALL_TESTCASE_MODES.count(mode)) {
-               modes.insert({ mode, mc::ALL_TESTCASE_MODES.at(mode) });
-               modes_str += " " + mode;
-            }
-            else {
-               addWarning("Mode candidate '" + mode + "' is not an available mode. Will be ignored.");
-            }
-         }
 
          std::string json_tpl_filename{ body.empty() ? DEFAULT_FILE_NAME_JSON_TEMPLATE : body };
+
+         auto [modes_str, modes] = getModes(parameters.at(0));
 
          mc_workflow.createTestCases(modes, path_template, path_json, json_tpl_filename, sec_ids);
 
          return "Test case generation via script finished for these modes: '" + modes_str + " '.";
+      }
+   };
+
+   ScriptMethodDescription m9b{
+      "generateTestCasesPlain",
+      1,
+      [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string
+      {
+         auto [modes_str, modes] = getModes(parameters.at(0));
+
+         mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
+            { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
+            body,
+            "debug_trace_array",
+            mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv),
+            modes);
+
+         return "Test case generation finished for '" + body + "' in these modes: '" + modes_str + " '.";
       }
    };
 
@@ -952,6 +979,7 @@ private:
           // @{}@.generateTestCases[all]
           // >@
           // Don't forget to add '@{../src/templates/}@.stringToHeap[MY_PATH]' if desired.
+      m9b,
       m10,
       m11,
       m12,
@@ -995,6 +1023,18 @@ private:
       { "toUpperCamelCase", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {  return StaticHelper::toUpperCamelCase(body); } },
       { "toUpperCase", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::toUpperCase(body); } },
       { "toLowerCase", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::toLowerCase(body); } },
+      
+      { "findFilesRecursively", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         auto paths = StaticHelper::findFilesRecursively(body, parameters[0]);
+         std::string paths_str{};
+
+         for (const auto& p : paths) {
+            paths_str += "@(" + p.string() + ")@";
+         }
+
+         return paths_str; 
+      } },
+      
       { "removeLastFileExtension", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeLastFileExtension(body); } },
       { "removeLastFileExtension", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeLastFileExtension(body, parameters.at(0)); } },
       { "getLastFileExtension", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::getLastFileExtension(body); } },

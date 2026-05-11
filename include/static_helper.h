@@ -269,6 +269,8 @@ public:
    static std::string toUpperCase(const std::string& str);
    static std::string toLowerCase(const std::string& str);
 
+   static std::vector<std::filesystem::path> findFilesRecursively(const std::filesystem::path& parentPath, const std::string& wildcard_pattern);
+
    /// <summary>
    /// Removes the last part of a string which is separated by a given denoter. For example:
    ///   removeLastFileExtension("a.b.c") ==> "a.b"
