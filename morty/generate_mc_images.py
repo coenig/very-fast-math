@@ -11,12 +11,12 @@ morty_lib.expandScript.restype = c_char_p
 
 # Create EnvModels.
 dummy_result = create_string_buffer(20000)
-script_envmodels = r"""
+script = r"""
 @{./src/templates/}@.stringToHeap[MY_PATH]
 @{@{examples/gp/detailed_archive/run_0}@.findFilesRecursively[debug_trace_array.txt]}@*.setScriptVar[temp_var, force].nil
-@{@{[i]}@.replaceAll[\, /].removeLastFileExtension[/].generateTestCasesPlain[cex-birdseye]
+@{@{[i]}@.replaceAll[\, /].removeLastFileExtension[/].generateTestCasesPlain[cex-smooth-birdseye]
 }@*.for[[i], @{temp_var}@.scriptVar]
 """
-dummy_result = morty_lib.expandScript(script_envmodels.encode('utf-8'), dummy_result, sizeof(dummy_result)).decode()
+dummy_result = morty_lib.expandScript(script.encode('utf-8'), dummy_result, sizeof(dummy_result)).decode()
 
 print(dummy_result)
