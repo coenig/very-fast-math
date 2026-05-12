@@ -1562,6 +1562,21 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
    auto cars = StaticHelper::split(input_str, ";");
    int null_pos{};
 
+   // Read scaling factors to convert HE real-world values into MC-space units.
+   float dist_scale = 1.0f;
+   float vel_scale = 1.0f;
+   for (const auto& cn : ucd_config_prios_vec) {
+      if (cn.empty()) continue;
+      const std::string sf{ OUTPUT_BASE_PATH + cn + "/" + TIMESCALING_FILENAME };
+      if (std::filesystem::exists(sf)) {
+         ScaleDescription sd{ StaticHelper::readFile(sf) };
+         dist_scale = sd.getDistanceScalingFactor();
+         float time_scale = sd.getTimeScalingFactor();
+         vel_scale = (time_scale > 0) ? dist_scale / time_scale : 1.0f;
+         break;
+      }
+   }
+
    cars.erase(cars.end() - 1);
    std::string main_file_additions{};
 
@@ -1580,10 +1595,10 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
          x = (std::max)((std::min)(x, (std::numeric_limits<float>::max)()), (std::numeric_limits<float>::min)());
          // vx = (std::max)((std::min)(vx, 70.0f), -70.0f);
 
-         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.abs_pos = " + std::to_string((int)(x)) + ";\n";
-         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx)) + ";\n";
+         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.abs_pos = " + std::to_string((int)(x * dist_scale)) + ";\n";
+         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx * vel_scale)) + ";\n";
 
-         if (i == 0) null_pos = (int) (x);
+         if (i == 0) null_pos = (int) (x * dist_scale);
 
          static constexpr float LANE_WIDTH = 4.0f;
          const float road_width = num_lanes * LANE_WIDTH;

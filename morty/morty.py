@@ -65,6 +65,9 @@ with open('morty/envmodel_config.json') as f:
     max_start_speed = min(d[ucd_config_prios_str[0]]["MAXSTARTSPEEDNONEGO_UCD"], max_speed)
     min_start_speed = min(d[ucd_config_prios_str[0]]["MINSTARTSPEEDNONEGO_UCD"], max_start_speed)
     exp_num = d[ucd_config_prios_str[0]]["UCD_EXP_NUM"]
+    dist_scale = d[ucd_config_prios_str[0]]["DISTANCESCALING"] / 1000
+    time_scale = d[ucd_config_prios_str[0]]["TIMESCALING"] / 1000
+    vel_scale = dist_scale / time_scale  # velocity = distance / time
 
     if backward_driving_car_ids_str.endswith(')@'):
         backward_driving_car_ids_str = backward_driving_car_ids_str[:-2]
@@ -118,11 +121,12 @@ SPECS.append(("INVARSPEC !(env.veh___609___.abs_pos - env.veh___6%r9___.abs_pos 
 SPECS.append(r"""INVARSPEC TRUE;""") # 5: Benchmark 1.
 SPECS.append(r"""INVARSPEC FALSE;""") # 6: Benchmark 2.
 
-TARGET_DIST_NUDGING_FRONT = 300 # Target distance for the next spec.
-TARGET_DIST_NUDGING_BACK = 10 # Target distance for the next spec.
-TARGET_DIST_NUDGING = 300 # Target distance for the next spec.
-#SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos + {TARGET_DIST_NUDGING} & env.veh___619___.abs_pos >= 0);") # 7
-SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= {TARGET_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos <= {TARGET_DIST_NUDGING_BACK});") # 7
+TARGET_DIST_NUDGING_FRONT = 300 # Target distance for the next spec, in real-world meters.
+TARGET_DIST_NUDGING_BACK = 10 # Target distance for the next spec, in real-world meters.
+MC_DIST_NUDGING_FRONT = int(TARGET_DIST_NUDGING_FRONT * dist_scale) # Scaled to MC-space.
+MC_DIST_NUDGING_BACK = int(TARGET_DIST_NUDGING_BACK * dist_scale) # Scaled to MC-space.
+#SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos + {TARGET_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos >= 0);") # 7
+SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= {MC_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos <= {MC_DIST_NUDGING_BACK});") # 7
 SPECS.append(r"""INVARSPEC !(env.veh___609___.lane_b0 & !env.veh___609___.lane_b1);""") # 8: Car 609 reaches leftmost lane (b0)
 
 
@@ -148,9 +152,11 @@ for i in range(0, len(SPECS)):
     addons[i] += ADDONS_BEGIN_DENOTER
     addons[i] += f"-- UCD experiment{i} --\n"
 
-addons[7] += r"""
-INVAR env.veh___609___.v >= 5;
-INVAR env.veh___619___.v <= -5;
+MC_MIN_V_FORWARD = int(5 * vel_scale)
+MC_MAX_V_BACKWARD = int(-5 * vel_scale)
+addons[7] += f"""
+INVAR env.veh___609___.v >= {MC_MIN_V_FORWARD};
+INVAR env.veh___619___.v <= {MC_MAX_V_BACKWARD};
 TRANS (((env.veh___619___.abs_pos - env.veh___609___.abs_pos) < 0)
        != ((next(env.veh___619___.abs_pos) - next(env.veh___609___.abs_pos)) < 0))
        -> ((env.veh___609___.on_normalized_lane = next(env.veh___609___.on_normalized_lane)) & 
@@ -160,7 +166,7 @@ TRANS (((env.veh___619___.abs_pos - env.veh___609___.abs_pos) < 0)
 for i in range(2, nonegos):
     addons[7] += f"INVAR env.veh___6{i}9___.v = 0;\n"
 
-addons[8] += "INVAR env.veh___609___.v >= 5;\n"
+addons[8] += f"INVAR env.veh___609___.v >= {MC_MIN_V_FORWARD};\n"
 for i in range(1, nonegos):
     addons[8] += f"INVAR env.veh___6{i}9___.v = 0;\n"
 
