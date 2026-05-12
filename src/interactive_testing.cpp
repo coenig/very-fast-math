@@ -1645,6 +1645,13 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
       auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_BASE_PATH + config_name + "/debug_trace_array.txt") };
       MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
 
+      // Apply time/distance scaling so that deltas are in real-world units.
+      const std::string scaling_file{ OUTPUT_BASE_PATH + config_name + "/" + TIMESCALING_FILENAME };
+      if (std::filesystem::exists(scaling_file)) {
+         ScaleDescription ts_description{ StaticHelper::readFile(scaling_file) };
+         StaticHelper::applyTimescaling(trace, ts_description);
+      }
+
       StaticHelper::writeTextToFile(
          std::to_string(seed) + ";"
          + std::to_string(trace.size() / 2) + ";"
