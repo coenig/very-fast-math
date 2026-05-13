@@ -67,7 +67,7 @@
       "MINACCELEGO": "#{minaccel}#",
       "MINACCELNONEGO": "#{minaccel}#",
       "MINDISTCONNECTIONS": "#{10}#",
-      "MIN_TIME_BETWEEN_LANECHANGES": 3,
+      "MIN_TIME_BETWEEN_LANECHANGES": 1,
       "NONEGOS": 5,
       "NUMLANES": 4,
       "LATERAL_LC_GRANULARITY": 10,
@@ -107,7 +107,7 @@
       "_BP_INCLUDES_FILE_PATH": "./src/examples/ego_less/vfm-includes.txt",
       "_CACHED_PATH": "./examples/tmp",
       "_EXTERNAL_PATH": "./external",
-      "_GENERATED_PATH": "./examples/gp",
+      "_GENERATED_PATH": "./examples/exp4_time_2000_dist_4000_mintimeBetweenLC_1",
       "_ENVMODEL_PATH": "./src/templates"
    }
 }

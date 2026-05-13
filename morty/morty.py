@@ -557,7 +557,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
         # Best so far:
         # LANE_CHANGE_DURATION = 3
-        LANE_CHANGE_DURATION = min_time_between_lcs # Has to match EnvModel.smv ==> min_time_between_lcs
+        LANE_CHANGE_DURATION = max(min_time_between_lcs, int(time_scale)) # Index in the MC delta trace where the lane change effect appears.
 
         # Process the MC data.
         for i1, el1 in enumerate(res_str.split(';')):
