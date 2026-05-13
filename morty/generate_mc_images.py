@@ -13,7 +13,7 @@ morty_lib.expandScript.restype = c_char_p
 dummy_result = create_string_buffer(20000)
 script = r"""
 @{./src/templates/}@.stringToHeap[MY_PATH]
-@{@{examples/gp/detailed_archive/run_0}@.findFilesRecursively[debug_trace_array.txt]}@*.setScriptVar[temp_var, force].nil
+@{@{examples/gp/detailed_archive/run_0/iteration_40}@.findFilesRecursively[debug_trace_array.txt]}@*.setScriptVar[temp_var, force].nil
 @{@{[i]}@.replaceAll[\, /].removeLastFileExtension[/].generateTestCasesPlain[cex-smooth-birdseye]
 }@*.for[[i], @{temp_var}@.scriptVar]
 """
