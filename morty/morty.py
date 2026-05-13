@@ -90,31 +90,35 @@ SUCC_CONDS = [] # Conditions determining success of the specs.
 
 SPECS.append("INVARSPEC !(@{ env.veh___6[i]9___.v = 0 }@.for[[i], 0, %r, 1, & ]);" % (nonegos - 1)) # 0: All cars stopped.
 
-TARGET_VEL = 50 # Target velocity for the next spec.
-SPECS.append("INVARSPEC !(@{ env.veh___6[i]9___.v = %r }@.for[[i], 0, %r, 1, & ]);" % (TARGET_VEL, nonegos - 1)) # 1: All cars at target velocity.
+TARGET_VEL = 50 # Target velocity in real-world m/s.
+MC_TARGET_VEL = int(TARGET_VEL * vel_scale) # Scaled to MC-space.
+SPECS.append("INVARSPEC !(@{ env.veh___6[i]9___.v = %r }@.for[[i], 0, %r, 1, & ]);" % (MC_TARGET_VEL, nonegos - 1)) # 1: All cars at target velocity.
 
 SPECS.append("INVARSPEC !(@{ env.veh___609___.on_lane_max = env.veh___6[i]9___.on_lane_max}@.for[[i], 1, %r, 1, & ]);" % (nonegos - 1)) # 2: All cars at max one lane width apart in lateral direction.
 
-TARGET_DIST = 20 # Target distance for the next spec.
-TARGET_VEL_LOW = 10 # Target velocity for the next spec, lower bound.
-TARGET_VEL_HIGH = 20 # Target velocity for the next spec, upper bound.
-SPECS.append(f"""INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos - {TARGET_DIST}
- & env.veh___619___.abs_pos >= env.veh___629___.abs_pos - {TARGET_DIST}
- & env.veh___629___.abs_pos >= env.veh___639___.abs_pos - {TARGET_DIST}
- & env.veh___639___.abs_pos >= env.veh___649___.abs_pos - {TARGET_DIST}
+TARGET_DIST = 20 # Target distance in real-world meters.
+TARGET_VEL_LOW = 10 # Target velocity lower bound in real-world m/s.
+TARGET_VEL_HIGH = 20 # Target velocity upper bound in real-world m/s.
+MC_TARGET_DIST = int(TARGET_DIST * dist_scale) # Scaled to MC-space.
+MC_TARGET_VEL_LOW = int(TARGET_VEL_LOW * vel_scale) # Scaled to MC-space.
+MC_TARGET_VEL_HIGH = int(TARGET_VEL_HIGH * vel_scale) # Scaled to MC-space.
+SPECS.append(f"""INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos - {MC_TARGET_DIST}
+ & env.veh___619___.abs_pos >= env.veh___629___.abs_pos - {MC_TARGET_DIST}
+ & env.veh___629___.abs_pos >= env.veh___639___.abs_pos - {MC_TARGET_DIST}
+ & env.veh___639___.abs_pos >= env.veh___649___.abs_pos - {MC_TARGET_DIST}
  & env.veh___609___.abs_pos <= env.veh___619___.abs_pos
  & env.veh___619___.abs_pos <= env.veh___629___.abs_pos
  & env.veh___629___.abs_pos <= env.veh___639___.abs_pos
  & env.veh___639___.abs_pos <= env.veh___649___.abs_pos
- & env.veh___609___.v <= {TARGET_VEL_LOW}
- & env.veh___619___.v <= {TARGET_VEL_LOW}
- & env.veh___629___.v <= {TARGET_VEL_LOW}
- & env.veh___639___.v <= {TARGET_VEL_LOW}
- & env.veh___649___.v >= {TARGET_VEL_HIGH}
+ & env.veh___609___.v <= {MC_TARGET_VEL_LOW}
+ & env.veh___619___.v <= {MC_TARGET_VEL_LOW}
+ & env.veh___629___.v <= {MC_TARGET_VEL_LOW}
+ & env.veh___639___.v <= {MC_TARGET_VEL_LOW}
+ & env.veh___649___.v >= {MC_TARGET_VEL_HIGH}
 );
 """) # 3: All cars longitudinally close to each other, one drives faster.
 
-SPECS.append(("INVARSPEC !(env.veh___609___.abs_pos - env.veh___6%r9___.abs_pos < 50 " % (nonegos - 1)) 
+SPECS.append(("INVARSPEC !(env.veh___609___.abs_pos - env.veh___6%r9___.abs_pos < %r " % (nonegos - 1, int(50 * dist_scale))) 
              + ("@{& env.veh___6@{[i] - 1}@.eval[0]9___.abs_pos > env.veh___6[i]9___.abs_pos}@*.for[[i], 1, %r]);" % (nonegos - 1))) 
             # 4: Reversed order of cars, i.e. the first car is the one with the highest abs_pos.
 

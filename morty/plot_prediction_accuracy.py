@@ -3,8 +3,8 @@
 
 For each iteration m (x-axis), computes the difference between the predicted
 state at step i in iteration m's trace and the actual initial state (1.1) in
-iteration m + (i-1)*2. Step 1.1 is the current state; step i predicts (i-1)
-seconds ahead, and at 2 Hz policy frequency that maps to (i-1)*2 iterations.
+iteration m + offset. Each MC step covers 1/time_scale real seconds; at 2 Hz
+policy frequency, offset = round((step-1) * 2 / time_scale).
 
 Usage:
     python plot_prediction_accuracy.py --root examples/gp/detailed_archive/run_0 \
@@ -113,6 +113,13 @@ def main():
         help="Comma-separated list of variables (default: %(default)s)",
     )
     parser.add_argument(
+        "--time-scale", type=float, default=1.0,
+        help=(
+            "MC time scaling factor (default: 1.0). With TIMESCALING=2000 "
+            "use 2.0. Each MC step covers 1/time_scale real seconds."
+        ),
+    )
+    parser.add_argument(
         "--save", default=None,
         help="Save plot to file instead of showing (e.g., output.png)",
     )
@@ -120,7 +127,7 @@ def main():
 
     variables = [v.strip() for v in args.variables.split(",")]
     step = args.step
-    target_offset = (step - 1) * 2
+    target_offset = round((step - 1) * 2 / args.time_scale)
     config_prios = [c.strip() for c in args.config.split(";") if c.strip()]
 
     # --- Discover all iterations ---
