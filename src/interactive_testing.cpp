@@ -1573,6 +1573,8 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
          float time_scale = sd.getTimeScalingFactor();
          vel_scale = (time_scale > 0) ? dist_scale / time_scale : 1.0f;
          break;
+      } else {
+         Failable::getSingleton()->addError("Scaling factor file " + sf + " does not exist. Using default scaling factors of 1.0.");
       }
    }
 
@@ -1664,6 +1666,9 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
       if (std::filesystem::exists(scaling_file)) {
          ScaleDescription ts_description{ StaticHelper::readFile(scaling_file) };
          StaticHelper::applyTimescaling(trace, ts_description);
+      }
+      else {
+         Failable::getSingleton()->addError("Scaling factor file " + scaling_file + " does not exist. Using default scaling factors of 1.0.");
       }
 
       StaticHelper::writeTextToFile(
