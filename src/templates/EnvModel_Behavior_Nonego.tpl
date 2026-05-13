@@ -276,7 +276,7 @@ INVAR -- Non-Ego cars may not "jump" over each other.
 ASSIGN
 @{
 @(
-    init(veh___6[i]9___.time_since_last_lc) := 0;
+    @{init(veh___6[i]9___.time_since_last_lc) := 0;}@******.if[@{MIN_TIME_BETWEEN_LANECHANGES > 0}@.eval]
 )@
 @(
     init(veh___6[i]9___.time_since_last_lc) := min_time_between_lcs;       -- init with max value such that lane change is immediately allowed after start
@@ -296,10 +296,10 @@ ASSIGN
 
 @{
 @(
-   next(veh___6[i]9___.time_since_last_lc) := case
+   @{next(veh___6[i]9___.time_since_last_lc) := case
       veh___6[i]9___.time_since_last_lc < min_time_between_lcs : veh___6[i]9___.time_since_last_lc + 1;
       TRUE : 0;
-   esac;
+   esac;}@******.if[@{MIN_TIME_BETWEEN_LANECHANGES > 0}@.eval]
 )@
 @(
     next(veh___6[i]9___.do_lane_change) := 

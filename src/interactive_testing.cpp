@@ -421,6 +421,7 @@ std::string vfm::test::doParsingRun(
       ) };
 
       existing_path = StaticHelper::removeLastFileExtension(generated_file, "/");
+      ScaleDescription::createTimescalingFile(existing_path);
    }
    else {
       Failable::getSingleton(gui_name)->addNote("Using cached EnvModel found in '" + existing_path + "'.");
@@ -808,8 +809,6 @@ int vfm::test::artifactRun(int argc, char* argv[])
          + " \"" + generated_dir + "planner.cpp_combined.k2\""};
       std::string command_nuxmv{ nuxmv_fulldir
          + " -int -pre cpp -source " + generated_dir + "script.cmd " + generated_dir + "main.smv"};
-
-      ScaleDescription::createTimescalingFile(generated_dir);
 
       inputs.addNote("RUNNING KRATOS with command '" + command_kratos + "'.");
       int success_code_kratos{};

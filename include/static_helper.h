@@ -1040,8 +1040,9 @@ public:
       return true;
    }
 
-   inline static bool createTimescalingFile(const std::string& generated_dir)
+   inline static bool createTimescalingFile(const std::string& generated_dir_raw)
    {
+      std::string generated_dir{ generated_dir_raw + "/"};
       const std::string TIMESCALING_FILE{ generated_dir + TIMESCALING_FILENAME };
 
       if (std::filesystem::exists(TIMESCALING_FILE)) {
