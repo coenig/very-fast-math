@@ -421,6 +421,7 @@ std::string vfm::test::doParsingRun(
       ) };
 
       existing_path = StaticHelper::removeLastFileExtension(generated_file, "/");
+      ScaleDescription::createTimescalingFile(existing_path);
    }
    else {
       Failable::getSingleton(gui_name)->addNote("Using cached EnvModel found in '" + existing_path + "'.");
@@ -808,8 +809,6 @@ int vfm::test::artifactRun(int argc, char* argv[])
          + " \"" + generated_dir + "planner.cpp_combined.k2\""};
       std::string command_nuxmv{ nuxmv_fulldir
          + " -int -pre cpp -source " + generated_dir + "script.cmd " + generated_dir + "main.smv"};
-
-      ScaleDescription::createTimescalingFile(generated_dir);
 
       inputs.addNote("RUNNING KRATOS with command '" + command_kratos + "'.");
       int success_code_kratos{};
@@ -1562,6 +1561,23 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
    auto cars = StaticHelper::split(input_str, ";");
    int null_pos{};
 
+   // Read scaling factors to convert HE real-world values into MC-space units.
+   float dist_scale = 1.0f;
+   float vel_scale = 1.0f;
+   for (const auto& cn : ucd_config_prios_vec) {
+      if (cn.empty()) continue;
+      const std::string sf{ OUTPUT_BASE_PATH + cn + "/" + TIMESCALING_FILENAME };
+      if (std::filesystem::exists(sf)) {
+         ScaleDescription sd{ StaticHelper::readFile(sf) };
+         dist_scale = sd.getDistanceScalingFactor();
+         float time_scale = sd.getTimeScalingFactor();
+         vel_scale = (time_scale > 0) ? dist_scale / time_scale : 1.0f;
+         break;
+      } else {
+         Failable::getSingleton()->addError("Scaling factor file " + sf + " does not exist. Using default scaling factors of 1.0.");
+      }
+   }
+
    cars.erase(cars.end() - 1);
    std::string main_file_additions{};
 
@@ -1580,10 +1596,10 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
          x = (std::max)((std::min)(x, (std::numeric_limits<float>::max)()), (std::numeric_limits<float>::min)());
          // vx = (std::max)((std::min)(vx, 70.0f), -70.0f);
 
-         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.abs_pos = " + std::to_string((int)(x)) + ";\n";
-         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx)) + ";\n";
+         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.abs_pos = " + std::to_string((int)(x * dist_scale)) + ";\n";
+         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx * vel_scale)) + ";\n";
 
-         if (i == 0) null_pos = (int) (x);
+         if (i == 0) null_pos = (int) (x * dist_scale);
 
          static constexpr float LANE_WIDTH = 4.0f;
          const float road_width = num_lanes * LANE_WIDTH;
@@ -1645,6 +1661,16 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
       auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_BASE_PATH + config_name + "/debug_trace_array.txt") };
       MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
 
+      // Apply time/distance scaling so that deltas are in real-world units.
+      const std::string scaling_file{ OUTPUT_BASE_PATH + config_name + "/" + TIMESCALING_FILENAME };
+      if (std::filesystem::exists(scaling_file)) {
+         ScaleDescription ts_description{ StaticHelper::readFile(scaling_file) };
+         StaticHelper::applyTimescaling(trace, ts_description);
+      }
+      else {
+         Failable::getSingleton()->addError("Scaling factor file " + scaling_file + " does not exist. Using default scaling factors of 1.0.");
+      }
+
       StaticHelper::writeTextToFile(
          std::to_string(seed) + ";"
          + std::to_string(trace.size() / 2) + ";"
@@ -1687,7 +1713,7 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
 }
 
 extern "C"
-char* expandScript(const char* input, char* result, size_t resultMaxLength)
+VFM_API char* expandScript(const char* input, char* result, size_t resultMaxLength)
 {
    std::string res{ macro::Script::processScript(input) };
    snprintf(result, resultMaxLength, "%s", res.c_str());

@@ -162,6 +162,39 @@ std::string StaticHelper::toLowerCase(const std::string& str)
    return s;
 }
 
+std::vector<std::filesystem::path> vfm::StaticHelper::findFilesRecursively(const std::filesystem::path& parentPath, const std::string& wildcard_pattern)
+{
+   std::vector<std::filesystem::path> results;
+
+   // COP: Convert wildcard pattern to regex: escape special chars, replace * and ?
+   std::string regexStr;
+   for (char c : wildcard_pattern) {
+      switch (c) {
+      case '*': regexStr += ".*"; break;
+      case '?': regexStr += ".";  break;
+      case '.': case '(': case ')': case '[': case ']':
+      case '{': case '}': case '+': case '^': case '$':
+      case '|': case '\\':
+         regexStr += '\\';
+         regexStr += c;
+         break;
+      default:
+         regexStr += c;
+      }
+   }
+
+   std::regex re(regexStr, std::regex::icase);
+
+   for (const auto& entry : std::filesystem::recursive_directory_iterator(parentPath)) {
+      if (entry.is_regular_file() &&
+         std::regex_match(entry.path().filename().string(), re)) {
+         results.push_back(entry.path());
+      }
+   }
+
+   return results;
+}
+
 std::string vfm::StaticHelper::removeLastFileExtension(const std::string& file_path, const std::string& extension_denoter)
 {
    size_t lastindex = file_path.find_last_of(extension_denoter);

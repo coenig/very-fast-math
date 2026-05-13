@@ -113,3 +113,5 @@ morty/cex-smooth-birdseye/cex-smooth-birdseye_vtd.xml
 morty/cex-smooth-birdseye/cex-smooth-birdseye.csv
 morty/cex-smooth-birdseye/cex-smooth-birdseye.gif
 morty/cex-smooth-birdseye/cex-smooth-birdseye.osc
+*.pyc
+*.mp4

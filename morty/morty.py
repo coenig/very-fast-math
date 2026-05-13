@@ -13,8 +13,28 @@ import distutils.dir_util
 import json
 from pathlib import Path
 
+# COP: Patch VehicleGraphics.get_color so that crashed always takes priority over custom color.
+# Without this, highway-env checks vehicle.color BEFORE vehicle.crashed, so any custom
+# color (blue for blind, green for CEX) would suppress the native red crash rendering —
+# including during the intermediate simulation sub-steps within env.step().
+from highway_env.vehicle.graphics import VehicleGraphics
+_original_get_color = VehicleGraphics.get_color
+@classmethod
+def _patched_get_color(cls, vehicle, transparent=False):
+    if vehicle.crashed:
+        color = cls.RED
+        if transparent:
+            color = (color[0], color[1], color[2], 30)
+        return color
+    return _original_get_color.__func__(cls, vehicle, transparent)
+VehicleGraphics.get_color = _patched_get_color
+
 # Prepare connection to morty lib.
-morty_lib = CDLL('./lib/libvfm.so')
+import platform
+if platform.system() == 'Windows':
+    morty_lib = CDLL('./bin/VFM_MAIN_LIB.dll')
+else:
+    morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.expandScript.argtypes = [c_char_p, c_char_p, c_size_t]
 morty_lib.expandScript.restype = c_char_p
 
@@ -23,7 +43,6 @@ dummy_result = create_string_buffer(2000)
 script_envmodels = r"""
 @{./src/templates/}@.stringToHeap[MY_PATH]
 @{../../morty/envmodel_config.tpl.json}@.generateEnvmodels
-)" };
 """
 dummy_result = morty_lib.expandScript(script_envmodels.encode('utf-8'), dummy_result, sizeof(dummy_result)).decode()
 # EO Create EnvModels.
@@ -46,6 +65,9 @@ with open('morty/envmodel_config.json') as f:
     max_start_speed = min(d[ucd_config_prios_str[0]]["MAXSTARTSPEEDNONEGO_UCD"], max_speed)
     min_start_speed = min(d[ucd_config_prios_str[0]]["MINSTARTSPEEDNONEGO_UCD"], max_start_speed)
     exp_num = d[ucd_config_prios_str[0]]["UCD_EXP_NUM"]
+    dist_scale = d[ucd_config_prios_str[0]]["DISTANCESCALING"] / 1000
+    time_scale = d[ucd_config_prios_str[0]]["TIMESCALING"] / 1000
+    vel_scale = dist_scale / time_scale  # velocity = distance / time
 
     if backward_driving_car_ids_str.endswith(')@'):
         backward_driving_car_ids_str = backward_driving_car_ids_str[:-2]
@@ -68,42 +90,47 @@ SUCC_CONDS = [] # Conditions determining success of the specs.
 
 SPECS.append("INVARSPEC !(@{ env.veh___6[i]9___.v = 0 }@.for[[i], 0, %r, 1, & ]);" % (nonegos - 1)) # 0: All cars stopped.
 
-TARGET_VEL = 50 # Target velocity for the next spec.
-SPECS.append("INVARSPEC !(@{ env.veh___6[i]9___.v = %r }@.for[[i], 0, %r, 1, & ]);" % (TARGET_VEL, nonegos - 1)) # 1: All cars at target velocity.
+TARGET_VEL = 50 # Target velocity in real-world m/s.
+MC_TARGET_VEL = int(TARGET_VEL * vel_scale) # Scaled to MC-space.
+SPECS.append("INVARSPEC !(@{ env.veh___6[i]9___.v = %r }@.for[[i], 0, %r, 1, & ]);" % (MC_TARGET_VEL, nonegos - 1)) # 1: All cars at target velocity.
 
 SPECS.append("INVARSPEC !(@{ env.veh___609___.on_lane_max = env.veh___6[i]9___.on_lane_max}@.for[[i], 1, %r, 1, & ]);" % (nonegos - 1)) # 2: All cars at max one lane width apart in lateral direction.
 
-TARGET_DIST = 20 # Target distance for the next spec.
-TARGET_VEL_LOW = 10 # Target velocity for the next spec, lower bound.
-TARGET_VEL_HIGH = 20 # Target velocity for the next spec, upper bound.
-SPECS.append(f"""INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos - {TARGET_DIST}
- & env.veh___619___.abs_pos >= env.veh___629___.abs_pos - {TARGET_DIST}
- & env.veh___629___.abs_pos >= env.veh___639___.abs_pos - {TARGET_DIST}
- & env.veh___639___.abs_pos >= env.veh___649___.abs_pos - {TARGET_DIST}
+TARGET_DIST = 20 # Target distance in real-world meters.
+TARGET_VEL_LOW = 10 # Target velocity lower bound in real-world m/s.
+TARGET_VEL_HIGH = 20 # Target velocity upper bound in real-world m/s.
+MC_TARGET_DIST = int(TARGET_DIST * dist_scale) # Scaled to MC-space.
+MC_TARGET_VEL_LOW = int(TARGET_VEL_LOW * vel_scale) # Scaled to MC-space.
+MC_TARGET_VEL_HIGH = int(TARGET_VEL_HIGH * vel_scale) # Scaled to MC-space.
+SPECS.append(f"""INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos - {MC_TARGET_DIST}
+ & env.veh___619___.abs_pos >= env.veh___629___.abs_pos - {MC_TARGET_DIST}
+ & env.veh___629___.abs_pos >= env.veh___639___.abs_pos - {MC_TARGET_DIST}
+ & env.veh___639___.abs_pos >= env.veh___649___.abs_pos - {MC_TARGET_DIST}
  & env.veh___609___.abs_pos <= env.veh___619___.abs_pos
  & env.veh___619___.abs_pos <= env.veh___629___.abs_pos
  & env.veh___629___.abs_pos <= env.veh___639___.abs_pos
  & env.veh___639___.abs_pos <= env.veh___649___.abs_pos
- & env.veh___609___.v <= {TARGET_VEL_LOW}
- & env.veh___619___.v <= {TARGET_VEL_LOW}
- & env.veh___629___.v <= {TARGET_VEL_LOW}
- & env.veh___639___.v <= {TARGET_VEL_LOW}
- & env.veh___649___.v >= {TARGET_VEL_HIGH}
+ & env.veh___609___.v <= {MC_TARGET_VEL_LOW}
+ & env.veh___619___.v <= {MC_TARGET_VEL_LOW}
+ & env.veh___629___.v <= {MC_TARGET_VEL_LOW}
+ & env.veh___639___.v <= {MC_TARGET_VEL_LOW}
+ & env.veh___649___.v >= {MC_TARGET_VEL_HIGH}
 );
 """) # 3: All cars longitudinally close to each other, one drives faster.
 
-SPECS.append(("INVARSPEC !(env.veh___609___.abs_pos - env.veh___6%r9___.abs_pos < 50 " % (nonegos - 1)) 
+SPECS.append(("INVARSPEC !(env.veh___609___.abs_pos - env.veh___6%r9___.abs_pos < %r " % (nonegos - 1, int(50 * dist_scale))) 
              + ("@{& env.veh___6@{[i] - 1}@.eval[0]9___.abs_pos > env.veh___6[i]9___.abs_pos}@*.for[[i], 1, %r]);" % (nonegos - 1))) 
             # 4: Reversed order of cars, i.e. the first car is the one with the highest abs_pos.
 
 SPECS.append(r"""INVARSPEC TRUE;""") # 5: Benchmark 1.
 SPECS.append(r"""INVARSPEC FALSE;""") # 6: Benchmark 2.
 
-TARGET_DIST_NUDGING_FRONT = 300 # Target distance for the next spec.
-TARGET_DIST_NUDGING_BACK = 10 # Target distance for the next spec.
-TARGET_DIST_NUDGING = 300 # Target distance for the next spec.
-#SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos + {TARGET_DIST_NUDGING} & env.veh___619___.abs_pos >= 0);") # 7
-SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= {TARGET_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos <= {TARGET_DIST_NUDGING_BACK});") # 7
+TARGET_DIST_NUDGING_FRONT = 300 # Target distance for the next spec, in real-world meters.
+TARGET_DIST_NUDGING_BACK = 10 # Target distance for the next spec, in real-world meters.
+MC_DIST_NUDGING_FRONT = int(TARGET_DIST_NUDGING_FRONT * dist_scale) # Scaled to MC-space.
+MC_DIST_NUDGING_BACK = int(TARGET_DIST_NUDGING_BACK * dist_scale) # Scaled to MC-space.
+#SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos + {TARGET_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos >= 0);") # 7
+SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= {MC_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos <= {MC_DIST_NUDGING_BACK});") # 7
 SPECS.append(r"""INVARSPEC !(env.veh___609___.lane_b0 & !env.veh___609___.lane_b1);""") # 8: Car 609 reaches leftmost lane (b0)
 
 
@@ -129,17 +156,21 @@ for i in range(0, len(SPECS)):
     addons[i] += ADDONS_BEGIN_DENOTER
     addons[i] += f"-- UCD experiment{i} --\n"
 
-addons[7] += r"""
-INVAR env.veh___609___.v >= 5;
-INVAR env.veh___619___.v <= -5;
-INVAR env.veh___609___.v >= 0;
-INVAR env.veh___619___.v <= 0;
+MC_MIN_V_FORWARD = int(5 * vel_scale)
+MC_MAX_V_BACKWARD = int(-5 * vel_scale)
+addons[7] += f"""
+INVAR env.veh___609___.v >= {MC_MIN_V_FORWARD};
+INVAR env.veh___619___.v <= {MC_MAX_V_BACKWARD};
+TRANS (((env.veh___619___.abs_pos - env.veh___609___.abs_pos) < 0)
+       != ((next(env.veh___619___.abs_pos) - next(env.veh___609___.abs_pos)) < 0))
+       -> ((env.veh___609___.on_normalized_lane = next(env.veh___609___.on_normalized_lane)) & 
+          (env.veh___619___.on_normalized_lane = next(env.veh___619___.on_normalized_lane)));
 """
 
 for i in range(2, nonegos):
     addons[7] += f"INVAR env.veh___6{i}9___.v = 0;\n"
 
-addons[8] += "INVAR env.veh___609___.v >= 5;\n"
+addons[8] += f"INVAR env.veh___609___.v >= {MC_MIN_V_FORWARD};\n"
 for i in range(1, nonegos):
     addons[8] += f"INVAR env.veh___6{i}9___.v = 0;\n"
 
@@ -177,7 +208,13 @@ parser.add_argument('--headless', action='store_true',
 args = parser.parse_args()
 
 if args.headless:
-    os.environ['SDL_VIDEODRIVER'] = 'offscreen'
+    if not args.record_video:
+        os.environ['SDL_VIDEODRIVER'] = 'dummy'  # No rendering at all.
+    elif platform.system() == 'Windows':
+        os.environ['SDL_VIDEODRIVER'] = 'windows'
+        os.environ['SDL_VIDEO_WINDOW_POS'] = '-32000,-32000'
+    else:
+        os.environ['SDL_VIDEODRIVER'] = 'offscreen'  # Render to memory buffer, no X11.
 
 # Best so far:
 # ACCEL_RANGE = 6
@@ -252,13 +289,74 @@ for ucd_config_str in ucd_config_prios_str:
         f.write(content)
         f.truncate()
 
+import hashlib
+
+def _hash_file(path):
+    h = hashlib.md5()
+    with open(path, 'rb') as f:
+        for chunk in iter(lambda: f.read(8192), b''):
+            h.update(chunk)
+    return h.hexdigest()
+
+def _snapshot_configs(restrict_to=None):
+    """Return {config_name: {rel_path: md5_hex}} for all config dirs.
+    If restrict_to is given, only include rel_paths present in that dict."""
+    snap = {}
+    for config_name in ucd_config_prios_str:
+        config_dir = generated_path_prefix + config_name
+        allowed = restrict_to.get(config_name) if restrict_to else None
+        file_hashes = {}
+        for dirpath, _, filenames in os.walk(config_dir):
+            for fname in filenames:
+                full_path = os.path.join(dirpath, fname)
+                rel_path = os.path.relpath(full_path, config_dir)
+                if allowed is not None and rel_path not in allowed:
+                    continue
+                file_hashes[rel_path] = _hash_file(full_path)
+        snap[config_name] = file_hashes
+    return snap
+
+def _save_configs_to_archive(seedo, subfolder, restrict_to=None):
+    """Copy config files into the detailed archive under the given subfolder.
+    If restrict_to is given ({config_name: set_of_rel_paths}), only copy those files."""
+    archive_path = f'{generated_path_prefix}/detailed_archive/run_{seedo}/{subfolder}/'
+    for config_name in ucd_config_prios_str:
+        config_dir = generated_path_prefix + config_name
+        allowed = restrict_to.get(config_name) if restrict_to else None
+        for dirpath, _, filenames in os.walk(config_dir):
+            for fname in filenames:
+                full_path = os.path.join(dirpath, fname)
+                rel_path = os.path.relpath(full_path, config_dir)
+                if allowed is not None and rel_path not in allowed:
+                    continue
+                dest = os.path.join(archive_path + config_name, rel_path)
+                os.makedirs(os.path.dirname(dest), exist_ok=True)
+                shutil.copy2(full_path, dest)
+
+baseline_hashes = {}  # Pre-loop file set (before any MC call).
+snapshot_hashes = {}  # Post-first-MC-call hashes (only baseline files).
+
 def archive(seedo, global_counter):
     if args.detailed_archive:
-        archive_path = f'{generated_path_prefix}/detailed_results/run_{seedo}/iteration_{global_counter}/'
+        archive_path = f'{generated_path_prefix}/detailed_archive/run_{seedo}/iteration_{global_counter}/'
         if not os.path.exists(archive_path):
             os.makedirs(archive_path)
-        for filename in ucd_config_prios_str:
-            distutils.dir_util.copy_tree(generated_path_prefix + filename, archive_path + filename)
+        for config_name in ucd_config_prios_str:
+            config_dir = generated_path_prefix + config_name
+            baseline = snapshot_hashes.get(config_name, {})
+            for dirpath, _, filenames in os.walk(config_dir):
+                for fname in filenames:
+                    full_path = os.path.join(dirpath, fname)
+                    rel_path = os.path.relpath(full_path, config_dir)
+                    current_hash = _hash_file(full_path)
+                    if rel_path not in baseline or baseline[rel_path] != current_hash:
+                        dest = os.path.join(archive_path + config_name, rel_path)
+                        os.makedirs(os.path.dirname(dest), exist_ok=True)
+                        shutil.copy2(full_path, dest)
+
+# Take pre-loop baseline: record which files exist before any MC call.
+if args.detailed_archive:
+    baseline_hashes = _snapshot_configs()
 
 for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
@@ -336,10 +434,16 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         env = RecordVideo(env, video_folder="videos", name_prefix=f"vid_{seedo}",
                     episode_trigger=lambda e: True)  # record all episodes
         env.unwrapped.set_record_video_wrapper(env)
-        env.start_video_recorder()
+        env.start_recording(f"vid_{seedo}")
 
     first = True
     obs = env.unwrapped.observation_type.observe()
+    blind_stats = ""
+    crashed = False
+
+    if args.detailed_archive:
+        _save_configs_to_archive(seedo, '0_pristine')
+
     for global_counter in range(args.steps_per_run):
         mcinput = ""
         i = 0
@@ -358,28 +462,17 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     mcinput += str(val) + ","
             mcinput += ";"
             i = i + 1
-        
-        crashed = False # Check if any car has crashed.
-        for vehicle in env.unwrapped.road.vehicles:
-            crashed = crashed or vehicle.crashed
-        
-        if crashed:
-            crashed_count += 1
-        
-        if crashed_count > args.allow_crashed_steps: # Allow these many crashes per run.
-            archive(seedo, global_counter)
-            break
 
         MC_SCRIPT = f"""@{{
             @{{./src/templates/}}@.stringToHeap[MY_PATH]
 
             @{{{mcinput}}}@.prepareInputForMortyUCD[{args.heading_adaptation}, {num_actual_lanes}, {num_technical_lanes}]
 
-            @{{@{{nuXmv}}@.killAfter[15].Detach.setScriptVar[scriptID, force]}}@***.nil
+            @{{nuXmv}}@.killAfter[300].Detach.setScriptVar[scriptID, force]
             @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[16]
-            @{{@{{scriptID}}@.scriptVar.StopScript}}@***.nil
+            @{{scriptID}}@.scriptVar.StopScript
 
-            {"@{{../../morty/envmodel_config.tpl.json}}@.generateTestCases[cex-birdseye/cex-smooth-birdseye]" if args.debug else ""}
+            {"@{../../morty/envmodel_config.tpl.json}@.generateTestCases[cex-birdseye/cex-smooth-birdseye]" if args.debug else ""}
             }}@.nil
             @{{}}@.prepareOutputForMortyUCD[{str(seedo)}, {str(global_counter)}, {0}, {str(crashed)}]
         """
@@ -397,6 +490,12 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         result = create_string_buffer(25000)
         res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
         res_str = res.decode().strip()
+
+        if args.detailed_archive and global_counter == 0:
+            # Processed snapshot: only re-hash files that existed in the baseline
+            # (excludes iteration-specific artifacts like debug folders).
+            snapshot_hashes = _snapshot_configs(restrict_to=baseline_hashes)
+            _save_configs_to_archive(seedo, '1_initialized', restrict_to={cn: set(baseline_hashes[cn]) for cn in baseline_hashes})
         
         ### POSTPROCESS RESULT ###
         all_results_dict = {}
@@ -406,18 +505,21 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 config_name, res_str = single_res.split(':') # initiate res_str with ANY of the results, will get updated later if none-blind exists.
                 all_results_dict[config_name] = res_str
         
+        blind = "|X"
         for cnt, config_name in enumerate(ucd_config_prios_str):
             if (all_results_dict[config_name] == empty_cex):
                 print(f"CEX #{cnt} is EMPTY.")
             else:
                 res_str = all_results_dict[config_name]
                 print(f"Took CEX #{cnt}[{config_name}] which is the first non-empty one.")
+                blind = "|" + str(cnt)
                 break;
-                
+        
+        blind_stats += blind
+        
         ### EO POSTPROCESS RESULT ###
         #### EO MODEL CHECKER CALL ####
 
-        # TODO: Shouldn't this check come AFTER the application of the MC instructions? It shouldn't fundamentally hurt, but delays the success recognition for one iteration.
         successed = SUCC_CONDS[exp_num]()
         
         # We check both (1) the MC result and (2) the success condition to determine if we are done. Reason:
@@ -435,7 +537,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         if res_str == empty_cex:
             print("No CEX found")
             for i in range(nonegos): # Set blue when blind.
-                env.unwrapped.controlled_vehicles[i].color = (100, 100, 255)
+                if not env.unwrapped.controlled_vehicles[i].crashed:
+                    env.unwrapped.controlled_vehicles[i].color = (100, 100, 255)
             if nocex_count > args.allow_blind_steps: # Allow up to this many times being blind per run. (If in doubt: 10)
                 archive(seedo, global_counter)
                 break
@@ -443,11 +546,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         else:
             cex_length = len(res_str.split(';')[0].split('|')[0].split(','))
             for i in range(nonegos):
-                env.unwrapped.controlled_vehicles[i].color = (min(cex_length * 15, 255), 200, min(cex_length * 15, 255))
-
-        for i in range(nonegos):
-            if env.unwrapped.controlled_vehicles[i].crashed:
-                env.unwrapped.controlled_vehicles[i].color = (255, 0, 0)
+                if not env.unwrapped.controlled_vehicles[i].crashed:
+                    env.unwrapped.controlled_vehicles[i].color = (min(cex_length * 15, 255), 200, min(cex_length * 15, 255))
 
         sum_vel_by_car = []
         sum_lan_by_car = []
@@ -457,7 +557,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
         # Best so far:
         # LANE_CHANGE_DURATION = 3
-        LANE_CHANGE_DURATION = min_time_between_lcs # Has to match EnvModel.smv ==> min_time_between_lcs
+        LANE_CHANGE_DURATION = max(min_time_between_lcs, int(time_scale)) # Index in the MC delta trace where the lane change effect appears.
 
         # Process the MC data.
         for i1, el1 in enumerate(res_str.split(';')):
@@ -505,12 +605,13 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             
             if abs(dpoints_y[i] - egos_y[i]) < eps: # If we're close to the desired lateral position, we can start a new lane change.
                 lc_time[i] = 0
+                num_tech_lanes = abs(sum_lan_by_car[i])
                 
                 if sum_lan_by_car[i] < 0:
-                    dpoints_delta[i] = on_lane_step_y # Formerly 2, which is consistent with the smoothening variables, so doesn't break anything.
+                    dpoints_delta[i] = num_tech_lanes * on_lane_step_y
                     dpoints_y[i] += dpoints_delta[i]
                 elif sum_lan_by_car[i] > 0:
-                    dpoints_delta[i] = -on_lane_step_y # Formerly 2, which is consistent with the smoothening variables, so doesn't break anything.
+                    dpoints_delta[i] = -num_tech_lanes * on_lane_step_y
                     dpoints_y[i] += dpoints_delta[i]
             
             if lc_time[i] > MAXTIME_FOR_LC and dpoints_delta[i] != 0:
@@ -539,16 +640,47 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         
         action = tuple(action_list)
 
-        if not args.headless:
-            env.render()
+        # === APPLY MC INSTRUCTIONS ===
         obs, reward, done, truncated, info = env.step(action)
 
+        # === CHECK CRASHES (after applying MC instructions) ===
+        crashed = False
+        for vehicle in env.unwrapped.road.vehicles:
+            crashed = crashed or vehicle.crashed
+        if crashed:
+            crashed_count += 1
+
+        # === RENDER ===
+        if not args.headless:
+            env.render()
+
+        # Flush partial video every iteration so it's not lost on abort.
+        if args.record_video and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
+            from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
+            clip = ImageSequenceClip(env.recorded_frames, fps=env.frames_per_sec)
+            clip.write_videofile(f"videos/vid_{seedo}_partial.mp4", logger=None)
+            clip.close()
+
         archive(seedo, global_counter)
+
+        if crashed_count > args.allow_crashed_steps: # Allow these many crashes per run.
+            break
         
     with open(f"{generated_path_prefix}/results.txt", "a") as f:
-        f.write("{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} " + ' '.join(str(x) for x in good_ones) + " [" + str(nocex_count) + " blind]\n")
+        outcome = "succeeded" if seedo in good_ones else "failed"
+        f.write("{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} " + str(seedo) + " " + outcome + " [" + str(nocex_count) + " blind; " + blind_stats + "|]\n")
 
     if args.record_video:
-        env.close_video_recorder()
+        env.stop_recording()
+        suffix = ""
+        if crashed_count > 0:
+            suffix += "_crashed"
+        if nocex_count > 0:
+            suffix += f"_blind{nocex_count}"
+        if suffix:
+            import glob
+            for video_file in glob.glob(f"videos/vid_{seedo}*"):
+                new_name = video_file.replace(f"vid_{seedo}", f"vid_{seedo}{suffix}", 1)
+                os.rename(video_file, new_name)
     
 print(good_ones)

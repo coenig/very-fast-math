@@ -69,7 +69,7 @@ VAR
          @{@{@{+ veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]}@.if[@{[sec] != [sec2]}@.eval]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval]}@**.for[[sec2], 0, @{SECTIONS - 1}@.eval] = 1;
 
       @{
-         TRANS veh___6[i]9___.time_since_last_lc < min_time_between_lcs @{| abs(veh___6[i]9___.v) < 10}@****.if[@{UCD}@.eval] -> veh___6[i]9___.lane_unchanged;
+         TRANS veh___6[i]9___.time_since_last_lc < min_time_between_lcs @{| abs(veh___6[i]9___.v) < @{10}@.velocityWorldToEnvModelConst }@****.if[@{UCD}@.eval] -> veh___6[i]9___.lane_unchanged;
          TRANS veh___6[i]9___.lane_unchanged | veh___6[i]9___.lane_move_down | veh___6[i]9___.lane_move_up;
       }@******.if[@{SIMPLE_LC}@.eval]
 
@@ -276,7 +276,7 @@ INVAR -- Non-Ego cars may not "jump" over each other.
 ASSIGN
 @{
 @(
-    init(veh___6[i]9___.time_since_last_lc) := 0;
+    @{init(veh___6[i]9___.time_since_last_lc) := 0;}@******.if[@{MIN_TIME_BETWEEN_LANECHANGES > 0}@.eval]
 )@
 @(
     init(veh___6[i]9___.time_since_last_lc) := min_time_between_lcs;       -- init with max value such that lane change is immediately allowed after start
@@ -296,10 +296,10 @@ ASSIGN
 
 @{
 @(
-   next(veh___6[i]9___.time_since_last_lc) := case
+   @{next(veh___6[i]9___.time_since_last_lc) := case
       veh___6[i]9___.time_since_last_lc < min_time_between_lcs : veh___6[i]9___.time_since_last_lc + 1;
       TRUE : 0;
-   esac;
+   esac;}@******.if[@{MIN_TIME_BETWEEN_LANECHANGES > 0}@.eval]
 )@
 @(
     next(veh___6[i]9___.do_lane_change) := 
@@ -460,11 +460,7 @@ ASSIGN
     esac;
 
     -- update velocity (directly feed-through newly chosen accel)
-    @{
-      @(next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, 0), max_vel);)@
-      @(next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, -max_vel), max_vel);)@
-    }@.if[@{UCD}@.eval]
-    -- EO TWICE special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just undo condition!
+    next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, -max_vel), max_vel);
 
     -- ############ IDEA ###########
     -- Set future road either to 1/0 if it is clear we will end or not end up there, or to {0, 1} whenever there IS a connection,
@@ -517,7 +513,7 @@ ASSIGN
 
     @{
        @{
-          @{INVAR (veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1) -> (veh___6[i]9___.v <= 20 & veh___6[i]9___.lane_single);}@.if[@{[sec] != [sec2]}@.eval]
+          @{INVAR (veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1) -> (veh___6[i]9___.v <= @{20}@.velocityWorldToEnvModelConst & veh___6[i]9___.lane_single);}@.if[@{[sec] != [sec2]}@.eval]
           @{TRANS next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) = 1 -> veh___6[i]9___.lane_single;}@.if[@{[sec] != [sec2]}@.eval]
        }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
     }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]

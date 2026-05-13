@@ -4658,7 +4658,7 @@ std::string vfm::CppParser::generateEnvModel(
 
    std::string templates_generated_path{ env_model_generated_path + "/templates_archive/"};
    addNote("Copying templates directory '" + pure_path + "' to generated location ('" + templates_generated_path + "').");
-   std::filesystem::copy(pure_path, templates_generated_path, std::filesystem::copy_options::overwrite_existing);
+   std::filesystem::copy(pure_path, templates_generated_path, std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
 
    if (!std::filesystem::exists(file_name_with_path)) {
       addError("EnvModel template file '" + file_name_with_path + "' not found.");
@@ -6163,7 +6163,7 @@ void printVfmOutro(const bool result, const vfm::CppParser& cppp, const std::chr
 }
 
 extern "C"
-bool performFSMCodeGeneration(
+VFM_API bool performFSMCodeGeneration(
    const char* path_to_file_list_file_code, 
    const char* path_to_file_list_file_env_model, 
    const char* target_path_for_generated_code,

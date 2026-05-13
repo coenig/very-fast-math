@@ -124,6 +124,7 @@ void Script::extractInscriptProcessors(std::string& processed_script, const bool
       auto trimmed = StaticHelper::trimAndReturn(preprocessorScript);
 
       if (getScriptData().method_part_begins_.count(trimmed) && getScriptData().method_part_begins_.at(trimmed).cachable_) { // TODO: Avoid multiple accesses to map.
+         // TODO: We can wrongly end up here even if uncachable methods are called within the parameters.
          getScriptData().cache_hits_++;
          placeholder_for_inscript = getScriptData().method_part_begins_.at(trimmed).result_;
       }

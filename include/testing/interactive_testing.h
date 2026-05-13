@@ -116,6 +116,18 @@ bool isCacheUpToDateWithTemplates(const std::filesystem::path& cached_path, cons
 void prepareInputForMortyUCD(const std::string& input_str, const float head_const, const int num_lanes, const int num_technical_lanes);
 std::string prepareOutputForMortyUCD(const long long seed, const int iteration, const long long runtime, const bool crash);
 
-extern "C" char* expandScript(const char* input, char* result, size_t resultMaxLength);
+#ifndef VFM_API
+#ifdef _WIN32
+  #ifdef VFM_EXPORTS
+    #define VFM_API __declspec(dllexport)
+  #else
+    #define VFM_API __declspec(dllimport)
+  #endif
+#else
+  #define VFM_API
+#endif
+#endif
+
+extern "C" VFM_API char* expandScript(const char* input, char* result, size_t resultMaxLength);
 } // test
 } // vfm

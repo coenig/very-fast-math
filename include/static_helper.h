@@ -269,6 +269,8 @@ public:
    static std::string toUpperCase(const std::string& str);
    static std::string toLowerCase(const std::string& str);
 
+   static std::vector<std::filesystem::path> findFilesRecursively(const std::filesystem::path& parentPath, const std::string& wildcard_pattern);
+
    /// <summary>
    /// Removes the last part of a string which is separated by a given denoter. For example:
    ///   removeLastFileExtension("a.b.c") ==> "a.b"
@@ -1038,8 +1040,9 @@ public:
       return true;
    }
 
-   inline static bool createTimescalingFile(const std::string& generated_dir)
+   inline static bool createTimescalingFile(const std::string& generated_dir_raw)
    {
+      std::string generated_dir{ generated_dir_raw + "/"};
       const std::string TIMESCALING_FILE{ generated_dir + TIMESCALING_FILENAME };
 
       if (std::filesystem::exists(TIMESCALING_FILE)) {
