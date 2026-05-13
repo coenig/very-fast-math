@@ -654,6 +654,13 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         if not args.headless:
             env.render()
 
+        # Flush partial video every iteration so it's not lost on abort.
+        if args.record_video and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
+            from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
+            clip = ImageSequenceClip(env.recorded_frames, fps=env.frames_per_sec)
+            clip.write_videofile(f"videos/vid_{seedo}_partial.mp4", logger=None)
+            clip.close()
+
         archive(seedo, global_counter)
 
         if crashed_count > args.allow_crashed_steps: # Allow these many crashes per run.
