@@ -11,7 +11,9 @@ import numpy as np
 from typing import List
 import distutils.dir_util
 import json
+import re
 from pathlib import Path
+from morty_debug_plots import plot_cex_lengths, plot_cex_lengths_cumulative, plot_mc_runtimes
 
 # COP: Patch VehicleGraphics.get_color so that crashed always takes priority over custom color.
 # Without this, highway-env checks vehicle.color BEFORE vehicle.crashed, so any custom
@@ -223,6 +225,8 @@ ACCEL_RANGE = 6
 MAX_EXPs = args.num_runs
 
 good_ones = []
+all_cex_length_histories = {}
+mismatch_count = 0
 
 
 def ensure_empty_file(path: str) -> None:
@@ -258,6 +262,31 @@ def inverseSortingArray(egos_x: List[float]):
     for i in range(len(egos_x) - 1):
         b = b and (egos_x[i + 1] < egos_x[i])
     return b
+
+
+def _latest_nuxmv_runtime_seconds(config_name: str):
+    """Return latest nuXmv runtime in seconds from mc_runtimes.txt for a given config."""
+    runtime_file = f"{generated_path_prefix + config_name}/mc_runtimes.txt"
+    if not os.path.exists(runtime_file):
+        return np.nan
+
+    try:
+        with open(runtime_file, "r", encoding="utf-8", errors="ignore") as f:
+            lines = f.readlines()
+    except OSError:
+        return np.nan
+
+    for line in reversed(lines):
+        if "nuXmv" not in line:
+            continue
+        m = re.search(r"(\d+):(\d+):(\d+(?:\.\d+)?)\s+time elapsed", line)
+        if m:
+            hours = int(m.group(1))
+            minutes = int(m.group(2))
+            seconds = float(m.group(3))
+            return hours * 3600 + minutes * 60 + seconds
+
+    return np.nan
 
 ensure_empty_file(f'{generated_path_prefix}/results.txt')  # Delete old results from Python side
 specification = create_string_buffer(2000)
@@ -402,6 +431,12 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     egos_backward = [1] * (nonegos + 1) # If the respective car is a forward (1) or backward (-1) driving car.
     nocex_count = 0
     crashed_count = 0
+    had_success_mismatch = False
+    cex_length_history = []
+    cnt_history = []
+    cex_point_colors = []
+    mc_runtime_histories = {config_name: [] for config_name in ucd_config_prios_str}
+    selected_cnt_history = []
 
     # Mark backward driving cars.
     for i in backward_driving_car_ids:
@@ -431,7 +466,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         cnt = cnt + 1
 
     if args.record_video:
-        env = RecordVideo(env, video_folder="videos", name_prefix=f"vid_{seedo}",
+        env = RecordVideo(env, video_folder=f"{generated_path_prefix}/videos", name_prefix=f"vid_{seedo}",
                     episode_trigger=lambda e: True)  # record all episodes
         env.unwrapped.set_record_video_wrapper(env)
         env.start_recording(f"vid_{seedo}")
@@ -506,6 +541,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 all_results_dict[config_name] = res_str
         
         blind = "|X"
+        selected_cnt = None
         for cnt, config_name in enumerate(ucd_config_prios_str):
             if (all_results_dict[config_name] == empty_cex):
                 print(f"CEX #{cnt} is EMPTY.")
@@ -513,14 +549,26 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 res_str = all_results_dict[config_name]
                 print(f"Took CEX #{cnt}[{config_name}] which is the first non-empty one.")
                 blind = "|" + str(cnt)
+                selected_cnt = cnt
                 break;
         
         blind_stats += blind
+
+        # Track latest nuXmv runtime per configured priority and update PDF each iteration.
+        selected_cnt_history.append(selected_cnt)
+        for config_name in ucd_config_prios_str:
+            mc_runtime_histories[config_name].append(_latest_nuxmv_runtime_seconds(config_name))
+        plot_mc_runtimes(
+            mc_runtime_histories,
+            f"{generated_path_prefix}/mc_runtime_debug_{seedo}.pdf",
+            selected_cnt_history=selected_cnt_history,
+        )
         
         ### EO POSTPROCESS RESULT ###
         #### EO MODEL CHECKER CALL ####
 
         successed = SUCC_CONDS[exp_num]()
+        mc_finished = (res_str == "FINISHED")
         
         # We check both (1) the MC result and (2) the success condition to determine if we are done. Reason:
         # (1) alone is not sufficient because the MC cares only about the SPEC being satisfied in the last step.
@@ -528,9 +576,28 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # get a false negative. Checking only (2) would be possible; we add the additional
         # MC check to make it easier to implement new SPECs. Then, a first impression is possible even
         # if no success condition is given or if it is not implemented in a precise way. 
-        if res_str == "FINISHED" or successed:
-            print("DONE")
-            good_ones.append(seedo)
+        if successed or mc_finished:
+            agree = successed and mc_finished
+            cex_length_history.append(1)  # Reserve 0 for blind/no-CEX events.
+            cnt_history.append(cnt)
+            cex_point_colors.append('green' if agree else 'red')
+            plot_cex_lengths(
+                cex_length_history,
+                f"{generated_path_prefix}/cex_length_debug_{seedo}.pdf",
+                cnt_history=cnt_history,
+                point_colors=cex_point_colors,
+            )
+            all_cex_length_histories[seedo] = cex_length_history[:]
+            plot_cex_lengths_cumulative(all_cex_length_histories, f"{generated_path_prefix}/cex_length_debug_all.pdf")
+
+            if agree:
+                print("DONE")
+                good_ones.append(seedo)
+            else:
+                print(f"ERROR: Success mismatch (python={successed}, mc={mc_finished}).")
+                had_success_mismatch = True
+                mismatch_count += 1
+
             archive(seedo, global_counter)
             break
        
@@ -545,6 +612,17 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             nocex_count += 1
         else:
             cex_length = len(res_str.split(';')[0].split('|')[0].split(','))
+            cex_length_history.append(cex_length)
+            cnt_history.append(cnt)
+            cex_point_colors.append('tab:blue')
+            plot_cex_lengths(
+                cex_length_history,
+                f"{generated_path_prefix}/cex_length_debug_{seedo}.pdf",
+                cnt_history=cnt_history,
+                point_colors=cex_point_colors,
+            )
+            all_cex_length_histories[seedo] = cex_length_history[:]
+            plot_cex_lengths_cumulative(all_cex_length_histories, f"{generated_path_prefix}/cex_length_debug_all.pdf")
             for i in range(nonegos):
                 if not env.unwrapped.controlled_vehicles[i].crashed:
                     env.unwrapped.controlled_vehicles[i].color = (min(cex_length * 15, 255), 200, min(cex_length * 15, 255))
@@ -658,7 +736,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         if args.record_video and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
             from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
             clip = ImageSequenceClip(env.recorded_frames, fps=env.frames_per_sec)
-            clip.write_videofile(f"videos/vid_{seedo}_partial.mp4", logger=None)
+            clip.write_videofile(f"{generated_path_prefix}/videos/vid_{seedo}_partial.mp4", logger=None)
             clip.close()
 
         archive(seedo, global_counter)
@@ -668,7 +746,15 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         
     with open(f"{generated_path_prefix}/results.txt", "a") as f:
         outcome = "succeeded" if seedo in good_ones else "failed"
-        f.write("{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} " + str(seedo) + " " + outcome + " [" + str(nocex_count) + " blind; " + blind_stats + "|]\n")
+        mismatch_flag = 1 if had_success_mismatch else 0
+        f.write(
+            "{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} "
+            + str(seedo) + " " + outcome + " ["
+            + str(nocex_count) + " blind; " + blind_stats + "|; "
+            + "mismatch=" + str(mismatch_flag) + "; "
+            + "mismatch_total=" + str(mismatch_count)
+            + "]\n"
+        )
 
     if args.record_video:
         env.stop_recording()
@@ -679,7 +765,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             suffix += f"_blind{nocex_count}"
         if suffix:
             import glob
-            for video_file in glob.glob(f"videos/vid_{seedo}*"):
+            for video_file in glob.glob(f"{generated_path_prefix}/videos/vid_{seedo}*"):
                 new_name = video_file.replace(f"vid_{seedo}", f"vid_{seedo}{suffix}", 1)
                 os.rename(video_file, new_name)
     
