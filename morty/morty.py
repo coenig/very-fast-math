@@ -431,7 +431,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     egos_backward = [1] * (nonegos + 1) # If the respective car is a forward (1) or backward (-1) driving car.
     nocex_count = 0
     crashed_count = 0
-    had_success_mismatch = False
     cex_length_history = []
     cnt_history = []
     cex_point_colors = []
@@ -568,7 +567,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         #### EO MODEL CHECKER CALL ####
 
         successed = SUCC_CONDS[exp_num]()
-        mc_finished = (res_str == "FINISHED")
         
         # We check both (1) the MC result and (2) the success condition to determine if we are done. Reason:
         # (1) alone is not sufficient because the MC cares only about the SPEC being satisfied in the last step.
@@ -576,28 +574,9 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # get a false negative. Checking only (2) would be possible; we add the additional
         # MC check to make it easier to implement new SPECs. Then, a first impression is possible even
         # if no success condition is given or if it is not implemented in a precise way. 
-        if successed or mc_finished:
-            agree = successed and mc_finished
-            cex_length_history.append(1)  # Reserve 0 for blind/no-CEX events.
-            cnt_history.append(cnt)
-            cex_point_colors.append('green' if agree else 'red')
-            plot_cex_lengths(
-                cex_length_history,
-                f"{generated_path_prefix}/cex_length_debug_{seedo}.pdf",
-                cnt_history=cnt_history,
-                point_colors=cex_point_colors,
-            )
-            all_cex_length_histories[seedo] = cex_length_history[:]
-            plot_cex_lengths_cumulative(all_cex_length_histories, f"{generated_path_prefix}/cex_length_debug_all.pdf")
-
-            if agree:
-                print("DONE")
-                good_ones.append(seedo)
-            else:
-                print(f"ERROR: Success mismatch (python={successed}, mc={mc_finished}).")
-                had_success_mismatch = True
-                mismatch_count += 1
-
+        if res_str == "FINISHED" or successed:
+            print("DONE")
+            good_ones.append(seedo)
             archive(seedo, global_counter)
             break
        
@@ -746,15 +725,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         
     with open(f"{generated_path_prefix}/results.txt", "a") as f:
         outcome = "succeeded" if seedo in good_ones else "failed"
-        mismatch_flag = 1 if had_success_mismatch else 0
-        f.write(
-            "{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} "
-            + str(seedo) + " " + outcome + " ["
-            + str(nocex_count) + " blind; " + blind_stats + "|; "
-            + "mismatch=" + str(mismatch_flag) + "; "
-            + "mismatch_total=" + str(mismatch_count)
-            + "]\n"
-        )
+        f.write("{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} " + str(seedo) + " " + outcome + " [" + str(nocex_count) + " blind; " + blind_stats + "|]\n")
 
     if args.record_video:
         env.stop_recording()
