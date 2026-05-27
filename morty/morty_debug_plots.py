@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend — no X11/display required
+
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 import os

@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend — no X11/display required
+
 import gymnasium
 from gymnasium.wrappers import RecordVideo
 import highway_env
