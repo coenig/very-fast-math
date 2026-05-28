@@ -54,12 +54,7 @@ Then, run:
 ```
 python3 morty/morty.py
 ```
-### Troubleshoot
-For the `--record_video` option to work, you'll need to use specific older versions of highway-env and gymnasium: 
-```
-pip install highway-env==1.10.1
-pip install gymnasium==0.29.1
-```
+This procedure should work on Linux and Windows.
 
 ## Authors
 Lukas Koenig,
