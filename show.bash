@@ -1,3 +1,5 @@
+# Call from one level higher than vfm dir.
+
 reset;
 clear;
 
