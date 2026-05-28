@@ -1,4 +1,4 @@
-# Call from one level higher than vfm dir.
+# Call from vfm dir as "./show .. 10" (the 10 being optional) or from one level higher simply by "*vfm*/show.bash"
 
 reset;
 clear;
@@ -9,9 +9,9 @@ show () {
    echo ''
 }
 
-num=${1:-10}
+num=${2:-10}
 
-names=`ls -d *`
+names=`ls -d ./$1/*`
 for eachfile in $names
 do
    FILE1=$eachfile/examples
