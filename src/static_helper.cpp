@@ -2217,9 +2217,13 @@ std::string StaticHelper::readFile(const std::filesystem::path& path, const bool
       std::ifstream input{ path };
 
       if (input.good()) {
-         std::stringstream sstr;
-         while (input >> sstr.rdbuf());
-         ce_raw = sstr.str();
+         try {
+            std::stringstream sstr;
+            while (input >> sstr.rdbuf());
+            ce_raw = sstr.str();
+         } catch (const std::ios_base::failure& e) {
+            Failable::getSingleton()->addError("File '" + StaticHelper::absPath(path) + "' read failed with I/O exception: " + e.what() + ". Returning partial content.");
+         }
       } else {
          Failable::getSingleton()->addError("File '" + StaticHelper::absPath(path) + "' could not be read. The bits [good|eof|fail|bad] are ["
             + std::to_string(input.good())
