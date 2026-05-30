@@ -34,23 +34,9 @@ done
 mkdir -p build
 cd build
 
-# Determine parallel build flags based on CMake version.
-# --parallel was added in CMake 3.12. Use native flags as fallback.
-CMAKE_MAJOR=$(cmake --version | head -1 | sed 's/[^0-9]*//' | cut -d. -f1)
-CMAKE_MINOR=$(cmake --version | head -1 | sed 's/[^0-9]*//' | cut -d. -f2)
-if [[ "$CMAKE_MAJOR" -gt 3 ]] || [[ "$CMAKE_MAJOR" -eq 3 && "$CMAKE_MINOR" -ge 12 ]]; then
-   PARALLEL_FLAG="--parallel 16"
-elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
-   PARALLEL_FLAG="-- //m:16"
-else
-   PARALLEL_FLAG="-- -j16"
-fi
-
-# On Windows, auto-detect the newest Visual Studio generator.
+# On Windows, auto-detect the Visual Studio generator via vswhere.
 # CMake respects the CMAKE_GENERATOR env var, avoiding quoting issues with -G.
-# On Linux this block is a harmless no-op (no vswhere, no VS generators).
 if [[ -z "$CMAKE_GENERATOR" ]]; then
-   # Try vswhere at its well-known location to find the installed VS version.
    for VSWHERE in \
       "/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
       "/d/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
@@ -61,11 +47,8 @@ if [[ -z "$CMAKE_GENERATOR" ]]; then
             2022) export CMAKE_GENERATOR="Visual Studio 17 2022" ;;
             2019) export CMAKE_GENERATOR="Visual Studio 16 2019" ;;
             *)
-               # Unknown VS year (e.g. 2026+): pick the newest generator cmake supports.
                NEWEST=$(cmake --help 2>/dev/null | grep -o 'Visual Studio [0-9][0-9]* [0-9][0-9]*' | sort -t' ' -k3 -nr | head -1)
-               if [[ -n "$NEWEST" ]]; then
-                  export CMAKE_GENERATOR="$NEWEST"
-               fi
+               if [[ -n "$NEWEST" ]]; then export CMAKE_GENERATOR="$NEWEST"; fi
                ;;
          esac
          break
@@ -75,11 +58,11 @@ fi
 
 if [ -z "$DEBUGOPTSCMAKE" ]; then
    cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Debug ..
-   cmake --build . --config Debug $PARALLEL_FLAG
+   cmake --build . --config Debug --parallel 16
 else
    printf "Redirecting cmake and make outputs to files due to debug mode."
    cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Debug .. > cmake.log 2> cmake.err
-   cmake --build . --config Debug $PARALLEL_FLAG > make.log 2> make.err
+   cmake --build . --config Debug --parallel 16 > make.log 2> make.err
 fi
 
 if [ $? -eq 0 ]; then
