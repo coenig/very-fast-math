@@ -31,15 +31,15 @@ do
   fi
 done
 
-mkdir build
+mkdir -p build
 cd build
 if [ -z "$DEBUGOPTSCMAKE" ]; then
    cmake $DEBUGOPTSCMAKE -DCMAKE_BUILD_TYPE=Debug ..
-   make $DEBUGOPTSMAKE -j16
+   cmake --build . --config Debug --parallel 16
 else
    printf "Redirecting cmake and make outputs to files due to debug mode."
    cmake $DEBUGOPTSCMAKE -DCMAKE_BUILD_TYPE=Debug .. > cmake.log 2> cmake.err
-   make $DEBUGOPTSMAKE -j16 > make.log 2> make.err
+   cmake --build . --config Debug --parallel 16 > make.log 2> make.err
 fi
 
 if [ $? -eq 0 ]; then

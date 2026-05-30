@@ -3464,9 +3464,9 @@ int vfm::StaticHelper::executeSystemCommand(const std::string& command)
    return system(command.c_str());
 }
 
-std::string vfm::StaticHelper::exec(const std::string cmd, const bool verbose)
+std::string vfm::StaticHelper::exec(const std::string cmd)
 {
-   if (verbose) Failable::getSingleton("System")->addNote("Executing system command: '" + cmd + "'.");
+   Failable::getSingleton("System")->addNote("Executing system command: '" + cmd + "'.");
 
    std::array<char, 128> buffer{};
    std::string result{};
@@ -3487,16 +3487,18 @@ std::string vfm::StaticHelper::exec(const std::string cmd, const bool verbose)
       result += buffer.data();
    }
 
-   if (verbose) Failable::getSingleton("System")->addNote("System command execution ended with result '" + result + "'.");
+   Failable::getSingleton("System")->addDebug("System command execution ended with result '" + result + "'.");
 
    return result;
 }
 
 std::string vfm::StaticHelper::execWithSuccessCode(
    const std::string& cmd, 
-   const bool verbose, 
    int& exit_code,
    std::shared_ptr<std::string> path_to_store_meta_info) {
+
+   Failable::getSingleton("System")->addNote("Executing system command: '" + cmd + "'.");
+
    std::array<char, 16> buffer{};
    std::string result{};
    
@@ -3530,7 +3532,7 @@ std::string vfm::StaticHelper::execWithSuccessCode(
       StaticHelper::writeTextToFile(timeStamp() + ": " + printTimeFormatted(time_all) + " time elapsed for execution of system command '" + cmd + "'.\n", *path_to_store_meta_info, true);
    }
 
-   if (verbose) Failable::getSingleton("System")->addNote("System command execution ended with result '" + result + "'.");
+   Failable::getSingleton("System")->addDebug("System command execution ended with result '" + result + "'.");
 
    return result;
 }
