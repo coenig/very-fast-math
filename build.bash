@@ -48,9 +48,9 @@ fi
 
 # On Windows, auto-detect the newest Visual Studio generator.
 # CMake respects the CMAKE_GENERATOR env var, avoiding quoting issues with -G.
-# On Linux this block is a harmless no-op (no vswhere, no VS generators in cmake --help).
+# On Linux this block is a harmless no-op (no vswhere, no VS generators).
 if [[ -z "$CMAKE_GENERATOR" ]]; then
-   # Try vswhere at its well-known location
+   # Try vswhere at its well-known location to find the installed VS version.
    for VSWHERE in \
       "/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
       "/d/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
@@ -60,18 +60,17 @@ if [[ -z "$CMAKE_GENERATOR" ]]; then
          case "$VS_YEAR" in
             2022) export CMAKE_GENERATOR="Visual Studio 17 2022" ;;
             2019) export CMAKE_GENERATOR="Visual Studio 16 2019" ;;
+            *)
+               # Unknown VS year (e.g. 2026+): pick the newest generator cmake supports.
+               NEWEST=$(cmake --help 2>/dev/null | grep -o 'Visual Studio [0-9][0-9]* [0-9][0-9]*' | sort -t' ' -k3 -nr | head -1)
+               if [[ -n "$NEWEST" ]]; then
+                  export CMAKE_GENERATOR="$NEWEST"
+               fi
+               ;;
          esac
          break
       fi
    done
-   # Fallback: parse cmake --help for the newest VS generator available
-   if [[ -z "$CMAKE_GENERATOR" ]]; then
-      if cmake --help 2>/dev/null | grep -q "Visual Studio 17 2022"; then
-         export CMAKE_GENERATOR="Visual Studio 17 2022"
-      elif cmake --help 2>/dev/null | grep -q "Visual Studio 16 2019"; then
-         export CMAKE_GENERATOR="Visual Studio 16 2019"
-      fi
-   fi
 fi
 
 if [ -z "$DEBUGOPTSCMAKE" ]; then
