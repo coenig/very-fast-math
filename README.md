@@ -40,8 +40,8 @@ Run `vfm(.exe)` from the `bin` folder.
 |---|---|---|---|
 | CMake | 3.21+ | Both | Required for VS 2022+ generator support |
 | GCC/G++ | 7+ | Linux | C++17 support required |
-| Visual Studio | 2019+ | Windows | Build Tools or full IDE; the build script auto-detects the installed version via `vswhere` |
-| Git Bash / MSYS2 | — | Windows | Needed to run `build.bash` |
+| Visual Studio | 2019+ | Windows | Build Tools or full IDE |
+| Git Bash / MSYS2 | — | Windows | Only for using `build.bash` to compile |
 
 ### Troubleshoot
 There are no additional dependencies, except `gtest` if you want to run the tests, and `opengl` if you want to compile fltk agains it. These dependencies are technically optional, but in the recent versions they are required for the build script to work. Should you receive errors, do:
