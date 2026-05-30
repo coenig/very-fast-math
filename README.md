@@ -35,6 +35,14 @@ Steered by the MC, a fleet of cars provably* obeys a given SPEC, in this case: i
 
 Run `vfm(.exe)` from the `bin` folder.
 
+### Build dependencies
+| Dependency | Minimum version | Notes |
+|---|---|---|
+| CMake | 3.21+ | Required for VS 2022+ generator support |
+| Visual Studio (Windows) | 2019+ | Build Tools or full IDE; the build script auto-detects the installed version via `vswhere` |
+| GCC/G++ (Linux) | 7+ | C++17 support required |
+| Git Bash / MSYS2 (Windows) | — | Needed to run `build.bash` |
+
 ### Troubleshoot
 There are no additional dependencies, except `gtest` if you want to run the tests, and `opengl` if you want to compile fltk agains it. These dependencies are technically optional, but in the recent versions they are required for the build script to work. Should you receive errors, do:
 ```
