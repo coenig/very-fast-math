@@ -41,27 +41,40 @@ CMAKE_MINOR=$(cmake --version | head -1 | sed 's/[^0-9]*//' | cut -d. -f2)
 if [[ "$CMAKE_MAJOR" -gt 3 ]] || [[ "$CMAKE_MAJOR" -eq 3 && "$CMAKE_MINOR" -ge 12 ]]; then
    PARALLEL_FLAG="--parallel 16"
 elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
-   PARALLEL_FLAG="-- /m:16"
+   PARALLEL_FLAG="-- //m:16"
 else
    PARALLEL_FLAG="-- -j16"
 fi
 
-# On Windows, auto-detect the newest Visual Studio installation for the generator.
+# On Windows, auto-detect the newest Visual Studio generator using vswhere.
 GENERATOR_FLAG=""
 if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
-   if [[ -d "/c/Program Files/Microsoft Visual Studio/2022" ]] || [[ -d "C:/Program Files/Microsoft Visual Studio/2022" ]]; then
-      GENERATOR_FLAG='-G "Visual Studio 17 2022"'
-   elif [[ -d "/c/Program Files/Microsoft Visual Studio/2019" ]] || [[ -d "C:/Program Files/Microsoft Visual Studio/2019" ]]; then
-      GENERATOR_FLAG='-G "Visual Studio 16 2019"'
+   VSWHERE="$(cmd //C 'echo %ProgramFiles(x86)%' 2>/dev/null | tr -d '\r')/Microsoft Visual Studio/Installer/vswhere.exe"
+   if [[ -f "$VSWHERE" ]]; then
+      VS_YEAR=$("$VSWHERE" -latest -property catalog_productLineVersion 2>/dev/null | tr -d '\r')
+      case "$VS_YEAR" in
+         2022) GENERATOR_FLAG="-G Visual Studio 17 2022" ;;
+         2019) GENERATOR_FLAG="-G Visual Studio 16 2019" ;;
+         2017) GENERATOR_FLAG="-G Visual Studio 15 2017" ;;
+      esac
+   fi
+   # Fallback: if vswhere not found, try common VS 2022 paths
+   if [[ -z "$GENERATOR_FLAG" ]]; then
+      for drive in /c /d /e; do
+         if [[ -d "$drive/Program Files/Microsoft Visual Studio/2022" ]]; then
+            GENERATOR_FLAG="-G Visual Studio 17 2022"
+            break
+         fi
+      done
    fi
 fi
 
 if [ -z "$DEBUGOPTSCMAKE" ]; then
-   eval cmake $DEBUGOPTSCMAKE $GENERATOR_FLAG -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Debug ..
+   cmake $DEBUGOPTSCMAKE $GENERATOR_FLAG -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Debug ..
    cmake --build . --config Debug $PARALLEL_FLAG
 else
    printf "Redirecting cmake and make outputs to files due to debug mode."
-   eval cmake $DEBUGOPTSCMAKE $GENERATOR_FLAG -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Debug .. > cmake.log 2> cmake.err
+   cmake $DEBUGOPTSCMAKE $GENERATOR_FLAG -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Debug .. > cmake.log 2> cmake.err
    cmake --build . --config Debug $PARALLEL_FLAG > make.log 2> make.err
 fi
 
