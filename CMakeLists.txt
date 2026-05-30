@@ -33,7 +33,7 @@ if(MSVC)
         17
     )
     set(CMAKE_CXX_FLAGS
-        "${CMAKE_CXX_FLAGS} /bigobj /EHc /std:c++latest /Zc:__cplusplus"
+        "${CMAKE_CXX_FLAGS} /bigobj /EHc /std:c++latest /Zc:__cplusplus /FS"
     )
 endif(MSVC)
 
