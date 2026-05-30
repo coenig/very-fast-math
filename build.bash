@@ -57,12 +57,12 @@ if [[ -z "$CMAKE_GENERATOR" ]]; then
 fi
 
 if [ -z "$DEBUGOPTSCMAKE" ]; then
-   cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Debug ..
-   cmake --build . --config Debug --parallel 16
+   cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release ..
+   cmake --build . --config Release --parallel 16
 else
    printf "Redirecting cmake and make outputs to files due to debug mode."
-   cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Debug .. > cmake.log 2> cmake.err
-   cmake --build . --config Debug --parallel 16 > make.log 2> make.err
+   cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release .. > cmake.log 2> cmake.err
+   cmake --build . --config Release --parallel 16 > make.log 2> make.err
 fi
 
 if [ $? -eq 0 ]; then
