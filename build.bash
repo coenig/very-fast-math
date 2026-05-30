@@ -46,12 +46,22 @@ else
    PARALLEL_FLAG="-- -j16"
 fi
 
+# On Windows, auto-detect the newest Visual Studio installation for the generator.
+GENERATOR_FLAG=""
+if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+   if [[ -d "/c/Program Files/Microsoft Visual Studio/2022" ]] || [[ -d "C:/Program Files/Microsoft Visual Studio/2022" ]]; then
+      GENERATOR_FLAG='-G "Visual Studio 17 2022"'
+   elif [[ -d "/c/Program Files/Microsoft Visual Studio/2019" ]] || [[ -d "C:/Program Files/Microsoft Visual Studio/2019" ]]; then
+      GENERATOR_FLAG='-G "Visual Studio 16 2019"'
+   fi
+fi
+
 if [ -z "$DEBUGOPTSCMAKE" ]; then
-   cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Debug ..
+   eval cmake $DEBUGOPTSCMAKE $GENERATOR_FLAG -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Debug ..
    cmake --build . --config Debug $PARALLEL_FLAG
 else
    printf "Redirecting cmake and make outputs to files due to debug mode."
-   cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Debug .. > cmake.log 2> cmake.err
+   eval cmake $DEBUGOPTSCMAKE $GENERATOR_FLAG -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Debug .. > cmake.log 2> cmake.err
    cmake --build . --config Debug $PARALLEL_FLAG > make.log 2> make.err
 fi
 
