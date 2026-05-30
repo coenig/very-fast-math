@@ -33,13 +33,26 @@ done
 
 mkdir -p build
 cd build
+
+# Determine parallel build flags based on CMake version.
+# --parallel was added in CMake 3.12. Use native flags as fallback.
+CMAKE_MAJOR=$(cmake --version | head -1 | sed 's/[^0-9]*//' | cut -d. -f1)
+CMAKE_MINOR=$(cmake --version | head -1 | sed 's/[^0-9]*//' | cut -d. -f2)
+if [[ "$CMAKE_MAJOR" -gt 3 ]] || [[ "$CMAKE_MAJOR" -eq 3 && "$CMAKE_MINOR" -ge 12 ]]; then
+   PARALLEL_FLAG="--parallel 16"
+elif [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
+   PARALLEL_FLAG="-- /m:16"
+else
+   PARALLEL_FLAG="-- -j16"
+fi
+
 if [ -z "$DEBUGOPTSCMAKE" ]; then
-   cmake $DEBUGOPTSCMAKE -DCMAKE_BUILD_TYPE=Debug ..
-   cmake --build . --config Debug --parallel 16
+   cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Debug ..
+   cmake --build . --config Debug $PARALLEL_FLAG
 else
    printf "Redirecting cmake and make outputs to files due to debug mode."
-   cmake $DEBUGOPTSCMAKE -DCMAKE_BUILD_TYPE=Debug .. > cmake.log 2> cmake.err
-   cmake --build . --config Debug --parallel 16 > make.log 2> make.err
+   cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Debug .. > cmake.log 2> cmake.err
+   cmake --build . --config Debug $PARALLEL_FLAG > make.log 2> make.err
 fi
 
 if [ $? -eq 0 ]; then
