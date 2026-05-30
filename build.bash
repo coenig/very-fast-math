@@ -46,26 +46,31 @@ else
    PARALLEL_FLAG="-- -j16"
 fi
 
-# On Windows, auto-detect the newest Visual Studio generator using vswhere.
+# On Windows, auto-detect the newest Visual Studio generator.
 # CMake respects the CMAKE_GENERATOR env var, avoiding quoting issues with -G.
 if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
    if [[ -z "$CMAKE_GENERATOR" ]]; then
-      VSWHERE="$(cmd //C 'echo %ProgramFiles(x86)%' 2>/dev/null | tr -d '\r')/Microsoft Visual Studio/Installer/vswhere.exe"
-      if [[ -f "$VSWHERE" ]]; then
-         VS_YEAR=$("$VSWHERE" -latest -property catalog_productLineVersion 2>/dev/null | tr -d '\r')
-         case "$VS_YEAR" in
-            2022) export CMAKE_GENERATOR="Visual Studio 17 2022" ;;
-            2019) export CMAKE_GENERATOR="Visual Studio 16 2019" ;;
-         esac
-      fi
-      # Fallback: try common VS 2022 paths
+      # Try vswhere at its well-known location
+      for VSWHERE in \
+         "/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
+         "/d/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
+         "/e/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"; do
+         if [[ -f "$VSWHERE" ]]; then
+            VS_YEAR=$("$VSWHERE" -latest -property catalog_productLineVersion 2>/dev/null | tr -d '\r')
+            case "$VS_YEAR" in
+               2022) export CMAKE_GENERATOR="Visual Studio 17 2022" ;;
+               2019) export CMAKE_GENERATOR="Visual Studio 16 2019" ;;
+            esac
+            break
+         fi
+      done
+      # Fallback: parse cmake --help for the newest VS generator available
       if [[ -z "$CMAKE_GENERATOR" ]]; then
-         for drive in /c /d /e; do
-            if [[ -d "$drive/Program Files/Microsoft Visual Studio/2022" ]]; then
-               export CMAKE_GENERATOR="Visual Studio 17 2022"
-               break
-            fi
-         done
+         if cmake --help 2>/dev/null | grep -q "Visual Studio 17 2022"; then
+            export CMAKE_GENERATOR="Visual Studio 17 2022"
+         elif cmake --help 2>/dev/null | grep -q "Visual Studio 16 2019"; then
+            export CMAKE_GENERATOR="Visual Studio 16 2019"
+         fi
       fi
    fi
 fi
