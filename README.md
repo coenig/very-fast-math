@@ -12,7 +12,11 @@ Thank you for using
 ~~~
 
 ## VFM Library
-`vfm` is a formal verification software for [ADAS](https://en.wikipedia.org/wiki/Advanced_driver-assistance_system) with the [nuXmv model checker](https://nuxmv.fbk.eu/) in its core. It can parse C++ code of an automated driving function (or other) and translate it into a transition system for the nuXmv model checker. Optionally, it can be integrated with an environment model, providing a discrete traffic simulation for the driving function to be verified against. The resulting counterexamples can be visualized and converted into the [OSC2 format](https://www.asam.net/static_downloads/public/asam-openscenario/2.0.0/welcome.html).
+`vfm` is a formal verification software for [ADAS](https://en.wikipedia.org/wiki/Advanced_driver-assistance_system) with the [nuXmv model checker](https://nuxmv.fbk.eu/) in its core. It can 
+- parse C++ code of an automated driving function (or other) and translate it into a transition system for the nuXmv model checker;
+- optionally integrate it with an environment model, providing a discrete traffic simulation for the driving function to be verified against; the results can be converted into scenarios using [OSM]{https://wiki.openstreetmap.org/wiki/OSM_file_formats} / [OSC2 format](https://www.asam.net/static_downloads/public/asam-openscenario/2.0.0/welcome.html).
+
+In the **ultra-cooperative driving mode**, a fleet of cars can be steered by provably obeying a set of requirements.
 
 ## Examples
 ### MC-generated traffic situation on highway
@@ -27,9 +31,7 @@ Thank you for using
 Steered by the MC, a fleet of cars provably* obeys a given SPEC, in this case: invert ordering without colliding. Entrance file: `morty/morty.py`. (* given a whole bunch of assumtions :wink:)
 
 ## How to build
-`vfm` is implemented in `C++` and can be built with CMake (stable) or Bazel (experimental). With CMake, proceed as follows:
-* On Windows, open the top-level `CMakeLists.txt` with Visual Studio and build the `vfm` target.
-* On Linux, run the `build.bash` script.
+`vfm` is implemented in `C++` and can be built with CMake (stable) or Bazel (experimental). With CMake, simply run the `build.bash` script. *(On Windows, you can alternatively open the top-level `CMakeLists.txt` with Visual Studio and build the `vfm` target.)*
 
 Run `vfm(.exe)` from the `bin` folder.
 
@@ -41,8 +43,8 @@ sudo apt-get install libgtest-dev
 sudo apt-get install libglew-dev
 ```
 
-## M²oRTy
-For the ultra-cooperative driving framework you need additionally `gymnasium` and `highway-env` (as well as python3/pip):
+## M²oRTy (ultra-cooperative driving)
+For the UCD framework you need additionally `gymnasium` and `highway-env` (as well as python3 with pip which we assume is there):
 ```
 pip install gymnasium
 pip install "gymnasium[other]"
