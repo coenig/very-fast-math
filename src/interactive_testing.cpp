@@ -834,6 +834,7 @@ int vfm::test::artifactRun(int argc, char* argv[])
          { 0 }, // TODO: For now only first CEX if several given.
          generated_dir,
          StaticHelper::removeLastFileExtension(inputs.getCmdOption(CMD_CEX_FILE)),
+         "", // Use default scaling file location.
          mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv), // TODO: Make this parametrizable
          mc::ALL_TESTCASE_MODES);
    }
