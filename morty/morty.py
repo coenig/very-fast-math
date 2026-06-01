@@ -154,6 +154,7 @@ MC_DIST_NUDGING_FRONT = int(TARGET_DIST_NUDGING_FRONT * dist_scale) # Scaled to 
 MC_DIST_NUDGING_BACK = int(TARGET_DIST_NUDGING_BACK * dist_scale) # Scaled to MC-space.
 #SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos + {TARGET_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos >= 0);") # 7
 SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= {MC_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos <= {MC_DIST_NUDGING_BACK});") # 7
+
 SPECS.append(r"""INVARSPEC !(env.veh___609___.lane_b0 & !env.veh___609___.lane_b1);""") # 8: Car 609 reaches leftmost lane (b0)
 
 
