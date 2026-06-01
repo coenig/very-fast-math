@@ -34,10 +34,28 @@ def _patched_get_color(cls, vehicle, transparent=False):
     return _original_get_color.__func__(cls, vehicle, transparent)
 VehicleGraphics.get_color = _patched_get_color
 
+# COP: Patch VehicleGraphics.display to draw car IDs next to the car boxes.
+_original_display = VehicleGraphics.display.__func__
+@classmethod
+def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, label=False, draw_roof=False):
+    _original_display(cls, vehicle, surface, transparent=transparent, offscreen=offscreen, label=label, draw_roof=draw_roof)
+    if not surface.is_visible(vehicle.position):
+        return
+    try:
+        import pygame
+        idx = vehicle.road.vehicles.index(vehicle)
+        font = pygame.font.Font(None, 18)
+        text = font.render(str(idx), True, (0, 0, 0), (255, 255, 255))
+        position = [*surface.pos2pix(vehicle.position[0], vehicle.position[1])]
+        surface.blit(text, (position[0] - 5, position[1] - 15))
+    except (ValueError, AttributeError):
+        pass
+VehicleGraphics.display = _patched_display
+
 # Prepare connection to morty lib.
 import platform
 if platform.system() == 'Windows':
-    morty_lib = CDLL('./bin/VFM_MAIN_LIB.dll')
+    morty_lib = CDLL('./bin/Release/VFM_MAIN_LIB.dll')
 else:
     morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.expandScript.argtypes = [c_char_p, c_char_p, c_size_t]
