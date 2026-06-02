@@ -268,16 +268,21 @@ bool VisualizationLaunchers::quickGenerateGIFs(
       StaticHelper::writeTextToFile(StaticHelper::serializeMCTraceNusmvStyle(trace), path + file_name_without_txt_extension + "_unscaled.smv");
 
       // Scaling
-      Failable::getSingleton()->addNote("Applying scaling.");
       std::string scaling_file_path_final{ scaling_file_path };
-
+      
       if (scaling_file_path_final.empty()) { // Use default path.
          ScaleDescription::createTimescalingFile(path_base);
          scaling_file_path_final = path_base + TIMESCALING_FILENAME;
       }
+            
+      auto ts_description{ ScaleDescription(StaticHelper::readFile(scaling_file_path_final)) }; // If malformed, assume scaling of 1/1.
 
-      auto ts_description{ ScaleDescription(StaticHelper::readFile(scaling_file_path_final)) };
-      StaticHelper::applyTimescaling(trace, ts_description);
+      if (StaticHelper::existsFileSafe(scaling_file_path_final)) {
+         Failable::getSingleton()->addNote("Applying scaling (t=" + std::to_string((int)ts_description.getTimeScalingFactor()) + "/d=" + std::to_string((int)ts_description.getDistanceScalingFactor()) + ") from file '" + scaling_file_path_final + "'.");
+         StaticHelper::applyTimescaling(trace, ts_description);
+      } else {
+         Failable::getSingleton()->addError("Scaling file '" + scaling_file_path_final + "' does not exist. Assuming 1/1 scaling.");
+      }
       // EO Scaling
 
       StaticHelper::writeTextToFile(StaticHelper::serializeMCTraceNusmvStyle(trace), path + file_name_without_txt_extension + ".smv");

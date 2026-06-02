@@ -764,6 +764,8 @@ private:
       {
          auto [modes_str, modes] = getModes(parameters.at(0));
 
+         addNote("Generating visu for '" + body + "' in modes '" + modes_str + " '.");
+
          mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
             { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
             body,

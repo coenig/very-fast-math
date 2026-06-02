@@ -16,7 +16,41 @@ import distutils.dir_util
 import json
 import re
 from pathlib import Path
+import glob
 from morty_debug_plots import plot_cex_lengths, plot_cex_lengths_cumulative, plot_mc_runtimes
+
+
+
+DEFAULT_NUM_RUNS = 100
+DEFAULT_NUM_STEPS_PER_RUN = 300
+DEFAULT_HEADING_ADAPTATION = -0.5
+DEFAULT_ALLOW_BLIND_STEPS = DEFAULT_NUM_STEPS_PER_RUN
+DEFAULT_ALLOW_CRASHED_STEPS = 1
+
+parser = argparse.ArgumentParser(
+                    prog='morty',
+                    description='Model Checking based planning',
+                    epilog='Bye!')
+parser.add_argument('-n', '--num_runs', default=DEFAULT_NUM_RUNS, type=int,
+                    help=f'Number of runs to perform per experiment. Default: {DEFAULT_NUM_RUNS}')
+parser.add_argument('-s', '--steps_per_run', default=DEFAULT_NUM_STEPS_PER_RUN, type=int,
+                    help=f'Maximum number of steps until the SPEC must be fulfilled. Default: {DEFAULT_NUM_STEPS_PER_RUN}')
+parser.add_argument('-a', '--heading_adaptation', default=DEFAULT_HEADING_ADAPTATION, type=float,
+                    help=f'How much the heading of the cars is used to adapt their lateral position (see MC code for details). Default: {DEFAULT_HEADING_ADAPTATION}')
+parser.add_argument('-b', '--allow_blind_steps', default=DEFAULT_ALLOW_BLIND_STEPS, type=int,
+                    help=f'How many times the MC is allowed to be blind (no CEX) before the run is aborted. Default: {DEFAULT_ALLOW_BLIND_STEPS}')
+parser.add_argument('-c', '--allow_crashed_steps', default=DEFAULT_ALLOW_CRASHED_STEPS, type=int,
+                    help='How many steps with crashes are allowed before the run is aborted. Default: {DEFAULT_ALLOW_CRASHED_STEPS}')
+parser.add_argument('--record_video', action='store_true',
+                    help='Record a video of the run. Default: False')
+parser.add_argument('--detailed_archive', action='store_true',
+                    help='Stores detailed archive of the run in a subfolder. Default: False')
+parser.add_argument('--force', action='store_true',
+                    help='Force deleting of existing result files. Default: False')
+parser.add_argument('--headless', action='store_true',
+                    help='Run without opening the simulation UI window. Default: False')
+args = parser.parse_args()
+
 
 # COP: Patch VehicleGraphics.get_color so that crashed always takes priority over custom color.
 # Without this, highway-env checks vehicle.color BEFORE vehicle.crashed, so any custom
@@ -61,6 +95,33 @@ else:
 morty_lib.expandScript.argtypes = [c_char_p, c_char_p, c_size_t]
 morty_lib.expandScript.restype = c_char_p
 
+# Load parameters from JSON.
+with open('morty/envmodel_config.tpl.json') as f:
+    d = json.load(f)
+    ucd_config_prios_str = [s for s in d["#TEMPLATE"]["UCD_CONFIG_PRIOS"].split(';') if s] # only non-empty strings
+    generated_path_prefix = d["#TEMPLATE"]["_GENERATED_PATH"]
+
+# Delete old results from Python side
+any = False
+for res_path in glob.glob(generated_path_prefix + "*"):
+    if Path(res_path).is_dir():
+        any = True
+        if args.force:
+            print(f"Directory {res_path} already exists. Deleting because --force is set.")
+            shutil.rmtree(res_path)
+            if Path(res_path).is_dir():
+                print(f"Error: failed to delete {res_path}. Exiting.")
+                exit(1)
+            else: 
+                print(f"Successfully deleted {res_path}. Continuing.")
+        else:
+            print(f"Error: Results folder {res_path} already exists.")
+
+if any and not args.force:
+    print("Use --force to auto-remove existing results folders. Exiting.")
+    exit(1)
+# EO Delete old results from Python side
+
 # Create EnvModels.
 dummy_result = create_string_buffer(2000)
 script_envmodels = r"""
@@ -69,12 +130,6 @@ script_envmodels = r"""
 """
 dummy_result = morty_lib.expandScript(script_envmodels.encode('utf-8'), dummy_result, sizeof(dummy_result)).decode()
 # EO Create EnvModels.
-
-# Load parameters from JSON.
-with open('morty/envmodel_config.tpl.json') as f:
-    d = json.load(f)
-    ucd_config_prios_str = [s for s in d["#TEMPLATE"]["UCD_CONFIG_PRIOS"].split(';') if s] # only non-empty strings
-    generated_path_prefix = d["#TEMPLATE"]["_GENERATED_PATH"]
     
 with open('morty/envmodel_config.json') as f:
     d = json.load(f) # Take only the [0]th config here because on Python side there are no differences for now.
@@ -180,11 +235,11 @@ for i in range(0, len(SPECS)):
     addons[i] += ADDONS_BEGIN_DENOTER
     addons[i] += f"-- UCD experiment{i} --\n"
 
-MC_MIN_V_FORWARD = int(5 * vel_scale)
-MC_MAX_V_BACKWARD = int(-5 * vel_scale)
+MC_MIN_V_FORWARD = int(10 * vel_scale)
+MC_MAX_V_BACKWARD = int(-10 * vel_scale)
 addons[7] += f"""
-INVAR env.veh___609___.v >= {MC_MIN_V_FORWARD};
-INVAR env.veh___619___.v <= {MC_MAX_V_BACKWARD};
+-- INVAR env.veh___609___.v >= {MC_MIN_V_FORWARD};
+-- INVAR env.veh___619___.v <= {MC_MAX_V_BACKWARD};
 TRANS (((env.veh___619___.abs_pos - env.veh___609___.abs_pos) < 0)
        != ((next(env.veh___619___.abs_pos) - next(env.veh___609___.abs_pos)) < 0))
        -> ((env.veh___609___.on_normalized_lane = next(env.veh___609___.on_normalized_lane)) & 
@@ -201,35 +256,6 @@ for i in range(1, nonegos):
 for i in range(0, len(SPECS)):
     addons[i] += ADDONS_END_DENOTER
 
-DEFAULT_NUM_RUNS = 100
-DEFAULT_NUM_STEPS_PER_RUN = 300
-DEFAULT_HEADING_ADAPTATION = -0.5
-DEFAULT_ALLOW_BLIND_STEPS = DEFAULT_NUM_STEPS_PER_RUN
-DEFAULT_ALLOW_CRASHED_STEPS = 1
-
-parser = argparse.ArgumentParser(
-                    prog='morty',
-                    description='Model Checking based planning',
-                    epilog='Bye!')
-parser.add_argument('-n', '--num_runs', default=DEFAULT_NUM_RUNS, type=int,
-                    help=f'Number of runs to perform per experiment. Default: {DEFAULT_NUM_RUNS}')
-parser.add_argument('-s', '--steps_per_run', default=DEFAULT_NUM_STEPS_PER_RUN, type=int,
-                    help=f'Maximum number of steps until the SPEC must be fulfilled. Default: {DEFAULT_NUM_STEPS_PER_RUN}')
-parser.add_argument('-a', '--heading_adaptation', default=DEFAULT_HEADING_ADAPTATION, type=float,
-                    help=f'How much the heading of the cars is used to adapt their lateral position (see MC code for details). Default: {DEFAULT_HEADING_ADAPTATION}')
-parser.add_argument('-b', '--allow_blind_steps', default=DEFAULT_ALLOW_BLIND_STEPS, type=int,
-                    help=f'How many times the MC is allowed to be blind (no CEX) before the run is aborted. Default: {DEFAULT_ALLOW_BLIND_STEPS}')
-parser.add_argument('-c', '--allow_crashed_steps', default=DEFAULT_ALLOW_CRASHED_STEPS, type=int,
-                    help='How many steps with crashes are allowed before the run is aborted. Default: {DEFAULT_ALLOW_CRASHED_STEPS}')
-parser.add_argument('-d', '--debug', default=0, type=int,
-                    help='Enable writing images in each step to see what the MC thinks (0 or 1). Default: 0')
-parser.add_argument('--record_video', action='store_true',
-                    help='Record a video of the run. Default: False')
-parser.add_argument('--detailed_archive', action='store_true',
-                    help='Stores detailed archive of the run in a subfolder. Default: False')
-parser.add_argument('--headless', action='store_true',
-                    help='Run without opening the simulation UI window. Default: False')
-args = parser.parse_args()
 
 if args.headless:
     if not args.record_video:
@@ -249,7 +275,6 @@ MAX_EXPs = args.num_runs
 good_ones = []
 all_cex_length_histories = {}
 mismatch_count = 0
-
 
 def ensure_empty_file(path: str) -> None:
     p = Path(path)
@@ -309,8 +334,7 @@ def _latest_nuxmv_runtime_seconds(config_name: str):
             return hours * 3600 + minutes * 60 + seconds
 
     return np.nan
-
-ensure_empty_file(f'{generated_path_prefix}/results.txt')  # Delete old results from Python side
+ 
 specification = create_string_buffer(2000)
 spec_res = morty_lib.expandScript(SPECS[exp_num].encode('utf-8'), specification, sizeof(specification)).decode()
 
@@ -528,7 +552,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[16]
             @{{scriptID}}@.scriptVar.StopScript
 
-            {"@{../../morty/envmodel_config.tpl.json}@.generateTestCases[cex-birdseye/cex-smooth-birdseye]" if args.debug else ""}
             }}@.nil
             @{{}}@.prepareOutputForMortyUCD[{str(seedo)}, {str(global_counter)}, {0}, {str(crashed)}]
         """
