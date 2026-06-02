@@ -466,6 +466,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "show_trajectories": True,
     })
 
+    env.unwrapped.update_metadata(video_real_time_ratio=1)
+
     action = ([0, 0],) * nonegos
     dpoints_y =     [0] * (nonegos + 1) # The lateral position of the points the cars head towards.
     dpoints_delta = [0] * (nonegos + 1) # The direction we're currently moving towards, laterally.
