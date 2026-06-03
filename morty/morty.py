@@ -203,12 +203,7 @@ SPECS.append(("INVARSPEC !(env.veh___609___.abs_pos - env.veh___6%r9___.abs_pos 
 SPECS.append(r"""INVARSPEC TRUE;""") # 5: Benchmark 1.
 SPECS.append(r"""INVARSPEC FALSE;""") # 6: Benchmark 2.
 
-TARGET_DIST_NUDGING_FRONT = 300 # Target distance for the next spec, in real-world meters.
-TARGET_DIST_NUDGING_BACK = 10 # Target distance for the next spec, in real-world meters.
-MC_DIST_NUDGING_FRONT = int(TARGET_DIST_NUDGING_FRONT * dist_scale) # Scaled to MC-space.
-MC_DIST_NUDGING_BACK = int(TARGET_DIST_NUDGING_BACK * dist_scale) # Scaled to MC-space.
-#SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos + {TARGET_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos >= 0);") # 7
-SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= {MC_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos <= {MC_DIST_NUDGING_BACK});") # 7
+SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___649___.abs_pos & env.veh___619___.abs_pos <= env.veh___629___.abs_pos);") # 7
 
 SPECS.append(r"""INVARSPEC !(env.veh___609___.lane_b0 & !env.veh___609___.lane_b1);""") # 8: Car 609 reaches leftmost lane (b0)
 
@@ -222,7 +217,7 @@ SUCC_CONDS.append(lambda: inverseSortingArray(egos_x))
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(
-    lambda: egos_x[0] >= TARGET_DIST_NUDGING_FRONT and egos_x[1] <= TARGET_DIST_NUDGING_BACK
+    lambda: egos_x[0] >= egos_x[4] and egos_x[1] <= egos_x[2]
     )
 SUCC_CONDS.append(lambda: False) # 8
 
@@ -566,7 +561,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             empty_cex += "|;"
         
         #### MODEL CHECKER CALL ####
-        result = create_string_buffer(25000)
+        result = create_string_buffer(100000)
         res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
         res_str = res.decode().strip()
 
@@ -752,16 +747,16 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         if crashed:
             crashed_count += 1
 
-        # === RENDER ===
         if not args.headless:
             env.render()
 
-        # Flush partial video every iteration so it's not lost on abort.
+        # Flush partial video every iteration.
         if args.record_video and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
             from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
             clip = ImageSequenceClip(env.recorded_frames, fps=env.frames_per_sec)
             clip.write_videofile(f"{generated_path_prefix}/videos/vid_{seedo}_partial.mp4", logger=None)
             clip.close()
+            print("Video written")
 
         archive(seedo, global_counter)
 
