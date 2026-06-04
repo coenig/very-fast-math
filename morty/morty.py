@@ -203,8 +203,8 @@ SPECS.append(("INVARSPEC !(env.veh___609___.abs_pos - env.veh___6%r9___.abs_pos 
 SPECS.append(r"""INVARSPEC TRUE;""") # 5: Benchmark 1.
 SPECS.append(r"""INVARSPEC FALSE;""") # 6: Benchmark 2.
 
-DIST_NUDGING = 20 * dist_scale
-SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos > env.veh___619___.abs_pos + {DIST_NUDGING});") # 7
+SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___649___.abs_pos & env.veh___619___.abs_pos <= env.veh___629___.abs_pos);") # 7
+
 
 SPECS.append(r"""INVARSPEC !(env.veh___609___.lane_b0 & !env.veh___609___.lane_b1);""") # 8: Car 609 reaches leftmost lane (b0)
 
@@ -218,8 +218,8 @@ SUCC_CONDS.append(lambda: inverseSortingArray(egos_x))
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(
-    lambda: egos_x[0] > egos_x[1] + DIST_NUDGING
-    )
+    lambda: egos_x[0] >= egos_x[4] and egos_x[1] <= egos_x[2]
+    ) #7
 SUCC_CONDS.append(lambda: False) # 8
 
 addons = [''] * len(SPECS) # Add to main.smv depending on the experiment.
