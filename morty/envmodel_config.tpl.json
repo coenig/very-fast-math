@@ -75,7 +75,7 @@
       "SIMPLE_LC": true,
       "LANE_WIDTH": 400,
       "VEHICLE_WIDTH": "#{ vehwidth * 40 - 20 }#",
-      "VEHICLE_LENGTH": "#{ vehlen }#",
+      "VEHICLE_LENGTH": "#{ vehlen + 1 }#",
       "BACKWARD_DRIVING_CAR_IDS": "@(1)@",
       "SCENGEN_EXISTENTIAL_PROPERTIES": "1-9",
       "SCENGEN_MODE": false,

@@ -20,7 +20,6 @@ import glob
 from morty_debug_plots import plot_cex_lengths, plot_cex_lengths_cumulative, plot_mc_runtimes
 
 
-
 DEFAULT_NUM_RUNS = 100
 DEFAULT_NUM_STEPS_PER_RUN = 300
 DEFAULT_HEADING_ADAPTATION = -0.5
@@ -780,5 +779,11 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             for video_file in glob.glob(f"{generated_path_prefix}/videos/vid_{seedo}*"):
                 new_name = video_file.replace(f"vid_{seedo}", f"vid_{seedo}{suffix}", 1)
                 os.rename(video_file, new_name)
-    
+
+    if args.detailed_archive:
+        folder_path = f'{generated_path_prefix}/detailed_archive/run_{seedo}'
+        print(f"Zipping detailed archive folder {folder_path}.")
+        shutil.make_archive(folder_path + ".zip", 'zip', folder_path)
+        shutil.rmtree(folder_path)
+
 print(good_ones)
