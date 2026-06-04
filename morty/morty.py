@@ -203,7 +203,8 @@ SPECS.append(("INVARSPEC !(env.veh___609___.abs_pos - env.veh___6%r9___.abs_pos 
 SPECS.append(r"""INVARSPEC TRUE;""") # 5: Benchmark 1.
 SPECS.append(r"""INVARSPEC FALSE;""") # 6: Benchmark 2.
 
-SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___649___.abs_pos & env.veh___619___.abs_pos <= env.veh___629___.abs_pos);") # 7
+DIST_NUDGING = 20 * dist_scale
+SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos > env.veh___619___.abs_pos + {DIST_NUDGING});") # 7
 
 SPECS.append(r"""INVARSPEC !(env.veh___609___.lane_b0 & !env.veh___609___.lane_b1);""") # 8: Car 609 reaches leftmost lane (b0)
 
@@ -217,7 +218,7 @@ SUCC_CONDS.append(lambda: inverseSortingArray(egos_x))
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(
-    lambda: egos_x[0] >= egos_x[4] and egos_x[1] <= egos_x[2]
+    lambda: egos_x[0] > egos_x[1] + DIST_NUDGING
     )
 SUCC_CONDS.append(lambda: False) # 8
 
@@ -724,7 +725,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
             # Best so far:
             # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i]) / 3.1415
-            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
+            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 1 + egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
             
             if egos_backward[i] == -1: # If the car is backward-driving, we have to adapt the angle to the different perspective.
                 print(angle)
