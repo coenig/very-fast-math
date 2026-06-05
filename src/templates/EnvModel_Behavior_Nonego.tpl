@@ -569,7 +569,10 @@ TRANS
 INVAR veh___6[i]9___.v <= 0;
 }@.for[[i], @{BACKWARD_DRIVING_CAR_IDS}@.printHeap]
 
-INVAR veh___609___.v >= 0;
+@{
+INVAR veh___6[i]9___.v >= 0;
+}@.for[[i], @{FORWARD_DRIVING_CAR_IDS}@.printHeap]
+
 
 --------------------------------------------------------
 -- End: Non-ego Spec 
