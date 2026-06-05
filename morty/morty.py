@@ -601,6 +601,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             f"{generated_path_prefix}/mc_runtime_debug_{seedo}.pdf",
             selected_cnt_history=selected_cnt_history,
         )
+        # EO Track latest nuXmv runtime per configured priority and update PDF each iteration.
         
         ### EO POSTPROCESS RESULT ###
         #### EO MODEL CHECKER CALL ####
@@ -630,6 +631,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             nocex_count += 1
         else:
             cex_length = len(res_str.split(';')[0].split('|')[0].split(','))
+            
+            # Plotting (TODO: refactor to a function to avoid code duplication with the MC runtime plotting above):
             cex_length_history.append(cex_length)
             cnt_history.append(cnt)
             cex_point_colors.append('tab:blue')
@@ -641,6 +644,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             )
             all_cex_length_histories[seedo] = cex_length_history[:]
             plot_cex_lengths_cumulative(all_cex_length_histories, f"{generated_path_prefix}/cex_length_debug_all.pdf")
+            # EO Plotting
+            
             for i in range(nonegos):
                 if not env.unwrapped.controlled_vehicles[i].crashed:
                     env.unwrapped.controlled_vehicles[i].color = (min(cex_length * 15, 255), 200, min(cex_length * 15, 255))
