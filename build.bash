@@ -36,6 +36,7 @@ cd build
 
 # On Windows, auto-detect the Visual Studio generator via vswhere.
 # CMake respects the CMAKE_GENERATOR env var, avoiding quoting issues with -G.
+# TODO: Find out if this is actually necessary.
 if [[ -z "$CMAKE_GENERATOR" ]]; then
    for VSWHERE in \
       "/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
@@ -55,6 +56,7 @@ if [[ -z "$CMAKE_GENERATOR" ]]; then
       fi
    done
 fi
+# EO TODO: Find out if this is actually necessary.
 
 if [ -z "$DEBUGOPTSCMAKE" ]; then
    cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release ..
