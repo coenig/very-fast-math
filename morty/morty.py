@@ -269,7 +269,6 @@ MAX_EXPs = args.num_runs
 
 good_ones = []
 all_cex_length_histories = {}
-mismatch_count = 0
 
 def ensure_empty_file(path: str) -> None:
     p = Path(path)
