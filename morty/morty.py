@@ -726,8 +726,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             # accel = sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
             accel = egos_backward[i] * sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
 
-            # Best so far:
-            # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i]) / 3.1415
+            # Best so far (for inversion task):
+            # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
             angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 1 + egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
             
             if egos_backward[i] == -1: # If the car is backward-driving, we have to adapt the angle to the different perspective.
