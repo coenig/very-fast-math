@@ -759,15 +759,18 @@ private:
 
    ScriptMethodDescription m9b{
       "generateTestCasesPlain",
-      1,
+      2,
       [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string
       {
          auto [modes_str, modes] = getModes(parameters.at(0));
+
+         addNote("Generating visu for '" + body + "' in modes '" + modes_str + " '.");
 
          mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
             { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
             body,
             "debug_trace_array",
+            parameters.at(1),
             mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv),
             modes);
 
@@ -1179,16 +1182,16 @@ private:
             }
          }
          
-         std::string message{ "\n" + StaticHelper::timeStamp() + ": " };
+         std::string message{ "" };
          if (num > 0) {
             message += std::to_string(num) + " PIDs based on '" + body + "' have been killed after '" + parameters[0] + "' seconds of runtime.";
          } else {
-            message += "No '" + body + "'-based PID ran long enough to be killed. Runtimes (s): " + runtimes;
+            message += "No '" + body + "'-based PID ran more than '" + parameters[0] + "' seconds. Runtimes (s): " + runtimes;
          }
          
          addNote(message);
          std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-         return "@{" + body + "}@.killAfter[" + parameters[0] + "]" + message;
+         return "@{" + body + "}@.killAfter[" + parameters[0] + "]" + "\n" + message + " (" + StaticHelper::timeStamp() + ")";
       } },
       { "METHODs", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
          std::string s{};

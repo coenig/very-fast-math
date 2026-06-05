@@ -1,3 +1,6 @@
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend — no X11/display required
+
 import gymnasium
 from gymnasium.wrappers import RecordVideo
 import highway_env
@@ -11,7 +14,42 @@ import numpy as np
 from typing import List
 import distutils.dir_util
 import json
+import re
 from pathlib import Path
+import glob
+from morty_debug_plots import plot_cex_lengths, plot_cex_lengths_cumulative, plot_mc_runtimes
+
+
+DEFAULT_NUM_RUNS = 100
+DEFAULT_NUM_STEPS_PER_RUN = 300
+DEFAULT_HEADING_ADAPTATION = -0.5
+DEFAULT_ALLOW_BLIND_STEPS = DEFAULT_NUM_STEPS_PER_RUN
+DEFAULT_ALLOW_CRASHED_STEPS = 1
+
+parser = argparse.ArgumentParser(
+                    prog='morty',
+                    description='Model Checking based planning',
+                    epilog='Bye!')
+parser.add_argument('-n', '--num_runs', default=DEFAULT_NUM_RUNS, type=int,
+                    help=f'Number of runs to perform per experiment. Default: {DEFAULT_NUM_RUNS}')
+parser.add_argument('-s', '--steps_per_run', default=DEFAULT_NUM_STEPS_PER_RUN, type=int,
+                    help=f'Maximum number of steps until the SPEC must be fulfilled. Default: {DEFAULT_NUM_STEPS_PER_RUN}')
+parser.add_argument('-a', '--heading_adaptation', default=DEFAULT_HEADING_ADAPTATION, type=float,
+                    help=f'How much the heading of the cars is used to adapt their lateral position (see MC code for details). Default: {DEFAULT_HEADING_ADAPTATION}')
+parser.add_argument('-b', '--allow_blind_steps', default=DEFAULT_ALLOW_BLIND_STEPS, type=int,
+                    help=f'How many times the MC is allowed to be blind (no CEX) before the run is aborted. Default: {DEFAULT_ALLOW_BLIND_STEPS}')
+parser.add_argument('-c', '--allow_crashed_steps', default=DEFAULT_ALLOW_CRASHED_STEPS, type=int,
+                    help='How many steps with crashes are allowed before the run is aborted. Default: {DEFAULT_ALLOW_CRASHED_STEPS}')
+parser.add_argument('--record_video', action='store_true',
+                    help='Record a video of the run. Default: False')
+parser.add_argument('--detailed_archive', action='store_true',
+                    help='Stores detailed archive of the run in a subfolder. Default: False')
+parser.add_argument('--force', action='store_true',
+                    help='Force deleting of existing result files. Default: False')
+parser.add_argument('--headless', action='store_true',
+                    help='Run without opening the simulation UI window. Default: False')
+args = parser.parse_args()
+
 
 # COP: Patch VehicleGraphics.get_color so that crashed always takes priority over custom color.
 # Without this, highway-env checks vehicle.color BEFORE vehicle.crashed, so any custom
@@ -29,14 +67,59 @@ def _patched_get_color(cls, vehicle, transparent=False):
     return _original_get_color.__func__(cls, vehicle, transparent)
 VehicleGraphics.get_color = _patched_get_color
 
+# COP: Patch VehicleGraphics.display to draw car IDs next to the car boxes.
+_original_display = VehicleGraphics.display.__func__
+@classmethod
+def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, label=False, draw_roof=False):
+    _original_display(cls, vehicle, surface, transparent=transparent, offscreen=offscreen, label=label, draw_roof=draw_roof)
+    if not surface.is_visible(vehicle.position):
+        return
+    try:
+        import pygame
+        idx = vehicle.road.vehicles.index(vehicle)
+        font = pygame.font.Font(None, 18)
+        text = font.render(str(idx), True, (0, 0, 0), (255, 255, 255))
+        position = [*surface.pos2pix(vehicle.position[0], vehicle.position[1])]
+        surface.blit(text, (position[0] - 5, position[1] - 15))
+    except (ValueError, AttributeError):
+        pass
+VehicleGraphics.display = _patched_display
+
 # Prepare connection to morty lib.
 import platform
 if platform.system() == 'Windows':
-    morty_lib = CDLL('./bin/VFM_MAIN_LIB.dll')
+    morty_lib = CDLL('./bin/Release/VFM_MAIN_LIB.dll')
 else:
     morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.expandScript.argtypes = [c_char_p, c_char_p, c_size_t]
 morty_lib.expandScript.restype = c_char_p
+
+# Load parameters from JSON.
+with open('morty/envmodel_config.tpl.json') as f:
+    d = json.load(f)
+    ucd_config_prios_str = [s for s in d["#TEMPLATE"]["UCD_CONFIG_PRIOS"].split(';') if s] # only non-empty strings
+    generated_path_prefix = d["#TEMPLATE"]["_GENERATED_PATH"]
+
+# Delete old results from Python side
+any = False
+for res_path in glob.glob(generated_path_prefix + "*"):
+    if Path(res_path).is_dir():
+        any = True
+        if args.force:
+            print(f"Directory {res_path} already exists. Deleting because --force is set.")
+            shutil.rmtree(res_path)
+            if Path(res_path).is_dir():
+                print(f"Error: failed to delete {res_path}. Exiting.")
+                exit(1)
+            else: 
+                print(f"Successfully deleted {res_path}. Continuing.")
+        else:
+            print(f"Error: Results folder {res_path} already exists.")
+
+if any and not args.force:
+    print("Use --force to auto-remove existing results folders. Exiting.")
+    exit(1)
+# EO Delete old results from Python side
 
 # Create EnvModels.
 dummy_result = create_string_buffer(2000)
@@ -46,12 +129,6 @@ script_envmodels = r"""
 """
 dummy_result = morty_lib.expandScript(script_envmodels.encode('utf-8'), dummy_result, sizeof(dummy_result)).decode()
 # EO Create EnvModels.
-
-# Load parameters from JSON.
-with open('morty/envmodel_config.tpl.json') as f:
-    d = json.load(f)
-    ucd_config_prios_str = [s for s in d["#TEMPLATE"]["UCD_CONFIG_PRIOS"].split(';') if s] # only non-empty strings
-    generated_path_prefix = d["#TEMPLATE"]["_GENERATED_PATH"]
     
 with open('morty/envmodel_config.json') as f:
     d = json.load(f) # Take only the [0]th config here because on Python side there are no differences for now.
@@ -125,12 +202,9 @@ SPECS.append(("INVARSPEC !(env.veh___609___.abs_pos - env.veh___6%r9___.abs_pos 
 SPECS.append(r"""INVARSPEC TRUE;""") # 5: Benchmark 1.
 SPECS.append(r"""INVARSPEC FALSE;""") # 6: Benchmark 2.
 
-TARGET_DIST_NUDGING_FRONT = 300 # Target distance for the next spec, in real-world meters.
-TARGET_DIST_NUDGING_BACK = 10 # Target distance for the next spec, in real-world meters.
-MC_DIST_NUDGING_FRONT = int(TARGET_DIST_NUDGING_FRONT * dist_scale) # Scaled to MC-space.
-MC_DIST_NUDGING_BACK = int(TARGET_DIST_NUDGING_BACK * dist_scale) # Scaled to MC-space.
-#SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_pos + {TARGET_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos >= 0);") # 7
-SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= {MC_DIST_NUDGING_FRONT} & env.veh___619___.abs_pos <= {MC_DIST_NUDGING_BACK});") # 7
+SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___649___.abs_pos & env.veh___619___.abs_pos <= env.veh___629___.abs_pos);") # 7
+
+
 SPECS.append(r"""INVARSPEC !(env.veh___609___.lane_b0 & !env.veh___609___.lane_b1);""") # 8: Car 609 reaches leftmost lane (b0)
 
 
@@ -143,8 +217,8 @@ SUCC_CONDS.append(lambda: inverseSortingArray(egos_x))
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(
-    lambda: egos_x[0] >= TARGET_DIST_NUDGING_FRONT and egos_x[1] <= TARGET_DIST_NUDGING_BACK
-    )
+    lambda: egos_x[0] >= egos_x[4] and egos_x[1] <= egos_x[2]
+    ) #7
 SUCC_CONDS.append(lambda: False) # 8
 
 addons = [''] * len(SPECS) # Add to main.smv depending on the experiment.
@@ -156,11 +230,11 @@ for i in range(0, len(SPECS)):
     addons[i] += ADDONS_BEGIN_DENOTER
     addons[i] += f"-- UCD experiment{i} --\n"
 
-MC_MIN_V_FORWARD = int(5 * vel_scale)
-MC_MAX_V_BACKWARD = int(-5 * vel_scale)
+MC_MIN_V_FORWARD = int(10 * vel_scale)
+MC_MAX_V_BACKWARD = int(-10 * vel_scale)
 addons[7] += f"""
-INVAR env.veh___609___.v >= {MC_MIN_V_FORWARD};
-INVAR env.veh___619___.v <= {MC_MAX_V_BACKWARD};
+-- INVAR env.veh___609___.v >= {MC_MIN_V_FORWARD};
+-- INVAR env.veh___619___.v <= {MC_MAX_V_BACKWARD};
 TRANS (((env.veh___619___.abs_pos - env.veh___609___.abs_pos) < 0)
        != ((next(env.veh___619___.abs_pos) - next(env.veh___609___.abs_pos)) < 0))
        -> ((env.veh___609___.on_normalized_lane = next(env.veh___609___.on_normalized_lane)) & 
@@ -177,35 +251,6 @@ for i in range(1, nonegos):
 for i in range(0, len(SPECS)):
     addons[i] += ADDONS_END_DENOTER
 
-DEFAULT_NUM_RUNS = 100
-DEFAULT_NUM_STEPS_PER_RUN = 300
-DEFAULT_HEADING_ADAPTATION = -0.5
-DEFAULT_ALLOW_BLIND_STEPS = DEFAULT_NUM_STEPS_PER_RUN
-DEFAULT_ALLOW_CRASHED_STEPS = 1
-
-parser = argparse.ArgumentParser(
-                    prog='morty',
-                    description='Model Checking based planning',
-                    epilog='Bye!')
-parser.add_argument('-n', '--num_runs', default=DEFAULT_NUM_RUNS, type=int,
-                    help=f'Number of runs to perform per experiment. Default: {DEFAULT_NUM_RUNS}')
-parser.add_argument('-s', '--steps_per_run', default=DEFAULT_NUM_STEPS_PER_RUN, type=int,
-                    help=f'Maximum number of steps until the SPEC must be fulfilled. Default: {DEFAULT_NUM_STEPS_PER_RUN}')
-parser.add_argument('-a', '--heading_adaptation', default=DEFAULT_HEADING_ADAPTATION, type=float,
-                    help=f'How much the heading of the cars is used to adapt their lateral position (see MC code for details). Default: {DEFAULT_HEADING_ADAPTATION}')
-parser.add_argument('-b', '--allow_blind_steps', default=DEFAULT_ALLOW_BLIND_STEPS, type=int,
-                    help=f'How many times the MC is allowed to be blind (no CEX) before the run is aborted. Default: {DEFAULT_ALLOW_BLIND_STEPS}')
-parser.add_argument('-c', '--allow_crashed_steps', default=DEFAULT_ALLOW_CRASHED_STEPS, type=int,
-                    help='How many steps with crashes are allowed before the run is aborted. Default: {DEFAULT_ALLOW_CRASHED_STEPS}')
-parser.add_argument('-d', '--debug', default=0, type=int,
-                    help='Enable writing images in each step to see what the MC thinks (0 or 1). Default: 0')
-parser.add_argument('--record_video', action='store_true',
-                    help='Record a video of the run. Default: False')
-parser.add_argument('--detailed_archive', action='store_true',
-                    help='Stores detailed archive of the run in a subfolder. Default: False')
-parser.add_argument('--headless', action='store_true',
-                    help='Run without opening the simulation UI window. Default: False')
-args = parser.parse_args()
 
 if args.headless:
     if not args.record_video:
@@ -223,7 +268,7 @@ ACCEL_RANGE = 6
 MAX_EXPs = args.num_runs
 
 good_ones = []
-
+all_cex_length_histories = {}
 
 def ensure_empty_file(path: str) -> None:
     p = Path(path)
@@ -259,7 +304,31 @@ def inverseSortingArray(egos_x: List[float]):
         b = b and (egos_x[i + 1] < egos_x[i])
     return b
 
-ensure_empty_file(f'{generated_path_prefix}/results.txt')  # Delete old results from Python side
+
+def _latest_nuxmv_runtime_seconds(config_name: str):
+    """Return latest nuXmv runtime in seconds from mc_runtimes.txt for a given config."""
+    runtime_file = f"{generated_path_prefix + config_name}/mc_runtimes.txt"
+    if not os.path.exists(runtime_file):
+        return np.nan
+
+    try:
+        with open(runtime_file, "r", encoding="utf-8", errors="ignore") as f:
+            lines = f.readlines()
+    except OSError:
+        return np.nan
+
+    for line in reversed(lines):
+        if "nuXmv" not in line:
+            continue
+        m = re.search(r"(\d+):(\d+):(\d+(?:\.\d+)?)\s+time elapsed", line)
+        if m:
+            hours = int(m.group(1))
+            minutes = int(m.group(2))
+            seconds = float(m.group(3))
+            return hours * 3600 + minutes * 60 + seconds
+
+    return np.nan
+ 
 specification = create_string_buffer(2000)
 spec_res = morty_lib.expandScript(SPECS[exp_num].encode('utf-8'), specification, sizeof(specification)).decode()
 
@@ -402,6 +471,11 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     egos_backward = [1] * (nonegos + 1) # If the respective car is a forward (1) or backward (-1) driving car.
     nocex_count = 0
     crashed_count = 0
+    cex_length_history = []
+    cnt_history = []
+    cex_point_colors = []
+    mc_runtime_histories = {config_name: [] for config_name in ucd_config_prios_str}
+    selected_cnt_history = []
 
     # Mark backward driving cars.
     for i in backward_driving_car_ids:
@@ -431,7 +505,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         cnt = cnt + 1
 
     if args.record_video:
-        env = RecordVideo(env, video_folder="videos", name_prefix=f"vid_{seedo}",
+        env = RecordVideo(env, video_folder=f"{generated_path_prefix}/videos", name_prefix=f"vid_{seedo}",
                     episode_trigger=lambda e: True)  # record all episodes
         env.unwrapped.set_record_video_wrapper(env)
         env.start_recording(f"vid_{seedo}")
@@ -472,7 +546,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[16]
             @{{scriptID}}@.scriptVar.StopScript
 
-            {"@{../../morty/envmodel_config.tpl.json}@.generateTestCases[cex-birdseye/cex-smooth-birdseye]" if args.debug else ""}
             }}@.nil
             @{{}}@.prepareOutputForMortyUCD[{str(seedo)}, {str(global_counter)}, {0}, {str(crashed)}]
         """
@@ -487,7 +560,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             empty_cex += "|;"
         
         #### MODEL CHECKER CALL ####
-        result = create_string_buffer(25000)
+        result = create_string_buffer(100000)
         res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
         res_str = res.decode().strip()
 
@@ -506,6 +579,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 all_results_dict[config_name] = res_str
         
         blind = "|X"
+        selected_cnt = None
         for cnt, config_name in enumerate(ucd_config_prios_str):
             if (all_results_dict[config_name] == empty_cex):
                 print(f"CEX #{cnt} is EMPTY.")
@@ -513,9 +587,21 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 res_str = all_results_dict[config_name]
                 print(f"Took CEX #{cnt}[{config_name}] which is the first non-empty one.")
                 blind = "|" + str(cnt)
+                selected_cnt = cnt
                 break;
         
         blind_stats += blind
+
+        # Track latest nuXmv runtime per configured priority and update PDF each iteration.
+        selected_cnt_history.append(selected_cnt)
+        for config_name in ucd_config_prios_str:
+            mc_runtime_histories[config_name].append(_latest_nuxmv_runtime_seconds(config_name))
+        plot_mc_runtimes(
+            mc_runtime_histories,
+            f"{generated_path_prefix}/mc_runtime_debug_{seedo}.pdf",
+            selected_cnt_history=selected_cnt_history,
+        )
+        # EO Track latest nuXmv runtime per configured priority and update PDF each iteration.
         
         ### EO POSTPROCESS RESULT ###
         #### EO MODEL CHECKER CALL ####
@@ -545,6 +631,21 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             nocex_count += 1
         else:
             cex_length = len(res_str.split(';')[0].split('|')[0].split(','))
+            
+            # Plotting (TODO: refactor to a function to avoid code duplication with the MC runtime plotting above):
+            cex_length_history.append(cex_length)
+            cnt_history.append(cnt)
+            cex_point_colors.append('tab:blue')
+            plot_cex_lengths(
+                cex_length_history,
+                f"{generated_path_prefix}/cex_length_debug_{seedo}.pdf",
+                cnt_history=cnt_history,
+                point_colors=cex_point_colors,
+            )
+            all_cex_length_histories[seedo] = cex_length_history[:]
+            plot_cex_lengths_cumulative(all_cex_length_histories, f"{generated_path_prefix}/cex_length_debug_all.pdf")
+            # EO Plotting
+            
             for i in range(nonegos):
                 if not env.unwrapped.controlled_vehicles[i].crashed:
                     env.unwrapped.controlled_vehicles[i].color = (min(cex_length * 15, 255), 200, min(cex_length * 15, 255))
@@ -625,9 +726,9 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             # accel = sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
             accel = egos_backward[i] * sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
 
-            # Best so far:
-            # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i]) / 3.1415
-            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
+            # Best so far (for inversion task):
+            # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
+            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 1 + egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
             
             if egos_backward[i] == -1: # If the car is backward-driving, we have to adapt the angle to the different perspective.
                 print(angle)
@@ -650,16 +751,16 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         if crashed:
             crashed_count += 1
 
-        # === RENDER ===
         if not args.headless:
             env.render()
 
-        # Flush partial video every iteration so it's not lost on abort.
+        # Flush partial video every iteration.
         if args.record_video and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
             from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
             clip = ImageSequenceClip(env.recorded_frames, fps=env.frames_per_sec)
-            clip.write_videofile(f"videos/vid_{seedo}_partial.mp4", logger=None)
+            clip.write_videofile(f"{generated_path_prefix}/videos/vid_{seedo}_partial.mp4", logger=None)
             clip.close()
+            print("Video written")
 
         archive(seedo, global_counter)
 
@@ -679,8 +780,14 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             suffix += f"_blind{nocex_count}"
         if suffix:
             import glob
-            for video_file in glob.glob(f"videos/vid_{seedo}*"):
+            for video_file in glob.glob(f"{generated_path_prefix}/videos/vid_{seedo}*"):
                 new_name = video_file.replace(f"vid_{seedo}", f"vid_{seedo}{suffix}", 1)
                 os.rename(video_file, new_name)
-    
+
+    if args.detailed_archive:
+        folder_path = f'{generated_path_prefix}/detailed_archive/run_{seedo}'
+        print(f"Zipping detailed archive folder {folder_path}.")
+        shutil.make_archive(folder_path + ".zip", 'zip', folder_path)
+        shutil.rmtree(folder_path)
+
 print(good_ones)

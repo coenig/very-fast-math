@@ -81,13 +81,18 @@ public:
 #if __linux__
    
    bool containsSubstring(const std::string& filepath, const std::string& substring) {
-      std::ifstream file(filepath, std::ios::in | std::ios::binary);
-      if (!file.is_open()) return false;
+      try {
+         std::ifstream file(filepath, std::ios::in | std::ios::binary);
+         if (!file.is_open()) return false;
 
-      std::string content((std::istreambuf_iterator<char>(file)),
-                           std::istreambuf_iterator<char>());
+         std::string content((std::istreambuf_iterator<char>(file)),
+                              std::istreambuf_iterator<char>());
 
-      return content.find(substring) != std::string::npos;
+         return content.find(substring) != std::string::npos;
+      } catch (...) {
+         // Process may have disappeared between directory listing and file read (ESRCH).
+         return false;
+      }
    }
 
 #endif
@@ -262,16 +267,20 @@ public:
 #ifdef _WIN32
       addError("TODO: No implementation for getSystemUptimeSeconds() available on Windows.");
 #elif __linux__
-      std::ifstream uptime_file("/proc/uptime");
-      if (!uptime_file.is_open()) {
-         std::cerr << "Error: Could not open /proc/uptime" << std::endl;
+      try {
+         std::ifstream uptime_file("/proc/uptime");
+         if (!uptime_file.is_open()) {
+            std::cerr << "Error: Could not open /proc/uptime" << std::endl;
+            return -1.0;
+         }
+
+         std::string line;
+         std::getline(uptime_file, line);
+         std::istringstream iss(line);
+         iss >> uptime_seconds;
+      } catch (...) {
          return -1.0;
       }
-
-      std::string line;
-      std::getline(uptime_file, line);
-      std::istringstream iss(line);
-      iss >> uptime_seconds;
 #else
       addError("TODO: No implementation for getSystemUptimeSeconds() available on this OS.");
 #endif
@@ -285,25 +294,30 @@ public:
 #ifdef _WIN32
       addError("TODO: No implementation for getProcessStartTimeJiffies() available on Windows.");
 #elif __linux__
-      std::string stat_path = "/proc/" + std::to_string(pid) + "/stat";
-      std::ifstream stat_file(stat_path);
+      try {
+         std::string stat_path = "/proc/" + std::to_string(pid) + "/stat";
+         std::ifstream stat_file(stat_path);
 
-      if (!stat_file.is_open()) {
-         // Process might not exist or we don't have permissions
+         if (!stat_file.is_open()) {
+            // Process might not exist or we don't have permissions
+            return -1;
+         }
+
+         std::string line;
+         std::getline(stat_file, line);
+         std::istringstream iss(line);
+
+         std::string token;
+         // We need the 22nd field
+         for (int i = 0; i < 21; ++i) { // Read and discard the first 21 fields
+            iss >> token;
+         }
+
+         iss >> start_time_jiffies;
+      } catch (...) {
+         // Process may have disappeared mid-read (ESRCH).
          return -1;
       }
-
-      std::string line;
-      std::getline(stat_file, line);
-      std::istringstream iss(line);
-
-      std::string token;
-      // We need the 22nd field
-      for (int i = 0; i < 21; ++i) { // Read and discard the first 21 fields
-         iss >> token;
-      }
-
-      iss >> start_time_jiffies;
 #else
       addError("TODO: No implementation for getProcessStartTimeJiffies() available on this OS.");
 #endif

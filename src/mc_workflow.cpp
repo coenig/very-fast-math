@@ -240,6 +240,7 @@ void McWorkflow::createTestCase(
       { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
       generated_parent_dir + "/" + id,
       "debug_trace_array",
+      "", // Use default scaling file location.
       mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv),
       modes);
 
@@ -292,6 +293,7 @@ void McWorkflow::generatePreview(const std::filesystem::path& path_generated_con
       { cex_num },
       path_generated_config_level.string(),
       "debug_trace_array",
+      "", // Use default scaling file location.
       trajectory_generator::CexType(trajectory_generator::CexTypeEnum::smv),
       std::map<std::string, std::string>{ mc::TESTCASE_MODE_PREVIEW, mc::TESTCASE_MODE_PREVIEW_2 });
 

@@ -86,6 +86,7 @@ int main(int argc, char* argv[])
    //   }, 
    //   "C:/eig/git/exp-vfm/CEXs/2025_07_Delivery_AI_Planner/16th_batch_S_G_too_many_LC/gp_config_lanes=2_nonegos=10_segments=2", 
    //   "debug_trace_array",
+   //   "", // Use default scaling file location.
    //   CexTypeEnum::smv,
    //   false, false, false);
    //termnate();

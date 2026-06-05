@@ -93,6 +93,7 @@ public:
       const std::set<int>& cex_nums_to_generate, // In case cex file contains more than 1 CEX, numbers to pick.
       const std::string& path_cropped,
       const std::string& file_name_without_txt_extension,
+      const std::string& scaling_file_path, // Set to "" to look at default path.
       const CexType& cex_type,
       const std::map<std::string, std::string> modes,
       const std::set<int>& agents_to_draw_arrows_for = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 }

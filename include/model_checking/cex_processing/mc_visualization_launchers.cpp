@@ -230,6 +230,7 @@ bool VisualizationLaunchers::quickGenerateGIFs(
    const std::set<int>& cex_nums_to_generate, // In case cex file contains more than 1 CEX, numbers to pick.
    const std::string& path_cropped,
    const std::string& file_name_without_txt_extension,
+   const std::string& scaling_file_path,
    const CexType& cex_type,
    const std::map<std::string, std::string> modes,
    const std::set<int>& agents_to_draw_arrows_for)
@@ -266,12 +267,25 @@ bool VisualizationLaunchers::quickGenerateGIFs(
       StaticHelper::createDirectoriesSafe(path);
       StaticHelper::writeTextToFile(StaticHelper::serializeMCTraceNusmvStyle(trace), path + file_name_without_txt_extension + "_unscaled.smv");
 
-      Failable::getSingleton()->addNote("Applying scaling.");
-      ScaleDescription::createTimescalingFile(path_base);
-      auto ts_description{ ScaleDescription(StaticHelper::readFile(path_base + TIMESCALING_FILENAME)) };
-      StaticHelper::applyTimescaling(trace, ts_description);
-      StaticHelper::writeTextToFile(StaticHelper::serializeMCTraceNusmvStyle(trace), path + file_name_without_txt_extension + ".smv");
+      // Scaling
+      std::string scaling_file_path_final{ scaling_file_path };
+      
+      if (scaling_file_path_final.empty()) { // Use default path.
+         ScaleDescription::createTimescalingFile(path_base);
+         scaling_file_path_final = path_base + TIMESCALING_FILENAME;
+      }
+            
+      auto ts_description{ ScaleDescription(StaticHelper::readFile(scaling_file_path_final)) }; // If malformed, assume scaling of 1/1.
 
+      if (StaticHelper::existsFileSafe(scaling_file_path_final)) {
+         Failable::getSingleton()->addNote("Applying scaling (t=" + std::to_string((int)ts_description.getTimeScalingFactor()) + "/d=" + std::to_string((int)ts_description.getDistanceScalingFactor()) + ") from file '" + scaling_file_path_final + "'.");
+         StaticHelper::applyTimescaling(trace, ts_description);
+      } else {
+         Failable::getSingleton()->addError("Scaling file '" + scaling_file_path_final + "' does not exist. Assuming 1/1 scaling.");
+      }
+      // EO Scaling
+
+      StaticHelper::writeTextToFile(StaticHelper::serializeMCTraceNusmvStyle(trace), path + file_name_without_txt_extension + ".smv");
       StaticHelper::writeTextToFile(writeProseTrafficScene(trace), path + "prose_scenario_description.txt");
 
       std::string trial_name{ file_name_without_txt_extension };
@@ -399,6 +413,12 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
    const bool generate_gif)
 {
    const std::string full_path = out_pathname_raw + "/" + out_filename_raw;
+
+   if (StaticHelper::existsFileSafe(full_path)) {
+      Failable::getSingleton()->addWarning("Directory '" + full_path + "' exists. Will not overwrite.");
+      return false;
+   }
+
    std::filesystem::create_directories(full_path);
    std::string final_name = out_filename_raw;
    if (settings.duration_scale != 1.0)
@@ -503,6 +523,7 @@ bool processCEX(
       { 0 }, // For now, always generate only the first CEX.
       std::string(path_cropped),
       "debug_trace_array",
+      "",
       CexType(std::string(cex_type)),
       modes) };
 

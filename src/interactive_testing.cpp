@@ -813,7 +813,7 @@ int vfm::test::artifactRun(int argc, char* argv[])
       inputs.addNote("RUNNING KRATOS with command '" + command_kratos + "'.");
       int success_code_kratos{};
       int success_code_nuxmv{};
-      StaticHelper::execWithSuccessCode(command_kratos, true, success_code_kratos, std::make_shared<std::string>(generated_dir + "/mc_runtimes.txt"));
+      StaticHelper::execWithSuccessCode(command_kratos, success_code_kratos, std::make_shared<std::string>(generated_dir + "/mc_runtimes.txt"));
 
 #ifdef _WIN32
       inputs.addNote("SETTING CPP PATH TO '" + cpp_fulldir + "'");
@@ -821,7 +821,7 @@ int vfm::test::artifactRun(int argc, char* argv[])
 #endif
 
       inputs.addNote("RUNNING NUXMV with command '" + command_nuxmv + "'.");
-      std::string result{ StaticHelper::execWithSuccessCode(command_nuxmv, true, success_code_nuxmv, std::make_shared<std::string>(generated_dir + "/mc_runtimes.txt")) };
+      std::string result{ StaticHelper::execWithSuccessCode(command_nuxmv, success_code_nuxmv, std::make_shared<std::string>(generated_dir + "/mc_runtimes.txt")) };
       StaticHelper::writeTextToFile(result, generated_dir + "debug_trace_array.txt");
 
       success == success && (success_code_kratos == EXIT_SUCCESS) && (success_code_nuxmv == EXIT_SUCCESS);
@@ -834,6 +834,7 @@ int vfm::test::artifactRun(int argc, char* argv[])
          { 0 }, // TODO: For now only first CEX if several given.
          generated_dir,
          StaticHelper::removeLastFileExtension(inputs.getCmdOption(CMD_CEX_FILE)),
+         "", // Use default scaling file location.
          mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv), // TODO: Make this parametrizable
          mc::ALL_TESTCASE_MODES);
    }
