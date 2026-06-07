@@ -485,7 +485,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 ys = [v.position[1] for v in vehicles]
                 minx, maxx = min(xs), max(xs)
                 miny, maxy = min(ys), max(ys)
-                center = np.array([(minx + maxx) / 2.0, (miny + maxy) / 2.0])
+                center = np.array([(minx + maxx) / 2.0 - 100, (miny + maxy) / 2.0])
 
                 self.origin = center - np.array([
                     self.centering_position[0] * self.get_width() / self.scaling,
