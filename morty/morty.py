@@ -12,7 +12,6 @@ import shutil
 import argparse
 import numpy as np
 from typing import List
-import distutils.dir_util
 import json
 import re
 from pathlib import Path
@@ -86,8 +85,13 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
 VehicleGraphics.display = _patched_display
 
 # Prepare connection to morty lib.
+# Ensure the directory with native DLLs is discoverable on Windows so CDLL can load dependencies.
 import platform
 if platform.system() == 'Windows':
+    # Add bin/Release to PATH if not already present (works on Python 3.7+).
+    dll_dir = os.path.join(os.getcwd(), 'bin', 'Release')
+    if dll_dir not in os.environ.get('PATH', ''):
+        os.environ['PATH'] = dll_dir + os.pathsep + os.environ.get('PATH', '')
     morty_lib = CDLL('./bin/Release/VFM_MAIN_LIB.dll')
 else:
     morty_lib = CDLL('./lib/libvfm.so')
@@ -460,6 +464,49 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "show_trajectories": True,
     })
 
+    # Monkey-patch WorldSurface to center the display on all vehicles instead of a single ego.
+    try:
+        from highway_env.road.graphics import WorldSurface
+        import highway_env as _he
+
+        _orig_move_display_window_to = WorldSurface.move_display_window_to
+
+        def _move_display_window_to_all(self, position):
+            try:
+                env_ref = getattr(_he, '_display_env', None)
+                if env_ref is None:
+                    return _orig_move_display_window_to(self, position)
+
+                vehicles = getattr(env_ref.unwrapped, 'road').vehicles
+                if not vehicles:
+                    return _orig_move_display_window_to(self, position)
+
+                xs = [v.position[0] for v in vehicles]
+                ys = [v.position[1] for v in vehicles]
+                minx, maxx = min(xs), max(xs)
+                miny, maxy = min(ys), max(ys)
+                center = np.array([(minx + maxx) / 2.0 - 100, (miny + maxy) / 2.0])
+
+                self.origin = center - np.array([
+                    self.centering_position[0] * self.get_width() / self.scaling,
+                    self.centering_position[1] * self.get_height() / self.scaling,
+                ])
+            except Exception:
+                _orig_move_display_window_to(self, position)
+
+        WorldSurface.move_display_window_to = _move_display_window_to_all
+        # Provide a hook so the patched function can find the current env.
+        _he._display_env = None
+    except Exception:
+        pass
+
+    # Expose the env reference so the patched WorldSurface can access vehicle positions.
+    try:
+        import highway_env as _he
+        _he._display_env = env
+    except Exception:
+        pass
+
     action = ([0, 0],) * nonegos
     dpoints_y =     [0] * (nonegos + 1) # The lateral position of the points the cars head towards.
     dpoints_delta = [0] * (nonegos + 1) # The direction we're currently moving towards, laterally.
@@ -509,6 +556,11 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     episode_trigger=lambda e: True)  # record all episodes
         env.unwrapped.set_record_video_wrapper(env)
         env.start_recording(f"vid_{seedo}")
+        try:
+            import highway_env as _he
+            _he._display_env = env
+        except Exception:
+            pass
 
     first = True
     obs = env.unwrapped.observation_type.observe()
