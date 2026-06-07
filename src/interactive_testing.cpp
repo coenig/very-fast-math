@@ -416,8 +416,8 @@ std::string vfm::test::doParsingRun(
          "\
 // #vfm-option[[ target_mc << kratos ]] \
 // #vfm-option[[ optimization_mode << inner_only ]] \
-// #vfm-option[[ general_mode << debug ]] \
-// #vfm-option[[ create_additional_files << all ]]" // Command line input.
+// #vfm-option[[ general_mode << regular ]] \
+// #vfm-option[[ create_additional_files << none ]]" // Command line input.
       ) };
 
       existing_path = StaticHelper::removeLastFileExtension(generated_file, "/");
