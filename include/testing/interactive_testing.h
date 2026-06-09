@@ -100,6 +100,7 @@ std::string doParsingRun(
    const std::string& planner_path,
    const std::string& target_dir,
    const std::string& cached_dir, // Can be empty if no caching desired.
+   const std::string& path_to_template_json,
    const std::filesystem::path& template_dir,
    const std::string& gui_name
 );
