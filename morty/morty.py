@@ -432,7 +432,7 @@ def archive(seedo, global_counter):
 if args.detailed_archive:
     baseline_hashes = _snapshot_configs()
 
-for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again. (Up to 28 finished on different machine with 75.9% success)
+for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         "action": {
             "type": "MultiAgentAction",
