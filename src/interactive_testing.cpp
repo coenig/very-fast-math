@@ -364,6 +364,7 @@ std::string vfm::test::doParsingRun(
    const std::string& planner_path,
    const std::string& target_dir,
    const std::string& cached_dir,
+   const std::string& path_to_template_json,
    const std::filesystem::path& template_dir,
    const std::string& gui_name
 )
@@ -412,6 +413,7 @@ std::string vfm::test::doParsingRun(
          includes_file_path.c_str(),
          HAS_ENVMODEL ? env_model_description.c_str() : "",
          generated_file.c_str(),
+         path_to_template_json.c_str(),
          // TODO: This needs to be input from actual command line.
          "\
 // #vfm-option[[ target_mc << kratos ]] \
@@ -629,6 +631,7 @@ void vfm::test::loopKratos()
             //(NATIVE_SMV_ENV_MODEL_DENOTER_OPEN + "3G../examples/env_model_devel/generator/EnvModel_ICars_WithViper.tpl").c_str(),
             "",
             "../examples/cpp_parsing/generated_kratos/kratos.cpp",
+            "", // tpl.json placeholder.
             "" // Command line input.
          );
       }
@@ -765,6 +768,7 @@ int vfm::test::artifactRun(int argc, char* argv[])
             inputs.getCmdOption(CMD_PLANNER_FILENAME),
             inputs.getCmdOption(CMD_DIR_TARGET),
             inputs.getCmdOption(CMD_CACHE_DIR), // This is the cached path.
+            "", // tpl json placeholder.
             inputs.getCmdOption(CMD_TEMPLATE_DIR_PATH), // JSON template path. TODO: Should be separated envmodel folder, derived directly from json.
             "no-gui")};
 

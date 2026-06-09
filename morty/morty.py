@@ -148,6 +148,7 @@ with open('morty/envmodel_config.json') as f:
     exp_num = d[ucd_config_prios_str[0]]["UCD_EXP_NUM"]
     dist_scale = d[ucd_config_prios_str[0]]["DISTANCESCALING"] / 1000
     time_scale = d[ucd_config_prios_str[0]]["TIMESCALING"] / 1000
+    distance_formula_pp = d[ucd_config_prios_str[0]]["UCD_FORMULA_PP_DISTANCE"]
     vel_scale = dist_scale / time_scale  # velocity = distance / time
 
     if backward_driving_car_ids_str.endswith(')@'):
@@ -637,7 +638,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 print(f"CEX #{cnt} is EMPTY.")
             else:
                 res_str = all_results_dict[config_name]
-                print(f"Took CEX #{cnt}[{config_name}] which is the first non-empty one.")
+                print(f"Picked CEX #{cnt} [{config_name}] which is the first non-empty one.")
                 blind = "|" + str(cnt)
                 selected_cnt = cnt
                 break;
@@ -778,9 +779,19 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             # accel = sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
             accel = egos_backward[i] * sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
 
+            # Formula for speed-dependent distance in pure-pursuit.
+            distance = create_string_buffer(100)
+            script_dist_pp = f"""@{{
+            @{{@velocity = {egos_v[i]}}}@.eval
+            }}@.nil 
+            @{{{distance_formula_pp}}}@.eval
+            """
+            distance = morty_lib.expandScript(script_dist_pp.encode('utf-8'), distance, sizeof(distance)).decode().strip()
+            # EO Formula for speed-dependent distance in pure-pursuit.
+
             # Best so far (for inversion task):
             # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
-            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 1 + egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
+            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], float(distance), egos_backward[i]) / 3.1415
             
             if egos_backward[i] == -1: # If the car is backward-driving, we have to adapt the angle to the different perspective.
                 print(angle)

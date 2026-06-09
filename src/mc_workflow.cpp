@@ -82,6 +82,7 @@ void vfm::mc::McWorkflow::generateEnvmodels(
             StaticHelper::toStringGenericPath(path_planner),
             StaticHelper::toStringGenericPath(path_generated),
             StaticHelper::toStringGenericPath(path_cached),
+            path_template + "/" + json_tpl_filename,
             path_envmodel_folder,
             GUI_NAME + "_Related");
       }

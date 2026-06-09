@@ -193,6 +193,7 @@ public:
       const char* target_path_for_generated_code,
       const bool create_live_pdf,
       std::string& path_to_envmodel_file,
+      const std::string& path_to_template_json,
       const std::vector<std::string>& template_options,
       const bool env_model_info_available = false);
 
@@ -210,6 +211,7 @@ public:
       const char* path_to_file_list_file_code,
       const char* path_to_file_list_file_env_model,
       const char* target_path_for_generated_code,
+      const char* path_to_template_json,
       const bool create_live_pdf);
 
    /// Basically puts all variables into fsm_->data_ and sets them to their
@@ -424,6 +426,7 @@ private:
    std::string generateEnvModel(
       const std::string& template_file_path, 
       const std::string& generated_filepath,
+      const std::string& path_to_template_json,
       const std::vector<std::string>& template_options);
 
    bool hasCppFunctionSideeffects(const std::string& function_name) const;
@@ -550,6 +553,7 @@ extern "C" VFM_API bool performFSMCodeGeneration(
    const char* path_to_file_list_file_code, 
    const char* path_to_file_list_file_env_model, 
    const char* target_path_for_generated_code,
+   const char* path_to_template_json,
    const char* command_line_argument);
 
 void insertIfNotAlreadyThere(

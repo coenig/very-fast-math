@@ -40,6 +40,7 @@
 @{DEBUG}@*******.defaultValue[true]
 @{MAXSPEEDEGO}@*******.defaultValue[34]
 @{MAXSPEEDNONEGO}@*******.defaultValue[70]
+@{UCD_MIN_VELOCITY_TO_ALLOW_LC}@*******.defaultValue[5] -- Only works with simple LC. TODO: Use for non-UCD, too?
 @{MINACCELEGO}@*******.defaultValue[-8]
 @{MAXACCELEGO}@*******.defaultValue[2]
 @{MINACCELNONEGO}@*******.defaultValue[-8]
