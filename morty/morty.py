@@ -16,7 +16,7 @@ import json
 import re
 from pathlib import Path
 import glob
-from morty_debug_plots import plot_cex_lengths, plot_cex_lengths_cumulative, plot_mc_runtimes
+from morty_debug_plots import plot_cex_lengths, plot_cex_lengths_cumulative, plot_mc_runtimes, plot_mc_runtimes_cumulative
 
 
 DEFAULT_NUM_RUNS = 100
@@ -274,6 +274,7 @@ MAX_EXPs = args.num_runs
 
 good_ones = []
 all_cex_length_histories = {}
+all_selected_runtime_histories = {}
 
 def ensure_empty_file(path: str) -> None:
     p = Path(path)
@@ -524,6 +525,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     cex_point_colors = []
     mc_runtime_histories = {config_name: [] for config_name in ucd_config_prios_str}
     selected_cnt_history = []
+    selected_runtime_history = []
 
     # Mark backward driving cars.
     for i in backward_driving_car_ids:
@@ -649,11 +651,21 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         selected_cnt_history.append(selected_cnt)
         for config_name in ucd_config_prios_str:
             mc_runtime_histories[config_name].append(_latest_nuxmv_runtime_seconds(config_name))
+
+        if selected_cnt is not None and 0 <= selected_cnt < len(ucd_config_prios_str):
+            selected_config = ucd_config_prios_str[selected_cnt]
+            selected_runtime = mc_runtime_histories[selected_config][-1]
+        else:
+            selected_runtime = np.nan
+        selected_runtime_history.append(selected_runtime)
+
         plot_mc_runtimes(
             mc_runtime_histories,
             f"{generated_path_prefix}/mc_runtime_debug_{seedo}.pdf",
             selected_cnt_history=selected_cnt_history,
         )
+        all_selected_runtime_histories[seedo] = selected_runtime_history[:]
+        plot_mc_runtimes_cumulative(all_selected_runtime_histories, f"{generated_path_prefix}/mc_runtime_debug_all.pdf")
         # EO Track latest nuXmv runtime per configured priority and update PDF each iteration.
         
         ### EO POSTPROCESS RESULT ###
