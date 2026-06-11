@@ -364,6 +364,7 @@ std::string vfm::test::doParsingRun(
    const std::string& planner_path,
    const std::string& target_dir,
    const std::string& cached_dir,
+   const std::string& path_to_template_json,
    const std::filesystem::path& template_dir,
    const std::string& gui_name
 )
@@ -412,6 +413,7 @@ std::string vfm::test::doParsingRun(
          includes_file_path.c_str(),
          HAS_ENVMODEL ? env_model_description.c_str() : "",
          generated_file.c_str(),
+         path_to_template_json.c_str(),
          // TODO: This needs to be input from actual command line.
          "\
 // #vfm-option[[ target_mc << kratos ]] \
@@ -421,6 +423,7 @@ std::string vfm::test::doParsingRun(
       ) };
 
       existing_path = StaticHelper::removeLastFileExtension(generated_file, "/");
+      ScaleDescription::createTimescalingFile(existing_path);
    }
    else {
       Failable::getSingleton(gui_name)->addNote("Using cached EnvModel found in '" + existing_path + "'.");
@@ -628,6 +631,7 @@ void vfm::test::loopKratos()
             //(NATIVE_SMV_ENV_MODEL_DENOTER_OPEN + "3G../examples/env_model_devel/generator/EnvModel_ICars_WithViper.tpl").c_str(),
             "",
             "../examples/cpp_parsing/generated_kratos/kratos.cpp",
+            "", // tpl.json placeholder.
             "" // Command line input.
          );
       }
@@ -764,6 +768,7 @@ int vfm::test::artifactRun(int argc, char* argv[])
             inputs.getCmdOption(CMD_PLANNER_FILENAME),
             inputs.getCmdOption(CMD_DIR_TARGET),
             inputs.getCmdOption(CMD_CACHE_DIR), // This is the cached path.
+            "", // tpl json placeholder.
             inputs.getCmdOption(CMD_TEMPLATE_DIR_PATH), // JSON template path. TODO: Should be separated envmodel folder, derived directly from json.
             "no-gui")};
 
@@ -809,12 +814,10 @@ int vfm::test::artifactRun(int argc, char* argv[])
       std::string command_nuxmv{ nuxmv_fulldir
          + " -int -pre cpp -source " + generated_dir + "script.cmd " + generated_dir + "main.smv"};
 
-      ScaleDescription::createTimescalingFile(generated_dir);
-
       inputs.addNote("RUNNING KRATOS with command '" + command_kratos + "'.");
       int success_code_kratos{};
       int success_code_nuxmv{};
-      StaticHelper::execWithSuccessCode(command_kratos, true, success_code_kratos, std::make_shared<std::string>(generated_dir + "/mc_runtimes.txt"));
+      StaticHelper::execWithSuccessCode(command_kratos, success_code_kratos, std::make_shared<std::string>(generated_dir + "/mc_runtimes.txt"));
 
 #ifdef _WIN32
       inputs.addNote("SETTING CPP PATH TO '" + cpp_fulldir + "'");
@@ -822,7 +825,7 @@ int vfm::test::artifactRun(int argc, char* argv[])
 #endif
 
       inputs.addNote("RUNNING NUXMV with command '" + command_nuxmv + "'.");
-      std::string result{ StaticHelper::execWithSuccessCode(command_nuxmv, true, success_code_nuxmv, std::make_shared<std::string>(generated_dir + "/mc_runtimes.txt")) };
+      std::string result{ StaticHelper::execWithSuccessCode(command_nuxmv, success_code_nuxmv, std::make_shared<std::string>(generated_dir + "/mc_runtimes.txt")) };
       StaticHelper::writeTextToFile(result, generated_dir + "debug_trace_array.txt");
 
       success == success && (success_code_kratos == EXIT_SUCCESS) && (success_code_nuxmv == EXIT_SUCCESS);
@@ -835,6 +838,7 @@ int vfm::test::artifactRun(int argc, char* argv[])
          { 0 }, // TODO: For now only first CEX if several given.
          generated_dir,
          StaticHelper::removeLastFileExtension(inputs.getCmdOption(CMD_CEX_FILE)),
+         "", // Use default scaling file location.
          mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv), // TODO: Make this parametrizable
          mc::ALL_TESTCASE_MODES);
    }
@@ -1553,164 +1557,40 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 
 // --- EO remaining comments from main.cpp ---
 
-void generatePreviewsForMorty(const MCTrace& trace, const std::string& output_path, const bool include_smooth)
+void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const float head_const, const int num_lanes, const int num_technical_lanes)
 {
-   auto nameA1 = vfm::mc::TESTCASE_MODE_PREVIEW_2.first;
-   auto nameA2 = vfm::mc::TESTCASE_MODE_PREVIEW_2.second;
-   auto nameB1 = vfm::mc::TESTCASE_MODE_CEX_SMOOTH_BIRDSEYE.first;
-   auto nameB2 = vfm::mc::TESTCASE_MODE_CEX_SMOOTH_BIRDSEYE.second;
-
-   if (!trace.empty()) {
-      auto src = std::filesystem::path("./morty/waiting.png");
-      auto dest_pathA = output_path + nameA1;
-      StaticHelper::createDirectoriesSafe(dest_pathA);
-
-      for (const auto& entry : std::filesystem::directory_iterator(dest_pathA))
-         if (StaticHelper::stringContains(entry.path().string(), ".png"))
-            std::filesystem::copy_file(src, entry.path(), std::filesystem::copy_options::overwrite_existing);
-
-      static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF = static_cast<mc::trajectory_generator::LiveSimGenerator::LiveSimType>(
-         mc::trajectory_generator::LiveSimGenerator::LiveSimType::birdseye
-         | mc::trajectory_generator::LiveSimGenerator::LiveSimType::incremental_image_output
-         );
-
-      mc::trajectory_generator::VisualizationScales gen_config_non_smooth{};
-      gen_config_non_smooth.x_scaling = 1;
-      gen_config_non_smooth.duration_scale = 1;
-      gen_config_non_smooth.frames_per_second_gif = 0;
-      gen_config_non_smooth.frames_per_second_osc = 0;
-      gen_config_non_smooth.gif_duration_scale = 1;
-
-      mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
-         trace,
-         output_path,
-         nameA1,
-         SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF,
-         {},
-         gen_config_non_smooth, nameA2);
-
-      auto dest_pathB = output_path + nameB1;
-      StaticHelper::createDirectoriesSafe(dest_pathB);
-
-      auto gen_config_smooth = mc::trajectory_generator::VisualizationScales{ gen_config_non_smooth };
-      gen_config_smooth.frames_per_second_gif = 40;
-      gen_config_smooth.frames_per_second_osc = 40;
-
-      for (const auto& entry : std::filesystem::directory_iterator(dest_pathB))
-         if (StaticHelper::stringContains(entry.path().string(), ".gif"))
-            std::filesystem::copy_file(src, entry.path(), std::filesystem::copy_options::overwrite_existing);
-
-      static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY_SMOOTH = static_cast<mc::trajectory_generator::LiveSimGenerator::LiveSimType>(
-         mc::trajectory_generator::LiveSimGenerator::LiveSimType::birdseye
-         | mc::trajectory_generator::LiveSimGenerator::LiveSimType::gif_animation
-         );
-
-      if (include_smooth) {
-         mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate(
-            trace,
-            output_path,
-            nameB1,
-            SIM_TYPE_REGULAR_BIRDSEYE_ONLY_SMOOTH,
-            {},
-            gen_config_smooth, nameB2);
-      }
-   }
-}
-
-extern "C"
-char* expandScript(const char* input, char* result, size_t resultMaxLength)
-{
-   std::string res{ macro::Script::processScript(input) };
-
-   snprintf(result, resultMaxLength, "%s", res.c_str());
-
-   return result;
-}
-
-
-extern "C" char* generate_smv_files(const char* _argv) {
-    auto argv = StaticHelper::split(_argv, ';');
-    auto stuff = retrieveEnvModelDefinitionFromJSON(
-        argv[0], //"/tmp/envmodel_config.json",
-        EnvModelCachedMode::always_regenerate
-    );
-    for (auto [k, v]: stuff) {
-        test::doParsingRun(
-                { argv[1], v },
-                argv[2], // ".",
-                argv[3], // "../src/templates/EnvModel.tpl",
-                argv[4], // "../src/examples/ego_less/vfm-includes.txt",
-                argv[5], // "../src/gp",
-                argv[6], // "../examples/tmp",
-                argv[7], // "../src/templates",
-                std::string("GUI_NAME") + std::string("_Related"));
-    }
-
-    return strdup("ok");
-}
-
-extern "C" void generate_cex_gif(const char* _argv) {
-    auto argv = StaticHelper::split(_argv, ';');
-    auto generated_dir = argv[5];
-    auto cex_file = generated_dir + std::string("/cex.xml");
-      mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
-         { 0 }, // TODO: For now only first CEX if several given.
-         generated_dir,
-         StaticHelper::removeLastFileExtension(cex_file),
-         mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv),
-         mc::ALL_TESTCASE_MODES);
-}
-
-extern "C"
-char* morty(const char* input, char* result, size_t resultMaxLength)
-{
-   std::string script{ R"(
-@{./src/templates/}@.stringToHeap[MY_PATH]
-@{../../morty/envmodel_config.tpl.json}@.generateEnvmodels
-)" };
-
-   macro::Script::processScript(script);
-
-   std::string sourcepath{ "./examples/gp_config/EnvModel.smv" };
-   std::string destpath{ "./morty/EnvModel.smv" };
-
-   if (StaticHelper::existsFileSafe(sourcepath)) {
-      std::filesystem::copy(sourcepath, destpath, std::filesystem::copy_options::update_existing);
-   } else {
-      Failable::getSingleton()->addError("File '" + sourcepath + "' not found, cannot copy newly created EnvModel. Continuing with existing.");
-   }
-
-   const std::string input_str_full{ input };
-   const auto vec = StaticHelper::split(input_str_full, "$$$");
-   const std::string input_str{ vec[0] };
-   const float EPS{ std::stof(vec[1]) };  // Corridor around middle of lane that is considered exactly on the lane (outside is between lanes). EPS = 1 treats "on lane" and "between lanes" symmetrically, EPS = 2 would be all "on lane".
-   const bool DEBUG{ StaticHelper::isBooleanTrue(vec[2]) };
-   const float HEAD_CONST{ std::stof(vec[3]) };  // Heading of car in rad.
-   const int SEED{ std::stoi(vec[4]) };  // The current seed this run is part of on Python side.
-   const bool CRASH{ StaticHelper::isBooleanTrue(vec[5]) };
-   const int ITERATION{ std::stoi(vec[6]) };  // The iteration within the current seed on Python side.
-   const std::string OUTPUT_PATH{ vec[7] };
-   const std::string ROOT_DIR{ vec[8] }; // "." or "/", depending on weather we have an absolute ar a relative path.
-   const int NUM_LANES{ std::stoi(vec[9]) };
-   const bool DETAILED_ARCHIVE{ StaticHelper::isBooleanTrue(vec[10]) };
-   const bool SMOOTH_GIF{ StaticHelper::isBooleanTrue(vec[11]) };
+   const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json").string() };
+   const std::string ucd_config_prios_str{ mc::McWorkflow().getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
+   const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
 
    auto cars = StaticHelper::split(input_str, ";");
-   auto main_file = StaticHelper::readFile(OUTPUT_PATH + "main.tpl") + "\n";
    int null_pos{};
 
+   // Read scaling factors to convert HE real-world values into MC-space units.
+   float dist_scale = 1.0f;
+   float vel_scale = 1.0f;
+   for (const auto& cn : ucd_config_prios_vec) {
+      if (cn.empty()) continue;
+      const std::string sf{ OUTPUT_BASE_PATH + cn + "/" + TIMESCALING_FILENAME };
+      if (std::filesystem::exists(sf)) {
+         ScaleDescription sd{ StaticHelper::readFile(sf) };
+         dist_scale = sd.getDistanceScalingFactor();
+         float time_scale = sd.getTimeScalingFactor();
+         vel_scale = (time_scale > 0) ? dist_scale / time_scale : 1.0f;
+         break;
+      } else {
+         Failable::getSingleton()->addError("Scaling factor file " + sf + " does not exist. Using default scaling factors of 1.0.");
+      }
+   }
+
    cars.erase(cars.end() - 1);
+   std::string main_file_additions{};
 
    for (int i = 0; i < cars.size(); i++) {
       auto car = cars[i];
 
       if (!car.empty()) {
          auto data = StaticHelper::split(car, ",");
-
-         // std::cout << data[1] << std::endl;
-         // std::cout << i << ": " << data[2] << std::endl;
-         // std::cout << data[3] << std::endl;
-         // std::cout << data[4] << std::endl;
 
          float x{ std::stof(data[1]) };
          float y{ std::stof(data[2]) };
@@ -1719,163 +1599,128 @@ char* morty(const char* input, char* result, size_t resultMaxLength)
          float heading{ std::stof(data[5]) };
 
          x = (std::max)((std::min)(x, (std::numeric_limits<float>::max)()), (std::numeric_limits<float>::min)());
-         vx = (std::max)((std::min)(vx, 70.0f), -70.0f);
+         // vx = (std::max)((std::min)(vx, 70.0f), -70.0f);
 
-         main_file += "INIT env.veh___6" + std::to_string(i) + "9___.abs_pos = " + std::to_string((int)(x)) + ";\n";
-         main_file += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx)) + ";\n";
+         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.abs_pos = " + std::to_string((int)(x * dist_scale)) + ";\n";
+         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx * vel_scale)) + ";\n";
 
-         if (i == 0) null_pos = (int) (x);
+         if (i == 0) null_pos = (int) (x * dist_scale);
 
          static constexpr float LANE_WIDTH = 4.0f;
-         
+         const float road_width = num_lanes * LANE_WIDTH;
+         const float heading_factor{ vy * head_const };
+         const float y_adj = y - heading_factor;
+
+         // Map highway-env y-position to MC on_lane position using technical lanes.
+         // on_lane formula: p = (2*T - 1) - 2*T*(y_adj + W/2) / (A*W)
+         // where T = num_technical_lanes, A = num_lanes, W = LANE_WIDTH.
+         const float continuous_on_lane = (2.0f * num_technical_lanes - 1.0f)
+            - 2.0f * num_technical_lanes * (y_adj + LANE_WIDTH / 2.0f) / road_width;
+         const int max_on_lane = 2 * (num_technical_lanes - 1);
+         int on_lane = (std::max)(0, (std::min)(max_on_lane, (int)std::round(continuous_on_lane)));
+
          std::set<int> lanes{};
-         const float heading_factor{ vy * HEAD_CONST };
-         
-         // if (y < 0 + EPS + heading_factor) {
-         //    lanes.insert(NUM_LANES - 1);
-         // } else if (y >= (NUM_LANES - 1) * LANE_WIDTH - EPS + heading_factor) {
-         //    lanes.insert(0);
-         // } 
-
-         std::cout << "y: " << y << ", NUM_LANES: " << NUM_LANES << ", LANE_WIDTH: " << LANE_WIDTH << std::endl;
-         std::cout << "EPS: " << EPS << ", heading_factor: " << heading_factor << std::endl;
-
-         if (false) {} else {
-            for (int lane = NUM_LANES - 1; lane >= 0; lane--) {
-               if (y >= lane * LANE_WIDTH - EPS + heading_factor && y < lane * LANE_WIDTH + EPS + heading_factor) {
-                  lanes.insert(NUM_LANES - lane - 1);
-                  break; // We might insert negative numbers, as well...
-               } else if (y >= lane * LANE_WIDTH + EPS + heading_factor && y < (lane + 1) * LANE_WIDTH - EPS + heading_factor) {
-                  lanes.insert(NUM_LANES - lane - 1);
-                  lanes.insert(NUM_LANES - lane - 2);
-                  break; // ...But we don't care since later we loop only over the actually existing lanes.
-               }
-            }
+         if (on_lane % 2 == 0) {
+            lanes.insert(on_lane / 2);  // On a technical lane center.
+         } else {
+            lanes.insert(on_lane / 2);      // Between two adjacent technical lanes.
+            lanes.insert(on_lane / 2 + 1);
          }
 
-         for (int lane = 0; lane < NUM_LANES; lane++) {
-            main_file += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
+         std::cout << "y: " << y << ", y_adj: " << y_adj << ", on_lane: " << on_lane
+                   << ", num_technical_lanes: " << num_technical_lanes << std::endl;
+
+         for (int lane = 0; lane < num_technical_lanes; lane++) {
+            main_file_additions += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
          }
       }
    }
 
-   main_file += "INIT env.ego.abs_pos = " + std::to_string(null_pos) + ";\n";
-   auto main_file_dummy = StaticHelper::removeMultiLineComments(main_file, "--SPEC-STUFF", "--EO-SPEC-STUFF");
-   main_file_dummy += "INVARSPEC env.cnt < 0;";
+   main_file_additions += "INIT env.ego.abs_pos = " + std::to_string(null_pos) + ";\n";
 
-   const std::string path_to_external_folder{ ROOT_DIR == "." 
-      ? "./external" 
-      : "/vfm/external" // Hard-coded for the "docker" case. If not in docker, relative path needs to be given. This is not pretty, but for now the simplest solution.
-   };
+   const std::string INIT_CONSTRAINTS_BEGIN{ "-- INIT CONSTRAINTS" };
+   const std::string INIT_CONSTRAINTS_END{ "-- EO INIT CONSTRAINTS" };
 
-   if (DEBUG) {
-      StaticHelper::writeTextToFile(main_file_dummy, OUTPUT_PATH + "main.smv");
-      test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, OUTPUT_PATH, "fake-json-config-path", "fake-template-path", "fake-includes-path", "fake-cache-path", path_to_external_folder, ROOT_DIR);
-      auto traces_dummy{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_PATH + "debug_trace_array.txt") };
-      MCTrace trace_dummy = traces_dummy.empty() ? MCTrace{} : traces_dummy.at(0);
-
-      generatePreviewsForMorty(trace_dummy, OUTPUT_PATH, SMOOTH_GIF); // First preview in case there is no CEX for the actual run.
+   for (const auto& config_name : ucd_config_prios_vec) {
+      std::string main_smv{ StaticHelper::readFile(OUTPUT_BASE_PATH + config_name + "/main.smv") };
+      main_smv = StaticHelper::removeMultiLineComments(main_smv, INIT_CONSTRAINTS_BEGIN, INIT_CONSTRAINTS_END);
+      main_smv = StaticHelper::replaceAll(main_smv, "--EO-SPEC-STUFF", INIT_CONSTRAINTS_BEGIN + "\n" + main_file_additions + "\n" + INIT_CONSTRAINTS_END + "\n--EO-SPEC-STUFF");
+      StaticHelper::writeTextToFile(main_smv, OUTPUT_BASE_PATH + config_name + "/main.smv");
    }
+}
 
-   StaticHelper::writeTextToFile(main_file, OUTPUT_PATH + "main.smv");
-
-   // test::convenienceArtifactRunHardcoded(
-   //    test::MCExecutionType::mc,
-   //    OUTPUT_PATH, 
-   //    "fake-json-config-path", 
-   //    "fake-template-path", 
-   //    "fake-includes-path", 
-   //    "fake-cache-path", 
-   //    path_to_external_folder, 
-   //    ROOT_DIR);
-
-   std::string mc_script{ R"(
-      @{./src/templates/}@.stringToHeap[MY_PATH]
-      @{nuXmv}@.killAfter[15].Detach.setScriptVar[scriptID, force]
-
-      @{$0$}@.convenienceArtifactRunHardcodedMC[$1$, $2$]
-
-      @{scriptID}@.scriptVar.StopScript
-      )" };
-   
-   mc_script = StaticHelper::replaceAll(
-      StaticHelper::replaceAll(
-         StaticHelper::replaceAll(mc_script,
-            "$0$", OUTPUT_PATH),
-         "$1$", path_to_external_folder),
-      "$2$", ROOT_DIR);
-
-   std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now(); // Note that this measured time should be largely overestimated...
-   macro::Script::processScript(mc_script);
-   std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();   // ...since the run does many things (like initialization) every time which could be optimized.
-   auto runtime = std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count();
-
-   auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_PATH + "debug_trace_array.txt") };
-   MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
-
-   StaticHelper::writeTextToFile(
-      std::to_string(SEED) + ";" 
-      + std::to_string(trace.size() / 2) + ";" 
-      + std::to_string(runtime) + ";"
-      + std::to_string(CRASH) + ";"
-      + std::to_string(ITERATION) + ";"
-      + "\n", OUTPUT_PATH + "morty_mc_results.txt", true);
-
-   if (DEBUG || DETAILED_ARCHIVE) {
-      generatePreviewsForMorty(trace, OUTPUT_PATH, SMOOTH_GIF); // Actual preview in case everything went fine.
-   }
-
-   std::vector<VarValsFloat> deltas{};
-   std::set<std::string> variables{};
-
-   for (int i = 0; i < cars.size(); i++) {
-      variables.insert("veh___6" + std::to_string(i) + "9___.v");
-      variables.insert("veh___6" + std::to_string(i) + "9___.on_lane");
-   }
-
-   deltas = trace.getAllDeltas(variables);
+std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int iteration, const long long runtime, const bool crash)
+{
+   const std::string ucd_config_prios_str{ mc::McWorkflow().getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
+   const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
+   const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json").string() };
 
    std::string res{};
 
-   if (trace.size() == 2) {
-      res = "FINISHED";
-   } else {
-      for (int i = 0; i < cars.size(); i++) {
-         for (const auto& delta : deltas) {
-            res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.v")) + ",";
-         }
-         
-         res += "|";
+   for (const auto& config_name : ucd_config_prios_vec) {
+      if (config_name.empty()) continue;
 
-         for (const auto& delta : deltas) {
-            res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.on_lane")) + ",";
-         }
+      res += "\n" + config_name + ":";
 
-         res += ";";
+      const int num_cars{ std::stoi(mc::McWorkflow().getValueForJSONKeyAsString("NONEGOS", "./morty/", "envmodel_config.json", config_name)) };
+      auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_BASE_PATH + config_name + "/debug_trace_array.txt") };
+      MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
+
+      // Apply time/distance scaling so that deltas are in real-world units.
+      const std::string scaling_file{ OUTPUT_BASE_PATH + config_name + "/" + TIMESCALING_FILENAME };
+      if (std::filesystem::exists(scaling_file)) {
+         ScaleDescription ts_description{ StaticHelper::readFile(scaling_file) };
+         StaticHelper::applyTimescaling(trace, ts_description);
+      }
+      else {
+         Failable::getSingleton()->addError("Scaling factor file " + scaling_file + " does not exist. Using default scaling factors of 1.0.");
+      }
+
+      StaticHelper::writeTextToFile(
+         std::to_string(seed) + ";"
+         + std::to_string(trace.size() / 2) + ";"
+         + std::to_string(runtime) + ";"
+         + std::to_string(crash) + ";"
+         + std::to_string(iteration) + ";"
+         + "\n", OUTPUT_BASE_PATH + config_name + "/morty_mc_results.txt", true);
+
+      std::vector<VarValsFloat> deltas{};
+      std::set<std::string> variables{};
+
+      for (int i = 0; i < num_cars; i++) {
+         variables.insert("veh___6" + std::to_string(i) + "9___.v");
+         variables.insert("veh___6" + std::to_string(i) + "9___.on_lane");
+      }
+
+      deltas = trace.getAllDeltas(variables);
+
+      if (trace.size() == 2) {
+         res += "FINISHED";
+      }
+      else {
+         for (int i = 0; i < num_cars; i++) {
+            for (const auto& delta : deltas) {
+               res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.v")) + ",";
+            }
+
+            res += "|";
+
+            for (const auto& delta : deltas) {
+               res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.on_lane")) + ",";
+            }
+
+            res += ";";
+         }
       }
    }
-   //for (int i = 0; i < cars.size(); i++) {
-   //   auto d_ol = delta_ol.at("veh___6" + std::to_string(i) + "9___.on_lane");
-   //   auto d_ve = delta_ve.at("veh___6" + std::to_string(i) + "9___.v");
 
-   //   if (d_ol < 0) {
-   //      res += "LANE_LEFT;";
-   //   }
-   //   else if (d_ol > 0) {
-   //      res += "LANE_RIGHT;";
-   //   }
-   //   else if (d_ve > 0) {
-   //      res += "FASTER;";
-   //   }
-   //   else if (d_ve < 0) {
-   //      res += "SLOWER;";
-   //   }
-   //   else {
-   //      res += "IDLE;";
-   //   }
-   //}
+   return res;
+}
 
+extern "C"
+VFM_API char* expandScript(const char* input, char* result, size_t resultMaxLength)
+{
+   std::string res{ macro::Script::processScript(input) };
    snprintf(result, resultMaxLength, "%s", res.c_str());
-
    return result;
 }

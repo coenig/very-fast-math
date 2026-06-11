@@ -1,9 +1,18 @@
 """
-make_run_mosaic.py  –  Combine all preview2 images from a run_i folder into one PNG.
+stitch_pngs.py  –  Combine all cex-birdseye images from a run_i folder into one PNG.
+
+The folder structure under each iteration_j has one sub-folder per config
+(e.g. _config_vehwidth=8), and within that a numbered CEX folder ("0") containing
+cex-birdseye/cex-birdseye_k.png images.
+
+The config priority order is read from morty/envmodel_config.tpl.json (key
+"UCD_CONFIG_PRIOS" inside "#TEMPLATE").  For each iteration, we walk that list and
+pick the first config whose "0/" subfolder exists.  If no config has a CEX, the
+iteration row is a red placeholder.
 
 Layout (full mosaic):
   - One row per iteration_j  (rows ordered by j ascending)
-  - Images within each row ordered left-to-right by k (preview2_k.png)
+  - Images within each row ordered left-to-right by k (cex-birdseye_k.png)
   - All images are scaled to a common height; missing cells are left blank.
 
 Layout (column mosaics, --column-mosaics):
@@ -11,14 +20,15 @@ Layout (column mosaics, --column-mosaics):
   - Each file stacks iterations vertically, showing only the k-th image of that iteration.
 
 Usage:
-  python3 morty/make_run_mosaic.py <path/to/run_i> [--out output.png] [--row-height 120]
-                                     [--exclude-image path/to/placeholder.png]
-                                     [--column-mosaics] [--column-out-dir path/to/dir]
+  python3 morty/stitch_pngs.py <path/to/run_i> \\
+      [--out output.png] [--row-height 120] \\
+      [--exclude-image path/to/placeholder.png] \\
+      [--column-mosaics] [--column-out-dir path/to/dir]
 """
 
 import argparse
 import hashlib
-import os
+import json
 import re
 import sys
 from pathlib import Path
@@ -44,25 +54,33 @@ def crop_background(img: Image.Image) -> Image.Image:
     return img.crop((c0, r0, c1, r1))
 
 
-_BLIND_PATTERN = re.compile(r"--\s*no counterexample found for invariant .+ up to .+", re.IGNORECASE)
-
-
 def file_hash(path: Path) -> str:
     return hashlib.md5(path.read_bytes()).hexdigest()
 
 
-def is_blind_iteration(iteration_dir: Path) -> bool:
-    """Return True if the last non-empty line of debug_trace_array.txt matches the blind pattern."""
-    trace = iteration_dir / "debug_trace_array.txt"
-    if not trace.is_file():
-        return False
-    last_line = ""
-    with trace.open() as fh:
-        for line in fh:
-            stripped = line.rstrip()
-            if stripped:
-                last_line = stripped
-    return bool(_BLIND_PATTERN.search(last_line))
+def parse_config_prios(raw: str) -> list[str]:
+    """Parse a semicolon-separated config-prios string into an ordered list."""
+    return [c.strip() for c in raw.split(";") if c.strip()]
+
+
+_TPL_JSON = Path(__file__).resolve().parent / "envmodel_config.tpl.json"
+
+
+def load_config_prios_from_template() -> list[str]:
+    """Read UCD_CONFIG_PRIOS from the template JSON next to this script."""
+    with _TPL_JSON.open() as fh:
+        data = json.load(fh)
+    raw = data["#TEMPLATE"]["UCD_CONFIG_PRIOS"]
+    return parse_config_prios(raw)
+
+
+def resolve_config(iteration_dir: Path, config_prios: list[str]) -> Path | None:
+    """Return the path to the first config's '0' folder that exists, or None."""
+    for cfg in config_prios:
+        candidate = iteration_dir / cfg / "0"
+        if candidate.is_dir():
+            return candidate
+    return None
 
 
 # Sentinel: an iteration whose images should be replaced by a red placeholder.
@@ -70,30 +88,40 @@ _BLIND = object()
 
 
 def collect_iterations(
-    run_dir: Path, exclude_hash: str | None = None
+    run_dir: Path, config_prios: list[str], exclude_hash: str | None = None
 ) -> dict[int, list[tuple[int, Path]] | object]:
     """Return {iteration_index: [(k, path), ...]} sorted by k.
-    Blind iterations map to the _BLIND sentinel instead of an image list."""
+
+    For each iteration, walk config_prios in order and use the first config
+    that has a '0/' subfolder.  Images are read from <config>/0/cex-birdseye/.
+    If no config has a CEX ('0/' folder), the iteration maps to _BLIND."""
     result: dict[int, list[tuple[int, Path]] | object] = {}
     for item in run_dir.iterdir():
         m = re.fullmatch(r"iteration_(\d+)", item.name)
         if not m or not item.is_dir():
             continue
         j = int(m.group(1))
-        if is_blind_iteration(item):
+
+        cex_dir = resolve_config(item, config_prios)
+        if cex_dir is None:
             result[j] = _BLIND
             continue
-        preview_dir = item / "preview2"
-        if not preview_dir.is_dir():
+
+        birdseye_dir = cex_dir / "cex-birdseye"
+        if not birdseye_dir.is_dir():
+            result[j] = _BLIND
             continue
+
         images: list[tuple[int, Path]] = []
-        for f in preview_dir.iterdir():
-            fm = re.fullmatch(r"preview2_(\d+)\.png", f.name)
+        for f in birdseye_dir.iterdir():
+            fm = re.fullmatch(r"cex-birdseye_(\d+)\.png", f.name)
             if fm:
                 if exclude_hash is None or file_hash(f) != exclude_hash:
                     images.append((int(fm.group(1)), f))
         if images:
             result[j] = sorted(images, key=lambda x: x[0])
+        else:
+            result[j] = _BLIND
     return result
 
 
@@ -246,11 +274,16 @@ def build_mosaic(
 
     return canvas.convert("RGB")
 
-# Run like this: python3 morty/stitch_pngs.py detailed_results/run_0 --exclude-image morty/waiting.png --column-mosaics --iteration-mosaics
+# Run like this:
+# python3 morty/stitch_pngs.py examples/gp/detailed_archive/run_0 \
+#     --exclude-image morty/waiting.png --column-mosaics --iteration-mosaics
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Mosaic all preview2 images from a run_i folder.")
+    parser = argparse.ArgumentParser(description="Mosaic all cex-birdseye images from a run_i folder.")
     parser.add_argument("run_dir", type=Path, help="Path to a run_i directory.")
+    parser.add_argument("--config-prios", type=str, default=None,
+                        help='Override config priority list (semicolon-separated). '
+                             'Default: read UCD_CONFIG_PRIOS from morty/envmodel_config.tpl.json')
     parser.add_argument("--out", type=Path, default=None,
                         help="Output PNG path. Defaults to <run_dir>/mosaic.png")
     parser.add_argument("--row-height", type=int, default=120,
@@ -269,6 +302,15 @@ def main() -> None:
     if not run_dir.is_dir():
         sys.exit(f"Error: '{run_dir}' is not a directory.")
 
+    if args.config_prios:
+        config_prios = parse_config_prios(args.config_prios)
+    else:
+        config_prios = load_config_prios_from_template()
+        print(f"Loaded UCD_CONFIG_PRIOS from {_TPL_JSON.name}")
+    if not config_prios:
+        sys.exit("Error: config priority list is empty.")
+    print(f"Config priority order: {config_prios}")
+
     out_path: Path = args.out if args.out else run_dir / "mosaic.png"
 
     exclude_hash: str | None = None
@@ -279,9 +321,9 @@ def main() -> None:
         exclude_hash = file_hash(exclude_path)
         print(f"Excluding images matching: {exclude_path.name} (md5={exclude_hash})")
 
-    iterations = collect_iterations(run_dir, exclude_hash)
+    iterations = collect_iterations(run_dir, config_prios, exclude_hash)
     if not iterations:
-        sys.exit(f"No iteration_j/preview2/preview2_k.png files found under '{run_dir}'.")
+        sys.exit(f"No iterations with cex-birdseye images found under '{run_dir}'.")
 
     print(f"Found {len(iterations)} iteration(s). Building mosaic …")
     if args.iteration_mosaics:
@@ -291,7 +333,7 @@ def main() -> None:
         col_dir = args.column_out_dir if args.column_out_dir else run_dir / "column_mosaics"
         build_column_mosaics(iterations, args.row_height, col_dir)
     
-    if not args.iteration_mosaics and not args.column_mosaics: # Build the full mosaic only if no others requested.
+    if not args.iteration_mosaics and not args.column_mosaics:
         mosaic = build_mosaic(iterations, args.row_height)
         mosaic.save(out_path)
         print(f"Saved: {out_path}  ({mosaic.width}x{mosaic.height} px)")

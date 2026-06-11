@@ -23,6 +23,7 @@
 #include <memory>
 #include <utility>
 #include <limits>
+#include <tuple>
 
 namespace vfm {
 namespace macro {
@@ -542,19 +543,21 @@ private:
       const std::string& config_name)
    {
       std::string json_tpl_filename{ DEFAULT_FILE_NAME_JSON_TEMPLATE };
-      std::string path_template{ getMyPath() };
+      std::string path_json{ getMyPath() };
 
       if (!relative_path_to_json_tpl_file.empty()) {
          json_tpl_filename = StaticHelper::getLastFileExtension(relative_path_to_json_tpl_file, "/");
-         path_template = path_template + "/" + StaticHelper::removeLastFileExtension(relative_path_to_json_tpl_file, "/");
+         path_json = path_json + "/" + StaticHelper::removeLastFileExtension(relative_path_to_json_tpl_file, "/");
       }
 
       std::map<std::string, std::string> map{};
-      const std::string path_generated_parent{ workflow.getGeneratedParentDir(path_template, json_tpl_filename).string() };
-      const std::string path_generated{ workflow.getGeneratedDir(path_template, json_tpl_filename).string() + config_name };
-      const std::string path_cached{ workflow.getCachedDir(path_template, json_tpl_filename).string() };
-      const std::string path_external{ workflow.getExternalDir(path_template, json_tpl_filename).string() };
+      const std::string path_generated_parent{ workflow.getGeneratedParentDir(path_json, json_tpl_filename).string() };
+      const std::string path_generated{ workflow.getGeneratedDir(path_json, json_tpl_filename).string() + config_name };
+      const std::string path_cached{ workflow.getCachedDir(path_json, json_tpl_filename).string() };
+      const std::string path_external{ workflow.getExternalDir(path_json, json_tpl_filename).string() };
+      const std::string path_template{ workflow.getEnvmodelDir(path_json, json_tpl_filename).string() };
 
+      map.insert({ "path_json", path_json });
       map.insert({ "path_template", path_template });
       map.insert({ "path_generated", path_generated });
       map.insert({ "path_generated_parent", path_generated_parent });
@@ -577,6 +580,46 @@ private:
       return mc::McWorkflow(data, parser);
    }
 
+   ScriptMethodDescription prepareInputForMortyUCDMethod{
+      "prepareInputForMortyUCD", 
+      3, 
+      [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string 
+      { 
+         if (StaticHelper::isParsableAsFloat(parameters[0])
+          && StaticHelper::isParsableAsFloat(parameters[1])
+          && StaticHelper::isParsableAsFloat(parameters[2]))
+          {
+            test::prepareInputForMortyUCD(body, std::stof(parameters[0]), (int)std::stoi(parameters[1]), (int)std::stoi(parameters[2]));
+             return "";
+          } else {
+            addError("Malformed input for 'prepareInputForMortyUCD'.");
+            return "#ERROR";
+         }
+      } 
+   };
+
+   ScriptMethodDescription prepareOutputForMortyUCDMethod{
+      "prepareOutputForMortyUCD", 
+      4, 
+      [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string 
+      { 
+         if (StaticHelper::isParsableAsLongLong(parameters[0]) // Seed
+            && StaticHelper::isParsableAsInt(parameters[1]) // Iteration
+            && StaticHelper::isParsableAsLongLong(parameters[2]) // Runtime
+            && StaticHelper::isParsableAsBoolean(parameters[3])) // Crash
+          {
+            return test::prepareOutputForMortyUCD(
+               StaticHelper::parseLongLong(parameters[0]).value(),
+               std::stoi(parameters[1]), 
+               StaticHelper::parseLongLong(parameters[2]).value(),
+               StaticHelper::isBooleanTrue(parameters[3]));
+          } else {
+            addError("Malformed input for 'prepareOutputForMortyUCD'.");
+            return "#ERROR";
+          }
+      } 
+   };
+
    ScriptMethodDescription m5{
       "runMCJob", 
       1, 
@@ -590,28 +633,10 @@ private:
             paths.at("path_generated"),
             config_name,
             paths.at("path_template"),
+            paths.at("path_json"),
             DEFAULT_FILE_NAME_JSON_TEMPLATE);
 
          return "MC run via script finished for '" + config_name + "'.";
-      } 
-   };
-
-   ScriptMethodDescription m5b{
-      "convenienceArtifactRunHardcodedMC", 
-      2, 
-      [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string 
-      { 
-         test::convenienceArtifactRunHardcoded(
-            test::MCExecutionType::mc,
-            body, 
-            "fake-json-config-path", 
-            "fake-template-path", 
-            "fake-includes-path", 
-            "fake-cache-path", 
-            parameters[0],
-            parameters[1]);
-
-         return "MC run via script and 'convenienceArtifactRunHardcoded' executed.";
       } 
    };
 
@@ -633,6 +658,7 @@ private:
             std::filesystem::path(paths.at("path_generated")), // TODO: Don't need this parameter.
             [](const std::string& folder) -> bool { return true; },
             paths.at("path_template"),
+            paths.at("path_json"),
             DEFAULT_FILE_NAME_JSON_TEMPLATE, 
             std::stoi(num_threads_str));
 
@@ -648,7 +674,7 @@ private:
          auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_, body.empty());
          std::map<std::string, std::string> paths{ retrievePaths(mc_workflow, body, "") }; // Note that only path_template is used, the others might be broken.
 
-         mc_workflow.generateEnvmodels(paths.at("path_template"), DEFAULT_FILE_NAME_JSON_TEMPLATE, FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
+         mc_workflow.generateEnvmodels(paths.at("path_json"), DEFAULT_FILE_NAME_JSON_TEMPLATE, FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
 
          return "Envmodel generation via script finished.";
       }
@@ -670,9 +696,30 @@ private:
       0,
       [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string
       {
-         return std::string("No modes given. Please add 'all' or '/'-separated selection of these as parameter: ") + "[" + allModesStr() + "]";
+         std::string result{ std::string("No modes given for method 'generateTestCases'. Please add 'all' or '/'-separated selection of these as parameter: ") + "[" + allModesStr() + "]" };
+         addNote(result);
+         return result;
       }
    };
+
+   std::tuple<std::string, std::map<std::string, std::string>> getModes(const std::string& pars0)
+   {
+      const std::string raw_modes{ pars0 == "all" ? allModesStr() : pars0 };
+      std::map<std::string, std::string> modes{};
+      std::string modes_str{};
+
+      for (const auto& mode : StaticHelper::split(raw_modes, "/")) {
+         if (mc::ALL_TESTCASE_MODES.count(mode)) {
+            modes.insert({ mode, mc::ALL_TESTCASE_MODES.at(mode) });
+            modes_str += " " + mode;
+         }
+         else {
+            addWarning("Mode candidate '" + mode + "' is not an available mode. Will be ignored.");
+         }
+      }
+
+      return std::make_tuple(modes_str, modes);
+   }
 
    ScriptMethodDescription m9{
       "generateTestCases",
@@ -682,6 +729,7 @@ private:
          auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_, body.empty());
          const std::map<std::string, std::string> paths{ retrievePaths(mc_workflow, body, "") };
          const std::string path_generated_parent{ paths.at("path_generated_parent") };
+         const std::string path_json{ paths.at("path_json") };
          const std::string path_template{ paths.at("path_template") };
 
          std::vector<std::string> sec_ids{};
@@ -698,25 +746,35 @@ private:
             addError("Error occurred during collection of packages for test case generation: '" + std::string(ex.what()) + "'");
          }
 
-         const std::string raw_modes{ parameters[0] == "all" ? allModesStr() : parameters[0]};
-         std::map<std::string, std::string> modes{};
-         std::string modes_str{};
-
-         for (const auto& mode : StaticHelper::split(raw_modes, "/")) {
-            if (mc::ALL_TESTCASE_MODES.count(mode)) {
-               modes.insert({ mode, mc::ALL_TESTCASE_MODES.at(mode) });
-               modes_str += " " + mode;
-            }
-            else {
-               addWarning("Mode candidate '" + mode + "' is not an available mode. Will be ignored.");
-            }
-         }
 
          std::string json_tpl_filename{ body.empty() ? DEFAULT_FILE_NAME_JSON_TEMPLATE : body };
 
-         mc_workflow.createTestCases(modes, path_template, json_tpl_filename, sec_ids);
+         auto [modes_str, modes] = getModes(parameters.at(0));
+
+         mc_workflow.createTestCases(modes, path_template, path_json, json_tpl_filename, sec_ids);
 
          return "Test case generation via script finished for these modes: '" + modes_str + " '.";
+      }
+   };
+
+   ScriptMethodDescription m9b{
+      "generateTestCasesPlain",
+      2,
+      [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string
+      {
+         auto [modes_str, modes] = getModes(parameters.at(0));
+
+         addNote("Generating visu for '" + body + "' in modes '" + modes_str + " '.");
+
+         mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
+            { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
+            body,
+            "debug_trace_array",
+            parameters.at(1),
+            mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv),
+            modes);
+
+         return "Test case generation finished for '" + body + "' in these modes: '" + modes_str + " '.";
       }
    };
 
@@ -904,6 +962,8 @@ private:
    }
 
    std::set<ScriptMethodDescription> METHODS{
+      prepareOutputForMortyUCDMethod,
+      prepareInputForMortyUCDMethod,
       m0,
       m1,
       m2,
@@ -911,7 +971,6 @@ private:
       m4,
           // In the following examples, the json template filename is the default, but can also explicitly be given as @{SOME_NAME.tpl.json}@.
       m5, // Example: @{}@.runMCJob[_config_d=1000_lanes=1_maxaccel=3_maxaccelego=3_minaccel=-8_minaccelego=-8_nonegos=3_sections=5_segments=1_t=1100_vehlen=5]
-      m5b,
       m6, // Example: @{}@.runMCJobs[10]
       m7, // Example: @{}@.generateEnvmodels
       m8, // Example: @{}@.generateTestCases       ==> Will fail, but present list of available modes.
@@ -923,6 +982,7 @@ private:
           // @{}@.generateTestCases[all]
           // >@
           // Don't forget to add '@{../src/templates/}@.stringToHeap[MY_PATH]' if desired.
+      m9b,
       m10,
       m11,
       m12,
@@ -966,6 +1026,18 @@ private:
       { "toUpperCamelCase", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {  return StaticHelper::toUpperCamelCase(body); } },
       { "toUpperCase", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::toUpperCase(body); } },
       { "toLowerCase", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::toLowerCase(body); } },
+      
+      { "findFilesRecursively", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         auto paths = StaticHelper::findFilesRecursively(body, parameters[0]);
+         std::string paths_str{};
+
+         for (const auto& p : paths) {
+            paths_str += "@(" + p.string() + ")@";
+         }
+
+         return paths_str; 
+      } },
+      
       { "removeLastFileExtension", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeLastFileExtension(body); } },
       { "removeLastFileExtension", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeLastFileExtension(body, parameters.at(0)); } },
       { "getLastFileExtension", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::getLastFileExtension(body); } },
@@ -1097,9 +1169,11 @@ private:
          const auto pids = Process().getPIDs(body);
          const int wait_seconds{ (int)std::stof(parameters.at(0)) };
          int num{};
+         std::string runtimes{};
 
          for (const auto& pid : pids) {
             long long running_time{ Process().getProcessRunningDurationSeconds(pid) };
+            runtimes += std::to_string(running_time) + " ";
 
             if (running_time >= wait_seconds) {
                if (Process().killByPID(pid)) {
@@ -1108,16 +1182,16 @@ private:
             }
          }
          
-         std::string message{ "\n" + StaticHelper::timeStamp() + ": " };
+         std::string message{ "" };
          if (num > 0) {
             message += std::to_string(num) + " PIDs based on '" + body + "' have been killed after '" + parameters[0] + "' seconds of runtime.";
          } else {
-            message += "No '" + body + "'-based PID running long enough to be killed.";
+            message += "No '" + body + "'-based PID ran more than '" + parameters[0] + "' seconds. Runtimes (s): " + runtimes;
          }
          
          addNote(message);
          std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-         return "@{" + body + "}@.killAfter[" + parameters[0] + "]" + message;
+         return "@{" + body + "}@.killAfter[" + parameters[0] + "]" + "\n" + message + " (" + StaticHelper::timeStamp() + ")";
       } },
       { "METHODs", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
          std::string s{};

@@ -1427,7 +1427,8 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
       [mc_scene](const std::string& config_name) -> bool {
          return StaticHelper::isBooleanTrue(mc_scene->getOptionFromSECConfig(config_name, SecOptionLocalItemEnum::selected_job));
       }, 
-      mc_scene->getTemplateDir(), 
+      mc_scene->getTemplateDir(),
+      mc_scene->getTemplateDir(), // TODO: For now json must reside in template dir for GUI.
       mc_scene->json_tpl_filename_, 
       mc_scene->previous_write_time_, 
       mc_scene->formula_evaluation_mutex_,
@@ -1861,6 +1862,7 @@ void MCScene::createTestCases(MCScene* mc_scene, const std::map<std::string, std
    mc_scene->getMcWorkflow().createTestCases(
       modes,
       mc_scene->getTemplateDir(),
+      mc_scene->getTemplateDir(), // TODO: So far json must be in template dir.
       mc_scene->getJsonTplFilename(),
       sec_ids);
 

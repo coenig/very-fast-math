@@ -45,7 +45,7 @@ const static std::set<std::string> UNCACHABLE_METHODS_BASE{
       "readFile", "executeSystemCommand", "exec", "writeTextToFile", "timestamp", "vfm_variable_declared", "vfm_variable_undeclared",
       "createRoadGraph", "storeRoadGraph", "connectRoadGraphTo", "runMCJobs", "runMCJob", "generateEnvmodels", "generateTestCases",
       "makeUnCachable", "makeCachable", "resetScriptData", "resetAllData", "newMethod", "sleep", "killAfter", "Detach", "Identify", 
-      "StopScript", "ListRunningScripts" };
+      "StopScript", "ListRunningScripts", "findFilesRecursively", "prepareInputForMortyUCD", "prepareOutputForMortyUCD" };
 
 struct MethodPartBegin {
    int method_part_begin_{};

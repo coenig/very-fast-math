@@ -23,6 +23,8 @@
 #include <regex>
 #include <sstream>
 #include <stack>
+#include <string_view>
+#include <charconv>
 
 #if defined(ASMJIT_ENABLED)
 #include "asmjit.h"
@@ -158,6 +160,39 @@ std::string StaticHelper::toLowerCase(const std::string& str)
    }
 
    return s;
+}
+
+std::vector<std::filesystem::path> vfm::StaticHelper::findFilesRecursively(const std::filesystem::path& parentPath, const std::string& wildcard_pattern)
+{
+   std::vector<std::filesystem::path> results;
+
+   // COP: Convert wildcard pattern to regex: escape special chars, replace * and ?
+   std::string regexStr;
+   for (char c : wildcard_pattern) {
+      switch (c) {
+      case '*': regexStr += ".*"; break;
+      case '?': regexStr += ".";  break;
+      case '.': case '(': case ')': case '[': case ']':
+      case '{': case '}': case '+': case '^': case '$':
+      case '|': case '\\':
+         regexStr += '\\';
+         regexStr += c;
+         break;
+      default:
+         regexStr += c;
+      }
+   }
+
+   std::regex re(regexStr, std::regex::icase);
+
+   for (const auto& entry : std::filesystem::recursive_directory_iterator(parentPath)) {
+      if (entry.is_regular_file() &&
+         std::regex_match(entry.path().filename().string(), re)) {
+         results.push_back(entry.path());
+      }
+   }
+
+   return results;
 }
 
 std::string vfm::StaticHelper::removeLastFileExtension(const std::string& file_path, const std::string& extension_denoter)
@@ -911,6 +946,12 @@ bool StaticHelper::isParsableAsFloat(const std::string& float_string)
    return iss.eof() && !iss.fail(); 
 }
 
+bool isParsableAsDouble(const std::string_view s) {
+   double value;
+   const auto result = std::from_chars(s.data(), s.data() + s.size(), value);
+   return result.ec == std::errc() && result.ptr == s.data() + s.size();
+}
+
 bool vfm::StaticHelper::isParsableAsInt(const std::string& int_string, const bool allow_empty)
 {
    std::string s = int_string.empty() || int_string[0] != '+' && int_string[0] != '-' ? int_string : int_string.substr(1);
@@ -920,6 +961,26 @@ bool vfm::StaticHelper::isParsableAsInt(const std::string& int_string, const boo
    }
 
    return s.find_first_not_of("0123456789") == std::string::npos;
+}
+
+bool vfm::StaticHelper::isParsableAsLongLong(const std::string_view s) 
+{
+   long long value;
+   const auto result = std::from_chars(s.data(), s.data() + s.size(), value);
+   return result.ec == std::errc() && result.ptr == s.data() + s.size();
+}
+
+
+// Returns the parsed value on success, or an empty optional on failure.
+std::optional<long long> vfm::StaticHelper::parseLongLong(const std::string_view s) {
+   long long value;
+   const auto result = std::from_chars(s.data(), s.data() + s.size(), value);
+
+   if (result.ec == std::errc() && result.ptr == s.data() + s.size()) {
+      return value;
+   }
+
+   return std::nullopt;
 }
 
 bool StaticHelper::isAlphaNumericOrOneOfThese(const std::string& str, const std::string& additionally_allowed)
@@ -1716,6 +1777,18 @@ bool StaticHelper::isBooleanTrue(const std::string& bool_str)
    return result;
 }
 
+bool vfm::StaticHelper::isParsableAsBoolean(const std::string& bool_str)
+{
+   auto str = StaticHelper::toLowerCase(StaticHelper::trimAndReturn(bool_str));
+   bool parsable = StaticHelper::isParsableAsFloat(str);
+
+   if (!parsable && str != "false" && str != "true") {
+      return false;
+   }
+
+   return true;
+}
+
 int vfm::StaticHelper::extractIntegerAfterSubstring(const std::string& str, const std::string& substring) {
    size_t pos = str.find(substring);
 
@@ -2144,9 +2217,15 @@ std::string StaticHelper::readFile(const std::filesystem::path& path, const bool
       std::ifstream input{ path };
 
       if (input.good()) {
-         std::stringstream sstr;
-         while (input >> sstr.rdbuf());
-         ce_raw = sstr.str();
+         try {
+            std::stringstream sstr;
+            while (input >> sstr.rdbuf());
+            ce_raw = sstr.str();
+         } catch (const std::exception& e) {
+            Failable::getSingleton()->addError("File '" + StaticHelper::absPath(path) + "' read failed with exception: " + e.what() + ". Returning partial content.");
+         } catch (...) {
+            Failable::getSingleton()->addError("File '" + StaticHelper::absPath(path) + "' read failed with unknown exception. Returning partial content.");
+         }
       } else {
          Failable::getSingleton()->addError("File '" + StaticHelper::absPath(path) + "' could not be read. The bits [good|eof|fail|bad] are ["
             + std::to_string(input.good())
@@ -3385,9 +3464,9 @@ int vfm::StaticHelper::executeSystemCommand(const std::string& command)
    return system(command.c_str());
 }
 
-std::string vfm::StaticHelper::exec(const std::string cmd, const bool verbose)
+std::string vfm::StaticHelper::exec(const std::string cmd)
 {
-   if (verbose) Failable::getSingleton("System")->addNote("Executing system command: '" + cmd + "'.");
+   Failable::getSingleton("System")->addNote("Executing system command: '" + cmd + "'.");
 
    std::array<char, 128> buffer{};
    std::string result{};
@@ -3408,16 +3487,18 @@ std::string vfm::StaticHelper::exec(const std::string cmd, const bool verbose)
       result += buffer.data();
    }
 
-   if (verbose) Failable::getSingleton("System")->addNote("System command execution ended with result '" + result + "'.");
+   Failable::getSingleton("System")->addDebug("System command execution ended with result '" + result + "'.");
 
    return result;
 }
 
 std::string vfm::StaticHelper::execWithSuccessCode(
    const std::string& cmd, 
-   const bool verbose, 
    int& exit_code,
    std::shared_ptr<std::string> path_to_store_meta_info) {
+
+   Failable::getSingleton("System")->addNote("Executing system command: '" + cmd + "'.");
+
    std::array<char, 16> buffer{};
    std::string result{};
    
@@ -3451,7 +3532,7 @@ std::string vfm::StaticHelper::execWithSuccessCode(
       StaticHelper::writeTextToFile(timeStamp() + ": " + printTimeFormatted(time_all) + " time elapsed for execution of system command '" + cmd + "'.\n", *path_to_store_meta_info, true);
    }
 
-   if (verbose) Failable::getSingleton("System")->addNote("System command execution ended with result '" + result + "'.");
+   Failable::getSingleton("System")->addDebug("System command execution ended with result '" + result + "'.");
 
    return result;
 }

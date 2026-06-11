@@ -31,15 +31,40 @@ do
   fi
 done
 
-mkdir build
+mkdir -p build
 cd build
+
+# On Windows, auto-detect the Visual Studio generator via vswhere.
+# CMake respects the CMAKE_GENERATOR env var, avoiding quoting issues with -G.
+# TODO: Find out if this is actually necessary.
+if [[ -z "$CMAKE_GENERATOR" ]]; then
+   for VSWHERE in \
+      "/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
+      "/d/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
+      "/e/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"; do
+      if [[ -f "$VSWHERE" ]]; then
+         VS_YEAR=$("$VSWHERE" -latest -property catalog_productLineVersion 2>/dev/null | tr -d '\r')
+         case "$VS_YEAR" in
+            2022) export CMAKE_GENERATOR="Visual Studio 17 2022" ;;
+            2019) export CMAKE_GENERATOR="Visual Studio 16 2019" ;;
+            *)
+               NEWEST=$(cmake --help 2>/dev/null | grep -o 'Visual Studio [0-9][0-9]* [0-9][0-9]*' | sort -t' ' -k3 -nr | head -1)
+               if [[ -n "$NEWEST" ]]; then export CMAKE_GENERATOR="$NEWEST"; fi
+               ;;
+         esac
+         break
+      fi
+   done
+fi
+# EO TODO: Find out if this is actually necessary.
+
 if [ -z "$DEBUGOPTSCMAKE" ]; then
-   cmake $DEBUGOPTSCMAKE -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..
-   make $DEBUGOPTSMAKE -j16
+   cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..
+   cmake --build . --config Release --parallel 16
 else
    printf "Redirecting cmake and make outputs to files due to debug mode."
-   cmake $DEBUGOPTSCMAKE -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .. > cmake.log 2> cmake.err
-   make $DEBUGOPTSMAKE -j16 > make.log 2> make.err
+   cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .. > cmake.log 2> cmake.err
+   cmake --build . --config Release --parallel 16 > make.log 2> make.err
 fi
 
 if [ $? -eq 0 ]; then

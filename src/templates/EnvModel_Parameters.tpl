@@ -40,6 +40,7 @@
 @{DEBUG}@*******.defaultValue[true]
 @{MAXSPEEDEGO}@*******.defaultValue[34]
 @{MAXSPEEDNONEGO}@*******.defaultValue[70]
+@{UCD_MIN_VELOCITY_TO_ALLOW_LC}@*******.defaultValue[5] -- Only works with simple LC. TODO: Use for non-UCD, too?
 @{MINACCELEGO}@*******.defaultValue[-8]
 @{MAXACCELEGO}@*******.defaultValue[2]
 @{MINACCELNONEGO}@*******.defaultValue[-8]
@@ -60,7 +61,8 @@
 
 @{LANES_MAX_SPEEDS}@*******.defaultValueString[@(70)@@(70)@@(70)@]
 @{LANES_MIN_SPEEDS}@*******.defaultValueString[@(0)@@(0)@@(0)@]
-@{BACKWARD_DRIVING_CAR_IDS}@*******.defaultValueString[@{}@]
+@{FORWARD_DRIVING_CAR_IDS}@*******.defaultValueString[@{}@]   -- Strictly forward-driving, cannot have negative velocity.
+@{BACKWARD_DRIVING_CAR_IDS}@*******.defaultValueString[@{}@]  -- Strictly backward-driving, cannot have positive velocity.
 
 -- Lanechange parameters
 @{ANGLE_BASED_LC}@*******.defaultValue[false]          -- Do the angle-based LC as opposed to the "classic" lane-based one.

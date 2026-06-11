@@ -191,12 +191,15 @@ if(UNIX)
         ${VFM_MAIN_SOURCES}
     )
 
-    target_link_libraries(VFM_MAIN_LIB fltk fltk_images stdc++fs)
+    target_link_libraries(VFM_MAIN_LIB fltk fltk_images stdc++fs asmjit)
 else()
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
     add_library(
-        VFM_MAIN_LIB STATIC
+        VFM_MAIN_LIB SHARED
         ${VFM_MAIN_SOURCES}
      "interpreter_terminal.cpp")
+    target_compile_definitions(VFM_MAIN_LIB PRIVATE VFM_EXPORTS)
+    target_link_libraries(VFM_MAIN_LIB fltk fltk_images asmjit)
 endif()
 
 add_subdirectory(fltk)
@@ -204,14 +207,13 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR}/fltk fltk)
 
 add_executable(
    vfm
-   ${ASMJIT_SRC} main.cpp
+   main.cpp
  "interpreter_terminal.cpp")
 
 target_link_libraries(
    vfm
    fltk
    fltk_images
-   ${ASMJIT_DEPS}
    VFM_MAIN_LIB
 )
 

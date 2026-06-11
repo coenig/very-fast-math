@@ -154,9 +154,7 @@ std::string vfm::Failable::getFailableName() const
 void vfm::Failable::addError(const std::wstring& error_message, const ErrorLevelEnum level, const std::string& delimiter, const bool include_preamble) const
 {
 #ifndef CUT_OUT_ALL_DEBUG_OUTPUT_FOR_RELEASE
-   std::stringstream ss;
-   ss << error_message.c_str();
-   std::string str = ss.str();
+   std::string str(error_message.begin(), error_message.end());
 
    addError(str, level, delimiter, include_preamble);
 #endif

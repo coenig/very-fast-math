@@ -100,6 +100,7 @@ std::string doParsingRun(
    const std::string& planner_path,
    const std::string& target_dir,
    const std::string& cached_dir, // Can be empty if no caching desired.
+   const std::string& path_to_template_json,
    const std::filesystem::path& template_dir,
    const std::string& gui_name
 );
@@ -113,13 +114,26 @@ std::shared_ptr<RoadGraph> paintExampleRoadGraphRoundabout(const bool write_to_f
 
 bool isCacheUpToDateWithTemplates(const std::filesystem::path& cached_path, const std::filesystem::path& template_path, const std::string& gui_name);
 
-extern "C" char* expandScript(const char* input, char* result, size_t resultMaxLength);
+void prepareInputForMortyUCD(const std::string& input_str, const float head_const, const int num_lanes, const int num_technical_lanes);
+std::string prepareOutputForMortyUCD(const long long seed, const int iteration, const long long runtime, const bool crash);
 
-extern "C" char* morty(const char* input, char* result, size_t resultMaxLength);
+#ifndef VFM_API
+#ifdef _WIN32
+  #ifdef VFM_EXPORTS
+    #define VFM_API __declspec(dllexport)
+  #else
+    #define VFM_API __declspec(dllimport)
+  #endif
+#else
+  #define VFM_API
+#endif
+#endif
 
-// Arguments are separated with ';'
+extern "C" VFM_API char* expandScript(const char* input, char* result, size_t resultMaxLength);
+
 extern "C" char* generate_smv_files(const char* argv);
 
 extern "C" void generate_cex_gif(const char* _argv);
+
 } // test
 } // vfm

@@ -1,8 +1,3 @@
--- Working in folder '@{FULL_GEN_PATH}@.printHeap'.
--- This run is based on GIT commit: @{git rev-parse HEAD}@.exec
--- Storing patch in '@{FULL_GEN_PATH}@.printHeap/git_patch.txt'
-@{git diff > "@{FULL_GEN_PATH}@.printHeap/git_patch.txt"}@.exec
-
    --= CROSSING =--
    -- Remove nil from generator to activate.
 @{
@@ -293,11 +288,11 @@ INVAR env.veh___6[i]9___.v <= env.veh___6[i]9___.current_seclet_length;
 --INVAR env.veh___6[i]9___.v >= 5;
 --TRANS (env.veh___6[i]9___.lane_move_down | env.veh___6[i]9___.lane_move_up) -> (env.veh___6[i]9___.v = env.veh___609___.v); -- All have same velocity on LCs.
 TRANS env.veh___6[i]9___.v >= -env.veh___6[i]9___.next_seclet_length;
-INVAR env.veh___6[i]9___.on_straight_section < 0 -> (env.veh___6[i]9___.abs_pos >= env.veh_length & env.veh___6[i]9___.abs_pos <= env.veh___6[i]9___.current_seclet_length - env.veh_length); -- Don't collide too soon on junction entries.
+INVAR env.veh___6[i]9___.on_straight_section < 0 -> (env.veh___6[i]9___.abs_pos >= env.veh_length & env.veh___6[i]9___.abs_pos <= env.veh___6[i]9___.current_seclet_length - env.veh_length); -- Do not collide too soon on junction entries.
 
 @{
    -- INVAR abs(env.veh___6[i]9___.v - env.veh___6[j]9___.v) <= 6;
-   -- INVAR env.veh___6[i]9___.on_straight_section < 0 -> abs(env.veh___6[i]9___.abs_pos - env.veh___6[j]9___.abs_pos) > env.veh_length; -- Don't collide too soon on junction entries.
+   -- INVAR env.veh___6[i]9___.on_straight_section < 0 -> abs(env.veh___6[i]9___.abs_pos - env.veh___6[j]9___.abs_pos) > env.veh_length; -- Do not collide too soon on junction entries.
    -- TRANS (env.veh___6[i]9___.lane_move_down | env.veh___6[i]9___.lane_move_up) -> !(env.veh___6[j]9___.lane_move_down | env.veh___6[j]9___.lane_move_up);
 }@**.for[[j], @{[i] + 1}@.eval, @{NONEGOS - 1}@.eval]
 }@***.for[[i], 0, @{NONEGOS - 1}@.eval]

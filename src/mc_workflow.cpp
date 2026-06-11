@@ -82,6 +82,7 @@ void vfm::mc::McWorkflow::generateEnvmodels(
             StaticHelper::toStringGenericPath(path_planner),
             StaticHelper::toStringGenericPath(path_generated),
             StaticHelper::toStringGenericPath(path_cached),
+            path_template + "/" + json_tpl_filename,
             path_envmodel_folder,
             GUI_NAME + "_Related");
       }
@@ -92,6 +93,7 @@ std::vector<std::string> vfm::mc::McWorkflow::runMCJobs(
    const std::filesystem::path& path_generated_config_level,
    const std::function<bool(const std::string& folder)> job_selector,
    const std::string& path_template, 
+   const std::string& path_json, 
    const std::string& json_tpl_filename, 
    const int num_threads)
 {
@@ -101,6 +103,7 @@ std::vector<std::string> vfm::mc::McWorkflow::runMCJobs(
       path_generated_config_level,
       job_selector, 
       path_template, 
+      path_json, 
       json_tpl_filename,
       dummy_time,
       nullptr, num_threads);
@@ -110,6 +113,7 @@ std::vector<std::string> McWorkflow::runMCJobs(
    const std::filesystem::path& path_generated_config_level,
    const std::function<bool(const std::string& folder)> job_selector,
    const std::string& path_template,
+   const std::string& path_json,
    const std::string& json_tpl_filename,
    std::filesystem::file_time_type& previous_write_time,
    const std::shared_ptr<std::mutex> formula_evaluation_mutex,
@@ -135,8 +139,8 @@ std::vector<std::string> McWorkflow::runMCJobs(
          const std::string config_name{ std::filesystem::path(folder).filename().string() };
 
          if (job_selector(config_name)) {
-            pool.enqueue([this, &folder, &path_generated_parent, &prefix, &path_template, &json_tpl_filename, &previous_write_time, formula_evaluation_mutex] {
-               runMCJob(folder, folder.substr(path_generated_parent.string().size() + prefix.size() + 1), path_template, json_tpl_filename, previous_write_time, formula_evaluation_mutex);
+            pool.enqueue([this, &folder, &path_generated_parent, &prefix, &path_template, &path_json, &json_tpl_filename, &previous_write_time, formula_evaluation_mutex] {
+               runMCJob(folder, folder.substr(path_generated_parent.string().size() + prefix.size() + 1), path_template, path_json, json_tpl_filename, previous_write_time, formula_evaluation_mutex);
             });
          }
       }
@@ -149,6 +153,7 @@ void McWorkflow::runMCJob(
    const std::filesystem::path& path_generated_config_level,
    const std::string& config_name,
    const std::string& path_template, 
+   const std::string& path_json,
    const std::string& json_tpl_filename)
 {
    std::filesystem::file_time_type dummy_time{};
@@ -157,6 +162,7 @@ void McWorkflow::runMCJob(
       path_generated_config_level,
       config_name,
       path_template,
+      path_json,
       json_tpl_filename,
       dummy_time,
       nullptr);
@@ -166,23 +172,25 @@ void McWorkflow::runMCJob(
    const std::filesystem::path& path_generated_config_level,
    const std::string& config_name,
    const std::string& path_template,
+   const std::string& path_json,
    const std::string& json_tpl_filename,
    std::filesystem::file_time_type& previous_write_time, 
    const std::shared_ptr<std::mutex> formula_evaluation_mutex
 )
 {
-   const auto path_cached{ getCachedDir(path_template, json_tpl_filename) };
-   const auto path_external{ getExternalDir(path_template, json_tpl_filename) };
-
+   const auto path_cached{ getCachedDir(path_json, json_tpl_filename) };
+   const auto path_external{ getExternalDir(path_json, json_tpl_filename) };
+   bool generate_preview{ false };
+   
    {
       std::lock_guard<std::mutex> lock{ main_file_mutex_ };
 
       addNote("Running model checker and creating preview for folder '" + path_generated_config_level.string() + "' (config: '" + config_name + "').");
-      deleteMCOutputFromFolder(path_generated_config_level, true, path_template, previous_write_time);
-      preprocessAndRewriteJSONTemplate(path_template, json_tpl_filename, formula_evaluation_mutex);
+      deleteMCOutputFromFolder(path_generated_config_level, true, path_json, previous_write_time);
+      preprocessAndRewriteJSONTemplate(path_json, json_tpl_filename, formula_evaluation_mutex);
 
-      if (!putJSONIntoDataPack(path_template, json_tpl_filename)) return;
-      if (!putJSONIntoDataPack(path_template, json_tpl_filename, config_name)) return;
+      if (!putJSONIntoDataPack(path_json, json_tpl_filename)) return;
+      if (!putJSONIntoDataPack(path_json, json_tpl_filename, config_name)) return;
 
       data_->addStringToDataPack(path_template, macro::MY_PATH_VARNAME); // Set the script processors home path (for the case it's not already been set during EnvModel generation).
 
@@ -209,11 +217,15 @@ void McWorkflow::runMCJob(
       main_smv += spec_part + "\n";
       main_smv += SPEC_END + "\n";
 
-      StaticHelper::writeTextToFile(main_smv, path_generated_config_level / "main.smv");
+      if (!StaticHelper::stringContains(spec_part, "MORTY_PLACEHOLDER_SPEC")) {
+         StaticHelper::writeTextToFile(main_smv, path_generated_config_level / "main.smv");
+         generate_preview = true;
+      }
    }
 
    test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, path_generated_config_level.string(), "FAKE_PATH_NOT_USED", path_template, "FAKE_PATH_NOT_USED", path_cached.string(), path_external.string());
-   generatePreview(path_generated_config_level, 0);
+
+   if (generate_preview) generatePreview(path_generated_config_level, 0);
 
    addNote("Model checker run finished for folder '" + path_generated_config_level.string() + "'.");
 }
@@ -229,6 +241,7 @@ void McWorkflow::createTestCase(
       { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
       generated_parent_dir + "/" + id,
       "debug_trace_array",
+      "", // Use default scaling file location.
       mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv),
       modes);
 
@@ -238,9 +251,12 @@ void McWorkflow::createTestCase(
 void vfm::mc::McWorkflow::createTestCases(
    const std::map<std::string, std::string>& modes,
    const std::string& path_template,
+   const std::string& path_json,
    const std::string& json_tpl_filename,
    const std::vector<std::string>& sec_ids)
 {
+   // COP fix:
+   const std::string json_tpl_filename_only{ std::filesystem::path(json_tpl_filename).filename().string() };
    std::vector<std::thread> threads{};
    int numThreads{ 0 };
 
@@ -251,7 +267,7 @@ void vfm::mc::McWorkflow::createTestCases(
          if (numThreads < test::MAX_THREADS) {
             threads.emplace_back(std::thread(
                createTestCase,
-               getGeneratedParentDir(path_template, json_tpl_filename).string(),
+               getGeneratedParentDir(path_json, json_tpl_filename_only).string(), // COP fix.
                sec_id,
                //sec.slider_->value(),
                modes));
@@ -278,6 +294,7 @@ void McWorkflow::generatePreview(const std::filesystem::path& path_generated_con
       { cex_num },
       path_generated_config_level.string(),
       "debug_trace_array",
+      "", // Use default scaling file location.
       trajectory_generator::CexType(trajectory_generator::CexTypeEnum::smv),
       std::map<std::string, std::string>{ mc::TESTCASE_MODE_PREVIEW, mc::TESTCASE_MODE_PREVIEW_2 });
 

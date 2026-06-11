@@ -4649,6 +4649,7 @@ std::string vfm::CppParser::generateScript(const std::string& script_content, co
 std::string vfm::CppParser::generateEnvModel(
    const std::string& template_file_path, 
    const std::string& generated_filepath,
+   const std::string& path_to_template_json,
    const std::vector<std::string>& template_options)
 {
    std::string env_model_generated_path{ StaticHelper::removeLastFileExtension(generated_filepath, "/") };
@@ -4658,7 +4659,18 @@ std::string vfm::CppParser::generateEnvModel(
 
    std::string templates_generated_path{ env_model_generated_path + "/templates_archive/"};
    addNote("Copying templates directory '" + pure_path + "' to generated location ('" + templates_generated_path + "').");
-   std::filesystem::copy(pure_path, templates_generated_path, std::filesystem::copy_options::overwrite_existing);
+   std::filesystem::copy(pure_path, templates_generated_path, std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
+
+   // Overwrite tpl.json with actual version, if it's not the same.
+   if (!path_to_template_json.empty()) {
+      std::filesystem::path source_path{ path_to_template_json };
+      std::filesystem::path dest_dir{ templates_generated_path };
+      std::filesystem::path dest_path{ dest_dir / source_path.filename() };
+
+      addNote("Copying tpl.json '" + path_to_template_json + "' to generated location ('" + dest_path.string() + "').");
+      std::filesystem::copy(source_path, dest_path, std::filesystem::copy_options::overwrite_existing);
+   }
+   // EO Overwrite tpl.json with actual version, if it's not the same.
 
    if (!std::filesystem::exists(file_name_with_path)) {
       addError("EnvModel template file '" + file_name_with_path + "' not found.");
@@ -4713,6 +4725,7 @@ bool vfm::CppParser::performFSMCodeGenerationWrapper(
    const char* target_path_for_generated_code, 
    const bool create_live_pdf,
    std::string& path_to_envmodel_file,
+   const std::string& path_to_template_json,
    const std::vector<std::string>& template_options,
    const bool env_model_info_available)
 {
@@ -4731,7 +4744,7 @@ bool vfm::CppParser::performFSMCodeGenerationWrapper(
       smv_module_ = std::make_shared<mc::smv::Module>();
       addFailableChild(smv_module_);
 
-      generated_env_model_file = generateEnvModel(path_to_file_list_file_string, target_path_for_generated_code, template_options);
+      generated_env_model_file = generateEnvModel(path_to_file_list_file_string, target_path_for_generated_code, path_to_template_json,template_options);
       path_to_envmodel_file = generated_env_model_file;
    }
 
@@ -5837,6 +5850,11 @@ void vfm::CppParser::generateMainFileForNativeEnvModel(
       data_->addStringToDataPack(k2_parameters, "PLANNER_PARAMETERS");
       data_->addStringToDataPack(k2_output, "TRANSITIONS_PLANNER_TO_ENVMODEL");
       data_->addStringToDataPack(main_function_name_, "PLANNER_ENTRY_FILENAME");
+      data_->addStringToDataPack( // COP Fix
+         TARGET_PATH_FOR_MORTY_GUY_PROGRESS.empty()
+            ? StaticHelper::removeLastFileExtension(generated_folder, "/")
+            : StaticHelper::removeLastFileExtension(TARGET_PATH_FOR_MORTY_GUY_PROGRESS, "/"),
+         "FULL_GEN_PATH");
 
       std::string processed{ em->generateEnvModel(em) };
 
@@ -6025,15 +6043,16 @@ bool vfm::CppParser::performCodeGenerationAndMCCodeCreation(
    const char* path_to_file_list_file_code, 
    const char* path_to_file_list_file_env_model, 
    const char* target_path_for_generated_code, 
+   const char* path_to_template_json,
    const bool create_live_pdf)
 {
    std::string target_path_for_env_model(target_path_for_generated_code);
    target_path_for_env_model += "_envmodel.cpp";
 
-   const auto DO_ENVMODEL = [this, &target_path_for_generated_code, &path_to_file_list_file_env_model, &create_live_pdf, &target_path_for_env_model](
+   const auto DO_ENVMODEL = [this, &target_path_for_generated_code, &path_to_file_list_file_env_model, &create_live_pdf, &target_path_for_env_model, &path_to_template_json](
       bool& success_env_model, std::string& path_to_envmodel_file, const std::vector<std::string>& template_options) {
       createTitleString(this, "environment model");
-      success_env_model = performFSMCodeGenerationWrapper(path_to_file_list_file_env_model, target_path_for_env_model.c_str(), create_live_pdf, path_to_envmodel_file, template_options, false);
+      success_env_model = performFSMCodeGenerationWrapper(path_to_file_list_file_env_model, target_path_for_env_model.c_str(), create_live_pdf, path_to_envmodel_file, std::string(path_to_template_json), template_options, false);
       dumpCurrentState(StaticHelper::removeLastFileExtension(std::string(target_path_for_generated_code), "/") + "/dump2_after_envmodel_parsing.log");
    };
 
@@ -6061,7 +6080,7 @@ bool vfm::CppParser::performCodeGenerationAndMCCodeCreation(
    writeMortyGUIProgressFile(35, "planner parsing");
 
    createTitleString(this, "tactical planner");
-   success_code = performFSMCodeGenerationWrapper(path_to_file_list_file_code, target_path_for_generated_code, create_live_pdf, path_to_envmodel_file_dummy, template_options, has_envmodel_);
+   success_code = performFSMCodeGenerationWrapper(path_to_file_list_file_code, target_path_for_generated_code, create_live_pdf, path_to_envmodel_file_dummy, std::string(path_to_template_json), template_options, has_envmodel_);
    dumpCurrentState(StaticHelper::removeLastFileExtension(std::string(target_path_for_generated_code), "/") + "/dump3_after_planner_parsing.log");
 
    writeMortyGUIProgressFile(55, "combined model");
@@ -6090,7 +6109,7 @@ bool vfm::CppParser::performCodeGenerationAndMCCodeCreation(
    if (has_envmodel_ && data_->getSingleVal("EM_LESS")) {
       writeMortyGUIProgressFile(93, "em-less generation");
       addNotePlain("*** EM-less EnvModel Generation ***");
-      generateEnvModel(path_to_file_list_file_env_model, target_path_for_env_model, template_options);
+      generateEnvModel(path_to_file_list_file_env_model, target_path_for_env_model, std::string(path_to_template_json), template_options);
    }
 
    writeMortyGUIProgressFile(100, "finalizing");
@@ -6158,10 +6177,11 @@ void printVfmOutro(const bool result, const vfm::CppParser& cppp, const std::chr
 }
 
 extern "C"
-bool performFSMCodeGeneration(
+VFM_API bool performFSMCodeGeneration(
    const char* path_to_file_list_file_code, 
    const char* path_to_file_list_file_env_model, 
    const char* target_path_for_generated_code,
+   const char* path_to_template_json,
    const char* command_line_argument)
 {
    std::string cmd_line_arg{ command_line_argument };
@@ -6169,7 +6189,7 @@ bool performFSMCodeGeneration(
    printVfmIntro(cppp, std::string(target_path_for_generated_code));
 
    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-   bool result = cppp.performCodeGenerationAndMCCodeCreation(path_to_file_list_file_code, path_to_file_list_file_env_model, target_path_for_generated_code, CREATE_LIVE_PDF);
+   bool result = cppp.performCodeGenerationAndMCCodeCreation(path_to_file_list_file_code, path_to_file_list_file_env_model, target_path_for_generated_code, path_to_template_json, CREATE_LIVE_PDF);
    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
    
    printVfmOutro(result, cppp, end - begin);

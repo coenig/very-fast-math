@@ -688,10 +688,14 @@ void vfm::HighwayImage::setPerspective(
    highway_translator_->getPerspective()->setDisplayWindowZ(27);
 
    // TODO: Is this useful in this form?
-   if (!StaticHelper::existsFileSafe(std::string("../src/templates/perspective.txt"), false)) {
-      StaticHelper::writeTextToFile(highway_translator_->getPerspective()->serialize(), "../src/templates/perspective.txt");
+   std::string correct_location{ StaticHelper::existsFileSafe(std::string("./src/templates"), false) 
+      ? "./src/templates/perspective.txt"    // In the morty case, we run from *vfm*, not from *vfm/bin*.
+      : "../src/templates/perspective.txt" };
+
+   if (!StaticHelper::existsFileSafe(correct_location, false)) {
+      StaticHelper::writeTextToFile(highway_translator_->getPerspective()->serialize(), correct_location);
    }
-   highway_translator_->getPerspective()->parseProgram(StaticHelper::readFile("../src/templates/perspective.txt"));
+   highway_translator_->getPerspective()->parseProgram(StaticHelper::readFile(correct_location));
    //addNote("Perspective set to '" + highway_translator_->getPerspective()->serialize() + "'.");
    // EO TODO: Is this useful in this form?
 

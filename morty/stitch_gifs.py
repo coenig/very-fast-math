@@ -2,16 +2,27 @@
 stitch_gifs.py  –  Stack cex-smooth-birdseye GIFs from multiple iterations vertically
                    into one animated GIF that plays all rows simultaneously.
 
+The folder structure under each iteration_j has one sub-folder per config
+(e.g. _config_vehwidth=8), and within that a numbered CEX folder ("0") containing
+cex-smooth-birdseye/cex-smooth-birdseye.gif.
+
+The config priority order is read from morty/envmodel_config.tpl.json (key
+"UCD_CONFIG_PRIOS" inside "#TEMPLATE").  For each iteration, we walk that list and
+pick the first config whose "0/" subfolder exists.  If no config has a CEX, the
+iteration row is a red placeholder.
+
 For each frame index f:
   - Row j shows frame f of iteration j's GIF (or its last frame if f exceeds that GIF's length).
   - Iterations whose GIF is missing are shown as a red placeholder row.
 
 Usage:
-  python3 morty/stitch_gifs.py <path/to/run_i> --up-to-iteration J [--out output.gif]
-                                [--row-height 200]
+  python3 morty/stitch_gifs.py <path/to/run_i> --up-to-iteration J \\
+      [--out output.gif] [--row-height 200]
 """
 
 import argparse
+import json
+import re
 import sys
 from pathlib import Path
 
@@ -69,11 +80,41 @@ def make_red_row(width: int, height: int) -> np.ndarray:
     return np.full((height, width, 3), (220, 30, 30), dtype=np.uint8)
 
 
+def parse_config_prios(raw: str) -> list[str]:
+    """Parse a semicolon-separated config-prios string into an ordered list."""
+    return [c.strip() for c in raw.split(";") if c.strip()]
+
+
+_TPL_JSON = Path(__file__).resolve().parent / "envmodel_config.tpl.json"
+
+
+def load_config_prios_from_template() -> list[str]:
+    """Read UCD_CONFIG_PRIOS from the template JSON next to this script."""
+    with _TPL_JSON.open() as fh:
+        data = json.load(fh)
+    raw = data["#TEMPLATE"]["UCD_CONFIG_PRIOS"]
+    return parse_config_prios(raw)
+
+
+def resolve_gif(iteration_dir: Path, config_prios: list[str]) -> Path | None:
+    """Return the path to the cex-smooth-birdseye GIF from the first matching config, or None."""
+    for cfg in config_prios:
+        candidate = iteration_dir / cfg / "0" / "cex-smooth-birdseye" / "cex-smooth-birdseye.gif"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Stitch cex-smooth-birdseye GIFs from iterations into one animated GIF."
     )
     parser.add_argument("run_dir", type=Path, help="Path to a run_i directory.")
+    parser.add_argument(
+        "--config-prios", type=str, default=None,
+        help='Override config priority list (semicolon-separated). '
+             'Default: read UCD_CONFIG_PRIOS from morty/envmodel_config.tpl.json',
+    )
     parser.add_argument(
         "--up-to-iteration", type=int, required=True, metavar="J",
         help="Include iterations 0..J (inclusive).",
@@ -92,6 +133,15 @@ def main() -> None:
     if not run_dir.is_dir():
         sys.exit(f"Error: '{run_dir}' is not a directory.")
 
+    if args.config_prios:
+        config_prios = parse_config_prios(args.config_prios)
+    else:
+        config_prios = load_config_prios_from_template()
+        print(f"Loaded UCD_CONFIG_PRIOS from {_TPL_JSON.name}")
+    if not config_prios:
+        sys.exit("Error: config priority list is empty.")
+    print(f"Config priority order: {config_prios}")
+
     out_path: Path = args.out if args.out else run_dir / "stitched.gif"
     J: int = args.up_to_iteration
     row_height: int = args.row_height
@@ -102,12 +152,13 @@ def main() -> None:
 
     print(f"Loading GIFs for iterations 0 to {J} …")
     for j in range(J + 1):
-        gif_path = run_dir / f"iteration_{j}" / "cex-smooth-birdseye" / "cex-smooth-birdseye.gif"
-        if not gif_path.is_file():
+        iter_dir = run_dir / f"iteration_{j}"
+        gif_path = resolve_gif(iter_dir, config_prios) if iter_dir.is_dir() else None
+        if gif_path is None:
             print(f"  iteration_{j}: GIF not found — red placeholder")
             all_frame_lists.append(None)
         else:
-            print(f"  iteration_{j}: loading …", end="\r")
+            print(f"  iteration_{j}: loading {gif_path.relative_to(run_dir)} …", end="\r")
             frames = load_gif_frames(gif_path, row_height - 2)
             if frames:
                 ref_width = frames[0].shape[1]

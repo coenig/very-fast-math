@@ -1100,11 +1100,11 @@ void FormulaParser::addDynamicTerm(
       && already_existed_op_struct) { // Error handling: Operator already defined.
 
       if (meta_struct) {
-         addWarning("Function '" + full_func_name + "' has already been defined.");
+         addDebug("Function '" + full_func_name + "' has already been defined.");
          auto meta_existing = meta_existing_pair->second.at(auto_num);
 
          if (!meta_existing->isStructurallyEqual(meta_struct)) {
-            addWarning("The new function '" + full_func_name + "' has a different definition than the existing one.");
+            addWarning("The new function '" + full_func_name + "' has a different definition than an existing one.");
             addWarningPlain("Existing: '" + meta_existing->serialize() + "'.");
             addWarningPlain("Vs. new:  '" + meta_struct->serialize() + "'.");
             error_occurred = true;
@@ -1114,7 +1114,7 @@ void FormulaParser::addDynamicTerm(
             addNote("Re-defining the function '" + full_func_name + "'.");
          }
          else {
-            addNote("The existing function '" + full_func_name + "' equals the new one, therefore, no action is taken.");
+            addDebug("The existing function '" + full_func_name + "' equals the new one, therefore, no action is taken.");
             return;
          }
       }
