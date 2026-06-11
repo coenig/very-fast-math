@@ -16,7 +16,10 @@ import json
 import re
 from pathlib import Path
 import glob
-from morty_debug_plots import plot_cex_lengths, plot_cex_lengths_cumulative, plot_mc_runtimes, plot_mc_runtimes_cumulative
+from .morty_debug_plots import (
+    plot_cex_lengths, plot_cex_lengths_cumulative,
+    plot_mc_runtimes, plot_mc_runtimes_cumulative,
+)
 
 
 DEFAULT_NUM_RUNS = 100
@@ -105,6 +108,13 @@ with open('morty/envmodel_config.tpl.json') as f:
     generated_path_prefix = d["#TEMPLATE"]["_GENERATED_PATH"]
 
 # Delete old results from Python side
+# Import helper functions from morty_helper package module.
+from .morty_helper import (
+    ensure_empty_file, min_max_curr, dpoint_following_angle,
+    maxDifferenceArray, inverseSortingArray, _latest_nuxmv_runtime_seconds,
+    _hash_file, _snapshot_configs, _save_configs_to_archive, archive,
+)
+
 any = False
 for res_path in glob.glob(generated_path_prefix + "*"):
     if Path(res_path).is_dir():
@@ -276,65 +286,6 @@ good_ones = []
 all_cex_length_histories = {}
 all_selected_runtime_histories = {}
 
-def ensure_empty_file(path: str) -> None:
-    p = Path(path)
-
-    if p.exists() and not p.is_file():
-        return
-
-    p.parent.mkdir(parents=True, exist_ok=True)
-    with p.open('w'):
-        pass
-
-def min_max_curr(successful_so_far, done_so_far, max_to_expect):
-    percent = 100 * successful_so_far / done_so_far
-    min_good = 100 * successful_so_far / max_to_expect
-    max_good = 100 * (max_to_expect - done_so_far + successful_so_far) / max_to_expect
-        
-    return str(round(min_good, 1)) + "% <= " + str(round(percent, 1)) + "% <= " + str(round(max_good, 1)) + "%"
-
-# Pure pursuit.
-def dpoint_following_angle(dpoint_y, ego_y, heading, ddist, bwd):
-    return heading - math.atan((dpoint_y - ego_y) * bwd / ddist)
-
-def maxDifferenceArray(A):
-    maxDiff = -1
-    for i in range(len(A)):
-        for j in range(len(A)):
-            maxDiff = max(maxDiff, abs(A[j] - A[i]))
-    return maxDiff
-
-def inverseSortingArray(egos_x: List[float]):
-    b = True
-    for i in range(len(egos_x) - 1):
-        b = b and (egos_x[i + 1] < egos_x[i])
-    return b
-
-
-def _latest_nuxmv_runtime_seconds(config_name: str):
-    """Return latest nuXmv runtime in seconds from mc_runtimes.txt for a given config."""
-    runtime_file = f"{generated_path_prefix + config_name}/mc_runtimes.txt"
-    if not os.path.exists(runtime_file):
-        return np.nan
-
-    try:
-        with open(runtime_file, "r", encoding="utf-8", errors="ignore") as f:
-            lines = f.readlines()
-    except OSError:
-        return np.nan
-
-    for line in reversed(lines):
-        if "nuXmv" not in line:
-            continue
-        m = re.search(r"(\d+):(\d+):(\d+(?:\.\d+)?)\s+time elapsed", line)
-        if m:
-            hours = int(m.group(1))
-            minutes = int(m.group(2))
-            seconds = float(m.group(3))
-            return hours * 3600 + minutes * 60 + seconds
-
-    return np.nan
- 
 specification = create_string_buffer(2000)
 spec_res = morty_lib.expandScript(SPECS[exp_num].encode('utf-8'), specification, sizeof(specification)).decode()
 
@@ -364,74 +315,13 @@ for ucd_config_str in ucd_config_prios_str:
         f.write(content)
         f.truncate()
 
-import hashlib
-
-def _hash_file(path):
-    h = hashlib.md5()
-    with open(path, 'rb') as f:
-        for chunk in iter(lambda: f.read(8192), b''):
-            h.update(chunk)
-    return h.hexdigest()
-
-def _snapshot_configs(restrict_to=None):
-    """Return {config_name: {rel_path: md5_hex}} for all config dirs.
-    If restrict_to is given, only include rel_paths present in that dict."""
-    snap = {}
-    for config_name in ucd_config_prios_str:
-        config_dir = generated_path_prefix + config_name
-        allowed = restrict_to.get(config_name) if restrict_to else None
-        file_hashes = {}
-        for dirpath, _, filenames in os.walk(config_dir):
-            for fname in filenames:
-                full_path = os.path.join(dirpath, fname)
-                rel_path = os.path.relpath(full_path, config_dir)
-                if allowed is not None and rel_path not in allowed:
-                    continue
-                file_hashes[rel_path] = _hash_file(full_path)
-        snap[config_name] = file_hashes
-    return snap
-
-def _save_configs_to_archive(seedo, subfolder, restrict_to=None):
-    """Copy config files into the detailed archive under the given subfolder.
-    If restrict_to is given ({config_name: set_of_rel_paths}), only copy those files."""
-    archive_path = f'{generated_path_prefix}/detailed_archive/run_{seedo}/{subfolder}/'
-    for config_name in ucd_config_prios_str:
-        config_dir = generated_path_prefix + config_name
-        allowed = restrict_to.get(config_name) if restrict_to else None
-        for dirpath, _, filenames in os.walk(config_dir):
-            for fname in filenames:
-                full_path = os.path.join(dirpath, fname)
-                rel_path = os.path.relpath(full_path, config_dir)
-                if allowed is not None and rel_path not in allowed:
-                    continue
-                dest = os.path.join(archive_path + config_name, rel_path)
-                os.makedirs(os.path.dirname(dest), exist_ok=True)
-                shutil.copy2(full_path, dest)
 
 baseline_hashes = {}  # Pre-loop file set (before any MC call).
 snapshot_hashes = {}  # Post-first-MC-call hashes (only baseline files).
 
-def archive(seedo, global_counter):
-    if args.detailed_archive:
-        archive_path = f'{generated_path_prefix}/detailed_archive/run_{seedo}/iteration_{global_counter}/'
-        if not os.path.exists(archive_path):
-            os.makedirs(archive_path)
-        for config_name in ucd_config_prios_str:
-            config_dir = generated_path_prefix + config_name
-            baseline = snapshot_hashes.get(config_name, {})
-            for dirpath, _, filenames in os.walk(config_dir):
-                for fname in filenames:
-                    full_path = os.path.join(dirpath, fname)
-                    rel_path = os.path.relpath(full_path, config_dir)
-                    current_hash = _hash_file(full_path)
-                    if rel_path not in baseline or baseline[rel_path] != current_hash:
-                        dest = os.path.join(archive_path + config_name, rel_path)
-                        os.makedirs(os.path.dirname(dest), exist_ok=True)
-                        shutil.copy2(full_path, dest)
-
 # Take pre-loop baseline: record which files exist before any MC call.
 if args.detailed_archive:
-    baseline_hashes = _snapshot_configs()
+    baseline_hashes = _snapshot_configs(ucd_config_prios_str, generated_path_prefix)
 
 for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
@@ -571,7 +461,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     crashed = False
 
     if args.detailed_archive:
-        _save_configs_to_archive(seedo, '0_pristine')
+        _save_configs_to_archive(seedo, '0_pristine', generated_path_prefix, ucd_config_prios_str)
 
     for global_counter in range(args.steps_per_run):
         mcinput = ""
@@ -622,8 +512,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         if args.detailed_archive and global_counter == 0:
             # Processed snapshot: only re-hash files that existed in the baseline
             # (excludes iteration-specific artifacts like debug folders).
-            snapshot_hashes = _snapshot_configs(restrict_to=baseline_hashes)
-            _save_configs_to_archive(seedo, '1_initialized', restrict_to={cn: set(baseline_hashes[cn]) for cn in baseline_hashes})
+            snapshot_hashes = _snapshot_configs(ucd_config_prios_str, generated_path_prefix, restrict_to=baseline_hashes)
+            _save_configs_to_archive(seedo, '1_initialized', generated_path_prefix, ucd_config_prios_str, restrict_to={cn: set(baseline_hashes[cn]) for cn in baseline_hashes})
         
         ### POSTPROCESS RESULT ###
         all_results_dict = {}
@@ -650,7 +540,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # Track latest nuXmv runtime per configured priority and update PDF each iteration.
         selected_cnt_history.append(selected_cnt)
         for config_name in ucd_config_prios_str:
-            mc_runtime_histories[config_name].append(_latest_nuxmv_runtime_seconds(config_name))
+            mc_runtime_histories[config_name].append(_latest_nuxmv_runtime_seconds(config_name, generated_path_prefix))
 
         if selected_cnt is not None and 0 <= selected_cnt < len(ucd_config_prios_str):
             selected_config = ucd_config_prios_str[selected_cnt]
@@ -682,7 +572,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         if res_str == "FINISHED" or successed:
             print("DONE")
             good_ones.append(seedo)
-            archive(seedo, global_counter)
+            archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
             break
        
         if res_str == empty_cex:
@@ -691,7 +581,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 if not env.unwrapped.controlled_vehicles[i].crashed:
                     env.unwrapped.controlled_vehicles[i].color = (100, 100, 255)
             if nocex_count > args.allow_blind_steps: # Allow up to this many times being blind per run. (If in doubt: 10)
-                archive(seedo, global_counter)
+                archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
                 break
             nocex_count += 1
         else:
@@ -837,7 +727,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             clip.close()
             print("Video written")
 
-        archive(seedo, global_counter)
+        archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
 
         if crashed_count > args.allow_crashed_steps: # Allow these many crashes per run.
             break

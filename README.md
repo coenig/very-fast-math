@@ -60,10 +60,15 @@ pip install highway-env
 ```
 (TODO: Probably `pip install moviepy` suffices rather than installing all 'other' of gymnasium.)
 
-Then, run:
+### Running M²oRTy
+Run from the project root directory:
+
+```bash
+python -m morty.morty --num_runs 1 --steps_per_run 300 --headless --force
 ```
-python3 morty/morty.py
-```
+
+Run with `--help` to see all available options.
+
 This procedure should work on Linux and Windows.
 
 ## Authors
