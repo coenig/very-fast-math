@@ -107,7 +107,6 @@ with open('morty/envmodel_config.tpl.json') as f:
     ucd_config_prios_str = [s for s in d["#TEMPLATE"]["UCD_CONFIG_PRIOS"].split(';') if s] # only non-empty strings
     generated_path_prefix = d["#TEMPLATE"]["_GENERATED_PATH"]
 
-# Delete old results from Python side
 # Import helper functions from morty_helper package module.
 from .morty_helper import (
     ensure_empty_file, min_max_curr, dpoint_following_angle,
@@ -115,6 +114,7 @@ from .morty_helper import (
     _hash_file, _snapshot_configs, _save_configs_to_archive, archive,
 )
 
+# Delete old results from Python side
 any = False
 for res_path in glob.glob(generated_path_prefix + "*"):
     if Path(res_path).is_dir():
