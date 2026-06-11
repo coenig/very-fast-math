@@ -4663,12 +4663,24 @@ std::string vfm::CppParser::generateEnvModel(
 
    // Overwrite tpl.json with actual version, if it's not the same.
    if (!path_to_template_json.empty()) {
-      std::filesystem::path source_path{ path_to_template_json };
-      std::filesystem::path dest_dir{ templates_generated_path };
-      std::filesystem::path dest_path{ dest_dir / source_path.filename() };
+      const std::filesystem::path source_path{ path_to_template_json };
+      const std::filesystem::path dest_dir{ templates_generated_path };
+      const std::filesystem::path dest_path{ dest_dir / source_path.filename() };
 
-      addNote("Copying tpl.json '" + path_to_template_json + "' to generated location ('" + dest_path.string() + "').");
-      std::filesystem::copy(source_path, dest_path, std::filesystem::copy_options::overwrite_existing);
+      if (StaticHelper::existsFileSafe(path_to_template_json)) {
+         addNote("Copying tpl.json '" + source_path.string() + "' to generated location ('" + dest_path.string() + "').");
+         std::filesystem::copy(source_path, dest_path, std::filesystem::copy_options::overwrite_existing);
+      } else {
+         addFatalError("tpl.json not found in expected location '" + path_to_template_json + "'. Nothing copied.");
+      }
+      
+      const std::string path_to_json{ StaticHelper::replaceAll(path_to_template_json, ".tpl.json", ".json") };
+      if (StaticHelper::existsFileSafe(path_to_json)) {
+         addNote("Copying (in a hacky way) the concrete version of the json, assuming it's '" + path_to_json + "', to generated location ('" + dest_path.string() + "').");
+         std::filesystem::copy(path_to_json, dest_path, std::filesystem::copy_options::overwrite_existing);
+      } else {
+         addFatalError("Concrete version of tpl.json not found in expected location '" + path_to_json + "'. Nothing copied.");
+      }
    }
    // EO Overwrite tpl.json with actual version, if it's not the same.
 
