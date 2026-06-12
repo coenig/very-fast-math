@@ -6,6 +6,10 @@ import shutil
 from pathlib import Path
 from typing import List, Dict, Optional
 import numpy as np
+import platform
+import ctypes
+from contextlib import contextmanager
+from ctypes import CDLL
 
 
 def ensure_empty_file(path: str) -> None:
@@ -131,3 +135,53 @@ def archive(seedo: int, global_counter: int, detailed_archive_flag: bool, genera
                         dest = os.path.join(archive_path + config_name, rel_path)
                         os.makedirs(os.path.dirname(dest), exist_ok=True)
                         shutil.copy2(full_path, dest)
+
+if platform.system() == 'Windows':
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel32.FreeLibrary.argtypes = [ctypes.c_void_p] # The argument is a handle (void pointer)
+    kernel32.FreeLibrary.restype = ctypes.c_int      # Returns a BOOL (int)
+    
+@contextmanager
+def clean_library_context(lib_path):
+    try:
+        lib = ctypes.CDLL(lib_path)
+        yield lib
+    finally:
+        if 'lib' in locals():
+            handle = lib._handle
+            
+            if platform.system() == 'Windows':
+                kernel32.FreeLibrary(handle)
+            else:
+                ctypes.CDLL(None).dlclose(handle)
+        else:
+            print("Warning: Library object not found for cleanup.")
+            input("Press Enter to continue...")
+               
+@contextmanager
+def morty_script_context():
+    # Assum Linux until...
+    dll_name = 'libvfm.so'
+    dll_dir = './lib'
+    
+    if platform.system() == 'Windows': # ...proven otherwise.
+        dll_name = 'VFM_MAIN_LIB.dll'
+        dll_dir = os.path.join(os.getcwd(), 'bin', 'Release')
+        # Ensure the directory with native DLLs is discoverable on Windows so CDLL can load dependencies.
+        # Add bin/Release to PATH if not already present (works on Python 3.7+).
+        if dll_dir not in os.environ.get('PATH', ''):
+            os.environ['PATH'] = dll_dir + os.pathsep + os.environ.get('PATH', '')
+   
+    with clean_library_context(dll_dir + '/' + dll_name) as morty_lib:
+        morty_lib = CDLL(dll_dir + '/' + dll_name)
+        morty_lib.expandScript.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t]
+        morty_lib.expandScript.restype = ctypes.c_char_p
+        
+        yield morty_lib
+
+# --- How to use
+# for item in [...]:
+#     with morty_script_context() as morty_lib:
+#         # morty_lib is already loaded, configured, and will be cleaned up
+#         res1 = morty_lib.expandScript(b"call_one", b"data", 1024)
+#         res2 = morty_lib.expandScript(b"call_two", b"data", 1024)

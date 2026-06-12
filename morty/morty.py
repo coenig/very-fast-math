@@ -1,25 +1,28 @@
+from ctypes import create_string_buffer, sizeof
+
 import matplotlib
 matplotlib.use('Agg')  # Non-interactive backend — no X11/display required
 
 import gymnasium
 from gymnasium.wrappers import RecordVideo
-import highway_env
 from matplotlib import pyplot as plt
-from ctypes import *
-import math
 import os
 import shutil
 import argparse
 import numpy as np
-from typing import List
 import json
-import re
 from pathlib import Path
 import glob
 from .morty_debug_plots import (
     plot_cex_lengths, plot_cex_lengths_cumulative,
     plot_mc_runtimes, plot_mc_runtimes_cumulative,
 )
+from .morty_helper import (
+    ensure_empty_file, min_max_curr, dpoint_following_angle,
+    maxDifferenceArray, inverseSortingArray, _latest_nuxmv_runtime_seconds,
+    _hash_file, _snapshot_configs, _save_configs_to_archive, archive, morty_script_context
+)
+import platform
 
 
 DEFAULT_NUM_RUNS = 100
@@ -87,32 +90,11 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
         pass
 VehicleGraphics.display = _patched_display
 
-# Prepare connection to morty lib.
-# Ensure the directory with native DLLs is discoverable on Windows so CDLL can load dependencies.
-import platform
-if platform.system() == 'Windows':
-    # Add bin/Release to PATH if not already present (works on Python 3.7+).
-    dll_dir = os.path.join(os.getcwd(), 'bin', 'Release')
-    if dll_dir not in os.environ.get('PATH', ''):
-        os.environ['PATH'] = dll_dir + os.pathsep + os.environ.get('PATH', '')
-    morty_lib = CDLL('./bin/Release/VFM_MAIN_LIB.dll')
-else:
-    morty_lib = CDLL('./lib/libvfm.so')
-morty_lib.expandScript.argtypes = [c_char_p, c_char_p, c_size_t]
-morty_lib.expandScript.restype = c_char_p
-
 # Load parameters from JSON.
 with open('morty/envmodel_config.tpl.json') as f:
     d = json.load(f)
     ucd_config_prios_str = [s for s in d["#TEMPLATE"]["UCD_CONFIG_PRIOS"].split(';') if s] # only non-empty strings
     generated_path_prefix = d["#TEMPLATE"]["_GENERATED_PATH"]
-
-# Import helper functions from morty_helper package module.
-from .morty_helper import (
-    ensure_empty_file, min_max_curr, dpoint_following_angle,
-    maxDifferenceArray, inverseSortingArray, _latest_nuxmv_runtime_seconds,
-    _hash_file, _snapshot_configs, _save_configs_to_archive, archive,
-)
 
 # Delete old results from Python side
 any = False
@@ -141,7 +123,8 @@ script_envmodels = r"""
 @{./src/templates/}@.stringToHeap[MY_PATH]
 @{../../morty/envmodel_config.tpl.json}@.generateEnvmodels
 """
-dummy_result = morty_lib.expandScript(script_envmodels.encode('utf-8'), dummy_result, sizeof(dummy_result)).decode()
+with morty_script_context() as morty_lib:
+    dummy_result = morty_lib.expandScript(script_envmodels.encode('utf-8'), dummy_result, sizeof(dummy_result)).decode()
 # EO Create EnvModels.
     
 with open('morty/envmodel_config.json') as f:
@@ -287,7 +270,8 @@ all_cex_length_histories = {}
 all_selected_runtime_histories = {}
 
 specification = create_string_buffer(2000)
-spec_res = morty_lib.expandScript(SPECS[exp_num].encode('utf-8'), specification, sizeof(specification)).decode()
+with morty_script_context() as morty_lib:
+    spec_res = morty_lib.expandScript(SPECS[exp_num].encode('utf-8'), specification, sizeof(specification)).decode()
 
 for ucd_config_str in ucd_config_prios_str:
     ensure_empty_file(f'{generated_path_prefix + ucd_config_str}/morty_mc_results.txt')  # Delete old results from MC side (these are a super set of the above)
@@ -506,7 +490,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         
         #### MODEL CHECKER CALL ####
         result = create_string_buffer(100000)
-        res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
+        with morty_script_context() as morty_lib:
+            res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
         res_str = res.decode().strip()
 
         if args.detailed_archive and global_counter == 0:
@@ -688,7 +673,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             }}@.nil 
             @{{{distance_formula_pp}}}@.eval
             """
-            distance = morty_lib.expandScript(script_dist_pp.encode('utf-8'), distance, sizeof(distance)).decode().strip()
+            with morty_script_context() as morty_lib:
+                distance = morty_lib.expandScript(script_dist_pp.encode('utf-8'), distance, sizeof(distance)).decode().strip()
             # EO Formula for speed-dependent distance in pure-pursuit.
 
             # Best so far (for inversion task):
