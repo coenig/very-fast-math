@@ -173,7 +173,6 @@ def morty_script_context():
             os.environ['PATH'] = dll_dir + os.pathsep + os.environ.get('PATH', '')
    
     with clean_library_context(dll_dir + '/' + dll_name) as morty_lib:
-        morty_lib = CDLL(dll_dir + '/' + dll_name)
         morty_lib.expandScript.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t]
         morty_lib.expandScript.restype = ctypes.c_char_p
         
