@@ -156,7 +156,6 @@ def clean_library_context(lib_path):
                 ctypes.CDLL(None).dlclose(handle)
         else:
             print("Warning: Library object not found for cleanup.")
-            input("Press Enter to continue...")
                
 @contextmanager
 def morty_script_context():
