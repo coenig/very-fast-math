@@ -152,8 +152,8 @@ def clean_library_context(lib_path):
             
             if platform.system() == 'Windows':
                 kernel32.FreeLibrary(handle)
-            else:
-                ctypes.CDLL(None).dlclose(handle)
+            # else: # TODO: segfaults on Linux.
+                # ctypes.CDLL(None).dlclose(handle)
         else:
             print("Warning: Library object not found for cleanup.")
                
