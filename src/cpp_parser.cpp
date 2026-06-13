@@ -4675,9 +4675,10 @@ std::string vfm::CppParser::generateEnvModel(
       }
       
       const std::string path_to_json{ StaticHelper::replaceAll(path_to_template_json, ".tpl.json", ".json") };
+      const std::string dest_path_to_json{ StaticHelper::replaceAll(dest_path.string(), ".tpl.json", ".json") };
       if (StaticHelper::existsFileSafe(path_to_json)) {
          addNote("Copying (in a hacky way) the concrete version of the json, assuming it's '" + path_to_json + "', to generated location ('" + dest_path.string() + "').");
-         std::filesystem::copy(path_to_json, dest_path, std::filesystem::copy_options::overwrite_existing);
+         std::filesystem::copy(path_to_json, dest_path_to_json, std::filesystem::copy_options::overwrite_existing);
       } else {
          addFatalError("Concrete version of tpl.json not found in expected location '" + path_to_json + "'. Nothing copied.");
       }
