@@ -73,14 +73,14 @@ def plot_cex_lengths_cumulative(all_histories, output_path):
         for step in range(max_len):
             vals = [h[step] for h in all_histories.values() if len(h) > step]
             if vals:
-                avg[step] = np.mean(vals)
+                avg[step] = np.nanmean(vals)
         ax.plot(range(max_len), avg, color='darkblue', linewidth=2, label='Average')
 
     # Ideal line from average first value.
     first_vals = [h[0] for h in all_histories.values() if h]
     if first_vals:
         import numpy as np
-        avg_first = np.mean(first_vals)
+        avg_first = np.nanmean(first_vals)
         ideal = [avg_first - i for i in range(max_len)]
         ax.plot(range(max_len), ideal, linestyle='--', color='gray', label='Ideal (avg first − step)')
 
@@ -142,6 +142,54 @@ def plot_mc_runtimes(mc_runtime_histories, output_path, selected_cnt_history=Non
     ax.set_xlabel('Sim time (iteration)')
     ax.set_ylabel('nuXmv runtime [s]')
     ax.set_title('MC Runtime Progression by Priority')
+    ax.set_ylim(bottom=0)
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    with PdfPages(output_path) as pdf:
+        pdf.savefig(fig)
+    plt.close(fig)
+
+
+def plot_mc_runtimes_cumulative(all_selected_runtime_histories, output_path):
+    """Plot all per-seed selected MC runtime curves plus their average.
+
+    Args:
+        all_selected_runtime_histories: Dict mapping seed -> list of selected runtime values in seconds.
+        output_path: File path for the output PDF (overwritten each call).
+    """
+    if not all_selected_runtime_histories:
+        return
+
+    fig, ax = plt.subplots(figsize=(8, 4))
+
+    max_len = 0
+    have_any = False
+    for seed, runtimes in all_selected_runtime_histories.items():
+        if not runtimes:
+            continue
+        steps = list(range(len(runtimes)))
+        ax.plot(steps, runtimes, color='seagreen', alpha=0.2, linewidth=0.8)
+        max_len = max(max_len, len(runtimes))
+        have_any = True
+
+    if not have_any or max_len == 0:
+        plt.close(fig)
+        return
+
+    import numpy as np
+    avg = np.full(max_len, np.nan)
+    for step in range(max_len):
+        vals = [h[step] for h in all_selected_runtime_histories.values() if len(h) > step and h[step] == h[step]]
+        if vals:
+            avg[step] = np.mean(vals)
+
+    ax.plot(range(max_len), avg, color='darkgreen', linewidth=2, label='Average selected runtime')
+
+    ax.set_xlabel('Sim time (iteration)')
+    ax.set_ylabel('nuXmv runtime [s]')
+    ax.set_title(f'MC Runtime Cumulative ({len(all_selected_runtime_histories)} seeds)')
     ax.set_ylim(bottom=0)
     ax.legend()
     ax.grid(True, alpha=0.3)
