@@ -339,7 +339,7 @@ void cleanUpCache(const std::string& gui_name, const std::string& cache_dir)
             }
 
             if (fine) {
-               Failable::getSingleton()->addNote("Cache folder '" + StaticHelper::absPath(folder.path().string()) + "' is fine.");
+               Failable::getSingleton()->addDebug("Cache folder '" + StaticHelper::absPath(folder.path().string()) + "' is fine.");
             }
             else {
                Failable::getSingleton(gui_name)->addNote("Found broken cache folder '" + StaticHelper::absPath(folder.path().string()) + "'. I will delete it.");
