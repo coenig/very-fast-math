@@ -630,7 +630,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 break
             nocex_count += 1
             
-            cex_length_history.append(0)
+            cex_length_history.append(np.nan)
             cnt_history.append(-1)
             cex_point_colors.append('tab:red')
         else:

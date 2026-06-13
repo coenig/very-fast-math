@@ -73,14 +73,14 @@ def plot_cex_lengths_cumulative(all_histories, output_path):
         for step in range(max_len):
             vals = [h[step] for h in all_histories.values() if len(h) > step]
             if vals:
-                avg[step] = np.mean(vals)
+                avg[step] = np.nanmean(vals)
         ax.plot(range(max_len), avg, color='darkblue', linewidth=2, label='Average')
 
     # Ideal line from average first value.
     first_vals = [h[0] for h in all_histories.values() if h]
     if first_vals:
         import numpy as np
-        avg_first = np.mean(first_vals)
+        avg_first = np.nanmean(first_vals)
         ideal = [avg_first - i for i in range(max_len)]
         ax.plot(range(max_len), ideal, linestyle='--', color='gray', label='Ideal (avg first − step)')
 
