@@ -569,26 +569,30 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
                 break
             nocex_count += 1
+            
+            cex_length_history.append(0)
+            cnt_history.append(-1)
+            cex_point_colors.append('tab:red')
         else:
             cex_length = len(res_str.split(';')[0].split('|')[0].split(','))
-            
-            # Plotting (TODO: refactor to a function to avoid code duplication with the MC runtime plotting above):
             cex_length_history.append(cex_length)
             cnt_history.append(cnt)
             cex_point_colors.append('tab:blue')
-            plot_cex_lengths(
-                cex_length_history,
-                f"{generated_path_prefix}/cex_length_debug_{seedo}.pdf",
-                cnt_history=cnt_history,
-                point_colors=cex_point_colors,
-            )
-            all_cex_length_histories[seedo] = cex_length_history[:]
-            plot_cex_lengths_cumulative(all_cex_length_histories, f"{generated_path_prefix}/cex_length_debug_all.pdf")
-            # EO Plotting
             
             for i in range(nonegos):
                 if not env.unwrapped.controlled_vehicles[i].crashed:
                     env.unwrapped.controlled_vehicles[i].color = (min(cex_length * 15, 255), 200, min(cex_length * 15, 255))
+
+        # Plotting (TODO: refactor to a function to avoid code duplication with the MC runtime plotting above):
+        plot_cex_lengths(
+            cex_length_history,
+            f"{generated_path_prefix}/cex_length_debug_{seedo}.pdf",
+            cnt_history=cnt_history,
+            point_colors=cex_point_colors,
+        )
+        all_cex_length_histories[seedo] = cex_length_history[:]
+        plot_cex_lengths_cumulative(all_cex_length_histories, f"{generated_path_prefix}/cex_length_debug_all.pdf")
+        # EO Plotting
 
         sum_vel_by_car = []
         sum_lan_by_car = []
