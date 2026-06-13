@@ -8,6 +8,7 @@ from typing import List, Dict, Optional
 import numpy as np
 import platform
 import ctypes
+import ctypes.util
 from contextlib import contextmanager
 from ctypes import CDLL
 
@@ -138,8 +139,12 @@ def archive(seedo: int, global_counter: int, detailed_archive_flag: bool, genera
 
 if platform.system() == 'Windows':
     kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
-    kernel32.FreeLibrary.argtypes = [ctypes.c_void_p] # The argument is a handle (void pointer)
-    kernel32.FreeLibrary.restype = ctypes.c_int      # Returns a BOOL (int)
+    kernel32.FreeLibrary.argtypes = [ctypes.c_void_p]
+    kernel32.FreeLibrary.restype = ctypes.c_int
+elif platform.system() == 'Linux':
+    libc = ctypes.CDLL(ctypes.util.find_library('c'))
+    libc.dlclose.argtypes = [ctypes.c_void_p]
+    libc.dlclose.restype = ctypes.c_int
     
 @contextmanager
 def clean_library_context(lib_path):
@@ -152,8 +157,8 @@ def clean_library_context(lib_path):
             
             if platform.system() == 'Windows':
                 kernel32.FreeLibrary(handle)
-            # else: # TODO: segfaults on Linux.
-                # ctypes.CDLL(None).dlclose(handle)
+            elif platform.system() == 'Linux':
+                libc.dlclose(handle)
         else:
             print("Warning: Library object not found for cleanup.")
                

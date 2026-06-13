@@ -23,7 +23,7 @@ using namespace macro;
 int vfm::macro::first_free_script_id{ 0 };
 std::map<int, std::shared_ptr<Script>> vfm::macro::running_scripts{};
 std::map<int, std::shared_ptr<RoadGraph>> vfm::macro::Script::road_graphs_{};
-std::map<std::string, std::shared_ptr<StraightRoadSection>> straight_road_sections_{};
+std::map<std::string, std::shared_ptr<StraightRoadSection>> vfm::macro::Script::straight_road_sections_{};
 
 std::string removeInscrTagsIfAny(const std::string& proc)
 {

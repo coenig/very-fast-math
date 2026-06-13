@@ -1722,6 +1722,8 @@ VFM_API char* expandScript(const char* input, char* result, size_t resultMaxLeng
 {
    vfm::macro::running_scripts.clear();
    vfm::macro::first_free_script_id = 0;
+   vfm::macro::Script::road_graphs_.clear();
+   vfm::macro::Script::straight_road_sections_.clear();
 
    std::string res{ macro::Script::processScript(input) };
    snprintf(result, resultMaxLength, "%s", res.c_str());
