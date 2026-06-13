@@ -51,10 +51,16 @@ parser.add_argument('--detailed_archive', action='store_true',
                     help='Stores detailed archive of the run in a subfolder. Default: False')
 parser.add_argument('--force', action='store_true',
                     help='Force deleting of existing result files. Default: False')
+parser.add_argument('--dryrun', action='store_true',
+                    help='Perform a dry run recreating all plots without simulating or generating any new data. Default: False')
 parser.add_argument('--headless', action='store_true',
                     help='Run without opening the simulation UI window. Default: False')
 args = parser.parse_args()
 
+if args.dryrun:
+    if args.force or args.record_video or args.detailed_archive:
+        print("Error: --dryrun cannot go together with --force, --record_video, or --detailed_archive. Exiting.")
+        exit(1)
 
 # COP: Patch VehicleGraphics.get_color so that crashed always takes priority over custom color.
 # Without this, highway-env checks vehicle.color BEFORE vehicle.crashed, so any custom
@@ -96,7 +102,7 @@ with open('morty/envmodel_config.tpl.json') as f:
     ucd_config_prios_str = [s for s in d["#TEMPLATE"]["UCD_CONFIG_PRIOS"].split(';') if s] # only non-empty strings
     generated_path_prefix = d["#TEMPLATE"]["_GENERATED_PATH"]
 
-# Delete old results from Python side
+# Delete old results from Python side and check folder consistence with --dryrun
 any = False
 for res_path in glob.glob(generated_path_prefix + "*"):
     if Path(res_path).is_dir():
@@ -109,15 +115,21 @@ for res_path in glob.glob(generated_path_prefix + "*"):
                 exit(1)
             else: 
                 print(f"Successfully deleted {res_path}. Continuing.")
+        elif args.dryrun:
+            pass
         else:
             print(f"Error: Results folder {res_path} already exists.")
 
-if any and not args.force:
+if any and not args.force and not args.dryrun:
     print("Use --force to auto-remove existing results folders. Exiting.")
+    exit(1)
+
+if args.dryrun and (not Path(generated_path_prefix).is_dir() or not Path(generated_path_prefix + "/" + "detailed_archive").is_dir()):
+    print("Error: No existing results folders found, cannot perform dry run. Exiting.")
     exit(1)
 # EO Delete old results from Python side
 
-# Create EnvModels.
+# Create EnvModels. (Even for dry run since we need the jsons.)
 dummy_result = create_string_buffer(2000)
 script_envmodels = r"""
 @{./src/templates/}@.stringToHeap[MY_PATH]
@@ -447,6 +459,28 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     if args.detailed_archive:
         _save_configs_to_archive(seedo, '0_pristine', generated_path_prefix, ucd_config_prios_str)
 
+    # Prepare dry run
+    if args.dryrun:
+        target_dir = f"{generated_path_prefix}/detailed_archive/run_{seedo}"
+        zip_file = f"{generated_path_prefix}/detailed_archive/run_{seedo}.zip.zip"
+        
+        if Path(zip_file).is_file():
+            print(f"Extracting data from {zip_file} into {target_dir}")
+            if Path(target_dir).is_dir():
+                print(f"\---> Removing existing directory {target_dir}.")
+                shutil.rmtree(target_dir)
+            shutil.unpack_archive(zip_file, target_dir)
+        else:
+            print(f"Warning: Zip file {zip_file} not found for dry run, assuming folder is already extracted.")
+            if not Path(target_dir).is_dir():
+                print(f"\---> Warning: Target directory {target_dir} not found for dry run. Skipping dry run for seed {seedo}.")
+                continue
+        
+        for config_name in ucd_config_prios_str:
+            config_path = f"{target_dir}/0_pristine/{config_name}/"
+            scalefile = f"{config_path}/scaling_info.txt"
+    # EO Prepare dry run
+
     for global_counter in range(args.steps_per_run):
         mcinput = ""
         i = 0
@@ -480,7 +514,33 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         """
         # Test cases´: all or [cex-birdseye/cex-cockpit-only/cex-full/cex-smooth-birdseye/cex-smooth-full/cex-smooth-with-arrows-birdseye/cex-smooth-with-arrows-full/preview/preview2]
         # EO The script to run the MC on C++ side.
-        
+
+        # Prepare dry run        
+        if args.dryrun:
+            if not Path(target_dir + f'/iteration_{global_counter}').is_dir():
+                print(f"\---> Iteration {target_dir + f'/iteration_{global_counter}'} not found.")
+            else:                
+                for res_path in glob.glob(generated_path_prefix + "_config*"):
+                    if Path(res_path).is_dir():
+                        print(f"\---> Removing {res_path} from previous iteration.")
+                        shutil.rmtree(res_path)
+
+                if Path(scalefile).is_file():
+                    for config_prio in ucd_config_prios_str:
+                        scalefile_target = target_dir + f'/iteration_{global_counter}/{config_prio}/scaling_info.txt'
+                        print(f"\---> Copying scaling info into {scalefile_target}.")
+                        shutil.copyfile(scalefile, scalefile_target)
+                else:
+                    print(f"\---> Error: Scaling info file {scalefile} not found for dry run. Going on with 1/1.")
+            
+                for config_prio in ucd_config_prios_str:
+                    dest_path = f"{generated_path_prefix}{config_prio}"
+                    print(f"\---> Copying archived iteration into {dest_path}.")
+                    shutil.copytree(f"{target_dir}/iteration_{global_counter}/{config_prio}", dest_path)
+
+            MC_SCRIPT = f"@{{}}@.prepareOutputForMortyUCD[{str(seedo)}, {str(global_counter)}, {0}, {str(crashed)}]"
+        # EO Prepare dry run
+
         first = False
         
         empty_cex = ""
