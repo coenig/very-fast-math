@@ -17,6 +17,8 @@ script = r"""
 @{@{[i]}@.replaceAll[\, /].removeLastFileExtension[/].generateTestCasesPlain[cex-smooth-birdseye, ./examples/exp4_time_2000_dist_4000_mintimeBetweenLC_1/detailed_archive/run_5/scaling_info.txt]
 }@*.for[[i], @{temp_var}@.scriptVar]
 """
+# Test cases´: all or [cex-birdseye/cex-cockpit-only/cex-full/cex-smooth-birdseye/cex-smooth-full/cex-smooth-with-arrows-birdseye/cex-smooth-with-arrows-full/preview/preview2]
+
 dummy_result = morty_lib.expandScript(script.encode('utf-8'), dummy_result, sizeof(dummy_result)).decode()
 
 print(dummy_result)
