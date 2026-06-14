@@ -25,11 +25,6 @@ In the **ultra-cooperative driving mode**, a fleet of cars can be steered by pro
 ### MC-generated track and EGO behavior
 <img src="examples/cex.gif" width="1000" />
 
-### Ultra-cooperative driving: live steering of a fleet by model checker
-<img src="examples/ucd_example.gif" width="1000" />
-
-Steered by the MC, a fleet of cars provably* cooperates to accomplish a given formal SPEC. In the example, two cars pass each other on a narrow road with parked cars ("Nudging"). Entrance file: `morty/morty.py`. (* Given a few assumtions, but decreasing... :wink: )
-
 ## How to build
 `vfm` is implemented in `C++` and can be built with CMake (stable) or Bazel (experimental). With CMake, simply run the `build.bash` script. *(On Windows, you can alternatively open the top-level `CMakeLists.txt` with Visual Studio and build the `vfm` target.)*
 
@@ -52,22 +47,25 @@ sudo apt-get install libglew-dev
 ```
 
 ## M²oRTy (ultra-cooperative driving)
+<video width="1000" controls>
+  <source src="examples/ucd_example.mp4" type="video/mp4">
+  Your browser does not support the video tag.
+</video>
+
+Steered by the MC, a fleet of cars provably* cooperates to accomplish a given formal SPEC. In the example, two cars pass each other on a narrow road with parked cars ("Nudging") in the shortest possible time. (* With some assumptions, see details in the [paper](https://link.springer.com/chapter/10.1007/978-3-032-22752-2_31).)
+
+### Running M²oRTy
 For the UCD framework you need additionally `gymnasium` and `highway-env` (as well as python3 with pip which we assume is there):
 ```
 pip install gymnasium
 pip install "gymnasium[other]"
 pip install highway-env
 ```
-(TODO: Probably `pip install moviepy` suffices rather than installing all 'other' of gymnasium.)
 
-### Running M²oRTy
-Run from the project root directory, for example:
-
+Run from the project root directory, for example (use `--help` to see all optione):
 ```bash
 python -m morty.morty --num_runs 1 --steps_per_run 300 --headless --force --record_video
 ```
-Run with `--help` to see all available options.
-
 This should work on Linux and Windows.
 
 ## Authors
