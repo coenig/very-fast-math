@@ -231,7 +231,7 @@ INVAR
 @{@FACTOR = NUMLANES / NUM_TECHNICAL_LANES}@.eval.nil
 
 @{
-INVAR veh___6[i]9___.lane_b@{#j}@.eval[0] -> (veh___6[i]9___.v >= @{LANES_MIN_SPEEDS}@.printHeap.at[@{trunc(FACTOR * #j)}@.eval[0]] & veh___6[i]9___.v <= @{LANES_MAX_SPEEDS}@.printHeap.at[@{trunc(FACTOR * #j)}@.eval[0]]);
+INVAR veh___6[i]9___.lane_b@{#j}@.eval[0] -> (veh___6[i]9___.v >= @{@{LANES_MIN_SPEEDS}@.printHeap.at[@{trunc(FACTOR * #j)}@.eval[0]]}@.velocityWorldToEnvModelConst & veh___6[i]9___.v <= @{@{LANES_MAX_SPEEDS}@.printHeap.at[@{trunc(FACTOR * #j)}@.eval[0]]}@.velocityWorldToEnvModelConst );
 }@***.for[#j, 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
 -- EO Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just remove the condition around!
 
