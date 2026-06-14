@@ -1,7 +1,3 @@
-
-
-https://github.com/user-attachments/assets/c969748e-d56f-4099-9e98-5c2c7c116338
-
 # Model Checking for ADAS
 This is the open source project `very fast math`, first announced in [Towards Safe Autonomous Driving: Model Checking a Behavior Planner during Development](https://link.springer.com/chapter/10.1007/978-3-031-57249-4_3). 
 We hereby make all the sources of the toolchain public which have so far been published in binary format only ([on Zenodo](https://zenodo.org/records/10013662)).
@@ -51,16 +47,7 @@ sudo apt-get install libglew-dev
 ```
 
 ## M²oRTy (ultra-cooperative driving)
-<video width="1000" controls>
-  <source src="examples/ucd_example.mp4" type="video/mp4">
-  Your browser does not support the video tag.
-</video>
-
-
-
 https://github.com/user-attachments/assets/e397c45f-0f44-4ba5-a856-d2d016bd11e9
-
-
 
 Steered by the MC, a fleet of cars provably* cooperates to accomplish a given formal SPEC. In the example, two cars pass each other on a narrow road with parked cars ("Nudging") in the shortest possible time. (* With some assumptions, see details in the [paper](https://link.springer.com/chapter/10.1007/978-3-032-22752-2_31).)
 
