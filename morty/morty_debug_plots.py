@@ -152,7 +152,7 @@ def plot_mc_runtimes(mc_runtime_histories, output_path, selected_cnt_history=Non
     plt.close(fig)
 
 
-def plot_mc_runtimes_cumulative(all_selected_runtime_histories, output_path):
+def plot_mc_runtimes_cumulative(all_selected_runtime_histories, output_path, log_scale=False):
     """Plot all per-seed selected MC runtime curves plus their average.
 
     Args:
@@ -163,6 +163,9 @@ def plot_mc_runtimes_cumulative(all_selected_runtime_histories, output_path):
         return
 
     fig, ax = plt.subplots(figsize=(8, 4))
+
+    if log_scale:
+        ax.set_yscale('log')
 
     max_len = 0
     have_any = False

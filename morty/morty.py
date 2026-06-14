@@ -601,6 +601,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         )
         all_selected_runtime_histories[seedo] = selected_runtime_history[:]
         plot_mc_runtimes_cumulative(all_selected_runtime_histories, f"{generated_path_prefix}/mc_runtime_debug_all.pdf")
+        plot_mc_runtimes_cumulative(all_selected_runtime_histories, f"{generated_path_prefix}/mc_runtime_debug_all_log.pdf", log_scale=True)
         # EO Track latest nuXmv runtime per configured priority and update PDF each iteration.
         
         ### EO POSTPROCESS RESULT ###
