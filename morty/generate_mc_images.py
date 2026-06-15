@@ -13,8 +13,8 @@ morty_lib.expandScript.restype = c_char_p
 dummy_result = create_string_buffer(20000)
 script = r"""
 @{./src/templates/}@.stringToHeap[MY_PATH]
-@{@{./examples/exp4_time_2000_dist_4000_mintimeBetweenLC_1/detailed_archive/run_5/iteration_1}@.findFilesRecursively[debug_trace_array.txt]}@*.setScriptVar[temp_var, force].nil
-@{@{[i]}@.replaceAll[\, /].removeLastFileExtension[/].generateTestCasesPlain[cex-smooth-birdseye, ./examples/exp4_time_2000_dist_4000_mintimeBetweenLC_1/detailed_archive/run_5/scaling_info.txt]
+@{@{./examples/exp4_time_2000_dist_4000_mintimeBetweenLC_1/detailed_archive/run_1/iteration_8}@.findFilesRecursively[debug_trace_array.txt]}@*.setScriptVar[temp_var, force].nil
+@{@{[i]}@.replaceAll[\, /].removeLastFileExtension[/].generateTestCasesPlain[cex-birdseye, ./examples/exp4_time_2000_dist_4000_mintimeBetweenLC_1/detailed_archive/run_1/scaling_info.txt]
 }@*.for[[i], @{temp_var}@.scriptVar]
 """
 # Test cases´: all or [cex-birdseye/cex-cockpit-only/cex-full/cex-smooth-birdseye/cex-smooth-full/cex-smooth-with-arrows-birdseye/cex-smooth-with-arrows-full/preview/preview2]

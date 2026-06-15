@@ -828,6 +828,20 @@ int vfm::test::artifactRun(int argc, char* argv[])
       std::string result{ StaticHelper::execWithSuccessCode(command_nuxmv, success_code_nuxmv, std::make_shared<std::string>(generated_dir + "/mc_runtimes.txt")) };
       StaticHelper::writeTextToFile(result, generated_dir + "debug_trace_array.txt");
 
+      // Fake call with FALSE SPEC
+      inputs.addNote("Running FALSE SPEC for debugging.");
+      const std::string main_dir{ generated_dir + "/main.smv" };
+      const std::string original_main{ StaticHelper::readFile(main_dir) };
+      StaticHelper::processFile(main_dir, [](std::string& content) { return StaticHelper::replaceAll(content, std::string("SPEC "), std::string("SPEC FALSE & ")); });
+      inputs.addNote("RUNNING NUXMV with command '" + command_nuxmv + "'.");
+      std::string result_fake{ StaticHelper::execWithSuccessCode(command_nuxmv, success_code_nuxmv, nullptr) };
+      StaticHelper::writeTextToFile(result_fake, generated_dir + "debug_trace_array_FALSE.txt");
+      StaticHelper::processFile(main_dir, [](std::string& content) { return StaticHelper::replaceAll(content, std::string("SPEC FALSE & "), std::string("SPEC ")); });
+      if (original_main != StaticHelper::readFile(main_dir)) {
+         inputs.addError("Main template file was not properly restored after FALSE SPEC test.");
+      }
+      // EO Fake call with FALSE SPEC
+
       success == success && (success_code_kratos == EXIT_SUCCESS) && (success_code_nuxmv == EXIT_SUCCESS);
    }
 
