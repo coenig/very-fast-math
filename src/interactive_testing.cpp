@@ -339,7 +339,7 @@ void cleanUpCache(const std::string& gui_name, const std::string& cache_dir)
             }
 
             if (fine) {
-               Failable::getSingleton()->addNote("Cache folder '" + StaticHelper::absPath(folder.path().string()) + "' is fine.");
+               Failable::getSingleton()->addDebug("Cache folder '" + StaticHelper::absPath(folder.path().string()) + "' is fine.");
             }
             else {
                Failable::getSingleton(gui_name)->addNote("Found broken cache folder '" + StaticHelper::absPath(folder.path().string()) + "'. I will delete it.");
@@ -1720,6 +1720,11 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
 extern "C"
 VFM_API char* expandScript(const char* input, char* result, size_t resultMaxLength)
 {
+   vfm::macro::running_scripts.clear();
+   vfm::macro::first_free_script_id = 0;
+   vfm::macro::Script::road_graphs_.clear();
+   vfm::macro::Script::straight_road_sections_.clear();
+
    std::string res{ macro::Script::processScript(input) };
    snprintf(result, resultMaxLength, "%s", res.c_str());
    return result;

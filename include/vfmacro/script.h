@@ -108,8 +108,8 @@ static constexpr bool KEEP_COMMENTS_IN_PLAIN_TEXT = false;
 class Script;
 class DummyRepresentable;
 
-static std::map<int, std::shared_ptr<Script>> running_scripts{};
-static int first_free_script_id{ 0 };
+extern std::map<int, std::shared_ptr<Script>> running_scripts;
+extern int first_free_script_id;
 
 struct ScriptMethodDescription {
    std::string method_name_{};
