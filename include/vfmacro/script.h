@@ -759,7 +759,7 @@ private:
 
    ScriptMethodDescription m9b{
       "generateTestCasesPlain",
-      2,
+      3,
       [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string
       {
          auto [modes_str, modes] = getModes(parameters.at(0));
@@ -769,8 +769,8 @@ private:
          mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
             { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
             body,
-            "debug_trace_array",
             parameters.at(1),
+            parameters.at(2),
             mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv),
             modes);
 
