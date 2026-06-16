@@ -8,6 +8,13 @@
 reset
 clear
 
+# Prefer a repo-local CMake upgrade (no admin rights needed) when available.
+CMAKE_BIN="cmake"
+LOCAL_CMAKE="/c/eig/very-fast-math/tools/cmake-4.3.3-windows-x86_64/bin/cmake"
+if [[ -x "$LOCAL_CMAKE" ]]; then
+  CMAKE_BIN="$LOCAL_CMAKE"
+fi
+
 DEBUGOPTSCMAKE=""
 DEBUGOPTSMAKE=""
 RUN_TESTS=false
@@ -38,20 +45,25 @@ cd build
 # CMake respects the CMAKE_GENERATOR env var, avoiding quoting issues with -G.
 # TODO: Find out if this is actually necessary.
 if [[ -z "$CMAKE_GENERATOR" ]]; then
+  VS_GENERATORS=$($CMAKE_BIN --help 2>/dev/null | grep -o 'Visual Studio [0-9][0-9]* [0-9][0-9]*')
    for VSWHERE in \
       "/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
       "/d/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
       "/e/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"; do
       if [[ -f "$VSWHERE" ]]; then
-         VS_YEAR=$("$VSWHERE" -latest -property catalog_productLineVersion 2>/dev/null | tr -d '\r')
-         case "$VS_YEAR" in
-            2022) export CMAKE_GENERATOR="Visual Studio 17 2022" ;;
-            2019) export CMAKE_GENERATOR="Visual Studio 16 2019" ;;
-            *)
-               NEWEST=$(cmake --help 2>/dev/null | grep -o 'Visual Studio [0-9][0-9]* [0-9][0-9]*' | sort -t' ' -k3 -nr | head -1)
-               if [[ -n "$NEWEST" ]]; then export CMAKE_GENERATOR="$NEWEST"; fi
-               ;;
-         esac
+      VS_INSTALL_MAJOR=$("$VSWHERE" -latest -property installationVersion 2>/dev/null | tr -d '\r' | cut -d'.' -f1)
+      MATCHING=$(printf "%s\n" "$VS_GENERATORS" | awk -v major="$VS_INSTALL_MAJOR" '$3 == major { print; exit }')
+
+      if [[ -n "$MATCHING" ]]; then
+        export CMAKE_GENERATOR="$MATCHING"
+      elif [[ -n "$VS_INSTALL_MAJOR" && -n "$VS_GENERATORS" ]]; then
+        NEWEST=$(printf "%s\n" "$VS_GENERATORS" | sort -t' ' -k3 -nr | head -1)
+        echo "Error: Installed Visual Studio major $VS_INSTALL_MAJOR is newer than this CMake's VS generators."
+        echo "CMake supports up to: $NEWEST"
+        echo "Please update CMake (or set CMAKE_GENERATOR manually to a non-VS generator)."
+        cd ..
+        exit 1
+      fi
          break
       fi
    done
@@ -59,12 +71,12 @@ fi
 # EO TODO: Find out if this is actually necessary.
 
 if [ -z "$DEBUGOPTSCMAKE" ]; then
-   cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release ..
-   cmake --build . --config Release --parallel 16
+  $CMAKE_BIN $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release ..
+  $CMAKE_BIN --build . --config Release --parallel 16
 else
    printf "Redirecting cmake and make outputs to files due to debug mode."
-   cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release .. > cmake.log 2> cmake.err
-   cmake --build . --config Release --parallel 16 > make.log 2> make.err
+  $CMAKE_BIN $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release .. > cmake.log 2> cmake.err
+  $CMAKE_BIN --build . --config Release --parallel 16 > make.log 2> make.err
 fi
 
 if [ $? -eq 0 ]; then
