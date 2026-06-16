@@ -259,8 +259,9 @@ veh___6[i]9___.on_straight_section = veh___6[j]9___.on_straight_section & veh___
 
 DEFINE veh_[j]_and_veh_[i]_on_same_seclet := veh_[i]_and_veh_[j]_on_same_seclet;
 
-INVAR -- Non-Ego cars may not collide.
-    veh_[i]_and_veh_[j]_on_same_seclet -> (veh___6[i]9___.laterally_overlapping_with_veh_[j] -> (abs(veh___6[j]9___.abs_pos - veh___6[i]9___.abs_pos) > (veh_length + (veh___6[i]9___.halber_tacho * @{10 * SAFETY_DISTANCE_FACTOR_NONEGO}@.eval[0]) / 10)));
+INVAR -- Non-Ego cars may not collide (except in INIT state, whe in UCD mode).
+@{cnt = 0 | }@.if[@{UCD}@.eval]
+    (veh_[i]_and_veh_[j]_on_same_seclet -> (veh___6[i]9___.laterally_overlapping_with_veh_[j] -> (abs(veh___6[j]9___.abs_pos - veh___6[i]9___.abs_pos) > (veh_length + (veh___6[i]9___.halber_tacho * @{10 * SAFETY_DISTANCE_FACTOR_NONEGO}@.eval[0]) / 10))));
 
 INVAR -- Non-Ego cars may not "jump" over each other.
     veh_[i]_and_veh_[j]_on_same_seclet -> (
