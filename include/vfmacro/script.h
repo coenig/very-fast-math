@@ -24,9 +24,45 @@
 #include <utility>
 #include <limits>
 #include <tuple>
+#include <iostream>
+#include <sstream>
+#include <type_traits>
+
 
 namespace vfm {
 namespace macro {
+
+// Trait to check if a type is a std::vector
+   template <typename T>
+   std::string toArrayMacro(const T& value);
+
+   // --- NEW: Overload for top-level std::string calls ---
+   // This will be chosen by the compiler for a direct call with a string.
+   inline std::string toArrayMacro(const std::string& value) {
+      return value; // Simply return the string as-is.
+   }
+
+// --- Type trait to check if a type is a std::vector ---
+   template <typename T> struct is_vector : std::false_type {};
+   template <typename T, typename A> struct is_vector<std::vector<T, A>> : std::true_type {};
+   template <typename T> inline constexpr bool is_vector_v = is_vector<T>::value;
+
+   // --- Type trait to check for a getTrace() member function ---
+   template <typename, typename = std::void_t<>> struct has_getTrace : std::false_type {};
+   template <typename T> struct has_getTrace<T, std::void_t<decltype(std::declval<T>().getConstTrace())>> : std::true_type {};
+   template <typename T> inline constexpr bool has_getTrace_v = has_getTrace<T>::value;
+
+   // --- NEW: Type trait to check for std::pair<std::string, std::vector<...>> ---
+   template <typename T> struct is_string_vector_pair : std::false_type {};
+   template <typename T2> struct is_string_vector_pair<std::pair<std::string, T2>> : is_vector<T2> {};
+   template <typename T> inline constexpr bool is_string_vector_pair_v = is_string_vector_pair<T>::value;
+
+   // --- NEW: Type trait to check if a type is a std::map ---
+   template <typename T> struct is_map : std::false_type {};
+   template <typename K, typename V, typename C, typename A> struct is_map<std::map<K, V, C, A>> : std::true_type {};
+   template <typename T> inline constexpr bool is_map_v = is_map<T>::value;
+// EO Trait to check if a type is a std::vector
+
 
 static constexpr int MAXIMUM_STRING_SIZE_TO_CACHE{ 50 }; // Too large strings hit rarely but take up lots of space. (TODO: is 50 a good guess?)
 
@@ -571,6 +607,61 @@ private:
       return map;
    }
 
+   /**
+    * @brief Converts an arbitrary value to its string representation.
+    *
+    * This template function handles different types:
+    * - std::vector: Recursively prints elements within brackets, e.g., [1, 2, 3].
+    *
+    * @tparam T The type of the value to convert.
+    * @param value The value to be converted to a string.
+    * @return A string representation of the value.
+    */
+   template <typename T>
+   std::string toArrayMacro(const T& value) {
+      // Use if constexpr to handle different types at compile time
+      if constexpr (is_vector_v<T>) {
+         std::ostringstream oss;
+         oss << "@(";
+         for (size_t i = 0; i < value.size(); ++i) {
+            // Recursive call for elements in the vector
+            oss << toArrayMacro(value[i]);
+            if (i < value.size() - 1) {
+               oss << ", ";
+            }
+         }
+         oss << ")@";
+         return oss.str();
+      }
+      else if constexpr (has_getTrace_v<T>) {
+         // If the type has a getTrace() method, call toArrayMacro on its result.
+         return toArrayMacro(value.getConstTrace());
+      }
+      else if constexpr (is_string_vector_pair_v<T>) {
+         // Rule 2: For pair<string, vector>, process the vector (the second element).
+         return toArrayMacro(value.second);
+      }
+      else if constexpr (is_map_v<T>) {
+         // Rule 3: For maps, format as a vector of [key, value] pairs.
+         std::ostringstream oss;
+         oss << "@(";
+         auto it = value.begin();
+         while (it != value.end()) {
+            // Format each pair as a 2-element vector string
+            oss << ")@" << toArrayMacro(it->first) << ", " << toArrayMacro(it->second) << "@)";
+            ++it;
+            if (it != value.end()) {
+               oss << ", ";
+            }
+         }
+      }
+      else {
+         addError("#Error, not a vector type");
+         return "#Error, not a vector type";
+      }
+   }
+
+
    mc::McWorkflow prepareMCWorkflow(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser, const bool set_default_templates_path)
    {
       if (set_default_templates_path) {
@@ -1097,6 +1188,8 @@ private:
       { "timestamp", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::timeStamp(); } },
       { "morty", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { auto rep = body; return StaticHelper::replaceAll(rep + MORTY_ASCII_ART, "\n", "\n" + rep); } },
       { "rick", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return body + RICK; } },
+      { "extractMCTracesFromNusmv", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return toArrayMacro(StaticHelper::extractMCTracesFromNusmv(body)); }},
+      { "extractMCTracesFromNusmvFile", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return toArrayMacro(StaticHelper::extractMCTracesFromNusmvFile(body)); } },
       { "mypath", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return getMyPath(); } },
       { "setScriptVar", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
          return setScriptVar(body, parameters[0], "");

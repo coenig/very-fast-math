@@ -26,6 +26,14 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
+   std::string script{ R"(
+@{../examples/debug_trace_array.txt}@.extractMCTracesFromNusmvFile
+)"};
+   std::string result = vfm::macro::Script::processScript(script);
+   std::cout << result << std::endl;
+
+   termnate();
+
    //morty("", "", 0);
    //termnate();
 
