@@ -32,16 +32,6 @@
 namespace vfm {
 namespace macro {
 
-// Trait to check if a type is a std::vector
-   template <typename T>
-   std::string toArrayMacro(const T& value);
-
-   // --- NEW: Overload for top-level std::string calls ---
-   // This will be chosen by the compiler for a direct call with a string.
-   inline std::string toArrayMacro(const std::string& value) {
-      return value; // Simply return the string as-is.
-   }
-
 // --- Type trait to check if a type is a std::vector ---
    template <typename T> struct is_vector : std::false_type {};
    template <typename T, typename A> struct is_vector<std::vector<T, A>> : std::true_type {};
@@ -52,15 +42,15 @@ namespace macro {
    template <typename T> struct has_getTrace<T, std::void_t<decltype(std::declval<T>().getConstTrace())>> : std::true_type {};
    template <typename T> inline constexpr bool has_getTrace_v = has_getTrace<T>::value;
 
-   // --- NEW: Type trait to check for std::pair<std::string, std::vector<...>> ---
-   template <typename T> struct is_string_vector_pair : std::false_type {};
-   template <typename T2> struct is_string_vector_pair<std::pair<std::string, T2>> : is_vector<T2> {};
-   template <typename T> inline constexpr bool is_string_vector_pair_v = is_string_vector_pair<T>::value;
-
    // --- NEW: Type trait to check if a type is a std::map ---
    template <typename T> struct is_map : std::false_type {};
    template <typename K, typename V, typename C, typename A> struct is_map<std::map<K, V, C, A>> : std::true_type {};
    template <typename T> inline constexpr bool is_map_v = is_map<T>::value;
+
+   // --- NEW: Type trait to check for std::pair<std::string, std::vector<...>> ---
+   template <typename T> struct is_string_vector_pair : std::false_type {};
+   template <typename T2> struct is_string_vector_pair<std::pair<std::string, T2>> : std::disjunction<is_vector<T2>, is_map<T2>> {};
+   template <typename T> inline constexpr bool is_string_vector_pair_v = is_string_vector_pair<T>::value;
 // EO Trait to check if a type is a std::vector
 
 
@@ -608,10 +598,9 @@ private:
    }
 
    /**
-    * @brief Converts an arbitrary value to its string representation.
-    *
-    * This template function handles different types:
-    * - std::vector: Recursively prints elements within brackets, e.g., [1, 2, 3].
+    * @brief Converts a vector to its vfmacro string representation.
+    * To allow for a broader usage, special treatment for the types in MCTrace has
+    * been included.
     *
     * @tparam T The type of the value to convert.
     * @param value The value to be converted to a string.
@@ -648,16 +637,19 @@ private:
          auto it = value.begin();
          while (it != value.end()) {
             // Format each pair as a 2-element vector string
-            oss << ")@" << toArrayMacro(it->first) << ", " << toArrayMacro(it->second) << "@)";
+            oss << "@(" << toArrayMacro(it->first) << ", " << toArrayMacro(it->second) << ")@";
             ++it;
             if (it != value.end()) {
                oss << ", ";
             }
          }
+         oss << ")@";
+         return oss.str();
       }
       else {
-         addError("#Error, not a vector type");
-         return "#Error, not a vector type";
+         std::ostringstream oss;
+         oss << value;
+         return oss.str();
       }
    }
 
