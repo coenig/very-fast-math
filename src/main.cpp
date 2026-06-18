@@ -27,7 +27,11 @@ using namespace mc::trajectory_generator;
 int main(int argc, char* argv[])
 {
    std::string script{ R"(
-@{../examples/debug_trace_array.txt}@.readFile.extractMCTracesFromNusmv
+@{
+@{[varval]}@.at[0].setScriptVar[var, force].nil
+@{[varval]}@.at[1].setScriptVar[val, force].nil
+@{var}@.scriptVar = @{val}@.scriptVar
+}@*.for[[varval], @{../examples/debug_trace_array.txt}@*.readFile.extractMCTracesFromNusmv.at[0].at[0].at[0]]
 )"};
    std::string result = vfm::macro::Script::processScript(script);
    std::cout << result << std::endl;

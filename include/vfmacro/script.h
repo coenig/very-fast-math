@@ -615,9 +615,6 @@ private:
          for (size_t i = 0; i < value.size(); ++i) {
             // Recursive call for elements in the vector
             oss << toArrayMacro(value[i]);
-            if (i < value.size() - 1) {
-               oss << ", ";
-            }
          }
          oss << ")@";
          return oss.str();
@@ -637,11 +634,8 @@ private:
          auto it = value.begin();
          while (it != value.end()) {
             // Format each pair as a 2-element vector string
-            oss << "@(" << toArrayMacro(it->first) << ", " << toArrayMacro(it->second) << ")@";
+            oss << "@(@(" << toArrayMacro(it->first) << ")@@(" << toArrayMacro(it->second) << ")@)@";
             ++it;
-            if (it != value.end()) {
-               oss << ", ";
-            }
          }
          oss << ")@";
          return oss.str();
