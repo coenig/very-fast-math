@@ -29,28 +29,31 @@ int main(int argc, char* argv[])
    std::string script{ R"(
 @{
    @{
-      @{
+      @(Warning: Empty CEX received, no changes to INIT state have been performed.)@
+      @(@{
          @{
             @{
-               INIT [var_target] = @{[varval]}@.at[1];
-            }@.if[@{[varval]}@.at[0].equals[[var_target]]]
-         }@*.for[[var_target], #0#]
-      }@**.for[[varval], @{#1#}@*.readFile.extractMCTracesFromNusmv.at[0].at[0].at[0]]
-   }@.removeBlankLines
-}@***.newMethod[overwriteInitValues, 1]
+               @{
+                  INIT [var_target] = @{[varval]}@.at[1];
+               }@.if[@{[varval]}@.at[0].equals[[var_target]]]
+            }@*.for[[var_target], #0#]
+         }@**.for[[varval], @{#1#}@*.extractMCTracesFromNusmvFile.at[0].at[0].at[0]]
+      }@.removeBlankLines)@
+   }@***.if[@{#1#}@*.extractMCTracesFromNusmvFile.empty]
+}@****.newMethod[overwriteInitValues, 1]
 
 @{
 @(env.veh___619___.v)@
-@(env.veh___639___.lane_b0)@ 
-@(env.veh___639___.lane_b1)@ 
-@(env.veh___639___.lane_b2)@ 
-@(env.veh___639___.lane_b3)@ 
-@(env.veh___639___.lane_b4)@ 
-@(env.veh___639___.lane_b5)@ 
-@(env.veh___639___.lane_b6)@ 
-@(env.veh___639___.lane_b7)@ 
-@(env.veh___639___.lane_b8)@ 
-@(env.veh___639___.lane_b9)@ 
+@(env.veh___639___.lane_b0)@
+@(env.veh___639___.lane_b1)@
+@(env.veh___639___.lane_b2)@
+@(env.veh___639___.lane_b3)@
+@(env.veh___639___.lane_b4)@
+@(env.veh___639___.lane_b5)@
+@(env.veh___639___.lane_b6)@
+@(env.veh___639___.lane_b7)@
+@(env.veh___639___.lane_b8)@
+@(env.veh___639___.lane_b9)@
 }@.overwriteInitValues[../examples/debug_trace_array.txt]
 
 

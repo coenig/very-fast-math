@@ -610,6 +610,10 @@ private:
    std::string toArrayMacro(const T& value) {
       // Use if constexpr to handle different types at compile time
       if constexpr (is_vector_v<T>) {
+         if (value.empty()) {
+            return "";
+         }
+
          std::ostringstream oss;
          oss << "@(";
          for (size_t i = 0; i < value.size(); ++i) {
@@ -1086,6 +1090,12 @@ private:
       { "idd", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return idd(body); } },
       { "if", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return ifChoice(body, parameters.at(0)); } },
       { "at", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return element(body, parameters.at(0)); } },
+      { "size", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         return std::to_string(processSequence(body).size());
+      } },
+      { "empty", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         return std::to_string(processSequence(body).empty());
+      } },
       { "substr", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return substring(body, parameters.at(0), parameters.at(1)); } },
       { "split", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
          auto spl = StaticHelper::split(body, parameters[0]);
