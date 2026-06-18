@@ -1176,6 +1176,7 @@ private:
       { "rick", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return body + RICK; } },
       { "extractMCTracesFromNusmv", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return toArrayMacro(StaticHelper::extractMCTracesFromNusmv(body)); }},
       { "extractMCTracesFromNusmvFile", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return toArrayMacro(StaticHelper::extractMCTracesFromNusmvFile(body)); } },
+      { "equals", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return std::to_string(body == parameters[0]); }},
       { "mypath", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return getMyPath(); } },
       { "setScriptVar", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
          return setScriptVar(body, parameters[0], "");

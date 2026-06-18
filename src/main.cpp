@@ -28,10 +28,24 @@ int main(int argc, char* argv[])
 {
    std::string script{ R"(
 @{
-@{[varval]}@.at[0].setScriptVar[var, force].nil
-@{[varval]}@.at[1].setScriptVar[val, force].nil
-@{var}@.scriptVar = @{val}@.scriptVar
-}@*.for[[varval], @{../examples/debug_trace_array.txt}@*.readFile.extractMCTracesFromNusmv.at[0].at[0].at[0]]
+   @{
+      @{
+         @{
+            @{[varval]}@**.at[0].setScriptVar[var, force]
+            @{[varval]}@**.at[1].setScriptVar[val, force]
+         }@.nil
+         @{
+            @{
+               INIT [var_target] = @{val}@**.scriptVar;
+            }@**.if[@{var}@**.scriptVar.equals[[var_target]]]
+         }@***.for[[var_target], #0#]
+      }@****.for[[varval], @{#1#}@***.readFile.extractMCTracesFromNusmv.at[0].at[0].at[0]]
+   }@.removeBlankLines
+}@*****.newMethod[overwriteInitValues, 1]
+
+@{ @(env.veh___619___.v)@@(env.veh___639___.v)@ }@.overwriteInitValues[../examples/debug_trace_array.txt]
+
+
 )"};
    std::string result = vfm::macro::Script::processScript(script);
    std::cout << result << std::endl;
