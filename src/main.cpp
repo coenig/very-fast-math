@@ -30,17 +30,13 @@ int main(int argc, char* argv[])
 @{
    @{
       @(Warning: Empty CEX received, no changes to INIT state have been performed.)@
-      @(@{
+      @(
          @{
-            @{
-               @{
-                  INIT [var_target] = @{[varval]}@.at[1];
-               }@.if[@{[varval]}@.at[0].equals[[var_target]]]
-            }@*.for[[var_target], #0#]
-         }@**.for[[varval], @{#1#}@*.extractMCTracesFromNusmvFile.at[0].at[0].at[0]]
-      }@.removeBlankLines)@
-   }@***.if[@{#1#}@*.extractMCTracesFromNusmvFile.empty]
-}@****.newMethod[overwriteInitValues, 1]
+            INIT @{[varval]}@.at[0] = @{[varval]}@.at[1];
+         }@*.for[[varval], @{#1#}@*.extractMCTracesFromNusmvFile.at[0].at[0].at[0].filter[0, #0#].at[0]]
+      )@
+   }@**.if[@{#1#}@*.extractMCTracesFromNusmvFile.empty]
+}@***.newMethod[overwriteInitValues, 1]
 
 @{
 @(env.veh___619___.v)@
@@ -55,7 +51,6 @@ int main(int argc, char* argv[])
 @(env.veh___639___.lane_b8)@
 @(env.veh___639___.lane_b9)@
 }@.overwriteInitValues[../examples/debug_trace_array.txt]
-
 
 )"};
    std::string result = vfm::macro::Script::processScript(script);

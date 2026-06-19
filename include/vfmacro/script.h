@@ -1096,6 +1096,28 @@ private:
       { "empty", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
          return std::to_string(processSequence(body).empty());
       } },
+      { "filter", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { // Interprets 0 as table (array of tuples which are the rows), filters column 1 to values from 2.
+         std::string res{ "@(" };
+
+         auto table = processSequence(body);
+         auto filter_for = processSequence(parameters[1]);
+         int num = std::stoi(parameters[0]);
+
+         for (const auto& row : table) {
+            auto row_as_tuple = processSequence(row);
+            
+            if (row_as_tuple.size() <= num) {
+               addError("Row '" + row + "' does not have enough columns for filter (column: " + std::to_string(num) + ").");
+               continue;
+            }
+
+            if (std::find(filter_for.begin(), filter_for.end(), row_as_tuple[num]) != filter_for.end()) {
+               res += "@(" + row + ")@";
+            }
+         }
+
+         return res + ")@";
+      } },
       { "substr", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return substring(body, parameters.at(0), parameters.at(1)); } },
       { "split", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
          auto spl = StaticHelper::split(body, parameters[0]);
