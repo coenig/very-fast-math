@@ -28,6 +28,7 @@ int main(int argc, char* argv[])
 {
    std::string script{ R"(
 @{
+-- Take over selected values from earlier run, if existing.
    @{
       @(-- Note: Empty CEX received, no changes to INIT state from earlier run have been performed.)@
       @(
@@ -36,6 +37,7 @@ int main(int argc, char* argv[])
          }@*.for[[varval], @{#1#}@*.extractMCTracesFromNusmvFile.at[0].at[0].at[0].filter[0, #0#].at[0]]
       )@
    }@**.if[@{#1#}@*.extractMCTracesFromNusmvFile.empty]
+-- EO Take over selected values from earlier run, if existing.
 }@***.newMethod[overwriteInitValues, 1]
 
 @{
