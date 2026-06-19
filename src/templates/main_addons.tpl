@@ -261,7 +261,6 @@ INVAR section_0_segment_2_max_lane = 0;
 --INIT env.veh___609___.lane_1;
 --INIT env.ego_lane_0;
 
--- Three cars invert their ordering
 
 @{
 INIT env.outgoing_connection_0_of_section_0 = 1;
@@ -300,9 +299,6 @@ INVAR env.veh___6[i]9___.on_straight_section < 0 -> (env.veh___6[i]9___.abs_pos 
 }@***.for[[i], 0, @{NONEGOS - 2}@.eval]
 
 
-
-
--- EO Three cars invert their ordering
 
 
 -- Nudging
