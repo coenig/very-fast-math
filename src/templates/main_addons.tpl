@@ -1,3 +1,32 @@
+@{
+-- Take over selected values from earlier run, if existing.
+   @{
+      @(-- Note: Empty CEX received, no changes to INIT state from earlier run have been performed.)@
+      @(
+         @{
+            INIT @{[varval]}@.at[0] = @{[varval]}@.at[1];
+         }@*.for[[varval], @{#1#}@*.extractMCTracesFromNusmvFile.at[0].at[0].at[0].filter[0, #0#].at[0]]
+      )@
+   }@**.if[@{#1#}@*.extractMCTracesFromNusmvFile.empty]
+-- EO Take over selected values from earlier run, if existing.
+}@***.newMethod[overwriteInitValues, 1]
+
+@{
+   @(env.veh___619___.v)@
+   @(env.veh___639___.lane_b0)@
+   @(env.veh___639___.lane_b1)@
+   @(env.veh___639___.lane_b2)@
+   @(env.veh___639___.lane_b3)@
+   @(env.veh___639___.lane_b4)@
+   @(env.veh___639___.lane_b5)@
+   @(env.veh___639___.lane_b6)@
+   @(env.veh___639___.lane_b7)@
+   @(env.veh___639___.lane_b8)@
+   @(env.veh___639___.lane_b9)@
+}@.overwriteInitValues[../examples/debug_trace_array.txt]
+
+
+
    --= CROSSING =--
    -- Remove nil from generator to activate.
 @{
