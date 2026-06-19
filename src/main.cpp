@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
    std::string script{ R"(
 @{
    @{
-      @(-- Note: Empty CEX received, no changes to INIT state have been performed.)@
+      @(-- Note: Empty CEX received, no changes to INIT state from earlier run have been performed.)@
       @(
          @{
             INIT @{[varval]}@.at[0] = @{[varval]}@.at[1];
