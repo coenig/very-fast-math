@@ -715,7 +715,7 @@ private:
             config_name,
             paths.at("path_template"),
             paths.at("path_json"),
-            DEFAULT_FILE_NAME_JSON_TEMPLATE,
+            StaticHelper::getFileNameFromPath(body),
             false);
 
          return "MC run via script finished for '" + config_name + "'.";
@@ -741,7 +741,7 @@ private:
             [](const std::string& folder) -> bool { return true; },
             paths.at("path_template"),
             paths.at("path_json"),
-            DEFAULT_FILE_NAME_JSON_TEMPLATE, 
+            StaticHelper::getFileNameFromPath(body),
             std::stoi(num_threads_str),
             false);
 
@@ -757,7 +757,7 @@ private:
          auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_, body.empty());
          std::map<std::string, std::string> paths{ retrievePaths(mc_workflow, body, "") }; // Note that only path_template is used, the others might be broken.
 
-         mc_workflow.generateEnvmodels(paths.at("path_json"), DEFAULT_FILE_NAME_JSON_TEMPLATE, FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
+         mc_workflow.generateEnvmodels(paths.at("path_json"), StaticHelper::getFileNameFromPath(body), FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
 
          return "Envmodel generation via script finished.";
       }
