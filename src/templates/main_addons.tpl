@@ -1,5 +1,5 @@
 @{
--- Take over selected values from earlier run, if existing.
+-- Take over selected values from earlier run in '#1#', if existing.
    @{
       @(-- Note: Empty CEX received, no changes to INIT state from earlier run have been performed.)@
       @(
@@ -11,7 +11,6 @@
 -- EO Take over selected values from earlier run, if existing.
 }@***.newMethod[overwriteInitValues, 1]
 
-@{_GENERATED_PATH}@.printHeap
 
 @{
    @(env.veh___619___.v)@
@@ -25,7 +24,7 @@
    @(env.veh___639___.lane_b7)@
    @(env.veh___639___.lane_b8)@
    @(env.veh___639___.lane_b9)@
-}@.overwriteInitValues[../examples/debug_trace_array.txt]
+}@.overwriteInitValues[@{FULL_GEN_PATH}@.printHeap/debug_trace_array.txt]
 
 
 

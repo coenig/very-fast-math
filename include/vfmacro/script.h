@@ -715,7 +715,8 @@ private:
             config_name,
             paths.at("path_template"),
             paths.at("path_json"),
-            DEFAULT_FILE_NAME_JSON_TEMPLATE);
+            DEFAULT_FILE_NAME_JSON_TEMPLATE,
+            false);
 
          return "MC run via script finished for '" + config_name + "'.";
       } 
@@ -741,7 +742,8 @@ private:
             paths.at("path_template"),
             paths.at("path_json"),
             DEFAULT_FILE_NAME_JSON_TEMPLATE, 
-            std::stoi(num_threads_str));
+            std::stoi(num_threads_str),
+            false);
 
          return "MC runs via script finished.";
       }

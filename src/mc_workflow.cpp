@@ -95,7 +95,8 @@ std::vector<std::string> vfm::mc::McWorkflow::runMCJobs(
    const std::string& path_template, 
    const std::string& path_json, 
    const std::string& json_tpl_filename, 
-   const int num_threads)
+   const int num_threads,
+   const bool delete_old_output)
 {
    std::filesystem::file_time_type dummy_time{};
 
@@ -106,7 +107,9 @@ std::vector<std::string> vfm::mc::McWorkflow::runMCJobs(
       path_json, 
       json_tpl_filename,
       dummy_time,
-      nullptr, num_threads);
+      nullptr, 
+      num_threads, 
+      delete_old_output);
 }
 
 std::vector<std::string> McWorkflow::runMCJobs(
@@ -117,7 +120,8 @@ std::vector<std::string> McWorkflow::runMCJobs(
    const std::string& json_tpl_filename,
    std::filesystem::file_time_type& previous_write_time,
    const std::shared_ptr<std::mutex> formula_evaluation_mutex,
-   const int num_threads)
+   const int num_threads,
+   const bool delete_old_output)
 {
    std::filesystem::path path_generated_parent = path_generated_config_level.parent_path();
    std::vector<std::string> possibles{};
@@ -139,8 +143,8 @@ std::vector<std::string> McWorkflow::runMCJobs(
          const std::string config_name{ std::filesystem::path(folder).filename().string() };
 
          if (job_selector(config_name)) {
-            pool.enqueue([this, &folder, &path_generated_parent, &prefix, &path_template, &path_json, &json_tpl_filename, &previous_write_time, formula_evaluation_mutex] {
-               runMCJob(folder, folder.substr(path_generated_parent.string().size() + prefix.size() + 1), path_template, path_json, json_tpl_filename, previous_write_time, formula_evaluation_mutex);
+            pool.enqueue([this, &folder, &path_generated_parent, &prefix, &path_template, &path_json, &json_tpl_filename, &previous_write_time, formula_evaluation_mutex, delete_old_output] {
+               runMCJob(folder, folder.substr(path_generated_parent.string().size() + prefix.size() + 1), path_template, path_json, json_tpl_filename, previous_write_time, formula_evaluation_mutex, delete_old_output);
             });
          }
       }
@@ -154,7 +158,8 @@ void McWorkflow::runMCJob(
    const std::string& config_name,
    const std::string& path_template, 
    const std::string& path_json,
-   const std::string& json_tpl_filename)
+   const std::string& json_tpl_filename,
+   const bool delete_old_output)
 {
    std::filesystem::file_time_type dummy_time{};
 
@@ -165,7 +170,8 @@ void McWorkflow::runMCJob(
       path_json,
       json_tpl_filename,
       dummy_time,
-      nullptr);
+      nullptr,
+      delete_old_output );
 }
 
 void McWorkflow::runMCJob(
@@ -175,7 +181,8 @@ void McWorkflow::runMCJob(
    const std::string& path_json,
    const std::string& json_tpl_filename,
    std::filesystem::file_time_type& previous_write_time, 
-   const std::shared_ptr<std::mutex> formula_evaluation_mutex
+   const std::shared_ptr<std::mutex> formula_evaluation_mutex,
+   const bool delete_old_output
 )
 {
    const auto path_cached{ getCachedDir(path_json, json_tpl_filename) };
@@ -186,7 +193,11 @@ void McWorkflow::runMCJob(
       std::lock_guard<std::mutex> lock{ main_file_mutex_ };
 
       addNote("Running model checker and creating preview for folder '" + path_generated_config_level.string() + "' (config: '" + config_name + "').");
-      deleteMCOutputFromFolder(path_generated_config_level, true, path_json, previous_write_time);
+
+      if (delete_old_output) {
+         deleteMCOutputFromFolder(path_generated_config_level, true, path_json, previous_write_time);
+      }
+
       preprocessAndRewriteJSONTemplate(path_json, json_tpl_filename, formula_evaluation_mutex);
 
       if (!putJSONIntoDataPack(path_json, json_tpl_filename)) return;
