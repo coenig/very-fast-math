@@ -11,6 +11,8 @@
 -- EO Take over selected values from earlier run, if existing.
 }@***.newMethod[overwriteInitValues, 1]
 
+@{_GENERATED_PATH}@.printHeap
+
 @{
    @(env.veh___619___.v)@
    @(env.veh___639___.lane_b0)@
