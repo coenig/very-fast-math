@@ -187,6 +187,7 @@ void McWorkflow::runMCJob(
 {
    const auto path_cached{ getCachedDir(path_json, json_tpl_filename) };
    const auto path_external{ getExternalDir(path_json, json_tpl_filename) };
+   const auto cex_file_name{ getCEXFileName(path_json, json_tpl_filename) };
    bool generate_preview{ false };
    
    {
@@ -234,7 +235,16 @@ void McWorkflow::runMCJob(
       }
    }
 
-   test::convenienceArtifactRunHardcoded(test::MCExecutionType::mc, path_generated_config_level.string(), "FAKE_PATH_NOT_USED", path_template, "FAKE_PATH_NOT_USED", path_cached.string(), path_external.string());
+   test::convenienceArtifactRunHardcoded(
+      test::MCExecutionType::mc, 
+      path_generated_config_level.string(), 
+      "FAKE_PATH_NOT_USED", 
+      path_template, 
+      "FAKE_PATH_NOT_USED", 
+      path_cached.string(), 
+      path_external.string(),
+      ".",
+      cex_file_name.string());
 
    if (generate_preview) generatePreview(path_generated_config_level, 0);
 
@@ -743,6 +753,11 @@ bool McWorkflow::isLTL(
 {
    auto val = getValueForJSONKeyAsString("LTL_MODE", path_template, filename_json_template, config);
    return StaticHelper::isBooleanTrue(val);
+}
+
+std::filesystem::path McWorkflow::getCEXFileName(const std::string& path_template, const std::string& filename_json_template) const
+{
+   return getValueForJSONKeyAsString("_CEX_FILE_NANE", path_template, filename_json_template, JSON_TEMPLATE_DENOTER);
 }
 
 std::filesystem::path McWorkflow::getCachedDir(const std::string& path_template, const std::string& filename_json_template) const

@@ -826,7 +826,7 @@ int vfm::test::artifactRun(int argc, char* argv[])
 
       inputs.addNote("RUNNING NUXMV with command '" + command_nuxmv + "'.");
       std::string result{ StaticHelper::execWithSuccessCode(command_nuxmv, success_code_nuxmv, std::make_shared<std::string>(generated_dir + "/mc_runtimes.txt")) };
-      StaticHelper::writeTextToFile(result, generated_dir + "debug_trace_array.txt");
+      StaticHelper::writeTextToFile(result, generated_dir + inputs.getCmdOption(CMD_CEX_FILE));
 
       // Fake call with FALSE SPEC
       inputs.addNote("Running FALSE SPEC for debugging.");
@@ -872,33 +872,36 @@ void vfm::test::convenienceArtifactRunHardcoded(
    const std::string& vfm_includes_file_path,
    const std::string& cache_dir,
    const std::string& path_to_external_folder,
-   const std::string& root_dir)
+   const std::string& root_dir,
+   const std::string& cex_file_name)
 {
    std::vector<std::string> executions{};
+   
+   // TODO: The cex_file_name comes in env-model-json-file and should be read from there.
 
 #ifdef _WIN32
    if (exec == MCExecutionType::all || exec == MCExecutionType::parser_and_mc || exec == MCExecutionType::parser) {
-      executions.push_back("./vfm.exe --mode parser --env-model-json-file " + json_config_path + " --env-model-template-file " + env_model_template_path + " --planner-include-file " + vfm_includes_file_path + " --targetdir " + target_directory + "/" + " --rootdir " + root_dir + " --chache-dir " + cache_dir);
+      executions.push_back("./vfm.exe --mode parser --env-model-json-file " + json_config_path + " --env-model-template-file " + env_model_template_path + " --planner-include-file " + vfm_includes_file_path + " --targetdir " + target_directory + "/" + " --rootdir " + root_dir + " --chache-dir " + cache_dir + " " + CMD_CEX_FILE + " " + cex_file_name);
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::parser_and_mc || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::mc) {
-      executions.push_back("./vfm.exe --mode mc --targetdir " + target_directory + " --rootdir " + root_dir + " --path-to-kratos " + path_to_external_folder + "/win32/kratos.exe --path-to-cpp " + path_to_external_folder + "/win32/cpp.exe --path-to-nuxmv " + path_to_external_folder + "/win32/nuXmv.exe");
+      executions.push_back("./vfm.exe --mode mc --targetdir " + target_directory + " --rootdir " + root_dir + " --path-to-kratos " + path_to_external_folder + "/win32/kratos.exe --path-to-cpp " + path_to_external_folder + "/win32/cpp.exe --path-to-nuxmv " + path_to_external_folder + "/win32/nuXmv.exe" + " " + CMD_CEX_FILE + " " + cex_file_name);
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::cex) {
-      executions.push_back("./vfm.exe --mode cex --targetdir " + target_directory + " --rootdir " + root_dir);
+      executions.push_back("./vfm.exe --mode cex --targetdir " + target_directory + " --rootdir " + root_dir + " " + CMD_CEX_FILE + " " + cex_file_name);
    }
 #elif __linux__ 
    if (exec == MCExecutionType::all || exec == MCExecutionType::parser_and_mc || exec == MCExecutionType::parser) {
-      executions.push_back("./vfm --mode parser --env-model-json-file " + json_config_path + " --env-model-template-file " + env_model_template_path + " --planner-include-file " + vfm_includes_file_path + " --targetdir " + target_directory + "/" + " --rootdir " + root_dir + " --chache-dir " + cache_dir);
+      executions.push_back("./vfm --mode parser --env-model-json-file " + json_config_path + " --env-model-template-file " + env_model_template_path + " --planner-include-file " + vfm_includes_file_path + " --targetdir " + target_directory + "/" + " --rootdir " + root_dir + " --chache-dir " + cache_dir + " " + CMD_CEX_FILE + " " + cex_file_name);
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::parser_and_mc || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::mc) {
-      executions.push_back("./vfm --mode mc --targetdir " + target_directory + " --rootdir " + root_dir + " --path-to-kratos " + path_to_external_folder + "/linux64/kratos --path-to-nuxmv " + path_to_external_folder + "/linux64/nuXmv");
+      executions.push_back("./vfm --mode mc --targetdir " + target_directory + " --rootdir " + root_dir + " --path-to-kratos " + path_to_external_folder + "/linux64/kratos --path-to-nuxmv " + path_to_external_folder + "/linux64/nuXmv" + " " + CMD_CEX_FILE + " " + cex_file_name);
    }
 
    if (exec == MCExecutionType::all || exec == MCExecutionType::mc_and_cex || exec == MCExecutionType::cex) {
-      executions.push_back("./vfm --mode cex --targetdir " + target_directory + " --rootdir " + root_dir);
+      executions.push_back("./vfm --mode cex --targetdir " + target_directory + " --rootdir " + root_dir + " " + CMD_CEX_FILE + " " + cex_file_name);
    }
 #endif
 
@@ -962,43 +965,6 @@ void vfm::test::cameraRotationTester()
       std::cout << one << std::endl;
 
       std::this_thread::sleep_for(std::chrono::milliseconds(50));
-   }
-}
-
-void vfm::test::runMCExperiments(const MCExecutionType type_raw)
-{
-   std::string tardir{ "../examples/gp" };
-   auto type{ type_raw };
-
-   if (type == MCExecutionType::parser || type == MCExecutionType::parser_and_mc || type == MCExecutionType::all) {
-      convenienceArtifactRunHardcoded(MCExecutionType::parser, tardir,
-         "../src/templates/envmodel_config.json",
-         "../src/templates/EnvModel.tpl",
-         "../src/examples/bp/prototype/motion_planning/rule_based_planning/vfm-includes-viper.txt",
-         "./tmp");
-   }
-
-   if (type == MCExecutionType::parser_and_mc) type = MCExecutionType::mc;
-   if (type == MCExecutionType::all) type = MCExecutionType::mc_and_cex;
-
-   if (type == MCExecutionType::mc || type == MCExecutionType::mc_and_cex || type == MCExecutionType::cex) {
-      { // TODO: Additional scope not needed, but I'll keep it for now for clarification.
-         ThreadPool pool(test::MAX_THREADS);
-
-         for (const auto& gendir : StaticHelper::split(StaticHelper::readFile(tardir + "/generated_paths.txt"), "\n")) {
-            if (!StaticHelper::isEmptyExceptWhiteSpaces(gendir)) {
-               pool.enqueue([&type, &gendir] {
-                  convenienceArtifactRunHardcoded(
-                     type, 
-                     gendir, 
-                     "../src/templates/envmodel_config.json", 
-                     "../src/templates/EnvModel.tpl",
-                     "../src/examples/bp/prototype/motion_planning/rule_based_planning/vfm-includes-viper.txt",
-                     "./tmp");
-                  });
-            }
-         }
-      }
    }
 }
 

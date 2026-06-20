@@ -718,7 +718,7 @@ private:
             StaticHelper::getFileNameFromPath(body),
             false);
 
-         return "MC run via script finished for '" + config_name + "'.";
+         return "Single MC run finished for '" + paths.at("path_json") + "/" + body + "', config '" + config_name + "'.";
       } 
    };
 
@@ -745,7 +745,7 @@ private:
             std::stoi(num_threads_str),
             false);
 
-         return "MC runs via script finished.";
+         return "MC runs finished for '" + paths.at("path_json") + "/" + body + "'.";
       }
    };
 
@@ -759,7 +759,7 @@ private:
 
          mc_workflow.generateEnvmodels(paths.at("path_json"), StaticHelper::getFileNameFromPath(body), FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
 
-         return "Envmodel generation via script finished.";
+         return "Envmodel generation finished for '" + paths.at("path_json") + "/" + body + "'.";
       }
    };
 

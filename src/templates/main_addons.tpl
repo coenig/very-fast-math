@@ -133,7 +133,7 @@
    @(env.connection_distance_sec_3_to_sec_2)@
    @(env.angle_from_sec_3_to_sec_2)@
    @(env.angle_from_sec_3_to_sec_2_raw)@
-}@.overwriteInitValues[@{FULL_GEN_PATH}@.printHeap/debug_trace_array.txt]
+}@.overwriteInitValues[@{FULL_GEN_PATH}@.printHeap/debug_trace_array_0.txt]
 
 
    --= CROSSING =--

@@ -138,6 +138,7 @@ public:
 
    std::string getValueForJSONKeyAsStringPlain(const std::string& key_to_find, const nlohmann::json& json, const std::string& config_name) const;
    bool isLTL(const std::string& config, const std::string& path_template, const std::string& filename_json_template);
+   std::filesystem::path getCEXFileName(const std::string& path_template, const std::string& filename_json_template) const;
    std::filesystem::path getCachedDir(const std::string& path_template, const std::string& filename_json_template) const;
    std::filesystem::path getBPIncludesFileDir(const std::string& path_template, const std::string& filename_json_template) const;
    std::filesystem::path getGeneratedDir(const std::string& path_template, const std::string& filename_json_template) const;

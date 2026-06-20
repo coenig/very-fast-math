@@ -21,6 +21,10 @@
 class InputParser : public vfm::Failable
 {
 public:
+   int dummy{ 0 };
+
+   InputParser() : Failable("InputParser"), argc_(dummy), argv_(nullptr) {}
+
    InputParser(int& argc, char** argv)
       : Failable("InputParser"),
       argc_{ argc },
