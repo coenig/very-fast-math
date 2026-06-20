@@ -425,7 +425,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         vehicle.color = (255, 255, 255)
         vehicle.heading = np.pi * (1 - egos_backward[cnt]) / 2 # 0 for forward, pi for backward.
         vehicle.speed = np.random.uniform(min_start_speed, max_start_speed)
-        if exp_num == 7:
+        if exp_num == 7: # nudging
             if cnt == 0:
                 vehicle.position[0] = 0
             if cnt == 1:
@@ -437,6 +437,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             if cnt == 0:
                 vehicle.position[0] = 0
                 vehicle.position[1] = 0 # start at rightmost lane center (y=4m)
+        
+        # shift cars a little with gauss distribution (scale is deviation in meters for 2/3).
+        vehicle.position[0] += np.random.normal(loc=0.0, scale=1)
+        vehicle.position[1] += np.random.normal(loc=0.0, scale=1)
         
         cnt = cnt + 1
 
