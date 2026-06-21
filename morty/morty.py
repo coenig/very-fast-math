@@ -448,8 +448,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         rng = np.random.default_rng(seedo)
         
         # shift cars a little with gauss distribution (scale is deviation in meters for 2/3).
-        vehicle.position[0] += rng.normal(loc=0.0, scale=1)
-        vehicle.position[1] += rng.normal(loc=0.0, scale=1)
+        vehicle.position[0] += rng.normal(loc=0.0, scale=0.5)
+        vehicle.position[1] += rng.normal(loc=0.0, scale=0.5)
         
         # Clamp lateral position to valid road boundaries
         vehicle.position[1] = max(min(vehicle.position[1], y_max_tech), y_min_tech)
