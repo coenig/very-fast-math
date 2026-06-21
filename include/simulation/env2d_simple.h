@@ -19,7 +19,7 @@ namespace vfm {
 
 static constexpr int RIGHT_MARGIN = 300;
 static constexpr int LEFT_MARGIN = -300;
-static constexpr float STREET_LENGTH_FOR_IMG_DIM = 24;
+static constexpr float STREET_LENGTH_FOR_IMG_DIM = 12;
 static constexpr float RELATION_FOR_IMG_DIM = (RIGHT_MARGIN - LEFT_MARGIN) / 45;
 static constexpr float SPEED_DIVISOR_FOR_STEP_SMOOTHNESS = 1; //18;
 
