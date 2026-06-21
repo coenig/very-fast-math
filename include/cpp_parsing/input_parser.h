@@ -40,7 +40,7 @@ public:
             : std::set<std::string>{ "true" };
       }
 
-      std::vector<std::string>::const_iterator itr{ tokens_.begin()};
+      std::vector<std::string>::const_iterator itr{ tokens_.begin() };
       std::set<std::string> result{};
 
       while (itr != tokens_.end()) {

@@ -1369,7 +1369,7 @@ void vfm::HighwayImage::paintRoadGraph(
    //goto label;
 
    // Draw crossings between sections.
-   const bool topology_only{ true };
+   const bool topology_only{ false };
 
    if (topology_only) {
       paintGraphConnectionsBetweenSections(my_r, var_vals, old_trans);

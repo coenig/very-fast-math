@@ -419,13 +419,20 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         
     env.reset(seed=seedo)
 
+    # Calculate valid y range for initialization (same as used in pure pursuit later)
+    LANE_WIDTH_HE = 4.0  # highway-env lane width in meters
+    on_lane_step_y = 2.0 * num_actual_lanes / num_technical_lanes  # y-distance per MC on_lane position
+    # Compute valid y range based on technical lane positions.
+    y_min_tech = -LANE_WIDTH_HE / 2.0 + LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
+    y_max_tech = -LANE_WIDTH_HE / 2.0 + (2 * num_technical_lanes - 1) * LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
+
     np.random.seed(seedo)
     cnt = 0
     for vehicle in env.unwrapped.controlled_vehicles:
         vehicle.color = (255, 255, 255)
         vehicle.heading = np.pi * (1 - egos_backward[cnt]) / 2 # 0 for forward, pi for backward.
         vehicle.speed = np.random.uniform(min_start_speed, max_start_speed)
-        if exp_num == 7:
+        if exp_num == 7: # nudging
             if cnt == 0:
                 vehicle.position[0] = 0
             if cnt == 1:
@@ -437,6 +444,15 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             if cnt == 0:
                 vehicle.position[0] = 0
                 vehicle.position[1] = 0 # start at rightmost lane center (y=4m)
+        
+        rng = np.random.default_rng(seedo)
+        
+        # shift cars a little with gauss distribution (scale is deviation in meters for 2/3).
+        vehicle.position[0] += rng.normal(loc=0.0, scale=0.5)
+        vehicle.position[1] += rng.normal(loc=0.0, scale=0.5)
+        
+        # Clamp lateral position to valid road boundaries
+        vehicle.position[1] = max(min(vehicle.position[1], y_max_tech), y_min_tech)
         
         cnt = cnt + 1
 
@@ -512,7 +528,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             }}@.nil
             @{{}}@.prepareOutputForMortyUCD[{str(seedo)}, {str(global_counter)}, {0}, {str(crashed)}]
         """
-        # Test cases´: all or [cex-birdseye/cex-cockpit-only/cex-full/cex-smooth-birdseye/cex-smooth-full/cex-smooth-with-arrows-birdseye/cex-smooth-with-arrows-full/preview/preview2]
         # EO The script to run the MC on C++ side.
 
         # Prepare dry run        
@@ -699,13 +714,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         MAXTIME_FOR_LC = 60
         
         eps = 1
-        #### COP VARIABLES ### 
-        LANE_WIDTH_HE = 4.0  # highway-env lane width in meters
-        on_lane_step_y = 2.0 * num_actual_lanes / num_technical_lanes  # y-distance per MC on_lane position
-        # Compute valid y range based on technical lane positions.
-        y_min_tech = -LANE_WIDTH_HE / 2.0 + LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
-        y_max_tech = -LANE_WIDTH_HE / 2.0 + (2 * num_technical_lanes - 1) * LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
-        #### EO COP VARIABLES ### 
         for i, el in enumerate(sum_vel_by_car):
             lc_time[i] += 1
             

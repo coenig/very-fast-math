@@ -1,3 +1,141 @@
+@{
+-- Take over selected values from earlier run in '#1#', if existing.
+   @{
+      @(-- Note: Empty CEX received, no changes to INIT state from earlier run have been performed.)@
+      @(
+         @{
+            INIT @{[varval]}@.at[0] = @{[varval]}@.at[1];
+         }@*.for[[varval], @{#1#}@*.extractMCTracesFromNusmvFile.at[0].at[0].at[0].filter[0, #0#].at[0]]
+      )@
+   }@**.if[@{#1#}@*.extractMCTracesFromNusmvFile.empty]
+-- EO Take over selected values from earlier run, if existing.
+}@***.newMethod[overwriteInitValues, 1]
+
+
+@{
+   @(env.section_0.source.x)@
+   @(env.section_0.source.y)@
+   @(env.section_0.angle_raw)@
+   @(env.section_0_segment_0_pos_begin)@
+   @(env.section_0_end)@
+   @(env.outgoing_connection_0_of_section_0)@
+   @(env.outgoing_connection_1_of_section_0)@
+   @(env.dist_0_of_section_0_to_1)@
+   @(env.dist_0_of_section_0_to_2)@
+   @(env.dist_0_of_section_0_to_3)@
+   @(env.dist_1_of_section_0_to_1)@
+   @(env.dist_1_of_section_0_to_2)@
+   @(env.dist_1_of_section_0_to_3)@
+   @(env.section_1.source.x)@
+   @(env.section_1.source.y)@
+   @(env.section_1.angle_raw)@
+   @(env.section_1_segment_0_pos_begin)@
+   @(env.section_1_end)@
+   @(env.outgoing_connection_0_of_section_1)@
+   @(env.outgoing_connection_1_of_section_1)@
+   @(env.dist_0_of_section_1_to_0)@
+   @(env.dist_0_of_section_1_to_2)@
+   @(env.dist_0_of_section_1_to_3)@
+   @(env.dist_1_of_section_1_to_0)@
+   @(env.dist_1_of_section_1_to_2)@
+   @(env.dist_1_of_section_1_to_3)@
+   @(env.section_2.source.x)@
+   @(env.section_2.source.y)@
+   @(env.section_2.angle_raw)@
+   @(env.section_2_segment_0_pos_begin)@
+   @(env.section_2_end)@
+   @(env.outgoing_connection_0_of_section_2)@
+   @(env.outgoing_connection_1_of_section_2)@
+   @(env.dist_0_of_section_2_to_0)@
+   @(env.dist_0_of_section_2_to_1)@
+   @(env.dist_0_of_section_2_to_3)@
+   @(env.dist_1_of_section_2_to_0)@
+   @(env.dist_1_of_section_2_to_1)@
+   @(env.dist_1_of_section_2_to_3)@
+   @(env.section_3.source.x)@
+   @(env.section_3.source.y)@
+   @(env.section_3.angle_raw)@
+   @(env.section_3_segment_0_pos_begin)@
+   @(env.section_3_end)@
+   @(env.outgoing_connection_0_of_section_3)@
+   @(env.outgoing_connection_1_of_section_3)@
+   @(env.dist_0_of_section_3_to_0)@
+   @(env.dist_0_of_section_3_to_1)@
+   @(env.dist_0_of_section_3_to_2)@
+   @(env.dist_1_of_section_3_to_0)@
+   @(env.dist_1_of_section_3_to_1)@
+   @(env.dist_1_of_section_3_to_2)@
+   @(env.section_0.drain.y)@
+   @(env.section_0.drain.x)@
+   @(env.cos_of_section_0_angle)@
+   @(env.sin_of_section_0_angle)@
+   @(env.section_0.angle)@
+   @(env.arclength_from_sec_0_to_sec_1_on_lane_0)@
+   @(env.connection_distance_sec_0_to_sec_1)@
+   @(env.angle_from_sec_0_to_sec_1)@
+   @(env.angle_from_sec_0_to_sec_1_raw)@
+   @(env.arclength_from_sec_0_to_sec_2_on_lane_0)@
+   @(env.connection_distance_sec_0_to_sec_2)@
+   @(env.angle_from_sec_0_to_sec_2)@
+   @(env.angle_from_sec_0_to_sec_2_raw)@
+   @(env.arclength_from_sec_0_to_sec_3_on_lane_0)@
+   @(env.connection_distance_sec_0_to_sec_3)@
+   @(env.angle_from_sec_0_to_sec_3)@
+   @(env.angle_from_sec_0_to_sec_3_raw)@
+   @(env.section_1.drain.y)@
+   @(env.section_1.drain.x)@
+   @(env.cos_of_section_1_angle)@
+   @(env.sin_of_section_1_angle)@
+   @(env.section_1.angle)@
+   @(env.arclength_from_sec_1_to_sec_0_on_lane_0)@
+   @(env.connection_distance_sec_1_to_sec_0)@
+   @(env.angle_from_sec_1_to_sec_0)@
+   @(env.angle_from_sec_1_to_sec_0_raw)@
+   @(env.arclength_from_sec_1_to_sec_2_on_lane_0)@
+   @(env.connection_distance_sec_1_to_sec_2)@
+   @(env.angle_from_sec_1_to_sec_2)@
+   @(env.angle_from_sec_1_to_sec_2_raw)@
+   @(env.arclength_from_sec_1_to_sec_3_on_lane_0)@
+   @(env.connection_distance_sec_1_to_sec_3)@
+   @(env.angle_from_sec_1_to_sec_3)@
+   @(env.angle_from_sec_1_to_sec_3_raw)@
+   @(env.section_2.drain.y)@
+   @(env.section_2.drain.x)@
+   @(env.cos_of_section_2_angle)@
+   @(env.sin_of_section_2_angle)@
+   @(env.section_2.angle)@
+   @(env.arclength_from_sec_2_to_sec_0_on_lane_0)@
+   @(env.connection_distance_sec_2_to_sec_0)@
+   @(env.angle_from_sec_2_to_sec_0)@
+   @(env.angle_from_sec_2_to_sec_0_raw)@
+   @(env.arclength_from_sec_2_to_sec_1_on_lane_0)@
+   @(env.connection_distance_sec_2_to_sec_1)@
+   @(env.angle_from_sec_2_to_sec_1)@
+   @(env.angle_from_sec_2_to_sec_1_raw)@
+   @(env.arclength_from_sec_2_to_sec_3_on_lane_0)@
+   @(env.connection_distance_sec_2_to_sec_3)@
+   @(env.angle_from_sec_2_to_sec_3)@
+   @(env.angle_from_sec_2_to_sec_3_raw)@
+   @(env.section_3.drain.y)@
+   @(env.section_3.drain.x)@
+   @(env.cos_of_section_3_angle)@
+   @(env.sin_of_section_3_angle)@
+   @(env.section_3.angle)@
+   @(env.arclength_from_sec_3_to_sec_0_on_lane_0)@
+   @(env.connection_distance_sec_3_to_sec_0)@
+   @(env.angle_from_sec_3_to_sec_0)@
+   @(env.angle_from_sec_3_to_sec_0_raw)@
+   @(env.arclength_from_sec_3_to_sec_1_on_lane_0)@
+   @(env.connection_distance_sec_3_to_sec_1)@
+   @(env.angle_from_sec_3_to_sec_1)@
+   @(env.angle_from_sec_3_to_sec_1_raw)@
+   @(env.arclength_from_sec_3_to_sec_2_on_lane_0)@
+   @(env.connection_distance_sec_3_to_sec_2)@
+   @(env.angle_from_sec_3_to_sec_2)@
+   @(env.angle_from_sec_3_to_sec_2_raw)@
+}@.overwriteInitValues[@{FULL_GEN_PATH}@.printHeap/debug_trace_array_0.txt]
+
+
    --= CROSSING =--
    -- Remove nil from generator to activate.
 @{
@@ -261,7 +399,6 @@ INVAR section_0_segment_2_max_lane = 0;
 --INIT env.veh___609___.lane_1;
 --INIT env.ego_lane_0;
 
--- Three cars invert their ordering
 
 @{
 INIT env.outgoing_connection_0_of_section_0 = 1;
@@ -280,21 +417,14 @@ INIT env.dist_0_of_section_3_to_4 = 20;
 INIT env.section_4_end = 20;
 }@.nil
 
-@{
-INIT env.veh___6[i]9___.is_on_sec_0 = 1;
-INIT env.veh___6[i]9___.lane_0;
-INIT env.veh___6[i]9___.abs_pos = @{[i]}@.eval[0] * (env.veh_length + 1);
-INVAR env.veh___6[i]9___.v <= env.veh___6[i]9___.current_seclet_length;
---INVAR env.veh___6[i]9___.v >= 5;
---TRANS (env.veh___6[i]9___.lane_move_down | env.veh___6[i]9___.lane_move_up) -> (env.veh___6[i]9___.v = env.veh___609___.v); -- All have same velocity on LCs.
-TRANS env.veh___6[i]9___.v >= -env.veh___6[i]9___.next_seclet_length;
-INVAR env.veh___6[i]9___.on_straight_section < 0 -> (env.veh___6[i]9___.abs_pos >= env.veh_length & env.veh___6[i]9___.abs_pos <= env.veh___6[i]9___.current_seclet_length - env.veh_length); -- Do not collide too soon on junction entries.
+
 
 @{
-   -- INVAR abs(env.veh___6[i]9___.v - env.veh___6[j]9___.v) <= 6;
-   -- INVAR env.veh___6[i]9___.on_straight_section < 0 -> abs(env.veh___6[i]9___.abs_pos - env.veh___6[j]9___.abs_pos) > env.veh_length; -- Do not collide too soon on junction entries.
-   -- TRANS (env.veh___6[i]9___.lane_move_down | env.veh___6[i]9___.lane_move_up) -> !(env.veh___6[j]9___.lane_move_down | env.veh___6[j]9___.lane_move_up);
-}@**.for[[j], @{[i] + 1}@.eval, @{NONEGOS - 1}@.eval]
+INIT env.veh___6[i]9___.is_on_sec_0 = 1;
+INIT env.veh___6[i]9___.abs_pos = @{[i]}@.eval[0] * (env.veh_length + 1);
+INVAR env.veh___6[i]9___.v <= env.veh___6[i]9___.current_seclet_length;
+TRANS env.veh___6[i]9___.v >= -env.veh___6[i]9___.next_seclet_length;
+INVAR env.veh___6[i]9___.on_straight_section < 0 -> (env.veh___6[i]9___.abs_pos >= env.veh_length & env.veh___6[i]9___.abs_pos <= env.veh___6[i]9___.current_seclet_length - env.veh_length); -- Don't collide too soon on junction entries.
 }@***.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 @{
@@ -306,7 +436,7 @@ INVAR env.veh___6[i]9___.on_straight_section < 0 -> (env.veh___6[i]9___.abs_pos 
 -- INVAR env.veh___6[i]9___.v = env.veh___6@{[i] + 1}@.eval[0]9___.v; -- All have same speed
 }@***.for[[i], 0, @{NONEGOS - 2}@.eval]
 
--- EO Three cars invert their ordering
+
 
 
 -- Nudging

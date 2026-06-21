@@ -24,9 +24,35 @@
 #include <utility>
 #include <limits>
 #include <tuple>
+#include <iostream>
+#include <sstream>
+#include <type_traits>
+
 
 namespace vfm {
 namespace macro {
+
+// --- Type trait to check if a type is a std::vector ---
+   template <typename T> struct is_vector : std::false_type {};
+   template <typename T, typename A> struct is_vector<std::vector<T, A>> : std::true_type {};
+   template <typename T> inline constexpr bool is_vector_v = is_vector<T>::value;
+
+   // --- Type trait to check for a getTrace() member function ---
+   template <typename, typename = std::void_t<>> struct has_getTrace : std::false_type {};
+   template <typename T> struct has_getTrace<T, std::void_t<decltype(std::declval<T>().getConstTrace())>> : std::true_type {};
+   template <typename T> inline constexpr bool has_getTrace_v = has_getTrace<T>::value;
+
+   // --- NEW: Type trait to check if a type is a std::map ---
+   template <typename T> struct is_map : std::false_type {};
+   template <typename K, typename V, typename C, typename A> struct is_map<std::map<K, V, C, A>> : std::true_type {};
+   template <typename T> inline constexpr bool is_map_v = is_map<T>::value;
+
+   // --- NEW: Type trait to check for std::pair<std::string, std::vector<...>> ---
+   template <typename T> struct is_string_vector_pair : std::false_type {};
+   template <typename T2> struct is_string_vector_pair<std::pair<std::string, T2>> : std::disjunction<is_vector<T2>, is_map<T2>> {};
+   template <typename T> inline constexpr bool is_string_vector_pair_v = is_string_vector_pair<T>::value;
+// EO Trait to check if a type is a std::vector
+
 
 static constexpr int MAXIMUM_STRING_SIZE_TO_CACHE{ 50 }; // Too large strings hit rarely but take up lots of space. (TODO: is 50 a good guess?)
 
@@ -571,6 +597,61 @@ private:
       return map;
    }
 
+   /**
+    * @brief Converts a vector to its vfmacro string representation.
+    * To allow for a broader usage, special treatment for the types in MCTrace has
+    * been included.
+    *
+    * @tparam T The type of the value to convert.
+    * @param value The value to be converted to a string.
+    * @return A string representation of the value.
+    */
+   template <typename T>
+   std::string toArrayMacro(const T& value) {
+      // Use if constexpr to handle different types at compile time
+      if constexpr (is_vector_v<T>) {
+         if (value.empty()) {
+            return "";
+         }
+
+         std::ostringstream oss;
+         oss << "@(";
+         for (size_t i = 0; i < value.size(); ++i) {
+            // Recursive call for elements in the vector
+            oss << toArrayMacro(value[i]);
+         }
+         oss << ")@";
+         return oss.str();
+      }
+      else if constexpr (has_getTrace_v<T>) {
+         // If the type has a getTrace() method, call toArrayMacro on its result.
+         return toArrayMacro(value.getConstTrace());
+      }
+      else if constexpr (is_string_vector_pair_v<T>) {
+         // Rule 2: For pair<string, vector>, process the vector (the second element).
+         return toArrayMacro(value.second);
+      }
+      else if constexpr (is_map_v<T>) {
+         // Rule 3: For maps, format as a vector of [key, value] pairs.
+         std::ostringstream oss;
+         oss << "@(";
+         auto it = value.begin();
+         while (it != value.end()) {
+            // Format each pair as a 2-element vector string
+            oss << "@(@(" << toArrayMacro(it->first) << ")@@(" << toArrayMacro(it->second) << ")@)@";
+            ++it;
+         }
+         oss << ")@";
+         return oss.str();
+      }
+      else {
+         std::ostringstream oss;
+         oss << value;
+         return oss.str();
+      }
+   }
+
+
    mc::McWorkflow prepareMCWorkflow(const std::shared_ptr<DataPack> data, const std::shared_ptr<FormulaParser> parser, const bool set_default_templates_path)
    {
       if (set_default_templates_path) {
@@ -634,9 +715,10 @@ private:
             config_name,
             paths.at("path_template"),
             paths.at("path_json"),
-            DEFAULT_FILE_NAME_JSON_TEMPLATE);
+            StaticHelper::getFileNameFromPath(body),
+            false);
 
-         return "MC run via script finished for '" + config_name + "'.";
+         return "Single MC run finished for '" + paths.at("path_json") + "/" + body + "', config '" + config_name + "'.";
       } 
    };
 
@@ -659,10 +741,11 @@ private:
             [](const std::string& folder) -> bool { return true; },
             paths.at("path_template"),
             paths.at("path_json"),
-            DEFAULT_FILE_NAME_JSON_TEMPLATE, 
-            std::stoi(num_threads_str));
+            StaticHelper::getFileNameFromPath(body),
+            std::stoi(num_threads_str),
+            false);
 
-         return "MC runs via script finished.";
+         return "MC runs finished for '" + paths.at("path_json") + "/" + body + "'.";
       }
    };
 
@@ -674,9 +757,9 @@ private:
          auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_, body.empty());
          std::map<std::string, std::string> paths{ retrievePaths(mc_workflow, body, "") }; // Note that only path_template is used, the others might be broken.
 
-         mc_workflow.generateEnvmodels(paths.at("path_json"), DEFAULT_FILE_NAME_JSON_TEMPLATE, FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
+         mc_workflow.generateEnvmodels(paths.at("path_json"), StaticHelper::getFileNameFromPath(body), FILE_NAME_ENVMODEL_ENTRANCE, nullptr);
 
-         return "Envmodel generation via script finished.";
+         return "Envmodel generation finished for '" + paths.at("path_json") + "/" + body + "'.";
       }
    };
 
@@ -759,7 +842,7 @@ private:
 
    ScriptMethodDescription m9b{
       "generateTestCasesPlain",
-      2,
+      3,
       [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string
       {
          auto [modes_str, modes] = getModes(parameters.at(0));
@@ -769,8 +852,8 @@ private:
          mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
             { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 },
             body,
-            "debug_trace_array",
             parameters.at(1),
+            parameters.at(2),
             mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv),
             modes);
 
@@ -1009,6 +1092,34 @@ private:
       { "idd", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return idd(body); } },
       { "if", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return ifChoice(body, parameters.at(0)); } },
       { "at", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return element(body, parameters.at(0)); } },
+      { "size", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         return std::to_string(processSequence(body).size());
+      } },
+      { "empty", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         return std::to_string(processSequence(body).empty());
+      } },
+      { "filter", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { // Interprets 0 as table (array of tuples which are the rows), filters column 1 to values from 2.
+         std::string res{ "@(" };
+
+         auto table = processSequence(body);
+         auto filter_for = processSequence(parameters[1]);
+         int num = std::stoi(parameters[0]);
+
+         for (const auto& row : table) {
+            auto row_as_tuple = processSequence(row);
+            
+            if (row_as_tuple.size() <= num) {
+               addError("Row '" + row + "' does not have enough columns for filter (column: " + std::to_string(num) + ").");
+               continue;
+            }
+
+            if (std::find(filter_for.begin(), filter_for.end(), row_as_tuple[num]) != filter_for.end()) {
+               res += "@(" + row + ")@";
+            }
+         }
+
+         return res + ")@";
+      } },
       { "substr", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return substring(body, parameters.at(0), parameters.at(1)); } },
       { "split", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
          auto spl = StaticHelper::split(body, parameters[0]);
@@ -1097,6 +1208,9 @@ private:
       { "timestamp", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::timeStamp(); } },
       { "morty", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { auto rep = body; return StaticHelper::replaceAll(rep + MORTY_ASCII_ART, "\n", "\n" + rep); } },
       { "rick", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return body + RICK; } },
+      { "extractMCTracesFromNusmv", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return toArrayMacro(StaticHelper::extractMCTracesFromNusmv(body)); }},
+      { "extractMCTracesFromNusmvFile", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return toArrayMacro(StaticHelper::extractMCTracesFromNusmvFile(body)); } },
+      { "equals", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return std::to_string(body == parameters[0]); }},
       { "mypath", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return getMyPath(); } },
       { "setScriptVar", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
          return setScriptVar(body, parameters[0], "");
