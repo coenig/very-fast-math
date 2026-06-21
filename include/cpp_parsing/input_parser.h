@@ -21,10 +21,6 @@
 class InputParser : public vfm::Failable
 {
 public:
-   int dummy{ 0 };
-
-   InputParser() : Failable("InputParser"), argc_(dummy), argv_(nullptr) {}
-
    InputParser(int& argc, char** argv)
       : Failable("InputParser"),
       argc_{ argc },
@@ -44,7 +40,7 @@ public:
             : std::set<std::string>{ "true" };
       }
 
-      std::vector<std::string>::const_iterator itr{ tokens_.begin()};
+      std::vector<std::string>::const_iterator itr{ tokens_.begin() };
       std::set<std::string> result{};
 
       while (itr != tokens_.end()) {
