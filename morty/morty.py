@@ -450,9 +450,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         egos_backward[i] = -1
         
     env.reset(seed=seedo)
-    
-    # COP: Clear trajectories for new episode.
-    _vehicle_trajectories.clear()
 
     # Calculate valid y range for initialization (same as used in pure pursuit later)
     LANE_WIDTH_HE = 4.0  # highway-env lane width in meters
@@ -490,6 +487,9 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         vehicle.position[1] = max(min(vehicle.position[1], y_max_tech), y_min_tech)
         
         cnt = cnt + 1
+
+    # COP: Clear trajectories for new episode (AFTER all vehicle repositioning).
+    _vehicle_trajectories.clear()
 
     if args.record_video:
         env = RecordVideo(env, video_folder=f"{generated_path_prefix}/videos", name_prefix=f"vid_{seedo}",
