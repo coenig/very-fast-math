@@ -96,11 +96,20 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
         vehicle_id = id(vehicle)
         if vehicle_id not in _vehicle_trajectories:
             _vehicle_trajectories[vehicle_id] = []
-        _vehicle_trajectories[vehicle_id].append([float(vehicle.position[0]), float(vehicle.position[1])])
-        if len(_vehicle_trajectories[vehicle_id]) > 2000:
-            _vehicle_trajectories[vehicle_id] = _vehicle_trajectories[vehicle_id][-2000:]
 
         trajectory = _vehicle_trajectories[vehicle_id]
+        current_position = [float(vehicle.position[0]), float(vehicle.position[1])]
+        stationary = abs(getattr(vehicle, 'speed', 0.0)) < 0.1
+
+        if not trajectory:
+            trajectory.append(current_position)
+        elif not stationary:
+            last_position = trajectory[-1]
+            if abs(current_position[0] - last_position[0]) > 0.05 or abs(current_position[1] - last_position[1]) > 0.05:
+                trajectory.append(current_position)
+                if len(trajectory) > 2000:
+                    _vehicle_trajectories[vehicle_id] = trajectory[-2000:]
+
         if len(trajectory) > 1:
             if vehicle.crashed:
                 color = (255, 100, 100)
