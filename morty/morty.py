@@ -106,8 +106,9 @@ from highway_env.envs.common.graphics import EnvViewer
 _original_viewer_display = EnvViewer.display
 def _patched_viewer_display(self):
     _original_viewer_display(self)
-    # Draw trajectories for all vehicles (only if enabled)
-    if not args.show_trajectories:
+    # Draw trajectories when either CLI flag or env config enables it.
+    show_trajectories = args.show_trajectories or bool(self.env.config.get("show_trajectories", False))
+    if not show_trajectories:
         return
     try:
         import pygame
@@ -122,29 +123,24 @@ def _patched_viewer_display(self):
             
             # Append current position to trajectory
             _vehicle_trajectories[vehicle_id].append(list(vehicle.position))
+            # Keep history bounded to avoid unbounded memory growth in long runs.
+            if len(_vehicle_trajectories[vehicle_id]) > 2000:
+                _vehicle_trajectories[vehicle_id] = _vehicle_trajectories[vehicle_id][-2000:]
             
             # Draw the trajectory line
             trajectory = _vehicle_trajectories[vehicle_id]
             if len(trajectory) > 1:
-                # Convert world positions to pixel positions and draw line segments
-                for i in range(len(trajectory) - 1):
-                    p1_pix = self.sim_surface.pos2pix(trajectory[i][0], trajectory[i][1])
-                    p2_pix = self.sim_surface.pos2pix(trajectory[i + 1][0], trajectory[i + 1][1])
-                    
-                    # Fade trajectory over time (older = more transparent)
-                    age_ratio = i / len(trajectory)  # 0 at start, 1 at end
-                    
-                    # Choose color based on vehicle state
-                    if vehicle.crashed:
-                        color = (255, 100, 100)  # Light red for crashed
-                    elif hasattr(vehicle, 'color') and vehicle.color != (200, 200, 200):
-                        # Use a muted version of the vehicle's color
-                        color = tuple(int(c * 0.7) for c in vehicle.color[:3])
-                    else:
-                        color = (100, 150, 200)  # Default light blue
-                    
-                    # Draw line segment (WorldSurface is itself a pygame.Surface)
-                    pygame.draw.line(self.sim_surface, color, p1_pix, p2_pix, width=2)
+                # Choose color based on current vehicle state.
+                if vehicle.crashed:
+                    color = (255, 100, 100)  # Light red for crashed
+                elif hasattr(vehicle, 'color') and vehicle.color != (200, 200, 200):
+                    # Use a muted version of the vehicle's color
+                    color = tuple(int(c * 0.7) for c in vehicle.color[:3])
+                else:
+                    color = (100, 150, 200)  # Default light blue
+
+                points = [self.sim_surface.pos2pix(p[0], p[1]) for p in trajectory]
+                pygame.draw.lines(self.sim_surface, color, False, points, width=2)
     except Exception as e:
         print(f"Warning: Error drawing trajectories: {e}")
 
