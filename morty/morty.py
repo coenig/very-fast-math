@@ -105,10 +105,18 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
             trajectory.append(current_position)
         elif not stationary:
             last_position = trajectory[-1]
-            if abs(current_position[0] - last_position[0]) > 0.05 or abs(current_position[1] - last_position[1]) > 0.05:
-                trajectory.append(current_position)
-                if len(trajectory) > 2000:
-                    _vehicle_trajectories[vehicle_id] = trajectory[-2000:]
+            dx = current_position[0] - last_position[0]
+            dy = current_position[1] - last_position[1]
+            moved = abs(dx) > 0.05 or abs(dy) > 0.05
+            # Ignore one-time teleport/snap after initialization to avoid fake long tails.
+            if moved:
+                jump2 = dx * dx + dy * dy
+                if len(trajectory) == 1 and jump2 > 100.0:  # >10 m in one render step is likely a teleport.
+                    trajectory[0] = current_position
+                else:
+                    trajectory.append(current_position)
+                    if len(trajectory) > 2000:
+                        _vehicle_trajectories[vehicle_id] = trajectory[-2000:]
 
         if len(trajectory) > 1:
             if vehicle.crashed:
@@ -497,8 +505,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         
         cnt = cnt + 1
 
-    # COP: Clear trajectories for new episode (AFTER all vehicle repositioning).
+    # COP: Reset and seed trajectories after all manual vehicle repositioning.
     _vehicle_trajectories.clear()
+    for vehicle in env.unwrapped.controlled_vehicles:
+        _vehicle_trajectories[id(vehicle)] = [[float(vehicle.position[0]), float(vehicle.position[1])]]
 
     if args.record_video:
         env = RecordVideo(env, video_folder=f"{generated_path_prefix}/videos", name_prefix=f"vid_{seedo}",
