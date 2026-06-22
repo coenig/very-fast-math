@@ -101,7 +101,7 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
         pass
 VehicleGraphics.display = _patched_display
 
-# COP: Patch WorldSurface.display to draw trajectory lines for each vehicle.
+# COP: Patch EnvViewer.display to draw trajectory lines for each vehicle.
 from highway_env.envs.common.graphics import EnvViewer
 _original_viewer_display = EnvViewer.display
 def _patched_viewer_display(self):
@@ -143,8 +143,8 @@ def _patched_viewer_display(self):
                     else:
                         color = (100, 150, 200)  # Default light blue
                     
-                    # Draw line segment
-                    pygame.draw.line(self.sim_surface.surface, color, p1_pix, p2_pix, width=2)
+                    # Draw line segment (WorldSurface is itself a pygame.Surface)
+                    pygame.draw.line(self.sim_surface, color, p1_pix, p2_pix, width=2)
     except Exception as e:
         print(f"Warning: Error drawing trajectories: {e}")
 

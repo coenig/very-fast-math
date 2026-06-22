@@ -11,7 +11,7 @@
       "#010": "range(@sections, 1, 1);",
       "#011": "range(@maxdist, 40, 40);",
       "#012": "range(@anglegran, 45, 45);",
-      "#013": "range(@vehlen, 5, 9);",
+      "#013": "range(@vehlen, 6, 9);",
       "#014": "range(@minaccelego, -3, -3);",
       "#015": "range(@maxaccelego, 3, 3);",
       "#016": "range(@minaccel, -3, -3);",
@@ -85,7 +85,7 @@
       "MAXSPEEDNONEGO": 20,
       "MINSTARTSPEEDNONEGO_UCD": 15,
       "MAXSTARTSPEEDNONEGO_UCD": 20,
-      "UCD_CONFIG_PRIOS": "_config_vehlen=9_vehwidth=9;_config_vehlen=8_vehwidth=9;_config_vehlen=7_vehwidth=9;_config_vehlen=6_vehwidth=9;_config_vehlen=5_vehwidth=9;_config_vehlen=9_vehwidth=8;_config_vehlen=8_vehwidth=8;_config_vehlen=7_vehwidth=8;_config_vehlen=6_vehwidth=8;_config_vehlen=5_vehwidth=8;_config_vehlen=9_vehwidth=7;_config_vehlen=8_vehwidth=7;_config_vehlen=7_vehwidth=7;_config_vehlen=6_vehwidth=7;_config_vehlen=5_vehwidth=7;_config_vehlen=9_vehwidth=6;_config_vehlen=8_vehwidth=6;_config_vehlen=7_vehwidth=6;_config_vehlen=6_vehwidth=6;_config_vehlen=5_vehwidth=6;",
+      "UCD_CONFIG_PRIOS": "_config_vehlen=9_vehwidth=9;_config_vehlen=8_vehwidth=9;_config_vehlen=7_vehwidth=9;_config_vehlen=6_vehwidth=9;_config_vehlen=9_vehwidth=8;_config_vehlen=8_vehwidth=8;_config_vehlen=7_vehwidth=8;_config_vehlen=6_vehwidth=8;_config_vehlen=9_vehwidth=7;_config_vehlen=8_vehwidth=7;_config_vehlen=7_vehwidth=7;_config_vehlen=6_vehwidth=7;_config_vehlen=9_vehwidth=6;_config_vehlen=8_vehwidth=6;_config_vehlen=7_vehwidth=6;_config_vehlen=6_vehwidth=6;",
       "UCD_EXP_NUM": 7,
       "UCD_FORMULA_PP_DISTANCE": "1.5 * velocity + 1",
       "UCD_MIN_VELOCITY_TO_ALLOW_LC": 5,
@@ -111,6 +111,7 @@
       "_CACHED_PATH": "./examples/tmp",
       "_EXTERNAL_PATH": "./external",
       "_GENERATED_PATH": "./examples/exp4_time_2000_dist_4000_mintimeBetweenLC_1",
-      "_ENVMODEL_PATH": "./src/templates"
+      "_ENVMODEL_PATH": "./src/templates",
+      "_CEX_FILE_NANE": "debug_trace_array.txt"
    }
 }
