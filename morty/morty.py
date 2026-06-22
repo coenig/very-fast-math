@@ -833,7 +833,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             env.render()
 
         # Flush partial video every iteration.
-        if args.record_video and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
+        if args.record_video and not args.dryrun and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
             from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
             clip = ImageSequenceClip(env.recorded_frames, fps=env.frames_per_sec)
             clip.write_videofile(f"{generated_path_prefix}/videos/vid_{seedo}_partial.mp4", logger=None)
