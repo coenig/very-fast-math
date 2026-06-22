@@ -83,11 +83,38 @@ VehicleGraphics.get_color = _patched_get_color
 # COP: Global trajectory tracking for visualization.
 _vehicle_trajectories = {}  # Maps vehicle id to list of [x, y] positions
 
-# COP: Patch VehicleGraphics.display to draw car IDs next to the car boxes.
+# COP: Patch VehicleGraphics.display to draw trajectories and car IDs.
+# Important: Draw trajectories from inside VehicleGraphics.display so lines are rendered
+# before the frame blit/flip done by EnvViewer.display.
 _original_display = VehicleGraphics.display.__func__
 @classmethod
 def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, label=False, draw_roof=False):
+    try:
+        import pygame
+
+        # Persist trajectory in world coordinates and draw it in the current camera view.
+        vehicle_id = id(vehicle)
+        if vehicle_id not in _vehicle_trajectories:
+            _vehicle_trajectories[vehicle_id] = []
+        _vehicle_trajectories[vehicle_id].append([float(vehicle.position[0]), float(vehicle.position[1])])
+        if len(_vehicle_trajectories[vehicle_id]) > 2000:
+            _vehicle_trajectories[vehicle_id] = _vehicle_trajectories[vehicle_id][-2000:]
+
+        trajectory = _vehicle_trajectories[vehicle_id]
+        if len(trajectory) > 1:
+            if vehicle.crashed:
+                color = (255, 100, 100)
+            elif hasattr(vehicle, 'color') and vehicle.color is not None:
+                color = tuple(int(c * 0.7) for c in vehicle.color[:3])
+            else:
+                color = (100, 150, 200)
+            points = [surface.pos2pix(p[0], p[1]) for p in trajectory]
+            pygame.draw.lines(surface, color, False, points, width=2)
+    except Exception as e:
+        print(f"Warning: Error drawing trajectories: {e}")
+
     _original_display(cls, vehicle, surface, transparent=transparent, offscreen=offscreen, label=label, draw_roof=draw_roof)
+
     if not surface.is_visible(vehicle.position):
         return
     try:
@@ -100,51 +127,6 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
     except (ValueError, AttributeError):
         pass
 VehicleGraphics.display = _patched_display
-
-# COP: Patch EnvViewer.display to draw trajectory lines for each vehicle.
-from highway_env.envs.common.graphics import EnvViewer
-_original_viewer_display = EnvViewer.display
-def _patched_viewer_display(self):
-    _original_viewer_display(self)
-    # Draw trajectories when either CLI flag or env config enables it.
-    show_trajectories = args.show_trajectories or bool(self.env.config.get("show_trajectories", False))
-    if not show_trajectories:
-        return
-    try:
-        import pygame
-        road = self.env.unwrapped.road
-        if road is None:
-            return
-        for vehicle in road.vehicles:
-            # Get or create trajectory list for this vehicle
-            vehicle_id = id(vehicle)
-            if vehicle_id not in _vehicle_trajectories:
-                _vehicle_trajectories[vehicle_id] = []
-            
-            # Append current position to trajectory
-            _vehicle_trajectories[vehicle_id].append(list(vehicle.position))
-            # Keep history bounded to avoid unbounded memory growth in long runs.
-            if len(_vehicle_trajectories[vehicle_id]) > 2000:
-                _vehicle_trajectories[vehicle_id] = _vehicle_trajectories[vehicle_id][-2000:]
-            
-            # Draw the trajectory line
-            trajectory = _vehicle_trajectories[vehicle_id]
-            if len(trajectory) > 1:
-                # Choose color based on current vehicle state.
-                if vehicle.crashed:
-                    color = (255, 100, 100)  # Light red for crashed
-                elif hasattr(vehicle, 'color') and vehicle.color != (200, 200, 200):
-                    # Use a muted version of the vehicle's color
-                    color = tuple(int(c * 0.7) for c in vehicle.color[:3])
-                else:
-                    color = (100, 150, 200)  # Default light blue
-
-                points = [self.sim_surface.pos2pix(p[0], p[1]) for p in trajectory]
-                pygame.draw.lines(self.sim_surface, color, False, points, width=2)
-    except Exception as e:
-        print(f"Warning: Error drawing trajectories: {e}")
-
-EnvViewer.display = _patched_viewer_display
 
 # Load parameters from JSON.
 with open('morty/envmodel_config.tpl.json') as f:
