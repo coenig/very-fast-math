@@ -60,8 +60,8 @@ parser.add_argument('--headless', action='store_true',
 args = parser.parse_args()
 
 if args.dryrun:
-    if args.force or args.record_video or args.detailed_archive:
-        print("Error: --dryrun cannot go together with --force, --record_video, or --detailed_archive. Exiting.")
+    if args.force or args.detailed_archive:
+        print("Error: --dryrun cannot go together with --force or --detailed_archive. Exiting.")
         exit(1)
 
 # COP: Patch VehicleGraphics.get_color so that crashed always takes priority over custom color.
