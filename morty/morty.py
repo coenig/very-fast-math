@@ -476,6 +476,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     y_max_tech = -LANE_WIDTH_HE / 2.0 + (2 * num_technical_lanes - 1) * LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
 
     np.random.seed(seedo)
+    rng = np.random.default_rng(seedo)
     cnt = 0
     for vehicle in env.unwrapped.controlled_vehicles:
         vehicle.color = (255, 255, 255)
@@ -493,8 +494,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             if cnt == 0:
                 vehicle.position[0] = 0
                 vehicle.position[1] = 0 # start at rightmost lane center (y=4m)
-        
-        rng = np.random.default_rng(seedo)
         
         # shift cars a little with gauss distribution (scale is deviation in meters for 2/3).
         vehicle.position[0] += rng.normal(loc=0.0, scale=1)
