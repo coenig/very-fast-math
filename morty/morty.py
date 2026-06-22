@@ -47,6 +47,8 @@ parser.add_argument('-c', '--allow_crashed_steps', default=DEFAULT_ALLOW_CRASHED
                     help='How many steps with crashes are allowed before the run is aborted. Default: {DEFAULT_ALLOW_CRASHED_STEPS}')
 parser.add_argument('--record_video', action='store_true',
                     help='Record a video of the run. Default: False')
+parser.add_argument('--show_trajectories', action='store_true',
+                    help='Draw trajectory lines for each vehicle in visualization. Default: False')
 parser.add_argument('--detailed_archive', action='store_true',
                     help='Stores detailed archive of the run in a subfolder. Default: False')
 parser.add_argument('--force', action='store_true',
@@ -78,6 +80,9 @@ def _patched_get_color(cls, vehicle, transparent=False):
     return _original_get_color.__func__(cls, vehicle, transparent)
 VehicleGraphics.get_color = _patched_get_color
 
+# COP: Global trajectory tracking for visualization.
+_vehicle_trajectories = {}  # Maps vehicle id to list of [x, y] positions
+
 # COP: Patch VehicleGraphics.display to draw car IDs next to the car boxes.
 _original_display = VehicleGraphics.display.__func__
 @classmethod
@@ -95,6 +100,54 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
     except (ValueError, AttributeError):
         pass
 VehicleGraphics.display = _patched_display
+
+# COP: Patch WorldSurface.display to draw trajectory lines for each vehicle.
+from highway_env.road.graphics import WorldSurface
+_original_ws_display = WorldSurface.display.__func__
+def _patched_ws_display(self):
+    _original_ws_display(self)
+    # Draw trajectories for all vehicles (only if enabled)
+    if not args.show_trajectories:
+        return
+    if hasattr(self, 'road') and self.road is not None:
+        try:
+            import pygame
+            for vehicle in self.road.vehicles:
+                # Get or create trajectory list for this vehicle
+                vehicle_id = id(vehicle)
+                if vehicle_id not in _vehicle_trajectories:
+                    _vehicle_trajectories[vehicle_id] = []
+                
+                # Append current position to trajectory
+                _vehicle_trajectories[vehicle_id].append(list(vehicle.position))
+                
+                # Draw the trajectory line
+                trajectory = _vehicle_trajectories[vehicle_id]
+                if len(trajectory) > 1:
+                    # Convert world positions to pixel positions and draw line segments
+                    for i in range(len(trajectory) - 1):
+                        p1_pix = self.pos2pix(trajectory[i][0], trajectory[i][1])
+                        p2_pix = self.pos2pix(trajectory[i + 1][0], trajectory[i + 1][1])
+                        
+                        # Fade trajectory over time (older = more transparent)
+                        age_ratio = i / len(trajectory)  # 0 at start, 1 at end
+                        alpha = int(100 + 155 * age_ratio)  # From 100 to 255
+                        
+                        # Choose color based on vehicle state
+                        if vehicle.crashed:
+                            color = (255, 100, 100)  # Light red for crashed
+                        elif hasattr(vehicle, 'color') and vehicle.color != (200, 200, 200):
+                            # Use a muted version of the vehicle's color
+                            color = tuple(int(c * 0.7) for c in vehicle.color[:3])
+                        else:
+                            color = (100, 150, 200)  # Default light blue
+                        
+                        # Draw line segment
+                        pygame.draw.line(self.surface, color, p1_pix, p2_pix, width=2)
+        except Exception as e:
+            print(f"Warning: Error drawing trajectories: {e}")
+
+WorldSurface.display = _patched_ws_display
 
 # Load parameters from JSON.
 with open('morty/envmodel_config.tpl.json') as f:
@@ -418,6 +471,9 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         egos_backward[i] = -1
         
     env.reset(seed=seedo)
+    
+    # COP: Clear trajectories for new episode.
+    _vehicle_trajectories.clear()
 
     # Calculate valid y range for initialization (same as used in pure pursuit later)
     LANE_WIDTH_HE = 4.0  # highway-env lane width in meters
@@ -448,8 +504,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         rng = np.random.default_rng(seedo)
         
         # shift cars a little with gauss distribution (scale is deviation in meters for 2/3).
-        vehicle.position[0] += rng.normal(loc=0.0, scale=0.5)
-        vehicle.position[1] += rng.normal(loc=0.0, scale=0.5)
+        vehicle.position[0] += rng.normal(loc=0.0, scale=1)
+        vehicle.position[1] += rng.normal(loc=0.0, scale=1)
         
         # Clamp lateral position to valid road boundaries
         vehicle.position[1] = max(min(vehicle.position[1], y_max_tech), y_min_tech)
