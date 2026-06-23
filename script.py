@@ -15,18 +15,19 @@ class NuXmvConn:
 
     def __init__(self, nuxmv_args) -> None:
         self.process = subprocess.Popen(
-                nuxmv_args,
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                bufsize=1,
-                universal_newlines=True
-                )
+            nuxmv_args,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            universal_newlines=True
+        )
         self.property_map = dict()
 
         # first prompt.
-        _ = self._read_response()
+        first_prompt = self._read_response()
+        print("First prompt:", first_prompt)
 
         self._send("go_msat", ignore_output=True)
 
@@ -74,28 +75,39 @@ class Morty:
         self.morty_lib = CDLL('lib/libvfm.so')
         self.morty_lib.expandScript.argtypes = [c_char_p, c_char_p, c_size_t]
         self.morty_lib.expandScript.restype = c_char_p
-        self.morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
-        self.morty_lib.morty.restype = c_char_p
+        # self.morty_lib.morty.argtypes = [c_char_p, c_char_p, c_size_t]
+        # self.morty_lib.morty.restype = c_char_p
 
     def generate_smv_files(self, args: list[str]):
         self.args = args
         self.morty_lib.generate_smv_files(";".join(args).encode('utf-8'))
-        main_smv = Path(args[5]) / "main.smv"
+        target_path = Path(args[5])
+        main_smv = target_path / "main.smv"
         self.nuxmv = NuXmvConn([
-            "nuXmv", "-quiet", "-int", main_smv
+            "nuXmv", "-pre", "cpp", "-int", main_smv
             ])
+
+        result = subprocess.run(
+            f"external/linux64/kratos -trans_output_format=nuxmv-module -trans_enum_mode=symbolic -output_file={target_path / 'planner.cpp_combined.k2.smv'} {target_path / 'planner.cpp_combined.k2'}",
+            shell=True, capture_output=True, text=True
+        )
+        print(result.stdout)
 
     def model_check(self, cex_file):
         self.nuxmv._send(
             f"msat_check_invar_bmc -i -a falsification -k 100",
-            ignore_output=True
+            ignore_output=False
         )
+        output = self.nuxmv._read_response()
+        print("NUXMV: ", output)
 
         output_cex = Path(self.args[5]) / cex_file
         self.nuxmv._send(
             f"show_traces -p 6 -o {output_cex} 1",
-            ignore_output=True
+            ignore_output=False
         )
+        output = self.nuxmv._read_response()
+        print("NUXMV: ", output)
 
         return output_cex
 
@@ -168,6 +180,17 @@ def dump_graph(graph, html_file='digraph.html'):
     net.show_buttons(filter_=['physics'])
 
     net.show(html_file)
+
+def constraint_model_from_graph(graph: nx.DiGraph) -> None:
+    # variables to change:
+    #     length of the connections.
+    #     length of the sections.
+
+
+
+    # for length of section is easier to establish the INVAR.
+
+    return
 
 
 def get_parameters_test_enumeration():
@@ -312,6 +335,7 @@ def main():
                     graph,
                     str(current_target_path / f'graph_it_{iteration}.html')
                 )
+                print('concrete_graph:', concrete_graph)
                 break
 
             morty.block_topology(graph)
