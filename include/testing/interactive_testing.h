@@ -135,5 +135,10 @@ extern "C" char* generate_smv_files(const char* argv);
 
 extern "C" void generate_cex_gif(const char* _argv);
 
+// Arguments are separated with ';'
+extern "C" char* generate_smv_files(const char* argv);
+
+extern "C" void generate_cex_gif(const char* _argv);
+
 } // test
 } // vfm
