@@ -83,8 +83,9 @@ def _patched_get_color(cls, vehicle, transparent=False):
 VehicleGraphics.get_color = _patched_get_color
 
 # COP: Global trajectory tracking for visualization.
-_vehicle_trajectories = {}  # Maps vehicle id to list of [x, y] positions
+_vehicle_trajectories = {}  # Maps vehicle id to list of [x, y, priority] tuples
 _vehicle_pp_targets = {}    # Maps vehicle id to current pure-pursuit target [x, y]
+_current_selected_cnt = None  # Track which CEX priority is currently active
 
 # COP: Patch VehicleGraphics.display to draw trajectories and car IDs.
 # Important: Draw trajectories from inside VehicleGraphics.display so lines are rendered
@@ -105,7 +106,7 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
         stationary = abs(getattr(vehicle, 'speed', 0.0)) < 0.1
 
         if not trajectory:
-            trajectory.append(current_position)
+            trajectory.append([*current_position, _current_selected_cnt])
         elif not stationary:
             last_position = trajectory[-1]
             dx = current_position[0] - last_position[0]
@@ -115,21 +116,39 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
             if moved:
                 jump2 = dx * dx + dy * dy
                 if len(trajectory) == 1 and jump2 > 100.0:  # >10 m in one render step is likely a teleport.
-                    trajectory[0] = current_position
+                    trajectory[0] = [*current_position, _current_selected_cnt]
                 else:
-                    trajectory.append(current_position)
+                    trajectory.append([*current_position, _current_selected_cnt])
                     if len(trajectory) > 2000:
                         _vehicle_trajectories[vehicle_id] = trajectory[-2000:]
 
         if not args.hide_trajectories and len(trajectory) > 1:
-            if vehicle.crashed:
-                color = (255, 100, 100)
-            elif hasattr(vehicle, 'color') and vehicle.color is not None:
-                color = tuple(int(c * 0.7) for c in vehicle.color[:3])
-            else:
-                color = (100, 150, 200)
-            points = [surface.pos2pix(p[0], p[1]) for p in trajectory]
-            pygame.draw.lines(surface, color, False, points, width=2)
+            # Draw trajectory segments colored by priority
+            priority_color_map = {
+                None: (100, 150, 200),
+                0: (31, 119, 180),    # tab:blue
+                1: (255, 127, 14),    # tab:orange
+                2: (44, 160, 44),     # tab:green
+                3: (214, 39, 40),     # tab:red
+                4: (148, 103, 189),   # tab:purple
+                5: (140, 86, 75),     # tab:brown
+            }
+            font = pygame.font.Font(None, 14)
+            for i in range(len(trajectory) - 1):
+                p1_pix = surface.pos2pix(trajectory[i][0], trajectory[i][1])
+                p2_pix = surface.pos2pix(trajectory[i + 1][0], trajectory[i + 1][1])
+                priority = trajectory[i][2] if len(trajectory[i]) > 2 else None
+                color = priority_color_map.get(priority, (100, 150, 200))
+                pygame.draw.line(surface, color, p1_pix, p2_pix, width=2)
+
+                # Label each priority block once, near its first segment.
+                prev_priority = trajectory[i - 1][2] if i > 0 and len(trajectory[i - 1]) > 2 else None
+                if i == 0 or priority != prev_priority:
+                    label = "X" if priority is None else str(priority)
+                    midx = (p1_pix[0] + p2_pix[0]) // 2
+                    midy = (p1_pix[1] + p2_pix[1]) // 2
+                    text = font.render(label, True, (20, 20, 20), (255, 255, 255))
+                    surface.blit(text, (midx + 2, midy - 10))
 
         if not args.hide_pure_pursuit and vehicle_id in _vehicle_pp_targets:
             target = _vehicle_pp_targets[vehicle_id]
@@ -144,7 +163,7 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
     except Exception as e:
         print(f"Warning: Error drawing trajectories: {e}")
 
-    _original_display(cls, vehicle, surface, transparent=transparent, offscreen=offscreen, label=label, draw_roof=draw_roof)
+    _original_display(cls, vehicle, surface, transparent=transparent, offscreen=offscreen, label=False, draw_roof=draw_roof)
 
     if not surface.is_visible(vehicle.position):
         return
@@ -522,7 +541,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     _vehicle_trajectories.clear()
     _vehicle_pp_targets.clear()
     for vehicle in env.unwrapped.controlled_vehicles:
-        _vehicle_trajectories[id(vehicle)] = [[float(vehicle.position[0]), float(vehicle.position[1])]]
+        _vehicle_trajectories[id(vehicle)] = [[float(vehicle.position[0]), float(vehicle.position[1]), None]]
         _vehicle_pp_targets[id(vehicle)] = [float(vehicle.position[0]), float(vehicle.position[1])]
 
     if args.record_video:
@@ -663,6 +682,9 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 blind = "|" + str(cnt)
                 selected_cnt = cnt
                 break;
+        
+        # Update global priority for trajectory coloring
+        _current_selected_cnt = selected_cnt
         
         blind_stats += blind
 
