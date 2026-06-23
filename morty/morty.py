@@ -49,6 +49,8 @@ parser.add_argument('--record_video', action='store_true',
                     help='Record a video of the run. Default: False')
 parser.add_argument('--hide_trajectories', action='store_true',
                     help='Hide trajectory lines for each vehicle in visualization. Default: False')
+parser.add_argument('--show_prio_numbers', action='store_true',
+                    help='Show priority numbers along trajectories. Default: False')
 parser.add_argument('--hide_pure_pursuit', action='store_true',
                     help='Hide live pure-pursuit target dot and line for each vehicle. Default: False')
 parser.add_argument('--detailed_archive', action='store_true',
@@ -148,7 +150,8 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
                     midx = (p1_pix[0] + p2_pix[0]) // 2
                     midy = (p1_pix[1] + p2_pix[1]) // 2
                     text = font.render(label, True, (20, 20, 20), (255, 255, 255))
-                    surface.blit(text, (midx + 2, midy - 10))
+                    if args.show_prio_numbers:
+                        surface.blit(text, (midx + 2, midy - 10))
 
         if not args.hide_pure_pursuit and vehicle_id in _vehicle_pp_targets:
             target = _vehicle_pp_targets[vehicle_id]
@@ -431,7 +434,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "screen_width": 1500,
         "screen_height": 200,
         "scaling": 3,
-        "show_trajectories": not args.hide_trajectories,
+        "show_trajectories": False
     })
 
     # Monkey-patch WorldSurface to center the display on all vehicles instead of a single ego.
