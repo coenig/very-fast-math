@@ -47,8 +47,10 @@ parser.add_argument('-c', '--allow_crashed_steps', default=DEFAULT_ALLOW_CRASHED
                     help='How many steps with crashes are allowed before the run is aborted. Default: {DEFAULT_ALLOW_CRASHED_STEPS}')
 parser.add_argument('--record_video', action='store_true',
                     help='Record a video of the run. Default: False')
-parser.add_argument('--show_trajectories', action='store_true',
-                    help='Draw trajectory lines for each vehicle in visualization. Default: False')
+parser.add_argument('--hide_trajectories', action='store_true',
+                    help='Hide trajectory lines for each vehicle in visualization. Default: False')
+parser.add_argument('--hide_pure_pursuit', action='store_true',
+                    help='Hide live pure-pursuit target dot and line for each vehicle. Default: False')
 parser.add_argument('--detailed_archive', action='store_true',
                     help='Stores detailed archive of the run in a subfolder. Default: False')
 parser.add_argument('--force', action='store_true',
@@ -82,6 +84,7 @@ VehicleGraphics.get_color = _patched_get_color
 
 # COP: Global trajectory tracking for visualization.
 _vehicle_trajectories = {}  # Maps vehicle id to list of [x, y] positions
+_vehicle_pp_targets = {}    # Maps vehicle id to current pure-pursuit target [x, y]
 
 # COP: Patch VehicleGraphics.display to draw trajectories and car IDs.
 # Important: Draw trajectories from inside VehicleGraphics.display so lines are rendered
@@ -118,7 +121,7 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
                     if len(trajectory) > 2000:
                         _vehicle_trajectories[vehicle_id] = trajectory[-2000:]
 
-        if len(trajectory) > 1:
+        if not args.hide_trajectories and len(trajectory) > 1:
             if vehicle.crashed:
                 color = (255, 100, 100)
             elif hasattr(vehicle, 'color') and vehicle.color is not None:
@@ -127,6 +130,13 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
                 color = (100, 150, 200)
             points = [surface.pos2pix(p[0], p[1]) for p in trajectory]
             pygame.draw.lines(surface, color, False, points, width=2)
+
+        if not args.hide_pure_pursuit and vehicle_id in _vehicle_pp_targets:
+            target = _vehicle_pp_targets[vehicle_id]
+            p_vehicle = surface.pos2pix(current_position[0], current_position[1])
+            p_target = surface.pos2pix(target[0], target[1])
+            pygame.draw.line(surface, (255, 140, 0), p_vehicle, p_target, width=2)
+            pygame.draw.circle(surface, (255, 180, 0), p_target, 5)
     except Exception as e:
         print(f"Warning: Error drawing trajectories: {e}")
 
@@ -398,7 +408,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "screen_width": 1500,
         "screen_height": 200,
         "scaling": 3,
-        "show_trajectories": True,
+        "show_trajectories": not args.hide_trajectories,
     })
 
     # Monkey-patch WorldSurface to center the display on all vehicles instead of a single ego.
@@ -506,8 +516,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
     # COP: Reset and seed trajectories after all manual vehicle repositioning.
     _vehicle_trajectories.clear()
+    _vehicle_pp_targets.clear()
     for vehicle in env.unwrapped.controlled_vehicles:
         _vehicle_trajectories[id(vehicle)] = [[float(vehicle.position[0]), float(vehicle.position[1])]]
+        _vehicle_pp_targets[id(vehicle)] = [float(vehicle.position[0]), float(vehicle.position[1])]
 
     if args.record_video:
         env = RecordVideo(env, video_folder=f"{generated_path_prefix}/videos", name_prefix=f"vid_{seedo}",
@@ -734,7 +746,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         LANE_CHANGE_DURATION = max(min_time_between_lcs, int(time_scale)) # Index in the MC delta trace where the lane change effect appears.
 
         # Process the MC data.
-        for i1, el1 in enumerate(res_str.split(';')):
+        mc_car_results = [segment for segment in res_str.split(';') if segment]
+        for i1, el1 in enumerate(mc_car_results):
             sum_lan_by_car.append(0)
             sum_vel_by_car.append(0)
             lanes += "\n"
@@ -803,9 +816,16 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 distance = morty_lib.expandScript(script_dist_pp.encode('utf-8'), distance, sizeof(distance)).decode().strip()
             # EO Formula for speed-dependent distance in pure-pursuit.
 
+            pp_distance = float(distance)
+            if i < len(env.unwrapped.controlled_vehicles):
+                vehicle = env.unwrapped.controlled_vehicles[i]
+                pp_target_x = float(vehicle.position[0] + egos_backward[i] * pp_distance)
+                pp_target_y = float(dpoints_y[i])
+                _vehicle_pp_targets[id(vehicle)] = [pp_target_x, pp_target_y]
+
             # Best so far (for inversion task):
             # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
-            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], float(distance), egos_backward[i]) / 3.1415
+            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], pp_distance, egos_backward[i]) / 3.1415
             
             if egos_backward[i] == -1: # If the car is backward-driving, we have to adapt the angle to the different perspective.
                 print(angle)
