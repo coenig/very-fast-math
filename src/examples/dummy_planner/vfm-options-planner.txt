@@ -25,7 +25,7 @@
 // #vfm-option[[ inline_functions << always ]]
 
 // ADDITIONAL DEBUG FILES: all | none ("all" currently creates the full formula tree with types as PDF.)
-// #vfm-option[[ create_additional_files << all ]]
+// #vfm-option[[ create_additional_files << none ]]
 
 // # vfm-kratos-spec[[ !(veh[0].rel_pos > 0 && veh[0].rel_pos < 5) || std::abs(ego.on_lane - veh[0].on_lane) >= 2 ]]
 // #vfm-ltl-spec[[ true ]]

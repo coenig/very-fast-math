@@ -1741,6 +1741,32 @@ std::string StaticHelper::replaceAll(std::string str, const std::string& from, c
     return str;
 }
 
+void vfm::StaticHelper::processFile(const std::string& filePath, const std::function<std::string(std::string&)>& processor)
+{
+    std::ifstream inFile(filePath);
+
+    if (!inFile) {
+        std::cerr << "Error: Failed to open file for reading: " << filePath << std::endl;
+        return;
+    }
+
+    std::stringstream buffer;
+    buffer << inFile.rdbuf();
+    std::string fileContent = buffer.str();
+    inFile.close();
+
+    std::string processedContent = processor(fileContent);
+    std::ofstream outFile(filePath, std::ios::trunc);
+
+    if (!outFile) {
+        std::cerr << "Error: Failed to open file for writing: " << filePath << std::endl;
+        return;
+    }
+
+    outFile << processedContent;
+    outFile.close();
+}
+
 std::string vfm::StaticHelper::replaceAllCounting(std::string str, const std::string& from, const int start_at)
 {
    size_t start_pos = 0;

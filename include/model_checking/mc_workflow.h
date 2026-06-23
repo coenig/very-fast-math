@@ -47,7 +47,8 @@ public:
       const std::string& path_template,
       const std::string& path_json,
       const std::string& json_tpl_filename,
-      const int num_threads
+      const int num_threads,
+      const bool delete_old_output
    );
 
    std::vector<std::string> runMCJobs(
@@ -58,7 +59,8 @@ public:
       const std::string& json_tpl_filename,
       std::filesystem::file_time_type& previous_write_time,
       const std::shared_ptr<std::mutex> formula_evaluation_mutex,
-      const int num_threads
+      const int num_threads,
+      const bool delete_old_output
    );
 
    void runMCJob(
@@ -66,7 +68,8 @@ public:
       const std::string& config_name,
       const std::string& path_template,
       const std::string& path_json,
-      const std::string& json_tpl_filename);
+      const std::string& json_tpl_filename,
+      const bool delete_old_output);
 
    void runMCJob(
       const std::filesystem::path& path_generated_config_level,
@@ -75,7 +78,8 @@ public:
       const std::string& path_json,
       const std::string& json_tpl_filename,
       std::filesystem::file_time_type& previous_write_time,
-      const std::shared_ptr<std::mutex> formula_evaluation_mutex
+      const std::shared_ptr<std::mutex> formula_evaluation_mutex,
+      const bool delete_old_output
    );
 
    static void createTestCase(
@@ -134,6 +138,7 @@ public:
 
    std::string getValueForJSONKeyAsStringPlain(const std::string& key_to_find, const nlohmann::json& json, const std::string& config_name) const;
    bool isLTL(const std::string& config, const std::string& path_template, const std::string& filename_json_template);
+   std::filesystem::path getCEXFileName(const std::string& path_template, const std::string& filename_json_template) const;
    std::filesystem::path getCachedDir(const std::string& path_template, const std::string& filename_json_template) const;
    std::filesystem::path getBPIncludesFileDir(const std::string& path_template, const std::string& filename_json_template) const;
    std::filesystem::path getGeneratedDir(const std::string& path_template, const std::string& filename_json_template) const;

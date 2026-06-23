@@ -1432,7 +1432,8 @@ void vfm::MCScene::runMCJobs(MCScene* mc_scene)
       mc_scene->json_tpl_filename_, 
       mc_scene->previous_write_time_, 
       mc_scene->formula_evaluation_mutex_,
-      test::MAX_THREADS) };
+      test::MAX_THREADS,
+      true) };
 
    std::filesystem::path path_preview_bb{};
    for (const auto& folder : possibles) { // Prepare directories for previews.
