@@ -133,7 +133,11 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
 
         if not args.hide_pure_pursuit and vehicle_id in _vehicle_pp_targets:
             target = _vehicle_pp_targets[vehicle_id]
-            p_vehicle = surface.pos2pix(current_position[0], current_position[1])
+            # Offset line start to front axle instead of vehicle center
+            front_offset = vehicle.LENGTH / 2.0
+            p_vehicle_x = current_position[0] + front_offset * np.cos(vehicle.heading)
+            p_vehicle_y = current_position[1] + front_offset * np.sin(vehicle.heading)
+            p_vehicle = surface.pos2pix(p_vehicle_x, p_vehicle_y)
             p_target = surface.pos2pix(target[0], target[1])
             pygame.draw.line(surface, (255, 140, 0), p_vehicle, p_target, width=2)
             pygame.draw.circle(surface, (255, 180, 0), p_target, 5)
