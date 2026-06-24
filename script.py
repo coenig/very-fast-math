@@ -83,14 +83,16 @@ class Morty:
         self.morty_lib.generate_smv_files(";".join(args).encode('utf-8'))
         target_path = Path(args[5])
         main_smv = target_path / "main.smv"
-        self.nuxmv = NuXmvConn([
-            "nuXmv", "-pre", "cpp", "-int", main_smv
-            ])
 
         result = subprocess.run(
             f"external/linux64/kratos -trans_output_format=nuxmv-module -trans_enum_mode=symbolic -output_file={target_path / 'planner.cpp_combined.k2.smv'} {target_path / 'planner.cpp_combined.k2'}",
             shell=True, capture_output=True, text=True
         )
+
+        self.nuxmv = NuXmvConn([
+            "nuXmv", "-pre", "cpp", "-int", main_smv
+            ])
+
         print(result.stdout)
 
     def model_check(self, cex_file):
@@ -107,7 +109,7 @@ class Morty:
             ignore_output=False
         )
         output = self.nuxmv._read_response()
-        print("NUXMV: ", output)
+        print("nuxmv output: ", output)
 
         return output_cex
 
