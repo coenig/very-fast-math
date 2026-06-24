@@ -163,8 +163,10 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
             p_target = surface.pos2pix(target[0], target[1])
             pygame.draw.line(surface, (255, 140, 0), p_vehicle, p_target, width=2)
             pygame.draw.circle(surface, (255, 180, 0), p_target, 5)
+
     except Exception as e:
         print(f"Warning: Error drawing trajectories: {e}")
+        input("Press Enter to continue..." + str(e))
 
     _original_display(cls, vehicle, surface, transparent=transparent, offscreen=offscreen, label=False, draw_roof=draw_roof)
 
@@ -180,6 +182,83 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
     except (ValueError, AttributeError):
         pass
 VehicleGraphics.display = _patched_display
+
+import numpy as np
+
+def get_scene_bounding_box(env, car_ids):
+    """
+    Finds the tightest axis-aligned (unrotated) bounding box that contains 
+    every point of the specified cars in the highway-env scene.
+    
+    Args:
+        env: The highway-env / gymnasium environment instance.
+        car_ids (list): List of vehicle IDs to include.
+        
+    Returns:
+        dict: A dictionary containing the bounding box boundaries:
+              xmin, ymin, xmax, ymax and the box dimensions.
+    """
+    all_corners = []
+    
+    # Access all active vehicles in the current road scene
+    vehicles = env.unwrapped.road.vehicles
+    
+    # Filter for the requested cars based on ID
+    # Note: Depending on your wrapper/setup, you can match by ID, or index.
+    # Here, we assume vehicles can be filtered or matched. If you have unique custom IDs:
+    target_vehicles = [v for v in vehicles if getattr(v, 'id', None) in car_ids]
+    
+    # Fallback if your vehicles do not have an 'id' attribute (match by list index):
+    if not target_vehicles:
+        for idx, v in enumerate(vehicles):
+            if idx in car_ids:
+                target_vehicles.append(v)
+                
+    if not target_vehicles:
+        raise ValueError(
+            f"No IDs found in scene. Specified: {car_ids}, Available: {vehicles}")
+
+    for vehicle in target_vehicles:
+        # Correctly unpack position coordinates
+        x, y = vehicle.position[0], vehicle.position[1]
+        heading = vehicle.heading
+        length = vehicle.LENGTH
+        width = vehicle.WIDTH
+        
+        # Define corners relative to the vehicle's center (local coordinates)
+        local_corners = np.array([
+            [length / 2,  width / 2],
+            [length / 2, -width / 2],
+            [-length / 2, -width / 2],
+            [-length / 2,  width / 2]
+        ])
+        
+        # 2. Construct 2D rotation matrix for the heading angle
+        cos_h = np.cos(heading)
+        sin_h = np.sin(heading)
+        rotation_matrix = np.array([
+            [cos_h, -sin_h],
+            [sin_h,  cos_h]
+        ])
+        
+        # 3. Rotate and translate corners to global coordinates
+        global_corners = (local_corners @ rotation_matrix.T) + np.array([x, y])
+        all_corners.extend(global_corners)
+        
+    # 4. Find the global minimum and maximum across all gathered corners
+    all_corners = np.array(all_corners)
+    x_min, y_min = np.min(all_corners, axis=0)
+    x_max, y_max = np.max(all_corners, axis=0)
+    
+    return {
+        "xmin": x_min,
+        "ymin": y_min,
+        "xmax": x_max,
+        "ymax": y_max,
+        "width": x_max - x_min,
+        "height": y_max - y_min
+    }
+
 
 # Load parameters from JSON.
 with open('morty/envmodel_config.tpl.json') as f:
@@ -454,18 +533,25 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 if not vehicles:
                     return _orig_move_display_window_to(self, position)
 
-                xs = [v.position[0] for v in vehicles]
-                ys = [v.position[1] for v in vehicles]
-                minx, maxx = min(xs), max(xs)
-                miny, maxy = min(ys), max(ys)
-                center = np.array([(minx + maxx) / 2.0 - 100, (miny + maxy) / 2.0])
+                bbox = get_scene_bounding_box(env_ref, [i for i in range(1000)])
+
+                padding = 10
+                target_width_m = (bbox["xmax"] - bbox["xmin"]) + (padding * 2)
+                target_height_m = (bbox["ymax"] - bbox["ymin"]) + (padding * 2)
+                screen_width, screen_height = self.get_width(), self.get_height()
+                scale_x = screen_width / max(1.0, target_width_m)
+                scale_y = screen_height / max(1.0, target_height_m)
+                self.scaling = min(scale_x, scale_y)
+    
+                center = np.array([(bbox["xmin"] + bbox["xmax"]) / 2.0 - 50, (bbox["ymin"] + bbox["ymax"]) / 2.0])
 
                 self.origin = center - np.array([
                     self.centering_position[0] * self.get_width() / self.scaling,
                     self.centering_position[1] * self.get_height() / self.scaling,
                 ])
-            except Exception:
+            except Exception as e:
                 _orig_move_display_window_to(self, position)
+                raise e
 
         WorldSurface.move_display_window_to = _move_display_window_to_all
         # Provide a hook so the patched function can find the current env.
