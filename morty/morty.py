@@ -525,9 +525,15 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         BACKGROUND_IMAGE_PATH = "./examples/crossing.png"
 
         try:
-            bg_image = pygame.image.load(BACKGROUND_IMAGE_PATH).convert_alpha()
+            # Load image independently from display; convert once a display surface exists.
+            bg_image = pygame.image.load(BACKGROUND_IMAGE_PATH)
         except Exception as e:
             raise RuntimeError(f"Failed to load background image '{BACKGROUND_IMAGE_PATH}': {e}")
+
+        bg_image_state = {
+            "image": bg_image,
+            "converted": False,
+        }
 
         _orig_move_display_window_to = WorldSurface.move_display_window_to
 
@@ -558,12 +564,18 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     self.centering_position[1] * self.get_height() / self.scaling,
                 ])
                 
-                if bg_image is not None:
+                if bg_image_state["image"] is not None:
+                    # convert_alpha requires an initialized display/surface.
+                    if (not bg_image_state["converted"] and pygame.display.get_init()
+                            and pygame.display.get_surface() is not None):
+                        bg_image_state["image"] = bg_image_state["image"].convert_alpha()
+                        bg_image_state["converted"] = True
+
                     # Clear the screen first since we bypass self.fill below
                     self.fill(self.GREY) 
                     
                     # Scale image based on camera zoom factor (Assuming 300m x 150m real-world size)
-                    scaled_bg = pygame.transform.scale(bg_image, (int(300 * self.scaling), int(150 * self.scaling)))
+                    scaled_bg = pygame.transform.scale(bg_image_state["image"], (int(300 * self.scaling), int(150 * self.scaling)))
                     
                     # Draw background locked to world coordinates (0,0)
                     self.blit(scaled_bg, self.vec2pix((0, 0)))

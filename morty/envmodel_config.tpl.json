@@ -74,7 +74,7 @@
       "MAX_JUMP_OVER_TECHNICAL_LANES": 5,
       "SIMPLE_LC": true,
       "LANE_WIDTH": 400,
-      "VEHICLE_WIDTH": "#{ vehwidth * 40 - 20 }#",
+      "VEHICLE_WIDTH": "#{ trunc(20 * vehwidth * vehwidth - 240 * vehwidth + 920) }#",
       "VEHICLE_LENGTH": "#{ trunc(0.1 * vehlen * vehlen + 1.85 * vehlen - 6.75) }#",
       "FORWARD_DRIVING_CAR_IDS": "@(0)@",
       "BACKWARD_DRIVING_CAR_IDS": "@(1)@",
