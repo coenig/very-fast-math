@@ -522,18 +522,18 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         import highway_env as _he
         import pygame  # Required to draw/scale images
 
-        BACKGROUND_IMAGE_PATH = "./examples/crossing.png"
+        BACKGROUND_IMAGE_PATH = "./examples/crossing.pngg" # Remove last g for POC
 
         try:
             # Load image independently from display; convert once a display surface exists.
             bg_image = pygame.image.load(BACKGROUND_IMAGE_PATH)
+            bg_image_state = {
+                "image": bg_image,
+                "converted": False,
+            }
         except Exception as e:
-            raise RuntimeError(f"Failed to load background image '{BACKGROUND_IMAGE_PATH}': {e}")
-
-        bg_image_state = {
-            "image": bg_image,
-            "converted": False,
-        }
+            bg_image_state = None
+            pass
 
         _orig_move_display_window_to = WorldSurface.move_display_window_to
 
@@ -564,7 +564,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     self.centering_position[1] * self.get_height() / self.scaling,
                 ])
                 
-                if bg_image_state["image"] is not None:
+                if bg_image_state is not None and bg_image_state["image"] is not None:
                     # convert_alpha requires an initialized display/surface.
                     if (not bg_image_state["converted"] and pygame.display.get_init()
                             and pygame.display.get_surface() is not None):
