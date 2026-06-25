@@ -523,12 +523,11 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         import pygame  # Required to draw/scale images
 
         BACKGROUND_IMAGE_PATH = "./examples/crossing.png"
+
         try:
             bg_image = pygame.image.load(BACKGROUND_IMAGE_PATH).convert_alpha()
-            bg_image.set_alpha(150)  # Make it transparent so road lanes remain visible
-        except Exception:
-            bg_image = None
-        # -------------------------------------------------------------
+        except Exception as e:
+            raise RuntimeError(f"Failed to load background image '{BACKGROUND_IMAGE_PATH}': {e}")
 
         _orig_move_display_window_to = WorldSurface.move_display_window_to
 
@@ -560,11 +559,18 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 ])
                 
                 if bg_image is not None:
-                    # Scale the image dynamically based on current camera zoom (scaling)
-                    # Assuming a real-world size of 300m x 150m for the background
+                    # Clear the screen first since we bypass self.fill below
+                    self.fill(self.GREY) 
+                    
+                    # Scale image based on camera zoom factor (Assuming 300m x 150m real-world size)
                     scaled_bg = pygame.transform.scale(bg_image, (int(300 * self.scaling), int(150 * self.scaling)))
-                    # Draw it at the world coordinate origin (0, 0)
+                    
+                    # Draw background locked to world coordinates (0,0)
                     self.blit(scaled_bg, self.vec2pix((0, 0)))
+
+                    # Monkey-patch self.fill temporarily to block the default 'fill(self.GREY)' from painting over it
+                    orig_fill = self.fill
+                    self.fill = lambda color, rect=None, special_flags=0: None
 
             except Exception as e:
                 _orig_move_display_window_to(self, position)
@@ -573,15 +579,15 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         WorldSurface.move_display_window_to = _move_display_window_to_all
         # Provide a hook so the patched function can find the current env.
         _he._display_env = None
-    except Exception:
-        pass
+    except Exception as e:
+        raise e
 
     # Expose the env reference so the patched WorldSurface can access vehicle positions.
     try:
         import highway_env as _he
         _he._display_env = env
-    except Exception:
-        pass
+    except Exception as e:
+        raise e
 
     action = ([0, 0],) * nonegos
     dpoints_y =     [0] * (nonegos + 1) # The lateral position of the points the cars head towards.
