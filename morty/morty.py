@@ -520,6 +520,15 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     try:
         from highway_env.road.graphics import WorldSurface
         import highway_env as _he
+        import pygame  # Required to draw/scale images
+
+        BACKGROUND_IMAGE_PATH = "./examples/crossing.png"
+        try:
+            bg_image = pygame.image.load(BACKGROUND_IMAGE_PATH).convert_alpha()
+            bg_image.set_alpha(150)  # Make it transparent so road lanes remain visible
+        except Exception:
+            bg_image = None
+        # -------------------------------------------------------------
 
         _orig_move_display_window_to = WorldSurface.move_display_window_to
 
@@ -549,6 +558,14 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     self.centering_position[0] * self.get_width() / self.scaling,
                     self.centering_position[1] * self.get_height() / self.scaling,
                 ])
+                
+                if bg_image is not None:
+                    # Scale the image dynamically based on current camera zoom (scaling)
+                    # Assuming a real-world size of 300m x 150m for the background
+                    scaled_bg = pygame.transform.scale(bg_image, (int(300 * self.scaling), int(150 * self.scaling)))
+                    # Draw it at the world coordinate origin (0, 0)
+                    self.blit(scaled_bg, self.vec2pix((0, 0)))
+
             except Exception as e:
                 _orig_move_display_window_to(self, position)
                 raise e
