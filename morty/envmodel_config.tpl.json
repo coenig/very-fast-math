@@ -67,7 +67,7 @@
       "MINACCELEGO": "#{minaccel}#",
       "MINACCELNONEGO": "#{minaccel}#",
       "MINDISTCONNECTIONS": "#{10}#",
-      "MIN_TIME_BETWEEN_LANECHANGES": 1,
+      "MIN_TIME_BETWEEN_LANECHANGES": 2,
       "NONEGOS": 5,
       "NUMLANES": 2,
       "LATERAL_LC_GRANULARITY": 10,

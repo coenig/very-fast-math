@@ -893,7 +893,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
         # Best so far:
         # LANE_CHANGE_DURATION = 3
-        LANE_CHANGE_DURATION = max(min_time_between_lcs, int(time_scale)) # Index in the MC delta trace where the lane change effect appears.
+        LANE_CHANGE_DURATION = min_time_between_lcs * time_scale # Index in the MC delta trace where the lane change effect appears.
 
         # Process the MC data.
         mc_car_results = [segment for segment in res_str.split(';') if segment]
