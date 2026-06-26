@@ -11,12 +11,12 @@ Thank you for using
    very fast math
 ~~~
 
-## VFM Library
+## The Library
 `vfm` is a formal verification software for [ADAS](https://en.wikipedia.org/wiki/Advanced_driver-assistance_system) with the [nuXmv model checker](https://nuxmv.fbk.eu/) in its core. It can 
 - parse C++ code of an automated driving function (or other) and translate it into a transition system for the nuXmv model checker;
 - optionally integrate it with an environment model, providing a discrete traffic simulation for the driving function to be verified against; the results can be converted into scenarios using [OSM](https://wiki.openstreetmap.org/wiki/OSM_file_formats) / [OSC2](https://www.asam.net/static_downloads/public/asam-openscenario/2.0.0/welcome.html).
 
-In **ultra-cooperative driving mode**, a fleet of cars can be steered by provably obeying a set of requirements.
+In **ultra-cooperative driving mode**, a fleet of cars can be steered by provably obeying a set of requirements (see below).
 
 ## How to build
 `vfm` is implemented in `C++` and can be built with CMake (stable) or Bazel (experimental). With CMake, simply run 
