@@ -47,9 +47,9 @@ sudo apt-get install libglew-dev
 ```
 
 ## M²oRTy (ultra-cooperative driving)
-https://github.com/user-attachments/assets/e397c45f-0f44-4ba5-a856-d2d016bd11e9
+https://github.com/user-attachments/assets/3ee007fc-c4c2-4421-acef-896dd1b2f5a3
 
-https://github.com/user-attachments/assets/449e391e-4a34-43ad-b1df-f32aa0daf47c
+https://github.com/user-attachments/assets/4f6a732c-4e46-4484-bef0-e828706e3087
 
 Steered by the model checker, a fleet of cars cooperates to provably* safely accomplish a goal given by a formal SPEC. In the example, two cars pass each other on a narrow road with parked cars ("Nudging") in the shortest possible time. (* For details see the [paper](https://link.springer.com/chapter/10.1007/978-3-032-22752-2_31).)
 
