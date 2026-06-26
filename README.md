@@ -51,7 +51,7 @@ https://github.com/user-attachments/assets/3ee007fc-c4c2-4421-acef-896dd1b2f5a3
 
 https://github.com/user-attachments/assets/4f6a732c-4e46-4484-bef0-e828706e3087
 
-Steered by the model checker, a fleet of cars cooperates to provably* safely accomplish a goal given by a formal SPEC. In the example, two cars pass each other on a narrow road with parked cars ("Nudging") in the shortest possible time. (* For details see the [paper](https://link.springer.com/chapter/10.1007/978-3-032-22752-2_31).)
+Steered by the model checker, several cars cooperates to provably* safely accomplish a goal given by a formal SPEC. In the example, two cars pass each other on a narrow road with parked cars ("Nudging") with shortest possible mutual trajectories. (* For details see the [paper](https://link.springer.com/chapter/10.1007/978-3-032-22752-2_31).)
 
 ### Running M²oRTy
 For the UCD framework you need additionally `gymnasium` and `highway-env` (as well as python3 with pip which we assume is there):
