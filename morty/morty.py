@@ -53,6 +53,8 @@ parser.add_argument('--show_prio_numbers', action='store_true',
                     help='Show priority numbers along trajectories. Default: False')
 parser.add_argument('--hide_pure_pursuit', action='store_true',
                     help='Hide live pure-pursuit target dot and line for each vehicle. Default: False')
+parser.add_argument('--hide_planned_positions', action='store_true',
+                    help='Hide live planned positions for each vehicle. Default: False')
 parser.add_argument('--detailed_archive', action='store_true',
                     help='Stores detailed archive of the run in a subfolder. Default: False')
 parser.add_argument('--force', action='store_true',
@@ -88,6 +90,8 @@ VehicleGraphics.get_color = _patched_get_color
 _vehicle_trajectories = {}  # Maps vehicle id to list of [x, y, priority] tuples
 _vehicle_pp_targets = {}    # Maps vehicle id to current pure-pursuit target [x, y]
 _current_selected_cnt = None  # Track which CEX priority is currently active
+
+global_pos_to_draw = []
 
 # COP: Patch VehicleGraphics.display to draw trajectories and car IDs.
 # Important: Draw trajectories from inside VehicleGraphics.display so lines are rendered
@@ -152,7 +156,7 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
                     text = font.render(label, True, (20, 20, 20), (255, 255, 255))
                     if args.show_prio_numbers:
                         surface.blit(text, (midx + 2, midy - 10))
-
+                        
         if not args.hide_pure_pursuit and vehicle_id in _vehicle_pp_targets:
             target = _vehicle_pp_targets[vehicle_id]
             # Offset line start to front axle instead of vehicle center
@@ -173,20 +177,12 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
     try:
         import pygame
         
-        position1 = [egos_x[0], egos_y[0]]
-        pixx1 = surface.pos2pix(position1[0], position1[1])
-        position2 = [egos_x[1], egos_y[1]]
-        pixx2 = surface.pos2pix(position2[0], position2[1])
-        
-        pygame.draw.line(
-            surface,
-            (255, 0, 0),
-            pixx1,
-            pixx2,
-            width=2,
-        )
-    except Exception:
-        pass
+        for pos in global_pos_to_draw:
+            pixx = surface.pos2pix(pos[0], pos[1])
+            pygame.draw.circle(surface, (255, 150, 150), pixx, 3)
+
+    except Exception as e:
+        raise RuntimeError(f"Error drawing global positions: {e}")
 
     if not surface.is_visible(vehicle.position):
         return
@@ -492,6 +488,18 @@ for ucd_config_str in ucd_config_prios_str:
         f.write(content)
         f.truncate()
 
+def clean_and_convert_to_int(data):
+    """
+    Recursively cleans nested lists and converts deepest string values to integers.
+    """
+    if not isinstance(data, list): # If the item is not a list, it's at the deepest level.
+        try:
+            return int(data)
+        except (ValueError, TypeError):
+            return None # Empty string treatment
+
+    cleaned_list = [clean_and_convert_to_int(item) for item in data]
+    return [item for item in cleaned_list if item is not None and item != []]
 
 baseline_hashes = {}  # Pre-loop file set (before any MC call).
 snapshot_hashes = {}  # Post-first-MC-call hashes (only baseline files).
@@ -851,6 +859,32 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         plot_mc_runtimes_cumulative(all_selected_runtime_histories, f"{generated_path_prefix}/mc_runtime_debug_all_log.pdf", log_scale=True)
         # EO Track latest nuXmv runtime per configured priority and update PDF each iteration.
         
+        # Find future positions.
+        if not args.hide_planned_positions:
+            MC_SCRIPT = f"""@{{
+                @{{./src/templates/}}@.stringToHeap[MY_PATH]
+                }}@.nil
+
+                @{{../../morty/envmodel_config.tpl.json}}@.extractVehPosFromNusmvFile[{selected_config}]
+            """
+            result_pos = create_string_buffer(100000)
+            with morty_script_context() as morty_lib:
+                res_pos = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result_pos, sizeof(result_pos))
+            
+            res_pos_str = res_pos.decode().strip()
+            positions = [[els.split(',') for els in line.split(';')] for line in res_pos_str.split('\n')]
+            positions = clean_and_convert_to_int(positions)
+            
+            global_pos_to_draw.clear()
+            for step in positions:
+                for car_step in step:
+                    abspos = car_step[0]
+                    technical_lane = car_step[1]
+                    coord = (abspos / 4, y_max_tech - technical_lane * on_lane_step_y)
+                    global_pos_to_draw.append(coord)                
+        # EO Find future positions.
+
+        
         ### EO POSTPROCESS RESULT ###
         #### EO MODEL CHECKER CALL ####
 
@@ -997,8 +1031,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
             angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], pp_distance, egos_backward[i]) / 3.1415
             
-            if egos_backward[i] == -1: # If the car is backward-driving, we have to adapt the angle to the different perspective.
-                print(angle)
+            #if egos_backward[i] == -1: # If the car is backward-driving, we have to adapt the angle to the different perspective.
+             #   print(angle)
                 # input("Press Enter to continue...")
             
             action_list.append([accel, angle])
