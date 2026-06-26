@@ -18,13 +18,6 @@ Thank you for using
 
 In the **ultra-cooperative driving mode**, a fleet of cars can be steered by provably obeying a set of requirements.
 
-## Examples
-### MC-generated traffic situation on highway
-<img src="examples/cex.png" alt="Image from a counterexample sequence generated through model checking" width="1000"/>
-
-### MC-generated track and EGO behavior
-<img src="examples/cex.gif" width="1000" />
-
 ## How to build
 `vfm` is implemented in `C++` and can be built with CMake (stable) or Bazel (experimental). With CMake, simply run the `build.bash` script. *(On Windows, you can alternatively open the top-level `CMakeLists.txt` with Visual Studio and build the `vfm` target.)*
 
