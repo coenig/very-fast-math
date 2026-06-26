@@ -1220,6 +1220,7 @@ private:
 
          if (traces.empty() || traces[0].empty()) {
             addNote("No CEX trace found in file '" + body + "' (script method 'extractVehPosFromNusmvFile').");
+            return res;
          }
 
          const auto trace = traces[0];

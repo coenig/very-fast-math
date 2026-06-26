@@ -178,8 +178,8 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
         import pygame
         
         for pos in global_pos_to_draw:
-            pixx = surface.pos2pix(pos[0], pos[1])
-            pygame.draw.circle(surface, (255, 150, 150), pixx, 3)
+            pixx = surface.pos2pix(pos[0][0], pos[0][1])
+            pygame.draw.circle(surface, pos[1], pixx, 3)
 
     except Exception as e:
         raise RuntimeError(f"Error drawing global positions: {e}")
@@ -875,13 +875,15 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             positions = [[els.split(',') for els in line.split(';')] for line in res_pos_str.split('\n')]
             positions = clean_and_convert_to_int(positions)
             
+            POS_COLOR = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
+            
             global_pos_to_draw.clear()
             for step in positions:
-                for car_step in step:
+                for i, car_step in enumerate(step):
                     abspos = car_step[0]
                     technical_lane = car_step[1]
                     coord = (abspos / 4, y_max_tech - technical_lane * on_lane_step_y)
-                    global_pos_to_draw.append(coord)                
+                    global_pos_to_draw.append([coord, POS_COLOR[i % len(POS_COLOR)]])                
         # EO Find future positions.
 
         
