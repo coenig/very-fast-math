@@ -207,6 +207,7 @@ void McWorkflow::runMCJob(
       data_->addStringToDataPack(path_template, macro::MY_PATH_VARNAME); // Set the script processors home path (for the case it's not already been set during EnvModel generation).
 
       std::string main_smv{ StaticHelper::readFile(path_generated_config_level / "main.smv") };
+      auto main_smv_orig = main_smv;
       std::string script_template{ StaticHelper::readFile(path_template + "/script.tpl") };
       std::string main_template{ StaticHelper::readFile(path_template + "/main.tpl") };
       std::string generated_script{ CppParser::generateScript(script_template, data_, parser_) };
@@ -226,13 +227,23 @@ void McWorkflow::runMCJob(
       auto spec_part = StaticHelper::removePartsOutsideOf(main_template, SPEC_BEGIN, SPEC_END);
       data_->addStringToDataPack(path_generated_config_level.string(), "FULL_GEN_PATH"); // TODO: Add this already during EnvModel generation.
       spec_part = vfm::macro::Script::processScript(spec_part, macro::Script::DataPreparation::both, false, data_, parser_);
+
       main_smv += spec_part + "\n";
       main_smv += SPEC_END + "\n";
 
-      if (!StaticHelper::stringContains(spec_part, "MORTY_PLACEHOLDER_SPEC")) {
-         StaticHelper::writeTextToFile(main_smv, path_generated_config_level / "main.smv");
+      if (StaticHelper::stringContains(spec_part, "MORTY_PLACEHOLDER_SPEC")) {
+         // TODO: This is a bit of a hack. To have the correct git commit, we keep
+         // everything above --ADDONS from main_smv since it got regenerated there.
+         // The actual addons are then taken over from the python-generated main file.
+         std::string main_smv_above_addons = StaticHelper::split(main_smv, ADDONS_BEGIN).at(0);
+         std::string main_smv_orig_below_addons = StaticHelper::split(main_smv_orig, ADDONS_BEGIN).at(1);
+
+         main_smv = main_smv_above_addons + "\n" + ADDONS_BEGIN + "\n" + main_smv_orig_below_addons;
+      } else {
          generate_preview = true;
       }
+
+      StaticHelper::writeTextToFile(main_smv, path_generated_config_level / "main.smv");
    }
 
    test::convenienceArtifactRunHardcoded(

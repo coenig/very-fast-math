@@ -83,11 +83,12 @@ TRANS env.ego.abCond_full = planner."abCond.cond26_all_conditions_fulfilled_raw"
 -- Do not change the wording of the above line and its corresponding closing line! It is used to detect the SPEC part
 -- to be able to replace just it when running the MC without re-generating the EnvModel. It is also used for UCD.
 
---ADDONS
 -- Working in folder '@{FULL_GEN_PATH}@.printHeap'.
 -- This run is based on GIT commit: @{git rev-parse HEAD}@.exec
 -- Storing patch in '@{FULL_GEN_PATH}@.printHeap/git_patch.txt' in case the current state is dirty.
 @{git diff > "@{FULL_GEN_PATH}@.printHeap/git_patch.txt"}@.exec
+
+--ADDONS
 
 @{main_addons.tpl}@********.include.if[@{!UCD}@.eval]
 --EO-ADDONS
