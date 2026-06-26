@@ -58,7 +58,7 @@ pip install "gymnasium[other]"
 pip install highway-env
 ```
 
-Run from the project root directory, for example (use `--help` to see all optione):
+Run from the project root directory, for example:
 ```bash
 python -m morty.morty --num_runs 1 --steps_per_run 300 --headless --force --record_video
 ```
