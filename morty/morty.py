@@ -170,6 +170,24 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
 
     _original_display(cls, vehicle, surface, transparent=transparent, offscreen=offscreen, label=False, draw_roof=draw_roof)
 
+    try:
+        import pygame
+        
+        position1 = [egos_x[0], egos_y[0]]
+        pixx1 = surface.pos2pix(position1[0], position1[1])
+        position2 = [egos_x[1], egos_y[1]]
+        pixx2 = surface.pos2pix(position2[0], position2[1])
+        
+        pygame.draw.line(
+            surface,
+            (255, 0, 0),
+            pixx1,
+            pixx2,
+            width=2,
+        )
+    except Exception:
+        pass
+
     if not surface.is_visible(vehicle.position):
         return
     try:
