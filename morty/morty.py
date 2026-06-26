@@ -317,7 +317,7 @@ with open('morty/envmodel_config.json') as f:
     exp_num = d[ucd_config_prios_str[0]]["UCD_EXP_NUM"]
     dist_scale = d[ucd_config_prios_str[0]]["DISTANCESCALING"] / 1000
     time_scale = d[ucd_config_prios_str[0]]["TIMESCALING"] / 1000
-    distance_formula_pp = d[ucd_config_prios_str[0]]["UCD_FORMULA_PP_DISTANCE"]
+    # distance_formula_pp = d[ucd_config_prios_str[0]]["UCD_FORMULA_PP_DISTANCE"]             # HERE we DO make a difference, see below!
     vel_scale = dist_scale / time_scale  # velocity = distance / time
 
     if backward_driving_car_ids_str.endswith(')@'):
@@ -376,7 +376,7 @@ SPECS.append(("INVARSPEC !(env.veh___609___.abs_pos - env.veh___6%r9___.abs_pos 
 SPECS.append(r"""INVARSPEC TRUE;""") # 5: Benchmark 1.
 SPECS.append(r"""INVARSPEC FALSE;""") # 6: Benchmark 2.
 
-SPECS.append(f"INVARSPEC !(env.cnt <= 40 & env.veh___609___.abs_pos >= env.veh___649___.abs_pos & env.veh___619___.abs_pos <= env.veh___629___.abs_pos);") # 7
+SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___649___.abs_pos & env.veh___619___.abs_pos <= env.veh___629___.abs_pos);") # 7
 
 SPECS.append(r"""INVARSPEC !(env.veh___609___.lane_b0 & !env.veh___609___.lane_b1);""") # 8: Car 609 reaches leftmost lane (b0)
 
@@ -956,9 +956,11 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             accel = egos_backward[i] * sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
 
             # Formula for speed-dependent distance in pure-pursuit.
+            distance_formula_pp = d[selected_config]["UCD_FORMULA_PP_DISTANCE"]
             distance = create_string_buffer(100)
             script_dist_pp = f"""@{{
             @{{@velocity = {egos_v[i]}}}@.eval
+            @{{@min_time_between_lcs = {min_time_between_lcs}}}@.eval
             }}@.nil 
             @{{{distance_formula_pp}}}@.eval
             """
