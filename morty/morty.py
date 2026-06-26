@@ -310,7 +310,7 @@ with open('morty/envmodel_config.json') as f:
     num_technical_lanes = d[ucd_config_prios_str[0]]["LATERAL_LC_GRANULARITY"] + num_actual_lanes
     maxspeed = d[ucd_config_prios_str[0]]["MAXSPEEDNONEGO"]
     backward_driving_car_ids_str = d[ucd_config_prios_str[0]]["BACKWARD_DRIVING_CAR_IDS"]
-    min_time_between_lcs = d[ucd_config_prios_str[0]]["MIN_TIME_BETWEEN_LANECHANGES"]
+    # min_time_between_lcs = d[ucd_config_prios_str[0]]["MIN_TIME_BETWEEN_LANECHANGES"]       # HERE we DO make a difference, see below!
     max_speed = d[ucd_config_prios_str[0]]["MAXSPEEDNONEGO"]
     max_start_speed = min(d[ucd_config_prios_str[0]]["MAXSTARTSPEEDNONEGO_UCD"], max_speed)
     min_start_speed = min(d[ucd_config_prios_str[0]]["MINSTARTSPEEDNONEGO_UCD"], max_start_speed)
@@ -893,6 +893,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
         # Best so far:
         # LANE_CHANGE_DURATION = 3
+        min_time_between_lcs = d[selected_config]["MIN_TIME_BETWEEN_LANECHANGES"]
         LANE_CHANGE_DURATION = min_time_between_lcs * time_scale # Index in the MC delta trace where the lane change effect appears.
 
         # Process the MC data.
