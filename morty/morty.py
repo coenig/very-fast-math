@@ -878,12 +878,16 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             POS_COLOR = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
             
             global_pos_to_draw.clear()
-            for step in positions:
-                for i, car_step in enumerate(step):
+            coords_for_pp = [(0, 0)] * nonegos
+            for i, step in enumerate(positions):
+                for j, car_step in enumerate(step):
                     abspos = car_step[0]
                     technical_lane = car_step[1]
                     coord = (abspos / 4, y_max_tech - technical_lane * on_lane_step_y)
-                    global_pos_to_draw.append([coord, POS_COLOR[i % len(POS_COLOR)]])                
+                    global_pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
+                    
+                    if i == 4:
+                        coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
         # EO Find future positions.
 
         
@@ -1010,28 +1014,62 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             accel = egos_backward[i] * sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
 
             # Formula for speed-dependent distance in pure-pursuit.
-            distance_formula_pp = d[selected_config]["UCD_FORMULA_PP_DISTANCE"]
-            distance = create_string_buffer(100)
-            script_dist_pp = f"""@{{
+            formula_pp_strategies = d[selected_config]["UCD_PP_STRATEGIES"]
+            formula_distance_pp = d[selected_config]["UCD_FORMULA_PP_DISTANCE"]
+            formula_latshift_pp = d[selected_config]["UCD_FORMULA_PP_LATSHIFT"]
+
+            dist_point_mc = coords_for_pp[i][0]
+            latshift_point_mc = coords_for_pp[i][1]
+
+            # print(formula_pp_strategies)
+            # print(formula_distance_pp)
+            # print(formula_latshift_pp)
+            # print(dpoints_y[i])
+            # print(dist_point_mc)
+            # print(latshift_point_mc)
+
+            script_pp_distance = f"""@{{
+            @{{{formula_pp_strategies}}}@.eval
             @{{@velocity = {egos_v[i]}}}@.eval
             @{{@min_time_between_lcs = {min_time_between_lcs}}}@.eval
-            }}@.nil 
-            @{{{distance_formula_pp}}}@.eval
+            @{{@next_immediate_x = {dist_point_mc}}}@.eval
+            }}@.nil
+            @{{{formula_distance_pp}}}@.eval
             """
+
+            script_pp_latshift = f"""@{{
+            @{{{formula_pp_strategies}}}@.eval
+            @{{@pp_y = {dpoints_y[i]}}}@.eval
+            @{{@next_immediate_y = {latshift_point_mc}}}@.eval
+            }}@.nil
+            @{{{formula_latshift_pp}}}@.eval
+            """
+            
+            # print(script_pp_distance)
+            # print(script_pp_latshift)
+            
+            result_pp_distance = create_string_buffer(100)
+            result_pp_latshift = create_string_buffer(100)
             with morty_script_context() as morty_lib:
-                distance = morty_lib.expandScript(script_dist_pp.encode('utf-8'), distance, sizeof(distance)).decode().strip()
+                result_pp_distance = morty_lib.expandScript(script_pp_distance.encode('utf-8'), result_pp_distance, sizeof(result_pp_distance)).decode().strip()
+                result_pp_latshift = morty_lib.expandScript(script_pp_latshift.encode('utf-8'), result_pp_latshift, sizeof(result_pp_latshift)).decode().strip()
             # EO Formula for speed-dependent distance in pure-pursuit.
 
-            pp_distance = float(distance)
+            pp_distance = float(result_pp_distance)
+            pp_latshift = float(result_pp_latshift)
+            
+            # print(f"Pure pursuit target for car {i}: distance = {pp_distance}, latshift = {pp_latshift}")
+            # input("Press Enter to continue...")
+            
             if i < len(env.unwrapped.controlled_vehicles):
                 vehicle = env.unwrapped.controlled_vehicles[i]
                 pp_target_x = float(vehicle.position[0] + egos_backward[i] * pp_distance)
-                pp_target_y = float(dpoints_y[i])
+                pp_target_y = pp_latshift
                 _vehicle_pp_targets[id(vehicle)] = [pp_target_x, pp_target_y]
 
             # Best so far (for inversion task):
             # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
-            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], pp_distance, egos_backward[i]) / 3.1415
+            angle = -dpoint_following_angle(pp_latshift, egos_y[i], egos_headings[i], pp_distance, egos_backward[i]) / 3.1415
             
             #if egos_backward[i] == -1: # If the car is backward-driving, we have to adapt the angle to the different perspective.
              #   print(angle)
