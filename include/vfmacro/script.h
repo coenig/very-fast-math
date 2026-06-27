@@ -1210,6 +1210,49 @@ private:
       { "rick", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return body + RICK; } },
       { "extractMCTracesFromNusmv", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return toArrayMacro(StaticHelper::extractMCTracesFromNusmv(body)); }},
       { "extractMCTracesFromNusmvFile", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return toArrayMacro(StaticHelper::extractMCTracesFromNusmvFile(body)); } },
+      { "extractVehPosFromNusmvFile", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         std::string res{}; // Takes only THE FIRST CEX, if several are given.
+
+         const auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_, body.empty());
+         const std::string config_name{ parameters.at(0) };
+         const std::map<std::string, std::string> paths{ retrievePaths(mc_workflow, body, config_name)};
+         const auto traces = StaticHelper::extractMCTracesFromNusmvFile(paths.at("path_generated") + "/debug_trace_array.txt");
+
+         if (traces.empty() || traces[0].empty()) {
+            addNote("No CEX trace found in file '" + body + "' (script method 'extractVehPosFromNusmvFile').");
+            return res;
+         }
+
+         const auto trace = traces[0];
+         trace.setOutputLevels(vfm::ErrorLevelEnum::invalid, vfm::ErrorLevelEnum::invalid); // Quiet
+         
+         for (int step = 0; step < trace.size(); ++step) {
+            for (int i = 0; i < 100; i++) {
+               trace.resetAllErrors();
+               auto lane = trace.getLastValueOfVariableAtStep("env.veh___6" + std::to_string(i) + "9___.on_normalized_lane", step);
+
+               if (trace.hasErrorOccurred() || lane == "-1") { // -1 is error value, and lane must be positive.
+                  break; // No value found, assuming we've run over the last car.
+               }
+
+               trace.resetAllErrors();
+               auto pos = trace.getLastValueOfVariableAtStep("env.veh___6" + std::to_string(i) + "9___.abs_pos", step);
+               
+               if (trace.hasErrorOccurred()) {
+                  break; // No value found, assuming we've run over the last car.
+               } else if (pos == "-1") {
+                  break; // pos COULD be -1 in theory... But let's roll the dice here for now. TODO: Don't roll the dice anymore.
+               }
+
+               // Go on only if both are there.
+               res += pos + "," + lane + ";";
+            }
+
+            res += "\n";
+         }
+
+         return res; 
+      } },
       { "equals", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return std::to_string(body == parameters[0]); }},
       { "mypath", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return getMyPath(); } },
       { "setScriptVar", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
