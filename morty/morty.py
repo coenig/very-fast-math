@@ -860,35 +860,37 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # EO Track latest nuXmv runtime per configured priority and update PDF each iteration.
         
         # Find future positions.
-        if not args.hide_planned_positions:
-            MC_SCRIPT = f"""@{{
-                @{{./src/templates/}}@.stringToHeap[MY_PATH]
-                }}@.nil
+        MC_SCRIPT = f"""@{{
+            @{{./src/templates/}}@.stringToHeap[MY_PATH]
+            }}@.nil
 
-                @{{../../morty/envmodel_config.tpl.json}}@.extractVehPosFromNusmvFile[{selected_config}]
-            """
-            result_pos = create_string_buffer(100000)
-            with morty_script_context() as morty_lib:
-                res_pos = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result_pos, sizeof(result_pos))
-            
-            res_pos_str = res_pos.decode().strip()
-            positions = [[els.split(',') for els in line.split(';')] for line in res_pos_str.split('\n')]
-            positions = clean_and_convert_to_int(positions)
-            
-            POS_COLOR = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
-            
-            global_pos_to_draw.clear()
-            coords_for_pp = [(0, 0)] * nonegos
-            for i, step in enumerate(positions):
-                for j, car_step in enumerate(step):
-                    abspos = car_step[0]
-                    technical_lane = car_step[1]
-                    coord = (abspos / 4, y_max_tech - technical_lane * on_lane_step_y)
+            @{{../../morty/envmodel_config.tpl.json}}@.extractVehPosFromNusmvFile[{selected_config}]
+        """
+        result_pos = create_string_buffer(100000)
+        with morty_script_context() as morty_lib:
+            res_pos = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result_pos, sizeof(result_pos))
+        
+        res_pos_str = res_pos.decode().strip()
+        positions = [[els.split(',') for els in line.split(';')] for line in res_pos_str.split('\n')]
+        positions = clean_and_convert_to_int(positions)
+        
+        POS_COLOR = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
+        
+        global_pos_to_draw.clear()
+        coords_for_pp = [(0, 0)] * nonegos
+        pp_mc_immediate_exists = False
+        for i, step in enumerate(positions):
+            for j, car_step in enumerate(step):
+                abspos = car_step[0]
+                technical_lane = car_step[1]
+                coord = (abspos / 4, y_max_tech - technical_lane * on_lane_step_y)
+                if not args.hide_planned_positions:
                     global_pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
-                    
-                    if i == 5:
-                        coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
-                        print(f"Step {i}, Car {j}: abspos={abspos}, technical_lane={technical_lane}, coord={coord}")
+                
+                if i <= 5:
+                    coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
+                    pp_mc_immediate_exists = True
+                    print(f"Step {i}, Car {j}: abspos={abspos}, technical_lane={technical_lane}, coord={coord}") # TODO REMOVE
         # EO Find future positions.
 
         
@@ -1015,7 +1017,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             accel = egos_backward[i] * sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
 
             # Formula for speed-dependent distance in pure-pursuit.
-            formula_pp_strategies = d[selected_config]["UCD_PP_STRATEGIES"]
+            formula_pp_strategies = d[selected_config]["UCD_PP_STRATEGIES"] if pp_mc_immediate_exists else d[selected_config]["UCD_PP_STRATEGIES_FALLBACK"]
             formula_distance_pp = d[selected_config]["UCD_FORMULA_PP_DISTANCE"]
             formula_latshift_pp = d[selected_config]["UCD_FORMULA_PP_LATSHIFT"]
 
@@ -1029,12 +1031,12 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             if abs(latshift_point_mc) < eps:
                 latshift_point_mc = 0
 
-            print("formula_pp_strategies " + formula_pp_strategies)
-            print(" formula_distance_pp " + formula_distance_pp)
-            print(" formula_latshift_pp " + formula_latshift_pp)
-            print(" dpoints_y[i] " + str(dpoints_y[i]))
-            print(" dist_point_mc " + str(dist_point_mc))
-            print(" latshift_point_mc " + str(latshift_point_mc))
+            print(" formula_pp_strategies " + formula_pp_strategies) # TODO REMOVE
+            print(" formula_distance_pp " + formula_distance_pp)     # TODO REMOVE
+            print(" formula_latshift_pp " + formula_latshift_pp)     # TODO REMOVE
+            print(" dpoints_y[i] " + str(dpoints_y[i]))              # TODO REMOVE
+            print(" dist_point_mc " + str(dist_point_mc))            # TODO REMOVE
+            print(" latshift_point_mc " + str(latshift_point_mc))    # TODO REMOVE
 
             script_pp_distance = f"""@{{
             @{{{formula_pp_strategies}}}@.eval
@@ -1053,8 +1055,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             @{{{formula_latshift_pp}}}@.eval
             """
             
-            print("script_pp_distance " + script_pp_distance)
-            print("script_pp_latshift " + script_pp_latshift)
+            print("script_pp_distance " + script_pp_distance)  # TODO REMOVE
+            print("script_pp_latshift " + script_pp_latshift)  # TODO REMOVE
             
             result_pp_distance = create_string_buffer(100)
             result_pp_latshift = create_string_buffer(100)
@@ -1066,12 +1068,11 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             pp_distance = float(result_pp_distance)
             pp_latshift = float(result_pp_latshift)
             
-            print(f"Pure pursuit target for car {i}: distance = {pp_distance}, latshift = {pp_latshift}")
+            print(f"Pure pursuit target for car {i}: distance = {pp_distance}, latshift = {pp_latshift}")  # TODO REMOVE
                         
-            if pp_latshift + 0.5 < y_min_tech or pp_latshift - 0.5 > y_max_tech:
-                print(f"Warning: MC suggested lateral shift {pp_latshift} is out of bounds [{y_min_tech}, {y_max_tech}]. Clamping to valid range.")
+            if pp_latshift + 0.5 < y_min_tech or pp_latshift - 0.5 > y_max_tech:  # TODO REMOVE
+                print(f"Warning: MC suggested lateral shift {pp_latshift} is out of bounds [{y_min_tech}, {y_max_tech}].")
                 print(coords_for_pp)
-                input("Press Enter to continue...")
             
             if i < len(env.unwrapped.controlled_vehicles):
                 vehicle = env.unwrapped.controlled_vehicles[i]

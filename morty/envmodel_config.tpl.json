@@ -88,6 +88,7 @@
       "UCD_CONFIG_PRIOS": "_config_vehlen=9_vehwidth=9;_config_vehlen=8_vehwidth=9;_config_vehlen=7_vehwidth=9;_config_vehlen=6_vehwidth=9;_config_vehlen=9_vehwidth=8;_config_vehlen=8_vehwidth=8;_config_vehlen=7_vehwidth=8;_config_vehlen=6_vehwidth=8;_config_vehlen=9_vehwidth=7;_config_vehlen=8_vehwidth=7;_config_vehlen=7_vehwidth=7;_config_vehlen=6_vehwidth=7;_config_vehlen=9_vehwidth=6;_config_vehlen=8_vehwidth=6;_config_vehlen=7_vehwidth=6;_config_vehlen=6_vehwidth=6;",
       "UCD_EXP_NUM": 7,
       "UCD_PP_STRATEGIES": "@DISTLC = 0; @MCIMMEDIATE = 1;",
+      "UCD_PP_STRATEGIES_FALLBACK": "@DISTLC = 1; @MCIMMEDIATE = 0;",
       "UCD_FORMULA_PP_DISTANCE": "DISTLC * (1.5 * min_time_between_lcs * velocity + 1) + MCIMMEDIATE * next_immediate_x",
       "UCD_FORMULA_PP_LATSHIFT": "DISTLC * pp_y + MCIMMEDIATE * next_immediate_y",
       "UCD_MIN_VELOCITY_TO_ALLOW_LC": 5,
