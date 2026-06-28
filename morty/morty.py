@@ -886,8 +886,9 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     coord = (abspos / 4, y_max_tech - technical_lane * on_lane_step_y)
                     global_pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
                     
-                    if i == 4:
+                    if i == 5:
                         coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
+                        print(f"Step {i}, Car {j}: abspos={abspos}, technical_lane={technical_lane}, coord={coord}")
         # EO Find future positions.
 
         
@@ -1020,13 +1021,20 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
             dist_point_mc = coords_for_pp[i][0]
             latshift_point_mc = coords_for_pp[i][1]
+            
+            eps = 1e-4
+            
+            if abs(dist_point_mc) < eps: # TODO: vfm formula parser cannot parse "e" values.
+                dist_point_mc = 0
+            if abs(latshift_point_mc) < eps:
+                latshift_point_mc = 0
 
-            # print(formula_pp_strategies)
-            # print(formula_distance_pp)
-            # print(formula_latshift_pp)
-            # print(dpoints_y[i])
-            # print(dist_point_mc)
-            # print(latshift_point_mc)
+            print("formula_pp_strategies " + formula_pp_strategies)
+            print(" formula_distance_pp " + formula_distance_pp)
+            print(" formula_latshift_pp " + formula_latshift_pp)
+            print(" dpoints_y[i] " + str(dpoints_y[i]))
+            print(" dist_point_mc " + str(dist_point_mc))
+            print(" latshift_point_mc " + str(latshift_point_mc))
 
             script_pp_distance = f"""@{{
             @{{{formula_pp_strategies}}}@.eval
@@ -1045,8 +1053,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             @{{{formula_latshift_pp}}}@.eval
             """
             
-            # print(script_pp_distance)
-            # print(script_pp_latshift)
+            print("script_pp_distance " + script_pp_distance)
+            print("script_pp_latshift " + script_pp_latshift)
             
             result_pp_distance = create_string_buffer(100)
             result_pp_latshift = create_string_buffer(100)
@@ -1058,8 +1066,12 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             pp_distance = float(result_pp_distance)
             pp_latshift = float(result_pp_latshift)
             
-            # print(f"Pure pursuit target for car {i}: distance = {pp_distance}, latshift = {pp_latshift}")
-            # input("Press Enter to continue...")
+            print(f"Pure pursuit target for car {i}: distance = {pp_distance}, latshift = {pp_latshift}")
+                        
+            if pp_latshift + 0.5 < y_min_tech or pp_latshift - 0.5 > y_max_tech:
+                print(f"Warning: MC suggested lateral shift {pp_latshift} is out of bounds [{y_min_tech}, {y_max_tech}]. Clamping to valid range.")
+                print(coords_for_pp)
+                input("Press Enter to continue...")
             
             if i < len(env.unwrapped.controlled_vehicles):
                 vehicle = env.unwrapped.controlled_vehicles[i]
@@ -1070,15 +1082,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             # Best so far (for inversion task):
             # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
             angle = -dpoint_following_angle(pp_latshift, egos_y[i], egos_headings[i], pp_distance, egos_backward[i]) / 3.1415
-            
-            #if egos_backward[i] == -1: # If the car is backward-driving, we have to adapt the angle to the different perspective.
-             #   print(angle)
-                # input("Press Enter to continue...")
-            
+                        
             action_list.append([accel, angle])
-        
-        #print(action_list_vel)
-        #print(action_list_lane)
         
         action = tuple(action_list)
 
