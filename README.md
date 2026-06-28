@@ -46,9 +46,11 @@ sudo apt-get install libglew-dev
 ## M²oRTy (Ultra-Cooperative Driving)
 Safe trajectories by dis-proof of their non-existence.
 
-https://github.com/user-attachments/assets/3ee007fc-c4c2-4421-acef-896dd1b2f5a3
+https://github.com/user-attachments/assets/c94b6da5-2208-4e65-a40f-339ffb0872de
 
-https://github.com/user-attachments/assets/4f6a732c-4e46-4484-bef0-e828706e3087
+https://github.com/user-attachments/assets/185897fe-c9f0-415a-b5c1-19f09b66bc73
+
+https://github.com/user-attachments/assets/b1c555b8-dea2-459d-82b9-1e5b592eb2a3
 
 The nuXmv model checker steers several cars cooperatively to accomplish a given formal goal. In the example, two cars pass each other on a narrow road with parked cars ("Nudging") with safe, shortest possible collective trajectories. 
 
