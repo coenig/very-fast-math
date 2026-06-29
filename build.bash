@@ -71,12 +71,12 @@ fi
 # EO TODO: Find out if this is actually necessary.
 
 if [ -z "$DEBUGOPTSCMAKE" ]; then
-   cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON ..
-   cmake --build . --config Release --parallel 16
+  $CMAKE_BIN $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release ..
+  $CMAKE_BIN --build . --config Release --parallel 16
 else
    printf "Redirecting cmake and make outputs to files due to debug mode."
-   cmake $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON .. > cmake.log 2> cmake.err
-   cmake --build . --config Release --parallel 16 > make.log 2> make.err
+  $CMAKE_BIN $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release .. > cmake.log 2> cmake.err
+  $CMAKE_BIN --build . --config Release --parallel 16 > make.log 2> make.err
 fi
 
 if [ $? -eq 0 ]; then
