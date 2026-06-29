@@ -47,6 +47,14 @@ parser.add_argument('-c', '--allow_crashed_steps', default=DEFAULT_ALLOW_CRASHED
                     help='How many steps with crashes are allowed before the run is aborted. Default: {DEFAULT_ALLOW_CRASHED_STEPS}')
 parser.add_argument('--record_video', action='store_true',
                     help='Record a video of the run. Default: False')
+parser.add_argument('--hide_trajectories', action='store_true',
+                    help='Hide trajectory lines for each vehicle in visualization. Default: False')
+parser.add_argument('--show_prio_numbers', action='store_true',
+                    help='Show priority numbers along trajectories. Default: False')
+parser.add_argument('--hide_pure_pursuit', action='store_true',
+                    help='Hide live pure-pursuit target dot and line for each vehicle. Default: False')
+parser.add_argument('--hide_planned_positions', action='store_true',
+                    help='Hide live planned positions for each vehicle. Default: False')
 parser.add_argument('--detailed_archive', action='store_true',
                     help='Stores detailed archive of the run in a subfolder. Default: False')
 parser.add_argument('--force', action='store_true',
@@ -58,8 +66,8 @@ parser.add_argument('--headless', action='store_true',
 args = parser.parse_args()
 
 if args.dryrun:
-    if args.force or args.record_video or args.detailed_archive:
-        print("Error: --dryrun cannot go together with --force, --record_video, or --detailed_archive. Exiting.")
+    if args.force or args.detailed_archive:
+        print("Error: --dryrun cannot go together with --force or --detailed_archive. Exiting.")
         exit(1)
 
 # COP: Patch VehicleGraphics.get_color so that crashed always takes priority over custom color.
@@ -78,11 +86,104 @@ def _patched_get_color(cls, vehicle, transparent=False):
     return _original_get_color.__func__(cls, vehicle, transparent)
 VehicleGraphics.get_color = _patched_get_color
 
-# COP: Patch VehicleGraphics.display to draw car IDs next to the car boxes.
+# COP: Global trajectory tracking for visualization.
+_vehicle_trajectories = {}  # Maps vehicle id to list of [x, y, priority] tuples
+_vehicle_pp_targets = {}    # Maps vehicle id to current pure-pursuit target [x, y]
+_current_selected_cnt = None  # Track which CEX priority is currently active
+
+global_pos_to_draw = []
+
+# COP: Patch VehicleGraphics.display to draw trajectories and car IDs.
+# Important: Draw trajectories from inside VehicleGraphics.display so lines are rendered
+# before the frame blit/flip done by EnvViewer.display.
 _original_display = VehicleGraphics.display.__func__
 @classmethod
 def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, label=False, draw_roof=False):
-    _original_display(cls, vehicle, surface, transparent=transparent, offscreen=offscreen, label=label, draw_roof=draw_roof)
+    try:
+        import pygame
+
+        # Persist trajectory in world coordinates and draw it in the current camera view.
+        vehicle_id = id(vehicle)
+        if vehicle_id not in _vehicle_trajectories:
+            _vehicle_trajectories[vehicle_id] = []
+
+        trajectory = _vehicle_trajectories[vehicle_id]
+        current_position = [float(vehicle.position[0]), float(vehicle.position[1])]
+        stationary = abs(getattr(vehicle, 'speed', 0.0)) < 0.1
+
+        if not trajectory:
+            trajectory.append([*current_position, _current_selected_cnt])
+        elif not stationary:
+            last_position = trajectory[-1]
+            dx = current_position[0] - last_position[0]
+            dy = current_position[1] - last_position[1]
+            moved = abs(dx) > 0.05 or abs(dy) > 0.05
+            # Ignore one-time teleport/snap after initialization to avoid fake long tails.
+            if moved:
+                jump2 = dx * dx + dy * dy
+                if len(trajectory) == 1 and jump2 > 100.0:  # >10 m in one render step is likely a teleport.
+                    trajectory[0] = [*current_position, _current_selected_cnt]
+                else:
+                    trajectory.append([*current_position, _current_selected_cnt])
+                    if len(trajectory) > 2000:
+                        _vehicle_trajectories[vehicle_id] = trajectory[-2000:]
+
+        if not args.hide_trajectories and len(trajectory) > 1:
+            # Draw trajectory segments colored by priority
+            priority_color_map = {
+                None: (100, 150, 200),
+                0: (31, 119, 180),    # tab:blue
+                1: (255, 127, 14),    # tab:orange
+                2: (44, 160, 44),     # tab:green
+                3: (214, 39, 40),     # tab:red
+                4: (148, 103, 189),   # tab:purple
+                5: (140, 86, 75),     # tab:brown
+            }
+            font = pygame.font.Font(None, 14)
+            for i in range(len(trajectory) - 1):
+                p1_pix = surface.pos2pix(trajectory[i][0], trajectory[i][1])
+                p2_pix = surface.pos2pix(trajectory[i + 1][0], trajectory[i + 1][1])
+                priority = trajectory[i][2] if len(trajectory[i]) > 2 else None
+                color = priority_color_map.get(priority, (100, 150, 200))
+                pygame.draw.line(surface, color, p1_pix, p2_pix, width=2)
+
+                # Label each priority block once, near its first segment.
+                prev_priority = trajectory[i - 1][2] if i > 0 and len(trajectory[i - 1]) > 2 else None
+                if i == 0 or priority != prev_priority:
+                    label = "X" if priority is None else str(priority)
+                    midx = (p1_pix[0] + p2_pix[0]) // 2
+                    midy = (p1_pix[1] + p2_pix[1]) // 2
+                    text = font.render(label, True, (20, 20, 20), (255, 255, 255))
+                    if args.show_prio_numbers:
+                        surface.blit(text, (midx + 2, midy - 10))
+                        
+        if not args.hide_pure_pursuit and vehicle_id in _vehicle_pp_targets:
+            target = _vehicle_pp_targets[vehicle_id]
+            # Offset line start to front axle instead of vehicle center
+            front_offset = vehicle.LENGTH / 2.0
+            p_vehicle_x = current_position[0] + front_offset * np.cos(vehicle.heading)
+            p_vehicle_y = current_position[1] + front_offset * np.sin(vehicle.heading)
+            p_vehicle = surface.pos2pix(p_vehicle_x, p_vehicle_y)
+            p_target = surface.pos2pix(target[0], target[1])
+            pygame.draw.line(surface, (255, 140, 0), p_vehicle, p_target, width=2)
+            pygame.draw.circle(surface, (255, 180, 0), p_target, 5)
+
+    except Exception as e:
+        print(f"Warning: Error drawing trajectories: {e}")
+        input("Press Enter to continue..." + str(e))
+
+    _original_display(cls, vehicle, surface, transparent=transparent, offscreen=offscreen, label=False, draw_roof=draw_roof)
+
+    try:
+        import pygame
+        
+        for pos in global_pos_to_draw:
+            pixx = surface.pos2pix(pos[0][0], pos[0][1])
+            pygame.draw.circle(surface, pos[1], pixx, 3)
+
+    except Exception as e:
+        raise RuntimeError(f"Error drawing global positions: {e}")
+
     if not surface.is_visible(vehicle.position):
         return
     try:
@@ -95,6 +196,83 @@ def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, 
     except (ValueError, AttributeError):
         pass
 VehicleGraphics.display = _patched_display
+
+import numpy as np
+
+def get_scene_bounding_box(env, car_ids):
+    """
+    Finds the tightest axis-aligned (unrotated) bounding box that contains 
+    every point of the specified cars in the highway-env scene.
+    
+    Args:
+        env: The highway-env / gymnasium environment instance.
+        car_ids (list): List of vehicle IDs to include.
+        
+    Returns:
+        dict: A dictionary containing the bounding box boundaries:
+              xmin, ymin, xmax, ymax and the box dimensions.
+    """
+    all_corners = []
+    
+    # Access all active vehicles in the current road scene
+    vehicles = env.unwrapped.road.vehicles
+    
+    # Filter for the requested cars based on ID
+    # Note: Depending on your wrapper/setup, you can match by ID, or index.
+    # Here, we assume vehicles can be filtered or matched. If you have unique custom IDs:
+    target_vehicles = [v for v in vehicles if getattr(v, 'id', None) in car_ids]
+    
+    # Fallback if your vehicles do not have an 'id' attribute (match by list index):
+    if not target_vehicles:
+        for idx, v in enumerate(vehicles):
+            if idx in car_ids:
+                target_vehicles.append(v)
+                
+    if not target_vehicles:
+        raise ValueError(
+            f"No IDs found in scene. Specified: {car_ids}, Available: {vehicles}")
+
+    for vehicle in target_vehicles:
+        # Correctly unpack position coordinates
+        x, y = vehicle.position[0], vehicle.position[1]
+        heading = vehicle.heading
+        length = vehicle.LENGTH
+        width = vehicle.WIDTH
+        
+        # Define corners relative to the vehicle's center (local coordinates)
+        local_corners = np.array([
+            [length / 2,  width / 2],
+            [length / 2, -width / 2],
+            [-length / 2, -width / 2],
+            [-length / 2,  width / 2]
+        ])
+        
+        # 2. Construct 2D rotation matrix for the heading angle
+        cos_h = np.cos(heading)
+        sin_h = np.sin(heading)
+        rotation_matrix = np.array([
+            [cos_h, -sin_h],
+            [sin_h,  cos_h]
+        ])
+        
+        # 3. Rotate and translate corners to global coordinates
+        global_corners = (local_corners @ rotation_matrix.T) + np.array([x, y])
+        all_corners.extend(global_corners)
+        
+    # 4. Find the global minimum and maximum across all gathered corners
+    all_corners = np.array(all_corners)
+    x_min, y_min = np.min(all_corners, axis=0)
+    x_max, y_max = np.max(all_corners, axis=0)
+    
+    return {
+        "xmin": x_min,
+        "ymin": y_min,
+        "xmax": x_max,
+        "ymax": y_max,
+        "width": x_max - x_min,
+        "height": y_max - y_min
+    }
+
 
 # Load parameters from JSON.
 with open('morty/envmodel_config.tpl.json') as f:
@@ -146,14 +324,14 @@ with open('morty/envmodel_config.json') as f:
     num_technical_lanes = d[ucd_config_prios_str[0]]["LATERAL_LC_GRANULARITY"] + num_actual_lanes
     maxspeed = d[ucd_config_prios_str[0]]["MAXSPEEDNONEGO"]
     backward_driving_car_ids_str = d[ucd_config_prios_str[0]]["BACKWARD_DRIVING_CAR_IDS"]
-    min_time_between_lcs = d[ucd_config_prios_str[0]]["MIN_TIME_BETWEEN_LANECHANGES"]
+    # min_time_between_lcs = d[ucd_config_prios_str[0]]["MIN_TIME_BETWEEN_LANECHANGES"]       # HERE we DO make a difference, see below!
     max_speed = d[ucd_config_prios_str[0]]["MAXSPEEDNONEGO"]
     max_start_speed = min(d[ucd_config_prios_str[0]]["MAXSTARTSPEEDNONEGO_UCD"], max_speed)
     min_start_speed = min(d[ucd_config_prios_str[0]]["MINSTARTSPEEDNONEGO_UCD"], max_start_speed)
     exp_num = d[ucd_config_prios_str[0]]["UCD_EXP_NUM"]
     dist_scale = d[ucd_config_prios_str[0]]["DISTANCESCALING"] / 1000
     time_scale = d[ucd_config_prios_str[0]]["TIMESCALING"] / 1000
-    distance_formula_pp = d[ucd_config_prios_str[0]]["UCD_FORMULA_PP_DISTANCE"]
+    # distance_formula_pp = d[ucd_config_prios_str[0]]["UCD_FORMULA_PP_DISTANCE"]             # HERE we DO make a difference, see below!
     vel_scale = dist_scale / time_scale  # velocity = distance / time
 
     if backward_driving_car_ids_str.endswith(')@'):
@@ -213,7 +391,6 @@ SPECS.append(r"""INVARSPEC TRUE;""") # 5: Benchmark 1.
 SPECS.append(r"""INVARSPEC FALSE;""") # 6: Benchmark 2.
 
 SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___649___.abs_pos & env.veh___619___.abs_pos <= env.veh___629___.abs_pos);") # 7
-
 
 SPECS.append(r"""INVARSPEC !(env.veh___609___.lane_b0 & !env.veh___609___.lane_b1);""") # 8: Car 609 reaches leftmost lane (b0)
 
@@ -311,6 +488,18 @@ for ucd_config_str in ucd_config_prios_str:
         f.write(content)
         f.truncate()
 
+def clean_and_convert_to_int(data):
+    """
+    Recursively cleans nested lists and converts deepest string values to integers.
+    """
+    if not isinstance(data, list): # If the item is not a list, it's at the deepest level.
+        try:
+            return int(data)
+        except (ValueError, TypeError):
+            return None # Empty string treatment
+
+    cleaned_list = [clean_and_convert_to_int(item) for item in data]
+    return [item for item in cleaned_list if item is not None and item != []]
 
 baseline_hashes = {}  # Pre-loop file set (before any MC call).
 snapshot_hashes = {}  # Post-first-MC-call hashes (only baseline files).
@@ -349,13 +538,27 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "screen_width": 1500,
         "screen_height": 200,
         "scaling": 3,
-        "show_trajectories": True,
+        "show_trajectories": False
     })
 
     # Monkey-patch WorldSurface to center the display on all vehicles instead of a single ego.
     try:
         from highway_env.road.graphics import WorldSurface
         import highway_env as _he
+        import pygame  # Required to draw/scale images
+
+        BACKGROUND_IMAGE_PATH = "./examples/crossing.pngg" # Remove last g for POC
+
+        try:
+            # Load image independently from display; convert once a display surface exists.
+            bg_image = pygame.image.load(BACKGROUND_IMAGE_PATH)
+            bg_image_state = {
+                "image": bg_image,
+                "converted": False,
+            }
+        except Exception as e:
+            bg_image_state = None
+            pass
 
         _orig_move_display_window_to = WorldSurface.move_display_window_to
 
@@ -369,31 +572,59 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 if not vehicles:
                     return _orig_move_display_window_to(self, position)
 
-                xs = [v.position[0] for v in vehicles]
-                ys = [v.position[1] for v in vehicles]
-                minx, maxx = min(xs), max(xs)
-                miny, maxy = min(ys), max(ys)
-                center = np.array([(minx + maxx) / 2.0 - 100, (miny + maxy) / 2.0])
+                bbox = get_scene_bounding_box(env_ref, [i for i in range(1000)])
+
+                padding = 10
+                target_width_m = (bbox["xmax"] - bbox["xmin"]) + (padding * 2)
+                target_height_m = (bbox["ymax"] - bbox["ymin"]) + (padding * 2)
+                screen_width, screen_height = self.get_width(), self.get_height()
+                scale_x = screen_width / max(1.0, target_width_m)
+                scale_y = screen_height / max(1.0, target_height_m)
+                self.scaling = min(scale_x, scale_y)
+    
+                center = np.array([(bbox["xmin"] + bbox["xmax"]) / 2.0 - 50, (bbox["ymin"] + bbox["ymax"]) / 2.0])
 
                 self.origin = center - np.array([
                     self.centering_position[0] * self.get_width() / self.scaling,
                     self.centering_position[1] * self.get_height() / self.scaling,
                 ])
-            except Exception:
+                
+                if bg_image_state is not None and bg_image_state["image"] is not None:
+                    # convert_alpha requires an initialized display/surface.
+                    if (not bg_image_state["converted"] and pygame.display.get_init()
+                            and pygame.display.get_surface() is not None):
+                        bg_image_state["image"] = bg_image_state["image"].convert_alpha()
+                        bg_image_state["converted"] = True
+
+                    # Clear the screen first since we bypass self.fill below
+                    self.fill(self.GREY) 
+                    
+                    # Scale image based on camera zoom factor (Assuming 300m x 150m real-world size)
+                    scaled_bg = pygame.transform.scale(bg_image_state["image"], (int(300 * self.scaling), int(150 * self.scaling)))
+                    
+                    # Draw background locked to world coordinates (0,0)
+                    self.blit(scaled_bg, self.vec2pix((0, 0)))
+
+                    # Monkey-patch self.fill temporarily to block the default 'fill(self.GREY)' from painting over it
+                    orig_fill = self.fill
+                    self.fill = lambda color, rect=None, special_flags=0: None
+
+            except Exception as e:
                 _orig_move_display_window_to(self, position)
+                raise e
 
         WorldSurface.move_display_window_to = _move_display_window_to_all
         # Provide a hook so the patched function can find the current env.
         _he._display_env = None
-    except Exception:
-        pass
+    except Exception as e:
+        raise e
 
     # Expose the env reference so the patched WorldSurface can access vehicle positions.
     try:
         import highway_env as _he
         _he._display_env = env
-    except Exception:
-        pass
+    except Exception as e:
+        raise e
 
     action = ([0, 0],) * nonegos
     dpoints_y =     [0] * (nonegos + 1) # The lateral position of the points the cars head towards.
@@ -427,6 +658,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     y_max_tech = -LANE_WIDTH_HE / 2.0 + (2 * num_technical_lanes - 1) * LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
 
     np.random.seed(seedo)
+    rng = np.random.default_rng(seedo)
     cnt = 0
     for vehicle in env.unwrapped.controlled_vehicles:
         vehicle.color = (255, 255, 255)
@@ -445,16 +677,21 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 vehicle.position[0] = 0
                 vehicle.position[1] = 0 # start at rightmost lane center (y=4m)
         
-        rng = np.random.default_rng(seedo)
-        
         # shift cars a little with gauss distribution (scale is deviation in meters for 2/3).
-        vehicle.position[0] += rng.normal(loc=0.0, scale=0.5)
-        vehicle.position[1] += rng.normal(loc=0.0, scale=0.5)
+        vehicle.position[0] += rng.normal(loc=0.0, scale=1)
+        vehicle.position[1] += rng.normal(loc=0.0, scale=1)
         
         # Clamp lateral position to valid road boundaries
         vehicle.position[1] = max(min(vehicle.position[1], y_max_tech), y_min_tech)
         
         cnt = cnt + 1
+
+    # COP: Reset and seed trajectories after all manual vehicle repositioning.
+    _vehicle_trajectories.clear()
+    _vehicle_pp_targets.clear()
+    for vehicle in env.unwrapped.controlled_vehicles:
+        _vehicle_trajectories[id(vehicle)] = [[float(vehicle.position[0]), float(vehicle.position[1]), None]]
+        _vehicle_pp_targets[id(vehicle)] = [float(vehicle.position[0]), float(vehicle.position[1])]
 
     if args.record_video:
         env = RecordVideo(env, video_folder=f"{generated_path_prefix}/videos", name_prefix=f"vid_{seedo}",
@@ -595,6 +832,9 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 selected_cnt = cnt
                 break;
         
+        # Update global priority for trajectory coloring
+        _current_selected_cnt = selected_cnt
+        
         blind_stats += blind
 
         # Track latest nuXmv runtime per configured priority and update PDF each iteration.
@@ -618,6 +858,34 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         plot_mc_runtimes_cumulative(all_selected_runtime_histories, f"{generated_path_prefix}/mc_runtime_debug_all.pdf")
         plot_mc_runtimes_cumulative(all_selected_runtime_histories, f"{generated_path_prefix}/mc_runtime_debug_all_log.pdf", log_scale=True)
         # EO Track latest nuXmv runtime per configured priority and update PDF each iteration.
+        
+        # Find future positions.
+        if not args.hide_planned_positions:
+            MC_SCRIPT = f"""@{{
+                @{{./src/templates/}}@.stringToHeap[MY_PATH]
+                }}@.nil
+
+                @{{../../morty/envmodel_config.tpl.json}}@.extractVehPosFromNusmvFile[{selected_config}]
+            """
+            result_pos = create_string_buffer(100000)
+            with morty_script_context() as morty_lib:
+                res_pos = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result_pos, sizeof(result_pos))
+            
+            res_pos_str = res_pos.decode().strip()
+            positions = [[els.split(',') for els in line.split(';')] for line in res_pos_str.split('\n')]
+            positions = clean_and_convert_to_int(positions)
+            
+            POS_COLOR = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
+            
+            global_pos_to_draw.clear()
+            for step in positions:
+                for i, car_step in enumerate(step):
+                    abspos = car_step[0]
+                    technical_lane = car_step[1]
+                    coord = (abspos / 4, y_max_tech - technical_lane * on_lane_step_y)
+                    global_pos_to_draw.append([coord, POS_COLOR[i % len(POS_COLOR)]])                
+        # EO Find future positions.
+
         
         ### EO POSTPROCESS RESULT ###
         #### EO MODEL CHECKER CALL ####
@@ -678,10 +946,12 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
         # Best so far:
         # LANE_CHANGE_DURATION = 3
-        LANE_CHANGE_DURATION = max(min_time_between_lcs, int(time_scale)) # Index in the MC delta trace where the lane change effect appears.
+        min_time_between_lcs = d[selected_config]["MIN_TIME_BETWEEN_LANECHANGES"]
+        LANE_CHANGE_DURATION = min_time_between_lcs * time_scale # Index in the MC delta trace where the lane change effect appears.
 
         # Process the MC data.
-        for i1, el1 in enumerate(res_str.split(';')):
+        mc_car_results = [segment for segment in res_str.split(';') if segment]
+        for i1, el1 in enumerate(mc_car_results):
             sum_lan_by_car.append(0)
             sum_vel_by_car.append(0)
             lanes += "\n"
@@ -740,9 +1010,11 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             accel = egos_backward[i] * sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
 
             # Formula for speed-dependent distance in pure-pursuit.
+            distance_formula_pp = d[selected_config]["UCD_FORMULA_PP_DISTANCE"]
             distance = create_string_buffer(100)
             script_dist_pp = f"""@{{
             @{{@velocity = {egos_v[i]}}}@.eval
+            @{{@min_time_between_lcs = {min_time_between_lcs}}}@.eval
             }}@.nil 
             @{{{distance_formula_pp}}}@.eval
             """
@@ -750,12 +1022,19 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 distance = morty_lib.expandScript(script_dist_pp.encode('utf-8'), distance, sizeof(distance)).decode().strip()
             # EO Formula for speed-dependent distance in pure-pursuit.
 
+            pp_distance = float(distance)
+            if i < len(env.unwrapped.controlled_vehicles):
+                vehicle = env.unwrapped.controlled_vehicles[i]
+                pp_target_x = float(vehicle.position[0] + egos_backward[i] * pp_distance)
+                pp_target_y = float(dpoints_y[i])
+                _vehicle_pp_targets[id(vehicle)] = [pp_target_x, pp_target_y]
+
             # Best so far (for inversion task):
             # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
-            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], float(distance), egos_backward[i]) / 3.1415
+            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], pp_distance, egos_backward[i]) / 3.1415
             
-            if egos_backward[i] == -1: # If the car is backward-driving, we have to adapt the angle to the different perspective.
-                print(angle)
+            #if egos_backward[i] == -1: # If the car is backward-driving, we have to adapt the angle to the different perspective.
+             #   print(angle)
                 # input("Press Enter to continue...")
             
             action_list.append([accel, angle])
@@ -779,7 +1058,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             env.render()
 
         # Flush partial video every iteration.
-        if args.record_video and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
+        if args.record_video and not args.dryrun and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
             from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
             clip = ImageSequenceClip(env.recorded_frames, fps=env.frames_per_sec)
             clip.write_videofile(f"{generated_path_prefix}/videos/vid_{seedo}_partial.mp4", logger=None)
