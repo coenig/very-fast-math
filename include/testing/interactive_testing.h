@@ -131,5 +131,15 @@ std::string prepareOutputForMortyUCD(const long long seed, const int iteration, 
 #endif
 
 extern "C" VFM_API char* expandScript(const char* input, char* result, size_t resultMaxLength);
+
+extern "C" char* generate_smv_files(const char* argv);
+
+extern "C" void generate_cex_gif(const char* _argv);
+
+// Arguments are separated with ';'
+extern "C" char* generate_smv_files(const char* argv);
+
+extern "C" void generate_cex_gif(const char* _argv);
+
 } // test
 } // vfm
