@@ -170,9 +170,9 @@ def morty_script_context():
     
     if platform.system() == 'Windows': # ...proven otherwise.
         dll_name = 'VFM_MAIN_LIB.dll'
-        dll_dir = os.path.join(os.getcwd(), 'bin', 'Release')
+        dll_dir = os.path.join(os.getcwd(), 'bin')
         # Ensure the directory with native DLLs is discoverable on Windows so CDLL can load dependencies.
-        # Add bin/Release to PATH if not already present (works on Python 3.7+).
+        # Add bin to PATH if not already present (works on Python 3.7+).
         if dll_dir not in os.environ.get('PATH', ''):
             os.environ['PATH'] = dll_dir + os.pathsep + os.environ.get('PATH', '')
    
