@@ -668,9 +668,9 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             if cnt == 0:
                 vehicle.position[0] = 0
             if cnt == 1:
-                vehicle.position[0] = (nonegos - 1) * 400 / nonegos
+                vehicle.position[0] = 320 * (nonegos - 1) / nonegos
             if cnt > 1:
-                vehicle.position[0] = (cnt - 1) * 400 / nonegos
+                vehicle.position[0] = (cnt - 1) * 320 / nonegos
                 vehicle.speed = 0
         if exp_num == 8:
             if cnt == 0:
@@ -678,7 +678,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 vehicle.position[1] = 0 # start at rightmost lane center (y=4m)
         
         # shift cars a little with gauss distribution (scale is deviation in meters for 2/3).
-        vehicle.position[0] += rng.normal(loc=0.0, scale=1)
+        vehicle.position[0] += rng.normal(loc=0.0, scale=10)
         vehicle.position[1] += rng.normal(loc=0.0, scale=1)
         
         # Clamp lateral position to valid road boundaries
