@@ -42,7 +42,7 @@ parser.add_argument('-s', '--steps_per_run', default=DEFAULT_NUM_STEPS_PER_RUN, 
 parser.add_argument('-a', '--heading_adaptation', default=DEFAULT_HEADING_ADAPTATION, type=float,
                     help=f'How much the heading of the cars is used to adapt their lateral position (see MC code for details). Default: {DEFAULT_HEADING_ADAPTATION}')
 parser.add_argument('-b', '--allow_blind_steps', default=DEFAULT_ALLOW_BLIND_STEPS, type=int,
-                    help=f'How many times the MC is allowed to be blind (no CEX) before the run is aborted. Default: {DEFAULT_ALLOW_BLIND_STEPS}')
+                    help=f'Number of blind steps (no CEX) after which the run is aborted and considered failed. Default: {DEFAULT_ALLOW_BLIND_STEPS}')
 parser.add_argument('-c', '--allow_crashed_steps', default=DEFAULT_ALLOW_CRASHED_STEPS, type=int,
                     help='How many steps with crashes are allowed before the run is aborted. Default: {DEFAULT_ALLOW_CRASHED_STEPS}')
 parser.add_argument('--record_video', action='store_true',
@@ -904,23 +904,26 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # Here we check AFTER the last step, a situation which is not guaranteed to have a solution, as well, so we might
         # get a false negative. Checking only (2) would be possible; we add the additional
         # MC check to make it easier to implement new SPECs. Then, a first impression is possible even
-        # if no success condition is given or if it is not implemented in a precise way. 
+        # if no success condition is given or if it is not implemented in a precise way.
+        # Note: success is checked before blindness, so a step can be blind (no CEX) and still count as
+        # success if the success condition is met.
         if res_str == "FINISHED" or successed:
             print("DONE")
             good_ones.append(seedo)
             archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
             break
-       
+
         if res_str == empty_cex:
             print("No CEX found")
             for i in range(nonegos): # Set blue when blind.
                 if not env.unwrapped.controlled_vehicles[i].crashed:
                     env.unwrapped.controlled_vehicles[i].color = (100, 100, 255)
-            if nocex_count > args.allow_blind_steps: # Allow up to this many times being blind per run. (If in doubt: 10)
+            nocex_count += 1
+            if nocex_count >= args.allow_blind_steps: # Abort (as failure) once this many blind steps occurred.
                 archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
                 break
-            nocex_count += 1
             
+            # Note: final blind step of a run is not reflected in the cex-length plots.
             cex_length_history.append(np.nan)
             cnt_history.append(-1)
             cex_point_colors.append('tab:red')
