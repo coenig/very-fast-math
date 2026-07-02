@@ -404,7 +404,7 @@ SUCC_CONDS.append(lambda: inverseSortingArray(egos_x))
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(
-    lambda: egos_x[0] >= egos_x[4] and egos_x[1] <= egos_x[2]
+    lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos_x[2]
     ) #7
 SUCC_CONDS.append(lambda: False) # 8
 
