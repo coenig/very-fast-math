@@ -28,7 +28,7 @@ import platform
 DEFAULT_NUM_RUNS = 100
 DEFAULT_NUM_STEPS_PER_RUN = 300
 DEFAULT_HEADING_ADAPTATION = -0.5
-DEFAULT_ALLOW_BLIND_STEPS = DEFAULT_NUM_STEPS_PER_RUN
+DEFAULT_ALLOW_BLIND_STEPS = 1
 DEFAULT_ALLOW_CRASHED_STEPS = 1
 
 parser = argparse.ArgumentParser(
@@ -42,7 +42,7 @@ parser.add_argument('-s', '--steps_per_run', default=DEFAULT_NUM_STEPS_PER_RUN, 
 parser.add_argument('-a', '--heading_adaptation', default=DEFAULT_HEADING_ADAPTATION, type=float,
                     help=f'How much the heading of the cars is used to adapt their lateral position (see MC code for details). Default: {DEFAULT_HEADING_ADAPTATION}')
 parser.add_argument('-b', '--allow_blind_steps', default=DEFAULT_ALLOW_BLIND_STEPS, type=int,
-                    help=f'How many times the MC is allowed to be blind (no CEX) before the run is aborted. Default: {DEFAULT_ALLOW_BLIND_STEPS}')
+                    help=f'Number of blind steps (no CEX) after which the run is aborted and considered failed. Default: {DEFAULT_ALLOW_BLIND_STEPS}')
 parser.add_argument('-c', '--allow_crashed_steps', default=DEFAULT_ALLOW_CRASHED_STEPS, type=int,
                     help='How many steps with crashes are allowed before the run is aborted. Default: {DEFAULT_ALLOW_CRASHED_STEPS}')
 parser.add_argument('--record_video', action='store_true',
@@ -390,7 +390,7 @@ SPECS.append(("INVARSPEC !(env.veh___609___.abs_pos - env.veh___6%r9___.abs_pos 
 SPECS.append(r"""INVARSPEC TRUE;""") # 5: Benchmark 1.
 SPECS.append(r"""INVARSPEC FALSE;""") # 6: Benchmark 2.
 
-SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___649___.abs_pos & env.veh___619___.abs_pos <= env.veh___629___.abs_pos);") # 7
+SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___6{nonegos - 1}9___.abs_pos & env.veh___619___.abs_pos <= env.veh___629___.abs_pos);") # 7
 
 SPECS.append(r"""INVARSPEC !(env.veh___609___.lane_b0 & !env.veh___609___.lane_b1);""") # 8: Car 609 reaches leftmost lane (b0)
 
@@ -404,7 +404,7 @@ SUCC_CONDS.append(lambda: inverseSortingArray(egos_x))
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(
-    lambda: egos_x[0] >= egos_x[4] and egos_x[1] <= egos_x[2]
+    lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos_x[2]
     ) #7
 SUCC_CONDS.append(lambda: False) # 8
 
@@ -668,9 +668,9 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             if cnt == 0:
                 vehicle.position[0] = 0
             if cnt == 1:
-                vehicle.position[0] = (nonegos - 1) * 400 / nonegos
+                vehicle.position[0] = 320 * (nonegos - 1) / nonegos
             if cnt > 1:
-                vehicle.position[0] = (cnt - 1) * 400 / nonegos
+                vehicle.position[0] = (cnt - 1) * 320 / nonegos
                 vehicle.speed = 0
         if exp_num == 8:
             if cnt == 0:
@@ -678,7 +678,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 vehicle.position[1] = 0 # start at rightmost lane center (y=4m)
         
         # shift cars a little with gauss distribution (scale is deviation in meters for 2/3).
-        vehicle.position[0] += rng.normal(loc=0.0, scale=1)
+        vehicle.position[0] += rng.normal(loc=0.0, scale=10)
         vehicle.position[1] += rng.normal(loc=0.0, scale=1)
         
         # Clamp lateral position to valid road boundaries
@@ -860,30 +860,37 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # EO Track latest nuXmv runtime per configured priority and update PDF each iteration.
         
         # Find future positions.
-        if not args.hide_planned_positions:
-            MC_SCRIPT = f"""@{{
-                @{{./src/templates/}}@.stringToHeap[MY_PATH]
-                }}@.nil
+        MC_SCRIPT = f"""@{{
+            @{{./src/templates/}}@.stringToHeap[MY_PATH]
+            }}@.nil
 
-                @{{../../morty/envmodel_config.tpl.json}}@.extractVehPosFromNusmvFile[{selected_config}]
-            """
-            result_pos = create_string_buffer(100000)
-            with morty_script_context() as morty_lib:
-                res_pos = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result_pos, sizeof(result_pos))
-            
-            res_pos_str = res_pos.decode().strip()
-            positions = [[els.split(',') for els in line.split(';')] for line in res_pos_str.split('\n')]
-            positions = clean_and_convert_to_int(positions)
-            
-            POS_COLOR = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
-            
-            global_pos_to_draw.clear()
-            for step in positions:
-                for i, car_step in enumerate(step):
-                    abspos = car_step[0]
-                    technical_lane = car_step[1]
-                    coord = (abspos / 4, y_max_tech - technical_lane * on_lane_step_y)
-                    global_pos_to_draw.append([coord, POS_COLOR[i % len(POS_COLOR)]])                
+            @{{../../morty/envmodel_config.tpl.json}}@.extractVehPosFromNusmvFile[{selected_config}]
+        """
+        result_pos = create_string_buffer(100000)
+        with morty_script_context() as morty_lib:
+            res_pos = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result_pos, sizeof(result_pos))
+        
+        res_pos_str = res_pos.decode().strip()
+        positions = [[els.split(',') for els in line.split(';')] for line in res_pos_str.split('\n')]
+        positions = clean_and_convert_to_int(positions)
+        
+        POS_COLOR = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
+        
+        global_pos_to_draw.clear()
+        coords_for_pp = [(0, 0)] * nonegos
+        pp_mc_immediate_exists = False
+        for i, step in enumerate(positions):
+            for j, car_step in enumerate(step):
+                abspos = car_step[0]
+                technical_lane = car_step[1]
+                coord = (abspos / 4, y_max_tech - technical_lane * on_lane_step_y)
+                if not args.hide_planned_positions:
+                    global_pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
+                
+                if i <= 5:
+                    coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
+                    pp_mc_immediate_exists = True
+                    print(f"Step {i}, Car {j}: abspos={abspos}, technical_lane={technical_lane}, coord={coord}") # TODO REMOVE
         # EO Find future positions.
 
         
@@ -897,23 +904,26 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # Here we check AFTER the last step, a situation which is not guaranteed to have a solution, as well, so we might
         # get a false negative. Checking only (2) would be possible; we add the additional
         # MC check to make it easier to implement new SPECs. Then, a first impression is possible even
-        # if no success condition is given or if it is not implemented in a precise way. 
+        # if no success condition is given or if it is not implemented in a precise way.
+        # Note: success is checked before blindness, so a step can be blind (no CEX) and still count as
+        # success if the success condition is met.
         if res_str == "FINISHED" or successed:
             print("DONE")
             good_ones.append(seedo)
             archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
             break
-       
+
         if res_str == empty_cex:
             print("No CEX found")
             for i in range(nonegos): # Set blue when blind.
                 if not env.unwrapped.controlled_vehicles[i].crashed:
                     env.unwrapped.controlled_vehicles[i].color = (100, 100, 255)
-            if nocex_count > args.allow_blind_steps: # Allow up to this many times being blind per run. (If in doubt: 10)
+            nocex_count += 1
+            if nocex_count >= args.allow_blind_steps: # Abort (as failure) once this many blind steps occurred.
                 archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
                 break
-            nocex_count += 1
             
+            # Note: final blind step of a run is not reflected in the cex-length plots.
             cex_length_history.append(np.nan)
             cnt_history.append(-1)
             cex_point_colors.append('tab:red')
@@ -1010,37 +1020,74 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             accel = egos_backward[i] * sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
 
             # Formula for speed-dependent distance in pure-pursuit.
-            distance_formula_pp = d[selected_config]["UCD_FORMULA_PP_DISTANCE"]
-            distance = create_string_buffer(100)
-            script_dist_pp = f"""@{{
+            formula_pp_strategies = d[selected_config]["UCD_PP_STRATEGIES"] if pp_mc_immediate_exists else d[selected_config]["UCD_PP_STRATEGIES_FALLBACK"]
+            formula_distance_pp = d[selected_config]["UCD_FORMULA_PP_DISTANCE"]
+            formula_latshift_pp = d[selected_config]["UCD_FORMULA_PP_LATSHIFT"]
+
+            dist_point_mc = coords_for_pp[i][0]
+            latshift_point_mc = coords_for_pp[i][1]
+            
+            eps = 1e-4
+            
+            if abs(dist_point_mc) < eps: # TODO: vfm formula parser cannot parse "e" values.
+                dist_point_mc = 0
+            if abs(latshift_point_mc) < eps:
+                latshift_point_mc = 0
+
+            print(" formula_pp_strategies " + formula_pp_strategies) # TODO REMOVE
+            print(" formula_distance_pp " + formula_distance_pp)     # TODO REMOVE
+            print(" formula_latshift_pp " + formula_latshift_pp)     # TODO REMOVE
+            print(" dpoints_y[i] " + str(dpoints_y[i]))              # TODO REMOVE
+            print(" dist_point_mc " + str(dist_point_mc))            # TODO REMOVE
+            print(" latshift_point_mc " + str(latshift_point_mc))    # TODO REMOVE
+
+            script_pp_distance = f"""@{{
+            @{{{formula_pp_strategies}}}@.eval
             @{{@velocity = {egos_v[i]}}}@.eval
             @{{@min_time_between_lcs = {min_time_between_lcs}}}@.eval
-            }}@.nil 
-            @{{{distance_formula_pp}}}@.eval
+            @{{@next_immediate_x = {dist_point_mc}}}@.eval
+            }}@.nil
+            @{{{formula_distance_pp}}}@.eval
             """
+
+            script_pp_latshift = f"""@{{
+            @{{{formula_pp_strategies}}}@.eval
+            @{{@pp_y = {dpoints_y[i]}}}@.eval
+            @{{@next_immediate_y = {latshift_point_mc}}}@.eval
+            }}@.nil
+            @{{{formula_latshift_pp}}}@.eval
+            """
+            
+            print("script_pp_distance " + script_pp_distance)  # TODO REMOVE
+            print("script_pp_latshift " + script_pp_latshift)  # TODO REMOVE
+            
+            result_pp_distance = create_string_buffer(100)
+            result_pp_latshift = create_string_buffer(100)
             with morty_script_context() as morty_lib:
-                distance = morty_lib.expandScript(script_dist_pp.encode('utf-8'), distance, sizeof(distance)).decode().strip()
+                result_pp_distance = morty_lib.expandScript(script_pp_distance.encode('utf-8'), result_pp_distance, sizeof(result_pp_distance)).decode().strip()
+                result_pp_latshift = morty_lib.expandScript(script_pp_latshift.encode('utf-8'), result_pp_latshift, sizeof(result_pp_latshift)).decode().strip()
             # EO Formula for speed-dependent distance in pure-pursuit.
 
-            pp_distance = float(distance)
+            pp_distance = float(result_pp_distance)
+            pp_latshift = float(result_pp_latshift)
+            
+            print(f"Pure pursuit target for car {i}: distance = {pp_distance}, latshift = {pp_latshift}")  # TODO REMOVE
+                        
+            if pp_latshift + 0.5 < y_min_tech or pp_latshift - 0.5 > y_max_tech:  # TODO REMOVE
+                print(f"Warning: MC suggested lateral shift {pp_latshift} is out of bounds [{y_min_tech}, {y_max_tech}].")
+                print(coords_for_pp)
+            
             if i < len(env.unwrapped.controlled_vehicles):
                 vehicle = env.unwrapped.controlled_vehicles[i]
                 pp_target_x = float(vehicle.position[0] + egos_backward[i] * pp_distance)
-                pp_target_y = float(dpoints_y[i])
+                pp_target_y = pp_latshift
                 _vehicle_pp_targets[id(vehicle)] = [pp_target_x, pp_target_y]
 
             # Best so far (for inversion task):
             # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
-            angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], pp_distance, egos_backward[i]) / 3.1415
-            
-            #if egos_backward[i] == -1: # If the car is backward-driving, we have to adapt the angle to the different perspective.
-             #   print(angle)
-                # input("Press Enter to continue...")
-            
+            angle = -dpoint_following_angle(pp_latshift, egos_y[i], egos_headings[i], pp_distance, egos_backward[i]) / 3.1415
+                        
             action_list.append([accel, angle])
-        
-        #print(action_list_vel)
-        #print(action_list_lane)
         
         action = tuple(action_list)
 

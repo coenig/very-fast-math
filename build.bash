@@ -41,34 +41,50 @@ done
 mkdir -p build
 cd build
 
-# On Windows, auto-detect the Visual Studio generator via vswhere.
-# CMake respects the CMAKE_GENERATOR env var, avoiding quoting issues with -G.
-# TODO: Find out if this is actually necessary.
-if [[ -z "$CMAKE_GENERATOR" ]]; then
-  VS_GENERATORS=$($CMAKE_BIN --help 2>/dev/null | grep -o 'Visual Studio [0-9][0-9]* [0-9][0-9]*')
-   for VSWHERE in \
-      "/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
-      "/d/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
-      "/e/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"; do
-      if [[ -f "$VSWHERE" ]]; then
-      VS_INSTALL_MAJOR=$("$VSWHERE" -latest -property installationVersion 2>/dev/null | tr -d '\r' | cut -d'.' -f1)
-      MATCHING=$(printf "%s\n" "$VS_GENERATORS" | awk -v major="$VS_INSTALL_MAJOR" '$3 == major { print; exit }')
+# On Windows, force the MSVC toolchain with the Ninja generator. This is
+# independent of the installed Visual Studio version (VS 17, 18, ...) and of
+# whether CMake knows a matching "Visual Studio NN" generator. Without this,
+# CMake auto-picks the first compiler on PATH, which may be an unrelated MinGW
+# g++ (e.g. from Strawberry Perl) that cannot build this project.
+if [[ -z "$CMAKE_GENERATOR" && -z "$VCINSTALLDIR" ]]; then
+  VS_INSTALL_PATH=""
+  for VSWHERE in \
+     "/c/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
+     "/d/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe" \
+     "/e/Program Files (x86)/Microsoft Visual Studio/Installer/vswhere.exe"; do
+    [[ -f "$VSWHERE" ]] || continue
+    VS_INSTALL_PATH=$("$VSWHERE" -latest -products '*' -property installationPath 2>/dev/null | tr -d '\r')
+    [[ -n "$VS_INSTALL_PATH" ]] && break
+  done
 
-      if [[ -n "$MATCHING" ]]; then
-        export CMAKE_GENERATOR="$MATCHING"
-      elif [[ -n "$VS_INSTALL_MAJOR" && -n "$VS_GENERATORS" ]]; then
-        NEWEST=$(printf "%s\n" "$VS_GENERATORS" | sort -t' ' -k3 -nr | head -1)
-        echo "Error: Installed Visual Studio major $VS_INSTALL_MAJOR is newer than this CMake's VS generators."
-        echo "CMake supports up to: $NEWEST"
-        echo "Please update CMake (or set CMAKE_GENERATOR manually to a non-VS generator)."
-        cd ..
-        exit 1
-      fi
-         break
-      fi
-   done
+  if [[ -z "$VS_INSTALL_PATH" ]]; then
+    echo "Warning: No Visual Studio installation found via vswhere; falling back to CMake defaults."
+  else
+    VCVARS_WIN=$(cygpath -w "$VS_INSTALL_PATH/VC/Auxiliary/Build/vcvars64.bat")
+    echo "Setting up MSVC (cl.exe) environment from: $VS_INSTALL_PATH"
+
+    # Import the MSVC environment produced by vcvars64.bat into this shell so
+    # that cl.exe is on PATH and INCLUDE/LIB/LIBPATH are set for Ninja.
+    # We run vcvars via a temporary batch wrapper because Git Bash mangles the
+    # quoting needed to call a space-containing path directly through "cmd //c".
+    # Note: cmd's "set" emits the path variable as "Path" (mixed case) and uses
+    # CRLF line endings, so we upper-case the key for matching and strip the \r.
+    VCVARS_TMP_BAT=$(mktemp --suffix=.bat)
+    printf '@echo off\r\ncall "%s" >nul 2>&1\r\nset\r\n' "$VCVARS_WIN" > "$VCVARS_TMP_BAT"
+    while IFS='=' read -r key value; do
+      value="${value%$'\r'}"
+      case "${key^^}" in
+        PATH)                export PATH="$(cygpath -up "$value")" ;;
+        INCLUDE|LIB|LIBPATH) export "${key^^}=$value" ;;
+      esac
+    done < <(cmd //c "$(cygpath -w "$VCVARS_TMP_BAT")")
+    rm -f "$VCVARS_TMP_BAT"
+
+    export CC=cl
+    export CXX=cl
+    export CMAKE_GENERATOR="Ninja"
+  fi
 fi
-# EO TODO: Find out if this is actually necessary.
 
 if [ -z "$DEBUGOPTSCMAKE" ]; then
   $CMAKE_BIN $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release ..

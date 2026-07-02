@@ -3,7 +3,7 @@ import platform
 
 # Prepare connection to morty lib.
 if platform.system() == 'Windows':
-    morty_lib = CDLL('./bin/Release/VFM_MAIN_LIB.dll')
+    morty_lib = CDLL('./bin/VFM_MAIN_LIB.dll')
 else:
     morty_lib = CDLL('./lib/libvfm.so')
 morty_lib.expandScript.argtypes = [c_char_p, c_char_p, c_size_t]
