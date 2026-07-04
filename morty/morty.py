@@ -919,7 +919,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 if not env.unwrapped.controlled_vehicles[i].crashed:
                     env.unwrapped.controlled_vehicles[i].color = (100, 100, 255)
             nocex_count += 1
-            if nocex_count >= args.allow_blind_steps: # Abort (as failure) once this many blind steps occurred.
+            if nocex_count > args.allow_blind_steps: # Abort (as failure) once this many blind steps occurred.
                 archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
                 break
             
