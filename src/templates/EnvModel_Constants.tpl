@@ -40,6 +40,10 @@ DEFINE
     @{max_vel}@*.velocityWorldToEnvModelDef[MAXSPEEDNONEGO];
 
     @{ego.max_vel}@*.velocityWorldToEnvModelDef[MAXSPEEDEGO]; -- Leave this even in ego-less mode.
+    m_j := @{MAX_JUMP_OVER_TECHNICAL_LANES}@.eval[0];
+    @{vel_max_j}@*.velocityWorldToEnvModelDef[MAX_JUMP_UNTIL_VELOCITY];
+    @{vel_min_j}@*.velocityWorldToEnvModelDef[MIN_JUMP_FROM_VELOCITY];
+
 @{
     @{ego.min_dist_long}@*.scalingVariable[distance] := veh_length;
     @{ego.following_dist}@*.scalingVariable[distance] := max(@{2}@.timeWorldToEnvModelConst * ego.v, ego.min_dist_long);  -- dynamic following distance according to 2s rule (= THW)

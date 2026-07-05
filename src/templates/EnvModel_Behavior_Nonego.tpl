@@ -181,17 +181,14 @@ DEFINE
 
 
    -- Interpolate linearly between MAX_JUMP_UNTIL_VELOCITY and MIN_JUMP_FROM_VELOCITY from MAX_JUMP_OVER_TECHNICAL_LANES to 1.
-   m := MAX_JUMP_OVER_TECHNICAL_LANES;
-   @{vel_max_j}@*.velocityWorldToEnvModelDef[MAX_JUMP_UNTIL_VELOCITY];
-   @{vel_min_j}@*.velocityWorldToEnvModelDef[MIN_JUMP_FROM_VELOCITY];
 
-    max_jump_lanes := m - (veh___6[i]9___.v - vel_min_j) * (m - 1) / (vel_max_j - vel_min_j);
+    max_jump_lanes_[i] := m_j - (veh___6[i]9___.v - vel_min_j) * (m_j - 1) / (vel_min_j - vel_max_j);
 
     veh___6[i]9___.lane_move_down := 
-                      @{(veh___6[i]9___.normalized_lane_[j] ->next(@{veh___6[i]9___.normalized_lane_@{max(0, [k])}@.eval[0]}@*.for[[k], @{[j] - max_jump_lanes }@.eval, @{[j] - 1}@.eval, 1, |]))
+                      @{(veh___6[i]9___.normalized_lane_[j] -> next(@{(@{[j] - max(0, [k])}@.eval[0] <= max_jump_lanes_[i] & veh___6[i]9___.normalized_lane_@{max(0, [k])}@.eval[0])}@*.for[[k], @{[j] - MAX_JUMP_OVER_TECHNICAL_LANES }@.eval, @{[j] - 1}@.eval, 1, |]))
                       }@**.for[[j], 0, @{normalized_lane_counter}@.scriptVar, 1, &];
     veh___6[i]9___.lane_move_up :=
-                      @{(veh___6[i]9___.normalized_lane_[j] -> next(@{veh___6[i]9___.normalized_lane_@{min(@{normalized_lane_counter}@.scriptVar, [k])}@.eval[0]}@*.for[[k], @{[j] + 1}@.eval, @{[j] + max_jump_lanes}@.eval, 1, |]))
+                      @{(veh___6[i]9___.normalized_lane_[j] -> next(@{(@{min(@{normalized_lane_counter}@.scriptVar, [k]) - [j]}@.eval[0] <= max_jump_lanes_[i] & veh___6[i]9___.normalized_lane_@{min(@{normalized_lane_counter}@.scriptVar, [k])}@.eval[0])}@*.for[[k], @{[j] + 1}@.eval, @{[j] + MAX_JUMP_OVER_TECHNICAL_LANES}@.eval, 1, |]))
                       }@**.for[[j], 0, @{normalized_lane_counter}@.scriptVar, 1, &];
 
 

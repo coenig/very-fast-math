@@ -847,6 +847,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             selected_runtime = mc_runtime_histories[selected_config][-1]
         else:
             selected_runtime = np.nan
+            selected_config = ucd_config_prios_str[0] # Use any because all are empty.
         selected_runtime_history.append(selected_runtime)
 
         plot_mc_runtimes(

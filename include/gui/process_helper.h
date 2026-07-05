@@ -64,7 +64,7 @@ public:
       }
 
 #elif __linux__
-      res = kill(pid, SIGTERM) == 0;
+      res = kill(pid, SIGKILL) == 0;
       if (res) {
          addNote("Process with ID " + std::to_string(pid) + " killed successfully.");
       } else {
