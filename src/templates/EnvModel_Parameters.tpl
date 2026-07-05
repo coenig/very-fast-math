@@ -81,6 +81,8 @@
 @{VEHICLE_WIDTH}@*******.defaultValue[185]               -- In cm. Default value 200 from highway-env (highway_env/vehicle/kinematics.py). Note that we have 185.2 in vfm... (include/geometry/images.h)
 @{VEHICLE_LENGTH}@*******.defaultValue[5]                -- In m(!). Default value 5.0 from highway-env (highway_env/vehicle/kinematics.py). Note that we have 4.923 in vfm... (include/geometry/images.h)
 @{MAX_JUMP_OVER_TECHNICAL_LANES}@*******.defaultValue[1] -- For SIMPLE_LC, how big a step can be in one cycle by changing from one lane to another.
+@{MAX_JUMP_UNTIL_VELOCITY}@*******.defaultValue[4]       -- For low speeds jump up to MAX_JUMP_OVER_TECHNICAL_LANES lanes.
+@{MIN_JUMP_FROM_VELOCITY}@*******.defaultValue[25]       -- For high speeds jump only 1 lane. In between, linearly interpolated.
 
 
 -- Parameters for "skipping" of CEXs.
