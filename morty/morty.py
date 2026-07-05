@@ -452,6 +452,19 @@ if args.headless:
 # ACCEL_RANGE = 6
 ACCEL_RANGE = 6
 
+# Inner closed-loop steering: the expensive MC decision (pure-pursuit target) is refreshed
+# only DECISION_FREQ times per second, but highway-env still integrates the physics at
+# SIM_FREQ. We drive SIM_FREQ / DECISION_FREQ substeps per decision and recompute the
+# cheap steering angle each substep, so the low-level dynamics keep re-adjusting toward the
+# same target as the car moves instead of holding a single stale angle for the whole decision.
+SIM_FREQ = 60      # [Hz] highway-env physics substeps.
+DECISION_FREQ = 2  # [Hz] rate at which the expensive MC target is refreshed.
+INNER_SUBSTEPS = SIM_FREQ // DECISION_FREQ  # Steering re-adjustments per MC decision.
+# Minimum longitudinal distance [m] to the fixed target used in the pure-pursuit angle.
+# Floors the atan denominator so steering stays well-defined (no singularity / sign flip)
+# if the car reaches or overshoots the target point within the substeps of one decision.
+MIN_LOOKAHEAD = 1.0
+
 MAX_EXPs = args.num_runs
 
 good_ones = []
@@ -530,8 +543,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             "normalize": False,
         }
         },
-        "simulation_frequency": 60,  # [Hz]
-        "policy_frequency": 2,  # [Hz]
+        "simulation_frequency": SIM_FREQ,  # [Hz]
+        # policy_frequency == simulation_frequency so each env.step advances exactly one
+        # physics substep; we run INNER_SUBSTEPS of them per MC decision (see inner loop below).
+        "policy_frequency": SIM_FREQ,  # [Hz]
         "controlled_vehicles": nonegos,
         "lanes_count": num_actual_lanes,
         "vehicles_count": 0,
@@ -988,7 +1003,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         print(f"summed lane: {sum_lan_by_car}")
         # EO Process the MC data.
 
-        action_list = []
+        substep_targets = []
         
         # Best so far:
         # MAXTIME_FOR_LC = 60
@@ -1086,24 +1101,51 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
             # Best so far (for inversion task):
             # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
-            angle = -dpoint_following_angle(pp_latshift, egos_y[i], egos_headings[i], pp_distance, egos_backward[i]) / 3.1415
-                        
-            action_list.append([accel, angle])
+            # Store the FIXED world target point from this MC decision. The steering angle is
+            # (re)computed per simulation substep in the inner loop below, always aiming at
+            # this same point so it is reached as precisely as possible.
+            substep_targets.append({
+                "accel": accel,
+                "target_x": egos_x[i] + egos_backward[i] * pp_distance,
+                "target_y": pp_latshift,
+            })
         
-        action = tuple(action_list)
-
-        # === APPLY MC INSTRUCTIONS ===
-        obs, reward, done, truncated, info = env.step(action)
-
-        # === CHECK CRASHES (after applying MC instructions) ===
+        # === APPLY MC INSTRUCTIONS (inner closed-loop steering) ===
+        # Keep the MC target fixed for this decision, but re-run the cheap pure-pursuit
+        # steering computation once per physics substep, feeding a freshly corrected angle
+        # into highway-env so its low-level dynamics tightly track the target as the car moves.
         crashed = False
-        for vehicle in env.unwrapped.road.vehicles:
-            crashed = crashed or vehicle.crashed
+        for _substep in range(INNER_SUBSTEPS):
+            action_list = []
+            for i, target in enumerate(substep_targets):
+                # Re-read the current pose so the steering re-adjusts as the car moves,
+                # but keep aiming at the same fixed target point.
+                cur_x = float(obs[i][0][1])
+                cur_y = float(obs[i][0][2])
+                cur_heading = float(obs[i][0][5]) - np.pi * (1 - egos_backward[i]) / 2
+                # Signed longitudinal distance to the fixed target, in the car's travel
+                # direction; shrinks as the car approaches so the correction sharpens.
+                ddist = (target["target_x"] - cur_x) * egos_backward[i]
+                ddist = max(ddist, MIN_LOOKAHEAD)
+                angle = -dpoint_following_angle(
+                    target["target_y"], cur_y, cur_heading,
+                    ddist, egos_backward[i]) / 3.1415
+                action_list.append([target["accel"], angle])
+
+            action = tuple(action_list)
+            obs, reward, done, truncated, info = env.step(action)
+
+            # === CHECK CRASHES (after each substep) ===
+            for vehicle in env.unwrapped.road.vehicles:
+                if vehicle.crashed:
+                    crashed = True
+                    break
+
+            if not args.headless:
+                env.render()
+
         if crashed:
             crashed_count += 1
-
-        if not args.headless:
-            env.render()
 
         # Flush partial video every iteration.
         if args.record_video and not args.dryrun and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
