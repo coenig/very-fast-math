@@ -464,6 +464,10 @@ INNER_SUBSTEPS = SIM_FREQ // DECISION_FREQ  # Steering re-adjustments per MC dec
 # Floors the atan denominator so steering stays well-defined (no singularity / sign flip)
 # if the car reaches or overshoots the target point within the substeps of one decision.
 MIN_LOOKAHEAD = 1.0
+# Effective wheelbase [m] for the pure-pursuit curvature law. highway-env's bicycle
+# model gives heading_rate ~ v * delta / L with L ~ vehicle LENGTH (5 m). Larger values
+# steer more gently, smaller values more aggressively.
+PP_WHEELBASE = 5.0
 
 MAX_EXPs = args.num_runs
 
@@ -1127,9 +1131,20 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 # direction; shrinks as the car approaches so the correction sharpens.
                 ddist = (target["target_x"] - cur_x) * egos_backward[i]
                 ddist = max(ddist, MIN_LOOKAHEAD)
-                angle = -dpoint_following_angle(
+                # Heading error toward the fixed target (angle between the travel
+                # direction and the line to the point); sign matches the old convention.
+                alpha = -dpoint_following_angle(
                     target["target_y"], cur_y, cur_heading,
-                    ddist, egos_backward[i]) / 3.1415
+                    ddist, egos_backward[i])
+                # Pure-pursuit curvature law: delta = atan(2 L sin(alpha) / L_d). A close
+                # target (small L_d) drives the wheel angle toward full lock, so sharp
+                # turns are tracked tightly instead of lagging like the old heading-
+                # proportional (/pi) law did. L_d is the straight-line distance to the
+                # point, floored by MIN_LOOKAHEAD; delta is clipped to the +-1 rad range.
+                lookahead_dist = max(
+                    float(np.hypot(ddist, target["target_y"] - cur_y)), MIN_LOOKAHEAD)
+                delta = np.arctan2(2.0 * PP_WHEELBASE * np.sin(alpha), lookahead_dist)
+                angle = float(np.clip(delta, -1.0, 1.0))
                 action_list.append([target["accel"], angle])
 
             action = tuple(action_list)
