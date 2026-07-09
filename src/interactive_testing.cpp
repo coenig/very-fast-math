@@ -811,7 +811,23 @@ int vfm::test::artifactRun(int argc, char* argv[])
          + " -trans_output_format=nuxmv-module -trans_enum_mode=symbolic -output_file=\"" 
          + generated_dir + "planner.cpp_combined.k2.smv\""
          + " \"" + generated_dir + "planner.cpp_combined.k2\""};
-      std::string command_nuxmv{ nuxmv_fulldir
+
+      // Since nuXmv 2.2.0 the binary is dynamically linked and ships its shared libraries in a
+      // sibling "lib" folder (libnuxmv.so, libgmp, libedit, libicu*, ...). Point LD_LIBRARY_PATH
+      // at that folder so the model checker can find them (equivalent to the vendor's nuXmv.sh
+      // wrapper). Only needed on Linux; the command runs through a shell (popen), so an env-var
+      // prefix is sufficient. Older, statically-linked binaries simply have no lib/ folder and
+      // are invoked unchanged.
+      std::string nuxmv_invocation{ nuxmv_fulldir };
+#if defined(__linux__)
+      const std::filesystem::path nuxmv_lib_dir{ nuxmv_exec.parent_path() / "lib" };
+      if (std::filesystem::is_directory(nuxmv_lib_dir)) {
+         const std::string lib_dir_str{ nuxmv_lib_dir.generic_string() };
+         nuxmv_invocation = "LD_LIBRARY_PATH=\"" + lib_dir_str + "${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\" " + nuxmv_fulldir;
+      }
+#endif
+
+      std::string command_nuxmv{ nuxmv_invocation
          + " -int -pre cpp -source " + generated_dir + "script.cmd " + generated_dir + "main.smv"};
 
       inputs.addNote("RUNNING KRATOS with command '" + command_kratos + "'.");
