@@ -58,6 +58,7 @@ examples/gp*
 examples/exp*
 enc_temp_folder
 videos
+tmp
 
 !src/examples/aca4/**/*
 
