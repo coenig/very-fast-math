@@ -46,9 +46,9 @@ sudo apt-get install libglew-dev
 ## M²oRTy (Ultra-Cooperative Driving)
 Safe trajectories by dis-proof of their non-existence.
 
-https://github.com/user-attachments/assets/c94b6da5-2208-4e65-a40f-339ffb0872de
-
 https://github.com/user-attachments/assets/185897fe-c9f0-415a-b5c1-19f09b66bc73
+
+https://github.com/user-attachments/assets/91c121bc-fe8a-4ee3-83e7-db243c79ec54
 
 https://github.com/user-attachments/assets/0fe0c22f-3a62-4c92-a389-8c9bb43a658a
 
