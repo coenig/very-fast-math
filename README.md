@@ -50,7 +50,7 @@ https://github.com/user-attachments/assets/c94b6da5-2208-4e65-a40f-339ffb0872de
 
 https://github.com/user-attachments/assets/185897fe-c9f0-415a-b5c1-19f09b66bc73
 
-https://github.com/user-attachments/assets/b1c555b8-dea2-459d-82b9-1e5b592eb2a3
+https://github.com/user-attachments/assets/0fe0c22f-3a62-4c92-a389-8c9bb43a658a
 
 The nuXmv model checker steers several cars cooperatively to accomplish a given formal goal. In the example, two cars pass each other on a narrow road with parked cars ("Nudging") with safe, shortest possible collective trajectories. 
 
