@@ -555,7 +555,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         import highway_env as _he
         import pygame  # Required to draw/scale images
 
-        BACKGROUND_IMAGE_PATH = "./examples/crossing.pngg" # Remove last g for POC
+        BACKGROUND_IMAGE_PATH = "./examples/crossing.png" # Remove last g for POC
 
         try:
             # Load image independently from display; convert once a display surface exists.
