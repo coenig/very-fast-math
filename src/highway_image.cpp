@@ -1243,6 +1243,7 @@ void vfm::HighwayImage::paintGraphConnectionsBetweenSections(
 void vfm::HighwayImage::paintRoadGraph(
    const std::shared_ptr<RoadGraph> r_raw,
    const Vec2D& dim_raw_raw,
+   const bool paint_cars,
    const std::map<std::string, std::string>& var_vals,
    const bool print_agent_ids,
    const float TRANSLATE_X_raw,
@@ -1381,6 +1382,6 @@ void vfm::HighwayImage::paintRoadGraph(
    label:
    setTranslator(old_trans);
    //DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::ghosts_only); // For debugging.
-   DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
+   if (paint_cars) DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
    setTranslator(old_trans);
 }

@@ -128,7 +128,8 @@ public:
 		gif_animation = 4,
 		cockpit = 8,
 		birdseye = 16,
-		always_paint_arrows = 32
+		always_paint_arrows = 32,
+      plain_road_no_cars = 64,
 	};
 
 
@@ -189,7 +190,8 @@ private:
 		const DataPackPtr future_data,
 		const std::shared_ptr<std::vector<PainterVariableDescription>> variables_to_be_painted,
 		const std::set<int>& agents_to_draw_arrows_for,
-      const std::shared_ptr<RoadGraph> road_graph);
+      const std::shared_ptr<RoadGraph> road_graph,
+      const bool paint_cars);
 };
 
 

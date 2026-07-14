@@ -128,6 +128,7 @@ public:
    void paintRoadGraph(
       const std::shared_ptr<RoadGraph> r,
       const Vec2D& dim,
+      const bool paint_cars,
       const std::map<std::string, std::string>& var_vals = {},
       const bool print_agent_ids = true,
       const float TRANSLATE_X = 0,

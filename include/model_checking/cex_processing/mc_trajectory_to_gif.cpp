@@ -424,7 +424,8 @@ void LiveSimGenerator::generate(
          m_trajectory_provider_.getDataTrace().size() > trajectory_index + 1 ? m_trajectory_provider_.getDataTrace().at(trajectory_index + 1) : nullptr,
          VARIABLES_TO_BE_PAINTED,
          agents_to_draw_arrows_for,
-         road_graph);
+         road_graph,
+         visu_type & LiveSimType::plain_road_no_cars);
 
       // Determine frame duration from trajectory
       double frame_duration;
@@ -441,7 +442,6 @@ void LiveSimGenerator::generate(
       }
    }
 
-	std::cout << std::endl;
    StaticHelper::removeFileSafe(morty_progress_path);
 
    gif_recorder.finish();
@@ -479,7 +479,8 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
    const DataPackPtr future_data,
    const std::shared_ptr<std::vector<PainterVariableDescription>> variables_to_be_painted,
    const std::set<int>& agents_to_draw_arrows_for,
-   const std::shared_ptr<RoadGraph> road_graph
+   const std::shared_ptr<RoadGraph> road_graph,
+   const bool paint_cars
    )
 {
    const bool activate_pdf{ ((visu_type & LiveSimType::constant_image_output) || (visu_type & LiveSimType::incremental_image_output))
@@ -505,7 +506,8 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
          activate_pdf,
          CREATE_COCKPIT_VIEW ? 0 : 900, // TODO: Not so nice to hard-code this. But cropping the birds-eye view like this is often beneficial when used as a figure in a text.
          CREATE_COCKPIT_VIEW ? 0 : 700,
-         road_graph)
+         road_graph,
+         paint_cars)
       : nullptr;
 
    if (birds_eye)

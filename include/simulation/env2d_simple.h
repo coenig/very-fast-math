@@ -112,7 +112,8 @@ public:
       const bool start_pdf,
       const float crop_left,
       const float crop_right,
-      const std::shared_ptr<RoadGraph>& road_graph) const
+      const std::shared_ptr<RoadGraph>& road_graph,
+      const bool paint_cars) const
    {
       const bool infinite_highway{ false /*road_graph->getNodeCount() == 1*/ };
 
@@ -152,6 +153,7 @@ public:
       outside_view_->paintRoadGraph(
          road_graph,
          { 500, 30 },
+         paint_cars,
          additional_var_vals,
          true, offset_x, offset_y);
 
@@ -199,6 +201,7 @@ public:
       cockpit_view_->paintRoadGraph(
          road_graph,
          { 500, 120 },
+         true, // Paint cars.
          additional_var_vals,
          true);
 

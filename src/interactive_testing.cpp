@@ -1165,10 +1165,10 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphCrossing(
 
       image2.fillImg(BROWN);
       image3.paintEarthAndSky(true);
-      image2.paintRoadGraph(ra1, { 500, 60 }, {}, true, 50, 70);
+      image2.paintRoadGraph(ra1, { 500, 60 }, true, {}, true, 50, 70);
       image2.store("../examples/crossing", OutputType::pdf);
       image2.store("../examples/crossing", OutputType::png);
-      image3.paintRoadGraph(ra1, dim3D);
+      image3.paintRoadGraph(ra1, dim3D, true);
       image3.store("../examples/crossing_3d", OutputType::pdf);
       image3.store("../examples/crossing_3d", OutputType::png);
 
@@ -1274,10 +1274,10 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(
 
       image2.fillImg(BROWN);
       image3.paintEarthAndSky(true);
-      image2.paintRoadGraph(ra1, { 500, 60 }, {}, true);
+      image2.paintRoadGraph(ra1, { 500, 60 }, true, {}, true);
       image2.store("../examples/junction", OutputType::pdf);
       image2.store("../examples/junction", OutputType::png);
-      image3.paintRoadGraph(ra1, dim3D);
+      image3.paintRoadGraph(ra1, dim3D, true);
       image3.store("../examples/junction_3d", OutputType::pdf);
       image3.store("../examples/junction_3d", OutputType::png);
 
@@ -1451,10 +1451,10 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 
       image2.fillImg(BROWN);
       image3.paintEarthAndSky(true);
-      image2.paintRoadGraph(r1, { 500, 60 }, {}, true, 60, (float)r0->getMyRoad().getNumActualLanes() / 2.0f);
+      image2.paintRoadGraph(r1, { 500, 60 }, true, {}, true, 60, (float)r0->getMyRoad().getNumActualLanes() / 2.0f);
       image2.store("../examples/roundabout", OutputType::pdf);
       image2.store("../examples/roundabout", OutputType::png);
-      image3.paintRoadGraph(r1, dim3D, {}, true, 0, 0);
+      image3.paintRoadGraph(r1, dim3D, true, {}, true, 0, 0);
       image3.store("../examples/roundabout_3d", OutputType::pdf);
       image3.store("../examples/roundabout_3d", OutputType::png);
 

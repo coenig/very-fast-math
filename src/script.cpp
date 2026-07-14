@@ -1463,6 +1463,7 @@ std::string vfm::macro::Script::storeRoadGraph(const std::string& body, const st
    image.paintRoadGraph(
       rg,
       { vfm_data_->getSingleVal("DIMENSION_X"), vfm_data_->getSingleVal("DIMENSION_Y") },
+      true, // Paint cars
       {},
       true, offset_x, offset_y);
 
