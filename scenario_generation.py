@@ -86,8 +86,9 @@ def iter_model_configs(parameters: dict):
     # Update the property from the selected number of non-ego vehicles.
     def some_stuff(nonegos):
         clauses = []
-        for i in range(nonegos):
-            clauses.append(f"env.veh___6{i}9___.on_straight_section >= 0")
+        clauses.append(f"env.veh___6{0}9___.on_straight_section >= 0")
+        for i, j in zip(range(nonegos - 1), range(1, nonegos)):
+            clauses.append(f"env.veh___6{i}9___.on_straight_section = env.veh___6{j}9___.on_straight_section")
         for i, j in zip(range(nonegos - 1), range(1, nonegos)):
             clauses.append(
                 f"env.veh___6{i}9___.abs_pos > env.veh___6{j}9___.abs_pos"
