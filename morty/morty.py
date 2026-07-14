@@ -743,6 +743,15 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     # EO Prepare dry run
 
     for global_counter in range(args.steps_per_run):
+        # Reload background image every policy iteration.
+        if bg_image_state is not None:
+            try:
+                import pygame
+                bg_image_state["image"] = pygame.image.load(BACKGROUND_IMAGE_PATH)
+                bg_image_state["converted"] = False
+            except Exception:
+                pass
+
         mcinput = ""
         i = 0
         for el in obs: # Use only el[0] because it contains the abs values from the resp. car's perspective.
@@ -769,6 +778,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             @{{nuXmv}}@.killAfter[300].Detach.setScriptVar[scriptID, force]
             @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[16]
             @{{scriptID}}@.scriptVar.StopScript
+            
+            @{{}}@.generateTestCasesPlain[plain_road, debug_trace_array_FALSE, ./examples/exp4_time_2000_dist_4000_mintimeBetweenLC_1/detailed_archive/scaling_info.txt]
 
             }}@.nil
             @{{}}@.prepareOutputForMortyUCD[{str(seedo)}, {str(global_counter)}, {0}, {str(crashed)}]
