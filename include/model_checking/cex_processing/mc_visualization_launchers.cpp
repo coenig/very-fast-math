@@ -270,7 +270,7 @@ bool VisualizationLaunchers::quickGenerateGIFs(
       // Scaling
       std::string scaling_file_path_final{ scaling_file_path };
       
-      if (scaling_file_path_final.empty()) { // Use default path.
+      if (StaticHelper::isEmptyExceptWhiteSpaces(scaling_file_path_final)) { // Use default path.
          ScaleDescription::createTimescalingFile(path_base);
          scaling_file_path_final = path_base + TIMESCALING_FILENAME;
       }
