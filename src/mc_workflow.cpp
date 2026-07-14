@@ -768,7 +768,7 @@ bool McWorkflow::isLTL(
 
 std::filesystem::path McWorkflow::getCEXFileName(const std::string& path_template, const std::string& filename_json_template) const
 {
-   return getValueForJSONKeyAsString("_CEX_FILE_NANE", path_template, filename_json_template, JSON_TEMPLATE_DENOTER);
+   return getValueForJSONKeyAsString("_CEX_FILE_NAME", path_template, filename_json_template, JSON_TEMPLATE_DENOTER);
 }
 
 std::filesystem::path McWorkflow::getCachedDir(const std::string& path_template, const std::string& filename_json_template) const
@@ -783,7 +783,19 @@ std::filesystem::path McWorkflow::getBPIncludesFileDir(const std::string& path_t
 
 std::filesystem::path McWorkflow::getGeneratedDir(const std::string& path_template, const std::string& filename_json_template) const
 {
-   return getValueForJSONKeyAsString("_GENERATED_PATH", path_template, filename_json_template, JSON_TEMPLATE_DENOTER);
+   const std::string generated_dir{ getValueForJSONKeyAsString("_GENERATED_PATH", path_template, filename_json_template, JSON_TEMPLATE_DENOTER) };
+
+   // The generated directory is concatenated literally with the config name (e.g. "_config_X") by
+   // callers such as generateEnvmodels and retrievePaths. A trailing slash would create an unwanted
+   // nested folder ("generated/_config_X") for the envmodel while the MC job operates on the flat
+   // sibling ("generated_config_X"), silently splitting the artifacts across two folders.
+   if (!generated_dir.empty() && (generated_dir.back() == '/' || generated_dir.back() == '\\')) {
+      addFatalError("'_GENERATED_PATH' ('" + generated_dir + "') must not end with a trailing slash, "
+         "otherwise envmodel generation and model checking would use different (nested vs. flat) "
+         "output folders. Please remove the trailing slash.");
+   }
+
+   return generated_dir;
 }
 
 std::filesystem::path vfm::mc::McWorkflow::getExternalDir(const std::string& path_template, const std::string& filename_json_template) const

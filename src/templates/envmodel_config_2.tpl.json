@@ -96,6 +96,6 @@
       "_EXTERNAL_PATH": "../external",
       "_GENERATED_PATH": "../examples/gp",
       "_ENVMODEL_PATH": "../src/templates",
-      "_CEX_FILE_NANE": "debug_trace_array.txt"
+      "_CEX_FILE_NAME": "debug_trace_array.txt"
    }
 }
