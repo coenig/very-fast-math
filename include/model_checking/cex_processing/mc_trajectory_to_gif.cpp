@@ -425,7 +425,7 @@ void LiveSimGenerator::generate(
          VARIABLES_TO_BE_PAINTED,
          agents_to_draw_arrows_for,
          road_graph,
-         visu_type & LiveSimType::plain_road_no_cars);
+         !(visu_type & LiveSimType::plain_road_no_cars));
 
       // Determine frame duration from trajectory
       double frame_duration;
