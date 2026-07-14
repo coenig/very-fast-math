@@ -779,8 +779,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[16]
             @{{scriptID}}@.scriptVar.StopScript
             
-            @{{}}@.generateTestCasesPlain[plain_road, debug_trace_array_FALSE, ./examples/exp4_time_2000_dist_4000_mintimeBetweenLC_1/detailed_archive/scaling_info.txt]
-
             }}@.nil
             @{{}}@.prepareOutputForMortyUCD[{str(seedo)}, {str(global_counter)}, {0}, {str(crashed)}]
         """
@@ -868,6 +866,18 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             selected_runtime = np.nan
             selected_config = ucd_config_prios_str[0] # Use any because all are empty.
         selected_runtime_history.append(selected_runtime)
+
+        # Do Background Image
+        script_bgd_image = f"""
+        @{{{generated_path_prefix + selected_config}}}@.generateTestCasesPlain[plain_road, debug_trace_array_FALSE, ]
+        """
+        result_bg = create_string_buffer(100000)
+        with morty_script_context() as morty_lib:
+            res_bg = morty_lib.expandScript(script_bgd_image.encode('utf-8'), result_bg, sizeof(result_bg  ))
+        res_bg_str = res_bg.decode().strip() # Unused
+        print(res_bg_str)
+        input("Press Enter to continue after background image generation...")
+        # EO Do Background Image
 
         plot_mc_runtimes(
             mc_runtime_histories,
