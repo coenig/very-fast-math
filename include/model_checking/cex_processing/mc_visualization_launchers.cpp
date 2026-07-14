@@ -308,10 +308,10 @@ bool VisualizationLaunchers::quickGenerateGIFs(
          VisualizationLaunchers::interpretAndGenerate(
             trace,
             path,
-            TESTCASE_MODE_PREVIEW_2.first,
+            TESTCASE_MODE_PLAIN_ROAD.first,
             SIM_TYPE_PLAIN_ROAD,
             agents_to_draw_arrows_for,
-            gen_config_non_smooth, TESTCASE_MODE_PREVIEW_2.second);
+            gen_config_non_smooth, TESTCASE_MODE_PLAIN_ROAD.second);
       }
 
       if (modes.count(TESTCASE_MODE_PREVIEW.first) && !trace.at(0).second.count("env.section_1_segment_0_pos_begin")) {
