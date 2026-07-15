@@ -405,7 +405,13 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     np.random.seed(seedo)
     rng = np.random.default_rng(seedo)
     cnt = 0
-    for vehicle in env.unwrapped.controlled_vehicles:
+    pos_x_anchor = 0
+
+    for i, vehicle in enumerate(env.unwrapped.controlled_vehicles):
+        if i == 0:
+            pos_x_anchor = vehicle.position[0]
+        
+        vehicle.position[0] = vehicle.position[0] - pos_x_anchor
         vehicle.color = (255, 255, 255)
         vehicle.heading = np.pi * (1 - egos_backward[cnt]) / 2 # 0 for forward, pi for backward.
         vehicle.speed = np.random.uniform(min_start_speed, max_start_speed)
@@ -429,7 +435,11 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # Clamp lateral position to valid road boundaries
         vehicle.position[1] = max(min(vehicle.position[1], y_max_tech), y_min_tech)
         
+        print(f"Seeding vehicle {cnt} at position {vehicle.position} with speed {vehicle.speed} and heading {vehicle.heading}.")
+
         cnt = cnt + 1
+
+    input("Press Enter to continue after manual repositioning of vehicles (if any)...")
 
     # COP: Reset and seed trajectories after all manual vehicle repositioning.
     viz_state.trajectories.clear()
