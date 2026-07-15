@@ -554,19 +554,11 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         from highway_env.road.graphics import WorldSurface
         import highway_env as _he
         import pygame  # Required to draw/scale images
-
-        BACKGROUND_IMAGE_PATH = "./examples/crossing.png" # Remove last g for POC
-
-        try:
-            # Load image independently from display; convert once a display surface exists.
-            bg_image = pygame.image.load(BACKGROUND_IMAGE_PATH)
-            bg_image_state = {
-                "image": bg_image,
-                "converted": False,
-            }
-        except Exception as e:
-            bg_image_state = None
-            pass
+        # Lazy-load image in the simulation loop; no need before first iteration.
+        bg_image_state = {
+            "image": None,
+            "converted": False,
+        }
 
         _orig_move_display_window_to = WorldSurface.move_display_window_to
 
@@ -743,15 +735,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     # EO Prepare dry run
 
     for global_counter in range(args.steps_per_run):
-        # Reload background image every policy iteration.
-        if bg_image_state is not None:
-            try:
-                import pygame
-                bg_image_state["image"] = pygame.image.load(BACKGROUND_IMAGE_PATH)
-                bg_image_state["converted"] = False
-            except Exception:
-                pass
-
         mcinput = ""
         i = 0
         for el in obs: # Use only el[0] because it contains the abs values from the resp. car's perspective.
@@ -876,7 +859,22 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             res_bg = morty_lib.expandScript(script_bgd_image.encode('utf-8'), result_bg, sizeof(result_bg  ))
         res_bg_str = res_bg.decode().strip() # Unused
         print(res_bg_str)
-        input("Press Enter to continue after background image generation...")
+                
+        if bg_image_state is not None:
+            try:
+                import pygame
+                image_path = generated_path_prefix + selected_config + "/0/plain_road/plain_road_0.png"
+                BACKGROUND_IMAGE_PATH = generated_path_prefix + "/background.png"
+                Path(BACKGROUND_IMAGE_PATH).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(image_path, BACKGROUND_IMAGE_PATH)
+
+                bg_image_state["image"] = pygame.image.load(BACKGROUND_IMAGE_PATH)
+                bg_image_state["converted"] = False
+            except Exception:
+                bg_image_state["image"] = None
+                bg_image_state["converted"] = False
+                print("ERROR: Failed to load background road for rendering. Continuing without background.")
+
         # EO Do Background Image
 
         plot_mc_runtimes(
