@@ -293,7 +293,7 @@ def get_scene_bounding_box(env, car_ids):
 #   * BG_ZERO_PIXEL_X = 500 (Plain2DTranslator x-offset; world x 0 -> image x 500).
 #   * BG_ZERO_PIXEL_Y = 1019: CONFIRMED. Center of the road band.
 BG_PIXELS_PER_METER = 12.0
-BG_ZERO_PIXEL_X = -2800.0
+BG_ZERO_PIXEL_X = 0
 BG_ZERO_PIXEL_Y = 1019.0
 
 
@@ -624,7 +624,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
     # Monkey-patch WorldSurface to center the display on all vehicles instead of a single ego.
     try:
-        from highway_env.road.graphics import WorldSurface
+        from highway_env.road.graphics import WorldSurface, RoadGraphics
         import highway_env as _he
         import pygame  # Required to draw/scale images
         # Lazy-load image in the simulation loop; no need before first iteration.
@@ -661,45 +661,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     self.centering_position[0] * self.get_width() / self.scaling,
                     self.centering_position[1] * self.get_height() / self.scaling,
                 ])
-                
-                if bg_image_state is not None and bg_image_state["image"] is not None:
-                    if not hasattr(self, "_morty_orig_fill"):
-                        self._morty_orig_fill = self.fill
-                    # Ensure our explicit clear uses the real fill function.
-                    self.fill = self._morty_orig_fill
-
-                    # convert_alpha requires an initialized display/surface.
-                    if (not bg_image_state["converted"] and pygame.display.get_init()
-                            and pygame.display.get_surface() is not None):
-                        bg_image_state["image"] = bg_image_state["image"].convert_alpha()
-                        bg_image_state["image"].set_colorkey((0, 0, 0))
-                        bg_image_state["converted"] = True
-
-                    # Clear the screen first since we bypass self.fill below
-                    self.fill(self.GREY) 
-                    
-                    # Derive background world extent/anchor from HE road geometry so the
-                    # painted road matches highway-env's road under camera scale/translation.
-                    road_x, road_y, road_w, road_h = get_road_world_rect(env_ref)
-                    # Rigid anchor: image pixel (BG_ZERO_PIXEL_X, BG_ZERO_PIXEL_Y) is the
-                    # "zero road" start/center. Map it to world x=0 (abs_pos 0, ego-
-                    # independent) and the lateral center of the HE road.
-                    world_ref_x = 0.0
-                    world_ref_y = road_y + road_h / 2.0
-                    blit_background_rigid(
-                        self,
-                        bg_image_state["image"],
-                        world_ref_x_m=world_ref_x,
-                        world_ref_y_m=world_ref_y,
-                    )
-
-                    # Block exactly one default fill call after this function returns,
-                    # then restore normal fill to avoid frame-to-frame ghosting.
-                    def _skip_one_fill(color, rect=None, special_flags=0):
-                        self.fill = self._morty_orig_fill
-                        return None
-                    self.fill = _skip_one_fill
-
             except Exception as e:
                 _orig_move_display_window_to(self, position)
                 raise e
@@ -707,6 +668,41 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         WorldSurface.move_display_window_to = _move_display_window_to_all
         # Provide a hook so the patched function can find the current env.
         _he._display_env = None
+
+        # Patch RoadGraphics.display so the generated "background" road is blitted
+        # AFTER the highway-env road (grey fill + HE lane markings). This puts the
+        # HE road UNDERNEATH the generated road; vehicles are drawn afterwards by
+        # display_traffic, so they end up on top of both. Patch only once.
+        if not getattr(RoadGraphics, "_morty_bg_patched", False):
+            _orig_road_display = RoadGraphics.display
+
+            def _road_display_with_bg(road, surface):
+                _orig_road_display(road, surface)
+                try:
+                    env_ref = getattr(_he, '_display_env', None)
+                    if (env_ref is None or bg_image_state is None
+                            or bg_image_state["image"] is None):
+                        return
+                    # convert_alpha requires an initialized display/surface.
+                    if (not bg_image_state["converted"] and pygame.display.get_init()
+                            and pygame.display.get_surface() is not None):
+                        bg_image_state["image"] = bg_image_state["image"].convert_alpha()
+                        bg_image_state["image"].set_colorkey((0, 0, 0))
+                        bg_image_state["converted"] = True
+                    # Derive background world extent/anchor from HE road geometry so the
+                    # painted road matches highway-env's road under camera scale/translation.
+                    road_x, road_y, road_w, road_h = get_road_world_rect(env_ref)
+                    blit_background_rigid(
+                        surface,
+                        bg_image_state["image"],
+                        world_ref_x_m=0.0,
+                        world_ref_y_m=road_y + road_h / 2.0,
+                    )
+                except Exception:
+                    pass
+
+            RoadGraphics.display = staticmethod(_road_display_with_bg)
+            RoadGraphics._morty_bg_patched = True
     except Exception as e:
         raise e
 
@@ -942,16 +938,16 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         selected_runtime_history.append(selected_runtime)
 
         # Do Background Image
-        script_bgd_image = f"""
-        @{{{generated_path_prefix + selected_config}}}@.generateTestCasesPlain[plain_road, debug_trace_array_FALSE, ]
-        """
-        result_bg = create_string_buffer(100000)
-        with morty_script_context() as morty_lib:
-            res_bg = morty_lib.expandScript(script_bgd_image.encode('utf-8'), result_bg, sizeof(result_bg  ))
-        res_bg_str = res_bg.decode().strip() # Unused
-        print(res_bg_str)
+        if bg_image_state is not None and bg_image_state["image"] is None:
+            script_bgd_image = f"""
+            @{{{generated_path_prefix + selected_config}}}@.generateTestCasesPlain[plain_road, debug_trace_array_FALSE, ]
+            """
+            result_bg = create_string_buffer(100000)
+            with morty_script_context() as morty_lib:
+                res_bg = morty_lib.expandScript(script_bgd_image.encode('utf-8'), result_bg, sizeof(result_bg  ))
+            res_bg_str = res_bg.decode().strip() # Unused
+            print(res_bg_str)
                 
-        if bg_image_state is not None:
             try:
                 import pygame
                 image_path = generated_path_prefix + selected_config + "/0/plain_road/plain_road_0.png"
