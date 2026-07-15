@@ -130,7 +130,7 @@ public:
          outside_view_->setCropLeftRightPDF(crop_left, crop_right);
       }
 
-      outside_view_->fillImg(BROWN);
+      if (paint_cars) outside_view_->fillImg(BROWN);
 
       std::map<int, std::pair<float, float>> others_future_vec{}; // TODO: Future vec not yet working.
       //createOthersVecs2(others_future_vec, agents_to_draw_arrows_for, road_graph, future_data);

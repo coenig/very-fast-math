@@ -483,7 +483,9 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
    const bool paint_cars
    )
 {
-   const bool activate_pdf{ ((visu_type & LiveSimType::constant_image_output) || (visu_type & LiveSimType::incremental_image_output))
+   const bool activate_pdf{ 
+      ((visu_type & LiveSimType::constant_image_output) || (visu_type & LiveSimType::incremental_image_output))
+      && !(visu_type & LiveSimType::plain_road_no_cars)
       && StaticHelper::count<OutputType>(single_images_output_types, OutputType::pdf)};
 
    bool CREATE_COCKPIT_VIEW = visu_type & LiveSimType::cockpit;
