@@ -135,16 +135,12 @@ public:
       std::map<int, std::pair<float, float>> others_future_vec{}; // TODO: Future vec not yet working.
       //createOthersVecs2(others_future_vec, agents_to_draw_arrows_for, road_graph, future_data);
       
-      Rec2D bounding_box{ infinite_highway ? Rec2D{} : road_graph->getBoundingBox() };
-      const float offset_x{ infinite_highway
-         ? -5.0f - ego_pos_x_
-         : -5.0f - ego_pos_x_ //-bounding_box.upper_left_.x + 15
-      };
+      Rec2D bounding_box{ road_graph->getBoundingBox() };
+      const float offset_x{ paint_cars ? -5.0f - ego_pos_x_: 0 };
 
       const float offset_y{ 
          infinite_highway
-         ? 
-         (float)road_graph->getMyRoad().getNumActualLanes() / 2.0f
+         ? (float)road_graph->getMyRoad().getNumActualLanes() / 2.0f
          : 20.0f
          //-bounding_box.upper_left_.y + 15 
          //-getImageHeight() * (getImageHeight() / outside_view_->getHeight() / 2) + 25
