@@ -188,3 +188,395 @@ def morty_script_context():
 #         # morty_lib is already loaded, configured, and will be cleaned up
 #         res1 = morty_lib.expandScript(b"call_one", b"data", 1024)
 #         res2 = morty_lib.expandScript(b"call_two", b"data", 1024)
+
+
+# ============================================================================
+# Visualization / painting helpers.
+# These keep highway-env rendering monkey-patches and geometry math out of the
+# pure model-checking loop in morty.py. Nothing here is needed for the MC logic
+# itself; it only affects how frames are drawn.
+# ============================================================================
+
+# --- Fixed geometry of the generated plain_road PNG -------------------------
+# Measured directly from a generated plain_road_0.png (2400x1820, see repo
+# memory plain-road-image-geometry.md). The generator (Plain2DTranslator) is
+# Euclidean in meters: the lane-based lateral layout is already resolved into
+# pixels when painting, so the SAME pixels-per-meter applies to BOTH axes (no
+# stretch, no per-axis scale). We therefore use one uniform scale:
+#   image_px = world_m * BG_PIXELS_PER_METER + BG_ZERO_PIXEL   (per axis)
+# The PNG is regenerated for the current scene each step and already contains
+# the full, correct road graph (merges/branches/curves) at the right places, so
+# we blit it EXACTLY ONCE with a single uniform scale (no tiling, no stretch).
+# A fixed image pixel is pinned to world x=0 (ego-independent). If the road is
+# shorter than the visible region, the fix is to generate a longer road, NOT to
+# repeat pixels (which would corrupt non-straight graphs).
+# T&E knobs:
+#   * BG_PIXELS_PER_METER = 12: CONFIRMED. Lane 48 px / 4.0 m; scaled road width
+#     matches HE exactly. Same value governs longitudinal spacing (dashes).
+#   * BG_ZERO_PIXEL_X = 500 (Plain2DTranslator x-offset; world x 0 -> image x 500).
+#   * BG_ZERO_PIXEL_Y = 1019: CONFIRMED. Center of the road band.
+BG_PIXELS_PER_METER = 12.0
+BG_ZERO_PIXEL_X = 0
+BG_ZERO_PIXEL_Y = 1019.0
+
+
+class VizState:
+    """Shared mutable state for the visualization monkey-patches.
+
+    Held in a single object so the patched render callbacks (installed once) and
+    the main loop in morty.py refer to the same containers by reference. This is
+    what lets the MC loop stay free of loose module-level globals.
+    """
+
+    def __init__(self):
+        self.trajectories = {}    # vehicle id -> list of [x, y, priority]
+        self.pp_targets = {}      # vehicle id -> [x, y] pure-pursuit target
+        self.selected_cnt = None  # currently active CEX priority (for coloring)
+        self.pos_to_draw = []     # list of [coord, color] planned MC positions
+
+
+def get_scene_bounding_box(env, car_ids):
+    """
+    Finds the tightest axis-aligned (unrotated) bounding box that contains 
+    every point of the specified cars in the highway-env scene.
+    
+    Args:
+        env: The highway-env / gymnasium environment instance.
+        car_ids (list): List of vehicle IDs to include.
+        
+    Returns:
+        dict: A dictionary containing the bounding box boundaries:
+              xmin, ymin, xmax, ymax and the box dimensions.
+    """
+    all_corners = []
+    
+    # Access all active vehicles in the current road scene
+    vehicles = env.unwrapped.road.vehicles
+    
+    # Filter for the requested cars based on ID
+    # Note: Depending on your wrapper/setup, you can match by ID, or index.
+    # Here, we assume vehicles can be filtered or matched. If you have unique custom IDs:
+    target_vehicles = [v for v in vehicles if getattr(v, 'id', None) in car_ids]
+    
+    # Fallback if your vehicles do not have an 'id' attribute (match by list index):
+    if not target_vehicles:
+        for idx, v in enumerate(vehicles):
+            if idx in car_ids:
+                target_vehicles.append(v)
+                
+    if not target_vehicles:
+        raise ValueError(
+            f"No IDs found in scene. Specified: {car_ids}, Available: {vehicles}")
+
+    for vehicle in target_vehicles:
+        # Correctly unpack position coordinates
+        x, y = vehicle.position[0], vehicle.position[1]
+        heading = vehicle.heading
+        length = vehicle.LENGTH
+        width = vehicle.WIDTH
+        
+        # Define corners relative to the vehicle's center (local coordinates)
+        local_corners = np.array([
+            [length / 2,  width / 2],
+            [length / 2, -width / 2],
+            [-length / 2, -width / 2],
+            [-length / 2,  width / 2]
+        ])
+        
+        # 2. Construct 2D rotation matrix for the heading angle
+        cos_h = np.cos(heading)
+        sin_h = np.sin(heading)
+        rotation_matrix = np.array([
+            [cos_h, -sin_h],
+            [sin_h,  cos_h]
+        ])
+        
+        # 3. Rotate and translate corners to global coordinates
+        global_corners = (local_corners @ rotation_matrix.T) + np.array([x, y])
+        all_corners.extend(global_corners)
+        
+    # 4. Find the global minimum and maximum across all gathered corners
+    all_corners = np.array(all_corners)
+    x_min, y_min = np.min(all_corners, axis=0)
+    x_max, y_max = np.max(all_corners, axis=0)
+    
+    return {
+        "xmin": x_min,
+        "ymin": y_min,
+        "xmax": x_max,
+        "ymax": y_max,
+        "width": x_max - x_min,
+        "height": y_max - y_min
+    }
+
+
+def blit_background_rigid(surface, image, world_ref_x_m, world_ref_y_m,
+                          pixels_per_meter=BG_PIXELS_PER_METER,
+                          ref_pixel_x=BG_ZERO_PIXEL_X,
+                          ref_pixel_y=BG_ZERO_PIXEL_Y):
+    """
+    Blit the generated road PNG so image pixel (ref_pixel_x, ref_pixel_y) lands
+    exactly on world coordinate (world_ref_x_m, world_ref_y_m) under the current
+    camera. A SINGLE uniform scale is used for both axes (the source PNG is
+    Euclidean in meters, so it must not be stretched) and the image is blitted
+    exactly once: it already encodes the full road graph for the current scene,
+    so there is nothing to tile. The reference pixel stays pinned to the given
+    world coordinate, keeping the road fixed regardless of the ego.
+    """
+    import pygame
+
+    # screen px per image px = (screen px / world m) / (image px / world m)
+    scale = surface.scaling / pixels_per_meter
+    src_w, src_h = image.get_size()
+    scaled_w = max(1, int(round(src_w * scale)))
+    scaled_h = max(1, int(round(src_h * scale)))
+    # Nearest-neighbour scale (not smoothscale) so the (0,0,0) colorkey stays
+    # exact and no anti-aliased near-black fringe leaks through.
+    scaled_bg = pygame.transform.scale(image, (scaled_w, scaled_h))
+    scaled_bg.set_colorkey((0, 0, 0))
+
+    anchor_screen_x, anchor_screen_y = surface.vec2pix((world_ref_x_m, world_ref_y_m))
+    blit_x = anchor_screen_x - ref_pixel_x * scale
+    blit_y = anchor_screen_y - ref_pixel_y * scale
+
+    surface.blit(scaled_bg, (int(round(blit_x)), int(round(blit_y))))
+
+
+def get_road_world_rect(env):
+    """
+    Compute the world-space rectangle (in meters) covered by the HE road network,
+    including lateral lane width. Returns (x_min, y_min, width, height).
+    """
+    road = env.unwrapped.road
+    xs = []
+    ys = []
+    for lane in road.network.lanes_list():
+        for longitudinal in (0.0, lane.length):
+            half_width = lane.width_at(longitudinal) / 2.0
+            for lateral in (-half_width, half_width):
+                pos = lane.position(longitudinal, lateral)
+                xs.append(float(pos[0]))
+                ys.append(float(pos[1]))
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    return x_min, y_min, x_max - x_min, y_max - y_min
+
+
+def install_vehicle_graphics_patches(args, viz_state):
+    """Patch highway-env's VehicleGraphics for morty's rendering.
+
+    - get_color: make crash red take priority over morty's custom colors.
+    - display: overlay per-vehicle trajectories, pure-pursuit targets, planned
+      MC positions and vehicle-index labels.
+
+    All mutable drawing state lives on `viz_state`; `args` toggles overlays.
+    """
+    from highway_env.vehicle.graphics import VehicleGraphics
+
+    # COP: Patch VehicleGraphics.get_color so that crashed always takes priority over custom color.
+    # Without this, highway-env checks vehicle.color BEFORE vehicle.crashed, so any custom
+    # color (blue for blind, green for CEX) would suppress the native red crash rendering —
+    # including during the intermediate simulation sub-steps within env.step().
+    _original_get_color = VehicleGraphics.get_color
+
+    @classmethod
+    def _patched_get_color(cls, vehicle, transparent=False):
+        if vehicle.crashed:
+            color = cls.RED
+            if transparent:
+                color = (color[0], color[1], color[2], 30)
+            return color
+        return _original_get_color.__func__(cls, vehicle, transparent)
+    VehicleGraphics.get_color = _patched_get_color
+
+    # COP: Patch VehicleGraphics.display to draw trajectories and car IDs.
+    # Important: Draw trajectories from inside VehicleGraphics.display so lines are rendered
+    # before the frame blit/flip done by EnvViewer.display.
+    _original_display = VehicleGraphics.display.__func__
+
+    @classmethod
+    def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, label=False, draw_roof=False):
+        try:
+            import pygame
+
+            # Persist trajectory in world coordinates and draw it in the current camera view.
+            vehicle_id = id(vehicle)
+            if vehicle_id not in viz_state.trajectories:
+                viz_state.trajectories[vehicle_id] = []
+
+            trajectory = viz_state.trajectories[vehicle_id]
+            current_position = [float(vehicle.position[0]), float(vehicle.position[1])]
+            stationary = abs(getattr(vehicle, 'speed', 0.0)) < 0.1
+
+            if not trajectory:
+                trajectory.append([*current_position, viz_state.selected_cnt])
+            elif not stationary:
+                last_position = trajectory[-1]
+                dx = current_position[0] - last_position[0]
+                dy = current_position[1] - last_position[1]
+                moved = abs(dx) > 0.05 or abs(dy) > 0.05
+                # Ignore one-time teleport/snap after initialization to avoid fake long tails.
+                if moved:
+                    jump2 = dx * dx + dy * dy
+                    if len(trajectory) == 1 and jump2 > 100.0:  # >10 m in one render step is likely a teleport.
+                        trajectory[0] = [*current_position, viz_state.selected_cnt]
+                    else:
+                        trajectory.append([*current_position, viz_state.selected_cnt])
+                        if len(trajectory) > 2000:
+                            viz_state.trajectories[vehicle_id] = trajectory[-2000:]
+
+            if not args.hide_trajectories and len(trajectory) > 1:
+                # Draw trajectory segments colored by priority
+                priority_color_map = {
+                    None: (100, 150, 200),
+                    0: (31, 119, 180),    # tab:blue
+                    1: (255, 127, 14),    # tab:orange
+                    2: (44, 160, 44),     # tab:green
+                    3: (214, 39, 40),     # tab:red
+                    4: (148, 103, 189),   # tab:purple
+                    5: (140, 86, 75),     # tab:brown
+                }
+                font = pygame.font.Font(None, 14)
+                for i in range(len(trajectory) - 1):
+                    p1_pix = surface.pos2pix(trajectory[i][0], trajectory[i][1])
+                    p2_pix = surface.pos2pix(trajectory[i + 1][0], trajectory[i + 1][1])
+                    priority = trajectory[i][2] if len(trajectory[i]) > 2 else None
+                    color = priority_color_map.get(priority, (100, 150, 200))
+                    pygame.draw.line(surface, color, p1_pix, p2_pix, width=2)
+
+                    # Label each priority block once, near its first segment.
+                    prev_priority = trajectory[i - 1][2] if i > 0 and len(trajectory[i - 1]) > 2 else None
+                    if i == 0 or priority != prev_priority:
+                        label = "X" if priority is None else str(priority)
+                        midx = (p1_pix[0] + p2_pix[0]) // 2
+                        midy = (p1_pix[1] + p2_pix[1]) // 2
+                        text = font.render(label, True, (20, 20, 20), (255, 255, 255))
+                        if args.show_prio_numbers:
+                            surface.blit(text, (midx + 2, midy - 10))
+
+            if not args.hide_pure_pursuit and vehicle_id in viz_state.pp_targets:
+                target = viz_state.pp_targets[vehicle_id]
+                # Offset line start to front axle instead of vehicle center
+                front_offset = vehicle.LENGTH / 2.0
+                p_vehicle_x = current_position[0] + front_offset * np.cos(vehicle.heading)
+                p_vehicle_y = current_position[1] + front_offset * np.sin(vehicle.heading)
+                p_vehicle = surface.pos2pix(p_vehicle_x, p_vehicle_y)
+                p_target = surface.pos2pix(target[0], target[1])
+                pygame.draw.line(surface, (255, 140, 0), p_vehicle, p_target, width=2)
+                pygame.draw.circle(surface, (255, 180, 0), p_target, 5)
+
+        except Exception as e:
+            print(f"Warning: Error drawing trajectories: {e}")
+            input("Press Enter to continue..." + str(e))
+
+        _original_display(cls, vehicle, surface, transparent=transparent, offscreen=offscreen, label=False, draw_roof=draw_roof)
+
+        try:
+            import pygame
+
+            for pos in viz_state.pos_to_draw:
+                pixx = surface.pos2pix(pos[0][0], pos[0][1])
+                pygame.draw.circle(surface, pos[1], pixx, 3)
+
+        except Exception as e:
+            raise RuntimeError(f"Error drawing global positions: {e}")
+
+        if not surface.is_visible(vehicle.position):
+            return
+        try:
+            import pygame
+            idx = vehicle.road.vehicles.index(vehicle)
+            font = pygame.font.Font(None, 18)
+            text = font.render(str(idx), True, (0, 0, 0), (255, 255, 255))
+            position = [*surface.pos2pix(vehicle.position[0], vehicle.position[1])]
+            surface.blit(text, (position[0] - 5, position[1] - 15))
+        except (ValueError, AttributeError):
+            pass
+    VehicleGraphics.display = _patched_display
+
+
+def install_world_surface_patches(bg_image_state):
+    """Patch highway-env's WorldSurface/RoadGraphics for morty's camera + road.
+
+    - WorldSurface.move_display_window_to: frame the camera on ALL vehicles
+      (instead of a single ego) using the scene bounding box.
+    - RoadGraphics.display: after the native HE road (grey fill + lane markings),
+      blit the generated "background" road on top of it, so the HE road sits
+      UNDERNEATH the generated road while vehicles (drawn later) stay on top.
+
+    `bg_image_state` is the mutable dict holding the loaded/converted PNG.
+    """
+    from highway_env.road.graphics import WorldSurface, RoadGraphics
+    import highway_env as _he
+    import pygame  # Required to draw/scale images
+
+    _orig_move_display_window_to = WorldSurface.move_display_window_to
+
+    def _move_display_window_to_all(self, position):
+        try:
+            env_ref = getattr(_he, '_display_env', None)
+            if env_ref is None:
+                return _orig_move_display_window_to(self, position)
+
+            vehicles = getattr(env_ref.unwrapped, 'road').vehicles
+            if not vehicles:
+                return _orig_move_display_window_to(self, position)
+
+            bbox = get_scene_bounding_box(env_ref, [i for i in range(1000)])
+
+            padding = 10
+            target_width_m = (bbox["xmax"] - bbox["xmin"]) + (padding * 2)
+            target_height_m = (bbox["ymax"] - bbox["ymin"]) + (padding * 2)
+            screen_width, screen_height = self.get_width(), self.get_height()
+            scale_x = screen_width / max(1.0, target_width_m)
+            scale_y = screen_height / max(1.0, target_height_m)
+            self.scaling = min(scale_x, scale_y)
+
+            center = np.array([(bbox["xmin"] + bbox["xmax"]) / 2.0 - 50, (bbox["ymin"] + bbox["ymax"]) / 2.0])
+
+            self.origin = center - np.array([
+                self.centering_position[0] * self.get_width() / self.scaling,
+                self.centering_position[1] * self.get_height() / self.scaling,
+            ])
+        except Exception as e:
+            _orig_move_display_window_to(self, position)
+            raise e
+
+    WorldSurface.move_display_window_to = _move_display_window_to_all
+    # Provide a hook so the patched function can find the current env.
+    _he._display_env = None
+
+    # Patch RoadGraphics.display so the generated "background" road is blitted
+    # AFTER the highway-env road (grey fill + HE lane markings). This puts the
+    # HE road UNDERNEATH the generated road; vehicles are drawn afterwards by
+    # display_traffic, so they end up on top of both. Patch only once.
+    if not getattr(RoadGraphics, "_morty_bg_patched", False):
+        _orig_road_display = RoadGraphics.display
+
+        def _road_display_with_bg(road, surface):
+            _orig_road_display(road, surface)
+            try:
+                env_ref = getattr(_he, '_display_env', None)
+                if (env_ref is None or bg_image_state is None
+                        or bg_image_state["image"] is None):
+                    return
+                # convert_alpha requires an initialized display/surface.
+                if (not bg_image_state["converted"] and pygame.display.get_init()
+                        and pygame.display.get_surface() is not None):
+                    bg_image_state["image"] = bg_image_state["image"].convert_alpha()
+                    bg_image_state["image"].set_colorkey((0, 0, 0))
+                    bg_image_state["converted"] = True
+                # Derive background world extent/anchor from HE road geometry so the
+                # painted road matches highway-env's road under camera scale/translation.
+                road_x, road_y, road_w, road_h = get_road_world_rect(env_ref)
+                blit_background_rigid(
+                    surface,
+                    bg_image_state["image"],
+                    world_ref_x_m=0.0,
+                    world_ref_y_m=road_y + road_h / 2.0,
+                )
+            except Exception:
+                pass
+
+        RoadGraphics.display = staticmethod(_road_display_with_bg)
+        RoadGraphics._morty_bg_patched = True
