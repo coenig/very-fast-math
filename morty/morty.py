@@ -274,6 +274,79 @@ def get_scene_bounding_box(env, car_ids):
     }
 
 
+# --- Fixed geometry of the generated plain_road PNG -------------------------
+# Measured directly from a generated plain_road_0.png (2400x1820, see repo
+# memory plain-road-image-geometry.md). The generator (Plain2DTranslator) is
+# Euclidean in meters: the lane-based lateral layout is already resolved into
+# pixels when painting, so the SAME pixels-per-meter applies to BOTH axes (no
+# stretch, no per-axis scale). We therefore use one uniform scale:
+#   image_px = world_m * BG_PIXELS_PER_METER + BG_ZERO_PIXEL   (per axis)
+# The PNG is regenerated for the current scene each step and already contains
+# the full, correct road graph (merges/branches/curves) at the right places, so
+# we blit it EXACTLY ONCE with a single uniform scale (no tiling, no stretch).
+# A fixed image pixel is pinned to world x=0 (ego-independent). If the road is
+# shorter than the visible region, the fix is to generate a longer road, NOT to
+# repeat pixels (which would corrupt non-straight graphs).
+# T&E knobs:
+#   * BG_PIXELS_PER_METER = 12: CONFIRMED. Lane 48 px / 4.0 m; scaled road width
+#     matches HE exactly. Same value governs longitudinal spacing (dashes).
+#   * BG_ZERO_PIXEL_X = 500 (Plain2DTranslator x-offset; world x 0 -> image x 500).
+#   * BG_ZERO_PIXEL_Y = 1019: CONFIRMED. Center of the road band.
+BG_PIXELS_PER_METER = 12.0
+BG_ZERO_PIXEL_X = -2800.0
+BG_ZERO_PIXEL_Y = 1019.0
+
+
+def blit_background_rigid(surface, image, world_ref_x_m, world_ref_y_m,
+                          pixels_per_meter=BG_PIXELS_PER_METER,
+                          ref_pixel_x=BG_ZERO_PIXEL_X,
+                          ref_pixel_y=BG_ZERO_PIXEL_Y):
+    """
+    Blit the generated road PNG so image pixel (ref_pixel_x, ref_pixel_y) lands
+    exactly on world coordinate (world_ref_x_m, world_ref_y_m) under the current
+    camera. A SINGLE uniform scale is used for both axes (the source PNG is
+    Euclidean in meters, so it must not be stretched) and the image is blitted
+    exactly once: it already encodes the full road graph for the current scene,
+    so there is nothing to tile. The reference pixel stays pinned to the given
+    world coordinate, keeping the road fixed regardless of the ego.
+    """
+    # screen px per image px = (screen px / world m) / (image px / world m)
+    scale = surface.scaling / pixels_per_meter
+    src_w, src_h = image.get_size()
+    scaled_w = max(1, int(round(src_w * scale)))
+    scaled_h = max(1, int(round(src_h * scale)))
+    # Nearest-neighbour scale (not smoothscale) so the (0,0,0) colorkey stays
+    # exact and no anti-aliased near-black fringe leaks through.
+    scaled_bg = pygame.transform.scale(image, (scaled_w, scaled_h))
+    scaled_bg.set_colorkey((0, 0, 0))
+
+    anchor_screen_x, anchor_screen_y = surface.vec2pix((world_ref_x_m, world_ref_y_m))
+    blit_x = anchor_screen_x - ref_pixel_x * scale
+    blit_y = anchor_screen_y - ref_pixel_y * scale
+
+    surface.blit(scaled_bg, (int(round(blit_x)), int(round(blit_y))))
+
+
+def get_road_world_rect(env):
+    """
+    Compute the world-space rectangle (in meters) covered by the HE road network,
+    including lateral lane width. Returns (x_min, y_min, width, height).
+    """
+    road = env.unwrapped.road
+    xs = []
+    ys = []
+    for lane in road.network.lanes_list():
+        for longitudinal in (0.0, lane.length):
+            half_width = lane.width_at(longitudinal) / 2.0
+            for lateral in (-half_width, half_width):
+                pos = lane.position(longitudinal, lateral)
+                xs.append(float(pos[0]))
+                ys.append(float(pos[1]))
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    return x_min, y_min, x_max - x_min, y_max - y_min
+
+
 # Load parameters from JSON.
 with open('morty/envmodel_config.tpl.json') as f:
     d = json.load(f)
@@ -590,24 +663,42 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 ])
                 
                 if bg_image_state is not None and bg_image_state["image"] is not None:
+                    if not hasattr(self, "_morty_orig_fill"):
+                        self._morty_orig_fill = self.fill
+                    # Ensure our explicit clear uses the real fill function.
+                    self.fill = self._morty_orig_fill
+
                     # convert_alpha requires an initialized display/surface.
                     if (not bg_image_state["converted"] and pygame.display.get_init()
                             and pygame.display.get_surface() is not None):
                         bg_image_state["image"] = bg_image_state["image"].convert_alpha()
+                        bg_image_state["image"].set_colorkey((0, 0, 0))
                         bg_image_state["converted"] = True
 
                     # Clear the screen first since we bypass self.fill below
                     self.fill(self.GREY) 
                     
-                    # Scale image based on camera zoom factor (Assuming 300m x 150m real-world size)
-                    scaled_bg = pygame.transform.scale(bg_image_state["image"], (int(300 * self.scaling), int(150 * self.scaling)))
-                    
-                    # Draw background locked to world coordinates (0,0)
-                    self.blit(scaled_bg, self.vec2pix((0, 0)))
+                    # Derive background world extent/anchor from HE road geometry so the
+                    # painted road matches highway-env's road under camera scale/translation.
+                    road_x, road_y, road_w, road_h = get_road_world_rect(env_ref)
+                    # Rigid anchor: image pixel (BG_ZERO_PIXEL_X, BG_ZERO_PIXEL_Y) is the
+                    # "zero road" start/center. Map it to world x=0 (abs_pos 0, ego-
+                    # independent) and the lateral center of the HE road.
+                    world_ref_x = 0.0
+                    world_ref_y = road_y + road_h / 2.0
+                    blit_background_rigid(
+                        self,
+                        bg_image_state["image"],
+                        world_ref_x_m=world_ref_x,
+                        world_ref_y_m=world_ref_y,
+                    )
 
-                    # Monkey-patch self.fill temporarily to block the default 'fill(self.GREY)' from painting over it
-                    orig_fill = self.fill
-                    self.fill = lambda color, rect=None, special_flags=0: None
+                    # Block exactly one default fill call after this function returns,
+                    # then restore normal fill to avoid frame-to-frame ghosting.
+                    def _skip_one_fill(color, rect=None, special_flags=0):
+                        self.fill = self._morty_orig_fill
+                        return None
+                    self.fill = _skip_one_fill
 
             except Exception as e:
                 _orig_move_display_window_to(self, position)
