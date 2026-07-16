@@ -380,7 +380,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "image": None,
         "converted": False,
     }
-    install_world_surface_patches(bg_image_state, num_actual_lanes)
+    install_world_surface_patches(bg_image_state)
 
     # Expose the env reference so the patched WorldSurface can access vehicle positions.
     try:
@@ -456,8 +456,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         print(f"Seeding vehicle {cnt} at position {vehicle.position} with speed {vehicle.speed} and heading {vehicle.heading}.")
 
         cnt = cnt + 1
-
-    input("Press Enter to continue after manual repositioning of vehicles (if any)...")
 
     # COP: Reset and seed trajectories after all manual vehicle repositioning.
     viz_state.trajectories.clear()

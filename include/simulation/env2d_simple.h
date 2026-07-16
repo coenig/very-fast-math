@@ -141,7 +141,7 @@ public:
       const float offset_y{ 
          infinite_highway
          ? (float)road_graph->getMyRoad().getNumActualLanes() / 2.0f
-         : 20.0f
+         : -(float)road_graph->getMyRoad().getNumActualLanes() * 6*0.05 + 20
          //-bounding_box.upper_left_.y + 15 
          //-getImageHeight() * (getImageHeight() / outside_view_->getHeight() / 2) + 25
       };

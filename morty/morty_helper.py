@@ -495,7 +495,7 @@ def install_vehicle_graphics_patches(args, viz_state):
     VehicleGraphics.display = _patched_display
 
 
-def install_world_surface_patches(bg_image_state, lanes_num):
+def install_world_surface_patches(bg_image_state):
     """Patch highway-env's WorldSurface/RoadGraphics for morty's camera + road.
 
     - WorldSurface.move_display_window_to: frame the camera on ALL vehicles
