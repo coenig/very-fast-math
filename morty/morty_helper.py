@@ -337,7 +337,7 @@ def blit_background_rigid(surface, image, world_ref_x_m, world_ref_y_m, lane_cor
 
     anchor_screen_x, anchor_screen_y = surface.vec2pix((world_ref_x_m, world_ref_y_m))
     blit_x = anchor_screen_x - ref_pixel_x * scale
-    blit_y = anchor_screen_y - (ref_pixel_y + (lane_correction - 1.0) / 2.0 * pixels_per_meter) * scale
+    blit_y = anchor_screen_y - (ref_pixel_y + (lane_correction - 1.0) * pixels_per_meter / 2.0) * scale
 
     surface.blit(scaled_bg, (int(round(blit_x)), int(round(blit_y))))
 
