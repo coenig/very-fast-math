@@ -59,7 +59,9 @@ parser.add_argument('--hide_planned_positions', action='store_true',
 parser.add_argument('--detailed_archive', action='store_true',
                     help='Stores detailed archive of the run in a subfolder. Default: False')
 parser.add_argument('--force', action='store_true',
-                    help='Force deleting of existing result files. Default: False')
+                    help='Force deleting of existing result files and work folders. Default: False')
+parser.add_argument('--press', action='store_true',
+                    help='Delete only the work folders (excludes --force). Default: False')
 parser.add_argument('--dryrun', action='store_true',
                     help='Perform a dry run recreating all plots without running the model checker. Default: False')
 parser.add_argument('--headless', action='store_true',
@@ -69,6 +71,11 @@ args = parser.parse_args()
 if args.dryrun:
     if args.force or args.detailed_archive:
         print("Error: --dryrun cannot go together with --force or --detailed_archive. Exiting.")
+        exit(1)
+
+if args.press:
+    if args.force:
+        print("Error: --press cannot go together with --force. Exiting.")
         exit(1)
 
 # COP: All highway-env rendering monkey-patches live in morty_helper.py so this
@@ -99,13 +106,24 @@ for res_path in glob.glob(generated_path_prefix + "*"):
                 exit(1)
             else: 
                 print(f"Successfully deleted {res_path}. Continuing.")
+        elif args.press:
+            if res_path == generated_path_prefix:
+                print(f"Results directory {res_path} skipped because --press (not --force) is set.")
+            else:
+                print(f"Non-resolts directory {res_path} already exists. Deleting because --press is set.")
+                shutil.rmtree(res_path)
+                if Path(res_path).is_dir():
+                    print(f"Error: failed to delete {res_path}. Exiting.")
+                    exit(1)
+                else: 
+                    print(f"Successfully deleted {res_path}. Continuing.")
         elif args.dryrun:
             pass
         else:
             print(f"Error: Results folder {res_path} already exists.")
 
-if any and not args.force and not args.dryrun:
-    print("Use --force to auto-remove existing results folders. Exiting.")
+if any and not args.force and not args.press and not args.dryrun:
+    print("Use --force or --press to auto-remove existing folders. Exiting.")
     exit(1)
 
 if args.dryrun and (not Path(generated_path_prefix).is_dir() or not Path(generated_path_prefix + "/" + "detailed_archive").is_dir()):
@@ -362,7 +380,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "image": None,
         "converted": False,
     }
-    install_world_surface_patches(bg_image_state)
+    install_world_surface_patches(bg_image_state, num_actual_lanes)
 
     # Expose the env reference so the patched WorldSurface can access vehicle positions.
     try:
