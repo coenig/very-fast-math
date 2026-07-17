@@ -766,11 +766,24 @@ void vfm::HighwayImage::paintStraightRoadSceneSimple(
    paintStraightRoadScene(dummy, true, ego_offset_x, var_vals, print_agent_ids, { (float) getWidth(), (float) getHeight() });
 }
 
-int xx{};
+std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
+   StraightRoadSection& lane_structure, 
+   const bool infinite_road, 
+   const float ego_offset_x, 
+   const std::map<std::string, 
+   std::string>& var_vals, 
+   const bool print_agent_ids, 
+   const Vec2D& dim, 
+   const RoadDrawingMode mode)
+{
+   Vec2D only_zero_calc{ 0, 0 };
+   return paintStraightRoadScene(lane_structure, infinite_road, only_zero_calc, ego_offset_x, var_vals, print_agent_ids, dim, mode);
+}
 
 std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    StraightRoadSection& lane_structure,
    const bool infinite_road,
+   Vec2D& only_zero_calc,
    const float ego_offset_x,
    const ExtraVehicleArgs& var_vals,
    const bool print_agent_ids,
@@ -848,6 +861,11 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
 
    tl_orig.x = -METERS_TO_LOOK_BEHIND;
    br_orig.x = METERS_TO_LOOK_AHEAD;
+
+   if (only_zero_calc.x != 0 && only_zero_calc.y != 0) {
+      only_zero_calc = highway_translator_->reverseTranslate({ 0, 0 }).projectToXY();
+      return {};
+   }
 
    if (mode == RoadDrawingMode::road || mode == RoadDrawingMode::both) {
       if (infinite_road) {
@@ -1023,8 +1041,6 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       std::make_shared<Color>(GRASS_COLOR),
       0,
       getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() } );
-
-   fillPolygon(Pol2D{ {-1,-1}, {-1,1}, {1,1}, {1,-1} });
 
    return res;
 }
@@ -1288,7 +1304,10 @@ void vfm::HighwayImage::paintRoadGraph(
          const float section_max_lanes = r_sub->getMyRoad().getNumActualLanes();
          preserved_dimension_ = Vec2D{ dim_raw.x * section_max_lanes, dim_raw.y * section_max_lanes };
 
-         const auto wrapper_trans_function = [this, lane_width, section_max_lanes, r_sub, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+         std::shared_ptr<float> trans_x_inner = std::make_shared<float>(TRANSLATE_X);
+         std::shared_ptr<float> trans_y_inner = std::make_shared<float>(TRANSLATE_Y);
+
+         const auto wrapper_trans_function = [this, lane_width, section_max_lanes, r_sub, trans_x_inner, trans_y_inner](const Vec3D& v_raw) -> Vec3D {
             const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / lane_width + (section_max_lanes / 2.0f) - 0.5f });
             Vec2D v{ plain_2d_translator_->translate({ v_raw.x + origin.x, v_raw.y + origin.y / lane_width }) };
@@ -1296,18 +1315,18 @@ void vfm::HighwayImage::paintRoadGraph(
             auto res = plain_2d_translator_->reverseTranslate(v);
 
             return {
-               res.x + TRANSLATE_X, 
-               res.y + TRANSLATE_Y,
+               res.x + *trans_x_inner, 
+               res.y + *trans_y_inner,
                v_raw.z };
             };
 
-         const auto wrapper_reverse_trans_function = [this, lane_width, section_max_lanes, r_sub, TRANSLATE_X, TRANSLATE_Y](const Vec3D& v_raw) -> Vec3D {
+         const auto wrapper_reverse_trans_function = [this, lane_width, section_max_lanes, r_sub, trans_x_inner, trans_y_inner](const Vec3D& v_raw) -> Vec3D {
             const Vec2D origin{ r_sub->getOriginPoint().x, r_sub->getOriginPoint().y };
             const auto middle = plain_2d_translator_->translate({ origin.x, origin.y / lane_width + (section_max_lanes / 2.0f) - 0.5f });
 
             Vec2D v{
-               v_raw.x - TRANSLATE_X,
-               v_raw.y - TRANSLATE_Y,
+               v_raw.x - *trans_x_inner,
+               v_raw.y - *trans_y_inner,
             };
 
             v = plain_2d_translator_->translate(v);
@@ -1343,7 +1362,24 @@ void vfm::HighwayImage::paintRoadGraph(
             }
          }
 
-         r_sub->connectors_ = paintStraightRoadScene(
+         if (r_sub->getID() == 0) { // Adjusts the anchor point such that the beginning of road "0", left lane is at the exact same pixel, regardless of number of lanes etc.
+            Vec2D only_zero{ 1, 1 };
+
+            paintStraightRoadScene( // Doesn' actually paint anything.
+               r_sub->getMyRoad(),
+               infinite_road,
+               only_zero, // Only delivers the zero position in final screen coordinates.
+               0,
+               var_vals,
+               print_agent_ids,
+               infinite_road ? dim_raw : preserved_dimension_,
+               mode == RoadDrawingMode::ghosts_only ? RoadDrawingMode::road : mode);
+
+            *trans_x_inner = -only_zero.x + TRANSLATE_X;
+            *trans_y_inner = -only_zero.y + TRANSLATE_Y;
+         }
+
+         auto connectors = paintStraightRoadScene(
             r_sub->getMyRoad(),
             infinite_road,
             0,
@@ -1351,6 +1387,8 @@ void vfm::HighwayImage::paintRoadGraph(
             print_agent_ids,
             infinite_road ? dim_raw : preserved_dimension_,
             mode == RoadDrawingMode::ghosts_only ? RoadDrawingMode::road : mode);
+
+         r_sub->connectors_ = connectors;
 
          if (!r_sub->isGhost()) {
             std::string val = var_vals.at("section_" + std::to_string(r_sub->getID()) + "_end");

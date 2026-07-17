@@ -28,8 +28,26 @@ int main(int argc, char* argv[])
 {
    std::cout << macro::Script::processScript(
       R"(            
-@{((0, 0), 0, ( 4, 4, 200, ( (0, 2, 0), (0, 1, 20), (1, 1, 40) ) ))}@.createRoadGraph[0]
-@{0}@.storeRoadGraph[test.png]
+@{@WIDTH_FACTOR_NON_INFINITE = 1}@.eval
+@{@HEIGHT_FACTOR_NON_INFINITE = 7}@.eval
+@{@OFFSET_X_NON_INFINITE = 0}@.eval
+@{@OFFSET_Y_NON_INFINITE = -200}@.eval
+@{@DIMENSION_X = 500}@.eval
+@{@DIMENSION_Y = 60}@.eval
+@{((0, 0), 3.1415, ( 1, 2, 2000 ) ))}@.createRoadGraph[0]
+@{0}@.storeRoadGraph[test1.png]
+@{((0, 0), 3.1415, ( 2, 2, 1000 ) ))}@.createRoadGraph[0]
+@{0}@.storeRoadGraph[test2.png]
+@{((0, 0), 3.1415, ( 3, 2, 500 ) ))}@.createRoadGraph[0]
+@{0}@.storeRoadGraph[test3.png]
+@{((0, 0), 3.1415, ( 4, 2, 200 ) ))}@.createRoadGraph[0]
+@{0}@.storeRoadGraph[test4.png]
+@{((0, 0), 3.1415, ( 5, 2, 100 ) ))}@.createRoadGraph[0]
+@{0}@.storeRoadGraph[test5.png]
+@{((0, 0), 3.1415, ( 6, 2, 50 ) ))}@.createRoadGraph[0]
+@{0}@.storeRoadGraph[test6.png]
+@{((0, 0), 3.1415, ( 7, 2, 20 ) ))}@.createRoadGraph[0]
+@{0}@.storeRoadGraph[test7.png]
       )"
    ) << std::endl;
    //std::cout << macro::Script::processScript(
