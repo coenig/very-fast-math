@@ -31,7 +31,7 @@ int main(int argc, char* argv[])
 @{@WIDTH_FACTOR_NON_INFINITE = 1}@.eval
 @{@HEIGHT_FACTOR_NON_INFINITE = 7}@.eval
 @{@OFFSET_X_NON_INFINITE = 0}@.eval
-@{@OFFSET_Y_NON_INFINITE = -200}@.eval
+@{@OFFSET_Y_NON_INFINITE = 20}@.eval
 @{@DIMENSION_X = 500}@.eval
 @{@DIMENSION_Y = 60}@.eval
 @{((0, 0), 3.1415, ( 1, 2, 2000 ) ))}@.createRoadGraph[0]
