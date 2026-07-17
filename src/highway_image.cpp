@@ -1024,6 +1024,8 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       0,
       getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() } );
 
+   fillPolygon(Pol2D{ {-1,-1}, {-1,1}, {1,1}, {1,-1} });
+
    return res;
 }
 
