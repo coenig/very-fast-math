@@ -1430,18 +1430,18 @@ std::string vfm::macro::Script::storeRoadGraph(const std::string& body, const st
 
    auto rg = road_graphs_.at(id);
 
-   const bool infinite_highway{ rg->getNodeCount() == 1 };
+   const bool infinite_highway{ false };
 
    if (!vfm_data_->isVarDeclared("WIDTH_FACTOR_NON_INFINITE")) vfm_data_->addOrSetSingleVal("WIDTH_FACTOR_NON_INFINITE", 1);
    if (!vfm_data_->isVarDeclared("HEIGHT_FACTOR_NON_INFINITE")) vfm_data_->addOrSetSingleVal("HEIGHT_FACTOR_NON_INFINITE", 7);
-   if (!vfm_data_->isVarDeclared("OFFSET_X_NON_INFINITE")) vfm_data_->addOrSetSingleVal("OFFSET_X_NON_INFINITE", 0);
+   if (!vfm_data_->isVarDeclared("OFFSET_X_NON_INFINITE")) vfm_data_->addOrSetSingleVal("OFFSET_X_NON_INFINITE", -1000);
    if (!vfm_data_->isVarDeclared("OFFSET_Y_NON_INFINITE")) vfm_data_->addOrSetSingleVal("OFFSET_Y_NON_INFINITE", 20);
    if (!vfm_data_->isVarDeclared("DIMENSION_X")) vfm_data_->addOrSetSingleVal("DIMENSION_X", 500);
-   if (!vfm_data_->isVarDeclared("DIMENSION_Y")) vfm_data_->addOrSetSingleVal("DIMENSION_Y", 60);
+   if (!vfm_data_->isVarDeclared("DIMENSION_Y")) vfm_data_->addOrSetSingleVal("DIMENSION_Y", 600);
 
    vfm::HighwayImage image{
       Env2D::getImageWidth(MAX_NUM_LANES_SIMPLE) * (infinite_highway ? 1 : (int) vfm_data_->getSingleVal("WIDTH_FACTOR_NON_INFINITE")),
-      Env2D::getImageHeight() * (rg->getNodeCount() > 1 ? (int) vfm_data_->getSingleVal("HEIGHT_FACTOR_NON_INFINITE") : 1),
+      Env2D::getImageHeight() * (int) vfm_data_->getSingleVal("HEIGHT_FACTOR_NON_INFINITE"),
       std::make_shared<Plain2DTranslator>(),
       rg->getMyRoad().getNumActualLanes() };
 
@@ -1460,11 +1460,14 @@ std::string vfm::macro::Script::storeRoadGraph(const std::string& body, const st
       : (int)vfm_data_->getSingleVal("OFFSET_Y_NON_INFINITE")
    };
 
+   std::map<std::string, std::string> var_vals{};
+   var_vals["section_0_end"] = std::to_string(rg->getMyRoad().section_end_); // TODO do the others, too.
+
    image.paintRoadGraph(
       rg,
       { vfm_data_->getSingleVal("DIMENSION_X"), vfm_data_->getSingleVal("DIMENSION_Y") },
       true, // Paint cars
-      {},
+      var_vals,
       true, offset_x, offset_y);
 
    image.store(filename);

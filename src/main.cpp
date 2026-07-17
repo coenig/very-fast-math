@@ -26,8 +26,22 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   //morty("", "", 0);
+   std::cout << macro::Script::processScript(
+      R"(            
+@{((0, 0), 0, ( 4, 4, 200, ( (0, 2, 0), (0, 1, 20), (1, 1, 40) ) ))}@.createRoadGraph[0]
+@{0}@.storeRoadGraph[test.png]
+      )"
+   ) << std::endl;
+   //std::cout << macro::Script::processScript(
+   //   "            @{../examples/01}@.generateTestCasesPlain[plain_road, debug_trace_array_FALSE, ]"
+   //) << std::endl;
+   //std::cout << macro::Script::processScript(
+   //   "            @{../examples/05}@.generateTestCasesPlain[plain_road, debug_trace_array_FALSE, ]"
+   //) << std::endl;
    //termnate();
+
+   //morty("", "", 0);
+   termnate();
 
    //for (;;) {
    //   auto traces = StaticHelper::extractMCTracesFromNusmvFile("debug_trace_array.txt");

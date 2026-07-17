@@ -217,7 +217,7 @@ public:
    float getLength() const;
    std::map<int, Way> addWaysToSegment(const float segment_id, const std::shared_ptr<RoadGraph> father_rg);
 
-   // ( 4, 200, ( (0, 2, 0), (0, 1, 20), (1, 1, 40) ) )
+   // ( 4, 4, 200, ( (0, 2, 0), (0, 1, 20), (1, 1, 40) ) )
    // ( max_lanes, section_end, ( (min_lane_0, max_lane_0, begin_0), ... , (min_lane_n, max_lane_n, begin_n) ) )
    bool parseProgram(const std::string& program) override;
 

@@ -298,7 +298,7 @@ bool StraightRoadSection::parseProgram(const std::string& program_raw)
    future_positions_of_others_.clear();
    // EO RESET
 
-   for (const auto& segment_desc : bracket_structure->children_.at(2)->children_) {
+   for (const auto& segment_desc : bracket_structure->children_.at(3)->children_) {
       LaneSegment segment{};
       if (!segment.parseProgram(segment_desc->serialize("(", ")", ","))) return false;
       addLaneSegment(segment);
