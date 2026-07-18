@@ -1386,7 +1386,7 @@ void vfm::HighwayImage::paintRoadGraph(
                mode);
 
             *trans_x_inner = only_zero.x + TRANSLATE_X_raw; // Do this only once per painting.
-            *trans_y_inner = -only_zero.y + TRANSLATE_Y_raw;
+            *trans_y_inner = only_zero.y + TRANSLATE_Y_raw;
          }
 
          auto connectors = paintStraightRoadScene(
