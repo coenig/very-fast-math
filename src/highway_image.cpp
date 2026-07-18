@@ -92,11 +92,10 @@ void HighwayImage::setupVPointFor3DPerspective(const int num_lanes_raw, const Ve
                ? getLaneMid(signs_.ego_lane_index) + animation_offset_x_
                :*/ (tl_.x + tr_.x) / 2), screen_height / V_POINT_FACTOR);
 
-   int ego_offset = 0;
    if (true /* ADJUST_PERSPECTIVE_TO_EGO_ */) {
       lane_w_average_ = (br_.x - tl_.x - marker_w_) / num_lanes - marker_w_;
 
-      ego_offset = (getLaneMid(/* signs_.ego_lane_index */ 0, lane_w_average_, bl_.x, num_lanes) + /* animation_offset_x_ */ 0) - (br_.x - tl_.x) / 2.0 - final_pb_padding;
+      int ego_offset = (getLaneMid(/* signs_.ego_lane_index */ 0, lane_w_average_, bl_.x, num_lanes) + /* animation_offset_x_ */ 0) - (br_.x - tl_.x) / 2.0 - final_pb_padding;
       tl_.x -= ego_offset;
       br_.x -= ego_offset;
       tr_.x -= ego_offset;
@@ -1261,13 +1260,23 @@ void vfm::HighwayImage::paintGraphConnectionsBetweenSections(
 void vfm::HighwayImage::paintRoadGraph(
    const std::shared_ptr<RoadGraph> r_raw,
    const Vec2D& dim_raw_raw,
-   const bool paint_cars,
+   const bool paint_cars, // Not a good name, false means the plain road mode.
    const std::map<std::string, std::string>& var_vals,
    const bool print_agent_ids,
    const float TRANSLATE_X_raw,
    const float TRANSLATE_Y_raw)
 {
    auto my_r = PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ ? vfm::test::paintExampleRoadGraphRoundabout(false, r_raw) : r_raw;
+
+   if (!paint_cars) { // Avoid translation due to ego following.
+      my_r->findSectionWithEgoIfAny()->removeEgo();
+      my_r->findSectionWithID(0)->my_road_.setEgo(std::make_shared<CarPars>(
+         0, 
+         0, 
+         0, 
+         RoadGraph::EGO_MOCK_ID,
+         CarDimensions()));
+   }
 
    my_r = my_r->copy();
    my_r->normalizeRoadGraphToEgo();
@@ -1294,10 +1303,10 @@ void vfm::HighwayImage::paintRoadGraph(
       if (r_sub != r_ego) all_nodes_ego_in_front.push_back(r_sub);
    }
 
-   std::shared_ptr<float> trans_x_inner = std::make_shared<float>(0);
-   std::shared_ptr<float> trans_y_inner = std::make_shared<float>(0);
+   std::shared_ptr<float> trans_x_inner = std::make_shared<float>(paint_cars ? TRANSLATE_X_raw : 0);
+   std::shared_ptr<float> trans_y_inner = std::make_shared<float>(paint_cars ? TRANSLATE_Y_raw : 0);
 
-   const auto DRAW_STRAIGHT_ROAD_OR_CARS = [this, &lane_width, &all_nodes_ego_in_front, &dim_raw, old_trans, TRANSLATE_X_raw, TRANSLATE_Y_raw, trans_x_inner, trans_y_inner, infinite_road, &var_vals, print_agent_ids](const RoadDrawingMode mode) {
+   const auto DRAW_STRAIGHT_ROAD_OR_CARS = [this, paint_cars, &lane_width, &all_nodes_ego_in_front, &dim_raw, old_trans, TRANSLATE_X_raw, TRANSLATE_Y_raw, trans_x_inner, trans_y_inner, infinite_road, &var_vals, print_agent_ids](const RoadDrawingMode mode) {
       for (const auto r_sub : all_nodes_ego_in_front) {
          if (mode == RoadDrawingMode::road && r_sub->isGhost()
             || mode == RoadDrawingMode::ghosts_only && !r_sub->isGhost()) continue;
@@ -1360,7 +1369,10 @@ void vfm::HighwayImage::paintRoadGraph(
             }
          }
 
-         if (r_sub->getID() == 0 && mode == RoadDrawingMode::road) { // Adjusts the anchor point such that the beginning of road "0", left lane is at the exact same pixel, regardless of number of lanes etc.
+         if (r_sub->getID() == 0
+            && !old_trans->is3D()
+            && mode == RoadDrawingMode::road
+            && !paint_cars) { // Adjusts the anchor point such that the beginning of road "0", left lane is at the exact same pixel, regardless of number of lanes etc.
             Vec2D only_zero{ 1, 1 };
 
             paintStraightRoadScene( // Doesn' actually paint anything.
@@ -1373,8 +1385,8 @@ void vfm::HighwayImage::paintRoadGraph(
                infinite_road ? dim_raw : preserved_dimension_,
                mode);
 
-            *trans_x_inner = -only_zero.x - TRANSLATE_X_raw; // Do this only once per painting.
-            *trans_y_inner = -only_zero.y - TRANSLATE_Y_raw;
+            *trans_x_inner = -only_zero.x + TRANSLATE_X_raw; // Do this only once per painting.
+            *trans_y_inner = -only_zero.y + TRANSLATE_Y_raw;
          }
 
          auto connectors = paintStraightRoadScene(

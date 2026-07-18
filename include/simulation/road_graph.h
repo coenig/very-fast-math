@@ -57,7 +57,12 @@ struct ConnectorPolygonEnding
 struct CarPars {
    inline CarPars() : CarPars(0.0f, 0.0f, 0, -1, CarDimensions{}) {}
 
-   inline CarPars(const float car_lane, const float car_rel_pos, const int car_velocity, const int car_id, const CarDimensions& dim)
+   inline CarPars(
+      const float car_lane, 
+      const float car_rel_pos, 
+      const int car_velocity, 
+      const int car_id, 
+      const CarDimensions& dim)
       : car_lane_{ car_lane }, car_rel_pos_{ car_rel_pos }, car_velocity_{ car_velocity }, car_id_{ car_id }, car_dim_{dim}
    {}
 

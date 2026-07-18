@@ -136,9 +136,8 @@ public:
       //createOthersVecs2(others_future_vec, agents_to_draw_arrows_for, road_graph, future_data);
       
       Rec2D bounding_box{ road_graph->getBoundingBox() };
-      const float offset_x{ 44/3.75 };
-
-      const float offset_y{ 0.625 };
+      const float offset_x{ 0 };
+      const float offset_y{ 20 };
 
       outside_view_->paintRoadGraph(
          road_graph,

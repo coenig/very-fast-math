@@ -168,7 +168,7 @@ public:
       return y;
    }
 
-   float x, y;
+   float x{}, y{};
 };
 
 static constexpr CarDimensions DEFAULT_CAR_DIMENSIONS_M{ CAR_LENGTH_M, CAR_WIDTH_M };
