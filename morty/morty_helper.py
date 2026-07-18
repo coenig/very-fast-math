@@ -216,8 +216,8 @@ def morty_script_context():
 #   * BG_ZERO_PIXEL_X = 500 (Plain2DTranslator x-offset; world x 0 -> image x 500).
 #   * BG_ZERO_PIXEL_Y = 1019: CONFIRMED. Center of the road band.
 BG_PIXELS_PER_METER = 12.0
-BG_ZERO_PIXEL_X = 0
-BG_ZERO_PIXEL_Y = 1051
+BG_ZERO_PIXEL_X = 0.0
+BG_ZERO_PIXEL_Y = 961.0
 
 
 class VizState:
@@ -310,7 +310,7 @@ def get_scene_bounding_box(env, car_ids):
     }
 
 
-def blit_background_rigid(surface, image, world_ref_x_m, world_ref_y_m,
+def blit_background_rigid(surface, image, world_ref_x_m, world_ref_y_m, num_lanes,
                           pixels_per_meter=BG_PIXELS_PER_METER,
                           ref_pixel_x=BG_ZERO_PIXEL_X,
                           ref_pixel_y=BG_ZERO_PIXEL_Y):
@@ -337,7 +337,8 @@ def blit_background_rigid(surface, image, world_ref_x_m, world_ref_y_m,
 
     anchor_screen_x, anchor_screen_y = surface.vec2pix((world_ref_x_m, world_ref_y_m))
     blit_x = anchor_screen_x - ref_pixel_x * scale
-    blit_y = anchor_screen_y - (ref_pixel_y + pixels_per_meter / 2.0) * scale
+    # TODO: replace 4 with actual lane width; TODO: find out why odd num_lanes behave differently than even.
+    blit_y = anchor_screen_y - (ref_pixel_y + (num_lanes - 1.0) * pixels_per_meter * 4.0 / 2.0 - 1.0 * (num_lanes - 1) % 2) * scale
 
     surface.blit(scaled_bg, (int(round(blit_x)), int(round(blit_y))))
 
@@ -495,7 +496,7 @@ def install_vehicle_graphics_patches(args, viz_state):
     VehicleGraphics.display = _patched_display
 
 
-def install_world_surface_patches(bg_image_state):
+def install_world_surface_patches(bg_image_state, num_lanes):
     """Patch highway-env's WorldSurface/RoadGraphics for morty's camera + road.
 
     - WorldSurface.move_display_window_to: frame the camera on ALL vehicles
@@ -573,10 +574,11 @@ def install_world_surface_patches(bg_image_state):
                     surface,
                     bg_image_state["image"],
                     world_ref_x_m=0.0,
-                    world_ref_y_m=road_y + road_h / 2.0
+                    world_ref_y_m=road_y + road_h / 2.0,
+                    num_lanes = num_lanes
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                raise e
 
         RoadGraphics.display = staticmethod(_road_display_with_bg)
         RoadGraphics._morty_bg_patched = True

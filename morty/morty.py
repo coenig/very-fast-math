@@ -380,7 +380,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "image": None,
         "converted": False,
     }
-    install_world_surface_patches(bg_image_state)
+    install_world_surface_patches(bg_image_state, num_actual_lanes)
 
     # Expose the env reference so the patched WorldSurface can access vehicle positions.
     try:
