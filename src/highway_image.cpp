@@ -1385,7 +1385,7 @@ void vfm::HighwayImage::paintRoadGraph(
                infinite_road ? dim_raw : preserved_dimension_,
                mode);
 
-            *trans_x_inner = -only_zero.x + TRANSLATE_X_raw; // Do this only once per painting.
+            *trans_x_inner = only_zero.x + TRANSLATE_X_raw; // Do this only once per painting.
             *trans_y_inner = -only_zero.y + TRANSLATE_Y_raw;
          }
 
