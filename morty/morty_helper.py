@@ -217,7 +217,7 @@ def morty_script_context():
 #   * BG_ZERO_PIXEL_Y = 1019: CONFIRMED. Center of the road band.
 BG_PIXELS_PER_METER = 12.0
 BG_ZERO_PIXEL_X = 0
-BG_ZERO_PIXEL_Y = 992
+BG_ZERO_PIXEL_Y = 1051
 
 
 class VizState:
@@ -310,7 +310,7 @@ def get_scene_bounding_box(env, car_ids):
     }
 
 
-def blit_background_rigid(surface, image, world_ref_x_m, world_ref_y_m, lane_correction,
+def blit_background_rigid(surface, image, world_ref_x_m, world_ref_y_m,
                           pixels_per_meter=BG_PIXELS_PER_METER,
                           ref_pixel_x=BG_ZERO_PIXEL_X,
                           ref_pixel_y=BG_ZERO_PIXEL_Y):
@@ -337,7 +337,7 @@ def blit_background_rigid(surface, image, world_ref_x_m, world_ref_y_m, lane_cor
 
     anchor_screen_x, anchor_screen_y = surface.vec2pix((world_ref_x_m, world_ref_y_m))
     blit_x = anchor_screen_x - ref_pixel_x * scale
-    blit_y = anchor_screen_y - (ref_pixel_y + (lane_correction - 1.0) * pixels_per_meter / 2.0) * scale
+    blit_y = anchor_screen_y - (ref_pixel_y + pixels_per_meter / 2.0) * scale
 
     surface.blit(scaled_bg, (int(round(blit_x)), int(round(blit_y))))
 
@@ -573,8 +573,7 @@ def install_world_surface_patches(bg_image_state):
                     surface,
                     bg_image_state["image"],
                     world_ref_x_m=0.0,
-                    world_ref_y_m=road_y + road_h / 2.0,
-                    lane_correction=lanes_num,
+                    world_ref_y_m=road_y + road_h / 2.0
                 )
             except Exception:
                 pass
