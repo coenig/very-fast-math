@@ -218,6 +218,10 @@ SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___6{nonegos - 1}9
 
 SPECS.append(r"""INVARSPEC !(env.veh___609___.lane_b0 & !env.veh___609___.lane_b1);""") # 8: Car 609 reaches leftmost lane (b0)
 
+DIST_EXP_9 = 400;
+DIST_EXP_9_MC = int(DIST_EXP_9 * dist_scale)
+SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_9_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") 
+# 9: Only reach some distance.
 
 SUCC_CONDS.append(lambda: all(x < 1 for x in egos_v))
 SUCC_CONDS.append(lambda: all(abs(x - TARGET_VEL) < 1 for x in egos_v))
@@ -231,6 +235,7 @@ SUCC_CONDS.append(
     lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos_x[2]
     ) #7
 SUCC_CONDS.append(lambda: False) # 8
+SUCC_CONDS.append(lambda: False) # 9
 
 addons = [''] * len(SPECS) # Add to main.smv depending on the experiment.
 ADDONS_CORE_DENOTER = "UCD addons"
@@ -258,6 +263,22 @@ for i in range(2, nonegos):
 addons[8] += f"INVAR env.veh___609___.v >= {MC_MIN_V_FORWARD};\n"
 for i in range(1, nonegos):
     addons[8] += f"INVAR env.veh___6{i}9___.v = 0;\n"
+
+addons[9] += r"""
+-- INIT env.section_0_segment_0_max_lane != env.section_0_segment_1_max_lane;
+-- INIT env.section_0_segment_0_min_lane != env.section_0_segment_1_min_lane;
+-- INIT env.section_0_segment_1_max_lane != env.section_0_segment_2_max_lane;
+-- INIT env.section_0_segment_1_min_lane != env.section_0_segment_2_min_lane;
+INIT env.section_0_segment_0_min_lane = 0;
+INIT env.section_0_segment_0_max_lane = 3;
+INIT env.section_0_segment_0_pos_begin = 0;
+INIT env.section_0_segment_1_min_lane = 1;
+INIT env.section_0_segment_1_max_lane = 2;
+INIT env.section_0_segment_1_pos_begin = 1000;
+INIT env.section_0_segment_2_min_lane = 0;
+INIT env.section_0_segment_2_max_lane = 1;
+INIT env.section_0_segment_2_pos_begin = 1249;
+"""
 
 for i in range(0, len(SPECS)):
     addons[i] += ADDONS_END_DENOTER

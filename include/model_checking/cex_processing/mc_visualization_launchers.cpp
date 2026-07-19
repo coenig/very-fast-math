@@ -424,10 +424,10 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
 {
    const std::string full_path = out_pathname_raw + "/" + out_filename_raw;
 
-   if (StaticHelper::existsFileSafe(full_path)) {
-      Failable::getSingleton()->addWarning("Directory '" + full_path + "' exists. Will not overwrite.");
-      return false;
-   }
+   // if (StaticHelper::existsFileSafe(full_path)) {
+   //    Failable::getSingleton()->addWarning("Directory '" + full_path + "' exists. Will not overwrite.");
+   //    return false;
+   // }
 
    std::filesystem::create_directories(full_path);
    std::string final_name = out_filename_raw;
