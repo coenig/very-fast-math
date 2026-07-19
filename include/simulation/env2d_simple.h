@@ -119,8 +119,8 @@ public:
 
       if (true || !outside_view_) { // TODO: Can we optimize that for performance?
          outside_view_ = std::make_shared<HighwayImage>(
-            getImageWidth(MAX_NUM_LANES_SIMPLE) * (!infinite_highway ? 1 : 1), // TODO: Remove factor (make more intelligent)
-            getImageHeight()  * (!infinite_highway ? 7 : 1),                   // TODO: Remove factor (make more intelligent)
+            paint_cars ? (getImageWidth(MAX_NUM_LANES_SIMPLE) * (!infinite_highway ? 1 : 1)) : 5000,
+            getImageHeight()  * (!infinite_highway ? 7 : 1),
             std::make_shared<Plain2DTranslator>(), 
             road_graph->getMyRoad().getNumActualLanes());
       }
