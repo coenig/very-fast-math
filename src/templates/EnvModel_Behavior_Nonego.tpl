@@ -112,7 +112,7 @@ esac;
 
    @{
    INVAR veh___6[i]9___.on_straight_section = [sec]
-   -> ((veh___6[i]9___.abs_pos >= section_[sec]_segment_[num]_pos_begin & veh___6[i]9___.abs_pos < section_[sec]_segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
+   -> ((veh___6[i]9___.abs_pos + veh_length >= section_[sec]_segment_[num]_pos_begin & veh___6[i]9___.abs_pos < section_[sec]_segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
    (veh___6[i]9___.on_lane_min >= section_[sec]_segment_[num]_min_lane & veh___6[i]9___.on_lane_max <= section_[sec]_segment_[num]_max_lane));
    }@*.for[[num], 0, @{SEGMENTS - 2}@.eval]
 

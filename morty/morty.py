@@ -218,7 +218,7 @@ SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___6{nonegos - 1}9
 
 SPECS.append(r"""INVARSPEC !(env.veh___609___.lane_b0 & !env.veh___609___.lane_b1);""") # 8: Car 609 reaches leftmost lane (b0)
 
-DIST_EXP_9 = 400;
+DIST_EXP_9 = 1000;
 DIST_EXP_9_MC = int(DIST_EXP_9 * dist_scale)
 SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_9_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") 
 # 9: Only reach some distance.
@@ -276,8 +276,14 @@ INIT env.section_0_segment_1_min_lane = 1;
 INIT env.section_0_segment_1_max_lane = 2;
 INIT env.section_0_segment_1_pos_begin = 1000;
 INIT env.section_0_segment_2_min_lane = 0;
-INIT env.section_0_segment_2_max_lane = 1;
-INIT env.section_0_segment_2_pos_begin = 1249;
+INIT env.section_0_segment_2_max_lane = 2;
+INIT env.section_0_segment_2_pos_begin = 1149;
+INIT env.section_0_segment_3_min_lane = 0;
+INIT env.section_0_segment_3_max_lane = 1;
+INIT env.section_0_segment_3_pos_begin = 1249;
+INIT env.section_0_segment_4_min_lane = 0;
+INIT env.section_0_segment_4_max_lane = 2;
+INIT env.section_0_segment_4_pos_begin = 1349;
 """
 
 for i in range(0, len(SPECS)):
