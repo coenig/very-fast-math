@@ -121,6 +121,12 @@ class Morty:
         )
         normalized_output = check_output.lower()
         if (
+            "no counterexample" in normalized_output
+            or "no counter-example" in normalized_output
+        ):
+            print(f"No counterexample found for {model_path}")
+            return None
+        if (
             "counter-example" not in normalized_output
             and "counterexample" not in normalized_output
         ):

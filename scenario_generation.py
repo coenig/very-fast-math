@@ -6,6 +6,7 @@ import re
 import shutil
 import tempfile
 import time
+from dataclasses import dataclass
 from itertools import product
 from pathlib import Path
 from typing import Callable
@@ -17,6 +18,141 @@ def identity(value):
     return value
 
 
+def vehicle_var(index: int, field: str) -> str:
+    return f"env.veh___6{index}9___.{field}"
+
+
+def invar_not(expression: str) -> str:
+    return f"INVARSPEC !({expression});"
+
+
+def and_join(clauses: list[str]) -> str:
+    return " & ".join(f"({clause})" for clause in clauses)
+
+
+def or_join(clauses: list[str]) -> str:
+    if not clauses:
+        return "FALSE"
+    return " | ".join(f"({clause})" for clause in clauses)
+
+
+@dataclass(frozen=True)
+class PropertySpec:
+    name: str
+    description: str
+    builder: Callable[[int], str]
+
+
+def property_vehicle_order(nonegos: int) -> str:
+    """Cars are on one section and appear in strict descending absolute-position order."""
+    clauses = [f"{vehicle_var(0, 'on_straight_section')} >= 0"]
+    for index in range(1, nonegos):
+        clauses.append(
+            f"{vehicle_var(index - 1, 'on_straight_section')} = "
+            f"{vehicle_var(index, 'on_straight_section')}"
+        )
+    for index in range(1, nonegos):
+        clauses.append(
+            f"{vehicle_var(index - 1, 'abs_pos')} > "
+            f"{vehicle_var(index, 'abs_pos')}"
+        )
+    return invar_not(and_join(clauses))
+
+
+def property_same_position_pair(nonegos: int) -> str:
+    """Some pair of cars occupies the same section and the same longitudinal position."""
+    pair_clauses = []
+    for left in range(nonegos):
+        for right in range(left + 1, nonegos):
+            pair_clauses.append(
+                and_join(
+                    [
+                        f"{vehicle_var(left, 'on_straight_section')} >= 0",
+                        f"{vehicle_var(left, 'on_straight_section')} = "
+                        f"{vehicle_var(right, 'on_straight_section')}",
+                        f"{vehicle_var(left, 'abs_pos')} = "
+                        f"{vehicle_var(right, 'abs_pos')}",
+                    ]
+                )
+            )
+    return invar_not(or_join(pair_clauses))
+
+
+def property_all_stopped(nonegos: int) -> str:
+    """All cars are stopped at the same time."""
+    return invar_not(
+        and_join([f"{vehicle_var(index, 'v')} = 0" for index in range(nonegos)])
+    )
+
+
+def property_all_target_speed(nonegos: int) -> str:
+    """All cars reach the template's nominal target velocity at the same time."""
+    target_velocity = 50
+    return invar_not(
+        and_join(
+            [
+                f"{vehicle_var(index, 'v')} = {target_velocity}"
+                for index in range(nonegos)
+            ]
+        )
+    )
+
+
+def property_close_platoon(nonegos: int) -> str:
+    """Cars are on one section, ordered, and consecutive cars are within 50 model units."""
+    clauses = [f"{vehicle_var(0, 'on_straight_section')} >= 0"]
+    for index in range(1, nonegos):
+        clauses.extend(
+            [
+                f"{vehicle_var(index - 1, 'on_straight_section')} = "
+                f"{vehicle_var(index, 'on_straight_section')}",
+                f"{vehicle_var(index - 1, 'abs_pos')} <= "
+                f"{vehicle_var(index, 'abs_pos')}",
+                f"{vehicle_var(index - 1, 'abs_pos')} >= "
+                f"{vehicle_var(index, 'abs_pos')} - 50",
+            ]
+        )
+    return invar_not(and_join(clauses))
+
+
+PROPERTY_SPECS: dict[str, PropertySpec] = {
+    "vehicle_order": PropertySpec(
+        "vehicle_order",
+        "same-section cars in strict descending absolute-position order",
+        property_vehicle_order,
+    ),
+    "same_position_pair": PropertySpec(
+        "same_position_pair",
+        "two cars on the same section at exactly the same absolute position",
+        property_same_position_pair,
+    ),
+    "all_stopped": PropertySpec(
+        "all_stopped",
+        "all cars stopped simultaneously",
+        property_all_stopped,
+    ),
+    "all_target_speed": PropertySpec(
+        "all_target_speed",
+        "all cars at velocity 50 simultaneously",
+        property_all_target_speed,
+    ),
+    "close_platoon": PropertySpec(
+        "close_platoon",
+        "same-section ordered platoon with consecutive cars within 50 model units",
+        property_close_platoon,
+    ),
+}
+
+
+def build_property_spec(name: str, nonegos: int) -> str:
+    try:
+        property_spec = PROPERTY_SPECS[name]
+    except KeyError as error:
+        valid = ", ".join(sorted(PROPERTY_SPECS))
+        raise ValueError(f"unknown property {name!r}; valid properties: {valid}") from error
+    return property_spec.builder(nonegos)
+
+
 def get_parameters_test_enumeration() -> dict:
     return {
         "nonegos": list(range(3, 6)),
@@ -26,6 +162,7 @@ def get_parameters_test_enumeration() -> dict:
         "section_min_length": [100],
         "max_outgoing_connections": [3],
         "geometry": [1],
+        "property": ["vehicle_order"],
     }
 
 
@@ -38,6 +175,7 @@ def get_parameters_simplest_geometries() -> dict:
         "section_min_length": [100],
         "max_outgoing_connections": [3],
         "geometry": [0],
+        "property": ["vehicle_order"],
     }
 
 
@@ -49,6 +187,7 @@ def get_param_simple(
     min_length: int = 100,
     max_outgoing_connections: int = 3,
     geometry: int = 1,
+    property_name: str = "vehicle_order",
 ) -> dict:
     return {
         "nonegos": [nonegos],
@@ -58,6 +197,7 @@ def get_param_simple(
         "section_min_length": [min_length],
         "max_outgoing_connections": [max_outgoing_connections],
         "geometry": [geometry],
+        "property": [property_name],
     }
 
 
@@ -72,7 +212,7 @@ def parametrize_model_config(
     Path(output_config).write_text(json.dumps(config, indent=3))
 
 
-def iter_model_configs(parameters: dict):
+def iter_model_configs(parameters: dict, *, include_metadata: bool = False):
     replacements: dict[str, list[tuple[str, Callable]]] = {
         "nonegos": [("#007", identity), ("NONEGOS", identity)],
         "numlanes": [("#008", identity), ("NUMLANES", identity)],
@@ -82,27 +222,28 @@ def iter_model_configs(parameters: dict):
         "max_outgoing_connections": [("MAXOUTGOINGCONNECTIONS", identity)],
         "geometry": [("MODEL_INTERSECTION_GEOMETRY", identity)],
     }
-    
-    # Update the property from the selected number of non-ego vehicles.
-    def some_stuff(nonegos):
-        clauses = []
-        clauses.append(f"env.veh___6{0}9___.on_straight_section >= 0")
-        for i, j in zip(range(nonegos - 1), range(1, nonegos)):
-            clauses.append(f"env.veh___6{i}9___.on_straight_section = env.veh___6{j}9___.on_straight_section")
-        for i, j in zip(range(nonegos - 1), range(1, nonegos)):
-            clauses.append(
-                f"env.veh___6{i}9___.abs_pos > env.veh___6{j}9___.abs_pos"
-            )
-        return f"INVARSPEC !({' & '.join(clauses)});"
-    replacements["nonegos"].append(("SPEC", some_stuff))
 
     for combination in product(*parameters.values()):
         selected = dict(zip(parameters.keys(), combination))
-        yield {
+        property_name = selected.get("property", "vehicle_order")
+        config = {
             output_key: transform(selected[input_key])
             for input_key, output_values in replacements.items()
             for output_key, transform in output_values
         }
+        config["SPEC"] = build_property_spec(property_name, selected["nonegos"])
+        if include_metadata:
+            yield config, {
+                "property": property_name,
+                "property_description": PROPERTY_SPECS[property_name].description,
+                "nonegos": selected["nonegos"],
+                "sections": selected["sections"],
+                "numlanes": selected["numlanes"],
+                "max_outgoing_connections": selected["max_outgoing_connections"],
+                "geometry": selected["geometry"],
+            }
+        else:
+            yield config
 
 
 def generate_scenario(
