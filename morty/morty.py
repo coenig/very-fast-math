@@ -218,7 +218,7 @@ SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___6{nonegos - 1}9
 
 SPECS.append(r"""INVARSPEC !(env.veh___609___.lane_b0 & !env.veh___609___.lane_b1);""") # 8: Car 609 reaches leftmost lane (b0)
 
-DIST_EXP_9 = 1000;
+DIST_EXP_9 = 475;
 DIST_EXP_9_MC = int(DIST_EXP_9 * dist_scale)
 SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_9_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") 
 # 9: Only reach some distance.
@@ -231,11 +231,9 @@ SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[1] - TARGET_DIST and egos_x[1] >= 
 SUCC_CONDS.append(lambda: inverseSortingArray(egos_x))
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(lambda: True)
-SUCC_CONDS.append(
-    lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos_x[2]
-    ) #7
+SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos_x[2]) #7
 SUCC_CONDS.append(lambda: False) # 8
-SUCC_CONDS.append(lambda: False) # 9
+SUCC_CONDS.append(lambda: all(x > DIST_EXP_9 for x in egos_x)) # 9
 
 addons = [''] * len(SPECS) # Add to main.smv depending on the experiment.
 ADDONS_CORE_DENOTER = "UCD addons"
