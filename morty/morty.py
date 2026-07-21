@@ -714,7 +714,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             for j, car_step in enumerate(step):
                 abspos = car_step[0]
                 technical_lane = car_step[1]
-                coord = (abspos / 4, y_max_tech - technical_lane * on_lane_step_y)
+                coord = (abspos / dist_scale, y_max_tech - technical_lane * on_lane_step_y)
                 if not args.hide_planned_positions:
                     global_pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
                 

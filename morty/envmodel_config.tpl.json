@@ -84,7 +84,7 @@
       "SCENGEN_EXISTENTIAL_PROPERTIES": "1-9",
       "SCENGEN_MODE": false,
       "SCENGEN_UNIVERSAL_PROPERTIES": "0-0",
-      "SECTIONS": "#{sections}#",
+      "SECTIONS": 2,
       "UCD_CONFIG_PRIOS": "_config_vehlen=9;_config_vehlen=8;_config_vehlen=7;_config_vehlen=6;",
       "MAXSPEEDNONEGO": 70,
       "MINSTARTSPEEDNONEGO_UCD": 20,
