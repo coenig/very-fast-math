@@ -223,6 +223,8 @@ DIST_EXP_9_MC = int(DIST_EXP_9 * dist_scale)
 SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_9_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") 
 # 9: Only reach some distance.
 
+SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.is_on_sec_1 = 1}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") # 10
+
 SUCC_CONDS.append(lambda: all(x < 1 for x in egos_v))
 SUCC_CONDS.append(lambda: all(abs(x - TARGET_VEL) < 1 for x in egos_v))
 SUCC_CONDS.append(lambda: maxDifferenceArray(egos_y[:-1]) < 4)
@@ -234,6 +236,7 @@ SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos_x[2]) #7
 SUCC_CONDS.append(lambda: False) # 8
 SUCC_CONDS.append(lambda: all(x > DIST_EXP_9 for x in egos_x)) # 9
+SUCC_CONDS.append(lambda: False) # 10
 
 addons = [''] * len(SPECS) # Add to main.smv depending on the experiment.
 ADDONS_CORE_DENOTER = "UCD addons"
@@ -283,6 +286,9 @@ INIT env.section_0_segment_4_min_lane = 0;
 INIT env.section_0_segment_4_max_lane = 2;
 INIT env.section_0_segment_4_pos_begin = 1349;
 """
+
+for i in range(0, nonegos):
+    addons[10] += f"INIT env.veh___6{i}9___.is_on_sec_0 = 1;\n"
 
 for i in range(0, len(SPECS)):
     addons[i] += ADDONS_END_DENOTER
@@ -649,7 +655,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # Do Background Image
         if bg_image_state is not None and bg_image_state["image"] is None:
             script_bgd_image = f"""
-            @{{{generated_path_prefix + selected_config}}}@.generateTestCasesPlain[plain_road, debug_trace_array_FALSE, ]
+            @{{{generated_path_prefix + selected_config}}}@.generateTestCasesPlain[plain_road, debug_trace_array, ]
             """
             result_bg = create_string_buffer(100000)
             with morty_script_context() as morty_lib:
