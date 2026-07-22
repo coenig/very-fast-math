@@ -586,6 +586,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                         shutil.copyfile(scalefile, scalefile_target)
                 else:
                     print(f"\---> Error: Scaling info file {scalefile} not found for dry run. Going on with 1/1.")
+                    input("Press Enter to continue...")
             
                 for config_prio in ucd_config_prios_str:
                     dest_path = f"{generated_path_prefix}{config_prio}"
