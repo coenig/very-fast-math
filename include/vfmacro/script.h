@@ -1229,23 +1229,32 @@ private:
          for (int step = 0; step < trace.size(); ++step) {
             for (int i = 0; i < 100; i++) {
                trace.resetAllErrors();
-               auto lane = trace.getLastValueOfVariableAtStep("env.veh___6" + std::to_string(i) + "9___.on_normalized_lane", step);
+               auto lane_str = trace.getLastValueOfVariableAtStep("env.veh___6" + std::to_string(i) + "9___.on_normalized_lane", step);
+               auto lane_width_str = trace.getLastValueOfVariableAtStep("env.lane_width", step);
+               auto num_technical_lanes_str = trace.getLastValueOfVariableAtStep("env.num_technical_lanes", step);
+               auto num_actual_lanes_str = trace.getLastValueOfVariableAtStep("env.num_lanes", step);
 
-               if (trace.hasErrorOccurred() || lane == "-1") { // -1 is error value, and lane must be positive.
+               if (trace.hasErrorOccurred() || lane_str == "-1") { // -1 is error value, and lane must be positive.
                   break; // No value found, assuming we've run over the last car.
                }
 
                trace.resetAllErrors();
-               auto pos = trace.getLastValueOfVariableAtStep("env.veh___6" + std::to_string(i) + "9___.abs_pos", step);
+               auto pos_str = trace.getLastValueOfVariableAtStep("env.veh___6" + std::to_string(i) + "9___.abs_pos", step);
                
                if (trace.hasErrorOccurred()) {
                   break; // No value found, assuming we've run over the last car.
-               } else if (pos == "-1") {
+               } else if (pos_str == "-1") {
                   break; // pos COULD be -1 in theory... But let's roll the dice here for now. TODO: Don't roll the dice anymore.
                }
 
+               float lane{ std::stof(lane_str) };
+               float lane_width{ std::stof(lane_width_str) };
+               float num_technical_lanes{ std::stof(num_technical_lanes_str) };
+               float num_actual_lanes{ std::stof(num_actual_lanes_str) };
+               float lat_pos{ lane * 2.0 * num_actual_lanes / num_technical_lanes };
+
                // Go on only if both are there.
-               res += pos + "," + lane + ";";
+               res += pos_str + "," + std::to_string(lat_pos) + ";";
             }
 
             res += "\n";

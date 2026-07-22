@@ -265,26 +265,26 @@ addons[8] += f"INVAR env.veh___609___.v >= {MC_MIN_V_FORWARD};\n"
 for i in range(1, nonegos):
     addons[8] += f"INVAR env.veh___6{i}9___.v = 0;\n"
 
-addons[9] += r"""
+addons[9] += f"""
 -- INIT env.section_0_segment_0_max_lane != env.section_0_segment_1_max_lane;
 -- INIT env.section_0_segment_0_min_lane != env.section_0_segment_1_min_lane;
 -- INIT env.section_0_segment_1_max_lane != env.section_0_segment_2_max_lane;
 -- INIT env.section_0_segment_1_min_lane != env.section_0_segment_2_min_lane;
 INIT env.section_0_segment_0_min_lane = 0;
 INIT env.section_0_segment_0_max_lane = 3;
-INIT env.section_0_segment_0_pos_begin = 0;
+INIT env.section_0_segment_0_pos_begin = {0 * dist_scale};
 INIT env.section_0_segment_1_min_lane = 1;
 INIT env.section_0_segment_1_max_lane = 2;
-INIT env.section_0_segment_1_pos_begin = 1000;
+INIT env.section_0_segment_1_pos_begin = {250 * dist_scale};
 INIT env.section_0_segment_2_min_lane = 0;
 INIT env.section_0_segment_2_max_lane = 2;
-INIT env.section_0_segment_2_pos_begin = 1149;
+INIT env.section_0_segment_2_pos_begin = {285 * dist_scale};
 INIT env.section_0_segment_3_min_lane = 0;
 INIT env.section_0_segment_3_max_lane = 1;
-INIT env.section_0_segment_3_pos_begin = 1249;
+INIT env.section_0_segment_3_pos_begin = {310 * dist_scale};
 INIT env.section_0_segment_4_min_lane = 0;
 INIT env.section_0_segment_4_max_lane = 2;
-INIT env.section_0_segment_4_pos_begin = 1349;
+INIT env.section_0_segment_4_pos_begin = {340 * dist_scale};
 """
 
 for i in range(0, nonegos):
@@ -351,17 +351,17 @@ for ucd_config_str in ucd_config_prios_str:
         f.write(content)
         f.truncate()
 
-def clean_and_convert_to_int(data):
+def clean_and_convert_to_float(data):
     """
     Recursively cleans nested lists and converts deepest string values to integers.
     """
     if not isinstance(data, list): # If the item is not a list, it's at the deepest level.
         try:
-            return int(data)
+            return float(data)
         except (ValueError, TypeError):
             return None # Empty string treatment
 
-    cleaned_list = [clean_and_convert_to_int(item) for item in data]
+    cleaned_list = [clean_and_convert_to_float(item) for item in data]
     return [item for item in cleaned_list if item is not None and item != []]
 
 baseline_hashes = {}  # Pre-loop file set (before any MC call).
@@ -702,10 +702,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         
         res_pos_str = res_pos.decode().strip()
         positions = [[els.split(',') for els in line.split(';')] for line in res_pos_str.split('\n')]
-        positions = clean_and_convert_to_int(positions)
+        positions = clean_and_convert_to_float(positions)
         
         POS_COLOR = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
-        
+
         global_pos_to_draw = viz_state.pos_to_draw
         global_pos_to_draw.clear()
         coords_for_pp = [(0, 0)] * nonegos
@@ -713,15 +713,15 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         for i, step in enumerate(positions):
             for j, car_step in enumerate(step):
                 abspos = car_step[0]
-                technical_lane = car_step[1]
-                coord = (abspos / dist_scale, y_max_tech - technical_lane * on_lane_step_y)
+                latpos = car_step[1]
+                coord = (abspos / dist_scale, y_max_tech - latpos) # TODO: How does scaling fit in for y direction?
                 if not args.hide_planned_positions:
                     global_pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
                 
                 if i <= 5:
                     coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
                     pp_mc_immediate_exists = True
-                    print(f"Step {i}, Car {j}: abspos={abspos}, technical_lane={technical_lane}, coord={coord}") # TODO REMOVE
+                    print(f"Step {i}, Car {j}: abspos={abspos}, latpos={latpos}, coord={coord}") # TODO REMOVE
         # EO Find future positions.
 
         
