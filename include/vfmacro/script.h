@@ -1215,7 +1215,6 @@ private:
 
          const auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_, body.empty());
          const std::string config_name{ parameters.at(0) };
-         const float y_max_tech{ std::stof(parameters.at(1)) };
          const std::map<std::string, std::string> paths{ retrievePaths(mc_workflow, body, config_name)};
          const auto traces = StaticHelper::extractMCTracesFromNusmvFile(paths.at("path_generated") + "/debug_trace_array.txt");
 
@@ -1251,14 +1250,19 @@ private:
                   break; // pos COULD be -1 in theory... But let's roll the dice here for now. TODO: Don't roll the dice anymore.
                }
 
+               // Go on only if both are there.
+
                float long_pos{ std::stof(pos_str) / std::stof(dist_scale_str) * 1000 }; //  TODO: How does scaling fit in for y direction?
                float lane{ std::stof(lane_str) };
                float lane_width{ std::stof(lane_width_str) };
                float num_technical_lanes{ std::stof(num_technical_lanes_str) };
                float num_actual_lanes{ std::stof(num_actual_lanes_str) };
+
+               const float y_max_tech{ std::stof(parameters.at(1)) };
+               // -LANE_WIDTH_HE / 2.0 + (2 * num_technical_lanes - 1) * LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
+
                float lat_pos{ y_max_tech - lane * 2.0f * num_actual_lanes / num_technical_lanes };
 
-               // Go on only if both are there.
                res += std::to_string(long_pos) + "," + std::to_string(lat_pos) + ";";
             }
 
