@@ -1251,7 +1251,7 @@ private:
                float lane_width{ std::stof(lane_width_str) };
                float num_technical_lanes{ std::stof(num_technical_lanes_str) };
                float num_actual_lanes{ std::stof(num_actual_lanes_str) };
-               float lat_pos{ lane * 2.0 * num_actual_lanes / num_technical_lanes };
+               float lat_pos{ lane * 2.0f * num_actual_lanes / num_technical_lanes };
 
                // Go on only if both are there.
                res += pos_str + "," + std::to_string(lat_pos) + ";";
