@@ -1210,11 +1210,12 @@ private:
       { "rick", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return body + RICK; } },
       { "extractMCTracesFromNusmv", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return toArrayMacro(StaticHelper::extractMCTracesFromNusmv(body)); }},
       { "extractMCTracesFromNusmvFile", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return toArrayMacro(StaticHelper::extractMCTracesFromNusmvFile(body)); } },
-      { "extractVehPosFromNusmvFile", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+      { "extractVehPosFromNusmvFile", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
          std::string res{}; // Takes only THE FIRST CEX, if several are given.
 
          const auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_, body.empty());
          const std::string config_name{ parameters.at(0) };
+         const float y_max_tech{ std::stof(parameters.at(1)) };
          const std::map<std::string, std::string> paths{ retrievePaths(mc_workflow, body, config_name)};
          const auto traces = StaticHelper::extractMCTracesFromNusmvFile(paths.at("path_generated") + "/debug_trace_array.txt");
 
@@ -1226,6 +1227,9 @@ private:
          const auto trace = traces[0];
          trace.setOutputLevels(vfm::ErrorLevelEnum::invalid, vfm::ErrorLevelEnum::invalid); // Quiet
          
+         auto time_scaling_str = trace.getLastValueOfVariableAtStep("planner.time_scaling", 0);
+         auto dist_scale_str = trace.getLastValueOfVariableAtStep("planner.distance_scaling", 0);
+
          for (int step = 0; step < trace.size(); ++step) {
             for (int i = 0; i < 100; i++) {
                trace.resetAllErrors();
@@ -1247,14 +1251,15 @@ private:
                   break; // pos COULD be -1 in theory... But let's roll the dice here for now. TODO: Don't roll the dice anymore.
                }
 
+               float long_pos{ std::stof(pos_str) / std::stof(dist_scale_str) * 1000 }; //  TODO: How does scaling fit in for y direction?
                float lane{ std::stof(lane_str) };
                float lane_width{ std::stof(lane_width_str) };
                float num_technical_lanes{ std::stof(num_technical_lanes_str) };
                float num_actual_lanes{ std::stof(num_actual_lanes_str) };
-               float lat_pos{ lane * 2.0f * num_actual_lanes / num_technical_lanes };
+               float lat_pos{ y_max_tech - lane * 2.0f * num_actual_lanes / num_technical_lanes };
 
                // Go on only if both are there.
-               res += pos_str + "," + std::to_string(lat_pos) + ";";
+               res += std::to_string(long_pos) + "," + std::to_string(lat_pos) + ";";
             }
 
             res += "\n";

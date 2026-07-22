@@ -695,7 +695,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             @{{./src/templates/}}@.stringToHeap[MY_PATH]
             }}@.nil
 
-            @{{../../morty/envmodel_config.tpl.json}}@.extractVehPosFromNusmvFile[{selected_config}]
+            @{{../../morty/envmodel_config.tpl.json}}@.extractVehPosFromNusmvFile[{selected_config}, {y_max_tech}]
         """
         result_pos = create_string_buffer(100000)
         with morty_script_context() as morty_lib:
@@ -715,7 +715,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             for j, car_step in enumerate(step):
                 abspos = car_step[0]
                 latpos = car_step[1]
-                coord = (abspos / dist_scale, y_max_tech - latpos) # TODO: How does scaling fit in for y direction?
+                coord = (abspos, latpos)
                 if not args.hide_planned_positions:
                     global_pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
                 
