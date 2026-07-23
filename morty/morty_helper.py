@@ -363,6 +363,22 @@ def get_road_world_rect(env):
     return x_min, y_min, x_max - x_min, y_max - y_min
 
 
+def get_background_world_rect(image, world_ref_x_m, world_ref_y_m, num_lanes,
+                              pixels_per_meter=BG_PIXELS_PER_METER,
+                              ref_pixel_x=BG_ZERO_PIXEL_X,
+                              ref_pixel_y=BG_ZERO_PIXEL_Y):
+    """Return the world-space rectangle covered by the generated background image."""
+    src_w, src_h = image.get_size()
+    lane_offset_px = (num_lanes - 1.0) * pixels_per_meter * 4.0 / 2.0 - 1.0 * (num_lanes - 1) % 2
+    anchor_pixel_y = ref_pixel_y + lane_offset_px
+
+    x_min = world_ref_x_m - ref_pixel_x / pixels_per_meter
+    x_max = world_ref_x_m + (src_w - ref_pixel_x) / pixels_per_meter
+    y_min = world_ref_y_m - anchor_pixel_y / pixels_per_meter
+    y_max = world_ref_y_m + (src_h - anchor_pixel_y) / pixels_per_meter
+    return x_min, y_min, x_max - x_min, y_max - y_min
+
+
 def install_vehicle_graphics_patches(args, viz_state):
     """Patch highway-env's VehicleGraphics for morty's rendering.
 
@@ -496,7 +512,7 @@ def install_vehicle_graphics_patches(args, viz_state):
     VehicleGraphics.display = _patched_display
 
 
-def install_world_surface_patches(bg_image_state, num_lanes):
+def install_world_surface_patches(bg_image_state, num_lanes, fit_background=False):
     """Patch highway-env's WorldSurface/RoadGraphics for morty's camera + road.
 
     - WorldSurface.move_display_window_to: frame the camera on ALL vehicles
@@ -523,9 +539,24 @@ def install_world_surface_patches(bg_image_state, num_lanes):
             if not vehicles:
                 return _orig_move_display_window_to(self, position)
 
-            bbox = get_scene_bounding_box(env_ref, [i for i in range(1000)])
+            if fit_background and bg_image_state is not None and bg_image_state["image"] is not None:
+                road_x, road_y, road_w, road_h = get_road_world_rect(env_ref)
+                bbox_x, bbox_y, bbox_w, bbox_h = get_background_world_rect(
+                    bg_image_state["image"],
+                    world_ref_x_m=0.0,
+                    world_ref_y_m=road_y + road_h / 2.0,
+                    num_lanes=num_lanes,
+                )
+                bbox = {
+                    "xmin": bbox_x,
+                    "ymin": bbox_y,
+                    "xmax": bbox_x + bbox_w,
+                    "ymax": bbox_y + bbox_h,
+                }
+            else:
+                bbox = get_scene_bounding_box(env_ref, [i for i in range(1000)])
 
-            padding = 10
+            padding = 0 if fit_background else 10
             target_width_m = (bbox["xmax"] - bbox["xmin"]) + (padding * 2)
             target_height_m = (bbox["ymax"] - bbox["ymin"]) + (padding * 2)
             screen_width, screen_height = self.get_width(), self.get_height()

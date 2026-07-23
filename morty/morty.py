@@ -56,6 +56,8 @@ parser.add_argument('--hide_pure_pursuit', action='store_true',
                     help='Hide live pure-pursuit target dot and line for each vehicle. Default: False')
 parser.add_argument('--hide_planned_positions', action='store_true',
                     help='Hide live planned positions for each vehicle. Default: False')
+parser.add_argument('--fit_roads', action='store_true',
+                    help='Zoom out to fit the full background.png extent in the HE visualization. Default: False')
 parser.add_argument('--detailed_archive', action='store_true',
                     help='Stores detailed archive of the run in a subfolder. Default: False')
 parser.add_argument('--force', action='store_true',
@@ -399,7 +401,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "lanes_count": num_actual_lanes,
         "vehicles_count": 0,
         "screen_width": 1500,
-        "screen_height": 200,
+        "screen_height": 1500,
         "scaling": 3,
         "show_trajectories": False
     })
@@ -411,7 +413,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "image": None,
         "converted": False,
     }
-    install_world_surface_patches(bg_image_state, num_actual_lanes)
+    install_world_surface_patches(bg_image_state, num_actual_lanes, fit_background=args.fit_roads)
 
     # Expose the env reference so the patched WorldSurface can access vehicle positions.
     try:
