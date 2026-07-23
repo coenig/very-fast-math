@@ -1210,7 +1210,7 @@ private:
       { "rick", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return body + RICK; } },
       { "extractMCTracesFromNusmv", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return toArrayMacro(StaticHelper::extractMCTracesFromNusmv(body)); }},
       { "extractMCTracesFromNusmvFile", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return toArrayMacro(StaticHelper::extractMCTracesFromNusmvFile(body)); } },
-      { "extractVehPosFromNusmvFile", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+      { "extractVehPosFromNusmvFile", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
          std::string res{}; // Takes only THE FIRST CEX, if several are given.
 
          const auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_, body.empty());
@@ -1224,25 +1224,24 @@ private:
          }
 
          const auto trace = traces[0];
-         trace.setOutputLevels(vfm::ErrorLevelEnum::invalid, vfm::ErrorLevelEnum::invalid); // Quiet
-         
-         auto time_scaling_str = trace.getLastValueOfVariableAtStep("planner.time_scaling", 0);
-         auto dist_scale_str = trace.getLastValueOfVariableAtStep("planner.distance_scaling", 0);
+         const auto time_scaling_str = trace.getLastValueOfVariableAtStep("planner.time_scaling", 0);
+         const auto dist_scale_str = trace.getLastValueOfVariableAtStep("planner.distance_scaling", 0);
+         trace.setOutputLevels(vfm::ErrorLevelEnum::invalid, vfm::ErrorLevelEnum::invalid); // Quiet, since we use the error case as indicator.
 
          for (int step = 0; step < trace.size(); ++step) {
             for (int i = 0; i < 100; i++) {
                trace.resetAllErrors();
-               auto lane_str = trace.getLastValueOfVariableAtStep("env.veh___6" + std::to_string(i) + "9___.on_normalized_lane", step);
-               auto lane_width_str = trace.getLastValueOfVariableAtStep("env.lane_width", step);
-               auto num_technical_lanes_str = trace.getLastValueOfVariableAtStep("env.num_technical_lanes", step);
-               auto num_actual_lanes_str = trace.getLastValueOfVariableAtStep("env.num_lanes", step);
+               const auto lane_str = trace.getLastValueOfVariableAtStep("env.veh___6" + std::to_string(i) + "9___.on_normalized_lane", step);
+               const auto lane_width_str = trace.getLastValueOfVariableAtStep("env.lane_width", step);
+               const auto num_technical_lanes_str = trace.getLastValueOfVariableAtStep("env.num_technical_lanes", step);
+               const auto num_actual_lanes_str = trace.getLastValueOfVariableAtStep("env.num_lanes", step);
 
                if (trace.hasErrorOccurred() || lane_str == "-1") { // -1 is error value, and lane must be positive.
                   break; // No value found, assuming we've run over the last car.
                }
 
                trace.resetAllErrors();
-               auto pos_str = trace.getLastValueOfVariableAtStep("env.veh___6" + std::to_string(i) + "9___.abs_pos", step);
+               const auto pos_str = trace.getLastValueOfVariableAtStep("env.veh___6" + std::to_string(i) + "9___.abs_pos", step);
                
                if (trace.hasErrorOccurred()) {
                   break; // No value found, assuming we've run over the last car.
@@ -1250,18 +1249,15 @@ private:
                   break; // pos COULD be -1 in theory... But let's roll the dice here for now. TODO: Don't roll the dice anymore.
                }
 
-               // Go on only if both are there.
+               ////////// Go on only if both are there. /////////
 
-               float long_pos{ std::stof(pos_str) / std::stof(dist_scale_str) * 1000 }; //  TODO: How does scaling fit in for y direction?
-               float lane{ std::stof(lane_str) };
-               float lane_width{ std::stof(lane_width_str) };
-               float num_technical_lanes{ std::stof(num_technical_lanes_str) };
-               float num_actual_lanes{ std::stof(num_actual_lanes_str) };
-
-               const float y_max_tech{ std::stof(parameters.at(1)) };
-               // -LANE_WIDTH_HE / 2.0 + (2 * num_technical_lanes - 1) * LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
-
-               float lat_pos{ y_max_tech - lane * 2.0f * num_actual_lanes / num_technical_lanes };
+               const float long_pos{ std::stof(pos_str) / std::stof(dist_scale_str) * 1000 }; //  TODO: How does scaling fit in for y direction?
+               const float lane{ std::stof(lane_str) };
+               const float lane_width_he{ std::stof(lane_width_str) / 100 };
+               const float num_technical_lanes{ std::stof(num_technical_lanes_str) };
+               const float num_actual_lanes{ std::stof(num_actual_lanes_str) };
+               const float y_max_tech{ lane_width_he * (num_actual_lanes * ( 1.0f - 1.0f / (2.0f * num_technical_lanes)) - 1.0f / 2.0f) };
+               const float lat_pos{ y_max_tech - lane * 2.0f * num_actual_lanes / num_technical_lanes };
 
                res += std::to_string(long_pos) + "," + std::to_string(lat_pos) + ";";
             }

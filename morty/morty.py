@@ -695,7 +695,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             @{{./src/templates/}}@.stringToHeap[MY_PATH]
             }}@.nil
 
-            @{{../../morty/envmodel_config.tpl.json}}@.extractVehPosFromNusmvFile[{selected_config}, {y_max_tech}]
+            @{{../../morty/envmodel_config.tpl.json}}@.extractVehPosFromNusmvFile[{selected_config}]
         """
         result_pos = create_string_buffer(100000)
         with morty_script_context() as morty_lib:
