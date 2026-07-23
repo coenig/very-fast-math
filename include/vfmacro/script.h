@@ -1235,6 +1235,23 @@ private:
                const auto lane_width_str = trace.getLastValueOfVariableAtStep("env.lane_width", step);
                const auto num_technical_lanes_str = trace.getLastValueOfVariableAtStep("env.num_technical_lanes", step);
                const auto num_actual_lanes_str = trace.getLastValueOfVariableAtStep("env.num_lanes", step);
+               const auto on_straight_section_str = trace.getLastValueOfVariableAtStep("env.veh___6" + std::to_string(i) + "9___.on_straight_section", step);
+               const auto traversion_from_str = trace.getLastValueOfVariableAtStep("env.veh___6" + std::to_string(i) + "9___.traversion_from", step);
+               const auto traversion_to_str = trace.getLastValueOfVariableAtStep("env.veh___6" + std::to_string(i) + "9___.traversion_to", step);
+               
+               const int on_straight_section{ std::stoi(on_straight_section_str) };
+               const int traversion_from{ std::stoi(traversion_from_str) };
+               const int traversion_to{ std::stoi(traversion_to_str) };
+
+               int straight_section_angle{ -1 };
+               int straight_section_source_x{ -1 };
+               int straight_section_source_y{ -1 };
+               
+               if (on_straight_section >= 0) { 
+                  straight_section_angle = std::stoi(trace.getLastValueOfVariableAtStep(std::string("env.section_" + on_straight_section_str + ".angle"), 0));
+                  straight_section_source_x = std::stoi(trace.getLastValueOfVariableAtStep(std::string("env.section_" + on_straight_section_str + ".source.x"), 0));
+                  straight_section_source_y = std::stoi(trace.getLastValueOfVariableAtStep(std::string("env.section_" + on_straight_section_str + ".source.y"), 0));
+               }
 
                if (trace.hasErrorOccurred() || lane_str == "-1") { // -1 is error value, and lane must be positive.
                   break; // No value found, assuming we've run over the last car.
@@ -1261,8 +1278,10 @@ private:
                const float y_max_tech{ lane_width_he * (num_actual_lanes * ( 1.0f - 1.0f / (2.0f * num_technical_lanes)) - 1.0f / 2.0f) };
                
                const float lat_pos{ y_max_tech - lane * 2.0f * num_actual_lanes / num_technical_lanes };
+               Vec2D point{ long_pos, lat_pos };
+               point.rotate(straight_section_angle, {straight_section_source_x, straight_section_source_y});
 
-               res += std::to_string(long_pos) + "," + std::to_string(lat_pos) + ";";
+               res += std::to_string(point.x) + "," + std::to_string(point.y) + ";";
             }
 
             res += "\n";
