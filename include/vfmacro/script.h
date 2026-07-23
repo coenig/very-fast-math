@@ -1279,6 +1279,7 @@ private:
                
                const float lat_pos{ y_max_tech - lane * 2.0f * num_actual_lanes / num_technical_lanes };
                Vec2D point{ long_pos, lat_pos };
+               point.translate({straight_section_source_x, straight_section_source_y});
                point.rotate(straight_section_angle, {straight_section_source_x, straight_section_source_y});
 
                res += std::to_string(point.x) + "," + std::to_string(point.y) + ";";
