@@ -1251,12 +1251,15 @@ private:
 
                ////////// Go on only if both are there. /////////
 
-               const float long_pos{ std::stof(pos_str) / std::stof(dist_scale_str) * 1000 }; //  TODO: How does scaling fit in for y direction?
+               const float long_pos{ std::stof(pos_str) / std::stof(dist_scale_str) * 1000.0f }; //  TODO: How does scaling fit in for y direction?
                const float lane{ std::stof(lane_str) };
-               const float lane_width_he{ std::stof(lane_width_str) / 100 };
+               const float lane_width_he{ std::stof(lane_width_str) / 100.0f };
                const float num_technical_lanes{ std::stof(num_technical_lanes_str) };
                const float num_actual_lanes{ std::stof(num_actual_lanes_str) };
+               
+               // Constant same as equal-named one in HE.
                const float y_max_tech{ lane_width_he * (num_actual_lanes * ( 1.0f - 1.0f / (2.0f * num_technical_lanes)) - 1.0f / 2.0f) };
+               
                const float lat_pos{ y_max_tech - lane * 2.0f * num_actual_lanes / num_technical_lanes };
 
                res += std::to_string(long_pos) + "," + std::to_string(lat_pos) + ";";
