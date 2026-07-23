@@ -399,7 +399,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "lanes_count": num_actual_lanes,
         "vehicles_count": 0,
         "screen_width": 1500,
-        "screen_height": 1500,
+        "screen_height": 200,
         "scaling": 3,
         "show_trajectories": False
     })
