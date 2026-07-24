@@ -225,7 +225,7 @@ DIST_EXP_9_MC = int(DIST_EXP_9 * dist_scale)
 SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_9_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") 
 # 9: Only reach some distance.
 
-SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.is_on_sec_1 = 1}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") # 10
+SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.is_on_sec_1 = 1 & env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_9_MC - DIST_EXP_9_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") # 10
 
 SUCC_CONDS.append(lambda: all(x < 1 for x in egos_v))
 SUCC_CONDS.append(lambda: all(abs(x - TARGET_VEL) < 1 for x in egos_v))
@@ -291,6 +291,13 @@ INIT env.section_0_segment_4_pos_begin = {340 * dist_scale};
 
 for i in range(0, nonegos):
     addons[10] += f"INIT env.veh___6{i}9___.is_on_sec_0 = 1;\n"
+
+# addons[10] += f"INIT     env.section_0_end < 100;\n"
+addons[10] += f"""
+    INIT env.section_1.source.x = 214;
+    INIT env.section_1.source.y = 35;
+    INIT env.section_1.angle_raw = 3;
+"""
 
 for i in range(0, len(SPECS)):
     addons[i] += ADDONS_END_DENOTER
@@ -401,7 +408,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "lanes_count": num_actual_lanes,
         "vehicles_count": 0,
         "screen_width": 1500,
-        "screen_height": 1500,
+        "screen_height": 200,
         "scaling": 3,
         "show_trajectories": False
     })

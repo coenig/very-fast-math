@@ -1279,8 +1279,23 @@ private:
                
                const float lat_pos{ y_max_tech - lane * 2.0f * num_actual_lanes / num_technical_lanes };
                Vec2D point{ long_pos, lat_pos };
-               point.translate({ straight_section_source_x, straight_section_source_y });
-               point.rotate(straight_section_angle * 3.14159265358979323846f / 180.0f, { straight_section_source_x, straight_section_source_y });
+
+               if (straight_section_angle != -1 && straight_section_source_x != -1 && straight_section_source_y != -1) {
+                  point.translate({ straight_section_source_x, straight_section_source_y });
+                  point.rotate(straight_section_angle * 3.14159265358979323846f / 180.0f, { straight_section_source_x, straight_section_source_y });
+                  // The section origin (source) anchors the left-most lane (lane 0), not the road center.
+                  // Shift laterally by half the road width, rotated into the section's frame, to hit the center.
+                  const float half_road_width_he{ (num_actual_lanes - 1.0f) / 2.0f * lane_width_he };
+                  Vec2D center_offset{ 0.0f, half_road_width_he };
+                  center_offset.rotate(straight_section_angle * 3.14159265358979323846f / 180.0f, { 0.0f, 0.0f });
+                  point = { straight_section_source_x + center_offset.x, straight_section_source_y + center_offset.y };
+                  std::cout << "Straight section angle: " << straight_section_angle << ", source: (" << straight_section_source_x << ", " << straight_section_source_y << "), point: (" << point.x << ", " << point.y << ")" << std::endl;
+                  std::cin.get();
+               } else {
+                  point = { 0, 0 };
+                  std::cout << "No straight section info, point: (" << point.x << ", " << point.y << ")" << std::endl;
+                  std::cin.get();
+               }
 
                res += std::to_string(point.x) + "," + std::to_string(point.y) + ";";
             }
