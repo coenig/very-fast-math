@@ -1243,14 +1243,14 @@ private:
                const int traversion_from{ std::stoi(traversion_from_str) };
                const int traversion_to{ std::stoi(traversion_to_str) };
 
-               int straight_section_angle{ -1 };
-               int straight_section_source_x{ -1 };
-               int straight_section_source_y{ -1 };
+               float straight_section_angle{ -1 };
+               float straight_section_source_x{ -1 };
+               float straight_section_source_y{ -1 };
                
                if (on_straight_section >= 0) { 
-                  straight_section_angle = std::stoi(trace.getLastValueOfVariableAtStep(std::string("env.section_" + on_straight_section_str + ".angle"), 0));
-                  straight_section_source_x = std::stoi(trace.getLastValueOfVariableAtStep(std::string("env.section_" + on_straight_section_str + ".source.x"), 0));
-                  straight_section_source_y = std::stoi(trace.getLastValueOfVariableAtStep(std::string("env.section_" + on_straight_section_str + ".source.y"), 0));
+                  straight_section_angle = std::stof(trace.getLastValueOfVariableAtStep(std::string("env.section_" + on_straight_section_str + ".angle"), 0));
+                  straight_section_source_x = std::stof(trace.getLastValueOfVariableAtStep(std::string("env.section_" + on_straight_section_str + ".source.x"), 0));
+                  straight_section_source_y = std::stof(trace.getLastValueOfVariableAtStep(std::string("env.section_" + on_straight_section_str + ".source.y"), 0));
                }
 
                if (trace.hasErrorOccurred() || lane_str == "-1") { // -1 is error value, and lane must be positive.
