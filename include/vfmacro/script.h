@@ -11,6 +11,7 @@
 #include "data_pack.h"
 #include "gui/process_helper.h"
 #include "simulation/road_graph.h"
+#include "geometry/bezier_functions.h"
 #include "model_checking/mc_workflow.h"
 #include "model_checking/mc_types.h"
 #include "testing/interactive_testing.h"
@@ -1228,6 +1229,28 @@ private:
          const auto dist_scale_str = trace.getLastValueOfVariableAtStep("planner.distance_scaling", 0);
          trace.setOutputLevels(vfm::ErrorLevelEnum::invalid, vfm::ErrorLevelEnum::invalid); // Quiet, since we use the error case as indicator.
 
+         // Maps a local (long_pos, lat_pos) position on a section to global coordinates, exactly
+         // like the HE painter, which rotates each section about its lateral center (not its source).
+         const auto to_global = [](const float long_pos, const float lat_pos, const float lat_center,
+                                   const float angle_deg, const float source_x, const float source_y) -> Vec2D {
+            const float angle_rad{ angle_deg * 3.14159265358979323846f / 180.0f };
+            const float ca{ std::cos(angle_rad) };
+            const float sa{ std::sin(angle_rad) };
+            const float rx{ long_pos * ca - lat_pos * sa };
+            const float ry{ long_pos * sa + lat_pos * ca };
+            return { source_x + rx + lat_center * sa, source_y + ry + lat_center * (1.0f - ca) };
+         };
+
+         // Reads a section's static geometry (angle in degrees, source point, end length) from the trace.
+         const auto read_section = [&trace](const int sec_id) -> std::tuple<float, float, float, float> {
+            const std::string id{ std::to_string(sec_id) };
+            const float angle{ std::stof(trace.getLastValueOfVariableAtStep("env.section_" + id + ".angle", 0)) };
+            const float sx{ std::stof(trace.getLastValueOfVariableAtStep("env.section_" + id + ".source.x", 0)) };
+            const float sy{ std::stof(trace.getLastValueOfVariableAtStep("env.section_" + id + ".source.y", 0)) };
+            const float end{ std::stof(trace.getLastValueOfVariableAtStep("env.section_" + id + "_end", 0)) };
+            return { angle, sx, sy, end };
+         };
+
          for (int step = 0; step < trace.size(); ++step) {
             for (int i = 0; i < 100; i++) {
                trace.resetAllErrors();
@@ -1242,16 +1265,6 @@ private:
                const int on_straight_section{ std::stoi(on_straight_section_str) };
                const int traversion_from{ std::stoi(traversion_from_str) };
                const int traversion_to{ std::stoi(traversion_to_str) };
-
-               float straight_section_angle{ -1 };
-               float straight_section_source_x{ -1 };
-               float straight_section_source_y{ -1 };
-               
-               if (on_straight_section >= 0) { 
-                  straight_section_angle = std::stof(trace.getLastValueOfVariableAtStep(std::string("env.section_" + on_straight_section_str + ".angle"), 0));
-                  straight_section_source_x = std::stof(trace.getLastValueOfVariableAtStep(std::string("env.section_" + on_straight_section_str + ".source.x"), 0));
-                  straight_section_source_y = std::stof(trace.getLastValueOfVariableAtStep(std::string("env.section_" + on_straight_section_str + ".source.y"), 0));
-               }
 
                if (trace.hasErrorOccurred() || lane_str == "-1") { // -1 is error value, and lane must be positive.
                   break; // No value found, assuming we've run over the last car.
@@ -1278,21 +1291,32 @@ private:
                const float y_max_tech{ lane_width_he * (num_actual_lanes * ( 1.0f - 1.0f / (2.0f * num_technical_lanes)) - 1.0f / 2.0f) };
                
                const float lat_pos{ y_max_tech - lane * 2.0f * num_actual_lanes / num_technical_lanes };
+               const float lat_center{ lane_width_he * (num_actual_lanes - 1.0f) / 2.0f };
                Vec2D point{ long_pos, lat_pos };
 
-               if (straight_section_angle != -1 && straight_section_source_x != -1 && straight_section_source_y != -1) {
-                  // The HE painter rotates each section about its lateral CENTER (not its source),
-                  // so we rotate the local point and add the (I - R(angle))*(0, lat_center) correction.
-                  const float angle_rad{ straight_section_angle * 3.14159265358979323846f / 180.0f };
-                  const float ca{ std::cos(angle_rad) };
-                  const float sa{ std::sin(angle_rad) };
-                  const float lat_center{ lane_width_he * (num_actual_lanes - 1.0f) / 2.0f };
-                  const float rx{ point.x * ca - point.y * sa };
-                  const float ry{ point.x * sa + point.y * ca };
-                  point = {
-                     straight_section_source_x + rx + lat_center * sa,
-                     straight_section_source_y + ry + lat_center * (1.0f - ca)
-                  };
+               if (on_straight_section >= 0) {
+                  // On a straight section: rotate the local (long, lat) point about the section's
+                  // lateral center into global coordinates.
+                  const auto [angle, sx, sy, end] = read_section(on_straight_section);
+                  point = to_global(long_pos, lat_pos, lat_center, angle, sx, sy);
+               }
+               else if (traversion_from >= 0 && traversion_to >= 0) {
+                  // On a curved connector between two sections: reconstruct the Bezier arc exactly like
+                  // RoadGraph::transformAllCarsToStraightRoadSections and place the car by its arc length.
+                  // The four endpoints are the lane-specific source/drain points of both sections,
+                  // computed with the same section transform used for straight sections (so the arc
+                  // joins the straight-section dot trails seamlessly).
+                  const auto [angle_from, fsx, fsy, fend] = read_section(traversion_from);
+                  const auto [angle_to, tsx, tsy, tend] = read_section(traversion_to);
+                  const Vec2D arc_origin     { to_global(fend, lat_pos, lat_center, angle_from, fsx, fsy) }; // drain of "from"
+                  const Vec2D arc_origin_from{ to_global(0.0f, lat_pos, lat_center, angle_from, fsx, fsy) }; // source of "from"
+                  const Vec2D arc_target     { to_global(0.0f, lat_pos, lat_center, angle_to,   tsx, tsy) }; // source of "to"
+                  const Vec2D arc_target_from{ to_global(tend, lat_pos, lat_center, angle_to,   tsx, tsy) }; // drain of "to"
+                  const auto nice = bezier::getNiceBetweenPoints(arc_origin, arc_origin_from, arc_target, arc_target_from);
+                  const float arc_length{ bezier::arcLength(1.0f, arc_origin, nice[0], nice[2], arc_target) };
+                  float rel{ arc_length > 0.0f ? long_pos / arc_length : 0.0f };
+                  rel = std::max(0.0f, std::min(1.0f, rel));
+                  point = bezier::pointAtRatio(rel, arc_origin, nice[0], nice[2], arc_target);
                }
 
                res += std::to_string(point.x) + "," + std::to_string(point.y) + ";";
