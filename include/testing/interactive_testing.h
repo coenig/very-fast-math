@@ -115,7 +115,7 @@ std::shared_ptr<RoadGraph> paintExampleRoadGraphRoundabout(const bool write_to_f
 
 bool isCacheUpToDateWithTemplates(const std::filesystem::path& cached_path, const std::filesystem::path& template_path, const std::string& gui_name);
 
-void prepareInputForMortyUCD(const std::string& input_str, const float head_const, const int num_lanes, const int num_technical_lanes);
+void prepareInputForMortyUCD(const std::string& input_str, const float head_const, const int num_lanes, const int num_technical_lanes, const std::string& trace_path = "");
 std::string prepareOutputForMortyUCD(const long long seed, const int iteration, const long long runtime, const bool crash);
 
 #ifndef VFM_API

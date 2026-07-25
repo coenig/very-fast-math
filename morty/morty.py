@@ -289,9 +289,6 @@ INIT env.section_0_segment_4_max_lane = 2;
 INIT env.section_0_segment_4_pos_begin = {340 * dist_scale};
 """
 
-for i in range(0, nonegos):
-    addons[10] += f"INIT env.veh___6{i}9___.is_on_sec_0 = 1;\n"
-
 # addons[10] += f"INIT     env.section_0_end < 100;\n"
 addons[10] += f"""
     INIT env.section_1.source.x = 214;
@@ -567,7 +564,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         MC_SCRIPT = f"""@{{
             @{{./src/templates/}}@.stringToHeap[MY_PATH]
 
-            @{{{mcinput}}}@.prepareInputForMortyUCD[{args.heading_adaptation}, {num_actual_lanes}, {num_technical_lanes}]
+            @{{{mcinput}}}@.prepareInputForMortyUCD[{args.heading_adaptation}, {num_actual_lanes}, {num_technical_lanes}, AUTO]
 
             @{{nuXmv}}@.killAfter[300].Detach.setScriptVar[scriptID, force]
             @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[16]
@@ -728,7 +725,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 if not args.hide_planned_positions:
                     global_pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
                 
-                if i <= 5:
+                if i <= 3:
                     coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
                     pp_mc_immediate_exists = True
                     print(f"Step {i}, Car {j}: abspos={abspos}, latpos={latpos}, coord={coord}") # TODO REMOVE
