@@ -1281,20 +1281,18 @@ private:
                Vec2D point{ long_pos, lat_pos };
 
                if (straight_section_angle != -1 && straight_section_source_x != -1 && straight_section_source_y != -1) {
-                  point.translate({ straight_section_source_x, straight_section_source_y });
-                  point.rotate(straight_section_angle * 3.14159265358979323846f / 180.0f, { straight_section_source_x, straight_section_source_y });
-                  // The section origin (source) anchors the left-most lane (lane 0), not the road center.
-                  // Shift laterally by half the road width, rotated into the section's frame, to hit the center.
-                  const float half_road_width_he{ (num_actual_lanes - 1.0f) / 2.0f * lane_width_he };
-                  Vec2D center_offset{ 0.0f, half_road_width_he };
-                  center_offset.rotate(straight_section_angle * 3.14159265358979323846f / 180.0f, { 0.0f, 0.0f });
-                  point = { straight_section_source_x + center_offset.x, straight_section_source_y + center_offset.y };
-                  std::cout << "Straight section angle: " << straight_section_angle << ", source: (" << straight_section_source_x << ", " << straight_section_source_y << "), point: (" << point.x << ", " << point.y << ")" << std::endl;
-                  std::cin.get();
-               } else {
-                  point = { 0, 0 };
-                  std::cout << "No straight section info, point: (" << point.x << ", " << point.y << ")" << std::endl;
-                  std::cin.get();
+                  // The HE painter rotates each section about its lateral CENTER (not its source),
+                  // so we rotate the local point and add the (I - R(angle))*(0, lat_center) correction.
+                  const float angle_rad{ straight_section_angle * 3.14159265358979323846f / 180.0f };
+                  const float ca{ std::cos(angle_rad) };
+                  const float sa{ std::sin(angle_rad) };
+                  const float lat_center{ lane_width_he * (num_actual_lanes - 1.0f) / 2.0f };
+                  const float rx{ point.x * ca - point.y * sa };
+                  const float ry{ point.x * sa + point.y * ca };
+                  point = {
+                     straight_section_source_x + rx + lat_center * sa,
+                     straight_section_source_y + ry + lat_center * (1.0f - ca)
+                  };
                }
 
                res += std::to_string(point.x) + "," + std::to_string(point.y) + ";";
