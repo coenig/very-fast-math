@@ -1790,7 +1790,10 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
          lanes.insert(on_lane / 2);  // On a technical lane center.
       } else {
          lanes.insert(on_lane / 2);      // Between two adjacent technical lanes.
-         lanes.insert(on_lane / 2 + 1);
+
+         if (best_on_section >= 0) { // TODO: REMOVE and replace with something actually smart. We have no half-lanes on arcs.
+            lanes.insert(on_lane / 2 + 1);
+         }
       }
 
       std::cout << "car " << i << " -> "

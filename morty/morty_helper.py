@@ -567,7 +567,7 @@ def install_world_surface_patches(bg_image_state, num_lanes, fit_background=Fals
             center = np.array([(bbox["xmin"] + bbox["xmax"]) / 2.0 - 50, (bbox["ymin"] + bbox["ymax"]) / 2.0])
 
             self.origin = center - np.array([
-                self.centering_position[0] * self.get_width() / self.scaling,
+                self.centering_position[0] * self.get_width() / self.scaling - 50,
                 self.centering_position[1] * self.get_height() / self.scaling,
             ])
         except Exception as e:

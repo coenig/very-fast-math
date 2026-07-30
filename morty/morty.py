@@ -225,7 +225,9 @@ DIST_EXP_9_MC = int(DIST_EXP_9 * dist_scale)
 SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_9_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") 
 # 9: Only reach some distance.
 
-SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.is_on_sec_1 = 1 & env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_9_MC - DIST_EXP_9_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") # 10
+DIST_EXP_10 = 40;
+DIST_EXP_10_MC = int(DIST_EXP_10 * dist_scale)
+SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.is_on_sec_1 = 1 & env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_10_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") # 10 Reach next section
 
 SUCC_CONDS.append(lambda: all(x < 1 for x in egos_v))
 SUCC_CONDS.append(lambda: all(abs(x - TARGET_VEL) < 1 for x in egos_v))
@@ -291,9 +293,7 @@ INIT env.section_0_segment_4_pos_begin = {340 * dist_scale};
 
 # addons[10] += f"INIT     env.section_0_end < 100;\n"
 addons[10] += f"""
-    INIT env.section_1.source.x = 214;
-    INIT env.section_1.source.y = 35;
-    INIT env.section_1.angle_raw = 3;
+    INIT env.section_1.angle_raw = 2;
 """
 
 for i in range(0, len(SPECS)):
@@ -405,7 +405,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "lanes_count": num_actual_lanes,
         "vehicles_count": 0,
         "screen_width": 1500,
-        "screen_height": 200,
+        "screen_height": 300,
         "scaling": 3,
         "show_trajectories": False
     })
@@ -726,7 +726,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     global_pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
                 
                 if i <= 3:
-                    coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
+                    # special treatment for backward driving cars.
+                    coords_for_pp[j] = coord if egos_backward[j] == 1 else ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
                     pp_mc_immediate_exists = True
                     print(f"Step {i}, Car {j}: abspos={abspos}, latpos={latpos}, coord={coord}") # TODO REMOVE
         # EO Find future positions.
@@ -910,14 +911,12 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             pp_latshift = float(result_pp_latshift)
             
             print(f"Pure pursuit target for car {i}: distance = {pp_distance}, latshift = {pp_latshift}")  # TODO REMOVE
-                        
-            if pp_latshift + 0.5 < y_min_tech or pp_latshift - 0.5 > y_max_tech:  # TODO REMOVE
-                print(f"Warning: MC suggested lateral shift {pp_latshift} is out of bounds [{y_min_tech}, {y_max_tech}].")
-                print(coords_for_pp)
-            
+                                    
             if i < len(env.unwrapped.controlled_vehicles):
                 vehicle = env.unwrapped.controlled_vehicles[i]
-                pp_target_x = float(vehicle.position[0] + egos_backward[i] * pp_distance)
+                
+                # special treatment for backward driving cars.
+                pp_target_x = pp_distance if egos_backward[i] == 1 else float(vehicle.position[0] + egos_backward[i] * pp_distance)
                 pp_target_y = pp_latshift
                 viz_state.pp_targets[id(vehicle)] = [pp_target_x, pp_target_y]
 
