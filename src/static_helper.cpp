@@ -1988,7 +1988,7 @@ void postprocessTrace(MCTrace& trace)
                  auto to = std::stoi(varvals.second);
 
                  if (!used_transitions.count({from, to})) {
-                     varvals.second = "-1";
+                     // varvals.second = "-1"; TODO: Not sure what this was for. It removes all transitions noone ever drives on??
                  }
              }
          }
