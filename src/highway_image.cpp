@@ -1432,6 +1432,6 @@ void vfm::HighwayImage::paintRoadGraph(
    label:
    setTranslator(old_trans);
    //DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::ghosts_only); // For debugging.
-   if (paint_cars) DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
+   if (paint_cars || true) DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
    setTranslator(old_trans);
 }

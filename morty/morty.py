@@ -225,7 +225,7 @@ DIST_EXP_9_MC = int(DIST_EXP_9 * dist_scale)
 SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_9_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") 
 # 9: Only reach some distance.
 
-DIST_EXP_10 = 40;
+DIST_EXP_10 = 35;
 DIST_EXP_10_MC = int(DIST_EXP_10 * dist_scale)
 SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.is_on_sec_1 = 1 & env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_10_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") # 10 Reach next section
 
@@ -294,6 +294,7 @@ INIT env.section_0_segment_4_pos_begin = {340 * dist_scale};
 # addons[10] += f"INIT     env.section_0_end < 100;\n"
 addons[10] += f"""
     INIT env.section_1.angle_raw = 2;
+    INIT env.outgoing_connection_0_of_section_0 = 1;
 """
 
 for i in range(0, len(SPECS)):
@@ -660,7 +661,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         selected_runtime_history.append(selected_runtime)
 
         # Do Background Image
-        if bg_image_state is not None and bg_image_state["image"] is None:
+        # TODO: re-install second part of condition for performance.
+        if bg_image_state is not None:# and bg_image_state["image"] is None:
             script_bgd_image = f"""
             @{{{generated_path_prefix + selected_config}}}@.generateTestCasesPlain[plain_road, debug_trace_array, ]
             """
@@ -726,8 +728,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     global_pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
                 
                 if i <= 3:
-                    # special treatment for backward driving cars.
-                    coords_for_pp[j] = coord if egos_backward[j] == 1 else ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
+                    coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
                     pp_mc_immediate_exists = True
                     print(f"Step {i}, Car {j}: abspos={abspos}, latpos={latpos}, coord={coord}") # TODO REMOVE
         # EO Find future positions.
@@ -915,8 +916,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             if i < len(env.unwrapped.controlled_vehicles):
                 vehicle = env.unwrapped.controlled_vehicles[i]
                 
-                # special treatment for backward driving cars.
-                pp_target_x = pp_distance if egos_backward[i] == 1 else float(vehicle.position[0] + egos_backward[i] * pp_distance)
+                pp_target_x = float(vehicle.position[0] + egos_backward[i] * pp_distance)
                 pp_target_y = pp_latshift
                 viz_state.pp_targets[id(vehicle)] = [pp_target_x, pp_target_y]
 

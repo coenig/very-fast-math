@@ -672,12 +672,7 @@ TRANS next(veh___6[i]9___.lane_b@{[j]}@.eval[0]) = veh___6[i]9___.lane_b@{[j]}@.
 @{
 INVAR ego_lane_b[j] = veh___609___.lane_b[j];
 }@.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
-INVAR ego.v = veh___609___.v;
-INVAR ego.a = veh___609___.a;
-INVAR ego.abs_pos = veh___609___.abs_pos;
-DEFINE ego.on_straight_section := veh___609___.on_straight_section;
-DEFINE ego.traversion_from := veh___609___.traversion_from;
-DEFINE ego.traversion_to := veh___609___.traversion_to;
+
  -- EO Synch EGO with veh___609___.
 
 @{
@@ -688,11 +683,12 @@ DEFINE ego.traversion_to := veh___609___.traversion_to;
 
 }@******.if[@{!(EGOLESS)}@.eval]
 
-@{
-DEFINE ego.on_straight_section := 0;
-DEFINE ego.traversion_from := -1;
-DEFINE ego.traversion_to := -1;
-}@******.if[@{EGOLESS}@.eval]
+INVAR ego.v = veh___609___.v;
+INVAR ego.a = veh___609___.a;
+INVAR ego.abs_pos = veh___609___.abs_pos;
+DEFINE ego.on_straight_section := veh___609___.on_straight_section;
+DEFINE ego.traversion_from := veh___609___.traversion_from;
+DEFINE ego.traversion_to := veh___609___.traversion_to;
 
 ---------------------------------------------------------------------
 -- Here comes logic which is independent of EGO-less or EGO-full mode
