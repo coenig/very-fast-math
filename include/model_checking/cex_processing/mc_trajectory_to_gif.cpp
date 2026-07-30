@@ -268,7 +268,9 @@ void vfm::mc::trajectory_generator::LiveSimGenerator::equipRoadGraphWithCars(
          rg->getMyRoad().setEgo(ego);
       }
       else {
-         addError("Ego vehicle will not be painted since it is on section '" + std::to_string(on_straight_section) + "' which is not reachable from the current setion '" + std::to_string(r->getID()) + "'. (Note that sections unconnected to the main road graph are currently not considered.)");
+         addError("Ego vehicle cannot be painted on section '" + std::to_string(on_straight_section) + "' which is not reachable from the current setion '" + std::to_string(r->getID()) + "'. (Note that sections unconnected to the main road graph are currently not considered.)");
+         addError("Ego vehicle will be painted on section '0' instead.");
+         r->findSectionWithID(0)->getMyRoad().setEgo(ego);
       }
    }
    else if (traversion_from >= 0 && traversion_to >= 0) {
