@@ -293,9 +293,15 @@ INIT env.section_0_segment_4_pos_begin = {340 * dist_scale};
 
 # addons[10] += f"INIT     env.section_0_end < 100;\n"
 addons[10] += f"""
-    INIT env.section_1.angle_raw = 2;
+    INIT env.section_1.source.x = 165;
+    INIT env.section_1.source.y = 35;
+    INIT env.section_1.angle_raw = 1;
     INIT env.outgoing_connection_0_of_section_0 = 1;
 """
+for i in range(0, nonegos):
+    addons[10] += f"INVAR env.cnt > 3 -> !env.veh___6{i}9___.lane_b0;\n"
+
+
 
 for i in range(0, len(SPECS)):
     addons[i] += ADDONS_END_DENOTER
@@ -663,6 +669,13 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # Do Background Image
         # TODO: re-install second part of condition for performance.
         if bg_image_state is not None:# and bg_image_state["image"] is None:
+            for config_name in ucd_config_prios_str:
+                visu_base_path = generated_path_prefix + config_name + "/0/"
+                shutil.rmtree(visu_base_path, ignore_errors=True) # Remove old background images if any.
+            
+            visu_base_path = generated_path_prefix + selected_config + "/0/"
+            image_path = visu_base_path + "plain_road/plain_road_0.png"
+
             script_bgd_image = f"""
             @{{{generated_path_prefix + selected_config}}}@.generateTestCasesPlain[plain_road, debug_trace_array, ]
             """
@@ -674,7 +687,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 
             try:
                 import pygame
-                image_path = generated_path_prefix + selected_config + "/0/plain_road/plain_road_0.png"
                 BACKGROUND_IMAGE_PATH = generated_path_prefix + "/background.png"
                 Path(BACKGROUND_IMAGE_PATH).parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(image_path, BACKGROUND_IMAGE_PATH)
@@ -727,7 +739,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 if not args.hide_planned_positions:
                     global_pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
                 
-                if i <= 3:
+                if i <= 5:
                     coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
                     pp_mc_immediate_exists = True
                     print(f"Step {i}, Car {j}: abspos={abspos}, latpos={latpos}, coord={coord}") # TODO REMOVE
