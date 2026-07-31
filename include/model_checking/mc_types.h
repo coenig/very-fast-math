@@ -14,6 +14,7 @@ namespace vfm {
 namespace mc {
 
    static const std::pair<std::string, std::string> TESTCASE_MODE_PLAIN_ROAD{ "plain_road", "plain_road" };
+   static const std::pair<std::string, std::string> TESTCASE_MODE_PLAIN_ROAD_WITH_CARS{ "plain_road_with_cars", "plain_road_with_cars" };
    static const std::pair<std::string, std::string> TESTCASE_MODE_PREVIEW{ "preview", "preview" };
    static const std::pair<std::string, std::string> TESTCASE_MODE_PREVIEW_2{ "preview2", "preview 2" };
    static const std::pair<std::string, std::string> TESTCASE_MODE_CEX_FULL{ "cex-full", "full (1/7)" };
@@ -26,6 +27,7 @@ namespace mc {
 
    static const std::map<std::string, std::string> ALL_TESTCASE_MODES{
       TESTCASE_MODE_PLAIN_ROAD,
+      TESTCASE_MODE_PLAIN_ROAD_WITH_CARS,
       TESTCASE_MODE_PREVIEW,
       TESTCASE_MODE_PREVIEW_2,
       TESTCASE_MODE_CEX_FULL,

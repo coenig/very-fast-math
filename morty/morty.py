@@ -225,9 +225,10 @@ DIST_EXP_9_MC = int(DIST_EXP_9 * dist_scale)
 SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_9_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") 
 # 9: Only reach some distance.
 
-DIST_EXP_10 = 35;
+DIST_EXP_10 = 40;
 DIST_EXP_10_MC = int(DIST_EXP_10 * dist_scale)
-SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.is_on_sec_1 = 1 & env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_10_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") # 10 Reach next section
+SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.is_on_sec_1 = 1 & env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_10_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""")
+# 10 Reach next section
 
 SUCC_CONDS.append(lambda: all(x < 1 for x in egos_v))
 SUCC_CONDS.append(lambda: all(abs(x - TARGET_VEL) < 1 for x in egos_v))
@@ -667,17 +668,18 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         selected_runtime_history.append(selected_runtime)
 
         # Do Background Image
-        # TODO: re-install second part of condition for performance.
-        if bg_image_state is not None:# and bg_image_state["image"] is None:
-            for config_name in ucd_config_prios_str:
+        DEBUG = False # Refreshes road in every cycle and paints MC cars.
+        if bg_image_state is not None and (DEBUG or bg_image_state["image"] is None):
+            for config_name in ucd_config_prios_str: # Remove old background images if any.
                 visu_base_path = generated_path_prefix + config_name + "/0/"
-                shutil.rmtree(visu_base_path, ignore_errors=True) # Remove old background images if any.
+                shutil.rmtree(visu_base_path, ignore_errors=True)
             
+            visu_mode = "plain_road_with_cars" if DEBUG else "plain_road"
             visu_base_path = generated_path_prefix + selected_config + "/0/"
-            image_path = visu_base_path + "plain_road/plain_road_0.png"
+            image_path = visu_base_path + f"{visu_mode}/{visu_mode}_0.png"
 
             script_bgd_image = f"""
-            @{{{generated_path_prefix + selected_config}}}@.generateTestCasesPlain[plain_road, debug_trace_array, ]
+            @{{{generated_path_prefix + selected_config}}}@.generateTestCasesPlain[{visu_mode}, debug_trace_array, ]
             """
             result_bg = create_string_buffer(100000)
             with morty_script_context() as morty_lib:

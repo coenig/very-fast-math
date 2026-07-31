@@ -415,6 +415,12 @@ void LiveSimGenerator::generate(
          image_file_output = base_output_name + "_" + std::to_string(trajectory_index);
       }
 
+      const auto plain_road_mode = (visu_type & LiveSimType::plain_road_no_cars)
+         ? HighwayImage::PlainRoadMode::plain_road
+         : ((visu_type & LiveSimType::plain_road_with_cars)
+            ? HighwayImage::PlainRoadMode::plain_road_with_cars
+            : HighwayImage::PlainRoadMode::regular);
+
       // Add frame to gif
       auto img = updateOutputImages(
          env, 
@@ -427,7 +433,7 @@ void LiveSimGenerator::generate(
          VARIABLES_TO_BE_PAINTED,
          agents_to_draw_arrows_for,
          road_graph,
-         !(visu_type & LiveSimType::plain_road_no_cars));
+         plain_road_mode);
 
       // Determine frame duration from trajectory
       double frame_duration;
@@ -482,7 +488,7 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
    const std::shared_ptr<std::vector<PainterVariableDescription>> variables_to_be_painted,
    const std::set<int>& agents_to_draw_arrows_for,
    const std::shared_ptr<RoadGraph> road_graph,
-   const bool paint_cars
+   const HighwayImage::PlainRoadMode paint_cars
    )
 {
    const bool activate_pdf{ 

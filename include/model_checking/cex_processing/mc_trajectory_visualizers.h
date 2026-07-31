@@ -129,7 +129,8 @@ public:
 		cockpit = 8,
 		birdseye = 16,
 		always_paint_arrows = 32,
-      plain_road_no_cars = 64,
+        plain_road_no_cars = 64,
+        plain_road_with_cars = 128,
 	};
 
 
@@ -191,7 +192,7 @@ private:
 		const std::shared_ptr<std::vector<PainterVariableDescription>> variables_to_be_painted,
 		const std::set<int>& agents_to_draw_arrows_for,
       const std::shared_ptr<RoadGraph> road_graph,
-      const bool paint_cars);
+      const HighwayImage::PlainRoadMode paint_cars);
 };
 
 

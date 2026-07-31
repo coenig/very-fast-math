@@ -1260,7 +1260,7 @@ void vfm::HighwayImage::paintGraphConnectionsBetweenSections(
 void vfm::HighwayImage::paintRoadGraph(
    const std::shared_ptr<RoadGraph> r_raw,
    const Vec2D& dim_raw_raw,
-   const bool paint_cars, // Not a good name, false means the plain road mode.
+   const PlainRoadMode plain_road_mode,
    const std::map<std::string, std::string>& var_vals,
    const bool print_agent_ids,
    const float TRANSLATE_X_raw,
@@ -1268,7 +1268,10 @@ void vfm::HighwayImage::paintRoadGraph(
 {
    auto my_r = PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ ? vfm::test::paintExampleRoadGraphRoundabout(false, r_raw) : r_raw;
 
-   if (!paint_cars) { // Avoid translation due to ego following.
+   const bool plain_road{ plain_road_mode == PlainRoadMode::plain_road || plain_road_mode == PlainRoadMode::plain_road_with_cars };
+   const bool with_cars{ plain_road_mode == PlainRoadMode::regular || plain_road_mode == PlainRoadMode::plain_road_with_cars };
+
+   if (plain_road) { // Avoid translation due to ego following.
       my_r->findSectionWithEgoIfAny()->removeEgo();
       my_r->findSectionWithID(0)->my_road_.setEgo(std::make_shared<CarPars>(
          0, 
@@ -1303,10 +1306,10 @@ void vfm::HighwayImage::paintRoadGraph(
       if (r_sub != r_ego) all_nodes_ego_in_front.push_back(r_sub);
    }
 
-   std::shared_ptr<float> trans_x_inner = std::make_shared<float>(paint_cars ? TRANSLATE_X_raw : 0);
-   std::shared_ptr<float> trans_y_inner = std::make_shared<float>(paint_cars ? TRANSLATE_Y_raw : 0);
+   std::shared_ptr<float> trans_x_inner = std::make_shared<float>(plain_road ? 0 : TRANSLATE_X_raw);
+   std::shared_ptr<float> trans_y_inner = std::make_shared<float>(plain_road ? 0 : TRANSLATE_Y_raw);
 
-   const auto DRAW_STRAIGHT_ROAD_OR_CARS = [this, paint_cars, &lane_width, &all_nodes_ego_in_front, &dim_raw, old_trans, TRANSLATE_X_raw, TRANSLATE_Y_raw, trans_x_inner, trans_y_inner, infinite_road, &var_vals, print_agent_ids](const RoadDrawingMode mode) {
+   const auto DRAW_STRAIGHT_ROAD_OR_CARS = [this, plain_road, &lane_width, &all_nodes_ego_in_front, &dim_raw, old_trans, TRANSLATE_X_raw, TRANSLATE_Y_raw, trans_x_inner, trans_y_inner, infinite_road, &var_vals, print_agent_ids](const RoadDrawingMode mode) {
       for (const auto r_sub : all_nodes_ego_in_front) {
          if (mode == RoadDrawingMode::road && r_sub->isGhost()
             || mode == RoadDrawingMode::ghosts_only && !r_sub->isGhost()) continue;
@@ -1372,7 +1375,7 @@ void vfm::HighwayImage::paintRoadGraph(
          if (r_sub->getID() == 0
             && !old_trans->is3D()
             && mode == RoadDrawingMode::road
-            && !paint_cars) { // Adjusts the anchor point such that the beginning of road "0", left lane is at the exact same pixel, regardless of number of lanes etc.
+            && plain_road) { // Adjusts the anchor point such that the beginning of road "0", left lane is at the exact same pixel, regardless of number of lanes etc.
             Vec2D only_zero{ 1, 1 };
 
             paintStraightRoadScene( // Doesn' actually paint anything.
@@ -1432,6 +1435,6 @@ void vfm::HighwayImage::paintRoadGraph(
    label:
    setTranslator(old_trans);
    //DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::ghosts_only); // For debugging.
-   if (paint_cars || true) DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
+   if (with_cars) DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
    setTranslator(old_trans);
 }
