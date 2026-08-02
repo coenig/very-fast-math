@@ -18,5 +18,9 @@
 @{scalingList}@.printList
 -- EO SCALING DESCRIPTIONS
 
+DEFINE
+time_scaling := @{TIMESCALING}@*****.eval[0];          -- Evaluated before below, i.e., in ms.
+distance_scaling := @{DISTANCESCALING}@*****.eval[0];  -- Evaluated before below, i.e., in mm.
+
 -- Translating TIMESCALING unit from milliseconds (old value: @{TIMESCALING}@*****.eval) to seconds (new value: @{@TIMESCALING = TIMESCALING / 1000; TIMESCALING}@*****.eval)
 -- Translating DISTANCESCALING unit from millimeters (old value: @{DISTANCESCALING}@*****.eval) to meters (new value: @{@DISTANCESCALING = DISTANCESCALING / 1000; DISTANCESCALING}@*****.eval)

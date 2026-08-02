@@ -1165,10 +1165,10 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphCrossing(
 
       image2.fillImg(BROWN);
       image3.paintEarthAndSky(true);
-      image2.paintRoadGraph(ra1, { 500, 60 }, {}, true, 50, 70);
+      image2.paintRoadGraph(ra1, { 500, 60 }, HighwayImage::PlainRoadMode::regular, {}, true, 50, 70);
       image2.store("../examples/crossing", OutputType::pdf);
       image2.store("../examples/crossing", OutputType::png);
-      image3.paintRoadGraph(ra1, dim3D);
+      image3.paintRoadGraph(ra1, dim3D, HighwayImage::PlainRoadMode::regular);
       image3.store("../examples/crossing_3d", OutputType::pdf);
       image3.store("../examples/crossing_3d", OutputType::png);
 
@@ -1274,10 +1274,10 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphStrangeJunction(
 
       image2.fillImg(BROWN);
       image3.paintEarthAndSky(true);
-      image2.paintRoadGraph(ra1, { 500, 60 }, {}, true);
+      image2.paintRoadGraph(ra1, { 500, 60 }, HighwayImage::PlainRoadMode::regular, {}, true);
       image2.store("../examples/junction", OutputType::pdf);
       image2.store("../examples/junction", OutputType::png);
-      image3.paintRoadGraph(ra1, dim3D);
+      image3.paintRoadGraph(ra1, dim3D, HighwayImage::PlainRoadMode::regular);
       image3.store("../examples/junction_3d", OutputType::pdf);
       image3.store("../examples/junction_3d", OutputType::png);
 
@@ -1451,10 +1451,10 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 
       image2.fillImg(BROWN);
       image3.paintEarthAndSky(true);
-      image2.paintRoadGraph(r1, { 500, 60 }, {}, true, 60, (float)r0->getMyRoad().getNumActualLanes() / 2.0f);
+      image2.paintRoadGraph(r1, { 500, 60 }, HighwayImage::PlainRoadMode::regular, {}, true, 60, (float)r0->getMyRoad().getNumActualLanes() / 2.0f);
       image2.store("../examples/roundabout", OutputType::pdf);
       image2.store("../examples/roundabout", OutputType::png);
-      image3.paintRoadGraph(r1, dim3D, {}, true, 0, 0);
+      image3.paintRoadGraph(r1, dim3D, HighwayImage::PlainRoadMode::regular, {}, true, 0, 0);
       image3.store("../examples/roundabout_3d", OutputType::pdf);
       image3.store("../examples/roundabout_3d", OutputType::png);
 
@@ -1553,7 +1553,7 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 
 // --- EO remaining comments from main.cpp ---
 
-void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const float head_const, const int num_lanes, const int num_technical_lanes)
+void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const float head_const, const int num_lanes, const int num_technical_lanes, const std::string& trace_path)
 {
    const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json").string() };
    const std::string ucd_config_prios_str{ mc::McWorkflow().getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
@@ -1580,55 +1580,230 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
    }
 
    cars.erase(cars.end() - 1);
+
+   // Lane/road geometry constants (same convention as the HE painter and section-0 mapping).
+   static constexpr float LANE_WIDTH = 4.0f;
+   const float road_width = num_lanes * LANE_WIDTH;
+   const float lat_center = LANE_WIDTH * (num_lanes - 1) / 2.0f; // Lateral center of the road (rotation center).
+
+   // Load the (static) section/arc geometry from a debug trace, exactly as extractVehPosFromNusmvFile
+   // does for the reverse (painting) direction. Any trace of this scenario contains the geometry.
+   struct SectionGeom { int id; float angle_deg; float sx; float sy; float end; };
+   std::vector<SectionGeom> sections{};
+   std::vector<std::pair<int, int>> connectors{}; // (from_section_id, to_section_id)
+
+   {
+      std::string resolved_trace_path{ (trace_path == "AUTO") ? std::string{} : trace_path };
+      if (resolved_trace_path.empty()) { // Fall back to the first available config's trace.
+         for (const auto& cn : ucd_config_prios_vec) {
+            if (cn.empty()) continue;
+            const std::string p{ OUTPUT_BASE_PATH + cn + "/debug_trace_array.txt" };
+            if (std::filesystem::exists(p)) { resolved_trace_path = p; break; }
+         }
+      }
+
+      if (!resolved_trace_path.empty() && std::filesystem::exists(resolved_trace_path)) {
+         const auto traces = StaticHelper::extractMCTracesFromNusmvFile(resolved_trace_path);
+         if (!traces.empty() && !traces[0].empty()) {
+            MCTrace trace{ traces[0] };
+            trace.setOutputLevels(vfm::ErrorLevelEnum::invalid, vfm::ErrorLevelEnum::invalid); // Quiet; we use errors as "not present".
+
+            for (int s = 0; s < 1000; ++s) {
+               const std::string id{ std::to_string(s) };
+               trace.resetAllErrors();
+               const auto angle_str = trace.getLastValueOfVariableAtStep("env.section_" + id + ".angle", 0);
+               const auto sx_str = trace.getLastValueOfVariableAtStep("env.section_" + id + ".source.x", 0);
+               const auto sy_str = trace.getLastValueOfVariableAtStep("env.section_" + id + ".source.y", 0);
+               const auto end_str = trace.getLastValueOfVariableAtStep("env.section_" + id + "_end", 0);
+               if (trace.hasErrorOccurred()) break; // No such section; done enumerating.
+               sections.push_back({ s, std::stof(angle_str), std::stof(sx_str), std::stof(sy_str), std::stof(end_str) });
+            }
+
+            for (const auto& sec : sections) {
+               for (int c = 0; c < 100; ++c) {
+                  trace.resetAllErrors();
+                  const auto succ_str = trace.getLastValueOfVariableAtStep(
+                     "env.outgoing_connection_" + std::to_string(c) + "_of_section_" + std::to_string(sec.id), 0);
+                  if (trace.hasErrorOccurred()) break;
+                  const int succ{ (int)std::stof(succ_str) };
+                  if (succ >= 0) connectors.push_back({ sec.id, succ }); // -1 codes "no connection".
+               }
+            }
+         } else {
+            Failable::getSingleton()->addNote("No usable trace at '" + resolved_trace_path + "'; falling back to section-0-only mapping.");
+         }
+      } else {
+         Failable::getSingleton()->addNote("No section geometry trace found; falling back to section-0-only mapping.");
+      }
+   }
+
+   // Maps a section-local (long_pos, lat_pos) to global coordinates like the HE painter
+   // (rotation about the section's lateral center). Identical to extractVehPosFromNusmvFile::to_global.
+   const auto to_global = [lat_center](const float long_pos, const float lat_pos, const float angle_deg,
+                                       const float source_x, const float source_y) -> Vec2D {
+      const float angle_rad{ angle_deg * 3.14159265358979323846f / 180.0f };
+      const float ca{ std::cos(angle_rad) };
+      const float sa{ std::sin(angle_rad) };
+      const float rx{ long_pos * ca - lat_pos * sa };
+      const float ry{ long_pos * sa + lat_pos * ca };
+      return { source_x + rx + lat_center * sa, source_y + ry + lat_center * (1.0f - ca) };
+   };
+
    std::string main_file_additions{};
 
    for (int i = 0; i < cars.size(); i++) {
       auto car = cars[i];
+      if (car.empty()) continue;
 
-      if (!car.empty()) {
-         auto data = StaticHelper::split(car, ",");
+      auto data = StaticHelper::split(car, ",");
 
-         float x{ std::stof(data[1]) };
-         float y{ std::stof(data[2]) };
-         float vx{ std::stof(data[3]) };
-         float vy{ std::stof(data[4]) };
-         float heading{ std::stof(data[5]) };
+      const float x{ std::stof(data[1]) };
+      const float y{ std::stof(data[2]) };
+      const float vx{ std::stof(data[3]) };
+      const float vy{ std::stof(data[4]) };
+      const Vec2D P{ x, y };
 
-         x = (std::max)((std::min)(x, (std::numeric_limits<float>::max)()), (std::numeric_limits<float>::min)());
-         // vx = (std::max)((std::min)(vx, 70.0f), -70.0f);
+      // Resolve which "seclet" (straight section or connector arc) the car is closest to, and derive
+      // its section-local longitudinal/lateral position from the global (x, y). Off-road cars snap to
+      // the nearest on-road position. Defaults reproduce the old section-0-only behavior (angle 0,
+      // origin at (0,0) => long_pos == x, lat_pos == y) when no geometry is available.
+      bool found_seclet{ false };
+      float best_dist{ (std::numeric_limits<float>::max)() };
+      int best_on_section{ 0 };
+      int best_from{ -1 };
+      int best_to{ -1 };
+      float best_long_pos{ x };   // Longitudinal position along the seclet [HE meters].
+      float best_lat{ y };        // Lateral position relative to the road [HE meters].
+      float best_lat_vel{ vy };   // Lateral velocity (for heading adjustment) [HE m/s].
 
-         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.abs_pos = " + std::to_string((int)(x * dist_scale)) + ";\n";
-         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx * vel_scale)) + ";\n";
+      // ---- Straight sections: invert to_global and measure distance to the on-road band. ----
+      for (const auto& sec : sections) {
+         const float angle_rad{ sec.angle_deg * 3.14159265358979323846f / 180.0f };
+         const float ca{ std::cos(angle_rad) };
+         const float sa{ std::sin(angle_rad) };
+         const float dx{ x - sec.sx - lat_center * sa };
+         const float dy{ y - sec.sy - lat_center * (1.0f - ca) };
+         const float lon{ dx * ca + dy * sa };   // Inverse rotation by -angle.
+         const float lat{ -dx * sa + dy * ca };
+         const float lat_vel{ -vx * sa + vy * ca };
 
-         if (i == 0) null_pos = (int) (x * dist_scale);
+         const float lon_c{ (std::max)(0.0f, (std::min)(sec.end, lon)) };
+         const float lat_c{ (std::max)(lat_center - road_width / 2.0f, (std::min)(lat_center + road_width / 2.0f, lat)) };
+         const float d{ std::sqrt((lon - lon_c) * (lon - lon_c) + (lat - lat_c) * (lat - lat_c)) };
 
-         static constexpr float LANE_WIDTH = 4.0f;
-         const float road_width = num_lanes * LANE_WIDTH;
-         const float heading_factor{ vy * head_const };
-         const float y_adj = y - heading_factor;
+         if (d < best_dist) {
+            best_dist = d;
+            found_seclet = true;
+            best_on_section = sec.id;
+            best_from = -1;
+            best_to = -1;
+            best_long_pos = lon_c;
+            best_lat = lat;
+            best_lat_vel = lat_vel;
+         }
+      }
 
-         // Map highway-env y-position to MC on_lane position using technical lanes.
-         // on_lane formula: p = (2*T - 1) - 2*T*(y_adj + W/2) / (A*W)
-         // where T = num_technical_lanes, A = num_lanes, W = LANE_WIDTH.
-         const float continuous_on_lane = (2.0f * num_technical_lanes - 1.0f)
-            - 2.0f * num_technical_lanes * (y_adj + LANE_WIDTH / 2.0f) / road_width;
-         const int max_on_lane = 2 * (num_technical_lanes - 1);
-         int on_lane = (std::max)(0, (std::min)(max_on_lane, (int)std::round(continuous_on_lane)));
+      // ---- Connector arcs: nearest point on the reconstructed Bezier centerline. ----
+      for (const auto& con : connectors) {
+         const SectionGeom* f{ nullptr };
+         const SectionGeom* t{ nullptr };
+         for (const auto& sec : sections) {
+            if (sec.id == con.first) f = &sec;
+            if (sec.id == con.second) t = &sec;
+         }
+         if (!f || !t) continue;
 
-         std::set<int> lanes{};
-         if (on_lane % 2 == 0) {
-            lanes.insert(on_lane / 2);  // On a technical lane center.
-         } else {
-            lanes.insert(on_lane / 2);      // Between two adjacent technical lanes.
+         // Centerline arc endpoints (lat == lat_center), matching the forward connector reconstruction.
+         const Vec2D arc_origin     { to_global(f->end, lat_center, f->angle_deg, f->sx, f->sy) };
+         const Vec2D arc_origin_from{ to_global(0.0f,   lat_center, f->angle_deg, f->sx, f->sy) };
+         const Vec2D arc_target     { to_global(0.0f,   lat_center, t->angle_deg, t->sx, t->sy) };
+         const Vec2D arc_target_from{ to_global(t->end, lat_center, t->angle_deg, t->sx, t->sy) };
+         const auto nice = bezier::getNiceBetweenPoints(arc_origin, arc_origin_from, arc_target, arc_target_from);
+         const float total_len{ bezier::arcLength(1.0f, arc_origin, nice[0], nice[2], arc_target) };
+
+         constexpr int SAMPLES{ 200 };
+         float best_rel{ 0.0f };
+         float best_arc_d2{ (std::numeric_limits<float>::max)() };
+         Vec2D best_pt{ arc_origin };
+         for (int k = 0; k <= SAMPLES; ++k) {
+            const float rel{ (float)k / SAMPLES };
+            const Vec2D pt{ bezier::pointAtRatio(rel, arc_origin, nice[0], nice[2], arc_target) };
+            const float d2{ pt.distanceSquare(P) };
+            if (d2 < best_arc_d2) { best_arc_d2 = d2; best_rel = rel; best_pt = pt; }
+         }
+
+         // Tangent and left-normal at the nearest point to get a signed lateral offset (lane side).
+         const float eps{ 1.0f / (2.0f * SAMPLES) };
+         const Vec2D pt_a{ bezier::pointAtRatio((std::max)(0.0f, best_rel - eps), arc_origin, nice[0], nice[2], arc_target) };
+         const Vec2D pt_b{ bezier::pointAtRatio((std::min)(1.0f, best_rel + eps), arc_origin, nice[0], nice[2], arc_target) };
+         Vec2D tangent{ pt_b.x - pt_a.x, pt_b.y - pt_a.y };
+         const float tlen{ std::sqrt(tangent.x * tangent.x + tangent.y * tangent.y) };
+         Vec2D left_normal{ 0.0f, 0.0f };
+         if (tlen > 1e-6f) { left_normal = Vec2D{ -tangent.y / tlen, tangent.x / tlen }; }
+         const float lat_offset{ (x - best_pt.x) * left_normal.x + (y - best_pt.y) * left_normal.y };
+         const float lat_here{ lat_center + lat_offset };
+         const float lat_vel_here{ vx * left_normal.x + vy * left_normal.y };
+
+         const float perp_dist{ std::sqrt(best_arc_d2) };
+         const float d{ (std::max)(0.0f, perp_dist - road_width / 2.0f) };
+
+         if (d < best_dist) {
+            best_dist = d;
+            found_seclet = true;
+            best_on_section = -1;
+            best_from = con.first;
+            best_to = con.second;
+            best_long_pos = best_rel * total_len; // Arc-relative position (model resets abs_pos on connectors).
+            best_lat = lat_here;
+            best_lat_vel = lat_vel_here;
+         }
+      }
+
+      const int abs_pos{ (int)(best_long_pos * dist_scale) };
+      main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.abs_pos = " + std::to_string(abs_pos) + ";\n";
+      main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx * vel_scale)) + ";\n";
+
+      if (found_seclet) { // Place the car onto the resolved section/arc.
+         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.on_straight_section = " + std::to_string(best_on_section) + ";\n";
+         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.traversion_from = " + std::to_string(best_from) + ";\n";
+         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.traversion_to = " + std::to_string(best_to) + ";\n";
+      } else { // No geometry available (usually the very first step): default onto section 0.
+         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.on_straight_section = 0;\n";
+         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.traversion_from = -1;\n";
+         main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.traversion_to = -1;\n";
+      }
+
+      if (i == 0) null_pos = abs_pos;
+
+      // Map the (section-local) lateral position to MC on_lane using technical lanes.
+      // on_lane formula: p = (2*T - 1) - 2*T*(y_adj + W/2) / (A*W)
+      // where T = num_technical_lanes, A = num_lanes, W = LANE_WIDTH.
+      const float heading_factor{ best_lat_vel * head_const };
+      const float y_adj = best_lat - heading_factor;
+      const float continuous_on_lane = (2.0f * num_technical_lanes - 1.0f)
+         - 2.0f * num_technical_lanes * (y_adj + LANE_WIDTH / 2.0f) / road_width;
+      const int max_on_lane = 2 * (num_technical_lanes - 1);
+      int on_lane = (std::max)(0, (std::min)(max_on_lane, (int)std::round(continuous_on_lane)));
+
+      std::set<int> lanes{};
+      if (on_lane % 2 == 0) {
+         lanes.insert(on_lane / 2);  // On a technical lane center.
+      } else {
+         lanes.insert(on_lane / 2);      // Between two adjacent technical lanes.
+
+         if (best_on_section >= 0) { // TODO: REMOVE and replace with something actually smart. We have no half-lanes on arcs.
             lanes.insert(on_lane / 2 + 1);
          }
+      }
 
-         std::cout << "y: " << y << ", y_adj: " << y_adj << ", on_lane: " << on_lane
-                   << ", num_technical_lanes: " << num_technical_lanes << std::endl;
+      std::cout << "car " << i << " -> "
+                << (found_seclet ? (best_on_section >= 0 ? "section " + std::to_string(best_on_section)
+                                                         : "arc " + std::to_string(best_from) + "->" + std::to_string(best_to))
+                                 : std::string("section 0 (fallback)"))
+                << ", abs_pos: " << abs_pos << ", lat: " << best_lat << ", on_lane: " << on_lane << std::endl;
 
-         for (int lane = 0; lane < num_technical_lanes; lane++) {
-            main_file_additions += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
-         }
+      for (int lane = 0; lane < num_technical_lanes; lane++) {
+         main_file_additions += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
       }
    }
 

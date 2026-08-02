@@ -1,0 +1,29 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: morty.py",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "morty.morty",
+            "justMyCode": true,
+            "args": [
+                "--force",
+                "--headless",
+                "--detailed_archive",
+                "--record_video",
+                "-n",
+                "1",
+                "-s",
+                "100"
+            ]
+        },
+        {
+            "name": "Python: morty.py (no args)",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "morty.morty",
+            "justMyCode": true
+        }
+    ]
+}

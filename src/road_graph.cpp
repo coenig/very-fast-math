@@ -270,7 +270,8 @@ bool StraightRoadSection::parseProgram(const std::string& program_raw)
 
    std::string max_actual_lanes = bracket_structure->children_.at(0)->content_;
    std::string max_technical_lanes = bracket_structure->children_.at(1)->content_;
-   std::string section_end = bracket_structure->children_.at(2)->content_;
+   std::string lane_width = bracket_structure->children_.at(2)->content_;
+   std::string section_end = bracket_structure->children_.at(3)->content_;
 
    if (!StaticHelper::isParsableAsFloat(max_actual_lanes)) {
       addError("Cannot parse program '" + program + "'. Argument '" + max_actual_lanes + "' is not a number.");
@@ -284,6 +285,7 @@ bool StraightRoadSection::parseProgram(const std::string& program_raw)
 
    num_actual_lanes_ = std::stof(max_actual_lanes);
    num_technical_lanes_ = std::stof(max_technical_lanes);
+   lane_width_ = std::stof(lane_width);
 
    if (!StaticHelper::isParsableAsFloat(section_end)) {
       addError("Cannot parse program '" + program + "'. Argument '" + section_end + "' is not a number.");
@@ -298,7 +300,7 @@ bool StraightRoadSection::parseProgram(const std::string& program_raw)
    future_positions_of_others_.clear();
    // EO RESET
 
-   for (const auto& segment_desc : bracket_structure->children_.at(2)->children_) {
+   for (const auto& segment_desc : bracket_structure->children_.at(3)->children_) {
       LaneSegment segment{};
       if (!segment.parseProgram(segment_desc->serialize("(", ")", ","))) return false;
       addLaneSegment(segment);
@@ -854,7 +856,6 @@ bool vfm::RoadGraph::parseProgram(const std::string& program_raw)
    ghost_section_ = false;
    connectors_.clear();
    // EO RESET
-
 
    return my_road_.parseProgram(bracket_structure->children_.at(2)->serialize("(", ")", ","));
 }

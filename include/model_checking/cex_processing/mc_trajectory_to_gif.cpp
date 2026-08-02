@@ -268,7 +268,9 @@ void vfm::mc::trajectory_generator::LiveSimGenerator::equipRoadGraphWithCars(
          rg->getMyRoad().setEgo(ego);
       }
       else {
-         addError("Ego vehicle will not be painted since it is on section '" + std::to_string(on_straight_section) + "' which is not reachable from the current setion '" + std::to_string(r->getID()) + "'. (Note that sections unconnected to the main road graph are currently not considered.)");
+         addError("Ego vehicle cannot be painted on section '" + std::to_string(on_straight_section) + "' which is not reachable from the current setion '" + std::to_string(r->getID()) + "'. (Note that sections unconnected to the main road graph are currently not considered.)");
+         addError("Ego vehicle will be painted on section '0' instead.");
+         r->findSectionWithID(0)->getMyRoad().setEgo(ego);
       }
    }
    else if (traversion_from >= 0 && traversion_to >= 0) {
@@ -413,6 +415,12 @@ void LiveSimGenerator::generate(
          image_file_output = base_output_name + "_" + std::to_string(trajectory_index);
       }
 
+      const auto plain_road_mode = (visu_type & LiveSimType::plain_road_no_cars)
+         ? HighwayImage::PlainRoadMode::plain_road
+         : ((visu_type & LiveSimType::plain_road_with_cars)
+            ? HighwayImage::PlainRoadMode::plain_road_with_cars
+            : HighwayImage::PlainRoadMode::regular);
+
       // Add frame to gif
       auto img = updateOutputImages(
          env, 
@@ -424,7 +432,8 @@ void LiveSimGenerator::generate(
          m_trajectory_provider_.getDataTrace().size() > trajectory_index + 1 ? m_trajectory_provider_.getDataTrace().at(trajectory_index + 1) : nullptr,
          VARIABLES_TO_BE_PAINTED,
          agents_to_draw_arrows_for,
-         road_graph);
+         road_graph,
+         plain_road_mode);
 
       // Determine frame duration from trajectory
       double frame_duration;
@@ -441,7 +450,6 @@ void LiveSimGenerator::generate(
       }
    }
 
-	std::cout << std::endl;
    StaticHelper::removeFileSafe(morty_progress_path);
 
    gif_recorder.finish();
@@ -479,10 +487,13 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
    const DataPackPtr future_data,
    const std::shared_ptr<std::vector<PainterVariableDescription>> variables_to_be_painted,
    const std::set<int>& agents_to_draw_arrows_for,
-   const std::shared_ptr<RoadGraph> road_graph
+   const std::shared_ptr<RoadGraph> road_graph,
+   const HighwayImage::PlainRoadMode paint_cars
    )
 {
-   const bool activate_pdf{ ((visu_type & LiveSimType::constant_image_output) || (visu_type & LiveSimType::incremental_image_output))
+   const bool activate_pdf{ 
+      ((visu_type & LiveSimType::constant_image_output) || (visu_type & LiveSimType::incremental_image_output))
+      && !(visu_type & LiveSimType::plain_road_no_cars)
       && StaticHelper::count<OutputType>(single_images_output_types, OutputType::pdf)};
 
    bool CREATE_COCKPIT_VIEW = visu_type & LiveSimType::cockpit;
@@ -505,7 +516,8 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
          activate_pdf,
          CREATE_COCKPIT_VIEW ? 0 : 900, // TODO: Not so nice to hard-code this. But cropping the birds-eye view like this is often beneficial when used as a figure in a text.
          CREATE_COCKPIT_VIEW ? 0 : 700,
-         road_graph)
+         road_graph,
+         paint_cars)
       : nullptr;
 
    if (birds_eye)

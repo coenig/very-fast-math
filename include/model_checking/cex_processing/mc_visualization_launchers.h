@@ -80,6 +80,18 @@ public:
       | LiveSimGenerator::LiveSimType::incremental_image_output
       );
 
+   static constexpr auto SIM_TYPE_PLAIN_ROAD = static_cast<LiveSimGenerator::LiveSimType>(
+      LiveSimGenerator::LiveSimType::birdseye
+      | LiveSimGenerator::LiveSimType::incremental_image_output
+      | LiveSimGenerator::LiveSimType::plain_road_no_cars
+      );
+
+   static constexpr auto SIM_TYPE_PLAIN_ROAD_WITH_CARS = static_cast<LiveSimGenerator::LiveSimType>(
+      LiveSimGenerator::LiveSimType::birdseye
+      | LiveSimGenerator::LiveSimType::incremental_image_output
+      | LiveSimGenerator::LiveSimType::plain_road_with_cars
+      );
+
    static constexpr auto SIM_TYPE_SMOOTH_BIRDSEYE_ONLY = static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
       | LiveSimGenerator::LiveSimType::birdseye
       );

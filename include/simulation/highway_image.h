@@ -103,10 +103,20 @@ public:
       ghosts_only
    };
 
+   std::vector<ConnectorPolygonEnding> paintStraightRoadScene(
+      StraightRoadSection& lane_structure,
+      const bool infinite_road,
+      const float ego_offset_x = 0,
+      const std::map<std::string, std::string>& var_vals = {},
+      const bool print_agent_ids = true,
+      const Vec2D& dim = { 500, 100 },
+      const RoadDrawingMode mode = RoadDrawingMode::both);
+
    /// Core function for painting a straight road section.
    std::vector<ConnectorPolygonEnding> paintStraightRoadScene(
       StraightRoadSection& lane_structure,
       const bool infinite_road,
+      Vec2D& only_zero_calc,
       const float ego_offset_x = 0,
       const std::map<std::string, std::string>& var_vals = {},
       const bool print_agent_ids = true,
@@ -125,9 +135,16 @@ public:
       const std::shared_ptr<HighwayTranslator> old_trans
    );
 
+   enum class PlainRoadMode {
+      regular,
+      plain_road,
+      plain_road_with_cars
+   };
+
    void paintRoadGraph(
       const std::shared_ptr<RoadGraph> r,
       const Vec2D& dim,
+      const PlainRoadMode paint_cars,
       const std::map<std::string, std::string>& var_vals = {},
       const bool print_agent_ids = true,
       const float TRANSLATE_X = 0,

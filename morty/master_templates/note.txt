@@ -1,3 +1,7 @@
 These templates are (for now) intended to be pasted over "envmodel_config.tpl.json" in the father folder. 
 
+Task 4: June 9
+Task 7: August 2
+Task 10: August 2
+
 TODO: Find a good way to encode different tasks directly within the "envmodel_config.tpl.json".

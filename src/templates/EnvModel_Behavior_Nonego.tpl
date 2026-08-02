@@ -48,8 +48,6 @@ VAR
       INVAR (veh___6[i]9___.traversion_from != -1 | veh___6[i]9___.traversion_from != -1) -> veh___6[i]9___.on_straight_section = -1;
       INVAR veh___6[i]9___.traversion_from = -1 <-> veh___6[i]9___.traversion_to = -1;
 
-      INIT veh___6[i]9___.traversion_from = -1; -- TODO: For now non-egos start on straight roads; there is no constraint prohibiting them being placed beyond the end of the arc.
-
       @{
          VAR veh___6[i]9___.is_on_sec_[sec2] : 0..1;
          INVAR (veh___6[i]9___.is_on_sec_[sec2] = 1) <-> (veh___6[i]9___.on_straight_section = [sec2]);
@@ -112,7 +110,7 @@ esac;
 
    @{
    INVAR veh___6[i]9___.on_straight_section = [sec]
-   -> ((veh___6[i]9___.abs_pos >= section_[sec]_segment_[num]_pos_begin & veh___6[i]9___.abs_pos < section_[sec]_segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
+   -> ((veh___6[i]9___.abs_pos + veh_length >= section_[sec]_segment_[num]_pos_begin & veh___6[i]9___.abs_pos < section_[sec]_segment_@{[num] + 1}@.eval[0]_pos_begin) -> 
    (veh___6[i]9___.on_lane_min >= section_[sec]_segment_[num]_min_lane & veh___6[i]9___.on_lane_max <= section_[sec]_segment_[num]_max_lane));
    }@*.for[[num], 0, @{SEGMENTS - 2}@.eval]
 
@@ -239,7 +237,6 @@ INVAR
 @{
 INVAR veh___6[i]9___.lane_b@{#j}@.eval[0] -> (veh___6[i]9___.v >= @{@{LANES_MIN_SPEEDS}@.printHeap.at[@{trunc(FACTOR * #j)}@.eval[0]]}@.velocityWorldToEnvModelConst & veh___6[i]9___.v <= @{@{LANES_MAX_SPEEDS}@.printHeap.at[@{trunc(FACTOR * #j)}@.eval[0]]}@.velocityWorldToEnvModelConst );
 }@***.for[#j, 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
--- EO Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just remove the condition around!
 
 -- Lookup table to speed-up non-linear calculations
 DEFINE
@@ -380,7 +377,6 @@ ASSIGN
     next(veh___6[i]9___.prev_rel_pos) := veh___6[i]9___.rel_pos;
     next(veh___6[i]9___.prev_abs_pos) := veh___6[i]9___.abs_pos;
 
-@{
 DEFINE
     veh___6[i]9___.current_seclet_length := case
        @{
@@ -410,6 +406,7 @@ init(veh___6[i]9___.has_arrived_at_next_seclet_in_last_cycle) := FALSE;
 next(veh___6[i]9___.has_arrived_at_previous_seclet_in_last_cycle) := veh___6[i]9___.will_arrive_at_previous_seclet_in_next_cycle;
 init(veh___6[i]9___.has_arrived_at_previous_seclet_in_last_cycle) := FALSE;
 
+@{
 TRANS veh___6[i]9___.will_arrive_at_next_seclet_in_next_cycle -> 
    (
     @{
@@ -451,18 +448,12 @@ INVAR veh___6[i]9___.has_arrived_at_previous_seclet_in_last_cycle ->
     }@*.forExcept[[j], 0, @{NONEGOS - 1}@.eval, 1, &, [i]]
    )
    ;
-}@.if[@{!UCD}@.eval]
+}@.if[@{NONEGOS > 1}@.eval]
 
 ASSIGN
-    -- TWICE special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just undo condition!
     next(veh___6[i]9___.abs_pos) := case
-    @{
-      @(veh___6[i]9___.is_on_sec_0 = 1 & veh___6[i]9___.next_abs_pos > section_0_end : veh___6[i]9___.next_abs_pos - section_0_end;)@
-      @(
           veh___6[i]9___.will_arrive_at_next_seclet_in_next_cycle : veh___6[i]9___.next_abs_pos - veh___6[i]9___.current_seclet_length;
           veh___6[i]9___.will_arrive_at_previous_seclet_in_next_cycle : veh___6[i]9___.next_abs_pos + veh___6[i]9___.next_seclet_length;
-      )@
-    }@.if[@{UCD}@.eval]
           TRUE : veh___6[i]9___.next_abs_pos;
     esac;
 

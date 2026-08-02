@@ -77,7 +77,6 @@ TRANS next(lane_change_aborted) = ((lane_change_aborted | planner."abCond.cond26
 TRANS env.ego.flCond_full = planner."flCond.cond26_all_conditions_fulfilled_raw";
 TRANS env.ego.abCond_full = planner."abCond.cond26_all_conditions_fulfilled_raw";
 }@.if[@{!UCD}@.eval]
-@{INVAR env.ego.v = env.veh___609___.v;}@.if[@{UCD}@.eval]
 
 --SPEC-STUFF
 -- Do not change the wording of the above line and its corresponding closing line! It is used to detect the SPEC part

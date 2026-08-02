@@ -270,7 +270,7 @@ bool VisualizationLaunchers::quickGenerateGIFs(
       // Scaling
       std::string scaling_file_path_final{ scaling_file_path };
       
-      if (scaling_file_path_final.empty()) { // Use default path.
+      if (StaticHelper::isEmptyExceptWhiteSpaces(scaling_file_path_final)) { // Use default path.
          ScaleDescription::createTimescalingFile(path_base);
          scaling_file_path_final = path_base + TIMESCALING_FILENAME;
       }
@@ -303,6 +303,26 @@ bool VisualizationLaunchers::quickGenerateGIFs(
       auto gen_config_smooth = VisualizationScales{ gen_config_non_smooth };
       gen_config_smooth.frames_per_second_gif = 40;
       gen_config_smooth.frames_per_second_osc = 40;
+
+      if (modes.count(TESTCASE_MODE_PLAIN_ROAD.first)) {
+         VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            path,
+            TESTCASE_MODE_PLAIN_ROAD.first,
+            SIM_TYPE_PLAIN_ROAD,
+            agents_to_draw_arrows_for,
+            gen_config_non_smooth, TESTCASE_MODE_PLAIN_ROAD.second);
+      }
+
+      if (modes.count(TESTCASE_MODE_PLAIN_ROAD_WITH_CARS.first)) {
+         VisualizationLaunchers::interpretAndGenerate(
+            trace,
+            path,
+            TESTCASE_MODE_PLAIN_ROAD_WITH_CARS.first,
+            SIM_TYPE_PLAIN_ROAD_WITH_CARS,
+            agents_to_draw_arrows_for,
+            gen_config_non_smooth, TESTCASE_MODE_PLAIN_ROAD_WITH_CARS.second);
+      }
 
       if (modes.count(TESTCASE_MODE_PREVIEW.first) && !trace.at(0).second.count("env.section_1_segment_0_pos_begin")) {
          // TODO: For now we can skip generating preview GIF for multi-section scenes with the surrounding IF because it's very expensive due to hard-coded large image size.
@@ -414,10 +434,10 @@ bool vfm::mc::trajectory_generator::VisualizationLaunchers::interpretAndGenerate
 {
    const std::string full_path = out_pathname_raw + "/" + out_filename_raw;
 
-   if (StaticHelper::existsFileSafe(full_path)) {
-      Failable::getSingleton()->addWarning("Directory '" + full_path + "' exists. Will not overwrite.");
-      return false;
-   }
+   // if (StaticHelper::existsFileSafe(full_path)) {
+   //    Failable::getSingleton()->addWarning("Directory '" + full_path + "' exists. Will not overwrite.");
+   //    return false;
+   // }
 
    std::filesystem::create_directories(full_path);
    std::string final_name = out_filename_raw;

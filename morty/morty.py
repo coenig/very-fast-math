@@ -20,7 +20,8 @@ from .morty_debug_plots import (
 from .morty_helper import (
     ensure_empty_file, min_max_curr, dpoint_following_angle,
     maxDifferenceArray, inverseSortingArray, _latest_nuxmv_runtime_seconds,
-    _hash_file, _snapshot_configs, _save_configs_to_archive, archive, morty_script_context
+    _hash_file, _snapshot_configs, _save_configs_to_archive, archive, morty_script_context,
+    VizState, install_vehicle_graphics_patches, install_world_surface_patches,
 )
 import platform
 
@@ -55,10 +56,14 @@ parser.add_argument('--hide_pure_pursuit', action='store_true',
                     help='Hide live pure-pursuit target dot and line for each vehicle. Default: False')
 parser.add_argument('--hide_planned_positions', action='store_true',
                     help='Hide live planned positions for each vehicle. Default: False')
+parser.add_argument('--fit_roads', action='store_true',
+                    help='Zoom out to fit the full background.png extent in the HE visualization. Default: False')
 parser.add_argument('--detailed_archive', action='store_true',
                     help='Stores detailed archive of the run in a subfolder. Default: False')
 parser.add_argument('--force', action='store_true',
-                    help='Force deleting of existing result files. Default: False')
+                    help='Force deleting of existing result files and work folders. Default: False')
+parser.add_argument('--press', action='store_true',
+                    help='Delete only the work folders (excludes --force). Default: False')
 parser.add_argument('--dryrun', action='store_true',
                     help='Perform a dry run recreating all plots without running the model checker. Default: False')
 parser.add_argument('--headless', action='store_true',
@@ -70,208 +75,18 @@ if args.dryrun:
         print("Error: --dryrun cannot go together with --force or --detailed_archive. Exiting.")
         exit(1)
 
-# COP: Patch VehicleGraphics.get_color so that crashed always takes priority over custom color.
-# Without this, highway-env checks vehicle.color BEFORE vehicle.crashed, so any custom
-# color (blue for blind, green for CEX) would suppress the native red crash rendering —
-# including during the intermediate simulation sub-steps within env.step().
-from highway_env.vehicle.graphics import VehicleGraphics
-_original_get_color = VehicleGraphics.get_color
-@classmethod
-def _patched_get_color(cls, vehicle, transparent=False):
-    if vehicle.crashed:
-        color = cls.RED
-        if transparent:
-            color = (color[0], color[1], color[2], 30)
-        return color
-    return _original_get_color.__func__(cls, vehicle, transparent)
-VehicleGraphics.get_color = _patched_get_color
+if args.press:
+    if args.force:
+        print("Error: --press cannot go together with --force. Exiting.")
+        exit(1)
 
-# COP: Global trajectory tracking for visualization.
-_vehicle_trajectories = {}  # Maps vehicle id to list of [x, y, priority] tuples
-_vehicle_pp_targets = {}    # Maps vehicle id to current pure-pursuit target [x, y]
-_current_selected_cnt = None  # Track which CEX priority is currently active
-
-global_pos_to_draw = []
-
-# COP: Patch VehicleGraphics.display to draw trajectories and car IDs.
-# Important: Draw trajectories from inside VehicleGraphics.display so lines are rendered
-# before the frame blit/flip done by EnvViewer.display.
-_original_display = VehicleGraphics.display.__func__
-@classmethod
-def _patched_display(cls, vehicle, surface, transparent=False, offscreen=False, label=False, draw_roof=False):
-    try:
-        import pygame
-
-        # Persist trajectory in world coordinates and draw it in the current camera view.
-        vehicle_id = id(vehicle)
-        if vehicle_id not in _vehicle_trajectories:
-            _vehicle_trajectories[vehicle_id] = []
-
-        trajectory = _vehicle_trajectories[vehicle_id]
-        current_position = [float(vehicle.position[0]), float(vehicle.position[1])]
-        stationary = abs(getattr(vehicle, 'speed', 0.0)) < 0.1
-
-        if not trajectory:
-            trajectory.append([*current_position, _current_selected_cnt])
-        elif not stationary:
-            last_position = trajectory[-1]
-            dx = current_position[0] - last_position[0]
-            dy = current_position[1] - last_position[1]
-            moved = abs(dx) > 0.05 or abs(dy) > 0.05
-            # Ignore one-time teleport/snap after initialization to avoid fake long tails.
-            if moved:
-                jump2 = dx * dx + dy * dy
-                if len(trajectory) == 1 and jump2 > 100.0:  # >10 m in one render step is likely a teleport.
-                    trajectory[0] = [*current_position, _current_selected_cnt]
-                else:
-                    trajectory.append([*current_position, _current_selected_cnt])
-                    if len(trajectory) > 2000:
-                        _vehicle_trajectories[vehicle_id] = trajectory[-2000:]
-
-        if not args.hide_trajectories and len(trajectory) > 1:
-            # Draw trajectory segments colored by priority
-            priority_color_map = {
-                None: (100, 150, 200),
-                0: (31, 119, 180),    # tab:blue
-                1: (255, 127, 14),    # tab:orange
-                2: (44, 160, 44),     # tab:green
-                3: (214, 39, 40),     # tab:red
-                4: (148, 103, 189),   # tab:purple
-                5: (140, 86, 75),     # tab:brown
-            }
-            font = pygame.font.Font(None, 14)
-            for i in range(len(trajectory) - 1):
-                p1_pix = surface.pos2pix(trajectory[i][0], trajectory[i][1])
-                p2_pix = surface.pos2pix(trajectory[i + 1][0], trajectory[i + 1][1])
-                priority = trajectory[i][2] if len(trajectory[i]) > 2 else None
-                color = priority_color_map.get(priority, (100, 150, 200))
-                pygame.draw.line(surface, color, p1_pix, p2_pix, width=2)
-
-                # Label each priority block once, near its first segment.
-                prev_priority = trajectory[i - 1][2] if i > 0 and len(trajectory[i - 1]) > 2 else None
-                if i == 0 or priority != prev_priority:
-                    label = "X" if priority is None else str(priority)
-                    midx = (p1_pix[0] + p2_pix[0]) // 2
-                    midy = (p1_pix[1] + p2_pix[1]) // 2
-                    text = font.render(label, True, (20, 20, 20), (255, 255, 255))
-                    if args.show_prio_numbers:
-                        surface.blit(text, (midx + 2, midy - 10))
-                        
-        if not args.hide_pure_pursuit and vehicle_id in _vehicle_pp_targets:
-            target = _vehicle_pp_targets[vehicle_id]
-            # Offset line start to front axle instead of vehicle center
-            front_offset = vehicle.LENGTH / 2.0
-            p_vehicle_x = current_position[0] + front_offset * np.cos(vehicle.heading)
-            p_vehicle_y = current_position[1] + front_offset * np.sin(vehicle.heading)
-            p_vehicle = surface.pos2pix(p_vehicle_x, p_vehicle_y)
-            p_target = surface.pos2pix(target[0], target[1])
-            pygame.draw.line(surface, (255, 140, 0), p_vehicle, p_target, width=2)
-            pygame.draw.circle(surface, (255, 180, 0), p_target, 5)
-
-    except Exception as e:
-        print(f"Warning: Error drawing trajectories: {e}")
-        input("Press Enter to continue..." + str(e))
-
-    _original_display(cls, vehicle, surface, transparent=transparent, offscreen=offscreen, label=False, draw_roof=draw_roof)
-
-    try:
-        import pygame
-        
-        for pos in global_pos_to_draw:
-            pixx = surface.pos2pix(pos[0][0], pos[0][1])
-            pygame.draw.circle(surface, pos[1], pixx, 3)
-
-    except Exception as e:
-        raise RuntimeError(f"Error drawing global positions: {e}")
-
-    if not surface.is_visible(vehicle.position):
-        return
-    try:
-        import pygame
-        idx = vehicle.road.vehicles.index(vehicle)
-        font = pygame.font.Font(None, 18)
-        text = font.render(str(idx), True, (0, 0, 0), (255, 255, 255))
-        position = [*surface.pos2pix(vehicle.position[0], vehicle.position[1])]
-        surface.blit(text, (position[0] - 5, position[1] - 15))
-    except (ValueError, AttributeError):
-        pass
-VehicleGraphics.display = _patched_display
+# COP: All highway-env rendering monkey-patches live in morty_helper.py so this
+# file stays focused on the model-checking logic. viz_state holds the shared
+# drawing state (trajectories, pure-pursuit targets, planned positions).
+viz_state = VizState()
+install_vehicle_graphics_patches(args, viz_state)
 
 import numpy as np
-
-def get_scene_bounding_box(env, car_ids):
-    """
-    Finds the tightest axis-aligned (unrotated) bounding box that contains 
-    every point of the specified cars in the highway-env scene.
-    
-    Args:
-        env: The highway-env / gymnasium environment instance.
-        car_ids (list): List of vehicle IDs to include.
-        
-    Returns:
-        dict: A dictionary containing the bounding box boundaries:
-              xmin, ymin, xmax, ymax and the box dimensions.
-    """
-    all_corners = []
-    
-    # Access all active vehicles in the current road scene
-    vehicles = env.unwrapped.road.vehicles
-    
-    # Filter for the requested cars based on ID
-    # Note: Depending on your wrapper/setup, you can match by ID, or index.
-    # Here, we assume vehicles can be filtered or matched. If you have unique custom IDs:
-    target_vehicles = [v for v in vehicles if getattr(v, 'id', None) in car_ids]
-    
-    # Fallback if your vehicles do not have an 'id' attribute (match by list index):
-    if not target_vehicles:
-        for idx, v in enumerate(vehicles):
-            if idx in car_ids:
-                target_vehicles.append(v)
-                
-    if not target_vehicles:
-        raise ValueError(
-            f"No IDs found in scene. Specified: {car_ids}, Available: {vehicles}")
-
-    for vehicle in target_vehicles:
-        # Correctly unpack position coordinates
-        x, y = vehicle.position[0], vehicle.position[1]
-        heading = vehicle.heading
-        length = vehicle.LENGTH
-        width = vehicle.WIDTH
-        
-        # Define corners relative to the vehicle's center (local coordinates)
-        local_corners = np.array([
-            [length / 2,  width / 2],
-            [length / 2, -width / 2],
-            [-length / 2, -width / 2],
-            [-length / 2,  width / 2]
-        ])
-        
-        # 2. Construct 2D rotation matrix for the heading angle
-        cos_h = np.cos(heading)
-        sin_h = np.sin(heading)
-        rotation_matrix = np.array([
-            [cos_h, -sin_h],
-            [sin_h,  cos_h]
-        ])
-        
-        # 3. Rotate and translate corners to global coordinates
-        global_corners = (local_corners @ rotation_matrix.T) + np.array([x, y])
-        all_corners.extend(global_corners)
-        
-    # 4. Find the global minimum and maximum across all gathered corners
-    all_corners = np.array(all_corners)
-    x_min, y_min = np.min(all_corners, axis=0)
-    x_max, y_max = np.max(all_corners, axis=0)
-    
-    return {
-        "xmin": x_min,
-        "ymin": y_min,
-        "xmax": x_max,
-        "ymax": y_max,
-        "width": x_max - x_min,
-        "height": y_max - y_min
-    }
 
 
 # Load parameters from JSON.
@@ -293,13 +108,24 @@ for res_path in glob.glob(generated_path_prefix + "*"):
                 exit(1)
             else: 
                 print(f"Successfully deleted {res_path}. Continuing.")
+        elif args.press:
+            if res_path == generated_path_prefix:
+                print(f"Results directory {res_path} skipped because --press (not --force) is set.")
+            else:
+                print(f"Non-resolts directory {res_path} already exists. Deleting because --press is set.")
+                shutil.rmtree(res_path)
+                if Path(res_path).is_dir():
+                    print(f"Error: failed to delete {res_path}. Exiting.")
+                    exit(1)
+                else: 
+                    print(f"Successfully deleted {res_path}. Continuing.")
         elif args.dryrun:
             pass
         else:
             print(f"Error: Results folder {res_path} already exists.")
 
-if any and not args.force and not args.dryrun:
-    print("Use --force to auto-remove existing results folders. Exiting.")
+if any and not args.force and not args.press and not args.dryrun:
+    print("Use --force or --press to auto-remove existing folders. Exiting.")
     exit(1)
 
 if args.dryrun and (not Path(generated_path_prefix).is_dir() or not Path(generated_path_prefix + "/" + "detailed_archive").is_dir()):
@@ -394,6 +220,15 @@ SPECS.append(f"INVARSPEC !(env.veh___609___.abs_pos >= env.veh___6{nonegos - 1}9
 
 SPECS.append(r"""INVARSPEC !(env.veh___609___.lane_b0 & !env.veh___609___.lane_b1);""") # 8: Car 609 reaches leftmost lane (b0)
 
+DIST_EXP_9 = 475;
+DIST_EXP_9_MC = int(DIST_EXP_9 * dist_scale)
+SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_9_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") 
+# 9: Only reach some distance.
+
+DIST_EXP_10 = 40;
+DIST_EXP_10_MC = int(DIST_EXP_10 * dist_scale)
+SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.is_on_sec_1 = 1 & env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_10_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""")
+# 10 Reach next section
 
 SUCC_CONDS.append(lambda: all(x < 1 for x in egos_v))
 SUCC_CONDS.append(lambda: all(abs(x - TARGET_VEL) < 1 for x in egos_v))
@@ -403,10 +238,10 @@ SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[1] - TARGET_DIST and egos_x[1] >= 
 SUCC_CONDS.append(lambda: inverseSortingArray(egos_x))
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(lambda: True)
-SUCC_CONDS.append(
-    lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos_x[2]
-    ) #7
+SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos_x[2]) #7
 SUCC_CONDS.append(lambda: False) # 8
+SUCC_CONDS.append(lambda: all(x > DIST_EXP_9 for x in egos_x)) # 9
+SUCC_CONDS.append(lambda: False) # 10
 
 addons = [''] * len(SPECS) # Add to main.smv depending on the experiment.
 ADDONS_CORE_DENOTER = "UCD addons"
@@ -434,6 +269,40 @@ for i in range(2, nonegos):
 addons[8] += f"INVAR env.veh___609___.v >= {MC_MIN_V_FORWARD};\n"
 for i in range(1, nonegos):
     addons[8] += f"INVAR env.veh___6{i}9___.v = 0;\n"
+
+addons[9] += f"""
+-- INIT env.section_0_segment_0_max_lane != env.section_0_segment_1_max_lane;
+-- INIT env.section_0_segment_0_min_lane != env.section_0_segment_1_min_lane;
+-- INIT env.section_0_segment_1_max_lane != env.section_0_segment_2_max_lane;
+-- INIT env.section_0_segment_1_min_lane != env.section_0_segment_2_min_lane;
+INIT env.section_0_segment_0_min_lane = 0;
+INIT env.section_0_segment_0_max_lane = 3;
+INIT env.section_0_segment_0_pos_begin = {0 * dist_scale};
+INIT env.section_0_segment_1_min_lane = 1;
+INIT env.section_0_segment_1_max_lane = 2;
+INIT env.section_0_segment_1_pos_begin = {250 * dist_scale};
+INIT env.section_0_segment_2_min_lane = 0;
+INIT env.section_0_segment_2_max_lane = 2;
+INIT env.section_0_segment_2_pos_begin = {285 * dist_scale};
+INIT env.section_0_segment_3_min_lane = 0;
+INIT env.section_0_segment_3_max_lane = 1;
+INIT env.section_0_segment_3_pos_begin = {310 * dist_scale};
+INIT env.section_0_segment_4_min_lane = 0;
+INIT env.section_0_segment_4_max_lane = 2;
+INIT env.section_0_segment_4_pos_begin = {340 * dist_scale};
+"""
+
+# addons[10] += f"INIT     env.section_0_end < 100;\n"
+addons[10] += f"""
+    INIT env.section_1.source.x = 165;
+    INIT env.section_1.source.y = 35;
+    INIT env.section_1.angle_raw = 1;
+    INIT env.outgoing_connection_0_of_section_0 = 1;
+"""
+for i in range(0, nonegos):
+    addons[10] += f"INVAR env.cnt > 3 -> !env.veh___6{i}9___.lane_b0;\n"
+
+
 
 for i in range(0, len(SPECS)):
     addons[i] += ADDONS_END_DENOTER
@@ -496,17 +365,17 @@ for ucd_config_str in ucd_config_prios_str:
         f.write(content)
         f.truncate()
 
-def clean_and_convert_to_int(data):
+def clean_and_convert_to_float(data):
     """
     Recursively cleans nested lists and converts deepest string values to integers.
     """
     if not isinstance(data, list): # If the item is not a list, it's at the deepest level.
         try:
-            return int(data)
+            return float(data)
         except (ValueError, TypeError):
             return None # Empty string treatment
 
-    cleaned_list = [clean_and_convert_to_int(item) for item in data]
+    cleaned_list = [clean_and_convert_to_float(item) for item in data]
     return [item for item in cleaned_list if item is not None and item != []]
 
 baseline_hashes = {}  # Pre-loop file set (before any MC call).
@@ -544,88 +413,19 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "lanes_count": num_actual_lanes,
         "vehicles_count": 0,
         "screen_width": 1500,
-        "screen_height": 200,
+        "screen_height": 300,
         "scaling": 3,
         "show_trajectories": False
     })
 
-    # Monkey-patch WorldSurface to center the display on all vehicles instead of a single ego.
-    try:
-        from highway_env.road.graphics import WorldSurface
-        import highway_env as _he
-        import pygame  # Required to draw/scale images
-
-        BACKGROUND_IMAGE_PATH = "./examples/crossing.pngg" # Remove last g for POC
-
-        try:
-            # Load image independently from display; convert once a display surface exists.
-            bg_image = pygame.image.load(BACKGROUND_IMAGE_PATH)
-            bg_image_state = {
-                "image": bg_image,
-                "converted": False,
-            }
-        except Exception as e:
-            bg_image_state = None
-            pass
-
-        _orig_move_display_window_to = WorldSurface.move_display_window_to
-
-        def _move_display_window_to_all(self, position):
-            try:
-                env_ref = getattr(_he, '_display_env', None)
-                if env_ref is None:
-                    return _orig_move_display_window_to(self, position)
-
-                vehicles = getattr(env_ref.unwrapped, 'road').vehicles
-                if not vehicles:
-                    return _orig_move_display_window_to(self, position)
-
-                bbox = get_scene_bounding_box(env_ref, [i for i in range(1000)])
-
-                padding = 10
-                target_width_m = (bbox["xmax"] - bbox["xmin"]) + (padding * 2)
-                target_height_m = (bbox["ymax"] - bbox["ymin"]) + (padding * 2)
-                screen_width, screen_height = self.get_width(), self.get_height()
-                scale_x = screen_width / max(1.0, target_width_m)
-                scale_y = screen_height / max(1.0, target_height_m)
-                self.scaling = min(scale_x, scale_y)
-    
-                center = np.array([(bbox["xmin"] + bbox["xmax"]) / 2.0 - 50, (bbox["ymin"] + bbox["ymax"]) / 2.0])
-
-                self.origin = center - np.array([
-                    self.centering_position[0] * self.get_width() / self.scaling,
-                    self.centering_position[1] * self.get_height() / self.scaling,
-                ])
-                
-                if bg_image_state is not None and bg_image_state["image"] is not None:
-                    # convert_alpha requires an initialized display/surface.
-                    if (not bg_image_state["converted"] and pygame.display.get_init()
-                            and pygame.display.get_surface() is not None):
-                        bg_image_state["image"] = bg_image_state["image"].convert_alpha()
-                        bg_image_state["converted"] = True
-
-                    # Clear the screen first since we bypass self.fill below
-                    self.fill(self.GREY) 
-                    
-                    # Scale image based on camera zoom factor (Assuming 300m x 150m real-world size)
-                    scaled_bg = pygame.transform.scale(bg_image_state["image"], (int(300 * self.scaling), int(150 * self.scaling)))
-                    
-                    # Draw background locked to world coordinates (0,0)
-                    self.blit(scaled_bg, self.vec2pix((0, 0)))
-
-                    # Monkey-patch self.fill temporarily to block the default 'fill(self.GREY)' from painting over it
-                    orig_fill = self.fill
-                    self.fill = lambda color, rect=None, special_flags=0: None
-
-            except Exception as e:
-                _orig_move_display_window_to(self, position)
-                raise e
-
-        WorldSurface.move_display_window_to = _move_display_window_to_all
-        # Provide a hook so the patched function can find the current env.
-        _he._display_env = None
-    except Exception as e:
-        raise e
+    # Monkey-patch WorldSurface/RoadGraphics for morty's multi-car camera and the
+    # generated "background" road (drawn under the vehicles). See morty_helper.py.
+    # Lazy-load image in the simulation loop; no need before first iteration.
+    bg_image_state = {
+        "image": None,
+        "converted": False,
+    }
+    install_world_surface_patches(bg_image_state, num_actual_lanes, fit_background=args.fit_roads)
 
     # Expose the env reference so the patched WorldSurface can access vehicle positions.
     try:
@@ -668,7 +468,13 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     np.random.seed(seedo)
     rng = np.random.default_rng(seedo)
     cnt = 0
-    for vehicle in env.unwrapped.controlled_vehicles:
+    pos_x_anchor = 0
+
+    for i, vehicle in enumerate(env.unwrapped.controlled_vehicles):
+        if i == 0:
+            pos_x_anchor = vehicle.position[0]
+        
+        vehicle.position[0] = vehicle.position[0] - pos_x_anchor
         vehicle.color = (255, 255, 255)
         vehicle.heading = np.pi * (1 - egos_backward[cnt]) / 2 # 0 for forward, pi for backward.
         vehicle.speed = np.random.uniform(min_start_speed, max_start_speed)
@@ -692,14 +498,16 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # Clamp lateral position to valid road boundaries
         vehicle.position[1] = max(min(vehicle.position[1], y_max_tech), y_min_tech)
         
+        print(f"Seeding vehicle {cnt} at position {vehicle.position} with speed {vehicle.speed} and heading {vehicle.heading}.")
+
         cnt = cnt + 1
 
     # COP: Reset and seed trajectories after all manual vehicle repositioning.
-    _vehicle_trajectories.clear()
-    _vehicle_pp_targets.clear()
+    viz_state.trajectories.clear()
+    viz_state.pp_targets.clear()
     for vehicle in env.unwrapped.controlled_vehicles:
-        _vehicle_trajectories[id(vehicle)] = [[float(vehicle.position[0]), float(vehicle.position[1]), None]]
-        _vehicle_pp_targets[id(vehicle)] = [float(vehicle.position[0]), float(vehicle.position[1])]
+        viz_state.trajectories[id(vehicle)] = [[float(vehicle.position[0]), float(vehicle.position[1]), None]]
+        viz_state.pp_targets[id(vehicle)] = [float(vehicle.position[0]), float(vehicle.position[1])]
 
     if args.record_video:
         env = RecordVideo(env, video_folder=f"{generated_path_prefix}/videos", name_prefix=f"vid_{seedo}",
@@ -764,12 +572,12 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         MC_SCRIPT = f"""@{{
             @{{./src/templates/}}@.stringToHeap[MY_PATH]
 
-            @{{{mcinput}}}@.prepareInputForMortyUCD[{args.heading_adaptation}, {num_actual_lanes}, {num_technical_lanes}]
+            @{{{mcinput}}}@.prepareInputForMortyUCD[{args.heading_adaptation}, {num_actual_lanes}, {num_technical_lanes}, AUTO]
 
             @{{nuXmv}}@.killAfter[300].Detach.setScriptVar[scriptID, force]
             @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[16]
             @{{scriptID}}@.scriptVar.StopScript
-
+            
             }}@.nil
             @{{}}@.prepareOutputForMortyUCD[{str(seedo)}, {str(global_counter)}, {0}, {str(crashed)}]
         """
@@ -792,6 +600,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                         shutil.copyfile(scalefile, scalefile_target)
                 else:
                     print(f"\---> Error: Scaling info file {scalefile} not found for dry run. Going on with 1/1.")
+                    input("Press Enter to continue...")
             
                 for config_prio in ucd_config_prios_str:
                     dest_path = f"{generated_path_prefix}{config_prio}"
@@ -841,7 +650,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 break;
         
         # Update global priority for trajectory coloring
-        _current_selected_cnt = selected_cnt
+        viz_state.selected_cnt = selected_cnt
         
         blind_stats += blind
 
@@ -857,6 +666,41 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             selected_runtime = np.nan
             selected_config = ucd_config_prios_str[0] # Use any because all are empty.
         selected_runtime_history.append(selected_runtime)
+
+        # Do Background Image
+        DEBUG = False # Refreshes road in every cycle and paints MC cars.
+        if bg_image_state is not None and (DEBUG or bg_image_state["image"] is None):
+            for config_name in ucd_config_prios_str: # Remove old background images if any.
+                visu_base_path = generated_path_prefix + config_name + "/0/"
+                shutil.rmtree(visu_base_path, ignore_errors=True)
+            
+            visu_mode = "plain_road_with_cars" if DEBUG else "plain_road"
+            visu_base_path = generated_path_prefix + selected_config + "/0/"
+            image_path = visu_base_path + f"{visu_mode}/{visu_mode}_0.png"
+
+            script_bgd_image = f"""
+            @{{{generated_path_prefix + selected_config}}}@.generateTestCasesPlain[{visu_mode}, debug_trace_array, ]
+            """
+            result_bg = create_string_buffer(100000)
+            with morty_script_context() as morty_lib:
+                res_bg = morty_lib.expandScript(script_bgd_image.encode('utf-8'), result_bg, sizeof(result_bg  ))
+            res_bg_str = res_bg.decode().strip() # Unused
+            print(res_bg_str)
+                
+            try:
+                import pygame
+                BACKGROUND_IMAGE_PATH = generated_path_prefix + "/background.png"
+                Path(BACKGROUND_IMAGE_PATH).parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(image_path, BACKGROUND_IMAGE_PATH)
+
+                bg_image_state["image"] = pygame.image.load(BACKGROUND_IMAGE_PATH)
+                bg_image_state["converted"] = False
+            except Exception:
+                bg_image_state["image"] = None
+                bg_image_state["converted"] = False
+                print("ERROR: Failed to load background road for rendering. Continuing without background.")
+
+        # EO Do Background Image
 
         plot_mc_runtimes(
             mc_runtime_histories,
@@ -881,25 +725,26 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         
         res_pos_str = res_pos.decode().strip()
         positions = [[els.split(',') for els in line.split(';')] for line in res_pos_str.split('\n')]
-        positions = clean_and_convert_to_int(positions)
+        positions = clean_and_convert_to_float(positions)
         
         POS_COLOR = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
-        
+
+        global_pos_to_draw = viz_state.pos_to_draw
         global_pos_to_draw.clear()
         coords_for_pp = [(0, 0)] * nonegos
         pp_mc_immediate_exists = False
         for i, step in enumerate(positions):
             for j, car_step in enumerate(step):
                 abspos = car_step[0]
-                technical_lane = car_step[1]
-                coord = (abspos / 4, y_max_tech - technical_lane * on_lane_step_y)
+                latpos = car_step[1]
+                coord = (abspos, latpos)
                 if not args.hide_planned_positions:
                     global_pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
                 
                 if i <= 5:
                     coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
                     pp_mc_immediate_exists = True
-                    print(f"Step {i}, Car {j}: abspos={abspos}, technical_lane={technical_lane}, coord={coord}") # TODO REMOVE
+                    print(f"Step {i}, Car {j}: abspos={abspos}, latpos={latpos}, coord={coord}") # TODO REMOVE
         # EO Find future positions.
 
         
@@ -1081,16 +926,13 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             pp_latshift = float(result_pp_latshift)
             
             print(f"Pure pursuit target for car {i}: distance = {pp_distance}, latshift = {pp_latshift}")  # TODO REMOVE
-                        
-            if pp_latshift + 0.5 < y_min_tech or pp_latshift - 0.5 > y_max_tech:  # TODO REMOVE
-                print(f"Warning: MC suggested lateral shift {pp_latshift} is out of bounds [{y_min_tech}, {y_max_tech}].")
-                print(coords_for_pp)
-            
+                                    
             if i < len(env.unwrapped.controlled_vehicles):
                 vehicle = env.unwrapped.controlled_vehicles[i]
+                
                 pp_target_x = float(vehicle.position[0] + egos_backward[i] * pp_distance)
                 pp_target_y = pp_latshift
-                _vehicle_pp_targets[id(vehicle)] = [pp_target_x, pp_target_y]
+                viz_state.pp_targets[id(vehicle)] = [pp_target_x, pp_target_y]
 
             # Best so far (for inversion task):
             # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
