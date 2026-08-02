@@ -210,7 +210,7 @@ SPECS.append(f"""INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_po
 """) # 3: All cars longitudinally close to each other, one drives faster.
 
 SPECS.append(("INVARSPEC !(env.veh___609___.abs_pos - env.veh___6%r9___.abs_pos < %r " % (nonegos - 1, int(50 * dist_scale))) 
-             + ("@{& env.veh___6@{[i] - 1}@.eval[0]9___.abs_pos > env.veh___6[i]9___.abs_pos}@*.for[[i], 1, %r]);" % (nonegos - 1))) 
+             + ("@{& env.veh___6@{[i] - 1}@.eval[0]9___.abs_pos > env.veh___6[i]9___.abs_pos}@*.for[[i], 1, %r] & env.veh_0_and_veh_1_on_same_seclet);" % (nonegos - 1))) 
             # 4: Reversed order of cars, i.e. the first car is the one with the highest abs_pos.
 
 SPECS.append(r"""INVARSPEC TRUE;""") # 5: Benchmark 1.
@@ -235,7 +235,7 @@ SUCC_CONDS.append(lambda: all(abs(x - TARGET_VEL) < 1 for x in egos_v))
 SUCC_CONDS.append(lambda: maxDifferenceArray(egos_y[:-1]) < 4)
 SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[1] - TARGET_DIST and egos_x[1] >= egos_x[2] - TARGET_DIST and egos_x[2] >= egos_x[3] - TARGET_DIST and egos_x[3] >= egos_x[4] - TARGET_DIST
                   and egos_v[0] <= TARGET_VEL_LOW and egos_v[1] <= TARGET_VEL_LOW and egos_v[2] <= TARGET_VEL_LOW and egos_v[3] <= TARGET_VEL_LOW and egos_v[4] >= TARGET_VEL_HIGH)
-SUCC_CONDS.append(lambda: inverseSortingArray(egos_x))
+SUCC_CONDS.append(lambda: False)
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos_x[2]) #7
@@ -251,6 +251,73 @@ ADDONS_END_DENOTER = "-- EO " + ADDONS_CORE_DENOTER + " --\n"
 for i in range(0, len(SPECS)):
     addons[i] += ADDONS_BEGIN_DENOTER
     addons[i] += f"-- UCD experiment{i} --\n"
+
+addons[4] += f"""
+    INVAR env.veh___609___.on_straight_section = -1 -> env.veh___609___.v < 8;
+    INVAR env.veh___619___.on_straight_section = -1 -> env.veh___619___.v < 8;
+    INVAR env.veh___609___.traversion_from = -1 | env.veh___609___.traversion_from != env.veh___619___.traversion_from;
+
+    INIT env.section_0.source.x = 0
+    ;INIT env.section_0.source.y = 0
+    ;INIT env.section_0.angle_raw = 0
+    ;INIT env.section_0_segment_0_min_lane = 0
+    ;INIT env.section_0_segment_0_max_lane = 0
+    ;INIT env.section_0_segment_0_pos_begin = 0
+    ;INIT env.section_0_end = 51
+    ;INIT env.outgoing_connection_0_of_section_0 = 1
+    ;INIT env.outgoing_connection_1_of_section_0 = 2
+    ;INIT env.dist_0_of_section_0_to_1 = 18
+    ;INIT env.dist_0_of_section_0_to_2 = 43
+    ;INIT env.dist_0_of_section_0_to_3 = 50
+    ;INIT env.dist_1_of_section_0_to_1 = 50
+    ;INIT env.dist_1_of_section_0_to_2 = 14
+    ;INIT env.dist_1_of_section_0_to_3 = 43
+    ;INIT env.section_1.source.x = 81
+    ;INIT env.section_1.source.y = 12
+    ;INIT env.section_1.angle_raw = 1
+    ;INIT env.section_1_segment_0_min_lane = 0
+    ;INIT env.section_1_segment_0_max_lane = 0
+    ;INIT env.section_1_segment_0_pos_begin = 0
+    ;INIT env.section_1_end = 50
+    ;INIT env.outgoing_connection_0_of_section_1 = 3
+    ;INIT env.outgoing_connection_1_of_section_1 = -1
+    ;INIT env.dist_0_of_section_1_to_0 = 43
+    ;INIT env.dist_0_of_section_1_to_2 = 43
+    ;INIT env.dist_0_of_section_1_to_3 = 10
+    ;INIT env.dist_1_of_section_1_to_0 = 43
+    ;INIT env.dist_1_of_section_1_to_2 = 43
+    ;INIT env.dist_1_of_section_1_to_3 = 43
+    ;INIT env.section_2.source.x = 74
+    ;INIT env.section_2.source.y = 9
+    ;INIT env.section_2.angle_raw = 1
+    ;INIT env.section_2_segment_0_min_lane = 0
+    ;INIT env.section_2_segment_0_max_lane = 0
+    ;INIT env.section_2_segment_0_pos_begin = 0
+    ;INIT env.section_2_end = 52
+    ;INIT env.outgoing_connection_0_of_section_2 = 3
+    ;INIT env.outgoing_connection_1_of_section_2 = -1
+    ;INIT env.dist_0_of_section_2_to_0 = 50
+    ;INIT env.dist_0_of_section_2_to_1 = 43
+    ;INIT env.dist_0_of_section_2_to_3 = 14
+    ;INIT env.dist_1_of_section_2_to_0 = 43
+    ;INIT env.dist_1_of_section_2_to_1 = 43
+    ;INIT env.dist_1_of_section_2_to_3 = 43
+    ;INIT env.section_3.source.x = 133
+    ;INIT env.section_3.source.y = 54
+    ;INIT env.section_3.angle_raw = 0
+    ;INIT env.section_3_segment_0_min_lane = 0
+    ;INIT env.section_3_segment_0_max_lane = 0
+    ;INIT env.section_3_segment_0_pos_begin = 0
+    ;INIT env.section_3_end = 100
+    ;INIT env.outgoing_connection_0_of_section_3 = -1
+    ;INIT env.outgoing_connection_1_of_section_3 = -1
+    ;INIT env.dist_0_of_section_3_to_0 = 43
+    ;INIT env.dist_0_of_section_3_to_1 = 43
+    ;INIT env.dist_0_of_section_3_to_2 = 43
+    ;INIT env.dist_1_of_section_3_to_0 = 50
+    ;INIT env.dist_1_of_section_3_to_1 = 45
+    ;INIT env.dist_1_of_section_3_to_2 = 43;
+"""
 
 MC_MIN_V_FORWARD = int(10 * vel_scale)
 MC_MAX_V_BACKWARD = int(-10 * vel_scale)
@@ -412,8 +479,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "controlled_vehicles": nonegos,
         "lanes_count": num_actual_lanes,
         "vehicles_count": 0,
-        "screen_width": 1500,
-        "screen_height": 300,
+        "screen_width": 500,
+        "screen_height": 500,
         "scaling": 3,
         "show_trajectories": False
     })
@@ -497,6 +564,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         
         # Clamp lateral position to valid road boundaries
         vehicle.position[1] = max(min(vehicle.position[1], y_max_tech), y_min_tech)
+        vehicle.position[0] = (cnt) * 17
         
         print(f"Seeding vehicle {cnt} at position {vehicle.position} with speed {vehicle.speed} and heading {vehicle.heading}.")
 
