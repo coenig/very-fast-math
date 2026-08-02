@@ -556,19 +556,26 @@ def install_world_surface_patches(bg_image_state, num_lanes, fit_background=Fals
             else:
                 bbox = get_scene_bounding_box(env_ref, [i for i in range(1000)])
 
-            padding = 0 if fit_background else 10
-            target_width_m = (bbox["xmax"] - bbox["xmin"]) + (padding * 2)
-            target_height_m = (bbox["ymax"] - bbox["ymin"]) + (padding * 2)
+            # World-space margin (in meters) kept around the framed content on
+            # every side. `fit_background` frames the road exactly, so no margin.
+            margin_m = 0 if fit_background else 10
+            target_width_m = (bbox["xmax"] - bbox["xmin"]) + (margin_m * 2)
+            target_height_m = (bbox["ymax"] - bbox["ymin"]) + (margin_m * 2)
             screen_width, screen_height = self.get_width(), self.get_height()
             scale_x = screen_width / max(1.0, target_width_m)
             scale_y = screen_height / max(1.0, target_height_m)
             self.scaling = min(scale_x, scale_y)
 
-            center = np.array([(bbox["xmin"] + bbox["xmax"]) / 2.0 - 50, (bbox["ymin"] + bbox["ymax"]) / 2.0])
-
+            # Center the bounding box exactly in the middle of the screen,
+            # independent of `self.centering_position` (which highway-env may set
+            # to an off-center value and would otherwise shift content off-screen).
+            center = np.array([
+                (bbox["xmin"] + bbox["xmax"]) / 2.0,
+                (bbox["ymin"] + bbox["ymax"]) / 2.0,
+            ])
             self.origin = center - np.array([
-                self.centering_position[0] * self.get_width() / self.scaling - 50,
-                self.centering_position[1] * self.get_height() / self.scaling,
+                self.get_width() / (2.0 * self.scaling),
+                self.get_height() / (2.0 * self.scaling),
             ])
         except Exception as e:
             _orig_move_display_window_to(self, position)
