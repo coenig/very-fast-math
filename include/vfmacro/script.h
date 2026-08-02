@@ -1242,12 +1242,24 @@ private:
          };
 
          // Reads a section's static geometry (angle in degrees, source point, end length) from the trace.
+         // Highway scenarios without an explicit road network only store the section's `_end`, but no
+         // `angle`/`source`. For those, getLastValueOfVariableAtStep would return the "-1" error sentinel,
+         // which must not be interpreted as real geometry. Absent variables therefore default to the
+         // neutral 0, making to_global reduce to the identity (long_pos, lat_pos) for the 0/0/0 case while
+         // still reading the true geometry when a road network is present.
          const auto read_section = [&trace](const int sec_id) -> std::tuple<float, float, float, float> {
             const std::string id{ std::to_string(sec_id) };
-            const float angle{ std::stof(trace.getLastValueOfVariableAtStep("env.section_" + id + ".angle", 0)) };
-            const float sx{ std::stof(trace.getLastValueOfVariableAtStep("env.section_" + id + ".source.x", 0)) };
-            const float sy{ std::stof(trace.getLastValueOfVariableAtStep("env.section_" + id + ".source.y", 0)) };
-            const float end{ std::stof(trace.getLastValueOfVariableAtStep("env.section_" + id + "_end", 0)) };
+
+            const auto read = [&trace](const std::string& var, const float dflt) -> float {
+               trace.resetAllErrors();
+               const std::string val{ trace.getLastValueOfVariableAtStep(var, 0) };
+               return trace.hasErrorOccurred() ? dflt : std::stof(val);
+            };
+
+            const float angle{ read("env.section_" + id + ".angle", 0.0f) };
+            const float sx{ read("env.section_" + id + ".source.x", 0.0f) };
+            const float sy{ read("env.section_" + id + ".source.y", 0.0f) };
+            const float end{ read("env.section_" + id + "_end", 0.0f) };
             return { angle, sx, sy, end };
          };
 
