@@ -210,7 +210,7 @@ SPECS.append(f"""INVARSPEC !(env.veh___609___.abs_pos >= env.veh___619___.abs_po
 """) # 3: All cars longitudinally close to each other, one drives faster.
 
 SPECS.append(("INVARSPEC !(env.veh___609___.abs_pos - env.veh___6%r9___.abs_pos < %r " % (nonegos - 1, int(50 * dist_scale))) 
-             + ("@{& env.veh___6@{[i] - 1}@.eval[0]9___.abs_pos > env.veh___6[i]9___.abs_pos}@*.for[[i], 1, %r]);" % (nonegos - 1))) 
+             + ("@{& env.veh___6@{[i] - 1}@.eval[0]9___.abs_pos > env.veh___6[i]9___.abs_pos}@*.for[[i], 1, %r] & env.veh_0_and_veh_1_on_same_seclet);" % (nonegos - 1))) 
             # 4: Reversed order of cars, i.e. the first car is the one with the highest abs_pos.
 
 SPECS.append(r"""INVARSPEC TRUE;""") # 5: Benchmark 1.
@@ -225,9 +225,9 @@ DIST_EXP_9_MC = int(DIST_EXP_9 * dist_scale)
 SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_9_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") 
 # 9: Only reach some distance.
 
-DIST_EXP_10 = 40;
+DIST_EXP_10 = 10;
 DIST_EXP_10_MC = int(DIST_EXP_10 * dist_scale)
-SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.is_on_sec_1 = 1 & env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_10_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""")
+SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.is_on_sec_3 = 1 & env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_10_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""")
 # 10 Reach next section
 
 SUCC_CONDS.append(lambda: all(x < 1 for x in egos_v))
@@ -235,7 +235,7 @@ SUCC_CONDS.append(lambda: all(abs(x - TARGET_VEL) < 1 for x in egos_v))
 SUCC_CONDS.append(lambda: maxDifferenceArray(egos_y[:-1]) < 4)
 SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[1] - TARGET_DIST and egos_x[1] >= egos_x[2] - TARGET_DIST and egos_x[2] >= egos_x[3] - TARGET_DIST and egos_x[3] >= egos_x[4] - TARGET_DIST
                   and egos_v[0] <= TARGET_VEL_LOW and egos_v[1] <= TARGET_VEL_LOW and egos_v[2] <= TARGET_VEL_LOW and egos_v[3] <= TARGET_VEL_LOW and egos_v[4] >= TARGET_VEL_HIGH)
-SUCC_CONDS.append(lambda: inverseSortingArray(egos_x))
+SUCC_CONDS.append(lambda: False)
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos_x[2]) #7
@@ -251,6 +251,75 @@ ADDONS_END_DENOTER = "-- EO " + ADDONS_CORE_DENOTER + " --\n"
 for i in range(0, len(SPECS)):
     addons[i] += ADDONS_BEGIN_DENOTER
     addons[i] += f"-- UCD experiment{i} --\n"
+
+addons[4] += f"""
+    INVAR (env.veh___609___.on_straight_section <= 0) -> env.veh___609___.v < 5;
+    INVAR env.veh___619___.on_straight_section = -1 -> env.veh___619___.v < 5;
+    -- INVAR (env.veh___619___.traversion_from = 0) -> env.veh___609___.v <= env.veh___619___.v;
+    
+    INIT abs(env.section_2.source.x - env.section_1.source.x) > 10;
+
+    INIT env.section_0.source.x = 0
+    ;INIT env.section_0.source.y = 0
+    ;INIT env.section_0.angle_raw = 0
+    ;INIT env.section_0_segment_0_min_lane = 0
+    ;INIT env.section_0_segment_0_max_lane = 0
+    ;INIT env.section_0_segment_0_pos_begin = 0
+    ;INIT env.section_0_end = 50
+    ;INIT env.outgoing_connection_0_of_section_0 = 1
+    ;INIT env.outgoing_connection_1_of_section_0 = 2
+    ;INIT env.dist_0_of_section_0_to_1 = 36
+    ;INIT env.dist_0_of_section_0_to_2 = 10
+    ;INIT env.dist_0_of_section_0_to_3 = 10
+    ;INIT env.dist_1_of_section_0_to_1 = 10
+    ;INIT env.dist_1_of_section_0_to_2 = 26
+    ;INIT env.dist_1_of_section_0_to_3 = 10
+    ;INIT env.section_1.source.x = 111
+    ;INIT env.section_1.source.y = 25
+    ;INIT env.section_1.angle_raw = 1
+    ;INIT env.section_1_segment_0_min_lane = 0
+    ;INIT env.section_1_segment_0_max_lane = 0
+    ;INIT env.section_1_segment_0_pos_begin = 0
+    ;INIT env.section_1_end = 20
+    ;INIT env.outgoing_connection_0_of_section_1 = 3
+    ;INIT env.outgoing_connection_1_of_section_1 = -1
+    ;INIT env.dist_0_of_section_1_to_0 = 10
+    ;INIT env.dist_0_of_section_1_to_2 = 10
+    ;INIT env.dist_0_of_section_1_to_3 = 29
+    ;INIT env.dist_1_of_section_1_to_0 = 10
+    ;INIT env.dist_1_of_section_1_to_2 = 14
+    ;INIT env.dist_1_of_section_1_to_3 = 10
+    ;INIT env.section_2.source.x = 94
+    ;INIT env.section_2.source.y = 18
+    ;INIT env.section_2.angle_raw = 1
+    ;INIT env.section_2_segment_0_min_lane = 0
+    ;INIT env.section_2_segment_0_max_lane = 0
+    ;INIT env.section_2_segment_0_pos_begin = 0
+    ;INIT env.section_2_end = 20
+    ;INIT env.outgoing_connection_0_of_section_2 = 3
+    ;INIT env.outgoing_connection_1_of_section_2 = -1
+    ;INIT env.dist_0_of_section_2_to_0 = 10
+    ;INIT env.dist_0_of_section_2_to_1 = 10
+    ;INIT env.dist_0_of_section_2_to_3 = 39
+    ;INIT env.dist_1_of_section_2_to_0 = 10
+    ;INIT env.dist_1_of_section_2_to_1 = 26
+    ;INIT env.dist_1_of_section_2_to_3 = 10
+    ;INIT env.section_3.source.x = 174
+    ;INIT env.section_3.source.y = 59
+    ;INIT env.section_3.angle_raw = 0
+    ;INIT env.section_3_segment_0_min_lane = 0
+    ;INIT env.section_3_segment_0_max_lane = 0
+    ;INIT env.section_3_segment_0_pos_begin = 0
+    ;INIT env.section_3_end = 85
+    ;INIT env.outgoing_connection_0_of_section_3 = -1
+    ;INIT env.outgoing_connection_1_of_section_3 = -1
+    ;INIT env.dist_0_of_section_3_to_0 = 10
+    ;INIT env.dist_0_of_section_3_to_1 = 14
+    ;INIT env.dist_0_of_section_3_to_2 = 10
+    ;INIT env.dist_1_of_section_3_to_0 = 10
+    ;INIT env.dist_1_of_section_3_to_1 = 10
+    ;INIT env.dist_1_of_section_3_to_2 = 10;
+"""
 
 MC_MIN_V_FORWARD = int(10 * vel_scale)
 MC_MAX_V_BACKWARD = int(-10 * vel_scale)
@@ -294,13 +363,69 @@ INIT env.section_0_segment_4_pos_begin = {340 * dist_scale};
 
 # addons[10] += f"INIT     env.section_0_end < 100;\n"
 addons[10] += f"""
-    INIT env.section_1.source.x = 165;
-    INIT env.section_1.source.y = 35;
-    INIT env.section_1.angle_raw = 1;
-    INIT env.outgoing_connection_0_of_section_0 = 1;
+    -- INVAR env.veh___629___.v <= 10;
+
+    INIT env.section_0.source.x = 0
+    ;INIT env.section_0.source.y = 0
+    ;INIT env.section_0.angle_raw = 0
+    ;INIT env.section_0_segment_0_min_lane = 0
+    ;INIT env.section_0_segment_0_max_lane = 0
+    ;INIT env.section_0_segment_0_pos_begin = 0
+    ;INIT env.section_0_end = 50
+    ;INIT env.outgoing_connection_0_of_section_0 = 1
+    ;INIT env.outgoing_connection_1_of_section_0 = 2
+    ;INIT env.dist_0_of_section_0_to_1 = 36
+    ;INIT env.dist_0_of_section_0_to_2 = 10
+    ;INIT env.dist_0_of_section_0_to_3 = 10
+    ;INIT env.dist_1_of_section_0_to_1 = 10
+    ;INIT env.dist_1_of_section_0_to_2 = 26
+    ;INIT env.dist_1_of_section_0_to_3 = 10
+    ;INIT env.section_1.source.x = 111
+    ;INIT env.section_1.source.y = 25
+    ;INIT env.section_1.angle_raw = 1
+    ;INIT env.section_1_segment_0_min_lane = 0
+    ;INIT env.section_1_segment_0_max_lane = 0
+    ;INIT env.section_1_segment_0_pos_begin = 0
+    ;INIT env.section_1_end = 20
+    ;INIT env.outgoing_connection_0_of_section_1 = 3
+    ;INIT env.outgoing_connection_1_of_section_1 = -1
+    ;INIT env.dist_0_of_section_1_to_0 = 10
+    ;INIT env.dist_0_of_section_1_to_2 = 10
+    ;INIT env.dist_0_of_section_1_to_3 = 29
+    ;INIT env.dist_1_of_section_1_to_0 = 10
+    ;INIT env.dist_1_of_section_1_to_2 = 14
+    ;INIT env.dist_1_of_section_1_to_3 = 10
+    ;INIT env.section_2.source.x = 94
+    ;INIT env.section_2.source.y = 18
+    ;INIT env.section_2.angle_raw = 1
+    ;INIT env.section_2_segment_0_min_lane = 0
+    ;INIT env.section_2_segment_0_max_lane = 0
+    ;INIT env.section_2_segment_0_pos_begin = 0
+    ;INIT env.section_2_end = 20
+    ;INIT env.outgoing_connection_0_of_section_2 = 3
+    ;INIT env.outgoing_connection_1_of_section_2 = -1
+    ;INIT env.dist_0_of_section_2_to_0 = 10
+    ;INIT env.dist_0_of_section_2_to_1 = 10
+    ;INIT env.dist_0_of_section_2_to_3 = 39
+    ;INIT env.dist_1_of_section_2_to_0 = 10
+    ;INIT env.dist_1_of_section_2_to_1 = 26
+    ;INIT env.dist_1_of_section_2_to_3 = 10
+    ;INIT env.section_3.source.x = 174
+    ;INIT env.section_3.source.y = 59
+    ;INIT env.section_3.angle_raw = 0
+    ;INIT env.section_3_segment_0_min_lane = 0
+    ;INIT env.section_3_segment_0_max_lane = 0
+    ;INIT env.section_3_segment_0_pos_begin = 0
+    ;INIT env.section_3_end = 85
+    ;INIT env.outgoing_connection_0_of_section_3 = -1
+    ;INIT env.outgoing_connection_1_of_section_3 = -1
+    ;INIT env.dist_0_of_section_3_to_0 = 10
+    ;INIT env.dist_0_of_section_3_to_1 = 14
+    ;INIT env.dist_0_of_section_3_to_2 = 10
+    ;INIT env.dist_1_of_section_3_to_0 = 10
+    ;INIT env.dist_1_of_section_3_to_1 = 10
+    ;INIT env.dist_1_of_section_3_to_2 = 10;
 """
-for i in range(0, nonegos):
-    addons[10] += f"INVAR env.cnt > 3 -> !env.veh___6{i}9___.lane_b0;\n"
 
 
 
@@ -412,8 +537,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         "controlled_vehicles": nonegos,
         "lanes_count": num_actual_lanes,
         "vehicles_count": 0,
-        "screen_width": 1500,
-        "screen_height": 300,
+        "screen_width": 500,
+        "screen_height": 500,
         "scaling": 3,
         "show_trajectories": False
     })
@@ -497,6 +622,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         
         # Clamp lateral position to valid road boundaries
         vehicle.position[1] = max(min(vehicle.position[1], y_max_tech), y_min_tech)
+        vehicle.position[0] = (cnt) * 17
         
         print(f"Seeding vehicle {cnt} at position {vehicle.position} with speed {vehicle.speed} and heading {vehicle.heading}.")
 
@@ -966,7 +1092,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         if args.record_video and not args.dryrun and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
             from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
             clip = ImageSequenceClip(env.recorded_frames, fps=env.frames_per_sec)
-            clip.write_videofile(f"{generated_path_prefix}/videos/vid_{seedo}_partial.mp4", logger=None)
+            clip.write_videofile(f"{generated_path_prefix}/videos/vid_{seedo}.mp4", logger=None)
             clip.close()
             print("Video written")
 
