@@ -1767,9 +1767,9 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
          main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.on_straight_section = " + std::to_string(best_on_section) + ";\n";
          main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.traversion_from = " + std::to_string(best_from) + ";\n";
 
-         if (best_from >= 0 && best_to >= 0 && abs_pos > 20) { // Don't guess too early where it's going.
+         // if (best_from >= 0 && best_to >= 0 && abs_pos > 20) { // Don't guess too early where it's going.
             main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.traversion_to = " + std::to_string(best_to) + ";\n";
-         }
+         // }
       } else { // No geometry available (usually the very first step): default onto section 0.
          main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.on_straight_section = 0;\n";
          main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.traversion_from = -1;\n";
