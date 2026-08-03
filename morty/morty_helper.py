@@ -379,6 +379,55 @@ def get_background_world_rect(image, world_ref_x_m, world_ref_y_m, num_lanes,
     return x_min, y_min, x_max - x_min, y_max - y_min
 
 
+def get_background_content_pixel_bbox(image, black_tol=10):
+    """Return the tight pixel bbox (px_min_x, px_min_y, px_max_x, px_max_y) of the
+    non-black (i.e. actual road) content in the generated background PNG.
+
+    The PNG is padded with (0,0,0) black that is rendered transparent via the
+    colorkey, so its raw rectangle is much larger than the drawn road. Framing on
+    this content bbox avoids centering on that empty padding. Returns None if the
+    image is entirely black.
+    """
+    import pygame
+
+    arr = pygame.surfarray.array3d(image)  # shape (width, height, 3)
+    mask = np.any(arr > black_tol, axis=2)  # True where a pixel is non-black
+    cols = np.any(mask, axis=1)  # any content per x-column
+    rows = np.any(mask, axis=0)  # any content per y-row
+    if not cols.any() or not rows.any():
+        return None
+    xs = np.where(cols)[0]
+    ys = np.where(rows)[0]
+    return int(xs[0]), int(ys[0]), int(xs[-1]), int(ys[-1])
+
+
+def get_background_content_world_rect(image, world_ref_x_m, world_ref_y_m, num_lanes,
+                                      content_px_bbox=None,
+                                      pixels_per_meter=BG_PIXELS_PER_METER,
+                                      ref_pixel_x=BG_ZERO_PIXEL_X,
+                                      ref_pixel_y=BG_ZERO_PIXEL_Y):
+    """World-space rectangle covered by the actual (non-black) road content of the
+    generated background image, using the same pixel<->world anchoring as
+    blit_background_rigid. Falls back to the full-image rect if there is no
+    content. Returns (x_min, y_min, width, height)."""
+    if content_px_bbox is None:
+        content_px_bbox = get_background_content_pixel_bbox(image)
+    if content_px_bbox is None:
+        return get_background_world_rect(
+            image, world_ref_x_m, world_ref_y_m, num_lanes,
+            pixels_per_meter, ref_pixel_x, ref_pixel_y)
+
+    px_min_x, px_min_y, px_max_x, px_max_y = content_px_bbox
+    lane_offset_px = (num_lanes - 1.0) * pixels_per_meter * 4.0 / 2.0 - 1.0 * (num_lanes - 1) % 2
+    anchor_pixel_y = ref_pixel_y + lane_offset_px
+
+    x_min = world_ref_x_m + (px_min_x - ref_pixel_x) / pixels_per_meter
+    x_max = world_ref_x_m + (px_max_x - ref_pixel_x) / pixels_per_meter
+    y_min = world_ref_y_m + (px_min_y - anchor_pixel_y) / pixels_per_meter
+    y_max = world_ref_y_m + (px_max_y - anchor_pixel_y) / pixels_per_meter
+    return x_min, y_min, x_max - x_min, y_max - y_min
+
+
 def install_vehicle_graphics_patches(args, viz_state):
     """Patch highway-env's VehicleGraphics for morty's rendering.
 
@@ -540,12 +589,18 @@ def install_world_surface_patches(bg_image_state, num_lanes, fit_background=Fals
                 return _orig_move_display_window_to(self, position)
 
             if fit_background and bg_image_state is not None and bg_image_state["image"] is not None:
+                image = bg_image_state["image"]
                 road_x, road_y, road_w, road_h = get_road_world_rect(env_ref)
-                bbox_x, bbox_y, bbox_w, bbox_h = get_background_world_rect(
-                    bg_image_state["image"],
+                # Cache the (expensive) non-black content scan per image object.
+                if bg_image_state.get("content_bbox_for") != id(image):
+                    bg_image_state["content_bbox"] = get_background_content_pixel_bbox(image)
+                    bg_image_state["content_bbox_for"] = id(image)
+                bbox_x, bbox_y, bbox_w, bbox_h = get_background_content_world_rect(
+                    image,
                     world_ref_x_m=0.0,
                     world_ref_y_m=road_y + road_h / 2.0,
                     num_lanes=num_lanes,
+                    content_px_bbox=bg_image_state["content_bbox"],
                 )
                 bbox = {
                     "xmin": bbox_x,
@@ -556,19 +611,26 @@ def install_world_surface_patches(bg_image_state, num_lanes, fit_background=Fals
             else:
                 bbox = get_scene_bounding_box(env_ref, [i for i in range(1000)])
 
-            padding = 0 if fit_background else 10
-            target_width_m = (bbox["xmax"] - bbox["xmin"]) + (padding * 2)
-            target_height_m = (bbox["ymax"] - bbox["ymin"]) + (padding * 2)
+            # World-space margin (in meters) kept around the framed content on
+            # every side, so nothing sits flush against the screen edge.
+            margin_m = 10
+            target_width_m = (bbox["xmax"] - bbox["xmin"]) + (margin_m * 2)
+            target_height_m = (bbox["ymax"] - bbox["ymin"]) + (margin_m * 2)
             screen_width, screen_height = self.get_width(), self.get_height()
             scale_x = screen_width / max(1.0, target_width_m)
             scale_y = screen_height / max(1.0, target_height_m)
             self.scaling = min(scale_x, scale_y)
 
-            center = np.array([(bbox["xmin"] + bbox["xmax"]) / 2.0 - 50, (bbox["ymin"] + bbox["ymax"]) / 2.0])
-
+            # Center the bounding box exactly in the middle of the screen,
+            # independent of `self.centering_position` (which highway-env may set
+            # to an off-center value and would otherwise shift content off-screen).
+            center = np.array([
+                (bbox["xmin"] + bbox["xmax"]) / 2.0,
+                (bbox["ymin"] + bbox["ymax"]) / 2.0,
+            ])
             self.origin = center - np.array([
-                self.centering_position[0] * self.get_width() / self.scaling - 50,
-                self.centering_position[1] * self.get_height() / self.scaling,
+                self.get_width() / (2.0 * self.scaling),
+                self.get_height() / (2.0 * self.scaling),
             ])
         except Exception as e:
             _orig_move_display_window_to(self, position)

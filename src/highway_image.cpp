@@ -1028,7 +1028,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    res.insert(res.begin(), ConnectorPolygonEnding{
       ConnectorPolygonEnding::Side::drain,
       Lin2D{ middle_right, middle_left - fix }, // Outgoing
-      bottom_left_corner.distance(top_left_corner) * 3.75f,
+      bottom_left_corner.distance(top_left_corner) * lane_width, // used to be the constant LANE_WIDTH (3.75);
       std::make_shared<Color>(GRASS_COLOR),
       0,
       getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
@@ -1036,7 +1036,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
    res.insert(res.begin(), ConnectorPolygonEnding{
       ConnectorPolygonEnding::Side::source,
       Lin2D{ middle_left, middle_right + fix }, // Incoming
-      bottom_left_corner.distance(top_left_corner) * 3.75f,
+      bottom_left_corner.distance(top_left_corner) * lane_width, // used to be the constant LANE_WIDTH (3.75);
       std::make_shared<Color>(GRASS_COLOR),
       0,
       getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() } );
