@@ -365,6 +365,9 @@ INIT env.section_0_segment_4_pos_begin = {340 * dist_scale};
 addons[10] += f"""
     -- INVAR env.veh___629___.v <= 10;
 
+    INVAR env.veh___619___.on_straight_section != 1;
+    INVAR env.veh___629___.on_straight_section != 2;
+
     INIT env.section_0.source.x = 0
     ;INIT env.section_0.source.y = 0
     ;INIT env.section_0.angle_raw = 0
@@ -1092,7 +1095,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         if args.record_video and not args.dryrun and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
             from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
             clip = ImageSequenceClip(env.recorded_frames, fps=env.frames_per_sec)
-            clip.write_videofile(f"{generated_path_prefix}/videos/vid_{seedo}_partial.mp4", logger=None)
+            clip.write_videofile(f"{generated_path_prefix}/videos/vid_{seedo}.mp4", logger=None)
             clip.close()
             print("Video written")
 
