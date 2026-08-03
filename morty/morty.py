@@ -225,9 +225,9 @@ DIST_EXP_9_MC = int(DIST_EXP_9 * dist_scale)
 SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_9_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""") 
 # 9: Only reach some distance.
 
-DIST_EXP_10 = 40;
+DIST_EXP_10 = 10;
 DIST_EXP_10_MC = int(DIST_EXP_10 * dist_scale)
-SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.is_on_sec_1 = 1 & env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_10_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""")
+SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.is_on_sec_3 = 1 & env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_10_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""")
 # 10 Reach next section
 
 SUCC_CONDS.append(lambda: all(x < 1 for x in egos_v))
@@ -363,13 +363,67 @@ INIT env.section_0_segment_4_pos_begin = {340 * dist_scale};
 
 # addons[10] += f"INIT     env.section_0_end < 100;\n"
 addons[10] += f"""
-    INIT env.section_1.source.x = 165;
-    INIT env.section_1.source.y = 35;
-    INIT env.section_1.angle_raw = 1;
-    INIT env.outgoing_connection_0_of_section_0 = 1;
+    INIT env.section_0.source.x = 0
+    ;INIT env.section_0.source.y = 0
+    ;INIT env.section_0.angle_raw = 0
+    ;INIT env.section_0_segment_0_min_lane = 0
+    ;INIT env.section_0_segment_0_max_lane = 0
+    ;INIT env.section_0_segment_0_pos_begin = 0
+    ;INIT env.section_0_end = 50
+    ;INIT env.outgoing_connection_0_of_section_0 = 1
+    ;INIT env.outgoing_connection_1_of_section_0 = 2
+    ;INIT env.dist_0_of_section_0_to_1 = 36
+    ;INIT env.dist_0_of_section_0_to_2 = 10
+    ;INIT env.dist_0_of_section_0_to_3 = 10
+    ;INIT env.dist_1_of_section_0_to_1 = 10
+    ;INIT env.dist_1_of_section_0_to_2 = 26
+    ;INIT env.dist_1_of_section_0_to_3 = 10
+    ;INIT env.section_1.source.x = 111
+    ;INIT env.section_1.source.y = 25
+    ;INIT env.section_1.angle_raw = 1
+    ;INIT env.section_1_segment_0_min_lane = 0
+    ;INIT env.section_1_segment_0_max_lane = 0
+    ;INIT env.section_1_segment_0_pos_begin = 0
+    ;INIT env.section_1_end = 20
+    ;INIT env.outgoing_connection_0_of_section_1 = 3
+    ;INIT env.outgoing_connection_1_of_section_1 = -1
+    ;INIT env.dist_0_of_section_1_to_0 = 10
+    ;INIT env.dist_0_of_section_1_to_2 = 10
+    ;INIT env.dist_0_of_section_1_to_3 = 29
+    ;INIT env.dist_1_of_section_1_to_0 = 10
+    ;INIT env.dist_1_of_section_1_to_2 = 14
+    ;INIT env.dist_1_of_section_1_to_3 = 10
+    ;INIT env.section_2.source.x = 94
+    ;INIT env.section_2.source.y = 18
+    ;INIT env.section_2.angle_raw = 1
+    ;INIT env.section_2_segment_0_min_lane = 0
+    ;INIT env.section_2_segment_0_max_lane = 0
+    ;INIT env.section_2_segment_0_pos_begin = 0
+    ;INIT env.section_2_end = 20
+    ;INIT env.outgoing_connection_0_of_section_2 = 3
+    ;INIT env.outgoing_connection_1_of_section_2 = -1
+    ;INIT env.dist_0_of_section_2_to_0 = 10
+    ;INIT env.dist_0_of_section_2_to_1 = 10
+    ;INIT env.dist_0_of_section_2_to_3 = 39
+    ;INIT env.dist_1_of_section_2_to_0 = 10
+    ;INIT env.dist_1_of_section_2_to_1 = 26
+    ;INIT env.dist_1_of_section_2_to_3 = 10
+    ;INIT env.section_3.source.x = 174
+    ;INIT env.section_3.source.y = 59
+    ;INIT env.section_3.angle_raw = 0
+    ;INIT env.section_3_segment_0_min_lane = 0
+    ;INIT env.section_3_segment_0_max_lane = 0
+    ;INIT env.section_3_segment_0_pos_begin = 0
+    ;INIT env.section_3_end = 85
+    ;INIT env.outgoing_connection_0_of_section_3 = -1
+    ;INIT env.outgoing_connection_1_of_section_3 = -1
+    ;INIT env.dist_0_of_section_3_to_0 = 10
+    ;INIT env.dist_0_of_section_3_to_1 = 14
+    ;INIT env.dist_0_of_section_3_to_2 = 10
+    ;INIT env.dist_1_of_section_3_to_0 = 10
+    ;INIT env.dist_1_of_section_3_to_1 = 10
+    ;INIT env.dist_1_of_section_3_to_2 = 10;
 """
-for i in range(0, nonegos):
-    addons[10] += f"INVAR env.cnt > 3 -> !env.veh___6{i}9___.lane_b0;\n"
 
 
 
