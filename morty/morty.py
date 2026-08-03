@@ -363,6 +363,8 @@ INIT env.section_0_segment_4_pos_begin = {340 * dist_scale};
 
 # addons[10] += f"INIT     env.section_0_end < 100;\n"
 addons[10] += f"""
+    -- INVAR env.veh___629___.v <= 10;
+
     INIT env.section_0.source.x = 0
     ;INIT env.section_0.source.y = 0
     ;INIT env.section_0.angle_raw = 0
