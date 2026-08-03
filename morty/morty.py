@@ -970,6 +970,11 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             clip.close()
             print("Video written")
 
+            from PIL import Image
+            last_frame = env.recorded_frames[-1]
+            img = Image.fromarray(last_frame)
+            img.save(f"{generated_path_prefix}/current_state.png")
+
         archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
 
         if crashed_count > args.allow_crashed_steps: # Allow these many crashes per run.
