@@ -445,9 +445,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         raise e
 
     action = ([0, 0],) * nonegos
-    dpoints_y =     [0] * (nonegos + 1) # The lateral position of the points the cars head towards.
-    dpoints_delta = [0] * (nonegos + 1) # The direction we're currently moving towards, laterally.
-    lc_time =       [0] * (nonegos + 1) # Time the current lc is taking, abort if too long. Needed to better approximate MC behavior.
     egos_x =        [0] * (nonegos + 1) # Long pos of cars in m.
     egos_y =        [0] * (nonegos + 1) # Lat pos of cars in m.
     egos_v =        [0] * (nonegos + 1) # Absuolute (!) long vel of cars in m/s. Multiply with egos_backward to get the signed velocity as seen by the MC.
@@ -470,7 +467,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
     # Calculate valid y range for initialization (same as used in pure pursuit later)
     LANE_WIDTH_HE = 4.0  # highway-env lane width in meters
-    on_lane_step_y = 2.0 * num_actual_lanes / num_technical_lanes  # y-distance per MC on_lane position
     # Compute valid y range based on technical lane positions.
     y_min_tech = -LANE_WIDTH_HE / 2.0 + LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
     y_max_tech = -LANE_WIDTH_HE / 2.0 + (2 * num_technical_lanes - 1) * LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
@@ -530,7 +526,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         except Exception:
             pass
 
-    first = True
     obs = env.unwrapped.observation_type.observe()
     blind_stats = ""
     crashed = False
@@ -564,9 +559,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         mcinput = ""
         i = 0
         for el in obs: # Use only el[0] because it contains the abs values from the resp. car's perspective.
-            if first:
-                dpoints_y[i] = el[0][2] # Set desired lateral position to the actual position in the first step.
-                
             egos_x[i] = el[0][1]
             egos_y[i] = el[0][2]
             egos_v[i] = el[0][3] * egos_backward[i]
@@ -620,8 +612,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             MC_SCRIPT = f"@{{}}@.prepareOutputForMortyUCD[{str(seedo)}, {str(global_counter)}, {0}, {str(crashed)}]"
         # EO Prepare dry run
 
-        first = False
-        
         empty_cex = ""
         
         for _i in range(nonegos):
@@ -860,10 +850,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
         action_list = []
         
-        # Best so far:
-        # MAXTIME_FOR_LC = 60
-        MAXTIME_FOR_LC = 60
-
         # Real-world integration window [s] for one control step: highway-env applies the
         # chosen acceleration for exactly this long before morty re-plans, so it is the
         # horizon over which the MCIMMEDIATE acceleration must land the car on the next MC
@@ -872,28 +858,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # already in real-world meters and m/s.
         mc_step_time = 1.0 / POLICY_FREQUENCY
         
-        eps = 1
         for i, el in enumerate(sum_vel_by_car):
-            lc_time[i] += 1
-            
-            if abs(dpoints_y[i] - egos_y[i]) < eps: # If we're close to the desired lateral position, we can start a new lane change.
-                lc_time[i] = 0
-                num_tech_lanes = abs(sum_lan_by_car[i])
-                
-                if sum_lan_by_car[i] < 0:
-                    dpoints_delta[i] = num_tech_lanes * on_lane_step_y
-                    dpoints_y[i] += dpoints_delta[i]
-                elif sum_lan_by_car[i] > 0:
-                    dpoints_delta[i] = -num_tech_lanes * on_lane_step_y
-                    dpoints_y[i] += dpoints_delta[i]
-            
-            if lc_time[i] > MAXTIME_FOR_LC and dpoints_delta[i] != 0:
-                dpoints_y[i] -= dpoints_delta[i] # Go back to source lane if taking too long.
-                dpoints_delta[i] = 0 # Don't care about cases with no ongoing LC since delta is zero, then.
-                lc_time[i] = 0
-            
-            dpoints_y[i] = max(min(dpoints_y[i], y_max_tech), y_min_tech)
-            
             # MCIMMEDIATE: instead of replaying the MC's explicit acceleration, compute the
             # exact longitudinal acceleration that lands the car on the immediate next MC
             # trajectory point after one step. From s = v0*t + 0.5*a*t^2 with s the distance
@@ -925,7 +890,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             print(" formula_pp_strategies " + formula_pp_strategies) # TODO REMOVE
             print(" formula_distance_pp " + formula_distance_pp)     # TODO REMOVE
             print(" formula_latshift_pp " + formula_latshift_pp)     # TODO REMOVE
-            print(" dpoints_y[i] " + str(dpoints_y[i]))              # TODO REMOVE
             print(" dist_point_mc " + str(dist_point_mc))            # TODO REMOVE
             print(" latshift_point_mc " + str(latshift_point_mc))    # TODO REMOVE
 
@@ -940,7 +904,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
             script_pp_latshift = f"""@{{
             @{{{formula_pp_strategies}}}@.eval
-            @{{@pp_y = {dpoints_y[i]}}}@.eval
             @{{@next_immediate_y = {latshift_point_mc}}}@.eval
             }}@.nil
             @{{{formula_latshift_pp}}}@.eval
@@ -968,8 +931,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 pp_target_y = pp_latshift
                 viz_state.pp_targets[id(vehicle)] = [pp_target_x, pp_target_y]
 
-            # Best so far (for inversion task):
-            # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
             # Pure-pursuit curvature law: delta = atan(2 L sin(alpha) / L_d). A close target
             # (small L_d) drives the wheel angle toward full lock, so sharp turns are tracked
             # tightly instead of lagging like the old heading-proportional (/pi) law did.
