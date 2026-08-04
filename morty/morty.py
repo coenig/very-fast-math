@@ -345,22 +345,10 @@ good_ones = []
 all_cex_length_histories = {}
 all_selected_runtime_histories = {}
 
-specification = create_string_buffer(2000)
-with morty_script_context() as morty_lib:
-    spec_res = morty_lib.expandScript(SPECS[exp_num].encode('utf-8'), specification, sizeof(specification)).decode()
 
-for ucd_config_str in ucd_config_prios_str:
-    ensure_empty_file(f'{generated_path_prefix + ucd_config_str}/morty_mc_results.txt')  # Delete old results from MC side (these are a super set of the above)
-
+def write_spec_to_main_smv(ucd_config_str, spec_str):
     with open(generated_path_prefix + ucd_config_str + "/main.smv", "r+") as f:
         content = f.read()
-
-        begin_idx = content.find(ADDONS_BEGIN_DENOTER) # Cut out addons, if there, and replace with new ones.
-        end_idx = content.find(ADDONS_END_DENOTER)
-        if begin_idx != -1 and end_idx != -1:
-            content = content[:begin_idx] + content[end_idx + len(ADDONS_END_DENOTER):]
-
-        content = content.replace("--EO-ADDONS", addons[exp_num] + "\n--EO-ADDONS")
 
         invarspec_idx = content.find("INVARSPEC") # Cut out SPEC and replace with new one.
         if invarspec_idx == -1:
@@ -369,11 +357,34 @@ for ucd_config_str in ucd_config_prios_str:
         else:
             semicolon_idx = content.find(";", invarspec_idx)
             if semicolon_idx != -1:
-                content = content[:invarspec_idx] + spec_res + content[semicolon_idx + 1:]
+                content = content[:invarspec_idx] + spec_str + content[semicolon_idx + 1:]
 
         f.seek(0)
         f.write(content)
         f.truncate()
+    
+def write_addons_to_main_smv(ucd_config_str, addons_str):
+    with open(generated_path_prefix + ucd_config_str + "/main.smv", "r+") as f:
+        content = f.read()
+
+        begin_idx = content.find(ADDONS_BEGIN_DENOTER) # Cut out addons, if there, and replace with new ones.
+        end_idx = content.find(ADDONS_END_DENOTER)
+        if begin_idx != -1 and end_idx != -1:
+            content = content[:begin_idx] + content[end_idx + len(ADDONS_END_DENOTER):]
+
+        content = content.replace("--EO-ADDONS", addons_str + "\n--EO-ADDONS")
+
+        f.seek(0)
+        f.write(content)
+        f.truncate()
+
+specification = create_string_buffer(2000)
+with morty_script_context() as morty_lib:
+    spec_res = morty_lib.expandScript(SPECS[exp_num].encode('utf-8'), specification, sizeof(specification)).decode()
+
+for ucd_config_str in ucd_config_prios_str:
+    ensure_empty_file(f'{generated_path_prefix + ucd_config_str}/morty_mc_results.txt')  # Delete old results from MC side (these are a super set of the above)
+    write_addons_to_main_smv(ucd_config_str, addons[exp_num])
 
 def clean_and_convert_to_float(data):
     """
@@ -387,6 +398,29 @@ def clean_and_convert_to_float(data):
 
     cleaned_list = [clean_and_convert_to_float(item) for item in data]
     return [item for item in cleaned_list if item is not None and item != []]
+
+def postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex):
+    all_results_dict = {}
+    for single_res in res_str.split('\n'):
+        if single_res:
+            print("\n'" + single_res + "'\n")
+            config_name, res_str_new = single_res.split(':') # initiate res_str with ANY of the results, will get updated later if none-blind exists.
+            all_results_dict[config_name] = res_str_new
+    
+    blind = "|X"
+    selected_cnt = None
+    for cnt, config_name in enumerate(ucd_config_prios_str):
+        if (all_results_dict[config_name] == empty_cex):
+            print(f"CEX #{cnt} is EMPTY.")
+        else:
+            res_str_new = all_results_dict[config_name]
+            print(f"Picked CEX #{cnt} [{config_name}] which is the first non-empty one.")
+            blind = "|" + str(cnt)
+            selected_cnt = cnt
+            break;
+
+    return blind, selected_cnt, res_str_new
+
 
 baseline_hashes = {}  # Pre-loop file set (before any MC call).
 snapshot_hashes = {}  # Post-first-MC-call hashes (only baseline files).
@@ -555,6 +589,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             scalefile = f"{config_path}/scaling_info.txt"
     # EO Prepare dry run
 
+    selected_config = None
     for global_counter in range(args.steps_per_run):
         mcinput = ""
         i = 0
@@ -618,37 +653,60 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             empty_cex += "|;"
         
         #### MODEL CHECKER CALL ####
-        result = create_string_buffer(100000)
-        with morty_script_context() as morty_lib:
-            res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
-        res_str = res.decode().strip()
+        ## FOLLOW EXISTING PATH ##
+        future_points_str = []
+        cnt = 2 # The array starts at 0 with the first actual future point.
+        
+        while selected_config is not None and os.path.isfile(generated_path_prefix + selected_config + f"/future_point_{cnt}.txt"):
+            with open(generated_path_prefix + selected_config + f"/future_point_{cnt}.txt", "r") as f:
+                future_points_str.append(f.read())
+            cnt += 1
+ 
+        shortcut_index = -1
+        found_shortcut = False
+        if not future_points_str:
+            print(f"No future points found for {selected_config}.")
+        else:
+            print(f"Found {len(future_points_str)} future points for {selected_config}.")
+            
+            for shortcut_index, future_point in enumerate(future_points_str): # Try to dive into closest, then next, etc. future point.
+                for ucd_config_str in ucd_config_prios_str:
+                    write_spec_to_main_smv(ucd_config_str, "INVARSPEC !(TRUE " + future_point + ");")
+                    write_addons_to_main_smv(ucd_config_str, "")
+                
+                with morty_script_context() as morty_lib:
+                    res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
+                res_str = res.decode().strip()
+
+                old_selected_cnt = selected_cnt
+                blind, selected_cnt, res_str = postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex)
+
+                if res_str != empty_cex and selected_cnt <= old_selected_cnt: # Found a better or equal shortcut to a future point.
+                    found_shortcut = True
+                    print(f"Newly selected config is: {selected_cnt} (old was {old_selected_cnt}).")
+                    input(f"We did it (idx {shortcut_index})...")
+                    break
+                
+        input("Press Enter to continue...")
+        ## EO FOLLOW EXISTING PATH ##
+        
+        if not found_shortcut:
+            for ucd_config_str in ucd_config_prios_str: # Back to actual SPEC
+                write_spec_to_main_smv(ucd_config_str, spec_res)
+
+            result = create_string_buffer(100000)
+            with morty_script_context() as morty_lib:
+                res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
+            res_str = res.decode().strip()
+        
+            blind, selected_cnt, res_str = postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex)
 
         if args.detailed_archive and global_counter == 0:
             # Processed snapshot: only re-hash files that existed in the baseline
             # (excludes iteration-specific artifacts like debug folders).
             snapshot_hashes = _snapshot_configs(ucd_config_prios_str, generated_path_prefix, restrict_to=baseline_hashes)
             _save_configs_to_archive(seedo, '1_initialized', generated_path_prefix, ucd_config_prios_str, restrict_to={cn: set(baseline_hashes[cn]) for cn in baseline_hashes})
-        
-        ### POSTPROCESS RESULT ###
-        all_results_dict = {}
-        for single_res in res_str.split('\n'):
-            if single_res:
-                print("\n'" + single_res + "'\n")
-                config_name, res_str = single_res.split(':') # initiate res_str with ANY of the results, will get updated later if none-blind exists.
-                all_results_dict[config_name] = res_str
-        
-        blind = "|X"
-        selected_cnt = None
-        for cnt, config_name in enumerate(ucd_config_prios_str):
-            if (all_results_dict[config_name] == empty_cex):
-                print(f"CEX #{cnt} is EMPTY.")
-            else:
-                res_str = all_results_dict[config_name]
-                print(f"Picked CEX #{cnt} [{config_name}] which is the first non-empty one.")
-                blind = "|" + str(cnt)
-                selected_cnt = cnt
-                break;
-        
+                
         # Update global priority for trajectory coloring
         viz_state.selected_cnt = selected_cnt
         
@@ -809,44 +867,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         plot_cex_lengths_cumulative(all_cex_length_histories, f"{generated_path_prefix}/cex_length_debug_all.pdf")
         # EO Plotting
 
-        sum_vel_by_car = []
-        sum_lan_by_car = []
-
-        lanes = ""
-        accels = ""
-
         # Best so far:
         # LANE_CHANGE_DURATION = 3
         min_time_between_lcs = d[selected_config]["MIN_TIME_BETWEEN_LANECHANGES"]
         LANE_CHANGE_DURATION = min_time_between_lcs * time_scale # Index in the MC delta trace where the lane change effect appears.
-
-        # Process the MC data.
-        mc_car_results = [segment for segment in res_str.split(';') if segment]
-        for i1, el1 in enumerate(mc_car_results):
-            sum_lan_by_car.append(0)
-            sum_vel_by_car.append(0)
-            lanes += "\n"
-            accels += "\n"
-            for i2, el2 in enumerate(el1.split('|')):
-                for i3, el3 in enumerate(el2.split(',')):
-                    if el3:
-                        if i2 == 1:
-                            lanes += "   " + el3
-                            if i3 == LANE_CHANGE_DURATION:
-                                sum_lan_by_car[i1] += float(el3)
-                        else:
-                            accels += "   " + el3
-                            if i3 == 0:
-                                sum_vel_by_car[i1] += float(el3)
-
-        with open(f"{generated_path_prefix}/lanes.txt", "w") as text_file:
-            text_file.write(lanes)
-        with open(f"{generated_path_prefix}/accels.txt", "w") as text_file:
-            text_file.write(accels)
-
-        print(f"summed velocity: {sum_vel_by_car}")
-        print(f"summed lane: {sum_lan_by_car}")
-        # EO Process the MC data.
 
         action_list = []
         
@@ -858,7 +882,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # already in real-world meters and m/s.
         mc_step_time = 1.0 / POLICY_FREQUENCY
         
-        for i, el in enumerate(sum_vel_by_car):
+        mc_car_results = [segment for segment in res_str.split(';') if segment]
+        for i, _ in enumerate(mc_car_results):
             # MCIMMEDIATE: instead of replaying the MC's explicit acceleration, compute the
             # exact longitudinal acceleration that lands the car on the immediate next MC
             # trajectory point after one step. From s = v0*t + 0.5*a*t^2 with s the distance

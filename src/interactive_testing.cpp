@@ -1839,9 +1839,11 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
 
       // Apply time/distance scaling so that deltas are in real-world units.
       const std::string scaling_file{ OUTPUT_BASE_PATH + config_name + "/" + TIMESCALING_FILENAME };
+      float dist_scaling{};
       if (std::filesystem::exists(scaling_file)) {
          ScaleDescription ts_description{ StaticHelper::readFile(scaling_file) };
          StaticHelper::applyTimescaling(trace, ts_description);
+         dist_scaling = ts_description.getDistanceScalingFactor();
       }
       else {
          Failable::getSingleton()->addError("Scaling factor file " + scaling_file + " does not exist. Using default scaling factors of 1.0.");
@@ -1860,10 +1862,35 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
 
       for (int i = 0; i < num_cars; i++) {
          variables.insert("veh___6" + std::to_string(i) + "9___.v");
-         variables.insert("veh___6" + std::to_string(i) + "9___.on_lane");
+         variables.insert("veh___6" + std::to_string(i) + "9___.on_normalized_lane");
       }
 
       deltas = trace.getAllDeltas(variables);
+
+      // Store future trajectories
+      for (int i = 0; i < num_cars; i++) { // Add all the other variables needed for traj. points.
+         // variables.insert("veh___6" + std::to_string(i) + "9___.a");
+         variables.insert("veh___6" + std::to_string(i) + "9___.abs_pos");
+      }
+
+      for (int j = 0; j < trace.size(); j += 2) {
+         std::string sub_res{};
+         for (const auto& var : variables) {
+            if (StaticHelper::stringContains(var, "abs_pos")) {
+               sub_res += "& env." + var + "=" 
+                  + std::to_string(static_cast<int>(std::stof(trace.getLastValueOfVariableAtStep(var, j)) * dist_scaling)) + "\n";
+               
+            }
+            else {
+               sub_res += "& env." + var + "=" 
+                  + std::to_string(std::stoi(trace.getLastValueOfVariableAtStep(var, j))) + "\n";
+            }
+         }
+         StaticHelper::writeTextToFile(
+            sub_res, 
+            OUTPUT_BASE_PATH + config_name + "/future_point_" + std::to_string(j / 2) + ".txt");
+      }
+      // EO Store future trajectories
 
       if (trace.size() == 2) {
          res += "FINISHED";
@@ -1877,7 +1904,7 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
             res += "|";
 
             for (const auto& delta : deltas) {
-               res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.on_lane")) + ",";
+               res += std::to_string(delta.at("veh___6" + std::to_string(i) + "9___.on_normalized_lane")) + ",";
             }
 
             res += ";";
