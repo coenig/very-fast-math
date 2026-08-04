@@ -745,7 +745,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # Signed longitudinal distance [m] (along the heading) to the immediate next MC
         # trajectory point; used in MCIMMEDIATE mode to compute the exact acceleration.
         accel_target_dist = [None] * nonegos
-        pp_mc_immediate_exists = False
         # Each MC point occurs twice in the trace: indices 0/1 are the point the car is
         # already on, 2/3 are the immediate next point (one MC step ahead), 4/5 the one
         # after that. coords_for_pp therefore ends up on the second-next point (index 5),
@@ -760,7 +759,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 
                 if i <= 5:
                     coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
-                    pp_mc_immediate_exists = True
                     print(f"Step {i}, Car {j}: abspos={abspos}, latpos={latpos}, coord={coord}") # TODO REMOVE
                 if i == 2: # Immediate next distinct point (one MC step ahead).
                     accel_target_dist[j] = (coord[0] - egos_x[j]) * egos_backward[j]
@@ -896,24 +894,21 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             
             dpoints_y[i] = max(min(dpoints_y[i], y_max_tech), y_min_tech)
             
-            # Best so far:
-            # accel = sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
-            if pp_mc_immediate_exists and accel_target_dist[i] is not None:
-                # MCIMMEDIATE: instead of replaying the MC's explicit acceleration, compute
-                # the exact longitudinal acceleration that lands the car on the immediate
-                # next MC trajectory point after one step. From s = v0*t + 0.5*a*t^2 with
-                # s the distance along the heading and v0 = egos_v[i] the current heading
-                # speed, a = 2*(s - v0*t)/t^2. Normalized into the [-1, 1] action range.
+            # MCIMMEDIATE: instead of replaying the MC's explicit acceleration, compute the
+            # exact longitudinal acceleration that lands the car on the immediate next MC
+            # trajectory point after one step. From s = v0*t + 0.5*a*t^2 with s the distance
+            # along the heading and v0 = egos_v[i] the current heading speed,
+            # a = 2*(s - v0*t)/t^2. Normalized into the [-1, 1] action range.
+            if accel_target_dist[i] is not None:
                 s = accel_target_dist[i]
                 v0 = egos_v[i]
                 a_phys = 2.0 * (s - v0 * mc_step_time) / (mc_step_time ** 2)
                 accel = float(np.clip(a_phys / ACCEL_RANGE, -1.0, 1.0))
             else:
-                # DISTLC (or no MC trajectory available): use the explicit MC acceleration.
-                accel = egos_backward[i] * sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
+                accel = 0.0  # No MC trajectory point available (degenerate trace): coast.
 
             # Formula for speed-dependent distance in pure-pursuit.
-            formula_pp_strategies = d[selected_config]["UCD_PP_STRATEGIES"] if pp_mc_immediate_exists else d[selected_config]["UCD_PP_STRATEGIES_FALLBACK"]
+            formula_pp_strategies = d[selected_config]["UCD_PP_STRATEGIES"]
             formula_distance_pp = d[selected_config]["UCD_FORMULA_PP_DISTANCE"]
             formula_latshift_pp = d[selected_config]["UCD_FORMULA_PP_LATSHIFT"]
 
