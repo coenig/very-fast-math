@@ -113,7 +113,7 @@
       "_BP_INCLUDES_FILE_PATH": "./src/examples/ego_less/vfm-includes.txt",
       "_CACHED_PATH": "./examples/tmp",
       "_EXTERNAL_PATH": "./external",
-      "_GENERATED_PATH": "./examples/exp4_time_2000_dist_4000_mintimeBetweenLC_1",
+      "_GENERATED_PATH": "./examples/exp",
       "_ENVMODEL_PATH": "./src/templates",
       "_CEX_FILE_NAME": "debug_trace_array.txt"
    }

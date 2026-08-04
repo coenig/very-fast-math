@@ -321,6 +321,16 @@ if args.headless:
 # ACCEL_RANGE = 6
 ACCEL_RANGE = 6
 
+# highway-env control period [Hz]. morty runs exactly one env.step per MC step, so the
+# real duration of one policy step (1/POLICY_FREQUENCY) must equal the real duration the
+# MC assigns to one step (1/time_scale). The MCIMMEDIATE acceleration integrates over this
+# window; a mismatch would make the cars systematically under-/overshoot the MC points.
+POLICY_FREQUENCY = 2  # [Hz]
+if POLICY_FREQUENCY != time_scale:
+    print(f"WARNING: POLICY_FREQUENCY ({POLICY_FREQUENCY}) != time_scale ({time_scale}); "
+          f"one env.step no longer equals one MC step. Set TIMESCALING = {int(POLICY_FREQUENCY * 1000)} "
+          f"or POLICY_FREQUENCY = {time_scale} to keep the MCIMMEDIATE acceleration exact.")
+
 # Minimum straight-line distance [m] to the pure-pursuit target. Floors the lookahead so
 # the steering law stays well-defined if the car is very close to / past the target point.
 MIN_LOOKAHEAD = 1.0
@@ -408,7 +418,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         }
         },
         "simulation_frequency": 60,  # [Hz]
-        "policy_frequency": 2,  # [Hz]
+        "policy_frequency": POLICY_FREQUENCY,  # [Hz]
         "controlled_vehicles": nonegos,
         "lanes_count": num_actual_lanes,
         "vehicles_count": 0,
@@ -732,7 +742,14 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         global_pos_to_draw = viz_state.pos_to_draw
         global_pos_to_draw.clear()
         coords_for_pp = [(0, 0)] * nonegos
+        # Signed longitudinal distance [m] (along the heading) to the immediate next MC
+        # trajectory point; used in MCIMMEDIATE mode to compute the exact acceleration.
+        accel_target_dist = [None] * nonegos
         pp_mc_immediate_exists = False
+        # Each MC point occurs twice in the trace: indices 0/1 are the point the car is
+        # already on, 2/3 are the immediate next point (one MC step ahead), 4/5 the one
+        # after that. coords_for_pp therefore ends up on the second-next point (index 5),
+        # which is used as the pure-pursuit lookahead target for steering.
         for i, step in enumerate(positions):
             for j, car_step in enumerate(step):
                 abspos = car_step[0]
@@ -745,6 +762,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
                     pp_mc_immediate_exists = True
                     print(f"Step {i}, Car {j}: abspos={abspos}, latpos={latpos}, coord={coord}") # TODO REMOVE
+                if i == 2: # Immediate next distinct point (one MC step ahead).
+                    accel_target_dist[j] = (coord[0] - egos_x[j]) * egos_backward[j]
         # EO Find future positions.
 
         
@@ -846,6 +865,14 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # Best so far:
         # MAXTIME_FOR_LC = 60
         MAXTIME_FOR_LC = 60
+
+        # Real-world integration window [s] for one control step: highway-env applies the
+        # chosen acceleration for exactly this long before morty re-plans, so it is the
+        # horizon over which the MCIMMEDIATE acceleration must land the car on the next MC
+        # point. Equals 1/time_scale (the MC's own step duration) under the invariant
+        # enforced above, and is independent of dist_scale since positions/velocities are
+        # already in real-world meters and m/s.
+        mc_step_time = 1.0 / POLICY_FREQUENCY
         
         eps = 1
         for i, el in enumerate(sum_vel_by_car):
@@ -871,7 +898,19 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             
             # Best so far:
             # accel = sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
-            accel = egos_backward[i] * sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
+            if pp_mc_immediate_exists and accel_target_dist[i] is not None:
+                # MCIMMEDIATE: instead of replaying the MC's explicit acceleration, compute
+                # the exact longitudinal acceleration that lands the car on the immediate
+                # next MC trajectory point after one step. From s = v0*t + 0.5*a*t^2 with
+                # s the distance along the heading and v0 = egos_v[i] the current heading
+                # speed, a = 2*(s - v0*t)/t^2. Normalized into the [-1, 1] action range.
+                s = accel_target_dist[i]
+                v0 = egos_v[i]
+                a_phys = 2.0 * (s - v0 * mc_step_time) / (mc_step_time ** 2)
+                accel = float(np.clip(a_phys / ACCEL_RANGE, -1.0, 1.0))
+            else:
+                # DISTLC (or no MC trajectory available): use the explicit MC acceleration.
+                accel = egos_backward[i] * sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
 
             # Formula for speed-dependent distance in pure-pursuit.
             formula_pp_strategies = d[selected_config]["UCD_PP_STRATEGIES"] if pp_mc_immediate_exists else d[selected_config]["UCD_PP_STRATEGIES_FALLBACK"]
@@ -966,7 +1005,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         if args.record_video and not args.dryrun and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
             from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
             clip = ImageSequenceClip(env.recorded_frames, fps=env.frames_per_sec)
-            clip.write_videofile(f"{generated_path_prefix}/videos/vid_{seedo}_partial.mp4", logger=None)
+            clip.write_videofile(f"{generated_path_prefix}/videos/vid_{seedo}.mp4", logger=None)
             clip.close()
             print("Video written")
 
