@@ -590,6 +590,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     # EO Prepare dry run
 
     selected_config = None
+    all_coords_for_pp = []
+    
     for global_counter in range(args.steps_per_run):
         mcinput = ""
         i = 0
@@ -686,6 +688,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     print(f"Newly selected config is: {selected_cnt} (old was {old_selected_cnt}).")
                     input(f"We did it (idx {shortcut_index})...")
                     break
+                
+                selected_cnt = old_selected_cnt
                 
         input("Press Enter to continue...")
         ## EO FOLLOW EXISTING PATH ##
@@ -795,21 +799,41 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         accel_target_dist = [None] * nonegos
         # Each MC point occurs twice in the trace: indices 0/1 are the point the car is
         # already on, 2/3 are the immediate next point (one MC step ahead), 4/5 the one
-        # after that. coords_for_pp therefore ends up on the second-next point (index 5),
-        # which is used as the pure-pursuit lookahead target for steering.
+        # after that.
+        
+        if found_shortcut:
+            try:
+                overlap = all_coords_for_pp.index(positions[-1])
+            except ValueError:
+                overlap = None
+                print(f"Warning: No overlap found for shortcut point {positions[-1]} in all_coords_for_pp. Continuing without overlap.")
+                exit(1)
+            
+            if overlap is not None:
+                positions.extend(all_coords_for_pp[overlap + 2:])
+            
         for i, step in enumerate(positions):
+            all_coords = []
             for j, car_step in enumerate(step):
                 abspos = car_step[0]
                 latpos = car_step[1]
+                    
                 coord = (abspos, latpos)
+                all_coords.append([abspos, latpos])
                 if not args.hide_planned_positions:
                     global_pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
                 
-                if i <= 5:
+                if i <= 5: # second-next point (index 5) used as the pure-pursuit lookahead target for steering.
                     coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
                     print(f"Step {i}, Car {j}: abspos={abspos}, latpos={latpos}, coord={coord}") # TODO REMOVE
                 if i == 2: # Immediate next distinct point (one MC step ahead).
                     accel_target_dist[j] = (coord[0] - egos_x[j]) * egos_backward[j]
+
+            if i < len(all_coords_for_pp):
+                all_coords_for_pp[i] = all_coords
+            else:
+                all_coords_for_pp.append(all_coords)
+
         # EO Find future positions.
 
         

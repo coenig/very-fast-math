@@ -1820,6 +1820,84 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
    }
 }
 
+namespace fs = std::filesystem;
+
+/**
+ * @brief Renames and shifts a sequence of files safely (handles both positive and negative shifts).
+ *
+ * @param basePath The base path containing the files (OUTPUT_BASE_PATH + config_name).
+ * @param cnt_special The starting file index for the renaming (e.g., 3).
+ * @param shift The numeric shift to apply (can be positive or negative).
+ * @param max_cnt The maximum file index currently in the sequence.
+ */
+void renameFilesUCDShortcut(const std::string& basePath, int cnt_special, int shift) {
+    if (shift == 0) return; // Nothing to do
+
+    const auto getPath = [&](int index) {
+        return fs::path(basePath) / ("future_point_" + std::to_string(index) + ".txt");
+    };
+
+    int max_cnt{ -1 };
+    for (int cnt = 0; ; ++cnt) { // Find max_cnt by checking for the existence of files.
+         fs::path file_path{ getPath(cnt) };
+
+         if (!fs::exists(file_path)) {
+               max_cnt = cnt - 1;
+               break;
+         }
+    }
+
+    if (max_cnt < 0) {
+       Failable::getSingleton()->addFatalError("No future_point_*.txt files found in " + basePath + "; nothing to rename.");
+       return;
+    }
+
+    if (shift > 0) {
+        // Positive shift: Iterate DESCENDING (from high to low)
+        for (int cnt = max_cnt; cnt >= cnt_special; --cnt) {
+            fs::path old_path = getPath(cnt);
+            fs::path new_path = getPath(cnt + shift);
+
+            if (fs::exists(old_path)) {
+                fs::rename(old_path, new_path);
+            }
+        }
+    } else {
+        // Negative shift: Iterate ASCENDING (from low to high)
+        for (int cnt = cnt_special; cnt <= max_cnt; ++cnt) {
+            fs::path old_path = getPath(cnt);
+            fs::path new_path = getPath(cnt + shift); // shift is negative, so this subtracts
+
+            if (fs::exists(old_path)) {
+                fs::rename(old_path, new_path);
+            }
+        }
+
+        // 2. Clean up leftover duplicate files at the top end of the range
+        // For shift = -2 and max_cnt = 5, files 4 and 5 are moved to 2 and 3.
+        // The original files 4 and 5 must be deleted.
+        for (int cnt = max_cnt + shift + 1; cnt <= max_cnt; ++cnt) {
+            fs::path duplicate_path = getPath(cnt);
+            if (fs::exists(duplicate_path)) {
+                fs::remove(duplicate_path);
+                std::cout << "Removed leftover duplicate: " << duplicate_path.string() << std::endl;
+            }
+        }
+    }
+}
+
+std::string oneSingleBlop(const MCTrace& trace, const std::set<std::string>& variables, const int j)
+{
+   std::string sub_res{};
+
+   for (const auto& var : variables) {
+      sub_res += "& env." + var + "=" 
+         + std::to_string(std::stoi(trace.getLastValueOfVariableAtStep(var, j))) + "\n";
+   }
+
+   return sub_res;
+}
+
 std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int iteration, const long long runtime, const bool crash)
 {
    const std::string ucd_config_prios_str{ mc::McWorkflow().getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
@@ -1837,13 +1915,68 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
       auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_BASE_PATH + config_name + "/debug_trace_array.txt") };
       MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
 
+      // Store future trajectories
+      if (!trace.empty()) {
+         std::set<std::string> variables_fut{};
+         for (int i = 0; i < num_cars; i++) { // Add all the other variables_fut needed for traj. points.
+            // variables_fut.insert("veh___6" + std::to_string(i) + "9___.a");
+            variables_fut.insert("veh___6" + std::to_string(i) + "9___.abs_pos");
+            variables_fut.insert("veh___6" + std::to_string(i) + "9___.v");
+            variables_fut.insert("veh___6" + std::to_string(i) + "9___.on_normalized_lane");
+         }
+
+         std::string last_point{ oneSingleBlop(trace, variables_fut, trace.size() - 1) };
+
+         int last_step{ static_cast<int>(trace.size() - 2) / 2 };
+         int former_step{ 0 };
+         bool found_connector{ false };
+
+         while (StaticHelper::existsFileSafe(OUTPUT_BASE_PATH + config_name + "/future_point_" + std::to_string(former_step) + ".txt")) {
+            const std::string former_point{ StaticHelper::readFile(OUTPUT_BASE_PATH + config_name + "/future_point_" + std::to_string(former_step) + ".txt") };
+            
+            if (former_point == last_point) {
+               std::cout << "former_step " << former_step << " last_step " << last_step << std::endl;
+               std::cout << "working in " << OUTPUT_BASE_PATH + config_name << std::endl;
+               std::cin.get();
+               renameFilesUCDShortcut(OUTPUT_BASE_PATH + config_name, former_step, last_step - former_step);
+               found_connector = true;
+               break;
+            }
+            
+            former_step++;
+         }
+
+         if (!found_connector) { // If there's no connector, only the new files count.
+            former_step = 0;
+            std::cout << "removing all former steps in " << OUTPUT_BASE_PATH + config_name << "." << std::endl;
+            std::cout << "last_point" << last_point << std::endl;
+            std::cin.get();
+
+            while (StaticHelper::existsFileSafe(OUTPUT_BASE_PATH + config_name + "/future_point_" + std::to_string(former_step) + ".txt")) {
+               fs::remove(OUTPUT_BASE_PATH + config_name + "/future_point_" + std::to_string(former_step) + ".txt");
+               former_step++;
+            }
+         }
+
+         std::cout << "pausing" << std::endl;
+         std::cin.get();
+
+         for (int j = 0; j < trace.size(); j += 2) {
+            std::string sub_res{ oneSingleBlop(trace, variables_fut, j) };
+
+            StaticHelper::writeTextToFile(
+               sub_res, 
+               OUTPUT_BASE_PATH + config_name + "/future_point_" + std::to_string(j / 2) + ".txt");
+         }
+      }
+      // EO Store future trajectories
+
       // Apply time/distance scaling so that deltas are in real-world units.
       const std::string scaling_file{ OUTPUT_BASE_PATH + config_name + "/" + TIMESCALING_FILENAME };
-      float dist_scaling{};
+
       if (std::filesystem::exists(scaling_file)) {
          ScaleDescription ts_description{ StaticHelper::readFile(scaling_file) };
          StaticHelper::applyTimescaling(trace, ts_description);
-         dist_scaling = ts_description.getDistanceScalingFactor();
       }
       else {
          Failable::getSingleton()->addError("Scaling factor file " + scaling_file + " does not exist. Using default scaling factors of 1.0.");
@@ -1866,31 +1999,6 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
       }
 
       deltas = trace.getAllDeltas(variables);
-
-      // Store future trajectories
-      for (int i = 0; i < num_cars; i++) { // Add all the other variables needed for traj. points.
-         // variables.insert("veh___6" + std::to_string(i) + "9___.a");
-         variables.insert("veh___6" + std::to_string(i) + "9___.abs_pos");
-      }
-
-      for (int j = 0; j < trace.size(); j += 2) {
-         std::string sub_res{};
-         for (const auto& var : variables) {
-            if (StaticHelper::stringContains(var, "abs_pos")) {
-               sub_res += "& env." + var + "=" 
-                  + std::to_string(static_cast<int>(std::stof(trace.getLastValueOfVariableAtStep(var, j)) * dist_scaling)) + "\n";
-               
-            }
-            else {
-               sub_res += "& env." + var + "=" 
-                  + std::to_string(std::stoi(trace.getLastValueOfVariableAtStep(var, j))) + "\n";
-            }
-         }
-         StaticHelper::writeTextToFile(
-            sub_res, 
-            OUTPUT_BASE_PATH + config_name + "/future_point_" + std::to_string(j / 2) + ".txt");
-      }
-      // EO Store future trajectories
 
       if (trace.size() == 2) {
          res += "FINISHED";
