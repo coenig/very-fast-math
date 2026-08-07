@@ -1937,7 +1937,7 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
             if (former_point == last_point) {
                std::cout << "former_step " << former_step << " last_step " << last_step << std::endl;
                std::cout << "working in " << OUTPUT_BASE_PATH + config_name << std::endl;
-               std::cin.get();
+               // std::cin.get();
                renameFilesUCDShortcut(OUTPUT_BASE_PATH + config_name, former_step, last_step - former_step);
                found_connector = true;
                break;
@@ -1950,7 +1950,7 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
             former_step = 0;
             std::cout << "removing all former steps in " << OUTPUT_BASE_PATH + config_name << "." << std::endl;
             std::cout << "last_point" << last_point << std::endl;
-            std::cin.get();
+            // std::cin.get();
 
             while (StaticHelper::existsFileSafe(OUTPUT_BASE_PATH + config_name + "/future_point_" + std::to_string(former_step) + ".txt")) {
                fs::remove(OUTPUT_BASE_PATH + config_name + "/future_point_" + std::to_string(former_step) + ".txt");
@@ -1958,8 +1958,8 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
             }
          }
 
-         std::cout << "pausing" << std::endl;
-         std::cin.get();
+         // std::cout << "pausing" << std::endl;
+         // std::cin.get();
 
          for (int j = 0; j < trace.size(); j += 2) {
             std::string sub_res{ oneSingleBlop(trace, variables_fut, j) };

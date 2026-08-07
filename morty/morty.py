@@ -257,10 +257,10 @@ MC_MAX_V_BACKWARD = int(-10 * vel_scale)
 addons[7] += f"""
 -- INVAR env.veh___609___.v >= {MC_MIN_V_FORWARD};
 -- INVAR env.veh___619___.v <= {MC_MAX_V_BACKWARD};
-TRANS (((env.veh___619___.abs_pos - env.veh___609___.abs_pos) < 0)
-       != ((next(env.veh___619___.abs_pos) - next(env.veh___609___.abs_pos)) < 0))
-       -> ((env.veh___609___.on_normalized_lane = next(env.veh___609___.on_normalized_lane)) & 
-          (env.veh___619___.on_normalized_lane = next(env.veh___619___.on_normalized_lane)));
+-- TRANS (((env.veh___619___.abs_pos - env.veh___609___.abs_pos) < 0)
+--        != ((next(env.veh___619___.abs_pos) - next(env.veh___609___.abs_pos)) < 0))
+--        -> ((env.veh___609___.on_normalized_lane = next(env.veh___609___.on_normalized_lane)) & 
+--           (env.veh___619___.on_normalized_lane = next(env.veh___619___.on_normalized_lane)));
 """
 
 for i in range(2, nonegos):
@@ -674,7 +674,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             for shortcut_index, future_point in enumerate(future_points_str): # Try to dive into closest, then next, etc. future point.
                 for ucd_config_str in ucd_config_prios_str:
                     write_spec_to_main_smv(ucd_config_str, "INVARSPEC !(TRUE " + future_point + ");")
-                    write_addons_to_main_smv(ucd_config_str, "")
+                    # write_addons_to_main_smv(ucd_config_str, "")
                 
                 with morty_script_context() as morty_lib:
                     res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
@@ -685,13 +685,13 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
                 if res_str != empty_cex and selected_cnt <= old_selected_cnt: # Found a better or equal shortcut to a future point.
                     found_shortcut = True
-                    print(f"Newly selected config is: {selected_cnt} (old was {old_selected_cnt}).")
-                    input(f"We did it (idx {shortcut_index})...")
+                    # print(f"Newly selected config is: {selected_cnt} (old was {old_selected_cnt}).")
+                    # input(f"We did it (idx {shortcut_index})...")
                     break
                 
                 selected_cnt = old_selected_cnt
                 
-        input("Press Enter to continue...")
+        # input("Press Enter to continue...")
         ## EO FOLLOW EXISTING PATH ##
         
         if not found_shortcut:
