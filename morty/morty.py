@@ -704,6 +704,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             res_str = res.decode().strip()
         
             blind, selected_cnt, res_str = postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex)
+            all_coords_for_pp.clear()
 
         if args.detailed_archive and global_counter == 0:
             # Processed snapshot: only re-hash files that existed in the baseline
