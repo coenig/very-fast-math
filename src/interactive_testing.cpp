@@ -1919,7 +1919,7 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
       if (!trace.empty()) {
          std::set<std::string> variables_fut{};
          for (int i = 0; i < num_cars; i++) { // Add all the other variables_fut needed for traj. points.
-            // variables_fut.insert("veh___6" + std::to_string(i) + "9___.a");
+            variables_fut.insert("veh___6" + std::to_string(i) + "9___.a");
             variables_fut.insert("veh___6" + std::to_string(i) + "9___.abs_pos");
             variables_fut.insert("veh___6" + std::to_string(i) + "9___.v");
             variables_fut.insert("veh___6" + std::to_string(i) + "9___.on_normalized_lane");
