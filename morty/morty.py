@@ -889,9 +889,9 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             cnt_history.append(-1)
             cex_point_colors.append('tab:red')
         else:
-            cex_length = len(res_str.split(';')[0].split('|')[0].split(','))
+            cex_length = len(all_coords_for_pp)
             cex_length_history.append(cex_length)
-            cnt_history.append(cnt)
+            cnt_history.append(selected_cnt)
             cex_point_colors.append('tab:blue')
             
             for i in range(nonegos):
