@@ -730,6 +730,23 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             selected_config = ucd_config_prios_str[0] # Use any because all are empty.
         selected_runtime_history.append(selected_runtime)
 
+        # Distribute the selected future points to all other configs.
+        for config_name in ucd_config_prios_str:
+            if config_name == selected_config:
+                continue
+            else: # Remove "future" files from non-selected configs and copy the selected ones over.
+                dest_folder = os.path.join(generated_path_prefix, config_name)
+                src_folder = os.path.join(generated_path_prefix, selected_config)
+
+                files_to_remove = glob.glob(os.path.join(dest_folder, "future_point_*.txt"))
+                for f in files_to_remove:
+                    os.remove(f)
+
+                files_to_copy = glob.glob(os.path.join(src_folder, "future_point_*.txt"))
+                for f in files_to_copy:
+                    shutil.copy(f, dest_folder)                
+        # EO Distribute the selected future points to all other configs.
+
         # Do Background Image
         DEBUG = False # Refreshes road in every cycle and paints MC cars.
         if bg_image_state is not None and (DEBUG or bg_image_state["image"] is None):
