@@ -1891,8 +1891,15 @@ std::string oneSingleBlop(const MCTrace& trace, const std::set<std::string>& var
    std::string sub_res{};
 
    for (const auto& var : variables) {
-      sub_res += "& env." + var + "=" 
-         + std::to_string(std::stoi(trace.getLastValueOfVariableAtStep(var, j))) + "\n";
+      int val_int = std::stoi(trace.getLastValueOfVariableAtStep(var, j));
+      auto val = std::to_string(val_int);
+      auto val_int_10_percent_abs = std::to_string((int)std::abs(val_int * 0.1f));
+
+      if (StaticHelper::stringEndsWith(var, ".v")) {
+         sub_res += "& abs(env." + var + " - (" + val + ")) <= " + val_int_10_percent_abs + "\n";
+      } else {
+         sub_res += "& env." + var + "=" + val + "\n";
+      }
    }
 
    return sub_res;
@@ -1919,9 +1926,9 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
       if (!trace.empty()) {
          std::set<std::string> variables_fut{};
          for (int i = 0; i < num_cars; i++) { // Add all the other variables_fut needed for traj. points.
-            variables_fut.insert("veh___6" + std::to_string(i) + "9___.a");
+            // variables_fut.insert("veh___6" + std::to_string(i) + "9___.a");
             variables_fut.insert("veh___6" + std::to_string(i) + "9___.abs_pos");
-            variables_fut.insert("veh___6" + std::to_string(i) + "9___.v");
+            // variables_fut.insert("veh___6" + std::to_string(i) + "9___.v");
             variables_fut.insert("veh___6" + std::to_string(i) + "9___.on_normalized_lane");
          }
 

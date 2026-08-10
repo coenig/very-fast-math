@@ -112,7 +112,7 @@ for res_path in glob.glob(generated_path_prefix + "*"):
             if res_path == generated_path_prefix:
                 print(f"Results directory {res_path} skipped because --press (not --force) is set.")
             else:
-                print(f"Non-resolts directory {res_path} already exists. Deleting because --press is set.")
+                print(f"Non-results directory {res_path} already exists. Deleting because --press is set.")
                 shutil.rmtree(res_path)
                 if Path(res_path).is_dir():
                     print(f"Error: failed to delete {res_path}. Exiting.")
@@ -429,7 +429,7 @@ snapshot_hashes = {}  # Post-first-MC-call hashes (only baseline files).
 if args.detailed_archive:
     baseline_hashes = _snapshot_configs(ucd_config_prios_str, generated_path_prefix)
 
-for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
+for seedo in range(5, MAX_EXPs): # TODO: set ==> 0 again.
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         "action": {
             "type": "MultiAgentAction",
@@ -820,7 +820,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # after that.
         
         if found_shortcut:
-            try:
+            try: # TODO: Avoid this try/except by checking for !empty.
                 overlap = all_coords_for_pp.index(positions[-1])
             except ValueError:
                 overlap = None
@@ -829,6 +829,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             
             if overlap is not None:
                 positions.extend(all_coords_for_pp[overlap + 2:])
+                all_coords_for_pp.clear()
             
         for i, step in enumerate(positions):
             all_coords = []
