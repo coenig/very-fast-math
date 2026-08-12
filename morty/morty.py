@@ -429,7 +429,7 @@ snapshot_hashes = {}  # Post-first-MC-call hashes (only baseline files).
 if args.detailed_archive:
     baseline_hashes = _snapshot_configs(ucd_config_prios_str, generated_path_prefix)
 
-for seedo in range(5, MAX_EXPs): # TODO: set ==> 0 again.
+for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         "action": {
             "type": "MultiAgentAction",
@@ -890,7 +890,7 @@ for seedo in range(5, MAX_EXPs): # TODO: set ==> 0 again.
             cnt_history.append(-1)
             cex_point_colors.append('tab:red')
         else:
-            cex_length = len(all_coords_for_pp)
+            cex_length = len(all_coords_for_pp) / time_scale
             cex_length_history.append(cex_length)
             cnt_history.append(selected_cnt)
             cex_point_colors.append('tab:blue')
