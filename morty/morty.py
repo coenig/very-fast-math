@@ -144,7 +144,7 @@ with morty_script_context() as morty_lib:
 # EO Create EnvModels.
     
 with open('morty/envmodel_config.json') as f:
-    d = json.load(f) # Take only the [0]th config here because on Python side there are no differences for now.
+    d = json.load(f) # Take only the [0]th config here assuming all are equal; if the "selected" is needed (for example), treat separately below.
     nonegos = d[ucd_config_prios_str[0]]["NONEGOS"]
     num_actual_lanes = d[ucd_config_prios_str[0]]["NUMLANES"]
     num_technical_lanes = d[ucd_config_prios_str[0]]["LATERAL_LC_GRANULARITY"] + num_actual_lanes
@@ -155,6 +155,7 @@ with open('morty/envmodel_config.json') as f:
     max_start_speed = min(d[ucd_config_prios_str[0]]["MAXSTARTSPEEDNONEGO_UCD"], max_speed)
     min_start_speed = min(d[ucd_config_prios_str[0]]["MINSTARTSPEEDNONEGO_UCD"], max_start_speed)
     exp_num = d[ucd_config_prios_str[0]]["UCD_EXP_NUM"]
+    use_shortcut = d[ucd_config_prios_str[0]]["UCD_USE_SHORTCUT"]
     dist_scale = d[ucd_config_prios_str[0]]["DISTANCESCALING"] / 1000
     time_scale = d[ucd_config_prios_str[0]]["TIMESCALING"] / 1000
     # distance_formula_pp = d[ucd_config_prios_str[0]]["UCD_FORMULA_PP_DISTANCE"]             # HERE we DO make a difference, see below!
@@ -659,14 +660,15 @@ for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
         future_points_str = []
         cnt = 2 # The array starts at 0 with the first actual future point.
         
-        while selected_config is not None and os.path.isfile(generated_path_prefix + selected_config + f"/future_point_{cnt}.txt"):
-            with open(generated_path_prefix + selected_config + f"/future_point_{cnt}.txt", "r") as f:
-                future_points_str.append(f.read())
-            cnt += 1
+        if use_shortcut: # Should this be skipped, future_points_str remains empty...
+            while selected_config is not None and os.path.isfile(generated_path_prefix + selected_config + f"/future_point_{cnt}.txt"):
+                with open(generated_path_prefix + selected_config + f"/future_point_{cnt}.txt", "r") as f:
+                    future_points_str.append(f.read())
+                cnt += 1
  
         shortcut_index = -1
         found_shortcut = False
-        if not future_points_str:
+        if not future_points_str: # ...and whole shortcut search is skipped.
             print(f"No future points found for {selected_config}.")
         else:
             print(f"Found {len(future_points_str)} future points for {selected_config}.")
