@@ -1886,6 +1886,8 @@ void renameFilesUCDShortcut(const std::string& basePath, int cnt_special, int sh
     }
 }
 
+constexpr float VELOCITY_TOLERANCE = 0.1f;
+
 std::string oneSingleBlop(const MCTrace& trace, const std::set<std::string>& variables, const int j)
 {
    std::string sub_res{};
@@ -1893,9 +1895,9 @@ std::string oneSingleBlop(const MCTrace& trace, const std::set<std::string>& var
    for (const auto& var : variables) {
       int val_int = std::stoi(trace.getLastValueOfVariableAtStep(var, j));
       auto val = std::to_string(val_int);
-      auto val_int_10_percent_abs = std::to_string((int)std::abs(val_int * 0.1f));
+      auto val_int_10_percent_abs = std::to_string((int)std::abs(val_int * VELOCITY_TOLERANCE));
 
-      if (StaticHelper::stringEndsWith(var, ".v")) {
+      if (StaticHelper::stringEndsWith(var, ".v")) { // Allow a 10% tolerance for velocity variables.
          sub_res += "& abs(env." + var + " - (" + val + ")) <= " + val_int_10_percent_abs + "\n";
       } else {
          sub_res += "& env." + var + "=" + val + "\n";
@@ -1905,7 +1907,8 @@ std::string oneSingleBlop(const MCTrace& trace, const std::set<std::string>& var
    return sub_res;
 }
 
-std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int iteration, const long long runtime, const bool crash)
+std::string vfm::test::prepareOutputForMortyUCD(
+   const long long seed, const int iteration, const long long runtime, const bool crash)
 {
    const std::string ucd_config_prios_str{ mc::McWorkflow().getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
    const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
@@ -1918,7 +1921,7 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
 
       res += "\n" + config_name + ":";
 
-      const int num_cars{ std::stoi(mc::McWorkflow().getValueForJSONKeyAsString("NONEGOS", "./morty/", "envmodel_config.json", config_name)) };
+   +   const int num_cars{ std::stoi(mc::McWorkflow().getValueForJSONKeyAsString("NONEGOS", "./morty/", "envmodel_config.json", config_name)) };
       auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_BASE_PATH + config_name + "/debug_trace_array.txt") };
       MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
 
@@ -1928,7 +1931,7 @@ std::string vfm::test::prepareOutputForMortyUCD(const long long seed, const int 
          for (int i = 0; i < num_cars; i++) { // Add all the other variables_fut needed for traj. points.
             // variables_fut.insert("veh___6" + std::to_string(i) + "9___.a");
             variables_fut.insert("veh___6" + std::to_string(i) + "9___.abs_pos");
-            // variables_fut.insert("veh___6" + std::to_string(i) + "9___.v");
+            variables_fut.insert("veh___6" + std::to_string(i) + "9___.v");
             variables_fut.insert("veh___6" + std::to_string(i) + "9___.on_normalized_lane");
          }
 
