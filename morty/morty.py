@@ -430,7 +430,7 @@ snapshot_hashes = {}  # Post-first-MC-call hashes (only baseline files).
 if args.detailed_archive:
     baseline_hashes = _snapshot_configs(ucd_config_prios_str, generated_path_prefix)
 
-for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
+for seedo in range(2, MAX_EXPs): # TODO: set ==> 0 again.
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         "action": {
             "type": "MultiAgentAction",
@@ -656,7 +656,7 @@ for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
             empty_cex += "|;"
         
         #### MODEL CHECKER CALL ####
-        ## FOLLOW EXISTING PATH ##
+        ## FOLLOW EXISTING PATH (shortcut) ##
         future_points_str = []
         cnt = 2 # The array starts at 0 with the first actual future point.
         
@@ -694,7 +694,7 @@ for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
                 selected_cnt = old_selected_cnt
                 
         # input("Press Enter to continue...")
-        ## EO FOLLOW EXISTING PATH ##
+        ## EO FOLLOW EXISTING PATH (shortcut) ##
         
         if not found_shortcut:
             for ucd_config_str in ucd_config_prios_str: # Back to actual SPEC

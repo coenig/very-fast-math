@@ -1914,6 +1914,20 @@ std::string vfm::test::prepareOutputForMortyUCD(
    const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
    const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json").string() };
 
+   const auto points_equal = [](const std::string& p1, const std::string& p2) -> bool {
+      auto split1 = StaticHelper::split(p1, "\n");
+      auto split2 = StaticHelper::split(p2, "\n");
+
+      if (split1.size() != split2.size()) return false;
+
+      for (size_t i = 0; i < split1.size(); ++i) {
+         if (!StaticHelper::stringContains(split1[i], ".v") // Ignore v for comparison, since we allow a 10% tolerance.
+            && split1[i] != split2[i]) return false;
+      }
+
+      return true;
+   };
+
    std::string res{};
 
    for (const auto& config_name : ucd_config_prios_vec) {
@@ -1921,7 +1935,7 @@ std::string vfm::test::prepareOutputForMortyUCD(
 
       res += "\n" + config_name + ":";
 
-   +   const int num_cars{ std::stoi(mc::McWorkflow().getValueForJSONKeyAsString("NONEGOS", "./morty/", "envmodel_config.json", config_name)) };
+      const int num_cars{ std::stoi(mc::McWorkflow().getValueForJSONKeyAsString("NONEGOS", "./morty/", "envmodel_config.json", config_name)) };
       auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_BASE_PATH + config_name + "/debug_trace_array.txt") };
       MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
 
@@ -1944,7 +1958,7 @@ std::string vfm::test::prepareOutputForMortyUCD(
          while (StaticHelper::existsFileSafe(OUTPUT_BASE_PATH + config_name + "/future_point_" + std::to_string(former_step) + ".txt")) {
             const std::string former_point{ StaticHelper::readFile(OUTPUT_BASE_PATH + config_name + "/future_point_" + std::to_string(former_step) + ".txt") };
             
-            if (former_point == last_point) {
+            if (points_equal(former_point, last_point)) {
                std::cout << "former_step " << former_step << " last_step " << last_step << std::endl;
                std::cout << "working in " << OUTPUT_BASE_PATH + config_name << std::endl;
                // std::cin.get();
