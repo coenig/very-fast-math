@@ -94,7 +94,7 @@
       "UCD_FORMULA_PP_DISTANCE": "MCIMMEDIATE * next_immediate_x",
       "UCD_FORMULA_PP_LATSHIFT": "MCIMMEDIATE * next_immediate_y",
       "UCD_MIN_VELOCITY_TO_ALLOW_LC": 1,
-      "UCD_USE_SHORTCUT": false,
+      "UCD_USE_SHORTCUT": true,
       "SECTIONSMAXLENGTH": "#{10000}#",
       "SECTIONSMINLENGTH": "#{10000}#",
       "SEGMENTS": "#{segments}#",
