@@ -8,14 +8,10 @@
             "module": "morty.morty",
             "justMyCode": true,
             "args": [
-                "--force",
+                "--press",
                 "--headless",
                 "--detailed_archive",
                 "--record_video",
-                "-n",
-                "1",
-                "-s",
-                "100"
             ]
         },
         {

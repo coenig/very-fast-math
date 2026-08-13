@@ -430,7 +430,7 @@ snapshot_hashes = {}  # Post-first-MC-call hashes (only baseline files).
 if args.detailed_archive:
     baseline_hashes = _snapshot_configs(ucd_config_prios_str, generated_path_prefix)
 
-for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
+for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         "action": {
             "type": "MultiAgentAction",
@@ -489,6 +489,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     crashed_count = 0
     cex_length_history = []
     cnt_history = []
+    shortcut_history = []
     cex_point_colors = []
     mc_runtime_histories = {config_name: [] for config_name in ucd_config_prios_str}
     selected_cnt_history = []
@@ -827,7 +828,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             except ValueError:
                 overlap = None
                 print(f"Warning: No overlap found for shortcut point {positions[-1]} in all_coords_for_pp. Continuing without overlap.")
-                exit(1)
             
             if overlap is not None:
                 positions.extend(all_coords_for_pp[overlap + 2:])
@@ -890,11 +890,13 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             # Note: final blind step of a run is not reflected in the cex-length plots.
             cex_length_history.append(np.nan)
             cnt_history.append(-1)
+            shortcut_history.append("")
             cex_point_colors.append('tab:red')
         else:
             cex_length = len(all_coords_for_pp) / time_scale
             cex_length_history.append(cex_length)
             cnt_history.append(selected_cnt)
+            shortcut_history.append(f" <{shortcut_index}>" if found_shortcut else "")
             cex_point_colors.append('tab:blue')
             
             for i in range(nonegos):
@@ -906,6 +908,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             cex_length_history,
             f"{generated_path_prefix}/cex_length_debug_{seedo}.pdf",
             cnt_history=cnt_history,
+            shortcut_history=shortcut_history,
             point_colors=cex_point_colors,
         )
         all_cex_length_histories[seedo] = cex_length_history[:]
