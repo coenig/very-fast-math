@@ -1,7 +1,4 @@
 # Model Checking for ADAS
-This is the open source project `very fast math`, first announced in [Towards Safe Autonomous Driving: Model Checking a Behavior Planner during Development](https://link.springer.com/chapter/10.1007/978-3-031-57249-4_3). 
-We hereby make all the sources of the toolchain public which have so far been published in binary format only ([on Zenodo](https://zenodo.org/records/10013662)).
-
 Thank you for using
 ~~~
          ___           
@@ -16,7 +13,19 @@ Thank you for using
 - parse C++ code of an automated driving function (or other) and translate it into a transition system for the nuXmv model checker;
 - optionally integrate it with an environment model, providing a discrete traffic simulation for the driving function to be verified against; the results can be converted into scenarios using [OSM](https://wiki.openstreetmap.org/wiki/OSM_file_formats) / [OSC2](https://www.asam.net/static_downloads/public/asam-openscenario/2.0.0/welcome.html).
 
-In **ultra-cooperative driving mode**, a fleet of cars can be steered by provably obeying a set of requirements (see below).
+In **ultra-cooperative driving mode**, a fleet of cars can be steered live in traffic, by provably obeying a set of formal requirements (see below).
+
+## Examples
+### MC-generated traffic situation on highway
+<img src="examples/cex.png" alt="Image from a counterexample sequence generated through model checking" width="1000"/>
+
+### MC-generated track and EGO behavior
+<img src="examples/cex.gif" width="1000" />
+
+### Ultra-cooperative driving: live steering of a fleet by model checker
+<img src="examples/ucd_example.gif" width="1000" />
+
+Steered by the MC, a fleet of cars provably (given a set of assumptions towards real-world accuracy) obeys a given formal SPEC, in this case: invert ordering without colliding.
 
 ## How to build
 `vfm` is implemented in `C++` and can be built with CMake (stable) or Bazel (experimental). With CMake, simply run 
@@ -77,6 +86,13 @@ Run from the project root directory, for example:
 python -m morty.morty --num_runs 1 --steps_per_run 300 --headless --record_video
 ```
 The task to solve is defined in `morty/envmodel_config.tpl.json`. Use the `morty/master_templates` for a first trial.
+
+## Notes
+The `very fast math -- Model Checking for ADAS` project is [open-source](https://github.com/coenig/very-fast-math). Academic publications:
+- TACAS 2024: [Towards Safe Autonomous Driving: Model Checking a Behavior Planner during Development](https://link.springer.com/chapter/10.1007/978-3-031-57249-4_3)
+- IEEE Transactions on Intelligent Transportation Systems: [Exploiting Formal Verification for the Systematic Discovery of Corner Cases in a Behavior Planner for Automated Driving](https://ieeexplore.ieee.org/document/11523162)
+- TACAS 2026: [Driving by Disproof: A Practical Model Checking Approach to Fleet Coordination](https://link.springer.com/chapter/10.1007/978-3-032-22752-2_31)
+- Work in progress: Ultra-Cooperative Driving -- Safe Trajectories from Dis-Proof of their Non-Existence (to be submitted to: IEEE Transactions on Intelligent Transportation Systems)
 
 ## Authors
 Lukas Koenig,
