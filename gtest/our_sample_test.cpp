@@ -17,7 +17,8 @@ static uint64_t fnv1a64(const std::string& s) {
     return h;
 }
 
-
+// This is the big block of vfm system tests, all executed as one big gtest blob.
+// TODO: distribute into own individual tests.
 TEST(IntegrationTests, GeneralTerms) { 
     auto results = vfm::test::runTests();
 
