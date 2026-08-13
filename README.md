@@ -22,11 +22,6 @@ In **ultra-cooperative driving mode**, a fleet of cars can be steered live in tr
 ### MC-generated track and EGO behavior
 <img src="examples/cex.gif" width="1000" />
 
-### Ultra-cooperative driving: live steering of a fleet by model checker
-<img src="examples/ucd_example.gif" width="1000" />
-
-Steered by the MC, a fleet of cars provably (given a set of assumptions towards real-world accuracy) obeys a given formal SPEC, in this case: invert ordering without colliding.
-
 ## How to build
 `vfm` is implemented in `C++` and can be built with CMake (stable) or Bazel (experimental). With CMake, simply run 
 
