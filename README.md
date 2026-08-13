@@ -74,9 +74,9 @@ pip install highway-env
 
 Run from the project root directory, for example:
 ```bash
-python -m morty.morty --num_runs 1 --steps_per_run 300 --headless --force --record_video
+python -m morty.morty --num_runs 1 --steps_per_run 300 --headless --record_video
 ```
-This should work on Linux and Windows.
+The task to solve is defined in `morty/envmodel_config.tpl.json`. Use the `morty/master_templates` for a first trial.
 
 ## Authors
 Lukas Koenig,
