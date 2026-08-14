@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import subprocess
 from ctypes import CDLL, c_char_p, c_size_t
 from pathlib import Path
@@ -8,9 +9,12 @@ import networkx as nx
 
 
 class NuXmvConn:
-    def __init__(self, nuxmv_args: list[str]) -> None:
+    def __init__(
+        self, nuxmv_args: list[str], *, cwd: str | Path | None = None
+    ) -> None:
         self.process = subprocess.Popen(
             nuxmv_args,
+            cwd=cwd,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
@@ -97,43 +101,45 @@ class Morty:
         iteration: int,
         *,
         model_file: str | Path = "main.smv",
+        bound: int = 10,
     ) -> Path | None:
         del iteration
+        if bound < 0:
+            raise ValueError("model-checking bound must be non-negative")
         target_path = self.get_target_path()
         model_path = Path(model_file)
         if not model_path.is_absolute():
             model_path = target_path / model_path
         if not model_path.is_file():
             raise FileNotFoundError(f"SMV model does not exist: {model_path}")
+        model_path = model_path.resolve()
         self.nuxmv = NuXmvConn(
-            ["nuXmv", "-quiet", "-pre", "cpp", "-int", model_path]
+            ["nuXmv", "-quiet", "-pre", "cpp", "-int", model_path.name],
+            cwd=model_path.parent,
         )
         self.nuxmv._send("go_msat")
         setup_output = self.nuxmv._read_response()
         print("SETUPTOUTPUT", setup_output)
         self._raise_on_nuxmv_error(setup_output, "go_msat")
 
-        self.nuxmv._send("msat_check_invar_bmc -a falsification -k100 -n0")
+        self.nuxmv._send(
+            f"msat_check_invar_bmc -a falsification -k {bound} -n 0"
+        )
         check_output = self.nuxmv._read_response()
         print("OUTP:", check_output)
         self._raise_on_nuxmv_error(
             check_output, "msat_check_invar_bmc"
         )
         normalized_output = check_output.lower()
-        if (
-            "no counterexample" in normalized_output
-            or "no counter-example" in normalized_output
-        ):
-            print(f"No counterexample found for {model_path}")
-            return None
-        if (
-            "counter-example" not in normalized_output
-            and "counterexample" not in normalized_output
-        ):
+        has_counterexample = bool(
+            re.search(r"counter-?example of size\s+\d+ exists", normalized_output)
+            or "trace description:" in normalized_output
+        )
+        if not has_counterexample:
             print(f"No counterexample found for {model_path}")
             return None
 
-        output_cex = target_path / cex_file
+        output_cex = (target_path / cex_file).resolve()
         output_cex.unlink(missing_ok=True)
         self.nuxmv._send(f"show_traces -p 6 -o {output_cex} 1")
         trace_output = self.nuxmv._read_response()
