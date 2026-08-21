@@ -1,4 +1,4 @@
-# Model Checking for ADAS
+# vfm -- Model Checking for ADAS
 Thank you for using
 ~~~
          ___           
