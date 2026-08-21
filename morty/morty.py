@@ -239,7 +239,7 @@ SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[1] - TARGET_DIST and egos_x[1] >= 
 SUCC_CONDS.append(lambda: inverseSortingArray(egos_x))
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(lambda: True)
-SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos_x[2]) #7
+SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos_x[2]) # 7
 SUCC_CONDS.append(lambda: False) # 8
 SUCC_CONDS.append(lambda: all(x > DIST_EXP_9 for x in egos_x)) # 9
 SUCC_CONDS.append(lambda: False) # 10
@@ -871,7 +871,7 @@ for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
         # if no success condition is given or if it is not implemented in a precise way.
         # Note: success is checked before blindness, so a step can be blind (no CEX) and still count as
         # success if the success condition is met.
-        if res_str == "FINISHED" or successed:
+        if (res_str == "FINISHED" and not found_shortcut) or successed:
             print("DONE")
             good_ones.append(seedo)
             archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
