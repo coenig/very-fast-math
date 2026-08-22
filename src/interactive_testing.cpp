@@ -1928,7 +1928,10 @@ std::string vfm::test::prepareOutputForMortyUCD(
       if (split1.size() != split2.size()) return false;
 
       for (size_t i = 0; i < split1.size(); ++i) {
-         if (!StaticHelper::stringContains(split1[i], ".v") // Ignore v for comparison, since we allow a 10% tolerance.
+         // Ignore the velocity variable for comparison, since we allow a 10% tolerance.
+         // Match ".v " (dot-v-space) which uniquely identifies velocity lines
+         // ("...___.v - (34)"); a plain ".v" would also match ".veh" and thus ignore ALL lines.
+         if (!StaticHelper::stringContains(split1[i], ".v ")
             && split1[i] != split2[i]) return false;
       }
 
