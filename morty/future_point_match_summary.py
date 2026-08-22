@@ -12,7 +12,7 @@ Supported output modes per point in iteration t:
 
 Optional post-processing can compress strictly increasing numeric runs, e.g.:
   ..., 4,5,6,7, ...  ->  ..., [4-7], ...
-Only runs of length >= 3 are compressed.
+Only runs of length >= 2 are compressed.
 """
 
 from __future__ import annotations
@@ -52,6 +52,14 @@ def parse_args() -> argparse.Namespace:
         help="Config folder name inside each iteration directory.",
     )
     parser.add_argument(
+        "--all-configs",
+        action="store_true",
+        help=(
+            "Summarize every config folder found across the iterations instead of "
+            "just --config. Each config is printed under a '=== <config> ===' header."
+        ),
+    )
+    parser.add_argument(
         "--ignore-regex",
         action="append",
         default=[DEFAULT_IGNORE_REGEX],
@@ -74,7 +82,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--compress-increasing",
         action="store_true",
-        help="Compress strictly increasing numeric runs i..j into [i-j] (length >= 3).",
+        help="Compress strictly increasing numeric runs i..j into [i-j] (length >= 2).",
     )
     parser.add_argument(
         "--compress-use-any-match",
@@ -117,6 +125,18 @@ def list_future_points(config_dir: Path) -> list[tuple[int, Path]]:
     return sorted(points, key=lambda x: x[0])
 
 
+def discover_configs(iterations: list[IterationData]) -> list[str]:
+    """Return the sorted union of config folder names across all iterations."""
+    configs: set[str] = set()
+    for it in iterations:
+        if not it.path.is_dir():
+            continue
+        for child in it.path.iterdir():
+            if child.is_dir():
+                configs.add(child.name)
+    return sorted(configs)
+
+
 def normalized_hash(path: Path, ignore_patterns: list[re.Pattern[str]]) -> str:
     hasher = hashlib.sha256()
     with path.open("r", encoding="utf-8", errors="replace") as handle:
@@ -149,7 +169,7 @@ def compress_increasing_tokens(tokens: list[str]) -> list[str]:
     def flush_run(out: list[str], run: list[int]) -> None:
         if not run:
             return
-        if len(run) >= 3:
+        if len(run) >= 2:
             out.append(f"[{run[0]}-{run[-1]}]")
         else:
             out.extend(str(x) for x in run)
@@ -183,7 +203,7 @@ def compress_with_any_match(
     For each position, candidate_tokens[pos] contains all numeric matches.
     The algorithm greedily takes the longest consecutive run starting at each
     position where values can be chosen as v, v+1, ..., v+n across positions.
-    Runs of length >= 3 become [v-(v+n)]. Shorter runs emit explicit numbers,
+    Runs of length >= 2 become [v-(v+n)]. Shorter runs emit explicit numbers,
     choosing the smallest candidate at each position.
     """
 
@@ -222,7 +242,7 @@ def compress_with_any_match(
                 best_end_pos = j
                 best_state = state.copy()
 
-        if best_len >= 3:
+        if best_len >= 2:
             end_value = min(best_state.keys())
             start_value = best_state[end_value]
             out.append(f"[{start_value}-{end_value}]")
@@ -261,24 +281,19 @@ def build_iteration_line(
     return f"{iteration}: " + ",".join(tokens)
 
 
-def summarize(args: argparse.Namespace) -> list[str]:
-    base_dir = Path(args.base_dir)
-    if not base_dir.is_dir():
-        raise FileNotFoundError(f"Base dir not found: {base_dir}")
-
-    iterations = list_iterations(base_dir)
-    if not iterations:
-        return []
-
-    ignore_patterns = [re.compile(p) for p in args.ignore_regex]
-
+def summarize_config(
+    config: str,
+    iterations: list[IterationData],
+    iteration_by_index: dict[int, IterationData],
+    args: argparse.Namespace,
+    ignore_patterns: list[re.Pattern[str]],
+) -> list[str]:
     lines: list[str] = []
-    iteration_by_index = {it.index: it for it in iterations}
 
     for it in iterations:
         prev = iteration_by_index.get(it.index - 1)
-        curr_config = it.path / args.config
-        prev_config = prev.path / args.config if prev is not None else None
+        curr_config = it.path / config
+        prev_config = prev.path / config if prev is not None else None
 
         if not curr_config.is_dir():
             lines.append(f"{it.index}:")
@@ -312,6 +327,38 @@ def summarize(args: argparse.Namespace) -> list[str]:
         lines.append(line)
 
     return lines
+
+
+def summarize(args: argparse.Namespace) -> list[str]:
+    base_dir = Path(args.base_dir)
+    if not base_dir.is_dir():
+        raise FileNotFoundError(f"Base dir not found: {base_dir}")
+
+    iterations = list_iterations(base_dir)
+    if not iterations:
+        return []
+
+    ignore_patterns = [re.compile(p) for p in args.ignore_regex]
+    iteration_by_index = {it.index: it for it in iterations}
+
+    if args.all_configs:
+        configs = discover_configs(iterations)
+        if not configs:
+            return []
+    else:
+        configs = [args.config]
+
+    output_lines: list[str] = []
+    for idx, config in enumerate(configs):
+        if len(configs) > 1:
+            if idx > 0:
+                output_lines.append("")
+            output_lines.append(f"=== {config} ===")
+        output_lines.extend(
+            summarize_config(config, iterations, iteration_by_index, args, ignore_patterns)
+        )
+
+    return output_lines
 
 
 def main() -> None:

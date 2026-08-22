@@ -11,6 +11,7 @@ import shutil
 import argparse
 import numpy as np
 import json
+import re
 from pathlib import Path
 import glob
 from .morty_debug_plots import (
@@ -400,6 +401,32 @@ def clean_and_convert_to_float(data):
     cleaned_list = [clean_and_convert_to_float(item) for item in data]
     return [item for item in cleaned_list if item is not None and item != []]
 
+def reconstruct_future_point_coords(future_point_str, nonegos, dist_scale, num_actual_lanes, num_technical_lanes, lane_width_he):
+    """
+    Reconstruct per-car global (x, y) for one stored future point (a `future_point_*.txt`
+    body) so it matches the coordinates that `extractVehPosFromNusmvFile` produces.
+
+    This mirrors the straight-section branch of that C++ extractor (`on_straight_section >= 0`
+    with the default 0/0/0 section geometry), where `to_global` reduces to the identity, i.e.
+    `point = (long_pos, lat_pos)`. Shortcuts are only ever taken on straight roads, so this
+    reproduces the extractor exactly for every case in which it is used. Returns a list of
+    `[x, y]` per non-ego car, or None if the point could not be parsed.
+    """
+    y_max_tech = lane_width_he * (num_actual_lanes * (1.0 - 1.0 / (2.0 * num_technical_lanes)) - 0.5)
+    coords = []
+    for i in range(nonegos):
+        prefix = re.escape(f"env.veh___6{i}9___.")
+        m_pos = re.search(prefix + r"abs_pos\s*=\s*(-?\d+)", future_point_str)
+        m_lane = re.search(prefix + r"on_normalized_lane\s*=\s*(-?\d+)", future_point_str)
+        if m_pos is None or m_lane is None:
+            return None
+        abs_pos = float(m_pos.group(1))
+        lane = float(m_lane.group(1))
+        long_pos = abs_pos / dist_scale
+        lat_pos = y_max_tech - lane * 2.0 * num_actual_lanes / num_technical_lanes
+        coords.append([long_pos, lat_pos])
+    return coords
+
 def postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex):
     all_results_dict = {}
     for single_res in res_str.split('\n'):
@@ -592,7 +619,6 @@ for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
     # EO Prepare dry run
 
     selected_config = None
-    all_coords_for_pp = []
     
     for global_counter in range(args.steps_per_run):
         mcinput = ""
@@ -707,7 +733,6 @@ for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
             res_str = res.decode().strip()
         
             blind, selected_cnt, res_str = postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex)
-            all_coords_for_pp.clear()
 
         if args.detailed_archive and global_counter == 0:
             # Processed snapshot: only re-hash files that existed in the baseline
@@ -812,8 +837,7 @@ for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
         
         POS_COLOR = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
 
-        global_pos_to_draw = viz_state.pos_to_draw
-        global_pos_to_draw.clear()
+        viz_state.pos_to_draw.clear()
         coords_for_pp = [(0, 0)] * nonegos
         # Signed longitudinal distance [m] (along the heading) to the immediate next MC
         # trajectory point; used in MCIMMEDIATE mode to compute the exact acceleration.
@@ -823,15 +847,57 @@ for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
         # after that.
         
         if found_shortcut:
-            try: # TODO: Avoid this try/except by checking for !empty.
-                overlap = all_coords_for_pp.index(positions[-1])
-            except ValueError:
-                overlap = None
-                print(f"Warning: No overlap found for shortcut point {positions[-1]} in all_coords_for_pp. Continuing without overlap.")
-            
-            if overlap is not None:
-                positions.extend(all_coords_for_pp[overlap + 2:])
-                all_coords_for_pp.clear()
+            # COP
+            #
+            # The `future_point_*.txt` files are the single source of truth for the remaining plan.
+            # `future_points_str` holds that plan as read at the top of this iteration (before the
+            # shortcut probes overwrite the files). The shortcut reached `future_points_str[shortcut_index]`
+            # (== the last point of the freshly extracted `positions`), so append the plan tail, i.e. the
+            # points strictly after it, letting the car keep following the originally computed solution.
+            # Reconstructing the tail directly from the files (instead of searching a separately maintained
+            # `all_coords_for_pp`, which could drift from the files) guarantees the reached point is always
+            # accounted for. The `future_point_*.txt` files store each MC point once, but the extractor
+            # (extractVehPosFromNusmvFile) doubles every point when reading the trace, so `positions` is
+            # doubled. To match that density we emit each reconstructed tail point twice.
+            #
+            # The reached point (positions[-1]) equals the reconstruction of some future point,
+            # nominally future_points_str[shortcut_index]. However, the plan stored in the
+            # `future_point_*.txt` files can REPLAY ITS PREFIX after a connector stitch
+            # (prepareOutputForMortyUCD writes the fresh trace over the low indices and shifts the
+            # old plan up): past the connector the numbering effectively restarts at the plan's
+            # beginning, so the same reached point appears a SECOND time further along. Blindly
+            # appending everything after `shortcut_index` would splice that replayed prefix (a
+            # backward-jumping segment) onto the trajectory, sending the pure-pursuit lookahead
+            # behind the car and producing a bogus path once the fresh segment gets short. Anchor
+            # instead to the LAST future point matching the reached point and append only what
+            # follows it, discarding any replayed prefix and keeping the genuine forward
+            # continuation (the file-based equivalent of the former in-memory overlap search).
+            reached = positions[-1] if positions else None
+            anchor = shortcut_index
+            if reached is not None:
+                for idx in range(len(future_points_str)):
+                    cand = reconstruct_future_point_coords(
+                        future_points_str[idx], nonegos, dist_scale, num_actual_lanes, num_technical_lanes, LANE_WIDTH_HE
+                    )
+                    if cand is None:
+                        continue
+                    worst = max(
+                        (abs(a - b) for car_r, car_c in zip(reached, cand) for a, b in zip(car_r, car_c)),
+                        default=float("inf"),
+                    )
+                    if worst <= 1e-3:
+                        anchor = idx  # keep the last match -> skips any replayed prefix.
+
+            for future_point in future_points_str[anchor + 1:]:
+                tail_coords = reconstruct_future_point_coords(
+                    future_point, nonegos, dist_scale, num_actual_lanes, num_technical_lanes, LANE_WIDTH_HE
+                )
+                if tail_coords is None:
+                    print("Warning: could not reconstruct a future-point tail coordinate; stopping tail extension early.")
+                    break
+                positions.append(tail_coords)
+                positions.append(tail_coords)
+            # EO COP
             
         for i, step in enumerate(positions):
             all_coords = []
@@ -842,18 +908,13 @@ for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
                 coord = (abspos, latpos)
                 all_coords.append([abspos, latpos])
                 if not args.hide_planned_positions:
-                    global_pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
+                    viz_state.pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
                 
                 if i <= 5: # second-next point (index 5) used as the pure-pursuit lookahead target for steering.
                     coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
                     print(f"Step {i}, Car {j}: abspos={abspos}, latpos={latpos}, coord={coord}") # TODO REMOVE
                 if i == 2: # Immediate next distinct point (one MC step ahead).
                     accel_target_dist[j] = (coord[0] - egos_x[j]) * egos_backward[j]
-
-            if i < len(all_coords_for_pp):
-                all_coords_for_pp[i] = all_coords
-            else:
-                all_coords_for_pp.append(all_coords)
 
         # EO Find future positions.
 
@@ -893,7 +954,7 @@ for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
             shortcut_history.append("")
             cex_point_colors.append('tab:red')
         else:
-            cex_length = len(all_coords_for_pp) / time_scale
+            cex_length = len(positions) / time_scale
             cex_length_history.append(cex_length)
             cnt_history.append(selected_cnt)
             shortcut_history.append(f" <{shortcut_index}>" if found_shortcut else "")
