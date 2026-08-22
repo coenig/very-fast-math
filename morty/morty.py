@@ -935,7 +935,7 @@ for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
         if (res_str == "FINISHED" and not found_shortcut) or successed:
             print("DONE")
             good_ones.append(seedo)
-            archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
+            archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
             break
 
         if res_str == empty_cex:
@@ -945,7 +945,7 @@ for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
                     env.unwrapped.controlled_vehicles[i].color = (100, 100, 255)
             nocex_count += 1
             if nocex_count > args.allow_blind_steps: # Abort (as failure) once this many blind steps occurred.
-                archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
+                archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
                 break
             
             # Note: final blind step of a run is not reflected in the cex-length plots.
@@ -1104,7 +1104,7 @@ for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
             img = Image.fromarray(last_frame)
             img.save(f"{generated_path_prefix}/current_state.png")
 
-        archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
+        archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
 
         if crashed_count > args.allow_crashed_steps: # Allow these many crashes per run.
             break

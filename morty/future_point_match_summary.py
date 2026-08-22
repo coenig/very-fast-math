@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -135,6 +136,52 @@ def discover_configs(iterations: list[IterationData]) -> list[str]:
             if child.is_dir():
                 configs.add(child.name)
     return sorted(configs)
+
+
+def load_config_priorities(base_dir: Path) -> list[str]:
+    """Read the priority-ordered config names from UCD_CONFIG_PRIOS.
+
+    The list lives in each pristine config's template JSON at
+    ``0_pristine/<any_config>/templates_archive/envmodel_config.tpl.json`` under
+    ``["#TEMPLATE"]["UCD_CONFIG_PRIOS"]`` as a ';'-separated string. Returns the
+    ordered names, or [] when the file/entry cannot be found or parsed.
+    """
+    pristine = base_dir / "0_pristine"
+    if not pristine.is_dir():
+        return []
+    for config_dir in sorted(pristine.iterdir()):
+        tpl = config_dir / "templates_archive" / "envmodel_config.tpl.json"
+        if not tpl.is_file():
+            continue
+        try:
+            data = json.loads(tpl.read_text(encoding="utf-8", errors="replace"))
+        except (json.JSONDecodeError, OSError):
+            continue
+        prios = data.get("#TEMPLATE", {}).get("UCD_CONFIG_PRIOS", "")
+        if isinstance(prios, str) and prios.strip():
+            return [c for c in (p.strip() for p in prios.split(";")) if c]
+    return []
+
+
+def load_selected_configs(iterations: list[IterationData]) -> dict[int, str]:
+    """Read the per-iteration selected config from ``selected_config.txt``.
+
+    morty.py writes this marker into each archived ``iteration_<n>`` folder
+    (the selection cannot be reliably inferred from the raw files). Returns
+    {iteration_index: config_name}; iterations without a marker are omitted.
+    """
+    selected: dict[int, str] = {}
+    for it in iterations:
+        marker = it.path / "selected_config.txt"
+        if not marker.is_file():
+            continue
+        try:
+            name = marker.read_text(encoding="utf-8", errors="replace").strip()
+        except OSError:
+            continue
+        if name:
+            selected[it.index] = name
+    return selected
 
 
 def normalized_hash(path: Path, ignore_patterns: list[re.Pattern[str]]) -> str:
@@ -287,8 +334,16 @@ def summarize_config(
     iteration_by_index: dict[int, IterationData],
     args: argparse.Namespace,
     ignore_patterns: list[re.Pattern[str]],
+    selected_by_iter: dict[int, str],
+    mark_selected: bool,
 ) -> list[str]:
     lines: list[str] = []
+
+    def prefix_for(index: int) -> str:
+        # Mark the iterations where THIS config was the selected one with '* '.
+        if not mark_selected:
+            return ""
+        return "* " if selected_by_iter.get(index) == config else "  "
 
     for it in iterations:
         prev = iteration_by_index.get(it.index - 1)
@@ -296,7 +351,7 @@ def summarize_config(
         prev_config = prev.path / config if prev is not None else None
 
         if not curr_config.is_dir():
-            lines.append(f"{it.index}:")
+            lines.append(f"{prefix_for(it.index)}{it.index}:")
             continue
 
         curr_points = list_future_points(curr_config)
@@ -324,7 +379,7 @@ def summarize_config(
             compress_increasing=args.compress_increasing,
             compress_use_any_match=args.compress_use_any_match,
         )
-        lines.append(line)
+        lines.append(prefix_for(it.index) + line)
 
     return lines
 
@@ -341,10 +396,22 @@ def summarize(args: argparse.Namespace) -> list[str]:
     ignore_patterns = [re.compile(p) for p in args.ignore_regex]
     iteration_by_index = {it.index: it for it in iterations}
 
+    # Per-iteration selected config (from selected_config.txt markers, if present).
+    selected_by_iter = load_selected_configs(iterations)
+    mark_selected = bool(selected_by_iter)
+
     if args.all_configs:
         configs = discover_configs(iterations)
         if not configs:
             return []
+        # Order configs by the UCD_CONFIG_PRIOS priority list when available;
+        # any discovered config not listed there is appended (sorted) afterwards.
+        prio = load_config_priorities(base_dir)
+        if prio:
+            discovered = set(configs)
+            ordered = [c for c in prio if c in discovered]
+            remaining = sorted(discovered.difference(ordered))
+            configs = ordered + remaining
     else:
         configs = [args.config]
 
@@ -355,7 +422,15 @@ def summarize(args: argparse.Namespace) -> list[str]:
                 output_lines.append("")
             output_lines.append(f"=== {config} ===")
         output_lines.extend(
-            summarize_config(config, iterations, iteration_by_index, args, ignore_patterns)
+            summarize_config(
+                config,
+                iterations,
+                iteration_by_index,
+                args,
+                ignore_patterns,
+                selected_by_iter,
+                mark_selected,
+            )
         )
 
     return output_lines
