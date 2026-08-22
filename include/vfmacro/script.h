@@ -671,7 +671,12 @@ private:
           && StaticHelper::isParsableAsFloat(parameters[1])
           && StaticHelper::isParsableAsFloat(parameters[2]))
           {
-            test::prepareInputForMortyUCD(body, std::stof(parameters[0]), (int)std::stoi(parameters[1]), (int)std::stoi(parameters[2]), parameters[3]);
+             test::prepareInputForMortyUCD(
+                body, 
+                std::stof(parameters[0]), 
+                (int)std::stoi(parameters[1]), 
+                (int)std::stoi(parameters[2]), 
+                parameters[3]);
              return "";
           } else {
             addError("Malformed input for 'prepareInputForMortyUCD'.");

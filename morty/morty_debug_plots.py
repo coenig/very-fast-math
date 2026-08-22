@@ -33,7 +33,15 @@ def plot_cex_lengths(cex_lengths, output_path, cnt_history=None, shortcut_histor
     # Annotate MC priorities if provided
     if cnt_history is not None and len(cnt_history) == len(cex_lengths):
         for x, y, cnt in zip(steps, cex_lengths, cnt_history):
-            ax.annotate(str(cnt) + shortcut_history[x], (x, y), textcoords="offset points", xytext=(0, 8), ha='center', fontsize=8, color='darkred')
+            ax.annotate(
+                str(cnt) + shortcut_history[x], 
+                (x, y), 
+                textcoords="offset points", 
+                xytext=(0, 8), 
+                ha='center', 
+                fontsize=8, 
+                color='darkred', 
+                rotation=45)
 
     ax.set_xlabel('Sim time (iteration)')
     ax.set_ylabel('CEX length')

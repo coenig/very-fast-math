@@ -10,6 +10,7 @@
 #include "model_checking/cex_processing/mc_visualization_launchers.h"
 #include "vfmacro/script.h"
 
+#include <charconv>
 #include <stdio.h>
 #include <string>
 #include <filesystem>
@@ -1656,11 +1657,17 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
       if (car.empty()) continue;
 
       auto data = StaticHelper::split(car, ",");
+    
+      float x{ std::numeric_limits<float>::quiet_NaN() }; // Default to NaN for invalid data...
+      float y{ std::numeric_limits<float>::quiet_NaN() }; // ...but out-of-bounds values will be clamped to float limits.
+      float vx{ std::numeric_limits<float>::quiet_NaN() };
+      float vy{ std::numeric_limits<float>::quiet_NaN() };
 
-      const float x{ std::stof(data[1]) };
-      const float y{ std::stof(data[2]) };
-      const float vx{ std::stof(data[3]) };
-      const float vy{ std::stof(data[4]) };
+      std::from_chars(data[1].data(), data[1].data() + data[1].size(), x);
+      std::from_chars(data[2].data(), data[2].data() + data[2].size(), y);
+      std::from_chars(data[3].data(), data[3].data() + data[3].size(), vx);
+      std::from_chars(data[4].data(), data[4].data() + data[4].size(), vy);
+
       const Vec2D P{ x, y };
 
       // Resolve which "seclet" (straight section or connector arc) the car is closest to, and derive
