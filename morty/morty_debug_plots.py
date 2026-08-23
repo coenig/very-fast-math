@@ -6,13 +6,14 @@ from matplotlib.backends.backend_pdf import PdfPages
 import os
 
 
-def plot_cex_lengths(cex_lengths, output_path, cnt_history=None, point_colors=None):
+def plot_cex_lengths(cex_lengths, output_path, cnt_history=None, shortcut_history=None, point_colors=None):
     """Plot actual CEX lengths vs. the ideal (decrement-by-1) baseline, with MC priority annotation.
 
     Args:
         cex_lengths: List of CEX lengths recorded at each iteration where a CEX was found.
         output_path: File path for the output PDF (overwritten each call).
         cnt_history: List of MC priorities (cnt) for each CEX found (optional, default None).
+        shortcut_history: List of shortcut annotations for each CEX found (optional, default None).
         point_colors: List of colors for individual points (optional, default None).
     """
     if not cex_lengths:
@@ -32,7 +33,15 @@ def plot_cex_lengths(cex_lengths, output_path, cnt_history=None, point_colors=No
     # Annotate MC priorities if provided
     if cnt_history is not None and len(cnt_history) == len(cex_lengths):
         for x, y, cnt in zip(steps, cex_lengths, cnt_history):
-            ax.annotate(str(cnt), (x, y), textcoords="offset points", xytext=(0, 8), ha='center', fontsize=8, color='darkred')
+            ax.annotate(
+                str(cnt) + shortcut_history[x], 
+                (x, y), 
+                textcoords="offset points", 
+                xytext=(0, 8), 
+                ha='left', 
+                fontsize=8, 
+                color='darkred', 
+                rotation=45)
 
     ax.set_xlabel('Sim time (iteration)')
     ax.set_ylabel('CEX length')

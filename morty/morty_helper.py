@@ -119,7 +119,7 @@ def _save_configs_to_archive(seedo: int, subfolder: str, generated_path_prefix: 
                 os.makedirs(os.path.dirname(dest), exist_ok=True)
                 shutil.copy2(full_path, dest)
 
-def archive(seedo: int, global_counter: int, detailed_archive_flag: bool, generated_path_prefix: str, ucd_config_prios_str: List[str], snapshot_hashes: Dict[str, Dict[str, str]]):
+def archive(seedo: int, global_counter: int, detailed_archive_flag: bool, generated_path_prefix: str, ucd_config_prios_str: List[str], snapshot_hashes: Dict[str, Dict[str, str]], selected_config: Optional[str] = None):
     if detailed_archive_flag:
         archive_path = f'{generated_path_prefix}/detailed_archive/run_{seedo}/iteration_{global_counter}/'
         if not os.path.exists(archive_path):
@@ -136,6 +136,12 @@ def archive(seedo: int, global_counter: int, detailed_archive_flag: bool, genera
                         dest = os.path.join(archive_path + config_name, rel_path)
                         os.makedirs(os.path.dirname(dest), exist_ok=True)
                         shutil.copy2(full_path, dest)
+        # Record which config was selected this iteration. This is the single source
+        # of truth for downstream tooling: it cannot be reliably reconstructed from
+        # the raw archived files.
+        if selected_config:
+            with open(os.path.join(archive_path, 'selected_config.txt'), 'w') as f:
+                f.write(selected_config + '\n')
 
 if platform.system() == 'Windows':
     kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)

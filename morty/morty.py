@@ -11,6 +11,7 @@ import shutil
 import argparse
 import numpy as np
 import json
+import re
 from pathlib import Path
 import glob
 from .morty_debug_plots import (
@@ -112,7 +113,7 @@ for res_path in glob.glob(generated_path_prefix + "*"):
             if res_path == generated_path_prefix:
                 print(f"Results directory {res_path} skipped because --press (not --force) is set.")
             else:
-                print(f"Non-resolts directory {res_path} already exists. Deleting because --press is set.")
+                print(f"Non-results directory {res_path} already exists. Deleting because --press is set.")
                 shutil.rmtree(res_path)
                 if Path(res_path).is_dir():
                     print(f"Error: failed to delete {res_path}. Exiting.")
@@ -144,7 +145,7 @@ with morty_script_context() as morty_lib:
 # EO Create EnvModels.
     
 with open('morty/envmodel_config.json') as f:
-    d = json.load(f) # Take only the [0]th config here because on Python side there are no differences for now.
+    d = json.load(f) # Take only the [0]th config here assuming all are equal; if the "selected" is needed (for example), treat separately below.
     nonegos = d[ucd_config_prios_str[0]]["NONEGOS"]
     num_actual_lanes = d[ucd_config_prios_str[0]]["NUMLANES"]
     num_technical_lanes = d[ucd_config_prios_str[0]]["LATERAL_LC_GRANULARITY"] + num_actual_lanes
@@ -155,6 +156,7 @@ with open('morty/envmodel_config.json') as f:
     max_start_speed = min(d[ucd_config_prios_str[0]]["MAXSTARTSPEEDNONEGO_UCD"], max_speed)
     min_start_speed = min(d[ucd_config_prios_str[0]]["MINSTARTSPEEDNONEGO_UCD"], max_start_speed)
     exp_num = d[ucd_config_prios_str[0]]["UCD_EXP_NUM"]
+    use_shortcut = d[ucd_config_prios_str[0]]["UCD_USE_SHORTCUT"]
     dist_scale = d[ucd_config_prios_str[0]]["DISTANCESCALING"] / 1000
     time_scale = d[ucd_config_prios_str[0]]["TIMESCALING"] / 1000
     # distance_formula_pp = d[ucd_config_prios_str[0]]["UCD_FORMULA_PP_DISTANCE"]             # HERE we DO make a difference, see below!
@@ -238,7 +240,7 @@ SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[1] - TARGET_DIST and egos_x[1] >= 
 SUCC_CONDS.append(lambda: inverseSortingArray(egos_x))
 SUCC_CONDS.append(lambda: True)
 SUCC_CONDS.append(lambda: True)
-SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos_x[2]) #7
+SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos_x[2]) # 7
 SUCC_CONDS.append(lambda: False) # 8
 SUCC_CONDS.append(lambda: all(x > DIST_EXP_9 for x in egos_x)) # 9
 SUCC_CONDS.append(lambda: False) # 10
@@ -321,6 +323,16 @@ if args.headless:
 # ACCEL_RANGE = 6
 ACCEL_RANGE = 6
 
+# highway-env control period [Hz]. morty runs exactly one env.step per MC step, so the
+# real duration of one policy step (1/POLICY_FREQUENCY) must equal the real duration the
+# MC assigns to one step (1/time_scale). The MCIMMEDIATE acceleration integrates over this
+# window; a mismatch would make the cars systematically under-/overshoot the MC points.
+POLICY_FREQUENCY = 2  # [Hz]
+if POLICY_FREQUENCY != time_scale:
+    print(f"WARNING: POLICY_FREQUENCY ({POLICY_FREQUENCY}) != time_scale ({time_scale}); "
+          f"one env.step no longer equals one MC step. Set TIMESCALING = {int(POLICY_FREQUENCY * 1000)} "
+          f"or POLICY_FREQUENCY = {time_scale} to keep the MCIMMEDIATE acceleration exact.")
+
 # Minimum straight-line distance [m] to the pure-pursuit target. Floors the lookahead so
 # the steering law stays well-defined if the car is very close to / past the target point.
 MIN_LOOKAHEAD = 1.0
@@ -335,22 +347,10 @@ good_ones = []
 all_cex_length_histories = {}
 all_selected_runtime_histories = {}
 
-specification = create_string_buffer(2000)
-with morty_script_context() as morty_lib:
-    spec_res = morty_lib.expandScript(SPECS[exp_num].encode('utf-8'), specification, sizeof(specification)).decode()
 
-for ucd_config_str in ucd_config_prios_str:
-    ensure_empty_file(f'{generated_path_prefix + ucd_config_str}/morty_mc_results.txt')  # Delete old results from MC side (these are a super set of the above)
-
+def write_spec_to_main_smv(ucd_config_str, spec_str):
     with open(generated_path_prefix + ucd_config_str + "/main.smv", "r+") as f:
         content = f.read()
-
-        begin_idx = content.find(ADDONS_BEGIN_DENOTER) # Cut out addons, if there, and replace with new ones.
-        end_idx = content.find(ADDONS_END_DENOTER)
-        if begin_idx != -1 and end_idx != -1:
-            content = content[:begin_idx] + content[end_idx + len(ADDONS_END_DENOTER):]
-
-        content = content.replace("--EO-ADDONS", addons[exp_num] + "\n--EO-ADDONS")
 
         invarspec_idx = content.find("INVARSPEC") # Cut out SPEC and replace with new one.
         if invarspec_idx == -1:
@@ -359,11 +359,34 @@ for ucd_config_str in ucd_config_prios_str:
         else:
             semicolon_idx = content.find(";", invarspec_idx)
             if semicolon_idx != -1:
-                content = content[:invarspec_idx] + spec_res + content[semicolon_idx + 1:]
+                content = content[:invarspec_idx] + spec_str + content[semicolon_idx + 1:]
 
         f.seek(0)
         f.write(content)
         f.truncate()
+    
+def write_addons_to_main_smv(ucd_config_str, addons_str):
+    with open(generated_path_prefix + ucd_config_str + "/main.smv", "r+") as f:
+        content = f.read()
+
+        begin_idx = content.find(ADDONS_BEGIN_DENOTER) # Cut out addons, if there, and replace with new ones.
+        end_idx = content.find(ADDONS_END_DENOTER)
+        if begin_idx != -1 and end_idx != -1:
+            content = content[:begin_idx] + content[end_idx + len(ADDONS_END_DENOTER):]
+
+        content = content.replace("--EO-ADDONS", addons_str + "\n--EO-ADDONS")
+
+        f.seek(0)
+        f.write(content)
+        f.truncate()
+
+specification = create_string_buffer(2000)
+with morty_script_context() as morty_lib:
+    spec_res = morty_lib.expandScript(SPECS[exp_num].encode('utf-8'), specification, sizeof(specification)).decode()
+
+for ucd_config_str in ucd_config_prios_str:
+    ensure_empty_file(f'{generated_path_prefix + ucd_config_str}/morty_mc_results.txt')  # Delete old results from MC side (these are a super set of the above)
+    write_addons_to_main_smv(ucd_config_str, addons[exp_num])
 
 def clean_and_convert_to_float(data):
     """
@@ -377,6 +400,55 @@ def clean_and_convert_to_float(data):
 
     cleaned_list = [clean_and_convert_to_float(item) for item in data]
     return [item for item in cleaned_list if item is not None and item != []]
+
+def reconstruct_future_point_coords(future_point_str, nonegos, dist_scale, num_actual_lanes, num_technical_lanes, lane_width_he):
+    """
+    Reconstruct per-car global (x, y) for one stored future point (a `future_point_*.txt`
+    body) so it matches the coordinates that `extractVehPosFromNusmvFile` produces.
+
+    This mirrors the straight-section branch of that C++ extractor (`on_straight_section >= 0`
+    with the default 0/0/0 section geometry), where `to_global` reduces to the identity, i.e.
+    `point = (long_pos, lat_pos)`. Shortcuts are only ever taken on straight roads, so this
+    reproduces the extractor exactly for every case in which it is used. Returns a list of
+    `[x, y]` per non-ego car, or None if the point could not be parsed.
+    """
+    y_max_tech = lane_width_he * (num_actual_lanes * (1.0 - 1.0 / (2.0 * num_technical_lanes)) - 0.5)
+    coords = []
+    for i in range(nonegos):
+        prefix = re.escape(f"env.veh___6{i}9___.")
+        m_pos = re.search(prefix + r"abs_pos\s*=\s*(-?\d+)", future_point_str)
+        m_lane = re.search(prefix + r"on_normalized_lane\s*=\s*(-?\d+)", future_point_str)
+        if m_pos is None or m_lane is None:
+            return None
+        abs_pos = float(m_pos.group(1))
+        lane = float(m_lane.group(1))
+        long_pos = abs_pos / dist_scale
+        lat_pos = y_max_tech - lane * 2.0 * num_actual_lanes / num_technical_lanes
+        coords.append([long_pos, lat_pos])
+    return coords
+
+def postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex):
+    all_results_dict = {}
+    for single_res in res_str.split('\n'):
+        if single_res:
+            print("\n'" + single_res + "'\n")
+            config_name, res_str_new = single_res.split(':') # initiate res_str with ANY of the results, will get updated later if none-blind exists.
+            all_results_dict[config_name] = res_str_new
+    
+    blind = "|X"
+    selected_cnt = None
+    for cnt, config_name in enumerate(ucd_config_prios_str):
+        if (all_results_dict[config_name] == empty_cex):
+            print(f"CEX #{cnt} is EMPTY.")
+        else:
+            res_str_new = all_results_dict[config_name]
+            print(f"Picked CEX #{cnt} [{config_name}] which is the first non-empty one.")
+            blind = "|" + str(cnt)
+            selected_cnt = cnt
+            break;
+
+    return blind, selected_cnt, res_str_new
+
 
 baseline_hashes = {}  # Pre-loop file set (before any MC call).
 snapshot_hashes = {}  # Post-first-MC-call hashes (only baseline files).
@@ -408,7 +480,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         }
         },
         "simulation_frequency": 60,  # [Hz]
-        "policy_frequency": 2,  # [Hz]
+        "policy_frequency": POLICY_FREQUENCY,  # [Hz]
         "controlled_vehicles": nonegos,
         "lanes_count": num_actual_lanes,
         "vehicles_count": 0,
@@ -435,9 +507,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         raise e
 
     action = ([0, 0],) * nonegos
-    dpoints_y =     [0] * (nonegos + 1) # The lateral position of the points the cars head towards.
-    dpoints_delta = [0] * (nonegos + 1) # The direction we're currently moving towards, laterally.
-    lc_time =       [0] * (nonegos + 1) # Time the current lc is taking, abort if too long. Needed to better approximate MC behavior.
     egos_x =        [0] * (nonegos + 1) # Long pos of cars in m.
     egos_y =        [0] * (nonegos + 1) # Lat pos of cars in m.
     egos_v =        [0] * (nonegos + 1) # Absuolute (!) long vel of cars in m/s. Multiply with egos_backward to get the signed velocity as seen by the MC.
@@ -447,6 +516,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     crashed_count = 0
     cex_length_history = []
     cnt_history = []
+    shortcut_history = []
     cex_point_colors = []
     mc_runtime_histories = {config_name: [] for config_name in ucd_config_prios_str}
     selected_cnt_history = []
@@ -460,7 +530,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
     # Calculate valid y range for initialization (same as used in pure pursuit later)
     LANE_WIDTH_HE = 4.0  # highway-env lane width in meters
-    on_lane_step_y = 2.0 * num_actual_lanes / num_technical_lanes  # y-distance per MC on_lane position
     # Compute valid y range based on technical lane positions.
     y_min_tech = -LANE_WIDTH_HE / 2.0 + LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
     y_max_tech = -LANE_WIDTH_HE / 2.0 + (2 * num_technical_lanes - 1) * LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
@@ -520,7 +589,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         except Exception:
             pass
 
-    first = True
     obs = env.unwrapped.observation_type.observe()
     blind_stats = ""
     crashed = False
@@ -550,13 +618,12 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             scalefile = f"{config_path}/scaling_info.txt"
     # EO Prepare dry run
 
+    selected_config = None
+    
     for global_counter in range(args.steps_per_run):
         mcinput = ""
         i = 0
         for el in obs: # Use only el[0] because it contains the abs values from the resp. car's perspective.
-            if first:
-                dpoints_y[i] = el[0][2] # Set desired lateral position to the actual position in the first step.
-                
             egos_x[i] = el[0][1]
             egos_y[i] = el[0][2]
             egos_v[i] = el[0][3] * egos_backward[i]
@@ -610,45 +677,70 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             MC_SCRIPT = f"@{{}}@.prepareOutputForMortyUCD[{str(seedo)}, {str(global_counter)}, {0}, {str(crashed)}]"
         # EO Prepare dry run
 
-        first = False
-        
         empty_cex = ""
         
         for _i in range(nonegos):
             empty_cex += "|;"
         
         #### MODEL CHECKER CALL ####
-        result = create_string_buffer(100000)
-        with morty_script_context() as morty_lib:
-            res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
-        res_str = res.decode().strip()
+        ## FOLLOW EXISTING PATH (shortcut) ##
+        future_points_str = []
+        cnt = 2 # The array starts at 0 with the first actual future point.
+        
+        if use_shortcut: # Should this be skipped, future_points_str remains empty...
+            while selected_config is not None and os.path.isfile(generated_path_prefix + selected_config + f"/future_point_{cnt}.txt"):
+                with open(generated_path_prefix + selected_config + f"/future_point_{cnt}.txt", "r") as f:
+                    future_points_str.append(f.read())
+                cnt += 1
+ 
+        shortcut_index = -1
+        found_shortcut = False
+        if not future_points_str: # ...and whole shortcut search is skipped.
+            print(f"No future points found for {selected_config}.")
+        else:
+            print(f"Found {len(future_points_str)} future points for {selected_config}.")
+            
+            for shortcut_index, future_point in enumerate(future_points_str): # Try to dive into closest, then next, etc. future point.
+                for ucd_config_str in ucd_config_prios_str:
+                    write_spec_to_main_smv(ucd_config_str, "INVARSPEC !(TRUE " + future_point + ");")
+                    # write_addons_to_main_smv(ucd_config_str, "")
+                
+                with morty_script_context() as morty_lib:
+                    res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
+                res_str = res.decode().strip()
+
+                old_selected_cnt = selected_cnt
+                blind, selected_cnt, res_str = postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex)
+
+                if res_str != empty_cex and selected_cnt <= last_full_solution_prio: # Found a better or equal shortcut to a future point.
+                    found_shortcut = True
+                    # print(f"Newly selected config is: {selected_cnt} (old was {last_full_solution_prio}).")
+                    # input(f"We did it (idx {shortcut_index})...")
+                    break
+                
+                selected_cnt = old_selected_cnt
+                
+        # input("Press Enter to continue...")
+        ## EO FOLLOW EXISTING PATH (shortcut) ##
+        
+        if not found_shortcut:
+            for ucd_config_str in ucd_config_prios_str: # Back to actual SPEC
+                write_spec_to_main_smv(ucd_config_str, spec_res)
+
+            result = create_string_buffer(100000)
+            with morty_script_context() as morty_lib:
+                res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
+            res_str = res.decode().strip()
+        
+            blind, selected_cnt, res_str = postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex)
+            last_full_solution_prio = selected_cnt # This line should always turn up BEFORE the variable is used above.
 
         if args.detailed_archive and global_counter == 0:
             # Processed snapshot: only re-hash files that existed in the baseline
             # (excludes iteration-specific artifacts like debug folders).
             snapshot_hashes = _snapshot_configs(ucd_config_prios_str, generated_path_prefix, restrict_to=baseline_hashes)
             _save_configs_to_archive(seedo, '1_initialized', generated_path_prefix, ucd_config_prios_str, restrict_to={cn: set(baseline_hashes[cn]) for cn in baseline_hashes})
-        
-        ### POSTPROCESS RESULT ###
-        all_results_dict = {}
-        for single_res in res_str.split('\n'):
-            if single_res:
-                print("\n'" + single_res + "'\n")
-                config_name, res_str = single_res.split(':') # initiate res_str with ANY of the results, will get updated later if none-blind exists.
-                all_results_dict[config_name] = res_str
-        
-        blind = "|X"
-        selected_cnt = None
-        for cnt, config_name in enumerate(ucd_config_prios_str):
-            if (all_results_dict[config_name] == empty_cex):
-                print(f"CEX #{cnt} is EMPTY.")
-            else:
-                res_str = all_results_dict[config_name]
-                print(f"Picked CEX #{cnt} [{config_name}] which is the first non-empty one.")
-                blind = "|" + str(cnt)
-                selected_cnt = cnt
-                break;
-        
+                
         # Update global priority for trajectory coloring
         viz_state.selected_cnt = selected_cnt
         
@@ -666,6 +758,28 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             selected_runtime = np.nan
             selected_config = ucd_config_prios_str[0] # Use any because all are empty.
         selected_runtime_history.append(selected_runtime)
+
+        # Distribute the selected future points to all other configs.
+        for config_name in ucd_config_prios_str:
+            if config_name == selected_config:
+                continue
+            else: # Remove "future" files from non-selected configs and copy the selected ones over.
+                # NOTE: config folders are addressed by STRING CONCATENATION everywhere in this
+                # codebase (generated_path_prefix has no trailing slash, e.g. "./examples/exp",
+                # and config_name starts with "_config...", yielding "./examples/exp_config...").
+                # Do NOT use os.path.join here: it would insert a separator and point at the
+                # non-existent "./examples/exp/_config..." making this loop a silent no-op.
+                dest_folder = generated_path_prefix + config_name
+                src_folder = generated_path_prefix + selected_config
+
+                files_to_remove = glob.glob(os.path.join(dest_folder, "future_point_*.txt"))
+                for f in files_to_remove:
+                    os.remove(f)
+
+                files_to_copy = glob.glob(os.path.join(src_folder, "future_point_*.txt"))
+                for f in files_to_copy:
+                    shutil.copy(f, dest_folder)                
+        # EO Distribute the selected future points to all other configs.
 
         # Do Background Image
         DEBUG = False # Refreshes road in every cycle and paints MC cars.
@@ -729,22 +843,85 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         
         POS_COLOR = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
 
-        global_pos_to_draw = viz_state.pos_to_draw
-        global_pos_to_draw.clear()
+        viz_state.pos_to_draw.clear()
         coords_for_pp = [(0, 0)] * nonegos
-        pp_mc_immediate_exists = False
+        # Signed longitudinal distance [m] (along the heading) to the immediate next MC
+        # trajectory point; used in MCIMMEDIATE mode to compute the exact acceleration.
+        accel_target_dist = [None] * nonegos
+        # Each MC point occurs twice in the trace: indices 0/1 are the point the car is
+        # already on, 2/3 are the immediate next point (one MC step ahead), 4/5 the one
+        # after that.
+        
+        if found_shortcut:
+            # COP
+            #
+            # The `future_point_*.txt` files are the single source of truth for the remaining plan.
+            # `future_points_str` holds that plan as read at the top of this iteration (before the
+            # shortcut probes overwrite the files). The shortcut reached `future_points_str[shortcut_index]`
+            # (== the last point of the freshly extracted `positions`), so append the plan tail, i.e. the
+            # points strictly after it, letting the car keep following the originally computed solution.
+            # Reconstructing the tail directly from the files (instead of searching a separately maintained
+            # `all_coords_for_pp`, which could drift from the files) guarantees the reached point is always
+            # accounted for. The `future_point_*.txt` files store each MC point once, but the extractor
+            # (extractVehPosFromNusmvFile) doubles every point when reading the trace, so `positions` is
+            # doubled. To match that density we emit each reconstructed tail point twice.
+            #
+            # The reached point (positions[-1]) equals the reconstruction of some future point,
+            # nominally future_points_str[shortcut_index]. However, the plan stored in the
+            # `future_point_*.txt` files can REPLAY ITS PREFIX after a connector stitch
+            # (prepareOutputForMortyUCD writes the fresh trace over the low indices and shifts the
+            # old plan up): past the connector the numbering effectively restarts at the plan's
+            # beginning, so the same reached point appears a SECOND time further along. Blindly
+            # appending everything after `shortcut_index` would splice that replayed prefix (a
+            # backward-jumping segment) onto the trajectory, sending the pure-pursuit lookahead
+            # behind the car and producing a bogus path once the fresh segment gets short. Anchor
+            # instead to the LAST future point matching the reached point and append only what
+            # follows it, discarding any replayed prefix and keeping the genuine forward
+            # continuation (the file-based equivalent of the former in-memory overlap search).
+            reached = positions[-1] if positions else None
+            anchor = shortcut_index
+            if reached is not None:
+                for idx in range(len(future_points_str)):
+                    cand = reconstruct_future_point_coords(
+                        future_points_str[idx], nonegos, dist_scale, num_actual_lanes, num_technical_lanes, LANE_WIDTH_HE
+                    )
+                    if cand is None:
+                        continue
+                    worst = max(
+                        (abs(a - b) for car_r, car_c in zip(reached, cand) for a, b in zip(car_r, car_c)),
+                        default=float("inf"),
+                    )
+                    if worst <= 1e-3:
+                        anchor = idx  # keep the last match -> skips any replayed prefix.
+
+            for future_point in future_points_str[anchor + 1:]:
+                tail_coords = reconstruct_future_point_coords(
+                    future_point, nonegos, dist_scale, num_actual_lanes, num_technical_lanes, LANE_WIDTH_HE
+                )
+                if tail_coords is None:
+                    print("Warning: could not reconstruct a future-point tail coordinate; stopping tail extension early.")
+                    break
+                positions.append(tail_coords)
+                positions.append(tail_coords)
+            # EO COP
+            
         for i, step in enumerate(positions):
+            all_coords = []
             for j, car_step in enumerate(step):
                 abspos = car_step[0]
                 latpos = car_step[1]
+                    
                 coord = (abspos, latpos)
+                all_coords.append([abspos, latpos])
                 if not args.hide_planned_positions:
-                    global_pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
+                    viz_state.pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
                 
-                if i <= 5:
+                if i <= 5: # second-next point (index 5) used as the pure-pursuit lookahead target for steering.
                     coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
-                    pp_mc_immediate_exists = True
                     print(f"Step {i}, Car {j}: abspos={abspos}, latpos={latpos}, coord={coord}") # TODO REMOVE
+                if i == 2: # Immediate next distinct point (one MC step ahead).
+                    accel_target_dist[j] = (coord[0] - egos_x[j]) * egos_backward[j]
+
         # EO Find future positions.
 
         
@@ -761,10 +938,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # if no success condition is given or if it is not implemented in a precise way.
         # Note: success is checked before blindness, so a step can be blind (no CEX) and still count as
         # success if the success condition is met.
-        if res_str == "FINISHED" or successed:
+        if (res_str == "FINISHED" and not found_shortcut) or successed:
             print("DONE")
             good_ones.append(seedo)
-            archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
+            archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
             break
 
         if res_str == empty_cex:
@@ -774,17 +951,19 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     env.unwrapped.controlled_vehicles[i].color = (100, 100, 255)
             nocex_count += 1
             if nocex_count > args.allow_blind_steps: # Abort (as failure) once this many blind steps occurred.
-                archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
+                archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
                 break
             
             # Note: final blind step of a run is not reflected in the cex-length plots.
             cex_length_history.append(np.nan)
             cnt_history.append(-1)
+            shortcut_history.append("")
             cex_point_colors.append('tab:red')
         else:
-            cex_length = len(res_str.split(';')[0].split('|')[0].split(','))
+            cex_length = len(positions) / time_scale
             cex_length_history.append(cex_length)
-            cnt_history.append(cnt)
+            cnt_history.append(selected_cnt)
+            shortcut_history.append(f" <{shortcut_index}>" if found_shortcut else "")
             cex_point_colors.append('tab:blue')
             
             for i in range(nonegos):
@@ -796,85 +975,45 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             cex_length_history,
             f"{generated_path_prefix}/cex_length_debug_{seedo}.pdf",
             cnt_history=cnt_history,
+            shortcut_history=shortcut_history,
             point_colors=cex_point_colors,
         )
         all_cex_length_histories[seedo] = cex_length_history[:]
         plot_cex_lengths_cumulative(all_cex_length_histories, f"{generated_path_prefix}/cex_length_debug_all.pdf")
         # EO Plotting
 
-        sum_vel_by_car = []
-        sum_lan_by_car = []
-
-        lanes = ""
-        accels = ""
-
         # Best so far:
         # LANE_CHANGE_DURATION = 3
         min_time_between_lcs = d[selected_config]["MIN_TIME_BETWEEN_LANECHANGES"]
         LANE_CHANGE_DURATION = min_time_between_lcs * time_scale # Index in the MC delta trace where the lane change effect appears.
 
-        # Process the MC data.
-        mc_car_results = [segment for segment in res_str.split(';') if segment]
-        for i1, el1 in enumerate(mc_car_results):
-            sum_lan_by_car.append(0)
-            sum_vel_by_car.append(0)
-            lanes += "\n"
-            accels += "\n"
-            for i2, el2 in enumerate(el1.split('|')):
-                for i3, el3 in enumerate(el2.split(',')):
-                    if el3:
-                        if i2 == 1:
-                            lanes += "   " + el3
-                            if i3 == LANE_CHANGE_DURATION:
-                                sum_lan_by_car[i1] += float(el3)
-                        else:
-                            accels += "   " + el3
-                            if i3 == 0:
-                                sum_vel_by_car[i1] += float(el3)
-
-        with open(f"{generated_path_prefix}/lanes.txt", "w") as text_file:
-            text_file.write(lanes)
-        with open(f"{generated_path_prefix}/accels.txt", "w") as text_file:
-            text_file.write(accels)
-
-        print(f"summed velocity: {sum_vel_by_car}")
-        print(f"summed lane: {sum_lan_by_car}")
-        # EO Process the MC data.
-
         action_list = []
         
-        # Best so far:
-        # MAXTIME_FOR_LC = 60
-        MAXTIME_FOR_LC = 60
+        # Real-world integration window [s] for one control step: highway-env applies the
+        # chosen acceleration for exactly this long before morty re-plans, so it is the
+        # horizon over which the MCIMMEDIATE acceleration must land the car on the next MC
+        # point. Equals 1/time_scale (the MC's own step duration) under the invariant
+        # enforced above, and is independent of dist_scale since positions/velocities are
+        # already in real-world meters and m/s.
+        mc_step_time = 1.0 / POLICY_FREQUENCY
         
-        eps = 1
-        for i, el in enumerate(sum_vel_by_car):
-            lc_time[i] += 1
-            
-            if abs(dpoints_y[i] - egos_y[i]) < eps: # If we're close to the desired lateral position, we can start a new lane change.
-                lc_time[i] = 0
-                num_tech_lanes = abs(sum_lan_by_car[i])
-                
-                if sum_lan_by_car[i] < 0:
-                    dpoints_delta[i] = num_tech_lanes * on_lane_step_y
-                    dpoints_y[i] += dpoints_delta[i]
-                elif sum_lan_by_car[i] > 0:
-                    dpoints_delta[i] = -num_tech_lanes * on_lane_step_y
-                    dpoints_y[i] += dpoints_delta[i]
-            
-            if lc_time[i] > MAXTIME_FOR_LC and dpoints_delta[i] != 0:
-                dpoints_y[i] -= dpoints_delta[i] # Go back to source lane if taking too long.
-                dpoints_delta[i] = 0 # Don't care about cases with no ongoing LC since delta is zero, then.
-                lc_time[i] = 0
-            
-            dpoints_y[i] = max(min(dpoints_y[i], y_max_tech), y_min_tech)
-            
-            # Best so far:
-            # accel = sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
-            accel = egos_backward[i] * sum_vel_by_car[i] * 6/3 / ACCEL_RANGE
+        mc_car_results = [segment for segment in res_str.split(';') if segment]
+        for i, _ in enumerate(mc_car_results):
+            # MCIMMEDIATE: instead of replaying the MC's explicit acceleration, compute the
+            # exact longitudinal acceleration that lands the car on the immediate next MC
+            # trajectory point after one step. From s = v0*t + 0.5*a*t^2 with s the distance
+            # along the heading and v0 = egos_v[i] the current heading speed,
+            # a = 2*(s - v0*t)/t^2. Normalized into the [-1, 1] action range.
+            if accel_target_dist[i] is not None:
+                s = accel_target_dist[i]
+                v0 = egos_v[i]
+                a_phys = 2.0 * (s - v0 * mc_step_time) / (mc_step_time ** 2)
+                accel = float(np.clip(a_phys / ACCEL_RANGE, -1.0, 1.0))
+            else:
+                accel = 0.0  # No MC trajectory point available (degenerate trace): coast.
 
             # Formula for speed-dependent distance in pure-pursuit.
-            formula_pp_strategies = d[selected_config]["UCD_PP_STRATEGIES"] if pp_mc_immediate_exists else d[selected_config]["UCD_PP_STRATEGIES_FALLBACK"]
+            formula_pp_strategies = d[selected_config]["UCD_PP_STRATEGIES"]
             formula_distance_pp = d[selected_config]["UCD_FORMULA_PP_DISTANCE"]
             formula_latshift_pp = d[selected_config]["UCD_FORMULA_PP_LATSHIFT"]
 
@@ -891,7 +1030,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             print(" formula_pp_strategies " + formula_pp_strategies) # TODO REMOVE
             print(" formula_distance_pp " + formula_distance_pp)     # TODO REMOVE
             print(" formula_latshift_pp " + formula_latshift_pp)     # TODO REMOVE
-            print(" dpoints_y[i] " + str(dpoints_y[i]))              # TODO REMOVE
             print(" dist_point_mc " + str(dist_point_mc))            # TODO REMOVE
             print(" latshift_point_mc " + str(latshift_point_mc))    # TODO REMOVE
 
@@ -906,7 +1044,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
             script_pp_latshift = f"""@{{
             @{{{formula_pp_strategies}}}@.eval
-            @{{@pp_y = {dpoints_y[i]}}}@.eval
             @{{@next_immediate_y = {latshift_point_mc}}}@.eval
             }}@.nil
             @{{{formula_latshift_pp}}}@.eval
@@ -934,8 +1071,6 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 pp_target_y = pp_latshift
                 viz_state.pp_targets[id(vehicle)] = [pp_target_x, pp_target_y]
 
-            # Best so far (for inversion task):
-            # angle = -dpoint_following_angle(dpoints_y[i], egos_y[i], egos_headings[i], 10 + 2 * egos_v[i], egos_backward[i]) / 3.1415 # Magic constants, get over it ;)
             # Pure-pursuit curvature law: delta = atan(2 L sin(alpha) / L_d). A close target
             # (small L_d) drives the wheel angle toward full lock, so sharp turns are tracked
             # tightly instead of lagging like the old heading-proportional (/pi) law did.
@@ -966,7 +1101,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         if args.record_video and not args.dryrun and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
             from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
             clip = ImageSequenceClip(env.recorded_frames, fps=env.frames_per_sec)
-            clip.write_videofile(f"{generated_path_prefix}/videos/vid_{seedo}_partial.mp4", logger=None)
+            clip.write_videofile(f"{generated_path_prefix}/videos/vid_{seedo}.mp4", logger=None)
             clip.close()
             print("Video written")
 
@@ -975,7 +1110,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             img = Image.fromarray(last_frame)
             img.save(f"{generated_path_prefix}/current_state.png")
 
-        archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes)
+        archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
 
         if crashed_count > args.allow_crashed_steps: # Allow these many crashes per run.
             break

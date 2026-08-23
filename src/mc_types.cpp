@@ -59,7 +59,7 @@ VarValsFloat vfm::MCTrace::getDeltaFromTo(const int step_a, const int step_b, co
          delta = vala != valb; // For now, we return 0 if the non-float values are equal, and 1 in all other cases.
       }
 
-      addNote("Calculating delta [steps " + std::to_string(step_a) + "/" + std::to_string(step_b) + "] for variable '" + var + "' between '" + vala + "' and '" + valb + "' ==> '" + std::to_string(delta) + "'.");
+      // addNote("Calculating delta [steps " + std::to_string(step_a) + "/" + std::to_string(step_b) + "] for variable '" + var + "' between '" + vala + "' and '" + valb + "' ==> '" + std::to_string(delta) + "'.");
 
       res.insert({ var, delta });
    }
