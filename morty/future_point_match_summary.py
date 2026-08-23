@@ -44,7 +44,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--base-dir",
-        default="examples/exp/detailed_archive/run_1",
+        default="examples/exp/detailed_archive/run_0",
         help="Path containing iteration_<n> directories.",
     )
     parser.add_argument(
@@ -58,6 +58,16 @@ def parse_args() -> argparse.Namespace:
         help=(
             "Summarize every config folder found across the iterations instead of "
             "just --config. Each config is printed under a '=== <config> ===' header."
+        ),
+    )
+    parser.add_argument(
+        "--single-block",
+        action="store_true",
+        help=(
+            "Print a single block instead of one per config. Each line uses the "
+            "selected config's data and ends with ' [<selected_config>, <prio>]', "
+            "where prio is the config's index in UCD_CONFIG_PRIOS. Requires "
+            "selected_config.txt markers to be meaningful."
         ),
     )
     parser.add_argument(
@@ -167,20 +177,27 @@ def load_selected_configs(iterations: list[IterationData]) -> dict[int, str]:
     """Read the per-iteration selected config from ``selected_config.txt``.
 
     morty.py writes this marker into each archived ``iteration_<n>`` folder
-    (the selection cannot be reliably inferred from the raw files). Returns
-    {iteration_index: config_name}; iterations without a marker are omitted.
+    (the selection cannot be reliably inferred from the raw files).
+
+    The archive only stores *changes*: if the selection does not change from
+    one iteration to the next, the marker may be absent in the later folder.
+    We therefore carry the last-seen value forward across iterations that lack
+    a marker. Iterations before the first marker remain unknown (omitted).
+    Returns {iteration_index: config_name}.
     """
     selected: dict[int, str] = {}
-    for it in iterations:
+    last_seen: str | None = None
+    for it in sorted(iterations, key=lambda x: x.index):
         marker = it.path / "selected_config.txt"
-        if not marker.is_file():
-            continue
-        try:
-            name = marker.read_text(encoding="utf-8", errors="replace").strip()
-        except OSError:
-            continue
-        if name:
-            selected[it.index] = name
+        if marker.is_file():
+            try:
+                name = marker.read_text(encoding="utf-8", errors="replace").strip()
+            except OSError:
+                name = ""
+            if name:
+                last_seen = name
+        if last_seen is not None:
+            selected[it.index] = last_seen
     return selected
 
 
@@ -328,6 +345,48 @@ def build_iteration_line(
     return f"{iteration}: " + ",".join(tokens)
 
 
+def compute_iteration_line(
+    config: str,
+    it: IterationData,
+    prev: IterationData | None,
+    args: argparse.Namespace,
+    ignore_patterns: list[re.Pattern[str]],
+) -> str | None:
+    """Return the 'index: tokens' line for ``config`` at iteration ``it``.
+
+    Returns None when the config directory is missing for this iteration, so the
+    caller can render the empty form. Iteration 0 (or any iteration whose
+    predecessor is missing) is compared against an empty previous iteration, so
+    every point becomes a no-match token (X).
+    """
+    curr_config = it.path / config
+    if not curr_config.is_dir():
+        return None
+
+    prev_config = prev.path / config if prev is not None else None
+    curr_points = list_future_points(curr_config)
+
+    prev_hash_map: dict[str, list[int]] = {}
+    if prev_config is not None and prev_config.is_dir():
+        prev_points = list_future_points(prev_config)
+        for prev_counter, prev_path in prev_points:
+            prev_hash = normalized_hash(prev_path, ignore_patterns)
+            prev_hash_map.setdefault(prev_hash, []).append(prev_counter)
+        for counters in prev_hash_map.values():
+            counters.sort()
+
+    return build_iteration_line(
+        iteration=it.index,
+        curr_points=curr_points,
+        prev_hash_map=prev_hash_map,
+        mode=args.mode,
+        no_match_token=args.no_match_token,
+        ignore_patterns=ignore_patterns,
+        compress_increasing=args.compress_increasing,
+        compress_use_any_match=args.compress_use_any_match,
+    )
+
+
 def summarize_config(
     config: str,
     iterations: list[IterationData],
@@ -347,39 +406,57 @@ def summarize_config(
 
     for it in iterations:
         prev = iteration_by_index.get(it.index - 1)
-        curr_config = it.path / config
-        prev_config = prev.path / config if prev is not None else None
-
-        if not curr_config.is_dir():
+        line = compute_iteration_line(config, it, prev, args, ignore_patterns)
+        if line is None:
             lines.append(f"{prefix_for(it.index)}{it.index}:")
-            continue
+        else:
+            lines.append(prefix_for(it.index) + line)
 
-        curr_points = list_future_points(curr_config)
+    return lines
 
-        # Build the match map from the previous iteration. Iteration 0 (and any
-        # iteration whose predecessor is missing) is compared against an empty
-        # "dummy" iteration, so every point ends up as a no-match token (X).
-        prev_hash_map: dict[str, list[int]] = {}
-        if prev_config is not None and prev_config.is_dir():
-            prev_points = list_future_points(prev_config)
-            for prev_counter, prev_path in prev_points:
-                prev_hash = normalized_hash(prev_path, ignore_patterns)
-                prev_hash_map.setdefault(prev_hash, []).append(prev_counter)
 
-            for counters in prev_hash_map.values():
-                counters.sort()
+def summarize_selected_block(
+    iterations: list[IterationData],
+    iteration_by_index: dict[int, IterationData],
+    args: argparse.Namespace,
+    ignore_patterns: list[re.Pattern[str]],
+    selected_by_iter: dict[int, str],
+    prio_index: dict[str, int],
+    fallback_config: str,
+) -> list[str]:
+    """Render a single block of iteration lines annotated with the selected config.
 
-        line = build_iteration_line(
-            iteration=it.index,
-            curr_points=curr_points,
-            prev_hash_map=prev_hash_map,
-            mode=args.mode,
-            no_match_token=args.no_match_token,
-            ignore_patterns=ignore_patterns,
-            compress_increasing=args.compress_increasing,
-            compress_use_any_match=args.compress_use_any_match,
-        )
-        lines.append(prefix_for(it.index) + line)
+    All configs produce near-identical match summaries, so only one block is
+    printed. Each line uses the selected config's data for that iteration and
+    ends with ' {<selected_config>, <prio>}', where prio is the config's index
+    in UCD_CONFIG_PRIOS. The annotations are aligned into a column padded to the
+    longest line. Iterations with no known selection fall back to
+    ``fallback_config`` and carry no annotation.
+    """
+    bodies: list[str] = []
+    annotations: list[str] = []
+    for it in iterations:
+        prev = iteration_by_index.get(it.index - 1)
+        selected = selected_by_iter.get(it.index)
+        config = selected if selected is not None else fallback_config
+
+        annotation = ""
+        if selected is not None:
+            prio = prio_index.get(selected)
+            prio_str = str(prio) if prio is not None else "?"
+            annotation = f"{{{selected}, {prio_str}}}"
+
+        line = compute_iteration_line(config, it, prev, args, ignore_patterns)
+        bodies.append(line if line is not None else f"{it.index}:")
+        annotations.append(annotation)
+
+    width = max((len(body) for body in bodies), default=0)
+    lines: list[str] = []
+    for body, annotation in zip(bodies, annotations):
+        if annotation:
+            lines.append(f"{body.ljust(width)}  {annotation}")
+        else:
+            lines.append(body)
 
     return lines
 
@@ -400,20 +477,36 @@ def summarize(args: argparse.Namespace) -> list[str]:
     selected_by_iter = load_selected_configs(iterations)
     mark_selected = bool(selected_by_iter)
 
+    prio_list = load_config_priorities(base_dir)
+
     if args.all_configs:
         configs = discover_configs(iterations)
         if not configs:
             return []
         # Order configs by the UCD_CONFIG_PRIOS priority list when available;
         # any discovered config not listed there is appended (sorted) afterwards.
-        prio = load_config_priorities(base_dir)
-        if prio:
+        if prio_list:
             discovered = set(configs)
-            ordered = [c for c in prio if c in discovered]
+            ordered = [c for c in prio_list if c in discovered]
             remaining = sorted(discovered.difference(ordered))
             configs = ordered + remaining
     else:
         configs = [args.config]
+
+    # Single-block mode: collapse the near-identical per-config blocks into one,
+    # annotating each line with the selected config and its priority.
+    if args.single_block:
+        prio_index = {name: i for i, name in enumerate(prio_list)}
+        fallback_config = prio_list[0] if prio_list else configs[0]
+        return summarize_selected_block(
+            iterations,
+            iteration_by_index,
+            args,
+            ignore_patterns,
+            selected_by_iter,
+            prio_index,
+            fallback_config,
+        )
 
     output_lines: list[str] = []
     for idx, config in enumerate(configs):

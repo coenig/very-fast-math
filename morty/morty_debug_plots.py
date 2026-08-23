@@ -38,7 +38,7 @@ def plot_cex_lengths(cex_lengths, output_path, cnt_history=None, shortcut_histor
                 (x, y), 
                 textcoords="offset points", 
                 xytext=(0, 8), 
-                ha='center', 
+                ha='left', 
                 fontsize=8, 
                 color='darkred', 
                 rotation=45)

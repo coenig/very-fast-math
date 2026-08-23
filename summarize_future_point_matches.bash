@@ -49,6 +49,7 @@ CMD=(
   "$PYTHON_BIN" morty/future_point_match_summary.py
   --base-dir "$RUN_DIR"
   --all-configs
+  --single-block
   --mode min_or_x
   --compress-increasing
   --compress-use-any-match

@@ -457,7 +457,7 @@ snapshot_hashes = {}  # Post-first-MC-call hashes (only baseline files).
 if args.detailed_archive:
     baseline_hashes = _snapshot_configs(ucd_config_prios_str, generated_path_prefix)
 
-for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
+for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         "action": {
             "type": "MultiAgentAction",
@@ -763,8 +763,13 @@ for seedo in range(1, MAX_EXPs): # TODO: set ==> 0 again.
             if config_name == selected_config:
                 continue
             else: # Remove "future" files from non-selected configs and copy the selected ones over.
-                dest_folder = os.path.join(generated_path_prefix, config_name)
-                src_folder = os.path.join(generated_path_prefix, selected_config)
+                # NOTE: config folders are addressed by STRING CONCATENATION everywhere in this
+                # codebase (generated_path_prefix has no trailing slash, e.g. "./examples/exp",
+                # and config_name starts with "_config...", yielding "./examples/exp_config...").
+                # Do NOT use os.path.join here: it would insert a separator and point at the
+                # non-existent "./examples/exp/_config..." making this loop a silent no-op.
+                dest_folder = generated_path_prefix + config_name
+                src_folder = generated_path_prefix + selected_config
 
                 files_to_remove = glob.glob(os.path.join(dest_folder, "future_point_*.txt"))
                 for f in files_to_remove:
