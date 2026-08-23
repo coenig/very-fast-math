@@ -259,10 +259,10 @@ MC_MAX_V_BACKWARD = int(-10 * vel_scale)
 addons[7] += f"""
 -- INVAR env.veh___609___.v >= {MC_MIN_V_FORWARD};
 -- INVAR env.veh___619___.v <= {MC_MAX_V_BACKWARD};
--- TRANS (((env.veh___619___.abs_pos - env.veh___609___.abs_pos) < 0)
---        != ((next(env.veh___619___.abs_pos) - next(env.veh___609___.abs_pos)) < 0))
---        -> ((env.veh___609___.on_normalized_lane = next(env.veh___609___.on_normalized_lane)) & 
---           (env.veh___619___.on_normalized_lane = next(env.veh___619___.on_normalized_lane)));
+TRANS (((env.veh___619___.abs_pos - env.veh___609___.abs_pos) < 0)
+       != ((next(env.veh___619___.abs_pos) - next(env.veh___609___.abs_pos)) < 0))
+       -> ((env.veh___609___.on_normalized_lane = next(env.veh___609___.on_normalized_lane)) & 
+          (env.veh___619___.on_normalized_lane = next(env.veh___619___.on_normalized_lane)));
 """
 
 for i in range(2, nonegos):
@@ -712,9 +712,9 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                 old_selected_cnt = selected_cnt
                 blind, selected_cnt, res_str = postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex)
 
-                if res_str != empty_cex and selected_cnt <= old_selected_cnt: # Found a better or equal shortcut to a future point.
+                if res_str != empty_cex and selected_cnt <= last_full_solution_prio: # Found a better or equal shortcut to a future point.
                     found_shortcut = True
-                    # print(f"Newly selected config is: {selected_cnt} (old was {old_selected_cnt}).")
+                    # print(f"Newly selected config is: {selected_cnt} (old was {last_full_solution_prio}).")
                     # input(f"We did it (idx {shortcut_index})...")
                     break
                 
@@ -733,6 +733,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             res_str = res.decode().strip()
         
             blind, selected_cnt, res_str = postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex)
+            last_full_solution_prio = selected_cnt # This line should always turn up BEFORE the variable is used above.
 
         if args.detailed_archive and global_counter == 0:
             # Processed snapshot: only re-hash files that existed in the baseline
