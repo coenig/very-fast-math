@@ -106,21 +106,23 @@ extract_config() {
 # the checker returns. A single run checks many invariants, so the file may hold
 # several "no counterexample found" lines AND a counterexample; therefore we look
 # for the positive counterexample marker first:
-#   * "CEX"   if the file contains a counterexample trace
-#             ("Trace Type: Counterexample" / "as demonstrated by ..."),
+#   * "cex N" if the file contains a counterexample trace
+#             ("Trace Type: Counterexample" / "as demonstrated by ..."), where N
+#             is the CEX length = number of trace states ("-> State:" lines),
 #   * "blind" if it only contains "no counterexample found" lines.
 # To avoid reading a stale file from a previous run we only accept the file if
-# it was modified at/after the process' start time. Echoes "cex", "blind", or
+# it was modified at/after the process' start time. Echoes "cex N", "blind", or
 # nothing (result not available yet).
 resolve_result() {
-  local dir="$1" min_mtime="$2" file mtime
+  local dir="$1" min_mtime="$2" file mtime nstates
   [[ -z "${dir}" ]] && return 0
   file="${dir}/debug_trace_array.txt"
   [[ -f "${file}" ]] || return 0
   mtime="$(stat -c %Y "${file}" 2>/dev/null || echo 0)"
   (( mtime < min_mtime )) && return 0            # stale (from a previous run)
   if grep -q -E "Trace Type: Counterexample|as demonstrated by the following" "${file}" 2>/dev/null; then
-    printf 'cex'
+    nstates="$(grep -c -E -- '-> State:' "${file}" 2>/dev/null)"
+    printf 'cex %s' "${nstates}"
   elif grep -q "no counterexample found" "${file}" 2>/dev/null; then
     printf 'blind'
   fi
@@ -130,7 +132,7 @@ resolve_result() {
 # We remember instances seen in the previous frame so we can detect when one
 # disappears (terminates) and keep it in the list for a while.
 declare -A prev_etime prev_short prev_start prev_dir  # live instances, prev frame
-declare -A term_etime term_short term_start term_dir term_status  # kept, done
+declare -A term_etime term_short term_start term_dir term_status term_len  # kept, done
 term_order=()                      # terminated PIDs, oldest first (FIFO)
 
 # Remove a PID from the terminated bookkeeping.
@@ -142,7 +144,8 @@ drop_terminated() {
   done
   term_order=("${new[@]}")
   unset 'term_etime[${target}]' 'term_short[${target}]' \
-        'term_start[${target}]' 'term_dir[${target}]' 'term_status[${target}]'
+        'term_start[${target}]' 'term_dir[${target}]' 'term_status[${target}]' \
+        'term_len[${target}]'
 }
 
 # --- Main loop ----------------------------------------------------------------
@@ -178,7 +181,7 @@ while true; do
 
   # Width available for the (truncated) config column, so rows never wrap.
   term_cols="${COLUMNS:-$(tput cols 2>/dev/null || echo 100)}"
-  cmd_width=$((term_cols - 35))
+  cmd_width=$((term_cols - 37))
   ((cmd_width < 20)) && cmd_width=20
 
   now_epoch="$(date +%s)"
@@ -236,7 +239,10 @@ while true; do
     for pid in "${term_order[@]}"; do
       if [[ -z "${term_status[${pid}]}" ]]; then
         st="$(resolve_result "${term_dir[${pid}]}" "${term_start[${pid}]:-0}")"
-        [[ -n "${st}" ]] && term_status["${pid}"]="${st}"
+        if [[ -n "${st}" ]]; then
+          term_status["${pid}"]="${st%% *}"          # "cex" or "blind"
+          [[ "${st}" == cex\ * ]] && term_len["${pid}"]="${st#* }"  # CEX state count
+        fi
       fi
     done
   fi
@@ -247,7 +253,7 @@ while true; do
   buffer+=$(printf '\033[1mProcess monitor\033[0m  pattern="%s"  interval=%ss  %s\n' \
     "${pattern}" "${interval}" "${now}")
   buffer+=$'\n'
-  buffer+=$(printf '\033[1m%-8s  %-14s  %-7s  %s\033[0m\n' "PID" "RUNNING" "RESULT" "CONFIG")
+  buffer+=$(printf '\033[1m%-8s  %-14s  %-9s  %s\033[0m\n' "PID" "RUNNING" "RESULT" "CONFIG")
   buffer+=$'\n'
 
   if [[ "${count}" -eq 0 && "${#term_order[@]}" -eq 0 ]]; then
@@ -257,18 +263,18 @@ while true; do
     # Live instances first.
     for row in "${rows[@]}"; do
       read -r pid etime _etimes args <<<"${row}"
-      buffer+=$(printf '%-8s  %-14s  \033[2m%-7s\033[0m  %s\n' \
+      buffer+=$(printf '%-8s  %-14s  \033[2m%-9s\033[0m  %s\n' \
         "${pid}" "${etime}" "running" "${cur_short[${pid}]}")
       buffer+=$'\n'
     done
     # Then recently terminated instances, colored by result and marked "done".
     for pid in "${term_order[@]}"; do
       case "${term_status[${pid}]}" in
-        cex)   color=$'\033[32m'; res="CEX"   ;;  # green: counterexample found
+        cex)   color=$'\033[32m'; res="CEX (${term_len[${pid}]:-?})" ;;  # green: CEX + length
         blind) color=$'\033[33m'; res="blind" ;;  # yellow: no counterexample
         *)     color=$'\033[2m';  res="…"     ;;  # dim: result not yet known
       esac
-      buffer+=$(printf '%s%-8s  %-14s  %-7s  %s (done)\033[0m\n' \
+      buffer+=$(printf '%s%-8s  %-14s  %-9s  %s (done)\033[0m\n' \
         "${color}" "${pid}" "${term_etime[${pid}]}" "${res}" "${term_short[${pid}]}")
       buffer+=$'\n'
     done

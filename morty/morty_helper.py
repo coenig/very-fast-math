@@ -728,6 +728,16 @@ def install_world_surface_patches(bg_image_state, num_lanes, fit_background=Fals
     import highway_env as _he
     import pygame  # Required to draw/scale images
 
+    # Publish the CURRENT render state on the highway_env module so the
+    # install-once RoadGraphics.display patch below always reads the latest
+    # bg_image_state, not a dict captured on the first call. The caller recreates
+    # bg_image_state for every run/seed; with the seed scheduler the first seed(s)
+    # may be discarded before ever loading a background, which previously pinned
+    # the patch to an empty dict and suppressed the background for all later runs.
+    _he._morty_bg_state = bg_image_state
+    _he._morty_bg_num_lanes = num_lanes
+    _he._morty_bg_fit = fit_background
+
     _orig_move_display_window_to = WorldSurface.move_display_window_to
 
     def _move_display_window_to_all(self, position):
@@ -740,19 +750,23 @@ def install_world_surface_patches(bg_image_state, num_lanes, fit_background=Fals
             if not vehicles:
                 return _orig_move_display_window_to(self, position)
 
-            if fit_background and bg_image_state is not None and bg_image_state["image"] is not None:
-                image = bg_image_state["image"]
+            bg_state = getattr(_he, '_morty_bg_state', None)
+            nlanes = getattr(_he, '_morty_bg_num_lanes', num_lanes)
+            fit = getattr(_he, '_morty_bg_fit', False)
+
+            if fit and bg_state is not None and bg_state["image"] is not None:
+                image = bg_state["image"]
                 road_x, road_y, road_w, road_h = get_road_world_rect(env_ref)
                 # Cache the (expensive) non-black content scan per image object.
-                if bg_image_state.get("content_bbox_for") != id(image):
-                    bg_image_state["content_bbox"] = get_background_content_pixel_bbox(image)
-                    bg_image_state["content_bbox_for"] = id(image)
+                if bg_state.get("content_bbox_for") != id(image):
+                    bg_state["content_bbox"] = get_background_content_pixel_bbox(image)
+                    bg_state["content_bbox_for"] = id(image)
                 bbox_x, bbox_y, bbox_w, bbox_h = get_background_content_world_rect(
                     image,
                     world_ref_x_m=0.0,
                     world_ref_y_m=road_y + road_h / 2.0,
-                    num_lanes=num_lanes,
-                    content_px_bbox=bg_image_state["content_bbox"],
+                    num_lanes=nlanes,
+                    content_px_bbox=bg_state["content_bbox"],
                 )
                 bbox = {
                     "xmin": bbox_x,
@@ -803,24 +817,28 @@ def install_world_surface_patches(bg_image_state, num_lanes, fit_background=Fals
             _orig_road_display(road, surface)
             try:
                 env_ref = getattr(_he, '_display_env', None)
-                if (env_ref is None or bg_image_state is None
-                        or bg_image_state["image"] is None):
+                # Read the CURRENT state (updated on every install call) rather than
+                # a dict captured once, so a background loaded in a later run is used.
+                bg_state = getattr(_he, '_morty_bg_state', None)
+                nlanes = getattr(_he, '_morty_bg_num_lanes', num_lanes)
+                if (env_ref is None or bg_state is None
+                        or bg_state["image"] is None):
                     return
                 # convert_alpha requires an initialized display/surface.
-                if (not bg_image_state["converted"] and pygame.display.get_init()
+                if (not bg_state["converted"] and pygame.display.get_init()
                         and pygame.display.get_surface() is not None):
-                    bg_image_state["image"] = bg_image_state["image"].convert_alpha()
-                    bg_image_state["image"].set_colorkey((0, 0, 0))
-                    bg_image_state["converted"] = True
+                    bg_state["image"] = bg_state["image"].convert_alpha()
+                    bg_state["image"].set_colorkey((0, 0, 0))
+                    bg_state["converted"] = True
                 # Derive background world extent/anchor from HE road geometry so the
                 # painted road matches highway-env's road under camera scale/translation.
                 road_x, road_y, road_w, road_h = get_road_world_rect(env_ref)
                 blit_background_rigid(
                     surface,
-                    bg_image_state["image"],
+                    bg_state["image"],
                     world_ref_x_m=0.0,
                     world_ref_y_m=road_y + road_h / 2.0,
-                    num_lanes = num_lanes
+                    num_lanes = nlanes
                 )
             except Exception as e:
                 raise e
