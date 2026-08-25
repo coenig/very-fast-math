@@ -23,6 +23,7 @@ from .morty_helper import (
     maxDifferenceArray, inverseSortingArray, _latest_nuxmv_runtime_seconds,
     _hash_file, _snapshot_configs, _save_configs_to_archive, archive, morty_script_context,
     VizState, install_vehicle_graphics_patches, install_world_surface_patches,
+    RunScheduler, snapshot_mc_results_offsets, run_reached_threshold, discard_run,
 )
 import platform
 
@@ -69,6 +70,11 @@ parser.add_argument('--dryrun', action='store_true',
                     help='Perform a dry run recreating all plots without running the model checker. Default: False')
 parser.add_argument('--headless', action='store_true',
                     help='Run without opening the simulation UI window. Default: False')
+parser.add_argument('--min_iterations', default=2, type=int,
+                    help='Runs that FAIL before completing this many planning iterations are treated as '
+                         'unsolvable seeds: they are excluded (no data/statistics/archives are written) and '
+                         'do not consume a run ID, while the seed pool keeps advancing until num_runs valid '
+                         'runs are collected. A quick success still counts as a valid run. Set 0 to disable. Default: 2')
 args = parser.parse_args()
 
 if args.dryrun:
@@ -457,7 +463,16 @@ snapshot_hashes = {}  # Post-first-MC-call hashes (only baseline files).
 if args.detailed_archive:
     baseline_hashes = _snapshot_configs(ucd_config_prios_str, generated_path_prefix)
 
-for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
+# Seeds (which determine car initialization) are decoupled from run IDs (which identify the
+# stored data/statistics/archives): RunScheduler keeps drawing fresh seeds and only advances the
+# run ID for runs that reach the --min_iterations threshold (see commit()/discard_run below), so
+# early, unsolvable failures neither consume a run ID nor leave any artifacts behind.
+scheduler = RunScheduler(generated_path_prefix, MAX_EXPs, args.dryrun)
+
+for run_id, seedo in scheduler:
+    # Snapshot the per-config MC results log lengths so an excluded run can be truncated away again.
+    mc_results_offsets = snapshot_mc_results_offsets(ucd_config_prios_str, generated_path_prefix)
+
     env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
         "action": {
             "type": "MultiAgentAction",
@@ -579,10 +594,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         viz_state.pp_targets[id(vehicle)] = [float(vehicle.position[0]), float(vehicle.position[1])]
 
     if args.record_video:
-        env = RecordVideo(env, video_folder=f"{generated_path_prefix}/videos", name_prefix=f"vid_{seedo}",
+        env = RecordVideo(env, video_folder=f"{generated_path_prefix}/videos", name_prefix=f"vid_{run_id}",
                     episode_trigger=lambda e: True)  # record all episodes
         env.unwrapped.set_record_video_wrapper(env)
-        env.start_recording(f"vid_{seedo}")
+        env.start_recording(f"vid_{run_id}")
         try:
             import highway_env as _he
             _he._display_env = env
@@ -594,12 +609,12 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
     crashed = False
 
     if args.detailed_archive:
-        _save_configs_to_archive(seedo, '0_pristine', generated_path_prefix, ucd_config_prios_str)
+        _save_configs_to_archive(run_id, '0_pristine', generated_path_prefix, ucd_config_prios_str)
 
     # Prepare dry run
     if args.dryrun:
-        target_dir = f"{generated_path_prefix}/detailed_archive/run_{seedo}"
-        zip_file = f"{generated_path_prefix}/detailed_archive/run_{seedo}.zip.zip"
+        target_dir = f"{generated_path_prefix}/detailed_archive/run_{run_id}"
+        zip_file = f"{generated_path_prefix}/detailed_archive/run_{run_id}.zip.zip"
         
         if Path(zip_file).is_file():
             print(f"Extracting data from {zip_file} into {target_dir}")
@@ -610,7 +625,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         else:
             print(f"Warning: Zip file {zip_file} not found for dry run, assuming folder is already extracted.")
             if not Path(target_dir).is_dir():
-                print(f"\---> Warning: Target directory {target_dir} not found for dry run. Skipping dry run for seed {seedo}.")
+                print(f"\---> Warning: Target directory {target_dir} not found for dry run. Skipping dry run for run {run_id} (seed {seedo}).")
                 continue
         
         for config_name in ucd_config_prios_str:
@@ -620,6 +635,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
     selected_config = None
     
+    global_counter = -1  # Guards the validity check below if the inner loop never runs (e.g. steps_per_run == 0).
     for global_counter in range(args.steps_per_run):
         mcinput = ""
         i = 0
@@ -646,7 +662,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             @{{scriptID}}@.scriptVar.StopScript
             
             }}@.nil
-            @{{}}@.prepareOutputForMortyUCD[{str(seedo)}, {str(global_counter)}, {0}, {str(crashed)}]
+            @{{}}@.prepareOutputForMortyUCD[{str(run_id)}, {str(global_counter)}, {0}, {str(crashed)}]
         """
         # EO The script to run the MC on C++ side.
 
@@ -674,7 +690,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     print(f"\---> Copying archived iteration into {dest_path}.")
                     shutil.copytree(f"{target_dir}/iteration_{global_counter}/{config_prio}", dest_path)
 
-            MC_SCRIPT = f"@{{}}@.prepareOutputForMortyUCD[{str(seedo)}, {str(global_counter)}, {0}, {str(crashed)}]"
+            MC_SCRIPT = f"@{{}}@.prepareOutputForMortyUCD[{str(run_id)}, {str(global_counter)}, {0}, {str(crashed)}]"
         # EO Prepare dry run
 
         empty_cex = ""
@@ -739,7 +755,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             # Processed snapshot: only re-hash files that existed in the baseline
             # (excludes iteration-specific artifacts like debug folders).
             snapshot_hashes = _snapshot_configs(ucd_config_prios_str, generated_path_prefix, restrict_to=baseline_hashes)
-            _save_configs_to_archive(seedo, '1_initialized', generated_path_prefix, ucd_config_prios_str, restrict_to={cn: set(baseline_hashes[cn]) for cn in baseline_hashes})
+            _save_configs_to_archive(run_id, '1_initialized', generated_path_prefix, ucd_config_prios_str, restrict_to={cn: set(baseline_hashes[cn]) for cn in baseline_hashes})
                 
         # Update global priority for trajectory coloring
         viz_state.selected_cnt = selected_cnt
@@ -818,10 +834,10 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
 
         plot_mc_runtimes(
             mc_runtime_histories,
-            f"{generated_path_prefix}/mc_runtime_debug_{seedo}.pdf",
+            f"{generated_path_prefix}/mc_runtime_debug_{run_id}.pdf",
             selected_cnt_history=selected_cnt_history,
         )
-        all_selected_runtime_histories[seedo] = selected_runtime_history[:]
+        all_selected_runtime_histories[run_id] = selected_runtime_history[:]
         plot_mc_runtimes_cumulative(all_selected_runtime_histories, f"{generated_path_prefix}/mc_runtime_debug_all.pdf")
         plot_mc_runtimes_cumulative(all_selected_runtime_histories, f"{generated_path_prefix}/mc_runtime_debug_all_log.pdf", log_scale=True)
         # EO Track latest nuXmv runtime per configured priority and update PDF each iteration.
@@ -940,8 +956,8 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # success if the success condition is met.
         if (res_str == "FINISHED" and not found_shortcut) or successed:
             print("DONE")
-            good_ones.append(seedo)
-            archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
+            good_ones.append(run_id)
+            archive(run_id, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
             break
 
         if res_str == empty_cex:
@@ -951,7 +967,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
                     env.unwrapped.controlled_vehicles[i].color = (100, 100, 255)
             nocex_count += 1
             if nocex_count > args.allow_blind_steps: # Abort (as failure) once this many blind steps occurred.
-                archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
+                archive(run_id, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
                 break
             
             # Note: final blind step of a run is not reflected in the cex-length plots.
@@ -973,12 +989,12 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         # Plotting (TODO: refactor to a function to avoid code duplication with the MC runtime plotting above):
         plot_cex_lengths(
             cex_length_history,
-            f"{generated_path_prefix}/cex_length_debug_{seedo}.pdf",
+            f"{generated_path_prefix}/cex_length_debug_{run_id}.pdf",
             cnt_history=cnt_history,
             shortcut_history=shortcut_history,
             point_colors=cex_point_colors,
         )
-        all_cex_length_histories[seedo] = cex_length_history[:]
+        all_cex_length_histories[run_id] = cex_length_history[:]
         plot_cex_lengths_cumulative(all_cex_length_histories, f"{generated_path_prefix}/cex_length_debug_all.pdf")
         # EO Plotting
 
@@ -1101,7 +1117,7 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
         if args.record_video and not args.dryrun and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
             from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
             clip = ImageSequenceClip(env.recorded_frames, fps=env.frames_per_sec)
-            clip.write_videofile(f"{generated_path_prefix}/videos/vid_{seedo}.mp4", logger=None)
+            clip.write_videofile(f"{generated_path_prefix}/videos/vid_{run_id}.mp4", logger=None)
             clip.close()
             print("Video written")
 
@@ -1110,14 +1126,28 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             img = Image.fromarray(last_frame)
             img.save(f"{generated_path_prefix}/current_state.png")
 
-        archive(seedo, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
+        archive(run_id, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
 
         if crashed_count > args.allow_crashed_steps: # Allow these many crashes per run.
             break
         
+    # Decide whether this run counts. A run is excluded (its data/statistics/archives are
+    # discarded and it does NOT consume a run ID) only if it FAILED before completing
+    # --min_iterations planning iterations, i.e. it looks like an unsolvable seed. Dry runs
+    # always replay archived runs verbatim, and a quick success always counts.
+    success = run_id in good_ones
+    if not run_reached_threshold(success, global_counter, args.min_iterations, args.dryrun):
+        print(f"Run with seed {seedo} failed within the first {args.min_iterations} iteration(s) "
+              f"(reached iteration {global_counter}); excluding it and keeping run ID {run_id}.")
+        discard_run(run_id, generated_path_prefix, ucd_config_prios_str, mc_results_offsets,
+                    all_cex_length_histories, all_selected_runtime_histories)
+        if args.record_video:
+            env.stop_recording()
+        continue  # seedo has already advanced; run_id stays so the next seed reuses it.
+
     with open(f"{generated_path_prefix}/results.txt", "a") as f:
-        outcome = "succeeded" if seedo in good_ones else "failed"
-        f.write("{" + min_max_curr(len(good_ones), seedo + 1, MAX_EXPs) + "} " + str(seedo) + " " + outcome + " [" + str(nocex_count) + " blind; " + blind_stats + "|]\n")
+        outcome = "succeeded" if success else "failed"
+        f.write("{" + min_max_curr(len(good_ones), run_id + 1, MAX_EXPs) + "} " + f"{run_id} (seed {seedo})" + " " + outcome + " [" + str(nocex_count) + " blind; " + blind_stats + "|]\n")
 
     if args.record_video:
         env.stop_recording()
@@ -1128,14 +1158,16 @@ for seedo in range(0, MAX_EXPs): # TODO: set ==> 0 again.
             suffix += f"_blind{nocex_count}"
         if suffix:
             import glob
-            for video_file in glob.glob(f"{generated_path_prefix}/videos/vid_{seedo}*"):
-                new_name = video_file.replace(f"vid_{seedo}", f"vid_{seedo}{suffix}", 1)
+            for video_file in glob.glob(f"{generated_path_prefix}/videos/vid_{run_id}*"):
+                new_name = video_file.replace(f"vid_{run_id}", f"vid_{run_id}{suffix}", 1)
                 os.rename(video_file, new_name)
 
     if args.detailed_archive:
-        folder_path = f'{generated_path_prefix}/detailed_archive/run_{seedo}'
+        folder_path = f'{generated_path_prefix}/detailed_archive/run_{run_id}'
         print(f"Zipping detailed archive folder {folder_path}.")
         shutil.make_archive(folder_path + ".zip", 'zip', folder_path)
         shutil.rmtree(folder_path)
+
+    scheduler.commit()  # Valid run: persist its seed (for later --dryrun) and advance the run ID.
 
 print(good_ones)
