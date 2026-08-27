@@ -24,6 +24,7 @@ from .morty_helper import (
     _hash_file, _snapshot_configs, _save_configs_to_archive, archive, morty_script_context,
     VizState, install_vehicle_graphics_patches, install_world_surface_patches,
     RunScheduler, snapshot_mc_results_offsets, run_reached_threshold, discard_run,
+    randomize_until_collision_free,
 )
 import platform
 
@@ -553,6 +554,7 @@ for run_id, seedo in scheduler:
     rng = np.random.default_rng(seedo)
     cnt = 0
     pos_x_anchor = 0
+    base_positions = []  # Deterministic per-car base positions the gaussian jitter is added to.
 
     for i, vehicle in enumerate(env.unwrapped.controlled_vehicles):
         if i == 0:
@@ -574,17 +576,16 @@ for run_id, seedo in scheduler:
             if cnt == 0:
                 vehicle.position[0] = 0
                 vehicle.position[1] = 0 # start at rightmost lane center (y=4m)
-        
-        # shift cars a little with gauss distribution (scale is deviation in meters for 2/3).
-        vehicle.position[0] += rng.normal(loc=0.0, scale=10)
-        vehicle.position[1] += rng.normal(loc=0.0, scale=1)
-        
-        # Clamp lateral position to valid road boundaries
-        vehicle.position[1] = max(min(vehicle.position[1], y_max_tech), y_min_tech)
-        
-        print(f"Seeding vehicle {cnt} at position {vehicle.position} with speed {vehicle.speed} and heading {vehicle.heading}.")
+
+        # Remember the deterministic base position; the gaussian jitter and collision retries
+        # below are applied relative to it so each redraw is independent of a rejected one.
+        base_positions.append([float(vehicle.position[0]), float(vehicle.position[1])])
 
         cnt = cnt + 1
+
+    # Jitter the cars around their deterministic base positions until they no longer collide
+    # (see randomize_until_collision_free for details); positions are mutated in place.
+    randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_tech)
 
     # COP: Reset and seed trajectories after all manual vehicle repositioning.
     viz_state.trajectories.clear()

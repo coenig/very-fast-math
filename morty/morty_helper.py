@@ -37,6 +37,41 @@ def min_max_curr(successful_so_far, done_so_far, max_to_expect):
 def dpoint_following_angle(dpoint_y, ego_y, heading, ddist, bwd):
     return heading - math.atan((dpoint_y - ego_y) * bwd / ddist)
 
+def randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_tech,
+                                   pos_scale=10.0, lat_scale=10.0,
+                                   collision_margin=0.5, max_retries=1000):
+    """Jitter all controlled vehicles around their deterministic base positions with a gaussian
+    offset and re-draw the whole set until no two cars collide. The gaussian jitter can place two
+    cars on top of each other, which highway-env would immediately flag as a crash; redrawing all
+    cars together (rather than only the offending one) keeps the accepted positions statistically
+    independent of a rejected colliding draw. Cars stay axis-aligned (heading 0 or pi), so an AABB
+    overlap test on LENGTH/WIDTH is exact. Vehicle positions are mutated in place; if no
+    collision-free layout is found within max_retries, warns and keeps the last draw."""
+    vehs = env.unwrapped.controlled_vehicles
+
+    def collision_free():
+        for a in range(len(vehs)):
+            for b in range(a + 1, len(vehs)):
+                va, vb = vehs[a], vehs[b]
+                min_dx = (va.LENGTH + vb.LENGTH) / 2.0 + collision_margin
+                min_dy = (va.WIDTH + vb.WIDTH) / 2.0 + collision_margin
+                if abs(va.position[0] - vb.position[0]) < min_dx and \
+                   abs(va.position[1] - vb.position[1]) < min_dy:
+                    return False
+        return True
+
+    for _attempt in range(max_retries):
+        # shift cars a little with gauss distribution (scale is deviation in meters for 2/3).
+        for i, vehicle in enumerate(vehs):
+            vehicle.position[0] = base_positions[i][0] + rng.normal(loc=0.0, scale=pos_scale)
+            vehicle.position[1] = base_positions[i][1] + rng.normal(loc=0.0, scale=lat_scale)
+            # Clamp lateral position to valid road boundaries.
+            vehicle.position[1] = max(min(vehicle.position[1], y_max_tech), y_min_tech)
+        if collision_free():
+            return
+    print(f"Warning: no collision-free start configuration found after {max_retries} "
+          f"attempts; continuing with the last drawn one.")
+
 def maxDifferenceArray(A):
     maxDiff = -1
     for i in range(len(A)):
