@@ -10,8 +10,11 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
+import sys
 import time
 from dataclasses import asdict, dataclass
+from datetime import datetime
 from pathlib import Path
 
 import networkx as nx
@@ -222,7 +225,8 @@ def render_smv(config: GridParkingConfig) -> str:
     return "\n".join(lines)
 
 
-def check_model(model: Path, bound: int, *, temporal: bool = False) -> Path | None:
+def check_model(model: Path, bound: int, *, temporal: bool = False,
+                progress: bool = False) -> Path | None:
     connection = NuXmvConn(["nuXmv", "-quiet", "-int", model.name], cwd=model.parent)
     try:
         connection._send("go_msat")
@@ -235,7 +239,23 @@ def check_model(model: Path, bound: int, *, temporal: bool = False) -> Path | No
             f"msat_check_invar_bmc -a falsification -k {bound} -n 0"
         )
         connection._send(command)
-        result = connection._read_response()
+        checking_started = time.perf_counter()
+
+        def report(line: str) -> None:
+            if not re.match(
+                r"-- (?:no counterexample found with bound|terminating with bound)",
+                line,
+                re.IGNORECASE,
+            ):
+                return
+            elapsed = time.perf_counter() - checking_started
+            timestamp = datetime.now().astimezone().isoformat(timespec="seconds")
+            message = f"[BMC {timestamp} +{elapsed:.3f}s] {line}"
+            print(message, flush=True)
+            if sys.stdout is not sys.__stdout__ and sys.__stdout__ is not None:
+                print(message, file=sys.__stdout__, flush=True)
+
+        result = connection._read_response(report if progress else None)
         if "counter-example of size" not in result.lower() and "trace description:" not in result.lower():
             return None
         output = (model.parent / "cex_grid_parking.xml").resolve()

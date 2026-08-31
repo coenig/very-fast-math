@@ -4,6 +4,7 @@ import re
 import subprocess
 from ctypes import CDLL, c_char_p, c_size_t
 from pathlib import Path
+from typing import Callable
 
 import networkx as nx
 
@@ -29,11 +30,12 @@ class NuXmvConn:
             self.close()
             raise
 
-    def _read_response(self) -> str:
+    def _read_response(self, line_callback: Callable[[str], None] | None = None) -> str:
         if self.process.stdout is None:
             raise RuntimeError("nuXmv stdout is not available")
 
         output = ""
+        pending_line = ""
         while True:
             character = self.process.stdout.read(1)
             if not character:
@@ -42,6 +44,12 @@ class NuXmvConn:
                     f"Output captured: {output}"
                 )
             output += character
+            if line_callback is not None:
+                if character == "\n":
+                    line_callback(pending_line)
+                    pending_line = ""
+                else:
+                    pending_line += character
             if output.endswith("nuXmv > "):
                 return output[:-len("nuXmv > ")]
 
@@ -102,10 +110,13 @@ class Morty:
         *,
         model_file: str | Path = "main.smv",
         bound: int = 10,
+        property_kind: str = "invar",
     ) -> Path | None:
         del iteration
         if bound < 0:
             raise ValueError("model-checking bound must be non-negative")
+        if property_kind not in {"invar", "ltl"}:
+            raise ValueError("property_kind must be 'invar' or 'ltl'")
         target_path = self.get_target_path()
         model_path = Path(model_file)
         if not model_path.is_absolute():
@@ -122,13 +133,16 @@ class Morty:
         print("SETUPTOUTPUT", setup_output)
         self._raise_on_nuxmv_error(setup_output, "go_msat")
 
-        self.nuxmv._send(
-            f"msat_check_invar_bmc -a falsification -k {bound} -n 0"
+        check_command = (
+            f"msat_check_ltlspec_sbmc_inc -k {bound} -n 0"
+            if property_kind == "ltl"
+            else f"msat_check_invar_bmc -a falsification -k {bound} -n 0"
         )
+        self.nuxmv._send(check_command)
         check_output = self.nuxmv._read_response()
         print("OUTP:", check_output)
         self._raise_on_nuxmv_error(
-            check_output, "msat_check_invar_bmc"
+            check_output, check_command.split()[0]
         )
         normalized_output = check_output.lower()
         has_counterexample = bool(

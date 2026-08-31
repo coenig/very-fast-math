@@ -252,6 +252,7 @@ def generate_scenario(
     input_config: str | Path = "main_template.json",
     experiments_dir: str | Path = "SMV_GEN",
     scenario_suffix: str | None = None,
+    env_model_template: str | Path = "src/templates/EnvModel.tpl",
 ) -> Morty:
     experiments_path = Path(experiments_dir)
     experiments_path.mkdir(parents=True, exist_ok=True)
@@ -270,7 +271,7 @@ def generate_scenario(
         str(output_config),
         "",
         ".",
-        "src/templates/EnvModel.tpl",
+        str(env_model_template),
         "src/examples/ego_less/vfm-includes.txt",
         str(target_path),
         str(cache_path),
