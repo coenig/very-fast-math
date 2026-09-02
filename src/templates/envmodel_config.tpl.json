@@ -42,7 +42,7 @@
       "#139": "@f(GapLeftMinMax) { distance_front_min, distance_front_max, distance_rear_min, distance_rear_max } { (env.ego.gaps___609___.s_dist_front > distance_front_min) && (env.ego.gaps___609___.s_dist_rear > distance_rear_min) && (env.ego.gaps___609___.s_dist_front < distance_front_max) && (env.ego.gaps___609___.s_dist_rear < distance_rear_max) }",
       "#140": "@f(RLCDist) { delta_v, ego_a } { (env.ego.gaps___609___.v_rear >= env.ego.v + delta_v) && (env.rlc == env.ego.gaps___609___.s_dist_rear) && (env.ego.a == 0-ego_a) }",
       "ALLOW_ZEROLENGTH_SECTIONS": false,
-      "ANGLEGRANULARITY": "#{90}#",
+      "ANGLEGRANULARITY": "#{30}#",
       "ANGLE_BASED_LC": false,
       "BMC_CNT": 100,
       "BMC_NUMBER_OF_CEXS": 1,
@@ -58,7 +58,7 @@
       "INITPOSRANGENONEGOS": 300,
       "KEEP_EGO_FROM_GREEN": true,
       "LANES_MAX_SPEEDS": "@(15)@@(16)@@(17)@",
-      "LANES_MIN_SPEEDS": "@(0)@@(0)@@(0)@",
+      "LANES_MIN_SPEEDS": "@(-15)@@(0)@@(0)@",
       "LANE_WIDTH": 400,
       "LATERAL_LC_GRANULARITY": 0,
       "LTL_MODE": false,
@@ -83,7 +83,7 @@
       "SEGMENTS": "#{segments}#",
       "SEGMENTSMINLENGTH": 10,
       "SIMPLE_LC": true,
-      "SPEC": "#{ !(env.veh___609___.is_on_sec_2 = 1) }#",
+      "SPEC": "#{ !(env.veh___609___.is_on_sec_2 == 1 && (env.veh___609___.abs_pos > 15)) }#",
       "SPEC1": "#{ (F(env.cnt == 1)) }#",
       "SPEC2": "#{ (F(env.cnt == 2)) }#",
       "SPEC3": "#{ (F(env.cnt == 3)) }#",
@@ -99,9 +99,9 @@
       "VEHICLE_WIDTH": "#{vehwidth}#",
       "_BP_INCLUDES_FILE_PATH": "../src/examples/ego_less/vfm-includes.txt",
       "_CACHED_PATH": "../examples/tmp",
+      "_CEX_FILE_NAME": "debug_trace_array.txt",
       "_ENVMODEL_PATH": "../src/templates",
       "_EXTERNAL_PATH": "../external",
-      "_GENERATED_PATH": "../examples/gp",
-      "_CEX_FILE_NAME": "debug_trace_array.txt"
+      "_GENERATED_PATH": "../examples/gp"
    }
 }
