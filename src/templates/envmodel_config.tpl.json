@@ -42,7 +42,7 @@
       "#139": "@f(GapLeftMinMax) { distance_front_min, distance_front_max, distance_rear_min, distance_rear_max } { (env.ego.gaps___609___.s_dist_front > distance_front_min) && (env.ego.gaps___609___.s_dist_rear > distance_rear_min) && (env.ego.gaps___609___.s_dist_front < distance_front_max) && (env.ego.gaps___609___.s_dist_rear < distance_rear_max) }",
       "#140": "@f(RLCDist) { delta_v, ego_a } { (env.ego.gaps___609___.v_rear >= env.ego.v + delta_v) && (env.rlc == env.ego.gaps___609___.s_dist_rear) && (env.ego.a == 0-ego_a) }",
       "ALLOW_ZEROLENGTH_SECTIONS": false,
-      "ANGLEGRANULARITY": "#{30}#",
+      "ANGLEGRANULARITY": "#{120}#",
       "ANGLE_BASED_LC": false,
       "BMC_CNT": 100,
       "BMC_NUMBER_OF_CEXS": 1,
