@@ -26,38 +26,6 @@ using namespace mc::trajectory_generator;
 
 int main(int argc, char* argv[])
 {
-   std::cout << macro::Script::processScript(
-      R"(            
-@{@WIDTH_FACTOR_NON_INFINITE = 1}@.eval
-@{@HEIGHT_FACTOR_NON_INFINITE = 7}@.eval
-@{@OFFSET_X_NON_INFINITE = 0}@.eval
-@{@OFFSET_Y_NON_INFINITE = 3}@.eval
-@{@DIMENSION_X = 500}@.eval
-@{@DIMENSION_Y = 60}@.eval
-@{((0, 0), 0, ( 1, 2, 4, 2000 ) ))}@.createRoadGraph[0]
-@{0}@.storeRoadGraph[test1.png]
-@{((0, 0), 0, ( 2, 2, 4, 1000 ) ))}@.createRoadGraph[0]
-@{0}@.storeRoadGraph[test2.png]
-@{((0, 0), 0, ( 3, 2, 4, 500 ) ))}@.createRoadGraph[0]
-@{0}@.storeRoadGraph[test3.png]
-@{((0, 0), 0, ( 4, 2, 4, 200 ) ))}@.createRoadGraph[0]
-@{0}@.storeRoadGraph[test4.png]
-@{((0, 0), 0, ( 5, 2, 4, 100 ) ))}@.createRoadGraph[0]
-@{0}@.storeRoadGraph[test5.png]
-@{((0, 0), 0, ( 6, 2, 4, 50 ) ))}@.createRoadGraph[0]
-@{0}@.storeRoadGraph[test6.png]
-@{((0, 0), 0, ( 7, 2, 4, 20 ) ))}@.createRoadGraph[0]
-@{0}@.storeRoadGraph[test7.png]
-      )"
-   ) << std::endl;
-   //std::cout << macro::Script::processScript(
-   //   "            @{../examples/01}@.generateTestCasesPlain[plain_road, debug_trace_array_FALSE, ]"
-   //) << std::endl;
-   //std::cout << macro::Script::processScript(
-   //   "            @{../examples/05}@.generateTestCasesPlain[plain_road, debug_trace_array_FALSE, ]"
-   //) << std::endl;
-   termnate();
-
    //morty("", "", 0);
    //termnate();
 

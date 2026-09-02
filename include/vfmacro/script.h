@@ -1332,7 +1332,7 @@ private:
                   const auto nice = bezier::getNiceBetweenPoints(arc_origin, arc_origin_from, arc_target, arc_target_from);
                   const float arc_length{ bezier::arcLength(1.0f, arc_origin, nice[0], nice[2], arc_target) };
                   float rel{ arc_length > 0.0f ? long_pos / arc_length : 0.0f };
-                  rel = std::max(0.0f, std::min(1.0f, rel));
+                  rel = (std::max)(0.0f, (std::min)(1.0f, rel));
                   point = bezier::pointAtRatio(rel, arc_origin, nice[0], nice[2], arc_target);
                }
 
