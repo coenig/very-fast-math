@@ -59,10 +59,19 @@
 @{TIMESCALING}@*******.defaultValue[1000]        -- nondimensionalization constant for time, in milliseconds
 @{DISTANCESCALING}@*******.defaultValue[1000]    -- nondimensionalization constant for distance, in millimeters
 
-@{LANES_MAX_SPEEDS}@*******.defaultValueString[@(70)@@(70)@@(70)@]
-@{LANES_MIN_SPEEDS}@*******.defaultValueString[@(0)@@(0)@@(0)@]
+@{LANES_MAX_SPEEDS}@*******.defaultValueString[@(70)@@(70)@@(70)@@(70)@@(70)@@(70)@@(70)@@(70)@@(70)@]
+@{LANES_MIN_SPEEDS}@*******.defaultValueString[@(0)@@(0)@@(0)@@(0)@@(0)@@(0)@@(0)@@(0)@@(0)@]
 @{FORWARD_DRIVING_CAR_IDS}@*******.defaultValueString[@{}@]   -- Strictly forward-driving, cannot have negative velocity.
 @{BACKWARD_DRIVING_CAR_IDS}@*******.defaultValueString[@{}@]  -- Strictly backward-driving, cannot have positive velocity.
+
+-- ## Limiting degrees of freedom for better performance ##
+--   Place sections to predefined x/y/angle. Has to be "possible" wrt. to angle granularity etc.
+--   (As an example, the default is to explicitly place section 0 to 0/0/0, although section 0 is hardcoded to be placed there, anyway.)
+@{FIXED_SECTION_IDS}@*******.defaultValueString[@(0)@]        -- These sections are placed exactly as defined below...
+@{FIXED_SECTION_SOURCES_X}@*******.defaultValueString[@(0)@]  -- They have NO degree of freedom...
+@{FIXED_SECTION_SOURCES_Y}@*******.defaultValueString[@(0)@]  -- Omitting all the other possibilities reduces the state space...
+@{FIXED_SECTION_ANGLES}@*******.defaultValueString[@(0)@]     -- by an immense amount.
+-- ## EO Limiting degrees of freedom for better performance ##
 
 -- Lanechange parameters
 @{ANGLE_BASED_LC}@*******.defaultValue[false]          -- Do the angle-based LC as opposed to the "classic" lane-based one.
