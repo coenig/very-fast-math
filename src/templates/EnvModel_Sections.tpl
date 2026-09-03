@@ -207,8 +207,10 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 
       -- Other predefined sections.
       @{
-         INIT section_@{fixed_section_ids}@.scriptVar.at[[idnum]]@{.}@source.x = section_@{FIXED_SECTION_SOURCES_X}@.printHeap.at[[idnum]];
-      }@*.for[[idnum], 0, @{@{FIXED_SECTION_IDS}@**.printHeap.size - 1}@**.eval]
+         INIT section_@{fixed_section_id_[idnum]}@.scriptVar@{.}@source.x = @{fixed_section_source_x_[idnum]}@.scriptVar;
+         INIT section_@{fixed_section_id_[idnum]}@.scriptVar@{.}@source.y = @{fixed_section_source_y_[idnum]}@.scriptVar;
+         INIT section_@{fixed_section_id_[idnum]}@.scriptVar@{.}@angle = @{fixed_section_angle_[idnum]}@.scriptVar;
+      }@*.for[[idnum], 0, @{@{fixed_section_ids_size}@.scriptVar - 1}@.eval]
    }@******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Optionally remove everything geometry-related. }@**********.nil
 
 VAR    

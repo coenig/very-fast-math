@@ -67,12 +67,12 @@
 -- ## Limiting degrees of freedom for better performance ##
 --   Place sections to predefined x/y/angle. Has to be "possible" wrt. to angle granularity etc.
 --   (As an example, the default is to explicitly place section 0 to 0/0/0, although section 0 is hardcoded to be placed there, anyway.)
-@{FIXED_SECTION_IDS}@*******.defaultValueString[@(0)@]        -- These sections are placed exactly as defined below...
-@{FIXED_SECTION_SOURCES_X}@*******.defaultValueString[@(0)@]  -- They have NO degree of freedom...
-@{FIXED_SECTION_SOURCES_Y}@*******.defaultValueString[@(0)@]  -- Omitting all the other possibilities reduces the state space...
-@{FIXED_SECTION_ANGLES}@*******.defaultValueString[@(0)@]     -- by an immense amount.
+@{FIXED_SECTION_IDs}@*******.defaultValueString[@(0)@]        -- These sections are placed exactly as defined below...
+@{FIXED_SECTION_SOURCE_Xs}@*******.defaultValueString[@(0)@]  -- They have NO degree of freedom...
+@{FIXED_SECTION_SOURCE_Ys}@*******.defaultValueString[@(0)@]  -- Omitting all the other possibilities reduces the state space...
+@{FIXED_SECTION_ANGLEs}@*******.defaultValueString[@(0)@]     -- by an immense amount.
 
-@{@{-- Creating script variables for convenience...
+@{@{-- Creating script variables for convenience... (plural 's' required!)
 	@{
 		@{#0#}@**.setScriptVar[base_name, force]
 		@{@{#0#}@**.toLowerCase}@**.setScriptVar[name_array, force]
@@ -80,18 +80,19 @@
 	}@.nil
 
 	-- @{@{@{base_name}@**.scriptVar}@**.printHeap}@**.setScriptVar[@{name_array}@**.scriptVar]
+	-- @{@{@{base_name}@**.scriptVar}@**.printHeap}@**.size.setScriptVar[@{name_array}@**.scriptVar@{_size}@]
 
 	@{
    @{
    -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]]}@.setScriptVar[@{name_var}@.scriptVar@{_[id]}@]
    }@*.for[[id], 0, @{@{@{name_array}@.scriptVar}@.scriptVar.size - 1}@.eval]
 	}@**.if[@{@{@{name_array}@.scriptVar}@.scriptVar.size > 0}@.eval]
-}@.removeBlankLines}@*********.newMethod[convenienceVars, 0]
+}@.removeBlankLines}@*********.newMethod[ConvenienceVars, 0]
 
-@{FIXED_SECTION_IDS}@.convenienceVars
-@{FIXED_SECTION_SOURCES_X}@.convenienceVars
-@{FIXED_SECTION_SOURCES_Y}@.convenienceVars
-@{FIXED_SECTION_ANGLES}@.convenienceVars
+@{FIXED_SECTION_IDs}@*******.ConvenienceVars
+@{FIXED_SECTION_SOURCE_Xs}@*******.ConvenienceVars
+@{FIXED_SECTION_SOURCE_Ys}@*******.ConvenienceVars
+@{FIXED_SECTION_ANGLEs}@*******.ConvenienceVars
 
 -- ## EO Limiting degrees of freedom for better performance ##
 
