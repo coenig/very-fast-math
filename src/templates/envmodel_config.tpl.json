@@ -56,7 +56,7 @@
       "EGOLESS": false,
       "FEASIBILITY": false,
       "FIXED_SECTION_IDS": "@(1)@@(7)@@(9)@",
-      "FIXED_SECTION_SOURCES_X": "",
+      "FIXED_SECTION_SOURCES_X": "@(11)@@(17)@@(19)@",
       "FIXED_SECTION_SOURCES_Y": "",
       "FIXED_SECTION_ANGLES": "",
       "INITPOSRANGENONEGOS": 300,

@@ -207,7 +207,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 
       -- Other predefined sections.
       @{
-         INIT section_@{FIXED_SECTION_IDS}@.printHeap.at[[idnum]]@{.}@source.x = 0;
+         INIT section_@{FIXED_SECTION_IDS}@.printHeap.at[[idnum]]@{.}@source.x = section_@{FIXED_SECTION_SOURCES_X}@.printHeap.at[[idnum]];
       }@*.for[[idnum], 0, @{@{FIXED_SECTION_IDS}@**.printHeap.size - 1}@**.eval]
    }@******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Optionally remove everything geometry-related. }@**********.nil
 
