@@ -231,7 +231,14 @@ public:
    ///
    /// @param code  The raw code to process.
    std::vector<std::string> processSequence(const std::string& code);
+
    void processSequence(const std::string& code, std::vector<std::string>& script_sequence);
+
+   /// Looks for a sequence of pairs
+   /// <code>@( @(0)@ @(@(1)@@(2)@)@ )@ @( @(1)@ @(@(3)@@(-1)@)@ )@</code> in the code and puts them into
+   /// <code>scriptSequence</code>.
+   std::map<std::string, std::string> processMap(const std::string& code);
+
    std::string evalItAllF(const std::string& n1Str, const std::string& n2Str, const std::function<float(float n1, float n2)> eval);
    std::string evalItAllI(const std::string& n1Str, const std::string& n2Str, const std::function<long long(long long n1, long long n2)> eval);
 
@@ -526,7 +533,7 @@ private:
 
       getScriptData().list_data_[varname] = { body };
 
-      return parameter1 + " = '" + body + "'"; // Returns name=vale (TODO: Make sure this change doesn't break anything.)
+      return parameter1 + " = '" + body + "'"; // Returns name=val (TODO: Make sure this change doesn't break anything.)
    }
 
    inline std::string listElement(const std::string& body, const std::vector<std::string>& parameters)
@@ -1554,6 +1561,33 @@ private:
             getScriptData().list_data_[body] = {};
          }
          getScriptData().list_data_[body].push_back(parameters[0]);
+         return "";
+      } },
+      { "storeListFromSequence", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
+         if (getScriptData().list_data_.count(parameters[0])) {
+            return "#Error-list-exists";
+         } else {
+            getScriptData().list_data_[parameters[0]] = processSequence(body);
+         }
+         
+         return "";
+      } },
+      { "storeMapFromSequence", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
+         if (getScriptData().map_data_.count(parameters[0])) {
+            return "#Error-map-exists";
+         } else {
+            getScriptData().map_data_[parameters[0]] = processMap(body);
+         }
+         
+         return "";
+      } },
+      { "storeMapFromSequence", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
+         if (getScriptData().map_data_.count(parameters[0])) {
+            return "#Error-map-exists";
+         } else {
+            getScriptData().map_data_[parameters[0]] = processMap(body);
+         }
+         
          return "";
       } },
       { "createRoadGraph", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return createRoadGraph(body, parameters[0]); } },

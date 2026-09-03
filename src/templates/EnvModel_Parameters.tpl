@@ -71,18 +71,21 @@
 @{FIXED_SECTION_SOURCE_Xs}@*******.defaultValueString[@(0)@]  -- They have NO degree of freedom...
 @{FIXED_SECTION_SOURCE_Ys}@*******.defaultValueString[@(0)@]  -- Omitting all the other possibilities reduces the state space...
 @{FIXED_SECTION_ANGLEs}@*******.defaultValueString[@(0)@]     -- by an immense amount.
+@{FIXED_SECTION_CONNECTORS}@*******.defaultValueString[@{}@]
 
-@{@{-- Creating script variables for convenience... (plural 's' required!)
+@{FIXED_SECTION_CONNECTORS}@*******.printHeap.storeMapFromSequence[fixed_section_connectors]
+
+@{@{-- Creating convenience variables for #0# (plural 's' required!)...
 	@{
 		@{#0#}@**.setScriptVar[base_name, force]
 		@{@{#0#}@**.toLowerCase}@**.setScriptVar[name_array, force]
 		@{@{#0#}@**.toLowerCase.substr[0, @{@{#0#}@**.strsize - 1}@**.eval]}@**.setScriptVar[name_var, force]
 	}@.nil
 
-	-- @{@{@{base_name}@**.scriptVar}@**.printHeap}@**.setScriptVar[@{name_array}@**.scriptVar]
-	-- @{@{@{base_name}@**.scriptVar}@**.printHeap}@**.size.setScriptVar[@{name_array}@**.scriptVar@{_size}@]
+   -- @{@{@{base_name}@**.scriptVar}@**.printHeap}@**.setScriptVar[@{name_array}@**.scriptVar]
+   -- @{@{@{base_name}@**.scriptVar}@**.printHeap}@**.size.setScriptVar[@{name_array}@**.scriptVar@{_size}@]
 
-	@{
+   @{
    @{
    -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]]}@.setScriptVar[@{name_var}@.scriptVar@{_[id]}@]
    }@*.for[[id], 0, @{@{@{name_array}@.scriptVar}@.scriptVar.size - 1}@.eval]

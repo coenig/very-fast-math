@@ -66,6 +66,7 @@ struct ScriptData {
    std::map<std::string, int> inscriptMethodParNums{};
    std::map<std::string, std::string> inscriptMethodParPatterns{};
    std::map<std::string, std::vector<std::string>> list_data_{};
+   std::map<std::string, std::map<std::string, std::string>> map_data_{};
    std::map<std::string, MethodPartBegin> method_part_begins_{};
    int cache_hits_{ 0 };
    int cache_misses_{ 0 };
@@ -85,6 +86,7 @@ struct ScriptData {
       inscriptMethodParPatterns.clear();
       method_part_begins_.clear();
       list_data_.clear();
+      map_data_.clear();
       cache_hits_ = 0;
       cache_misses_ = 0;
 
