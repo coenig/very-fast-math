@@ -293,6 +293,7 @@ public:
    std::string forloop(const std::string& body, const std::string& varname, const std::vector<std::string>& loop_vec, const std::string& inner_separator);
    std::string ifChoice(const std::string& sequence_str, const std::string bool_str);
    std::string element(const std::string& sequence_str, const std::string& num_str);
+   std::string contains(const std::string& sequence_str, const std::string& str);
    float stringToFloat(const std::string& str);
    std::string substring(const std::string& body, const std::string& beg, const std::string& end);
    std::string newMethod(const std::string& body, const std::string& methodName, const std::string& numPars);
@@ -1105,6 +1106,7 @@ private:
       { "idd", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return idd(body); } },
       { "if", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return ifChoice(body, parameters.at(0)); } },
       { "at", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return element(body, parameters.at(0)); } },
+      { "contains", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return contains(body, parameters.at(0)); } },
       { "size", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
          return std::to_string(processSequence(body).size());
       } },

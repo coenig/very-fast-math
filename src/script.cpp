@@ -463,6 +463,14 @@ std::string Script::element(const std::string& sequence_str, const std::string& 
    return "#INVALID";
 }
 
+std::string Script::contains(const std::string& sequence_str, const std::string& str)
+{
+   const std::vector<std::string> script_sequence{ processSequence(sequence_str) };
+   return std::find(script_sequence.begin(), script_sequence.end(), str) != script_sequence.end()
+      ? "1"
+      : "0";
+}
+
 float Script::stringToFloat(const std::string& str)
 {
    if (StaticHelper::isParsableAsFloat(str)) {
