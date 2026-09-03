@@ -72,17 +72,27 @@
 @{FIXED_SECTION_SOURCES_Y}@*******.defaultValueString[@(0)@]  -- Omitting all the other possibilities reduces the state space...
 @{FIXED_SECTION_ANGLES}@*******.defaultValueString[@(0)@]     -- by an immense amount.
 
--- Create script variables for convenience
--- @{@{FIXED_SECTION_IDS}@*******.printHeap}@*******.setScriptVar[fixed_section_ids]
--- @{@{FIXED_SECTION_SOURCES_X}@*******.printHeap}@*******.setScriptVar[fixed_section_sources_x]
--- @{@{FIXED_SECTION_SOURCES_Y}@*******.printHeap}@*******.setScriptVar[fixed_section_sources_y]
--- @{@{FIXED_SECTION_ANGLES}@*******.printHeap}@*******.setScriptVar[fixed_section_angles]
-@{
---	@{@{fixed_section_ids}@.scriptVar.at[[id]]}@.setScriptVar[fixed_section_id_[id]]
---	@{@{fixed_section_sources_x}@.scriptVar.at[[id]]}@.setScriptVar[fixed_section_source_x_[id]]
---	@{@{fixed_section_sources_y}@.scriptVar.at[[id]]}@.setScriptVar[fixed_section_source_y_[id]]
---	@{@{fixed_section_angles}@.scriptVar.at[[id]]}@.setScriptVar[fixed_section_angle_[id]]
-}@******.for[[id], 0, @{@{fixed_section_ids}@*******.scriptVar.size - 1}@*******.eval]
+@{@{-- Creating script variables for convenience...
+	@{
+		@{#0#}@**.setScriptVar[base_name, force]
+		@{@{#0#}@**.toLowerCase}@**.setScriptVar[name_array, force]
+		@{@{#0#}@**.toLowerCase.substr[0, @{@{#0#}@**.strsize - 1}@**.eval]}@**.setScriptVar[name_var, force]
+	}@.nil
+
+	-- @{@{@{base_name}@**.scriptVar}@**.printHeap}@**.setScriptVar[@{name_array}@**.scriptVar]
+
+	@{
+   @{
+   -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]]}@.setScriptVar[@{name_var}@.scriptVar@{_[id]}@]
+   }@*.for[[id], 0, @{@{@{name_array}@.scriptVar}@.scriptVar.size - 1}@.eval]
+	}@**.if[@{@{@{name_array}@.scriptVar}@.scriptVar.size > 0}@.eval]
+}@.removeBlankLines}@*********.newMethod[convenienceVars, 0]
+
+@{FIXED_SECTION_IDS}@.convenienceVars
+@{FIXED_SECTION_SOURCES_X}@.convenienceVars
+@{FIXED_SECTION_SOURCES_Y}@.convenienceVars
+@{FIXED_SECTION_ANGLES}@.convenienceVars
+
 -- ## EO Limiting degrees of freedom for better performance ##
 
 -- Lanechange parameters

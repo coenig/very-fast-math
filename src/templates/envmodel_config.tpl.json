@@ -58,7 +58,7 @@
       "FIXED_SECTION_IDS": "@(1)@@(7)@@(9)@",
       "FIXED_SECTION_SOURCES_X": "@(11)@@(17)@@(19)@",
       "FIXED_SECTION_SOURCES_Y": "@(12)@@(18)@@(20)@",
-      "FIXED_SECTION_ANGLES": "@(45)@@(90)@@(180)@",
+      "FIXED_SECTION_ANGLES": "@(90)@@(180)@@(270)@",
       "INITPOSRANGENONEGOS": 300,
       "KEEP_EGO_FROM_GREEN": true,
       "LANES_MAX_SPEEDS": "@(15)@@(16)@@(17)@",
