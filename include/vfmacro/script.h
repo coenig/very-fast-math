@@ -526,7 +526,7 @@ private:
 
       getScriptData().list_data_[varname] = { body };
 
-      return body;
+      return parameter1 + " = '" + body + "'"; // Returns name=vale (TODO: Make sure this change doesn't break anything.)
    }
 
    inline std::string listElement(const std::string& body, const std::vector<std::string>& parameters)
