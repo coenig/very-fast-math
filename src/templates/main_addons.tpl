@@ -1,7 +1,9 @@
 @{
 -- Take over selected values from earlier run in #1#, if existing.
    @{
-      @(-- Note: Empty CEX received, no changes to INIT state from earlier run have been performed.)@
+      @(
+         -- Note: Empty CEX received, no changes to INIT state from earlier run have been performed.
+      )@
       @(
          @{
             INIT @{[varval]}@.at[0] = @{[varval]}@.at[1];
