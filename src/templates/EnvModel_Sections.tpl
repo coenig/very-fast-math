@@ -70,7 +70,8 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 --------------------------------------------------------
 
 
-   @{
+   -- LOOP [sec] OVER 0..SECTIONS - 1
+   @{ 
       FROZENVAR
       @{
          section_[sec].source.x : integer;
@@ -203,6 +204,11 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
       INIT section_0.source.y = 0;
       -- INIT section_0.drain.x ==> Not specified, so the length of the section is figured out from the length of the segments.
       INIT section_0.angle = 0;
+
+      -- Other predefined sections.
+      @{
+         INIT section_@{FIXED_SECTION_IDS}@*.printHeap.at[[idnum]]@{.}@source.x = 0;
+      }@*.for[[idnum], 0, @{@{FIXED_SECTION_IDS}@**.printHeap.size - 1}@**.eval]
    }@******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Optionally remove everything geometry-related. }@**********.nil
 
 VAR    
