@@ -73,8 +73,6 @@
 @{FIXED_SECTION_ANGLEs}@*******.defaultValueString[@(0)@]     -- by an immense amount.
 @{FIXED_SECTION_CONNECTORS}@*******.defaultValueString[@{}@]
 
-@{FIXED_SECTION_CONNECTORS}@*******.printHeap.storeMapFromSequence[fixed_section_connectors]
-
 @{@{-- Creating convenience variables for #0# (plural 's' required!)...
 	@{
 		@{#0#}@**.setScriptVar[base_name, force]
@@ -108,7 +106,8 @@
 -- is_section_0_none_successor_of_section_1 = '1'
 
 -- EO Helper variables for fixed sections and connectors
-
+@{FIXED_SECTION_CONNECTORS}@*******.printHeap.storeMapFromSequence[fixed_section_connectors_plain]
+@{fixed_section_connectors_plain}@*******.createConnectorsMap[fixed_section_connectors]
 
 -- ## EO Limiting degrees of freedom for better performance ##
 

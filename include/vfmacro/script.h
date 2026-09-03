@@ -1058,6 +1058,29 @@ private:
       }
    }
 
+   ScriptMethodDescription speci0{
+      "createConnectorsMap", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         if (getScriptData().map_data_.count(parameters[0])) {
+            addError("#Error-connectors-map-exists");
+            return "#Error-connectors-map-exists";
+         }
+         else if (!getScriptData().map_data_.count(body)) {
+            addError("#Error-plain-connectors-map-does-not-exists");
+            return "#Error-plain-connectors-map-does-not-exists";
+         }
+         else {
+            getScriptData().map_data_[parameters[0]] = {};
+
+            for (const auto& pair : getScriptData().map_data_[body]) {
+               auto predecessor = pair.first;
+               auto successors = processSequence(pair.second);
+            }
+         }
+
+         return "";
+      }
+   };
+
    std::set<ScriptMethodDescription> METHODS{
       prepareOutputForMortyUCDMethod,
       prepareInputForMortyUCDMethod,
@@ -1592,6 +1615,7 @@ private:
          
          return "";
       } },
+      speci0,
       { "createRoadGraph", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return createRoadGraph(body, parameters[0]); } },
       { "storeRoadGraph", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return storeRoadGraph(body, parameters[0]); } },
       { "connectRoadGraphTo", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return connectRoadGraphTo(body, parameters[0]); } },
