@@ -1059,7 +1059,9 @@ private:
    }
 
    ScriptMethodDescription speci0{
-      "createConnectorsMap", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+      "createConnectorsMap", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         int max_num_connections{ std::stoi(parameters[1]) };
+
          if (getScriptData().map_data_.count(parameters[0])) {
             addError("#Error-connectors-map-exists");
             return "#Error-connectors-map-exists";
@@ -1074,6 +1076,11 @@ private:
             for (const auto& pair : getScriptData().map_data_[body]) {
                auto predecessor = pair.first;
                auto successors = processSequence(pair.second);
+
+               if (successors.size() > max_num_connections) {
+                  addError("#Error-too-many-outgoing-connections-in" + pair.second);
+                  return "#Error-too-many-outgoing-connections-in" + pair.second;
+               }
             }
          }
 

@@ -107,7 +107,7 @@
 
 -- EO Helper variables for fixed sections and connectors
 @{FIXED_SECTION_CONNECTORS}@*******.printHeap.storeMapFromSequence[fixed_section_connectors_plain]
-@{fixed_section_connectors_plain}@*******.createConnectorsMap[fixed_section_connectors]
+@{fixed_section_connectors_plain}@*******.createConnectorsMap[fixed_section_connectors, @{MAXOUTGOINGCONNECTIONS}@.eval[0]]
 
 -- ## EO Limiting degrees of freedom for better performance ##
 
