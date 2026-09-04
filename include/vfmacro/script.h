@@ -1058,33 +1058,111 @@ private:
       }
    }
 
-   ScriptMethodDescription speci0{
-      "createConnectorsMap", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
-         int max_num_connections{ std::stoi(parameters[1]) };
+   enum class ConnectionStateSpecific {
+      maybe,
+      yes,
+      no
+   };
 
-         if (getScriptData().map_data_.count(parameters[0])) {
-            addError("#Error-connectors-map-exists");
-            return "#Error-connectors-map-exists";
-         }
-         else if (!getScriptData().map_data_.count(body)) {
-            addError("#Error-plain-connectors-map-does-not-exists");
-            return "#Error-plain-connectors-map-does-not-exists";
+   ScriptMethodDescription speci0{
+      "writeConnectorsMap", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         const int max_num_connections{ std::stoi(parameters[0]) };
+         const int num_sections{ std::stoi(parameters[1]) };
+         std::map<std::pair<int, int>, ConnectionStateSpecific> res_map;
+
+         if (!getScriptData().map_data_.count(body)) {
+            addError("#Error: plain connectors map '" + body + "' does not exists");
+            return "#Error: plain connectors map '" + body + "' does not exists";
          }
          else {
+            for (int i = 0; i < num_sections; i++) { // Initialize with "maybe", only reflexive connections are "no".
+               for (int j = 0; j < num_sections; j++) {
+                  if (i == j) {
+                     res_map.insert({ { i, j }, ConnectionStateSpecific::no });
+                  }
+                  else {
+                     res_map.insert({ { i, j }, ConnectionStateSpecific::maybe });
+                  }
+               }
+            }
+
             getScriptData().map_data_[parameters[0]] = {};
 
             for (const auto& pair : getScriptData().map_data_[body]) {
-               auto predecessor = pair.first;
-               auto successors = processSequence(pair.second);
+               const auto& predecessor_str = pair.first;
+               const auto successors_str = processSequence(pair.second);
+               std::vector<int> successors{};
+               
+               for (const auto& s : successors_str) {
+                  successors.push_back(std::stoi(s));
+               }
+
+               const auto predecessor = std::stoi(predecessor_str);
 
                if (successors.size() > max_num_connections) {
-                  addError("#Error-too-many-outgoing-connections-in" + pair.second);
-                  return "#Error-too-many-outgoing-connections-in" + pair.second;
+                  addError("#Error: too many fixed outgoing connections in" + pair.second);
+                  return "#Error: too many fixed outgoing connections in" + pair.second;
+               }
+
+               if (successors.size() == max_num_connections) { // Write "no" for all and afterwards possibly revert.
+                  for (int i = 0; i < num_sections; i++) {
+                     res_map[{ predecessor, i }] = ConnectionStateSpecific::no; // All slots are filled ==> no "maybe".
+                  }
+               }
+
+               for (const auto& successor : successors) {
+                  if (successor >= 0) { // Ignore "-1". Keep even invalid ids, sanity-check below.
+                     res_map[{ predecessor, successor }] = ConnectionStateSpecific::yes;
+                  }
                }
             }
          }
 
-         return "";
+         std::string res{};
+
+         for (const auto& el : res_map) {
+            const std::vector<std::string> little_vec{ el.second == ConnectionStateSpecific::yes 
+               ? std::vector<std::string>{ "1", "0", "0" }     // Yes
+               : (el.second == ConnectionStateSpecific::no
+                  ? std::vector<std::string>{ "0", "1", "0" }  // No
+                  : std::vector<std::string>{ "0", "0", "1" }) // Maybe
+            };
+
+            std::string error{};
+            if (el.first.first >= num_sections || el.first.second >= num_sections) {
+               addError("Invalid section ids in connectors map: " + std::to_string(el.first.first) + ", " + std::to_string(el.first.second));
+               error = " -- #Error: Invalid section id(s)";
+            }
+
+            res += std::string("-- @{") // Yes
+               + little_vec[0] 
+               + "}@******.setScriptVar[" 
+               + "is_section_"
+               + std::to_string(el.first.second)
+               + "_certain_successor_of_section_" 
+               + std::to_string(el.first.first)
+               + "]" + error + "\n";
+
+            res += std::string("-- @{") // No
+               + little_vec[1] 
+               + "}@******.setScriptVar[" 
+               + "is_section_"
+               + std::to_string(el.first.second)
+               + "_certainly_no_successor_of_section_" 
+               + std::to_string(el.first.first)
+               + "]" + error + "\n";
+
+            res += std::string("-- @{") // Maybe
+               + little_vec[2] 
+               + "}@******.setScriptVar[" 
+               + "is_section_"
+               + std::to_string(el.first.second)
+               + "_possible_successor_of_section_" 
+               + std::to_string(el.first.first)
+               + "]" + error + "\n";
+         }
+
+         return res;
       }
    };
 

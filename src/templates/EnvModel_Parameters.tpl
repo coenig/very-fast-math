@@ -100,14 +100,9 @@
    -- @{fixed_section_ids}@******.scriptVar.contains[[sec]].setScriptVar[is_section_[sec]_fixed]
 }@*******.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
--- Only one of the following can be true at once
--- is_section_0_certain_successor_of_section_1 = '0'
--- is_section_0_possible_successor_of_section_1 = '0'
--- is_section_0_none_successor_of_section_1 = '1'
-
--- EO Helper variables for fixed sections and connectors
 @{FIXED_SECTION_CONNECTORS}@*******.printHeap.storeMapFromSequence[fixed_section_connectors_plain]
-@{fixed_section_connectors_plain}@*******.createConnectorsMap[fixed_section_connectors, @{MAXOUTGOINGCONNECTIONS}@.eval[0]]
+@{fixed_section_connectors_plain}@*******.writeConnectorsMap[@{MAXOUTGOINGCONNECTIONS}@.eval[0], @{SECTIONS}@.eval[0]]
+-- EO Helper variables for fixed sections and connectors
 
 -- ## EO Limiting degrees of freedom for better performance ##
 
