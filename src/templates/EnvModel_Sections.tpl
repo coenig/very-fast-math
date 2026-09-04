@@ -74,7 +74,9 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
    @{ 
       FROZENVAR
       @{
-         section_[sec].source.x : integer;
+         section_[sec].source.x : 
+         @{
+            @(@{fixed_section_source_x_[sec]}@.scriptVar .. @{fixed_section_source_x_[sec]}@.scriptVar)@@(integer)@}@.if[@{is_section_[sec]_fixed}@.scriptVar];
          section_[sec].source.y : integer;
          section_[sec].angle_raw : 0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
       }@******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Optionally remove everything geometry-related. }@**********.nil
@@ -196,6 +198,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
       }@******.if[@{!MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Insert this geometry-agnostic code when geometry removed. }@**********.nil
 
    }@******.for[[sec], 0, @{SECTIONS - 1}@.eval]
+   -- EO LOOP [sec] OVER 0..SECTIONS - 1
 
 
    @{
