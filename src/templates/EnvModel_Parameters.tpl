@@ -6,7 +6,7 @@
     @(-- Undeclared variable #0# found during generation of EnvModel. Setting to default value #1#. @{#1#}@********.stringToHeap[#0#].nil)@
 }@*********.if[@{#0#}@.vfm_variable_declared]}@**********.newMethod[defaultValueString, 1]
 
-@{@{-- Creating convenience variables for #0# (plural 's' required!)...
+@{@{-- Creating convenience variables for #0# (plural 's' required!) with mapping #1#
 	@{
 		@{#0#}@**.setScriptVar[base_name, force]
 		@{@{#0#}@**.toLowerCase}@**.setScriptVar[name_array, force]
@@ -18,10 +18,16 @@
 
    @{
    @{
-   -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]]}@.setScriptVar[@{name_var}@.scriptVar@{_[id]}@]
+   -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]]}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@]
    }@*.for[[id], 0, @{@{@{name_array}@.scriptVar}@.scriptVar.size - 1}@.eval]
 	}@**.if[@{@{@{name_array}@.scriptVar}@.scriptVar.size > 0}@.eval]
-}@.removeBlankLines}@**********.newMethod[ConvenienceVars, 0]
+}@.removeBlankLines}@**********.newMethod[ConvenienceVars2, 1]
+
+@{
+	@{@([i])@}@.for[[i], 0, @{#0# - 1}@.eval]
+}@**********.newMethod[SequentialVec, 0]
+
+@{@{#0#}@.ConvenienceVars2[@{#0#}@.printHeap.size.SequentialVec]}@**********.newMethod[ConvenienceVars, 0]
 
 -- Note that the below exact formulation is used in regex for caching. 
 -- Do not change...
@@ -91,9 +97,9 @@
 @{FIXED_SECTION_CONNECTORS}@*******.defaultValueString[@{}@]
 
 @{FIXED_SECTION_IDs}@*******.ConvenienceVars
-@{FIXED_SECTION_SOURCE_Xs}@*******.ConvenienceVars
-@{FIXED_SECTION_SOURCE_Ys}@*******.ConvenienceVars
-@{FIXED_SECTION_ANGLEs}@*******.ConvenienceVars
+@{FIXED_SECTION_SOURCE_Xs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
+@{FIXED_SECTION_SOURCE_Ys}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
+@{FIXED_SECTION_ANGLEs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
 
 -- Helper variables for fixed sections and connectors
 @{
@@ -103,6 +109,10 @@
 @{FIXED_SECTION_CONNECTORS}@*******.printHeap.storeMapFromSequence[fixed_section_connectors_plain]
 @{fixed_section_connectors_plain}@*******.writeConnectorsMap[@{MAXOUTGOINGCONNECTIONS}@.eval[0], @{SECTIONS}@.eval[0]]
 -- EO Helper variables for fixed sections and connectors
+
+@{
+@{@{#Fixed section ID [sec] is too high.}@.errorPrint}@*.if[@{[sec] >= SECTIONS}@****.eval]
+}@*****.for[[sec], @{fixed_section_ids}@.scriptVar]
 
 -- ## EO Limiting degrees of freedom at COMPILE TIME for better performance ##
 

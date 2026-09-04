@@ -1064,6 +1064,13 @@ private:
       no
    };
 
+   ScriptMethodDescription errorPrint{
+      "errorPrint", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         addError(body);
+         return body;
+      }
+   };
+
    ScriptMethodDescription speci0{
       "writeConnectorsMap", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
          const int max_num_connections{ std::stoi(parameters[0]) };
@@ -1701,6 +1708,7 @@ private:
          return "";
       } },
       speci0,
+      errorPrint,
       { "createRoadGraph", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return createRoadGraph(body, parameters[0]); } },
       { "storeRoadGraph", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return storeRoadGraph(body, parameters[0]); } },
       { "connectRoadGraphTo", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return connectRoadGraphTo(body, parameters[0]); } },

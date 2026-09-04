@@ -74,10 +74,8 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
    @{ 
       FROZENVAR
       @{
-         section_[sec].source.x : 
-         @{
-            @(@{fixed_section_source_x_[sec]}@.scriptVar .. @{fixed_section_source_x_[sec]}@.scriptVar)@@(integer)@}@.if[@{is_section_[sec]_fixed}@.scriptVar];
-         section_[sec].source.y : integer;
+         section_[sec].source.x : @{@(@{fixed_section_source_x_[sec]}@.scriptVar .. @{fixed_section_source_x_[sec]}@.scriptVar)@@(integer)@}@*.if[@{is_section_[sec]_fixed}@.scriptVar];
+         section_[sec].source.y : @{@(@{fixed_section_source_y_[sec]}@.scriptVar .. @{fixed_section_source_y_[sec]}@.scriptVar)@@(integer)@}@*.if[@{is_section_[sec]_fixed}@.scriptVar];
          section_[sec].angle_raw : 0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
       }@******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Optionally remove everything geometry-related. }@**********.nil
 
@@ -210,9 +208,9 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 
       -- Other predefined sections.
       @{
-         INIT section_@{fixed_section_id_[idnum]}@.scriptVar@{.}@source.x = @{fixed_section_source_x_[idnum]}@.scriptVar;
-         INIT section_@{fixed_section_id_[idnum]}@.scriptVar@{.}@source.y = @{fixed_section_source_y_[idnum]}@.scriptVar;
-         INIT section_@{fixed_section_id_[idnum]}@.scriptVar@{.}@angle = @{fixed_section_angle_[idnum]}@.scriptVar;
+         INIT section_@{fixed_section_id_[idnum]}@.scriptVar@{.}@source.x = @{fixed_section_source_x_@{fixed_section_ids}@.scriptVar.at[[idnum]]}@.scriptVar;
+         INIT section_@{fixed_section_id_[idnum]}@.scriptVar@{.}@source.y = @{fixed_section_source_y_@{fixed_section_ids}@.scriptVar.at[[idnum]]}@.scriptVar;
+         INIT section_@{fixed_section_id_[idnum]}@.scriptVar@{.}@angle = @{fixed_section_angle_@{fixed_section_ids}@.scriptVar.at[[idnum]]}@.scriptVar;
       }@*.for[[idnum], 0, @{@{fixed_section_ids_size}@.scriptVar - 1}@.eval]
    }@******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Optionally remove everything geometry-related. }@**********.nil
 
