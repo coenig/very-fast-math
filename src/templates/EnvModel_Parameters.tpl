@@ -2,7 +2,7 @@
     @(-- Undeclared variable #0# found during generation of EnvModel. Setting to default value #1#. @{@#0# = #1#}@********.eval.nil)@
 }@*********.if[@{#0#}@.vfm_variable_declared]}@**********.newMethod[defaultValue, 1]
 
-@{@{@(@{@{#Error: Value of string variable #0# contains spaces, which is forbidden. TODO: Fix! (The caching regex cannot handle it.).
+@{@{@(@{@{Value of string variable #0# contains spaces, which is forbidden. TODO: Fix! (The caching regex cannot handle it.).
 }@.errorPrint}@*.if[@{#0#}@.printHeap.containsWhiteSpace]-- Found variable #0# with value @{#0#}@*******.printHeap during generation of EnvModel (default would be #1#).)@
     @(-- Undeclared variable #0# found during generation of EnvModel. Setting to default value #1#. @{#1#}@********.stringToHeap[#0#].nil)@
 }@*********.if[@{#0#}@.vfm_variable_declared]}@**********.newMethod[defaultValueString, 1]
@@ -96,7 +96,7 @@
 
 -- ## Limiting degrees of freedom at COMPILE TIME for better performance ##
 --   Place sections to predefined x/y/angle. Has to be "possible" wrt. to angle granularity etc.
---   (As an example, the default is to explicitly place section 0 to 0/0/0, although section 0 is hardcoded to be placed there, anyway.)
+--   CAUTION: Qua contract, section 0 needs to sit on 0/0/0. This has to be ensured here, there is no hardcoding anymore.
 @{FIXED_SECTION_IDs}@*******.defaultValueString[@(0)@]        -- These sections are placed exactly as defined below...
 @{FIXED_SECTION_SOURCE_Xs}@*******.defaultValueString[@(0)@]  -- They have NO degree of freedom...
 @{FIXED_SECTION_SOURCE_Ys}@*******.defaultValueString[@(0)@]  -- Omitting all the other possibilities reduces the state space...
@@ -135,6 +135,11 @@
 @{
 @{@{#Fixed section ID [sec] is too high.}@.errorPrint}@*.if[@{[sec] >= SECTIONS}@****.eval]
 }@*****.for[[sec], @{fixed_section_ids}@.scriptVar]
+
+@{
+	@(@{Section 0 needs to be fixed at 0/0/0, but is currently not fixed at all in FIXED_SECTION_IDs.}@.errorPrint)@
+	@(@{@{Section 0 needs to be fixed at 0/0/0, but is currently fixed to some other position.}@****.errorPrint}@*****.if[@{ @{fixed_section_source_x_0}@.scriptVar || @{fixed_section_source_y_0}@.scriptVar || @{fixed_section_angle_0}@.scriptVar }@.eval])@
+}@*****.if[@{ !@{is_section_0_fixed}@.scriptVar }@.eval]
 
 -- ## EO Limiting degrees of freedom at COMPILE TIME for better performance ##
 

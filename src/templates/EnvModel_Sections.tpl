@@ -150,15 +150,28 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
          @{
             @{
                @{
-               FROZENVAR dist_[con]_of_section_[sec]_to_[sec2] : @{MINDISTCONNECTIONS}@.eval[0] .. @{MAXDISTCONNECTIONS}@.eval[0];
+                  FROZENVAR dist_[con]_of_section_[sec]_to_[sec2] : 
+                  @{
+                     @(
+                        @{
+                        @( @{ 0 }@.eval[0] .. @{ 0 }@.eval[0] )@
+                        @( 
+                           -1 .. -1; -- Connection [con] of section [sec] is @{fixed_section_connector_[sec]}@.scriptVar.at[[con]], which is NOT [sec2]. 
+                        )@
+                        }@.if[@{is_section_[sec2]_certain_successor_of_section_[sec]}@.eval]
+                     )@
+                     @(
+                        @{MINDISTCONNECTIONS}@.eval[0] .. @{MAXDISTCONNECTIONS}@.eval[0]; -- "Classic" case, no implications from fixed variables.
 
-               INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> (
-                     (section_[sec2].source.x = section_[sec].drain.x + (dist_[con]_of_section_[sec]_to_[sec2] * (cos_of_section_[sec]_angle + cos_of_section_[sec2]_angle)) / 100)
-                     & (section_[sec2].source.y = section_[sec].drain.y + (dist_[con]_of_section_[sec]_to_[sec2] * (sin_of_section_[sec]_angle + sin_of_section_[sec2]_angle)) / 100)
-               );
-               }@.if[@{ [sec] != [sec2] }@.eval]
-            }@*.for[[sec2], 0, @{SECTIONS - 1}@.eval]
-         }@**.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
+                        INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> (
+                              (section_[sec2].source.x = section_[sec].drain.x + (dist_[con]_of_section_[sec]_to_[sec2] * (cos_of_section_[sec]_angle + cos_of_section_[sec2]_angle)) / 100)
+                              & (section_[sec2].source.y = section_[sec].drain.y + (dist_[con]_of_section_[sec]_to_[sec2] * (sin_of_section_[sec]_angle + sin_of_section_[sec2]_angle)) / 100)
+                        );
+                     )@
+                  }@*.if[@{ @{is_section_[sec]_fixed}@.scriptVar && @{is_section_[sec2]_fixed}@.scriptVar && @{is_connection_[con]_from_section_[sec]_fixed }@.scriptVar }@.eval]
+               }@**.if[@{ [sec] != [sec2] }@.eval]
+            }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+         }@****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
 
          @{
             INIT @{ vec(section_[sec].source.x; section_[sec].source.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
@@ -212,14 +225,6 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
    }@******.for[[sec], 0, @{SECTIONS - 1}@.eval]
    -- EO LOOP [sec] OVER 0..SECTIONS - 1
 
-
-   @{
-      -- Section 0 always starts at (0/0) and goes horizontally to the right.
-      INIT section_0.source.x = 0;
-      INIT section_0.source.y = 0;
-      -- INIT section_0.drain.x ==> Not specified, so the length of the section is figured out from the length of the segments.
-      INIT section_0.angle = 0;
-   }@******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Optionally remove everything geometry-related. }@**********.nil
 
 VAR    
    ego.on_section : 0 .. @{SECTIONS - 1}@.eval[0];

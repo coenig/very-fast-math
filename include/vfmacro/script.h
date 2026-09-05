@@ -1070,7 +1070,7 @@ private:
    ScriptMethodDescription errorPrint{
       "errorPrint", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
          addError(body);
-         return body;
+         return "#Error: " + body;
       }
    };
 
