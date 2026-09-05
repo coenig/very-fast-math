@@ -121,19 +121,28 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
       DEFINE
          section_[sec].angle := section_[sec].angle_raw * @{ANGLEGRANULARITY}@.eval[0];
 
-         -- Lookup table to speed-up non-linear calculations (sin times 100)
-         sin_of_section_[sec]_angle := case
-            @{
-               section_[sec].angle = [x] : @{ sin([x] / 360 * 2 * 3.1415) * 100 }@.eval[0];
-            }@*.for[[x], 0, 359, @{ANGLEGRANULARITY}@.eval]
-         esac;
+			@{
+				@(
+					-- Fixed sin/cos times 100, since section [sec] is fixed.
+					sin_of_section_[sec]_angle := @{ sin(@{fixed_section_angle_[sec]}@.scriptVar / 360 * 2 * 3.1415) * 100 }@.eval[0];
+					cos_of_section_[sec]_angle := @{ cos(@{fixed_section_angle_[sec]}@.scriptVar / 360 * 2 * 3.1415) * 100 }@.eval[0];
+				)@
+				@(
+					-- Lookup table to speed-up non-linear calculations (sin times 100)
+					sin_of_section_[sec]_angle := case
+						@{
+							section_[sec].angle = [x] : @{ sin([x] / 360 * 2 * 3.1415) * 100 }@.eval[0];
+						}@*.for[[x], 0, 359, @{ANGLEGRANULARITY}@.eval]
+					esac;
 
-         -- Lookup table to speed-up non-linear calculations (cos times 100)
-         cos_of_section_[sec]_angle := case
-            @{
-               section_[sec].angle = [x] : @{ cos([x] / 360 * 2 * 3.1415) * 100 }@.eval[0];
-            }@*.for[[x], 0, 359, @{ANGLEGRANULARITY}@.eval]
-         esac;
+					-- Lookup table to speed-up non-linear calculations (cos times 100)
+					cos_of_section_[sec]_angle := case
+						@{
+							section_[sec].angle = [x] : @{ cos([x] / 360 * 2 * 3.1415) * 100 }@.eval[0];
+						}@*.for[[x], 0, 359, @{ANGLEGRANULARITY}@.eval]
+					esac;
+				)@
+			}@**.if[@{is_section_[sec]_fixed}@.scriptVar]
 
          section_[sec].drain.x := section_[sec].source.x + (section_[sec]_end * cos_of_section_[sec]_angle) / 100;
          section_[sec].drain.y := section_[sec].source.y + (section_[sec]_end * sin_of_section_[sec]_angle) / 100;
