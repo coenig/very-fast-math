@@ -1328,6 +1328,7 @@ private:
       { "absPath", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::absPath(body); } },
       { "zeroPaddedNumStr", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::zeroPaddedNumStr(stringToFloat(body), stringToFloat(parameters.at(0))); } },
       { "removeWhiteSpace", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeWhiteSpace(body); } },
+      { "containsWhiteSpace", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return std::to_string((bool) (StaticHelper::removeWhiteSpace(body).size() != body.size())); } },
       { "isEmptyExceptWhiteSpaces", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(StaticHelper::isEmptyExceptWhiteSpaces(body)); } },
       { "removeMultiLineComments", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeMultiLineComments(body); } },
       { "removeMultiLineComments", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeMultiLineComments(body, parameters.at(0), parameters.at(1)); } },

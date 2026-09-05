@@ -2,7 +2,8 @@
     @(-- Undeclared variable #0# found during generation of EnvModel. Setting to default value #1#. @{@#0# = #1#}@********.eval.nil)@
 }@*********.if[@{#0#}@.vfm_variable_declared]}@**********.newMethod[defaultValue, 1]
 
-@{@{@(-- Found variable #0# with value @{#0#}@*******.printHeap during generation of EnvModel (default would be #1#).)@
+@{@{@(@{@{#Error: Value of string variable #0# contains spaces, which is forbidden.
+}@.errorPrint}@*.if[@{#0#}@.printHeap.containsWhiteSpace]-- Found variable #0# with value @{#0#}@*******.printHeap during generation of EnvModel (default would be #1#).)@
     @(-- Undeclared variable #0# found during generation of EnvModel. Setting to default value #1#. @{#1#}@********.stringToHeap[#0#].nil)@
 }@*********.if[@{#0#}@.vfm_variable_declared]}@**********.newMethod[defaultValueString, 1]
 
