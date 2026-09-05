@@ -1089,6 +1089,12 @@ private:
       }
    };
 
+   ScriptMethodDescription isScriptVarDeclared{
+      "isScriptVarDeclared", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         return std::to_string(getScriptData().list_data_.count(body));
+      }
+   };
+
    ScriptMethodDescription isMapMeth{
       "isMap", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
          return std::to_string(isMap(body));
@@ -1511,6 +1517,7 @@ private:
 
          return getScriptData().list_data_.at(varname).at(0);
       } },
+      isScriptVarDeclared,
       { "include", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
          return includeMe(body);
       } },

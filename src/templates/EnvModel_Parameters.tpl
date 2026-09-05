@@ -19,7 +19,7 @@
    @{
    @{@{
 	@(
-   -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]].at[1]}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@]
+   -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]].at[1]}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@] (map element)
 	)@
 	@(
    -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]]}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@]
@@ -112,6 +112,20 @@
 @{
    -- @{fixed_section_ids}@******.scriptVar.contains[[sec]].setScriptVar[is_section_[sec]_fixed]
 }@*******.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
+@{
+@{
+	@{
+		@{ 
+			@( (@{fixed_section_connector_[sec]}@.scriptVar.size > [con]) )@
+			@( 0 )@
+		}@*.if[@{fixed_section_connector_[sec]}@.isScriptVarDeclared].setScriptVar[temp, force].nil
+-- @{
+			@{fixed_section_connector_[sec]}@.isScriptVarDeclared && @{temp}@*.scriptVar
+}@.eval[0].setScriptVar[is_connection_[con]_from_section_[sec]_fixed]
+	}@**.for[[con], 0, @{MAXOUTGOINGCONNECTIONS - 1}@.eval]
+}@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
+}@.removeBlankLines
 
 @{FIXED_SECTION_CONNECTORS}@*******.printHeap.storeMapFromSequence[fixed_section_connectors_plain]
 @{fixed_section_connectors_plain}@*******.writeConnectorsMap[@{MAXOUTGOINGCONNECTIONS}@.eval[0], @{SECTIONS}@.eval[0]]
