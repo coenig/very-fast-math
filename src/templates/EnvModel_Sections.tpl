@@ -167,11 +167,10 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
                         @( 
                            @{ sqrt(
                            (@{sec_[sec]_drain_x_fixed}@.scriptVar - @{fixed_section_source_x_[sec2]}@.scriptVar)**2 
-                         + (@{sec_[sec]_drain_y_fixed}@.scriptVar - @{fixed_section_source_y_[sec2]}@.scriptVar)**2) }@.eval[0]
+                         + (@{sec_[sec]_drain_y_fixed}@.scriptVar - @{fixed_section_source_y_[sec2]}@.scriptVar)**2) }@.eval[0].setScriptVar[connection_distance_sec_[sec]_to_sec_[sec2]_fixed, force].nil
+                            @{connection_distance_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar
                             .. 
-                            @{ sqrt(
-                           (@{sec_[sec]_drain_x_fixed}@.scriptVar - @{fixed_section_source_x_[sec2]}@.scriptVar)**2 
-                         + (@{sec_[sec]_drain_y_fixed}@.scriptVar - @{fixed_section_source_y_[sec2]}@.scriptVar)**2) }@.eval[0]; -- Precalculated distance since all is fixed.
+                            @{connection_distance_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar; -- Precalculated distance since all is fixed. Stored in connection_distance_sec_[sec]_to_sec_[sec2]_fixed. TODO: Note that possibly >1 connections might have the same target section, we choose the last one then.
                         )@
                         @( 
                            -1 .. -1; -- Connection [con] of section [sec] is @{fixed_section_connector_[sec]}@.scriptVar.at[[con]], which is NOT [sec2]. 
@@ -186,7 +185,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
                               & (section_[sec2].source.y = section_[sec].drain.y + (dist_[con]_of_section_[sec]_to_[sec2] * (sin_of_section_[sec]_angle + sin_of_section_[sec2]_angle)) / 100)
                         );
                      )@
-                  }@*.if[@{ @{is_section_[sec]_fixed}@.scriptVar && @{is_section_[sec2]_fixed}@.scriptVar && @{is_connection_[con]_from_section_[sec]_fixed }@.scriptVar }@.eval]
+                  }@*.if[@{ @{is_section_[sec]_fixed}@.scriptVar && @{is_section_[sec2]_fixed}@.scriptVar && @{is_connection_[con]_from_section_[sec]_fixed}@.scriptVar }@.eval]
                }@**.if[@{ [sec] != [sec2] }@.eval]
             }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
          }@****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
@@ -203,12 +202,20 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
          @{
             @{
             DEFINE
+
+               @{
+                  -- @{@temp = @{fixed_section_angle_[sec2]}@.scriptVar - @{fixed_section_angle_[sec]}@.scriptVar; if (temp < 0) { @temp = temp + 360; } if (temp >= 360) { @temp = temp - 360; }; temp}@.eval.setScriptVar[angle_from_sec_[sec]_to_sec_[sec2]_fixed]
+               @{-- connection_distance_sec_[sec]_to_sec_[sec2]_fixed = @{connection_distance_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar}@.if[@{is_section_[sec2]_certain_successor_of_section_[sec]}@.scriptVar]
+               }@**.if[@{ @{is_section_[sec]_fixed}@.scriptVar && @{is_section_[sec2]_fixed}@.scriptVar }@.eval]
+
                angle_from_sec_[sec]_to_sec_[sec2]_raw := section_[sec2].angle - section_[sec].angle;
+               
                angle_from_sec_[sec]_to_sec_[sec2] := case
                   angle_from_sec_[sec]_to_sec_[sec2]_raw < 0 : angle_from_sec_[sec]_to_sec_[sec2]_raw + 360;
                   angle_from_sec_[sec]_to_sec_[sec2]_raw >= 360 : angle_from_sec_[sec]_to_sec_[sec2]_raw - 360;
                   TRUE : angle_from_sec_[sec]_to_sec_[sec2]_raw;
                esac;
+
                connection_distance_sec_[sec]_to_sec_[sec2] := case -- TODO: We could have several connections for the same sections with different conn. distances.
                   @{
                      outgoing_connection_[con]_of_section_[sec] = [sec2] : dist_[con]_of_section_[sec]_to_[sec2];
