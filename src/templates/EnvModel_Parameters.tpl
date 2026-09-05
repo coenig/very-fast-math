@@ -2,9 +2,39 @@
     @(-- Undeclared variable #0# found during generation of EnvModel. Setting to default value #1#. @{@#0# = #1#}@********.eval.nil)@
 }@*********.if[@{#0#}@.vfm_variable_declared]}@**********.newMethod[defaultValue, 1]
 
-@{@{@(-- Found variable #0# with value @{#0#}@*******.printHeap during generation of EnvModel (default would be #1#).)@
+@{@{@(@{@{Value of string variable #0# contains spaces, which is forbidden. TODO: Fix! (The caching regex cannot handle it.).
+}@.errorPrint}@*.if[@{#0#}@.printHeap.containsWhiteSpace]-- Found variable #0# with value @{#0#}@*******.printHeap during generation of EnvModel (default would be #1#).)@
     @(-- Undeclared variable #0# found during generation of EnvModel. Setting to default value #1#. @{#1#}@********.stringToHeap[#0#].nil)@
 }@*********.if[@{#0#}@.vfm_variable_declared]}@**********.newMethod[defaultValueString, 1]
+
+@{@{-- Creating convenience variables for #0# (plural 's' required!) with mapping #1#
+	@{
+		@{#0#}@***.setScriptVar[base_name, force]
+		@{@{#0#}@***.toLowerCase}@***.setScriptVar[name_array, force]
+		@{@{#0#}@***.toLowerCase.substr[0, @{@{#0#}@***.strsize - 1}@***.eval]}@***.setScriptVar[name_var, force]
+	}@.nil
+
+   -- @{@{@{base_name}@***.scriptVar}@***.printHeap}@***.setScriptVar[@{name_array}@***.scriptVar]
+   -- @{@{@{base_name}@***.scriptVar}@***.printHeap}@***.size.setScriptVar[@{name_array}@***.scriptVar@{_size}@]
+
+   @{
+   @{@{
+	@(
+   -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]].at[1]}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@] (map element)
+	)@
+	@(
+   -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]]}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@]
+	)@
+   }@*.if[@{name_array}@.scriptVar.scriptVar.isMap]
+	}@**.for[[id], 0, @{@{@{name_array}@.scriptVar}@.scriptVar.size - 1}@.eval]
+	}@***.if[@{@{@{name_array}@.scriptVar}@.scriptVar.size > 0}@.eval]
+}@.removeBlankLines}@**********.newMethod[ConvenienceVars2, 1]
+
+@{
+	@{@([i])@}@.for[[i], 0, @{#0# - 1}@.eval]
+}@**********.newMethod[SequentialVec, 0]
+
+@{@{#0#}@.ConvenienceVars2[@{#0#}@.printHeap.size.SequentialVec]}@**********.newMethod[ConvenienceVars, 0]
 
 -- Note that the below exact formulation is used in regex for caching. 
 -- Do not change...
@@ -59,10 +89,61 @@
 @{TIMESCALING}@*******.defaultValue[1000]        -- nondimensionalization constant for time, in milliseconds
 @{DISTANCESCALING}@*******.defaultValue[1000]    -- nondimensionalization constant for distance, in millimeters
 
-@{LANES_MAX_SPEEDS}@*******.defaultValueString[@(70)@@(70)@@(70)@]
-@{LANES_MIN_SPEEDS}@*******.defaultValueString[@(0)@@(0)@@(0)@]
+@{LANES_MAX_SPEEDS}@*******.defaultValueString[@(70)@@(70)@@(70)@@(70)@@(70)@@(70)@@(70)@@(70)@@(70)@]
+@{LANES_MIN_SPEEDS}@*******.defaultValueString[@(0)@@(0)@@(0)@@(0)@@(0)@@(0)@@(0)@@(0)@@(0)@]
 @{FORWARD_DRIVING_CAR_IDS}@*******.defaultValueString[@{}@]   -- Strictly forward-driving, cannot have negative velocity.
 @{BACKWARD_DRIVING_CAR_IDS}@*******.defaultValueString[@{}@]  -- Strictly backward-driving, cannot have positive velocity.
+
+-- ## Limiting degrees of freedom at COMPILE TIME for better performance ##
+--   Place sections to predefined x/y/angle. Has to be "possible" wrt. to angle granularity etc.
+--   CAUTION: Qua contract, section 0 needs to sit on 0/0/0. This has to be ensured here, there is no hardcoding anymore.
+@{FIXED_SECTION_IDs}@*******.defaultValueString[@(0)@]        -- These sections are placed exactly as defined below...
+@{FIXED_SECTION_SOURCE_Xs}@*******.defaultValueString[@(0)@]  -- They have NO degree of freedom...
+@{FIXED_SECTION_SOURCE_Ys}@*******.defaultValueString[@(0)@]  -- Omitting all the other possibilities reduces the state space...
+@{FIXED_SECTION_ANGLEs}@*******.defaultValueString[@(0)@]     -- by an immense amount.
+@{FIXED_SECTION_LENGTHs}@*******.defaultValueString[@(100)@]  -- TODO: Might want to have fixed sections with free lengths (part. 0).
+@{FIXED_SECTION_CONNECTORS}@*******.defaultValueString[@{}@]
+
+@{FIXED_SECTION_IDs}@*******.ConvenienceVars
+@{FIXED_SECTION_SOURCE_Xs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
+@{FIXED_SECTION_SOURCE_Ys}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
+@{FIXED_SECTION_ANGLEs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
+@{FIXED_SECTION_LENGTHs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
+@{FIXED_SECTION_CONNECTORS}@*******.ConvenienceVars2[@{FIXED_SECTION_CONNECTORS}@.printHeap.keyListFromMap]
+
+-- Helper variables for fixed sections and connectors
+@{
+   -- @{fixed_section_ids}@******.scriptVar.contains[[sec]].setScriptVar[is_section_[sec]_fixed]
+}@*******.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
+@{
+@{
+	@{
+		@{ 
+			@( (@{fixed_section_connector_[sec]}@.scriptVar.size > [con]) )@
+			@( 0 )@
+		}@*.if[@{fixed_section_connector_[sec]}@.isScriptVarDeclared].setScriptVar[temp, force].nil
+-- @{
+			@{fixed_section_connector_[sec]}@.isScriptVarDeclared && @{temp}@*.scriptVar
+}@.eval[0].setScriptVar[is_connection_[con]_from_section_[sec]_fixed]
+	}@**.for[[con], 0, @{MAXOUTGOINGCONNECTIONS - 1}@.eval]
+}@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
+}@.removeBlankLines
+
+@{FIXED_SECTION_CONNECTORS}@*******.printHeap.storeMapFromSequence[fixed_section_connectors_plain]
+@{fixed_section_connectors_plain}@*******.writeConnectorsMap[@{MAXOUTGOINGCONNECTIONS}@.eval[0], @{SECTIONS}@.eval[0]]
+-- EO Helper variables for fixed sections and connectors
+
+@{
+@{@{#Fixed section ID [sec] is too high.}@.errorPrint}@*.if[@{[sec] >= SECTIONS}@****.eval]
+}@*****.for[[sec], @{fixed_section_ids}@.scriptVar]
+
+@{
+	@(@{Section 0 needs to be fixed at 0/0/0, but is currently not fixed at all in FIXED_SECTION_IDs.}@.errorPrint)@
+	@(@{@{Section 0 needs to be fixed at 0/0/0, but is currently fixed to some other position.}@****.errorPrint}@*****.if[@{ @{fixed_section_source_x_0}@.scriptVar || @{fixed_section_source_y_0}@.scriptVar || @{fixed_section_angle_0}@.scriptVar }@.eval])@
+}@*****.if[@{ !@{is_section_0_fixed}@.scriptVar }@.eval]
+
+-- ## EO Limiting degrees of freedom at COMPILE TIME for better performance ##
 
 -- Lanechange parameters
 @{ANGLE_BASED_LC}@*******.defaultValue[false]          -- Do the angle-based LC as opposed to the "classic" lane-based one.

@@ -70,12 +70,13 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 --------------------------------------------------------
 
 
-   @{
+   -- LOOP [sec] OVER 0..SECTIONS - 1
+   @{ 
       FROZENVAR
       @{
-         section_[sec].source.x : integer;
-         section_[sec].source.y : integer;
-         section_[sec].angle_raw : 0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0];
+         section_[sec].source.x : @{@(@{fixed_section_source_x_[sec]}@.scriptVar .. @{fixed_section_source_x_[sec]}@.scriptVar)@@(integer)@}@*.if[@{is_section_[sec]_fixed}@.scriptVar];
+         section_[sec].source.y : @{@(@{fixed_section_source_y_[sec]}@.scriptVar .. @{fixed_section_source_y_[sec]}@.scriptVar)@@(integer)@}@*.if[@{is_section_[sec]_fixed}@.scriptVar];
+         section_[sec].angle_raw : @{@(@{@{fixed_section_angle_[sec]}@.scriptVar / ANGLEGRANULARITY }@.eval[0] .. @{@{fixed_section_angle_[sec]}@.scriptVar / ANGLEGRANULARITY }@.eval[0])@@(0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0])@}@*.if[@{is_section_[sec]_fixed}@.scriptVar];
       }@******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Optionally remove everything geometry-related. }@**********.nil
 
          @{
@@ -99,12 +100,17 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 		 @{@(0)@@(@{SECTIONSMINLENGTH}@.distanceWorldToEnvModelConst)@}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] .. @{SECTIONSMAXLENGTH}@.distanceWorldToEnvModelConst; -- This is essentially the length of the section.
 
       @{
-      FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1..@{SECTIONS - 1}@.eval[0];
-      INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Do not connect to self.
-      @{
-      INIT outgoing_connection_[con]_of_section_[sec] = -1 -> outgoing_connection_@{[con] + 1}@.eval[0]_of_section_[sec] = -1;
-      }@***.if[@{[con] < MAXOUTGOINGCONNECTIONS -1}@.eval] -- Reduce topological permutations
-      }@****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
+         @{
+            @(FROZENVAR outgoing_connection_[con]_of_section_[sec] : @{fixed_section_connector_[sec]}@.scriptVar.at[[con]] .. @{fixed_section_connector_[sec]}@.scriptVar.at[[con]];)@
+            @(
+               FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1 .. @{SECTIONS - 1}@.eval[0];
+               INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Do not connect to self.
+               @{
+                  INIT outgoing_connection_[con]_of_section_[sec] = -1 -> outgoing_connection_@{[con] + 1}@.eval[0]_of_section_[sec] = -1;
+               }@***.if[@{[con] < MAXOUTGOINGCONNECTIONS -1}@.eval] -- Reduce topological permutations
+            )@
+         }@*.if[@{is_connection_[con]_from_section_[sec]_fixed}@.scriptVar]         
+      }@****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS - 1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
 
       @{
       INIT section_[sec]_end = 0                               -- Allow straight sections with zero length.
@@ -115,35 +121,74 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
       DEFINE
          section_[sec].angle := section_[sec].angle_raw * @{ANGLEGRANULARITY}@.eval[0];
 
-         -- Lookup table to speed-up non-linear calculations (sin times 100)
-         sin_of_section_[sec]_angle := case
-            @{
-               section_[sec].angle = [x] : @{ sin([x] / 360 * 2 * 3.1415) * 100 }@.eval[0];
-            }@*.for[[x], 0, 359, @{ANGLEGRANULARITY}@.eval]
-         esac;
+			@{
+				@(
+					-- Fixed sin/cos times 100, since section [sec] is fixed.
+					sin_of_section_[sec]_angle := @{ sin(@{fixed_section_angle_[sec]}@.scriptVar / 360 * 2 * 3.1415) * 100 }@.eval[0];
+					cos_of_section_[sec]_angle := @{ cos(@{fixed_section_angle_[sec]}@.scriptVar / 360 * 2 * 3.1415) * 100 }@.eval[0];
+               -- @{@{fixed_section_source_x_[sec]}@*.scriptVar + @{fixed_section_length_[sec]}@*.scriptVar * cos(@{fixed_section_angle_[sec]}@*.scriptVar / 360 * 2 * 3.1415)}@*.eval.setScriptVar[sec_[sec]_drain_x_fixed]
+               -- @{@{fixed_section_source_y_[sec]}@*.scriptVar + @{fixed_section_length_[sec]}@*.scriptVar * sin(@{fixed_section_angle_[sec]}@*.scriptVar / 360 * 2 * 3.1415)}@*.eval.setScriptVar[sec_[sec]_drain_y_fixed]
+				)@
+				@(
+					-- Lookup table to speed-up non-linear calculations (sin times 100)
+					sin_of_section_[sec]_angle := case
+						@{
+							section_[sec].angle = [x] : @{ sin([x] / 360 * 2 * 3.1415) * 100 }@.eval[0];
+						}@*.for[[x], 0, 359, @{ANGLEGRANULARITY}@.eval]
+					esac;
 
-         -- Lookup table to speed-up non-linear calculations (cos times 100)
-         cos_of_section_[sec]_angle := case
-            @{
-               section_[sec].angle = [x] : @{ cos([x] / 360 * 2 * 3.1415) * 100 }@.eval[0];
-            }@*.for[[x], 0, 359, @{ANGLEGRANULARITY}@.eval]
-         esac;
+					-- Lookup table to speed-up non-linear calculations (cos times 100)
+					cos_of_section_[sec]_angle := case
+						@{
+							section_[sec].angle = [x] : @{ cos([x] / 360 * 2 * 3.1415) * 100 }@.eval[0];
+						}@*.for[[x], 0, 359, @{ANGLEGRANULARITY}@.eval]
+					esac;
+				)@
+			}@**.if[@{is_section_[sec]_fixed}@.scriptVar]
 
-         section_[sec].drain.x := section_[sec].source.x + (section_[sec]_end * cos_of_section_[sec]_angle) / 100;
-         section_[sec].drain.y := section_[sec].source.y + (section_[sec]_end * sin_of_section_[sec]_angle) / 100;
 
+         section_[sec].drain.x := @{
+            @(@{sec_[sec]_drain_x_fixed}@.scriptVar.eval[0])@
+            @(section_[sec].source.x + (section_[sec]_end * cos_of_section_[sec]_angle) / 100)@
+            }@*.if[@{is_section_[sec]_fixed}@.scriptVar];
+
+         section_[sec].drain.y := @{
+            @(@{sec_[sec]_drain_y_fixed}@.scriptVar.eval[0])@
+            @(section_[sec].source.y + (section_[sec]_end * sin_of_section_[sec]_angle) / 100)@
+            }@*.if[@{is_section_[sec]_fixed}@.scriptVar];
+         
          @{
             @{
                @{
-               FROZENVAR dist_[con]_of_section_[sec]_to_[sec2] : @{MINDISTCONNECTIONS}@.eval[0] .. @{MAXDISTCONNECTIONS}@.eval[0];
+                  FROZENVAR dist_[con]_of_section_[sec]_to_[sec2] : 
+                  @{
+                     @(
+                        @{
+                        @( 
+                           @{ sqrt(
+                           (@{sec_[sec]_drain_x_fixed}@.scriptVar - @{fixed_section_source_x_[sec2]}@.scriptVar)**2 
+                         + (@{sec_[sec]_drain_y_fixed}@.scriptVar - @{fixed_section_source_y_[sec2]}@.scriptVar)**2) }@.eval[0].setScriptVar[connection_distance_sec_[sec]_to_sec_[sec2]_fixed, force].nil
+                            @{connection_distance_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar
+                            .. 
+                            @{connection_distance_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar; -- Precalculated distance since all is fixed. Stored in connection_distance_sec_[sec]_to_sec_[sec2]_fixed. TODO: Note that possibly >1 connections might have the same target section, we choose the last one then.
+                        )@
+                        @( 
+                           -1 .. -1; -- Connection [con] of section [sec] is @{fixed_section_connector_[sec]}@.scriptVar.at[[con]], which is NOT [sec2]. 
+                        )@
+                        }@.if[@{@{fixed_section_connector_[sec]}@.scriptVar.at[[con]] == [sec2]}@.eval]
+                     )@
+                     @(
+                        @{MINDISTCONNECTIONS}@.eval[0] .. @{MAXDISTCONNECTIONS}@.eval[0]; -- "Classic" case, no implications from fixed variables.
 
-               INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> (
-                     (section_[sec2].source.x = section_[sec].drain.x + (dist_[con]_of_section_[sec]_to_[sec2] * (cos_of_section_[sec]_angle + cos_of_section_[sec2]_angle)) / 100)
-                     & (section_[sec2].source.y = section_[sec].drain.y + (dist_[con]_of_section_[sec]_to_[sec2] * (sin_of_section_[sec]_angle + sin_of_section_[sec2]_angle)) / 100)
-               );
-               }@.if[@{ [sec] != [sec2] }@.eval]
-            }@*.for[[sec2], 0, @{SECTIONS - 1}@.eval]
-         }@**.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
+                        INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> (
+                              (section_[sec2].source.x = section_[sec].drain.x + (dist_[con]_of_section_[sec]_to_[sec2] * (cos_of_section_[sec]_angle + cos_of_section_[sec2]_angle)) / 100)
+                              & (section_[sec2].source.y = section_[sec].drain.y + (dist_[con]_of_section_[sec]_to_[sec2] * (sin_of_section_[sec]_angle + sin_of_section_[sec2]_angle)) / 100)
+                        );
+                     )@
+                  }@*.if[@{ @{is_section_[sec]_fixed}@.scriptVar && @{is_section_[sec2]_fixed}@.scriptVar && @{is_connection_[con]_from_section_[sec]_fixed}@.scriptVar }@.eval]
+               }@**.if[@{ [sec] != [sec2] }@.eval]
+            }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+         }@****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
 
          @{
             INIT @{ vec(section_[sec].source.x; section_[sec].source.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
@@ -157,28 +202,47 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
          @{
             @{
             DEFINE
-               angle_from_sec_[sec]_to_sec_[sec2]_raw := section_[sec2].angle - section_[sec].angle;
-               angle_from_sec_[sec]_to_sec_[sec2] := case
-                  angle_from_sec_[sec]_to_sec_[sec2]_raw < 0 : angle_from_sec_[sec]_to_sec_[sec2]_raw + 360;
-                  angle_from_sec_[sec]_to_sec_[sec2]_raw >= 360 : angle_from_sec_[sec]_to_sec_[sec2]_raw - 360;
-                  TRUE : angle_from_sec_[sec]_to_sec_[sec2]_raw;
-               esac;
-               connection_distance_sec_[sec]_to_sec_[sec2] := case -- TODO: We could have several connections for the same sections with different conn. distances.
-                  @{
-                     outgoing_connection_[con]_of_section_[sec] = [sec2] : dist_[con]_of_section_[sec]_to_[sec2];
-                  }@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval]
-                  TRUE : -1;
-               esac;
 
                @{
-                  @{arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane]}@*.scalingVariable[distance] := case
-                     @{@{
-                              angle_from_sec_[sec]_to_sec_[sec2] = [angle] & connection_distance_sec_[sec]_to_sec_[sec2] = [dist] : @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[[angle], [dist], @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst;
-                        }@*.for[[dist], @{MINDISTCONNECTIONS}@.eval, @{MAXDISTCONNECTIONS}@.eval]
-                     }@**.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
+               @(
+                  -- @{@temp = @{fixed_section_angle_[sec2]}@.scriptVar - @{fixed_section_angle_[sec]}@.scriptVar; if (temp < 0) { @temp = temp + 360; } if (temp >= 360) { @temp = temp - 360; }; temp}@.eval.setScriptVar[angle_from_sec_[sec]_to_sec_[sec2]_fixed]
+                  -- connection_distance_sec_[sec]_to_sec_[sec2]_fixed = @{connection_distance_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar
+                  -- TODO: might do even better if separating between fixed angle and additionally also fixed connection
+
+                  @{
+                     @{arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane]}@*.scalingVariable[distance] := @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[@{angle_from_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar, @{connection_distance_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar, @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst;
+                  }@**.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
+
+               )@
+               @(
+                  angle_from_sec_[sec]_to_sec_[sec2]_raw := section_[sec2].angle - section_[sec].angle;
+                  
+                  angle_from_sec_[sec]_to_sec_[sec2] := case
+                     angle_from_sec_[sec]_to_sec_[sec2]_raw < 0 : angle_from_sec_[sec]_to_sec_[sec2]_raw + 360;
+                     angle_from_sec_[sec]_to_sec_[sec2]_raw >= 360 : angle_from_sec_[sec]_to_sec_[sec2]_raw - 360;
+                     TRUE : angle_from_sec_[sec]_to_sec_[sec2]_raw;
+                  esac;
+
+                  connection_distance_sec_[sec]_to_sec_[sec2] := case -- TODO: We could have several connections for the same sections with different conn. distances.
+                     @{
+                        outgoing_connection_[con]_of_section_[sec] = [sec2] : dist_[con]_of_section_[sec]_to_[sec2];
+                     }@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval]
                      TRUE : -1;
                   esac;
-               }@***.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
+
+                  @{
+                     @{arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane]}@*.scalingVariable[distance] := case
+                        @{@{
+                                 angle_from_sec_[sec]_to_sec_[sec2] = [angle] & connection_distance_sec_[sec]_to_sec_[sec2] = [dist] : @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[[angle], [dist], @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst;
+                           }@*.for[[dist], @{MINDISTCONNECTIONS}@.eval, @{MAXDISTCONNECTIONS}@.eval]
+                        }@**.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
+                        TRUE : -1;
+                     esac;
+                  }@***.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
+               )@
+               }@**.if[@{ @{is_section_[sec]_fixed}@.scriptVar && @{is_section_[sec2]_fixed}@.scriptVar && @{is_section_[sec2]_certain_successor_of_section_[sec]}@.scriptVar }@.eval]
+
+
             }@****.if[@{[sec] != [sec2]}@.eval]
          }@*****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
       }@******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Optionally remove everything geometry-related. }@**********.nil
@@ -195,15 +259,8 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
       }@******.if[@{!MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Insert this geometry-agnostic code when geometry removed. }@**********.nil
 
    }@******.for[[sec], 0, @{SECTIONS - 1}@.eval]
+   -- EO LOOP [sec] OVER 0..SECTIONS - 1
 
-
-   @{
-      -- Section 0 always starts at (0/0) and goes horizontally to the right.
-      INIT section_0.source.x = 0;
-      INIT section_0.source.y = 0;
-      -- INIT section_0.drain.x ==> Not specified, so the length of the section is figured out from the length of the segments.
-      INIT section_0.angle = 0;
-   }@******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Optionally remove everything geometry-related. }@**********.nil
 
 VAR    
    ego.on_section : 0 .. @{SECTIONS - 1}@.eval[0];

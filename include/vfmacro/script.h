@@ -231,7 +231,17 @@ public:
    ///
    /// @param code  The raw code to process.
    std::vector<std::string> processSequence(const std::string& code);
+
    void processSequence(const std::string& code, std::vector<std::string>& script_sequence);
+
+   /// Looks for a sequence of pairs
+   /// <code>@( @(0)@ @(@(1)@@(2)@)@ )@ @( @(1)@ @(@(3)@@(-1)@)@ )@</code> in the code and puts them into
+   /// <code>scriptSequence</code>.
+   std::map<std::string, std::string> processMap(const std::string& code);
+
+   // Every list of pairs counts as map.
+   bool isMap(const std::string& code);
+
    std::string evalItAllF(const std::string& n1Str, const std::string& n2Str, const std::function<float(float n1, float n2)> eval);
    std::string evalItAllI(const std::string& n1Str, const std::string& n2Str, const std::function<long long(long long n1, long long n2)> eval);
 
@@ -286,6 +296,7 @@ public:
    std::string forloop(const std::string& body, const std::string& varname, const std::vector<std::string>& loop_vec, const std::string& inner_separator);
    std::string ifChoice(const std::string& sequence_str, const std::string bool_str);
    std::string element(const std::string& sequence_str, const std::string& num_str);
+   std::string contains(const std::string& sequence_str, const std::string& str);
    float stringToFloat(const std::string& str);
    std::string substring(const std::string& body, const std::string& beg, const std::string& end);
    std::string newMethod(const std::string& body, const std::string& methodName, const std::string& numPars);
@@ -526,7 +537,7 @@ private:
 
       getScriptData().list_data_[varname] = { body };
 
-      return body;
+      return parameter1 + " = '" + body + "'"; // Returns name=val (TODO: Make sure this change doesn't break anything.)
    }
 
    inline std::string listElement(const std::string& body, const std::vector<std::string>& parameters)
@@ -1050,6 +1061,148 @@ private:
       }
    }
 
+   enum class ConnectionStateSpecific {
+      maybe,
+      yes,
+      no
+   };
+
+   ScriptMethodDescription errorPrint{
+      "errorPrint", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         addError(body);
+         return "#Error: " + body;
+      }
+   };
+
+   ScriptMethodDescription keyListFromMap{
+      "keyListFromMap", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         // @( @(3)@ @(@(1)@@(2)@)@ )@ @( @(4)@ @(@(-1)@@(-1)@)@ )@ ==> @(3)@@(4)@
+         auto vec = processSequence(body);
+         std::string res{};
+
+         for (const auto& el : vec) {
+            auto single_entry = processSequence(el);
+            res += BEGIN_TAG_IN_SEQUENCE + single_entry.at(0) + END_TAG_IN_SEQUENCE;
+         }
+
+         return res;
+      }
+   };
+
+   ScriptMethodDescription isScriptVarDeclared{
+      "isScriptVarDeclared", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         return std::to_string(getScriptData().list_data_.count(body));
+      }
+   };
+
+   ScriptMethodDescription isMapMeth{
+      "isMap", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         return std::to_string(isMap(body));
+      }
+   };
+
+   ScriptMethodDescription speci0{
+      "writeConnectorsMap", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         const int max_num_connections{ std::stoi(parameters[0]) };
+         const int num_sections{ std::stoi(parameters[1]) };
+         std::map<std::pair<int, int>, ConnectionStateSpecific> res_map;
+
+         if (!getScriptData().map_data_.count(body)) {
+            addError("#Error: plain connectors map '" + body + "' does not exists");
+            return "#Error: plain connectors map '" + body + "' does not exists";
+         }
+         else {
+            for (int i = 0; i < num_sections; i++) { // Initialize with "maybe", only reflexive connections are "no".
+               for (int j = 0; j < num_sections; j++) {
+                  if (i == j) {
+                     res_map.insert({ { i, j }, ConnectionStateSpecific::no });
+                  }
+                  else {
+                     res_map.insert({ { i, j }, ConnectionStateSpecific::maybe });
+                  }
+               }
+            }
+
+            getScriptData().map_data_[parameters[0]] = {};
+
+            for (const auto& pair : getScriptData().map_data_[body]) {
+               const auto& predecessor_str = pair.first;
+               const auto successors_str = processSequence(pair.second);
+               std::vector<int> successors{};
+               
+               for (const auto& s : successors_str) {
+                  successors.push_back(std::stoi(s));
+               }
+
+               const auto predecessor = std::stoi(predecessor_str);
+
+               if (successors.size() > max_num_connections) {
+                  addError("#Error: too many fixed outgoing connections in" + pair.second);
+                  return "#Error: too many fixed outgoing connections in" + pair.second;
+               }
+
+               if (successors.size() == max_num_connections) { // Write "no" for all and afterwards possibly revert.
+                  for (int i = 0; i < num_sections; i++) {
+                     res_map[{ predecessor, i }] = ConnectionStateSpecific::no; // All slots are filled ==> no "maybe".
+                  }
+               }
+
+               for (const auto& successor : successors) {
+                  if (successor >= 0) { // Ignore "-1". Keep even invalid ids, sanity-check below.
+                     res_map[{ predecessor, successor }] = ConnectionStateSpecific::yes;
+                  }
+               }
+            }
+         }
+
+         std::string res{};
+
+         for (const auto& el : res_map) {
+            const std::vector<std::string> little_vec{ el.second == ConnectionStateSpecific::yes 
+               ? std::vector<std::string>{ "1", "0", "0" }     // Yes
+               : (el.second == ConnectionStateSpecific::no
+                  ? std::vector<std::string>{ "0", "1", "0" }  // No
+                  : std::vector<std::string>{ "0", "0", "1" }) // Maybe
+            };
+
+            std::string error{};
+            if (el.first.first >= num_sections || el.first.second >= num_sections) {
+               addError("Invalid section ids in connectors map: " + std::to_string(el.first.first) + ", " + std::to_string(el.first.second));
+               error = " -- #Error: Invalid section id(s)";
+            }
+
+            res += std::string("-- @{") // Yes
+               + little_vec[0] 
+               + "}@******.setScriptVar[" 
+               + "is_section_"
+               + std::to_string(el.first.second)
+               + "_certain_successor_of_section_" 
+               + std::to_string(el.first.first)
+               + "]" + error + "\n";
+
+            res += std::string("-- @{") // No
+               + little_vec[1] 
+               + "}@******.setScriptVar[" 
+               + "is_section_"
+               + std::to_string(el.first.second)
+               + "_certainly_no_successor_of_section_" 
+               + std::to_string(el.first.first)
+               + "]" + error + "\n";
+
+            res += std::string("-- @{") // Maybe
+               + little_vec[2] 
+               + "}@******.setScriptVar[" 
+               + "is_section_"
+               + std::to_string(el.first.second)
+               + "_possible_successor_of_section_" 
+               + std::to_string(el.first.first)
+               + "]" + error + "\n";
+         }
+
+         return res;
+      }
+   };
+
    std::set<ScriptMethodDescription> METHODS{
       prepareOutputForMortyUCDMethod,
       prepareInputForMortyUCDMethod,
@@ -1098,6 +1251,7 @@ private:
       { "idd", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return idd(body); } },
       { "if", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return ifChoice(body, parameters.at(0)); } },
       { "at", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return element(body, parameters.at(0)); } },
+      { "contains", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return contains(body, parameters.at(0)); } },
       { "size", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
          return std::to_string(processSequence(body).size());
       } },
@@ -1174,6 +1328,7 @@ private:
       { "absPath", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::absPath(body); } },
       { "zeroPaddedNumStr", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::zeroPaddedNumStr(stringToFloat(body), stringToFloat(parameters.at(0))); } },
       { "removeWhiteSpace", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeWhiteSpace(body); } },
+      { "containsWhiteSpace", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return std::to_string((bool) (StaticHelper::removeWhiteSpace(body).size() != body.size())); } },
       { "isEmptyExceptWhiteSpaces", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return fromBooltoString(StaticHelper::isEmptyExceptWhiteSpaces(body)); } },
       { "removeMultiLineComments", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeMultiLineComments(body); } },
       { "removeMultiLineComments", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::removeMultiLineComments(body, parameters.at(0), parameters.at(1)); } },
@@ -1332,7 +1487,7 @@ private:
                   const auto nice = bezier::getNiceBetweenPoints(arc_origin, arc_origin_from, arc_target, arc_target_from);
                   const float arc_length{ bezier::arcLength(1.0f, arc_origin, nice[0], nice[2], arc_target) };
                   float rel{ arc_length > 0.0f ? long_pos / arc_length : 0.0f };
-                  rel = std::max(0.0f, std::min(1.0f, rel));
+                  rel = (std::max)(0.0f, (std::min)(1.0f, rel));
                   point = bezier::pointAtRatio(rel, arc_origin, nice[0], nice[2], arc_target);
                }
 
@@ -1363,6 +1518,7 @@ private:
 
          return getScriptData().list_data_.at(varname).at(0);
       } },
+      isScriptVarDeclared,
       { "include", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
          return includeMe(body);
       } },
@@ -1556,6 +1712,28 @@ private:
          getScriptData().list_data_[body].push_back(parameters[0]);
          return "";
       } },
+      { "storeListFromSequence", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
+         if (getScriptData().list_data_.count(parameters[0])) {
+            return "#Error-list-exists";
+         } else {
+            getScriptData().list_data_[parameters[0]] = processSequence(body);
+         }
+         
+         return "";
+      } },
+      { "storeMapFromSequence", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
+         if (getScriptData().map_data_.count(parameters[0])) {
+            return "#Error-map-exists";
+         } else {
+            getScriptData().map_data_[parameters[0]] = processMap(body);
+         }
+         
+         return "";
+      } },
+      keyListFromMap,
+      isMapMeth,
+      speci0,
+      errorPrint,
       { "createRoadGraph", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return createRoadGraph(body, parameters[0]); } },
       { "storeRoadGraph", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return storeRoadGraph(body, parameters[0]); } },
       { "connectRoadGraphTo", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return connectRoadGraphTo(body, parameters[0]); } },

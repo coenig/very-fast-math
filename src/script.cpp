@@ -170,6 +170,7 @@ void Script::extractInscriptProcessors(std::string& processed_script, const bool
             + std::to_string(getScriptData().known_chains_.size()) + " known_chains_; "
             + std::to_string(getScriptData().method_part_begins_.size()) + " method_part_begins_; "
             + std::to_string(getScriptData().list_data_.size()) + " list_data_; "
+            + std::to_string(getScriptData().map_data_.size()) + " map_data_; "
             + std::to_string(processed_script.size()) + " script size; "
             + std::to_string(getScriptData().cache_hits_) + "/" + std::to_string(getScriptData().cache_misses_) + " cache hits/misses; "
          );
@@ -458,8 +459,16 @@ std::string Script::element(const std::string& sequence_str, const std::string& 
       return script_sequence.at(num);
    }
 
-   addError("Element with index " + std::to_string(num) + " not available in sequence ''" + sequence_str + "' of size " + std::to_string(script_sequence.size()) + ".");
+   addError("Element with index " + std::to_string(num) + " not available in sequence '" + sequence_str + "' of size " + std::to_string(script_sequence.size()) + ".");
    return "#INVALID";
+}
+
+std::string Script::contains(const std::string& sequence_str, const std::string& str)
+{
+   const std::vector<std::string> script_sequence{ processSequence(sequence_str) };
+   return std::find(script_sequence.begin(), script_sequence.end(), str) != script_sequence.end()
+      ? "1"
+      : "0";
 }
 
 float Script::stringToFloat(const std::string& str)
@@ -1343,14 +1352,11 @@ void Script::processSequence(const std::string& code, std::vector<std::string>& 
 
    if (StaticHelper::stringStartsWith(processed, BEGIN_TAG_IN_SEQUENCE)
       && StaticHelper::stringEndsWith(processed, END_TAG_IN_SEQUENCE)) {
-      // Sequence of scripts given.
       int indexTo{ StaticHelper::findMatchingEndTagLevelwise(
          processed, BEGIN_TAG_IN_SEQUENCE, END_TAG_IN_SEQUENCE, 0) };
       rest = processed.substr(indexTo + END_TAG_IN_SEQUENCE.length());
       processed = processed.substr(BEGIN_TAG_IN_SEQUENCE.length(), indexTo - BEGIN_TAG_IN_SEQUENCE.length());
-      //processSequence(processed, script_sequence);
    }
-   //else {
 
    std::string proc{ processed };
 
@@ -1360,6 +1366,45 @@ void Script::processSequence(const std::string& code, std::vector<std::string>& 
 
    script_sequence.push_back(proc);
    processSequence(rest, script_sequence);
+}
+
+std::map<std::string, std::string> vfm::macro::Script::processMap(const std::string& code)
+{
+   std::map<std::string, std::string> res{};
+   auto vec = processSequence(code);
+
+   for (const auto& el : vec) {
+      auto single_map = processSequence(el);
+
+      if (single_map.size() != 2) {
+         addError("String '" + code + "' does not encode a map.");
+         continue;
+      }
+
+      if (res.count(single_map[0])) {
+         addError("Element '" + single_map[0] + "' occurs twice in map '" + code + "'.");
+         continue;
+      }
+
+      res.insert({single_map[0], single_map[1]});
+   }
+
+   return res;
+}
+
+bool vfm::macro::Script::isMap(const std::string& code)
+{
+   auto vec = processSequence(code);
+
+   for (const auto& el : vec) {
+      auto single_map = processSequence(el);
+
+      if (single_map.size() != 2) {
+         return false;
+      }
+   }
+
+   return true;
 }
 
 std::string Script::evalItAllF(const std::string& n1Str, const std::string& n2Str, const std::function<float(float n1, float n2)> eval) {

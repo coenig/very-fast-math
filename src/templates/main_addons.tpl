@@ -1,7 +1,9 @@
 @{
 -- Take over selected values from earlier run in #1#, if existing.
    @{
-      @(-- Note: Empty CEX received, no changes to INIT state from earlier run have been performed.)@
+      @(
+         -- Note: Empty CEX received, no changes to INIT state from earlier run have been performed.
+      )@
       @(
          @{
             INIT @{[varval]}@.at[0] = @{[varval]}@.at[1];
@@ -422,6 +424,9 @@ INIT env.section_4_end = 20;
 @{
 INIT env.veh___6[i]9___.is_on_sec_0 = 1;
 INIT env.veh___6[i]9___.abs_pos = @{[i]}@.eval[0] * (env.veh_length + 1);
+INVAR env.veh___6[i]9___.is_on_sec_0 = 1 -> env.veh___6[i]9___.a >= 0; -- Go out forwards
+INVAR env.veh___6[i]9___.is_on_sec_0 = 1 -> env.veh___6[i]9___.v >= 0; -- Go out forwards
+INVAR env.veh___6[i]9___.is_on_sec_2 = 1 -> env.veh___6[i]9___.v <= 0; -- Dive in backwards
 INVAR env.veh___6[i]9___.v <= env.veh___6[i]9___.current_seclet_length;
 TRANS env.veh___6[i]9___.v >= -env.veh___6[i]9___.next_seclet_length;
 INVAR env.veh___6[i]9___.on_straight_section < 0 -> (env.veh___6[i]9___.abs_pos >= env.veh_length & env.veh___6[i]9___.abs_pos <= env.veh___6[i]9___.current_seclet_length - env.veh_length); -- Do not collide too soon on junction entries.

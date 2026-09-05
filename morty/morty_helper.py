@@ -1,5 +1,7 @@
 import os
 import re
+import glob
+import json
 import math
 import hashlib
 import shutil
@@ -11,6 +13,7 @@ import ctypes
 import ctypes.util
 from contextlib import contextmanager
 from ctypes import CDLL
+from .morty_debug_plots import plot_cex_lengths_cumulative, plot_mc_runtimes_cumulative
 
 
 def ensure_empty_file(path: str) -> None:
@@ -33,6 +36,41 @@ def min_max_curr(successful_so_far, done_so_far, max_to_expect):
 # Pure pursuit.
 def dpoint_following_angle(dpoint_y, ego_y, heading, ddist, bwd):
     return heading - math.atan((dpoint_y - ego_y) * bwd / ddist)
+
+def randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_tech,
+                                   pos_scale=10.0, lat_scale=10.0,
+                                   collision_margin=0.5, max_retries=1000):
+    """Jitter all controlled vehicles around their deterministic base positions with a gaussian
+    offset and re-draw the whole set until no two cars collide. The gaussian jitter can place two
+    cars on top of each other, which highway-env would immediately flag as a crash; redrawing all
+    cars together (rather than only the offending one) keeps the accepted positions statistically
+    independent of a rejected colliding draw. Cars stay axis-aligned (heading 0 or pi), so an AABB
+    overlap test on LENGTH/WIDTH is exact. Vehicle positions are mutated in place; if no
+    collision-free layout is found within max_retries, warns and keeps the last draw."""
+    vehs = env.unwrapped.controlled_vehicles
+
+    def collision_free():
+        for a in range(len(vehs)):
+            for b in range(a + 1, len(vehs)):
+                va, vb = vehs[a], vehs[b]
+                min_dx = (va.LENGTH + vb.LENGTH) / 2.0 + collision_margin
+                min_dy = (va.WIDTH + vb.WIDTH) / 2.0 + collision_margin
+                if abs(va.position[0] - vb.position[0]) < min_dx and \
+                   abs(va.position[1] - vb.position[1]) < min_dy:
+                    return False
+        return True
+
+    for _attempt in range(max_retries):
+        # shift cars a little with gauss distribution (scale is deviation in meters for 2/3).
+        for i, vehicle in enumerate(vehs):
+            vehicle.position[0] = base_positions[i][0] + rng.normal(loc=0.0, scale=pos_scale)
+            vehicle.position[1] = base_positions[i][1] + rng.normal(loc=0.0, scale=lat_scale)
+            # Clamp lateral position to valid road boundaries.
+            vehicle.position[1] = max(min(vehicle.position[1], y_max_tech), y_min_tech)
+        if collision_free():
+            return
+    print(f"Warning: no collision-free start configuration found after {max_retries} "
+          f"attempts; continuing with the last drawn one.")
 
 def maxDifferenceArray(A):
     maxDiff = -1
@@ -142,6 +180,149 @@ def archive(seedo: int, global_counter: int, detailed_archive_flag: bool, genera
         if selected_config:
             with open(os.path.join(archive_path, 'selected_config.txt'), 'w') as f:
                 f.write(selected_config + '\n')
+
+def _run_seed_map_path(generated_path_prefix: str) -> str:
+    return generated_path_prefix + "/run_seeds.json"
+
+def dump_run_seed_map(run_seed_map: Dict[int, int], generated_path_prefix: str) -> None:
+    """Persist the run_id -> seed mapping so a later --dryrun can reproduce the exact
+    car initialization for each run ID. Keys are stored as strings (JSON requirement)."""
+    path = _run_seed_map_path(generated_path_prefix)
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
+        json.dump({str(run_id): seed for run_id, seed in run_seed_map.items()}, f, indent=2, sort_keys=True)
+
+def load_run_seed_pairs(generated_path_prefix: str):
+    """Load the persisted run_id -> seed mapping as a list of (run_id, seed) pairs sorted by
+    run_id. Returns an empty list if no mapping file exists (e.g. pre-split archives)."""
+    path = _run_seed_map_path(generated_path_prefix)
+    if not os.path.exists(path):
+        return []
+    try:
+        with open(path) as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return []
+    return [(int(run_id), int(seed)) for run_id, seed in sorted(data.items(), key=lambda kv: int(kv[0]))]
+
+def discard_run_files(run_id: int, generated_path_prefix: str, ucd_config_prios_str: List[str], mc_results_offsets: Dict[str, int]) -> None:
+    """Remove every on-disk artifact of a run that was excluded for failing before the
+    minimum-iterations threshold, so excluded runs leave no data/statistics/archives behind."""
+    # Per-run debug plots.
+    for name in (f"mc_runtime_debug_{run_id}.pdf", f"cex_length_debug_{run_id}.pdf"):
+        plot_path = f"{generated_path_prefix}/{name}"
+        if os.path.exists(plot_path):
+            os.remove(plot_path)
+
+    # Recorded videos.
+    for video_file in glob.glob(f"{generated_path_prefix}/videos/vid_{run_id}*"):
+        try:
+            os.remove(video_file)
+        except OSError:
+            pass
+
+    # Detailed archive folder and any (partial) zip for this run.
+    archive_folder = f"{generated_path_prefix}/detailed_archive/run_{run_id}"
+    if os.path.isdir(archive_folder):
+        shutil.rmtree(archive_folder, ignore_errors=True)
+    for zip_file in glob.glob(f"{generated_path_prefix}/detailed_archive/run_{run_id}.zip*"):
+        try:
+            os.remove(zip_file)
+        except OSError:
+            pass
+
+    # Truncate the per-config MC results log back to its pre-run length, dropping this run's lines.
+    for config_name, offset in mc_results_offsets.items():
+        results_path = generated_path_prefix + config_name + "/morty_mc_results.txt"
+        if os.path.exists(results_path):
+            with open(results_path, "r+b") as f:
+                f.truncate(offset)
+
+
+class RunScheduler:
+    """Decouples simulation seeds from run IDs.
+
+    In a normal run it keeps issuing fresh seeds and only advances the run ID once a run is
+    committed (i.e. it reached the min-iterations threshold), so early, unsolvable failures
+    neither consume a run ID nor leave artifacts behind. In a dry run it instead replays the
+    recorded (run_id, seed) pairs so the exact same car initialization is reproduced.
+
+    Usage:
+        scheduler = RunScheduler(generated_path_prefix, max_exps, args.dryrun)
+        for run_id, seed in scheduler:
+            ... run ...
+            if valid:
+                scheduler.commit()   # advances run_id and persists the seed
+            # otherwise just continue; the next seed reuses the same run_id
+    """
+
+    def __init__(self, generated_path_prefix: str, max_exps: int, dryrun: bool):
+        self.generated_path_prefix = generated_path_prefix
+        self.max_exps = max_exps
+        self.dryrun = bool(dryrun)
+        self.run_id = 0
+        self.seed = -1
+        self.run_seed_map: Dict[int, int] = {}
+        if self.dryrun:
+            # Backward compatibility with archives created before the seed/run_id split.
+            self.dryrun_pairs = load_run_seed_pairs(generated_path_prefix) or [(i, i) for i in range(max_exps)]
+        else:
+            self.dryrun_pairs = None
+            dump_run_seed_map(self.run_seed_map, generated_path_prefix)  # Reset the mapping for a fresh session.
+        self.dryrun_index = 0
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self.dryrun:
+            if self.dryrun_index >= len(self.dryrun_pairs):
+                raise StopIteration
+            self.run_id, self.seed = self.dryrun_pairs[self.dryrun_index]
+            self.dryrun_index += 1
+        else:
+            if self.run_id >= self.max_exps:
+                raise StopIteration
+            self.seed += 1  # run_id advances only once a run turns out to be valid (see commit()).
+        return self.run_id, self.seed
+
+    def commit(self):
+        """Persist the seed for the current run_id and advance to the next run ID.
+
+        No-op for dry runs, which iterate a fixed (run_id, seed) list."""
+        if not self.dryrun:
+            self.run_seed_map[self.run_id] = self.seed
+            dump_run_seed_map(self.run_seed_map, self.generated_path_prefix)
+            self.run_id += 1
+
+
+def snapshot_mc_results_offsets(ucd_config_prios_str: List[str], generated_path_prefix: str) -> Dict[str, int]:
+    """Record the current byte length of each config's morty_mc_results.txt so that an excluded
+    run's appended lines can later be truncated away again (see discard_run)."""
+    offsets = {}
+    for config_name in ucd_config_prios_str:
+        results_path = generated_path_prefix + config_name + "/morty_mc_results.txt"
+        offsets[config_name] = os.path.getsize(results_path) if os.path.exists(results_path) else 0
+    return offsets
+
+
+def run_reached_threshold(success: bool, global_counter: int, min_iterations: int, dryrun: bool) -> bool:
+    """Whether a run counts as valid. A dry run and any (quick) success always count; a genuine
+    run counts once it reached min_iterations iterations. Only early FAILURES return False."""
+    return bool(dryrun) or success or global_counter >= min_iterations
+
+
+def discard_run(run_id: int, generated_path_prefix: str, ucd_config_prios_str: List[str],
+                mc_results_offsets: Dict[str, int], all_cex_length_histories: dict,
+                all_selected_runtime_histories: dict) -> None:
+    """Undo everything an excluded (early-failing) run produced: drop its in-memory statistics,
+    regenerate the cumulative plots without it, and delete its on-disk artifacts."""
+    all_cex_length_histories.pop(run_id, None)
+    all_selected_runtime_histories.pop(run_id, None)
+    plot_cex_lengths_cumulative(all_cex_length_histories, f"{generated_path_prefix}/cex_length_debug_all.pdf")
+    plot_mc_runtimes_cumulative(all_selected_runtime_histories, f"{generated_path_prefix}/mc_runtime_debug_all.pdf")
+    plot_mc_runtimes_cumulative(all_selected_runtime_histories, f"{generated_path_prefix}/mc_runtime_debug_all_log.pdf", log_scale=True)
+    discard_run_files(run_id, generated_path_prefix, ucd_config_prios_str, mc_results_offsets)
 
 if platform.system() == 'Windows':
     kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
@@ -582,6 +763,16 @@ def install_world_surface_patches(bg_image_state, num_lanes, fit_background=Fals
     import highway_env as _he
     import pygame  # Required to draw/scale images
 
+    # Publish the CURRENT render state on the highway_env module so the
+    # install-once RoadGraphics.display patch below always reads the latest
+    # bg_image_state, not a dict captured on the first call. The caller recreates
+    # bg_image_state for every run/seed; with the seed scheduler the first seed(s)
+    # may be discarded before ever loading a background, which previously pinned
+    # the patch to an empty dict and suppressed the background for all later runs.
+    _he._morty_bg_state = bg_image_state
+    _he._morty_bg_num_lanes = num_lanes
+    _he._morty_bg_fit = fit_background
+
     _orig_move_display_window_to = WorldSurface.move_display_window_to
 
     def _move_display_window_to_all(self, position):
@@ -594,19 +785,23 @@ def install_world_surface_patches(bg_image_state, num_lanes, fit_background=Fals
             if not vehicles:
                 return _orig_move_display_window_to(self, position)
 
-            if fit_background and bg_image_state is not None and bg_image_state["image"] is not None:
-                image = bg_image_state["image"]
+            bg_state = getattr(_he, '_morty_bg_state', None)
+            nlanes = getattr(_he, '_morty_bg_num_lanes', num_lanes)
+            fit = getattr(_he, '_morty_bg_fit', False)
+
+            if fit and bg_state is not None and bg_state["image"] is not None:
+                image = bg_state["image"]
                 road_x, road_y, road_w, road_h = get_road_world_rect(env_ref)
                 # Cache the (expensive) non-black content scan per image object.
-                if bg_image_state.get("content_bbox_for") != id(image):
-                    bg_image_state["content_bbox"] = get_background_content_pixel_bbox(image)
-                    bg_image_state["content_bbox_for"] = id(image)
+                if bg_state.get("content_bbox_for") != id(image):
+                    bg_state["content_bbox"] = get_background_content_pixel_bbox(image)
+                    bg_state["content_bbox_for"] = id(image)
                 bbox_x, bbox_y, bbox_w, bbox_h = get_background_content_world_rect(
                     image,
                     world_ref_x_m=0.0,
                     world_ref_y_m=road_y + road_h / 2.0,
-                    num_lanes=num_lanes,
-                    content_px_bbox=bg_image_state["content_bbox"],
+                    num_lanes=nlanes,
+                    content_px_bbox=bg_state["content_bbox"],
                 )
                 bbox = {
                     "xmin": bbox_x,
@@ -657,24 +852,28 @@ def install_world_surface_patches(bg_image_state, num_lanes, fit_background=Fals
             _orig_road_display(road, surface)
             try:
                 env_ref = getattr(_he, '_display_env', None)
-                if (env_ref is None or bg_image_state is None
-                        or bg_image_state["image"] is None):
+                # Read the CURRENT state (updated on every install call) rather than
+                # a dict captured once, so a background loaded in a later run is used.
+                bg_state = getattr(_he, '_morty_bg_state', None)
+                nlanes = getattr(_he, '_morty_bg_num_lanes', num_lanes)
+                if (env_ref is None or bg_state is None
+                        or bg_state["image"] is None):
                     return
                 # convert_alpha requires an initialized display/surface.
-                if (not bg_image_state["converted"] and pygame.display.get_init()
+                if (not bg_state["converted"] and pygame.display.get_init()
                         and pygame.display.get_surface() is not None):
-                    bg_image_state["image"] = bg_image_state["image"].convert_alpha()
-                    bg_image_state["image"].set_colorkey((0, 0, 0))
-                    bg_image_state["converted"] = True
+                    bg_state["image"] = bg_state["image"].convert_alpha()
+                    bg_state["image"].set_colorkey((0, 0, 0))
+                    bg_state["converted"] = True
                 # Derive background world extent/anchor from HE road geometry so the
                 # painted road matches highway-env's road under camera scale/translation.
                 road_x, road_y, road_w, road_h = get_road_world_rect(env_ref)
                 blit_background_rigid(
                     surface,
-                    bg_image_state["image"],
+                    bg_state["image"],
                     world_ref_x_m=0.0,
                     world_ref_y_m=road_y + road_h / 2.0,
-                    num_lanes = num_lanes
+                    num_lanes = nlanes
                 )
             except Exception as e:
                 raise e
