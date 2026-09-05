@@ -59,6 +59,7 @@
       "FIXED_SECTION_SOURCE_Xs": "@(0)@@(11)@@(19)@",
       "FIXED_SECTION_SOURCE_Ys": "@(0)@@(12)@@(20)@",
       "FIXED_SECTION_ANGLEs": "@(0)@@(120)@@(180)@",
+      "FIXED_SECTION_LENGTHs": "@(100)@@(100)@@(100)@",
       "FIXED_SECTION_CONNECTORS": "@(@(1)@@(@(-1)@)@)@@(@(2)@@(@(0)@)@)@@(@(0)@@(@(1)@@(2)@)@)@",
       "INITPOSRANGENONEGOS": 300,
       "KEEP_EGO_FROM_GREEN": true,

@@ -459,7 +459,7 @@ std::string Script::element(const std::string& sequence_str, const std::string& 
       return script_sequence.at(num);
    }
 
-   addError("Element with index " + std::to_string(num) + " not available in sequence ''" + sequence_str + "' of size " + std::to_string(script_sequence.size()) + ".");
+   addError("Element with index " + std::to_string(num) + " not available in sequence '" + sequence_str + "' of size " + std::to_string(script_sequence.size()) + ".");
    return "#INVALID";
 }
 

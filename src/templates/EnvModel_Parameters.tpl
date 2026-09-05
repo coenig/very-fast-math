@@ -101,12 +101,14 @@
 @{FIXED_SECTION_SOURCE_Xs}@*******.defaultValueString[@(0)@]  -- They have NO degree of freedom...
 @{FIXED_SECTION_SOURCE_Ys}@*******.defaultValueString[@(0)@]  -- Omitting all the other possibilities reduces the state space...
 @{FIXED_SECTION_ANGLEs}@*******.defaultValueString[@(0)@]     -- by an immense amount.
+@{FIXED_SECTION_LENGTHs}@*******.defaultValueString[@(100)@]  -- TODO: Might want to have fixed sections with free lengths (part. 0).
 @{FIXED_SECTION_CONNECTORS}@*******.defaultValueString[@{}@]
 
 @{FIXED_SECTION_IDs}@*******.ConvenienceVars
 @{FIXED_SECTION_SOURCE_Xs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
 @{FIXED_SECTION_SOURCE_Ys}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
 @{FIXED_SECTION_ANGLEs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
+@{FIXED_SECTION_LENGTHs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
 @{FIXED_SECTION_CONNECTORS}@*******.ConvenienceVars2[@{FIXED_SECTION_CONNECTORS}@.printHeap.keyListFromMap]
 
 -- Helper variables for fixed sections and connectors

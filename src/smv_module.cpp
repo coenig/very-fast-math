@@ -49,7 +49,7 @@ bool vfm::mc::smv::Module::parseProgram(const std::string& program_raw)
          module_name_ = StaticHelper::removeWhiteSpace(StaticHelper::replaceAll(line, "MODULE", ""));
       }
       else if (!StaticHelper::removeWhiteSpace(line).empty()) {
-         if (StaticHelper::toUpperCase(line) == line && StaticHelper::isAlphaNumeric(StaticHelper::removeWhiteSpace(line))) {
+         if (StaticHelper::toUpperCase(line) == line &&!StaticHelper::isParsableAsInt(StaticHelper::removeWhiteSpace(line)) && StaticHelper::isAlphaNumeric(StaticHelper::removeWhiteSpace(line))) {
             el = &elements_singleton_.at(StaticHelper::trimAndReturn(line));
          }
          else {

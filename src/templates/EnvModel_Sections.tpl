@@ -126,6 +126,8 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 					-- Fixed sin/cos times 100, since section [sec] is fixed.
 					sin_of_section_[sec]_angle := @{ sin(@{fixed_section_angle_[sec]}@.scriptVar / 360 * 2 * 3.1415) * 100 }@.eval[0];
 					cos_of_section_[sec]_angle := @{ cos(@{fixed_section_angle_[sec]}@.scriptVar / 360 * 2 * 3.1415) * 100 }@.eval[0];
+               -- @{@{fixed_section_source_x_[sec]}@*.scriptVar + @{fixed_section_length_[sec]}@*.scriptVar * cos(@{fixed_section_angle_[sec]}@*.scriptVar / 360 * 2 * 3.1415)}@*.eval.setScriptVar[sec_[sec]_drain_x_fixed]
+               -- @{@{fixed_section_source_y_[sec]}@*.scriptVar + @{fixed_section_length_[sec]}@*.scriptVar * sin(@{fixed_section_angle_[sec]}@*.scriptVar / 360 * 2 * 3.1415)}@*.eval.setScriptVar[sec_[sec]_drain_y_fixed]
 				)@
 				@(
 					-- Lookup table to speed-up non-linear calculations (sin times 100)
@@ -144,9 +146,17 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 				)@
 			}@**.if[@{is_section_[sec]_fixed}@.scriptVar]
 
-         section_[sec].drain.x := section_[sec].source.x + (section_[sec]_end * cos_of_section_[sec]_angle) / 100;
-         section_[sec].drain.y := section_[sec].source.y + (section_[sec]_end * sin_of_section_[sec]_angle) / 100;
 
+         section_[sec].drain.x := @{
+            @(@{sec_[sec]_drain_x_fixed}@.scriptVar.eval[0])@
+            @(section_[sec].source.x + (section_[sec]_end * cos_of_section_[sec]_angle) / 100)@
+            }@*.if[@{is_section_[sec]_fixed}@.scriptVar];
+
+         section_[sec].drain.y := @{
+            @(@{sec_[sec]_drain_y_fixed}@.scriptVar.eval[0])@
+            @(section_[sec].source.y + (section_[sec]_end * sin_of_section_[sec]_angle) / 100)@
+            }@*.if[@{is_section_[sec]_fixed}@.scriptVar];
+         
          @{
             @{
                @{
@@ -154,11 +164,19 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
                   @{
                      @(
                         @{
-                        @( @{ 0 }@.eval[0] .. @{ 0 }@.eval[0] )@
+                        @( 
+                           @{ sqrt(
+                           (@{sec_[sec]_drain_x_fixed}@.scriptVar - @{sec_[sec2]_drain_x_fixed}@.scriptVar)**2 
+                         + (@{sec_[sec]_drain_y_fixed}@.scriptVar - @{sec_[sec2]_drain_y_fixed}@.scriptVar)**2) }@.eval[0]
+                            .. 
+                            @{ sqrt(
+                           (@{sec_[sec]_drain_x_fixed}@.scriptVar - @{sec_[sec2]_drain_x_fixed}@.scriptVar)**2 
+                         + (@{sec_[sec]_drain_y_fixed}@.scriptVar - @{sec_[sec2]_drain_y_fixed}@.scriptVar)**2) }@.eval[0]; -- Precalculated distance since all is fixed.
+                        )@
                         @( 
                            -1 .. -1; -- Connection [con] of section [sec] is @{fixed_section_connector_[sec]}@.scriptVar.at[[con]], which is NOT [sec2]. 
                         )@
-                        }@.if[@{is_section_[sec2]_certain_successor_of_section_[sec]}@.eval]
+                        }@.if[@{@{fixed_section_connector_[sec]}@.scriptVar.at[[con]] == [sec2]}@.eval]
                      )@
                      @(
                         @{MINDISTCONNECTIONS}@.eval[0] .. @{MAXDISTCONNECTIONS}@.eval[0]; -- "Classic" case, no implications from fixed variables.
