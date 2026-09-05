@@ -204,34 +204,45 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
             DEFINE
 
                @{
+               @(
                   -- @{@temp = @{fixed_section_angle_[sec2]}@.scriptVar - @{fixed_section_angle_[sec]}@.scriptVar; if (temp < 0) { @temp = temp + 360; } if (temp >= 360) { @temp = temp - 360; }; temp}@.eval.setScriptVar[angle_from_sec_[sec]_to_sec_[sec2]_fixed]
-               @{-- connection_distance_sec_[sec]_to_sec_[sec2]_fixed = @{connection_distance_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar}@.if[@{is_section_[sec2]_certain_successor_of_section_[sec]}@.scriptVar]
-               }@**.if[@{ @{is_section_[sec]_fixed}@.scriptVar && @{is_section_[sec2]_fixed}@.scriptVar }@.eval]
+                  -- connection_distance_sec_[sec]_to_sec_[sec2]_fixed = @{connection_distance_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar
+                  -- TODO: might do even better if separating between fixed angle and additionally also fixed connection
 
-               angle_from_sec_[sec]_to_sec_[sec2]_raw := section_[sec2].angle - section_[sec].angle;
-               
-               angle_from_sec_[sec]_to_sec_[sec2] := case
-                  angle_from_sec_[sec]_to_sec_[sec2]_raw < 0 : angle_from_sec_[sec]_to_sec_[sec2]_raw + 360;
-                  angle_from_sec_[sec]_to_sec_[sec2]_raw >= 360 : angle_from_sec_[sec]_to_sec_[sec2]_raw - 360;
-                  TRUE : angle_from_sec_[sec]_to_sec_[sec2]_raw;
-               esac;
-
-               connection_distance_sec_[sec]_to_sec_[sec2] := case -- TODO: We could have several connections for the same sections with different conn. distances.
                   @{
-                     outgoing_connection_[con]_of_section_[sec] = [sec2] : dist_[con]_of_section_[sec]_to_[sec2];
-                  }@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval]
-                  TRUE : -1;
-               esac;
+                     @{arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane]}@*.scalingVariable[distance] := @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[@{angle_from_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar, @{connection_distance_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar, @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst;
+                  }@**.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
 
-               @{
-                  @{arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane]}@*.scalingVariable[distance] := case
-                     @{@{
-                              angle_from_sec_[sec]_to_sec_[sec2] = [angle] & connection_distance_sec_[sec]_to_sec_[sec2] = [dist] : @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[[angle], [dist], @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst;
-                        }@*.for[[dist], @{MINDISTCONNECTIONS}@.eval, @{MAXDISTCONNECTIONS}@.eval]
-                     }@**.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
+               )@
+               @(
+                  angle_from_sec_[sec]_to_sec_[sec2]_raw := section_[sec2].angle - section_[sec].angle;
+                  
+                  angle_from_sec_[sec]_to_sec_[sec2] := case
+                     angle_from_sec_[sec]_to_sec_[sec2]_raw < 0 : angle_from_sec_[sec]_to_sec_[sec2]_raw + 360;
+                     angle_from_sec_[sec]_to_sec_[sec2]_raw >= 360 : angle_from_sec_[sec]_to_sec_[sec2]_raw - 360;
+                     TRUE : angle_from_sec_[sec]_to_sec_[sec2]_raw;
+                  esac;
+
+                  connection_distance_sec_[sec]_to_sec_[sec2] := case -- TODO: We could have several connections for the same sections with different conn. distances.
+                     @{
+                        outgoing_connection_[con]_of_section_[sec] = [sec2] : dist_[con]_of_section_[sec]_to_[sec2];
+                     }@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval]
                      TRUE : -1;
                   esac;
-               }@***.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
+
+                  @{
+                     @{arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane]}@*.scalingVariable[distance] := case
+                        @{@{
+                                 angle_from_sec_[sec]_to_sec_[sec2] = [angle] & connection_distance_sec_[sec]_to_sec_[sec2] = [dist] : @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[[angle], [dist], @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst;
+                           }@*.for[[dist], @{MINDISTCONNECTIONS}@.eval, @{MAXDISTCONNECTIONS}@.eval]
+                        }@**.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
+                        TRUE : -1;
+                     esac;
+                  }@***.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
+               )@
+               }@**.if[@{ @{is_section_[sec]_fixed}@.scriptVar && @{is_section_[sec2]_fixed}@.scriptVar && @{is_section_[sec2]_certain_successor_of_section_[sec]}@.scriptVar }@.eval]
+
+
             }@****.if[@{[sec] != [sec2]}@.eval]
          }@*****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
       }@******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Optionally remove everything geometry-related. }@**********.nil
