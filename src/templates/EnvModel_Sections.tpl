@@ -100,8 +100,11 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 		 @{@(0)@@(@{SECTIONSMINLENGTH}@.distanceWorldToEnvModelConst)@}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] .. @{SECTIONSMAXLENGTH}@.distanceWorldToEnvModelConst; -- This is essentially the length of the section.
 
       @{
+         @{
+            @(FROZENVAR outgoing_connection_[con]_of_section_[sec] : @{fixed_section_connector_[sec]}@.scriptVar.at[[con]] .. @{fixed_section_connector_[sec]}@.scriptVar.at[[con]];)@
+            @(FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1 .. @{SECTIONS - 1}@.eval[0];)@
+         }@*.if[@{is_connection_[con]_from_section_[sec]_fixed}@.scriptVar]
          
-         FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1..@{SECTIONS - 1}@.eval[0];
          INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Do not connect to self.
          @{
             INIT outgoing_connection_[con]_of_section_[sec] = -1 -> outgoing_connection_@{[con] + 1}@.eval[0]_of_section_[sec] = -1;
