@@ -166,12 +166,12 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
                         @{
                         @( 
                            @{ sqrt(
-                           (@{sec_[sec]_drain_x_fixed}@.scriptVar - @{sec_[sec2]_drain_x_fixed}@.scriptVar)**2 
-                         + (@{sec_[sec]_drain_y_fixed}@.scriptVar - @{sec_[sec2]_drain_y_fixed}@.scriptVar)**2) }@.eval[0]
+                           (@{sec_[sec]_drain_x_fixed}@.scriptVar - @{fixed_section_source_x_[sec2]}@.scriptVar)**2 
+                         + (@{sec_[sec]_drain_y_fixed}@.scriptVar - @{fixed_section_source_y_[sec2]}@.scriptVar)**2) }@.eval[0]
                             .. 
                             @{ sqrt(
-                           (@{sec_[sec]_drain_x_fixed}@.scriptVar - @{sec_[sec2]_drain_x_fixed}@.scriptVar)**2 
-                         + (@{sec_[sec]_drain_y_fixed}@.scriptVar - @{sec_[sec2]_drain_y_fixed}@.scriptVar)**2) }@.eval[0]; -- Precalculated distance since all is fixed.
+                           (@{sec_[sec]_drain_x_fixed}@.scriptVar - @{fixed_section_source_x_[sec2]}@.scriptVar)**2 
+                         + (@{sec_[sec]_drain_y_fixed}@.scriptVar - @{fixed_section_source_y_[sec2]}@.scriptVar)**2) }@.eval[0]; -- Precalculated distance since all is fixed.
                         )@
                         @( 
                            -1 .. -1; -- Connection [con] of section [sec] is @{fixed_section_connector_[sec]}@.scriptVar.at[[con]], which is NOT [sec2]. 
