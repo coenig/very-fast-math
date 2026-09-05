@@ -239,6 +239,9 @@ public:
    /// <code>scriptSequence</code>.
    std::map<std::string, std::string> processMap(const std::string& code);
 
+   // Every list of pairs counts as map.
+   bool isMap(const std::string& code);
+
    std::string evalItAllF(const std::string& n1Str, const std::string& n2Str, const std::function<float(float n1, float n2)> eval);
    std::string evalItAllI(const std::string& n1Str, const std::string& n2Str, const std::function<long long(long long n1, long long n2)> eval);
 
@@ -1071,6 +1074,27 @@ private:
       }
    };
 
+   ScriptMethodDescription keyListFromMap{
+      "keyListFromMap", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         // @( @(3)@ @(@(1)@@(2)@)@ )@ @( @(4)@ @(@(-1)@@(-1)@)@ )@ ==> @(3)@@(4)@
+         auto vec = processSequence(body);
+         std::string res{};
+
+         for (const auto& el : vec) {
+            auto single_entry = processSequence(el);
+            res += BEGIN_TAG_IN_SEQUENCE + single_entry.at(0) + END_TAG_IN_SEQUENCE;
+         }
+
+         return res;
+      }
+   };
+
+   ScriptMethodDescription isMapMeth{
+      "isMap", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         return std::to_string(isMap(body));
+      }
+   };
+
    ScriptMethodDescription speci0{
       "writeConnectorsMap", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
          const int max_num_connections{ std::stoi(parameters[0]) };
@@ -1698,15 +1722,8 @@ private:
          
          return "";
       } },
-      { "storeMapFromSequence", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
-         if (getScriptData().map_data_.count(parameters[0])) {
-            return "#Error-map-exists";
-         } else {
-            getScriptData().map_data_[parameters[0]] = processMap(body);
-         }
-         
-         return "";
-      } },
+      keyListFromMap,
+      isMapMeth,
       speci0,
       errorPrint,
       { "createRoadGraph", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return createRoadGraph(body, parameters[0]); } },

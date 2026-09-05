@@ -1392,6 +1392,21 @@ std::map<std::string, std::string> vfm::macro::Script::processMap(const std::str
    return res;
 }
 
+bool vfm::macro::Script::isMap(const std::string& code)
+{
+   auto vec = processSequence(code);
+
+   for (const auto& el : vec) {
+      auto single_map = processSequence(el);
+
+      if (single_map.size() != 2) {
+         return false;
+      }
+   }
+
+   return true;
+}
+
 std::string Script::evalItAllF(const std::string& n1Str, const std::string& n2Str, const std::function<float(float n1, float n2)> eval) {
    if (!StaticHelper::isParsableAsFloat(n1Str) || !StaticHelper::isParsableAsFloat(n2Str)) {
       addError("Operand '" + n1Str + "' and/or '" + n2Str + "' cannot be parsed to float.");

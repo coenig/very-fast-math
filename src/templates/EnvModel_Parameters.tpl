@@ -8,19 +8,25 @@
 
 @{@{-- Creating convenience variables for #0# (plural 's' required!) with mapping #1#
 	@{
-		@{#0#}@**.setScriptVar[base_name, force]
-		@{@{#0#}@**.toLowerCase}@**.setScriptVar[name_array, force]
-		@{@{#0#}@**.toLowerCase.substr[0, @{@{#0#}@**.strsize - 1}@**.eval]}@**.setScriptVar[name_var, force]
+		@{#0#}@***.setScriptVar[base_name, force]
+		@{@{#0#}@***.toLowerCase}@***.setScriptVar[name_array, force]
+		@{@{#0#}@***.toLowerCase.substr[0, @{@{#0#}@***.strsize - 1}@***.eval]}@***.setScriptVar[name_var, force]
 	}@.nil
 
-   -- @{@{@{base_name}@**.scriptVar}@**.printHeap}@**.setScriptVar[@{name_array}@**.scriptVar]
-   -- @{@{@{base_name}@**.scriptVar}@**.printHeap}@**.size.setScriptVar[@{name_array}@**.scriptVar@{_size}@]
+   -- @{@{@{base_name}@***.scriptVar}@***.printHeap}@***.setScriptVar[@{name_array}@***.scriptVar]
+   -- @{@{@{base_name}@***.scriptVar}@***.printHeap}@***.size.setScriptVar[@{name_array}@***.scriptVar@{_size}@]
 
    @{
-   @{
+   @{@{
+	@(
+   -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]].at[1]}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@]
+	)@
+	@(
    -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]]}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@]
-   }@*.for[[id], 0, @{@{@{name_array}@.scriptVar}@.scriptVar.size - 1}@.eval]
-	}@**.if[@{@{@{name_array}@.scriptVar}@.scriptVar.size > 0}@.eval]
+	)@
+   }@*.if[@{name_array}@.scriptVar.scriptVar.isMap]
+	}@**.for[[id], 0, @{@{@{name_array}@.scriptVar}@.scriptVar.size - 1}@.eval]
+	}@***.if[@{@{@{name_array}@.scriptVar}@.scriptVar.size > 0}@.eval]
 }@.removeBlankLines}@**********.newMethod[ConvenienceVars2, 1]
 
 @{
@@ -100,6 +106,7 @@
 @{FIXED_SECTION_SOURCE_Xs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
 @{FIXED_SECTION_SOURCE_Ys}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
 @{FIXED_SECTION_ANGLEs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
+@{FIXED_SECTION_CONNECTORS}@*******.ConvenienceVars2[@{FIXED_SECTION_CONNECTORS}@.printHeap.keyListFromMap]
 
 -- Helper variables for fixed sections and connectors
 @{

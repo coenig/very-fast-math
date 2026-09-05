@@ -100,12 +100,13 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 		 @{@(0)@@(@{SECTIONSMINLENGTH}@.distanceWorldToEnvModelConst)@}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] .. @{SECTIONSMAXLENGTH}@.distanceWorldToEnvModelConst; -- This is essentially the length of the section.
 
       @{
-      FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1..@{SECTIONS - 1}@.eval[0];
-      INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Do not connect to self.
-      @{
-      INIT outgoing_connection_[con]_of_section_[sec] = -1 -> outgoing_connection_@{[con] + 1}@.eval[0]_of_section_[sec] = -1;
-      }@***.if[@{[con] < MAXOUTGOINGCONNECTIONS -1}@.eval] -- Reduce topological permutations
-      }@****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
+         
+         FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1..@{SECTIONS - 1}@.eval[0];
+         INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Do not connect to self.
+         @{
+            INIT outgoing_connection_[con]_of_section_[sec] = -1 -> outgoing_connection_@{[con] + 1}@.eval[0]_of_section_[sec] = -1;
+         }@***.if[@{[con] < MAXOUTGOINGCONNECTIONS -1}@.eval] -- Reduce topological permutations
+      }@****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS - 1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
 
       @{
       INIT section_[sec]_end = 0                               -- Allow straight sections with zero length.
