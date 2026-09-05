@@ -102,13 +102,14 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
       @{
          @{
             @(FROZENVAR outgoing_connection_[con]_of_section_[sec] : @{fixed_section_connector_[sec]}@.scriptVar.at[[con]] .. @{fixed_section_connector_[sec]}@.scriptVar.at[[con]];)@
-            @(FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1 .. @{SECTIONS - 1}@.eval[0];)@
-         }@*.if[@{is_connection_[con]_from_section_[sec]_fixed}@.scriptVar]
-         
-         INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Do not connect to self.
-         @{
-            INIT outgoing_connection_[con]_of_section_[sec] = -1 -> outgoing_connection_@{[con] + 1}@.eval[0]_of_section_[sec] = -1;
-         }@***.if[@{[con] < MAXOUTGOINGCONNECTIONS -1}@.eval] -- Reduce topological permutations
+            @(
+               FROZENVAR outgoing_connection_[con]_of_section_[sec] : -1 .. @{SECTIONS - 1}@.eval[0];
+               INIT outgoing_connection_[con]_of_section_[sec] != [sec]; -- Do not connect to self.
+               @{
+                  INIT outgoing_connection_[con]_of_section_[sec] = -1 -> outgoing_connection_@{[con] + 1}@.eval[0]_of_section_[sec] = -1;
+               }@***.if[@{[con] < MAXOUTGOINGCONNECTIONS -1}@.eval] -- Reduce topological permutations
+            )@
+         }@*.if[@{is_connection_[con]_from_section_[sec]_fixed}@.scriptVar]         
       }@****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS - 1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
 
       @{
