@@ -96,8 +96,19 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
             @{section_[sec]_segment_[seg]_pos_begin}@*.scalingVariable[distance] : @{@(integer)@@(0 .. 1)@}@.if[@{CONCRETE_MODEL}@.eval];
          }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
 		 
-		 @{section_[sec]_end}@*.scalingVariable[distance] : 
-		 @{@(0)@@(@{SECTIONSMINLENGTH}@.distanceWorldToEnvModelConst)@}@******.if[@{ALLOW_ZEROLENGTH_SECTIONS}@.eval] .. @{SECTIONSMAXLENGTH}@.distanceWorldToEnvModelConst; -- This is essentially the length of the section.
+      @{
+         @this_section_min_length = SECTIONSMINLENGTH;
+         @this_section_max_length = SECTIONSMAXLENGTH;
+         if (ALLOW_ZEROLENGTH_SECTIONS) {
+            @this_section_min_length = 0;
+         }
+         if (@{is_section_[sec]_fixed}@.scriptVar) {
+            @this_section_min_length = @{fixed_section_length_[sec]}@.scriptVar;
+            @this_section_max_length = @{fixed_section_length_[sec]}@.scriptVar;
+         }
+      }@.eval.nil
+
+		 @{section_[sec]_end}@*.scalingVariable[distance] : @{this_section_min_length}@.eval[0].distanceWorldToEnvModelConst .. @{this_section_max_length}@.distanceWorldToEnvModelConst; -- This is essentially the length of the section.
 
       @{
          @{
@@ -208,6 +219,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
                   -- @{@temp = @{fixed_section_angle_[sec2]}@.scriptVar - @{fixed_section_angle_[sec]}@.scriptVar; if (temp < 0) { @temp = temp + 360; } if (temp >= 360) { @temp = temp - 360; }; temp}@.eval.setScriptVar[angle_from_sec_[sec]_to_sec_[sec2]_fixed]
                   -- connection_distance_sec_[sec]_to_sec_[sec2]_fixed = @{connection_distance_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar
                   -- TODO: might do even better if separating between fixed angle and additionally also fixed connection
+                  @{-- Note: section [sec2] is NO successor of section [sec]. We need the variable anyway, but set it to an arbitrary value.}@.if[@{is_section_[sec2]_certainly_no_successor_of_section_[sec]}@.scriptVar]
 
                   @{
                      @{arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane]}@*.scalingVariable[distance] := @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[@{angle_from_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar, @{connection_distance_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar, @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst;
@@ -233,19 +245,19 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
                   @{
                      @{arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane]}@*.scalingVariable[distance] := case
                         @{@{
-                                 angle_from_sec_[sec]_to_sec_[sec2] = [angle] & connection_distance_sec_[sec]_to_sec_[sec2] = [dist] : @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[[angle], [dist], @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst;
+                              angle_from_sec_[sec]_to_sec_[sec2] = [angle] & connection_distance_sec_[sec]_to_sec_[sec2] = [dist] : @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[[angle], [dist], @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst;
                            }@*.for[[dist], @{MINDISTCONNECTIONS}@.eval, @{MAXDISTCONNECTIONS}@.eval]
                         }@**.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
                         TRUE : -1;
                      esac;
                   }@***.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
                )@
-               }@**.if[@{ @{is_section_[sec]_fixed}@.scriptVar && @{is_section_[sec2]_fixed}@.scriptVar && @{is_section_[sec2]_certain_successor_of_section_[sec]}@.scriptVar }@.eval]
+               }@****.if[ @{ @{is_section_[sec]_fixed}@.scriptVar && @{is_section_[sec2]_fixed}@.scriptVar && (@{is_section_[sec2]_certain_successor_of_section_[sec]}@.scriptVar || @{is_section_[sec2]_certainly_no_successor_of_section_[sec]}@.scriptVar) }@.eval]
 
 
-            }@****.if[@{[sec] != [sec2]}@.eval]
-         }@*****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
-      }@******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Optionally remove everything geometry-related. }@**********.nil
+            }@*****.if[@{[sec] != [sec2]}@.eval]
+         }@******.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+      }@*******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Optionally remove everything geometry-related. }@**********.nil
 
       @{
          FROZENVAR
@@ -258,7 +270,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
          }@*****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
       }@******.if[@{!MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Insert this geometry-agnostic code when geometry removed. }@**********.nil
 
-   }@******.for[[sec], 0, @{SECTIONS - 1}@.eval]
+   }@*******.for[[sec], 0, @{SECTIONS - 1}@.eval]
    -- EO LOOP [sec] OVER 0..SECTIONS - 1
 
 

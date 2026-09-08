@@ -34,6 +34,7 @@
 #include <string>
 #include <thread>
 #include <mutex>
+#include <cstdlib>
 
 namespace vfm {
 

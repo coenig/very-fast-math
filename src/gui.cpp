@@ -151,13 +151,38 @@ std::pair<std::string, std::string> vfm::MCScene::getBBNameAndFormulaByJsonName(
 
 float calculateScaleFactor(int screenNumber)
 {
-   constexpr int referenceWidth = 1920;
-   constexpr int referenceHeight = 1080;
-   int dummy, screenWidth, screenHeight;
+   // Manual escape hatch: some setups (e.g. remote desktop / virtual sessions) report
+   // unreliable DPI values, and users may simply prefer a specific size. If set, this
+   // takes precedence over any auto-detection below.
+   if (const char* override_str = std::getenv("VFM_GUI_SCALE")) {
+      try {
+         return std::stof(override_str);
+      }
+      catch (...) {
+         // Malformed value: fall through to auto-detection.
+      }
+   }
 
-   Fl::screen_xywh(dummy, dummy, screenWidth, screenHeight, screenNumber);
+   // NOTE: Fl::screen_xywh() already returns the OS-scaled ("logical") pixel dimensions of
+   // the screen, i.e. it already reflects that screen's configured DPI scaling. Deriving our
+   // own scale factor from those dimensions (as done previously, relative to a 1920x1080
+   // reference) therefore double-counts the OS's own DPI compensation -- and can even invert
+   // it: small/high-DPI screens (e.g. laptops) tend to report a *smaller* logical resolution
+   // than large/low-DPI desktop monitors, despite needing *larger*, not smaller, UI elements
+   // to stay readable. Basing the factor on the screen's physical DPI instead avoids this.
+   constexpr float REFERENCE_DPI = 96.0f; // Standard ("100%") Windows DPI baseline.
+   constexpr float MIN_SCALE = 1.0f;      // Never shrink below the design baseline.
+   constexpr float MAX_SCALE = 1.75f;     // Never blow up disproportionately on big/high-DPI screens.
 
-   return (std::min)(static_cast<float>(screenWidth) / referenceWidth, static_cast<float>(screenHeight) / referenceHeight);
+   float dpi_h{ 0 }, dpi_v{ 0 };
+   Fl::screen_dpi(dpi_h, dpi_v, screenNumber);
+   float dpi{ (std::max)(dpi_h, dpi_v) };
+
+   if (dpi <= 0) {
+      dpi = REFERENCE_DPI; // Platform failed to report DPI; assume standard density.
+   }
+
+   return (std::min)(MAX_SCALE, (std::max)(MIN_SCALE, dpi / REFERENCE_DPI));
 }
 
 MCScene::MCScene(const InputParser& inputs) : Failable(GUI_NAME + "-GUI")
