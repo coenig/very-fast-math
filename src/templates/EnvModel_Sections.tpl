@@ -222,7 +222,13 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
                   @{-- Note: section [sec2] is NO successor of section [sec]. We need the variable anyway, but set it to an arbitrary value.}@.if[@{is_section_[sec2]_certainly_no_successor_of_section_[sec]}@.scriptVar]
 
                   @{
-                     @{arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane]}@*.scalingVariable[distance] := @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[@{angle_from_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar, @{connection_distance_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar, @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst;
+                     @{arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane]}@*.scalingVariable[distance] := @{@{[lane]}@.arclengthCubicBezierFromEndPoints[
+                        @{fixed_section_source_x_[sec]}@.scriptVar, @{fixed_section_source_y_[sec]}@.scriptVar,
+                        @{sec_[sec]_drain_x_fixed}@.scriptVar, @{sec_[sec]_drain_y_fixed}@.scriptVar,
+                        @{fixed_section_source_x_[sec2]}@.scriptVar, @{fixed_section_source_y_[sec2]}@.scriptVar,
+                        @{ @{fixed_section_source_x_[sec2]}@.scriptVar + @{fixed_section_length_[sec2]}@.scriptVar * cos(@{fixed_section_angle_[sec2]}@.scriptVar / 360 * 2 * 3.1415) }@.eval[0],
+                        @{ @{fixed_section_source_y_[sec2]}@.scriptVar + @{fixed_section_length_[sec2]}@.scriptVar * sin(@{fixed_section_angle_[sec2]}@.scriptVar / 360 * 2 * 3.1415) }@.eval[0],
+                        @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst;
                   }@**.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
 
                )@

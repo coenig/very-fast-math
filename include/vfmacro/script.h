@@ -289,6 +289,7 @@ public:
    std::string fromBooltoString(const bool b);
 
    std::string arclengthCubicBezierFromStreetTopology(const std::string& lane, const std::string& angle, const std::string& distance, const std::string& num_lanes, const std::string& lane_width);
+   std::string arclengthCubicBezierFromEndPoints(const std::string& lane, const std::string& origin_out_x, const std::string& origin_out_y, const std::string& drain_out_x, const std::string& drain_out_y, const std::string& source_in_x, const std::string& source_in_y, const std::string& drain_in_x, const std::string& drain_in_y, const std::string& num_lanes, const std::string& lane_width);
    std::string forloop(const std::string& body, const std::string& varname, const std::string& loop_vec);
    std::string forloop(const std::string& body, const std::string& varname, const std::string& from_raw, const std::string& to_raw);
    std::string forloop(const std::string& body, const std::string& varname, const std::string& from_raw, const std::string& to_raw, const std::string& step_raw);
@@ -1089,6 +1090,12 @@ private:
       }
    };
 
+   ScriptMethodDescription arclengthCubicBezierFromEndPointsMeth{
+      "arclengthCubicBezierFromEndPoints", 10, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
+         return arclengthCubicBezierFromEndPoints(body, parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3), parameters.at(4), parameters.at(5), parameters.at(6), parameters.at(7), parameters.at(8), parameters.at(9));
+      }
+   };
+
    ScriptMethodDescription isScriptVarDeclared{
       "isScriptVarDeclared", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
          return std::to_string(getScriptData().list_data_.count(body));
@@ -1555,6 +1562,7 @@ private:
       { "not", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return exnot(body); } },
       { "space", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return space(); } },
       { "arclengthCubicBezierFromStreetTopology", 4, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return arclengthCubicBezierFromStreetTopology(body, parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3)); } },
+      arclengthCubicBezierFromEndPointsMeth,
       { "PIDs", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
          const auto pids = Process().getPIDs(body);
          std::string pids_str{};
