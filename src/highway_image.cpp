@@ -1295,6 +1295,7 @@ void vfm::HighwayImage::paintRoadGraph(
 
    Vec2D dim_raw{ dim_raw_raw };
 
+   // Copilot
    // For 2D birdseye painting we can optionally zoom/translate so that the whole road graph fits the
    // image (plus a small padding) instead of following the ego vehicle. Ignored for 3D and plain-road.
    float translate_x{ TRANSLATE_X_raw };
@@ -1335,6 +1336,8 @@ void vfm::HighwayImage::paintRoadGraph(
       translate_y = (static_cast<float>(getHeight()) / 2.0f - street_top - lw / 2.0f) / lw - ego_lane;
    }
 
+   // EO Copilot
+   
    //if (infinite_road) {
    //   TRANSLATE_X = 0;
    //   TRANSLATE_Y = 0;
