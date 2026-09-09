@@ -141,6 +141,12 @@ public:
       plain_road_with_cars
    };
 
+   /// Camera behavior for 2D birdseye painting. Ignored for 3D and plain-road painting.
+   enum class CameraMode {
+      ego_following, // Center on the ego vehicle (classic behavior).
+      fit_to_roads   // Zoom/translate so the whole road graph fits the image plus a small padding.
+   };
+
    void paintRoadGraph(
       const std::shared_ptr<RoadGraph> r,
       const Vec2D& dim,
@@ -148,7 +154,8 @@ public:
       const std::map<std::string, std::string>& var_vals = {},
       const bool print_agent_ids = true,
       const float TRANSLATE_X = 0,
-      const float TRANSLATE_Y = 0);
+      const float TRANSLATE_Y = 0,
+      const CameraMode camera_mode = CameraMode::ego_following);
 
    std::shared_ptr<HighwayTranslator> getHighwayTranslator() const;
 

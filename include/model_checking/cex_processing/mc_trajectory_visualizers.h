@@ -131,6 +131,7 @@ public:
 		always_paint_arrows = 32,
         plain_road_no_cars = 64,
         plain_road_with_cars = 128,
+        fit_to_roads = 256, // 2D birdseye only: zoom to road-graph bounding box instead of following ego.
 	};
 
 

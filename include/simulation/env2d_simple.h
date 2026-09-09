@@ -113,14 +113,44 @@ public:
       const float crop_left,
       const float crop_right,
       const std::shared_ptr<RoadGraph>& road_graph,
-      const HighwayImage::PlainRoadMode paint_cars) const
+      const HighwayImage::PlainRoadMode paint_cars,
+      const HighwayImage::CameraMode camera_mode = HighwayImage::CameraMode::ego_following) const
    {
       const bool infinite_highway{ false /*road_graph->getNodeCount() == 1*/ };
 
+      // Copilot
+      int canvas_width{ 5000 };
+      int canvas_height{ getImageHeight() * (!infinite_highway ? 7 : 1) };
+
+      if (camera_mode == HighwayImage::CameraMode::fit_to_roads) {
+         // Fit the whole road graph to the standard birdseye width, with height following the
+         // content's aspect ratio. This keeps the 2D view as large as the ego view (and the
+         // stacked cockpit) while staying high-resolution, i.e. without the fixed-frame margins.
+         constexpr float TARGET_WIDTH{ 5000.0f }; // Standard birdseye width (matches cockpit in combined view).
+         constexpr float MAX_PPM{ 40.0f };        // Avoid absurd zoom on tiny single-section graphs.
+         constexpr float PADDING_FACTOR{ 1.10f };
+         constexpr int MAX_FIT_DIM{ 12000 };      // Safety cap against gigantic canvases.
+
+         const Rec2D bb{ road_graph->getBoundingBox() };
+         const float lane_width{ road_graph->getMyRoad().getLaneWidth() };
+         float max_lanes{ 1.0f };
+         for (const auto& node : road_graph->getAllNodes()) {
+            max_lanes = (std::max)(max_lanes, static_cast<float>(node->getMyRoad().getNumActualLanes()));
+         }
+         const float lateral_margin{ max_lanes * lane_width / 2.0f + lane_width };
+         const float content_w{ ((std::max)(1.0f, bb.getWidth()) + 2.0f * lateral_margin) * PADDING_FACTOR };
+         const float content_h{ ((std::max)(1.0f, bb.getHeight()) + 2.0f * lateral_margin) * PADDING_FACTOR };
+
+         float ppm{ (std::min)({ TARGET_WIDTH / content_w, MAX_PPM, MAX_FIT_DIM / content_h }) };
+         canvas_width = (std::max)(1, static_cast<int>(content_w * ppm));
+         canvas_height = (std::max)(1, static_cast<int>(content_h * ppm));
+      }
+      // EO Copilot
+      
       if (true || !outside_view_) { // TODO: Can we optimize that for performance?
          outside_view_ = std::make_shared<HighwayImage>(
-            5000, // paint_cars ? (getImageWidth(MAX_NUM_LANES_SIMPLE) * (!infinite_highway ? 1 : 1)) : 5000,
-            getImageHeight()  * (!infinite_highway ? 7 : 1),
+            canvas_width,
+            canvas_height,
             std::make_shared<Plain2DTranslator>(), 
             road_graph->getMyRoad().getNumActualLanes());
       }
@@ -144,7 +174,7 @@ public:
          { 500, 30 },
          paint_cars,
          additional_var_vals,
-         true, offset_x, offset_y);
+         true, offset_x, offset_y, camera_mode);
 
       return outside_view_;
    }
