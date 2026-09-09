@@ -48,19 +48,39 @@ public:
 class VisualizationLaunchers
 {
 public:
+   // Old ego-following variant (kept for reference):
+   //static constexpr auto SIM_TYPE_REGULAR = static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
+   //   | LiveSimGenerator::LiveSimType::birdseye
+   //   | LiveSimGenerator::LiveSimType::cockpit // Remove cockpit for far faster rendering!
+   //   | LiveSimGenerator::LiveSimType::incremental_image_output
+   //   );
    static constexpr auto SIM_TYPE_REGULAR = static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
       | LiveSimGenerator::LiveSimType::birdseye
+      | LiveSimGenerator::LiveSimType::fit_to_roads // 2D birdseye fits the whole road graph (cockpit stays 3D ego).
       | LiveSimGenerator::LiveSimType::cockpit // Remove cockpit for far faster rendering!
       | LiveSimGenerator::LiveSimType::incremental_image_output
       );
 
+   // Old ego-following variant (kept for reference):
+   //static constexpr auto SIM_TYPE_SMOOTH = static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
+   //   | LiveSimGenerator::LiveSimType::birdseye
+   //   | LiveSimGenerator::LiveSimType::cockpit // Remove cockpit for far faster rendering!
+   //   );
    static constexpr auto SIM_TYPE_SMOOTH = static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
       | LiveSimGenerator::LiveSimType::birdseye
+      | LiveSimGenerator::LiveSimType::fit_to_roads // 2D birdseye fits the whole road graph (cockpit stays 3D ego).
       | LiveSimGenerator::LiveSimType::cockpit // Remove cockpit for far faster rendering!
       );
 
+   // Old ego-following variant (kept for reference):
+   //static constexpr auto SIM_TYPE_SMOOTH_WITH_ARROWS = static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
+   //   | LiveSimGenerator::LiveSimType::birdseye
+   //   | LiveSimGenerator::LiveSimType::cockpit // Remove cockpit for far faster rendering!
+   //   | LiveSimGenerator::LiveSimType::always_paint_arrows // Can make it quite crowded in smooth animation.
+   //   );
    static constexpr auto SIM_TYPE_SMOOTH_WITH_ARROWS = static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
       | LiveSimGenerator::LiveSimType::birdseye
+      | LiveSimGenerator::LiveSimType::fit_to_roads // 2D birdseye fits the whole road graph (cockpit stays 3D ego).
       | LiveSimGenerator::LiveSimType::cockpit // Remove cockpit for far faster rendering!
       | LiveSimGenerator::LiveSimType::always_paint_arrows // Can make it quite crowded in smooth animation.
       );
@@ -70,13 +90,25 @@ public:
       | LiveSimGenerator::LiveSimType::always_paint_arrows
       );
 
+   // Old ego-following variant (kept for reference):
+   //static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY = static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
+   //   | LiveSimGenerator::LiveSimType::birdseye
+   //   | LiveSimGenerator::LiveSimType::incremental_image_output
+   //   );
    static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY = static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
       | LiveSimGenerator::LiveSimType::birdseye
+      | LiveSimGenerator::LiveSimType::fit_to_roads
       | LiveSimGenerator::LiveSimType::incremental_image_output
       );
 
+   // Old ego-following variant (kept for reference):
+   //static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF = static_cast<LiveSimGenerator::LiveSimType>(
+   //   LiveSimGenerator::LiveSimType::birdseye
+   //   | LiveSimGenerator::LiveSimType::incremental_image_output
+   //   );
    static constexpr auto SIM_TYPE_REGULAR_BIRDSEYE_ONLY_NO_GIF = static_cast<LiveSimGenerator::LiveSimType>(
       LiveSimGenerator::LiveSimType::birdseye
+      | LiveSimGenerator::LiveSimType::fit_to_roads
       | LiveSimGenerator::LiveSimType::incremental_image_output
       );
 
@@ -92,12 +124,23 @@ public:
       | LiveSimGenerator::LiveSimType::plain_road_with_cars
       );
 
+   // Old ego-following variant (kept for reference):
+   //static constexpr auto SIM_TYPE_SMOOTH_BIRDSEYE_ONLY = static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
+   //   | LiveSimGenerator::LiveSimType::birdseye
+   //   );
    static constexpr auto SIM_TYPE_SMOOTH_BIRDSEYE_ONLY = static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
       | LiveSimGenerator::LiveSimType::birdseye
+      | LiveSimGenerator::LiveSimType::fit_to_roads
       );
 
+   // Old ego-following variant (kept for reference):
+   //static constexpr auto SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY = static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
+   //   | LiveSimGenerator::LiveSimType::birdseye
+   //   | LiveSimGenerator::LiveSimType::always_paint_arrows // Can make it quite crowded in smooth animation.
+   //   );
    static constexpr auto SIM_TYPE_SMOOTH_WITH_ARROWS_BIRDSEYE_ONLY = static_cast<LiveSimGenerator::LiveSimType>(LiveSimGenerator::LiveSimType::gif_animation
       | LiveSimGenerator::LiveSimType::birdseye
+      | LiveSimGenerator::LiveSimType::fit_to_roads
       | LiveSimGenerator::LiveSimType::always_paint_arrows // Can make it quite crowded in smooth animation.
       );
 

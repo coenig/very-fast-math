@@ -499,6 +499,10 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
    bool CREATE_COCKPIT_VIEW = visu_type & LiveSimType::cockpit;
    bool CREATE_BIRDSEYE_VIEW = visu_type & LiveSimType::birdseye;
 
+   const HighwayImage::CameraMode camera_mode{ (visu_type & LiveSimType::fit_to_roads)
+      ? HighwayImage::CameraMode::fit_to_roads
+      : HighwayImage::CameraMode::ego_following };
+
    int width_cpv = 2400;
    int height_cpv = 480;
 
@@ -517,12 +521,15 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
          CREATE_COCKPIT_VIEW ? 0 : 900, // TODO: Not so nice to hard-code this. But cropping the birds-eye view like this is often beneficial when used as a figure in a text.
          CREATE_COCKPIT_VIEW ? 0 : 700,
          road_graph,
-         paint_cars)
+         paint_cars,
+         camera_mode)
       : nullptr;
 
    if (birds_eye)
    {
-      width_cpv = birds_eye->getWidth();
+      // Keep the cockpit (3D) at its original size, independent of the birdseye canvas, which now
+      // varies with fit-to-roads mode; otherwise the 3D view would be rescaled and shifted.
+      width_cpv = CREATE_COCKPIT_VIEW ? 5000 : birds_eye->getWidth();
       height_cpv = width_cpv / 5;
    }
 
@@ -546,8 +553,8 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
       }
 
       img->fillImg(WHITE);
-      img->insertImage(0, 0, *cockpit, false);
-      img->insertImage(0, cockpit->getHeight(), *birds_eye, false);
+      img->insertImage((img->getWidth() - cockpit->getWidth()) / 2, 0, *cockpit, false);
+      img->insertImage((img->getWidth() - birds_eye->getWidth()) / 2, cockpit->getHeight(), *birds_eye, false);
    }
    else if (birds_eye) {
       img = birds_eye;

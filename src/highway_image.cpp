@@ -1099,11 +1099,15 @@ void vfm::HighwayImage::paintBezierConnectionsBetweenSections(
                            }, {}, {});
 
                         if (*A.col_ == Color{ 0, 0, 0, 0 }) {
+                           const int num_lanes_a{ (std::max)(1, A.thick_ > 0 ? r->getMyRoad().getNumActualLanes() : 1) };
+                           const float border_thickness{ old_trans->is3D()
+                              ? THICK * 2.1f
+                              : 1.5f * LANE_MARKER_THICKNESS * A.thick_ * norm_length_a / num_lanes_a }; // Match straight-section border thickness in 2D.
                            Pol2D arrow_square{};
                            arrow.add(*arrow.points_.begin());
                            arrow_square.createArrow(
                               arrow,
-                              THICK * (old_trans->is3D() ? 2.1 : 0.97), // TODO: Remove these magic numbers
+                              border_thickness,
                               {},
                               {},
                               {},
@@ -1264,7 +1268,8 @@ void vfm::HighwayImage::paintRoadGraph(
    const std::map<std::string, std::string>& var_vals,
    const bool print_agent_ids,
    const float TRANSLATE_X_raw,
-   const float TRANSLATE_Y_raw)
+   const float TRANSLATE_Y_raw,
+   const CameraMode camera_mode)
 {
    auto my_r = PAINT_ROUNDABOUT_AROUND_EGO_SECTION_FOR_TESTING_ ? vfm::test::paintExampleRoadGraphRoundabout(false, r_raw) : r_raw;
 
@@ -1290,6 +1295,46 @@ void vfm::HighwayImage::paintRoadGraph(
 
    Vec2D dim_raw{ dim_raw_raw };
 
+   // For 2D birdseye painting we can optionally zoom/translate so that the whole road graph fits the
+   // image (plus a small padding) instead of following the ego vehicle. Ignored for 3D and plain-road.
+   float translate_x{ TRANSLATE_X_raw };
+   float translate_y{ TRANSLATE_Y_raw };
+
+   if (camera_mode == CameraMode::fit_to_roads && !plain_road && !old_trans->is3D()) {
+      const Rec2D bb{ my_r->getBoundingBox() };
+      const Vec2D bb_center{ bb.getCenter() };
+
+      // getBoundingBox only spans the section centerlines; pad laterally for the actual lane width.
+      float max_lanes{ 1.0f };
+      for (const auto& r_sub : all_nodes) {
+         max_lanes = std::max(max_lanes, static_cast<float>(r_sub->getMyRoad().getNumActualLanes()));
+      }
+      const float lateral_margin{ max_lanes * lane_width / 2.0f + lane_width };
+      const float content_w{ std::max(1.0f, bb.getWidth()) + 2.0f * lateral_margin };
+      const float content_h{ std::max(1.0f, bb.getHeight()) + 2.0f * lateral_margin };
+
+      constexpr float PADDING_FACTOR{ 1.10f }; // 5% padding on each side.
+      const float ppm{ std::min(
+         static_cast<float>(getWidth()) / (content_w * PADDING_FACTOR),
+         static_cast<float>(getHeight()) / (content_h * PADDING_FACTOR)) }; // Pixels per meter (x), = dim_raw.y * 0.4.
+
+      dim_raw.y = ppm / 0.4f; // Invert ppm = dim_raw.y * LANE_WIDTH_FACTOR(0.5) * street_factor(0.8).
+
+      // Move the road graph so its bounding-box center sits at the world origin (0, 0).
+      my_r->translateGraph({ -bb_center.x, -bb_center.y });
+
+      // Derive the ego-section perspective (pixels/lane, street top) to place the world origin at the image center.
+      const auto ego_section{ my_r->findSectionWithEgoIfAny() };
+      const float ego_lanes{ std::max(1.0f, static_cast<float>(ego_section->getMyRoad().getNumActualLanes())) };
+      const float lw{ dim_raw.y * lane_width * 0.4f }; // Pixels per lane for the ego section.
+      const float street_top{ dim_raw.y * ego_lanes * lane_width * 0.05f };
+      const auto ego_car{ ego_section->getMyRoad().getEgo() };
+      const float ego_lane{ ego_car ? ego_car->car_lane_ : 0.0f };
+
+      translate_x = (static_cast<float>(getWidth()) / 2.0f - 500.0f) / ppm;
+      translate_y = (static_cast<float>(getHeight()) / 2.0f - street_top - lw / 2.0f) / lw - ego_lane;
+   }
+
    //if (infinite_road) {
    //   TRANSLATE_X = 0;
    //   TRANSLATE_Y = 0;
@@ -1306,10 +1351,10 @@ void vfm::HighwayImage::paintRoadGraph(
       if (r_sub != r_ego) all_nodes_ego_in_front.push_back(r_sub);
    }
 
-   std::shared_ptr<float> trans_x_inner = std::make_shared<float>(plain_road ? 0 : TRANSLATE_X_raw);
-   std::shared_ptr<float> trans_y_inner = std::make_shared<float>(plain_road ? 0 : TRANSLATE_Y_raw);
+   std::shared_ptr<float> trans_x_inner = std::make_shared<float>(plain_road ? 0 : translate_x);
+   std::shared_ptr<float> trans_y_inner = std::make_shared<float>(plain_road ? 0 : translate_y);
 
-   const auto DRAW_STRAIGHT_ROAD_OR_CARS = [this, plain_road, &lane_width, &all_nodes_ego_in_front, &dim_raw, old_trans, TRANSLATE_X_raw, TRANSLATE_Y_raw, trans_x_inner, trans_y_inner, infinite_road, &var_vals, print_agent_ids](const RoadDrawingMode mode) {
+   const auto DRAW_STRAIGHT_ROAD_OR_CARS = [this, plain_road, &lane_width, &all_nodes_ego_in_front, &dim_raw, old_trans, translate_x, translate_y, trans_x_inner, trans_y_inner, infinite_road, &var_vals, print_agent_ids](const RoadDrawingMode mode) {
       for (const auto r_sub : all_nodes_ego_in_front) {
          if (mode == RoadDrawingMode::road && r_sub->isGhost()
             || mode == RoadDrawingMode::ghosts_only && !r_sub->isGhost()) continue;
@@ -1388,8 +1433,8 @@ void vfm::HighwayImage::paintRoadGraph(
                infinite_road ? dim_raw : preserved_dimension_,
                mode);
 
-            *trans_x_inner = only_zero.x + TRANSLATE_X_raw; // Do this only once per painting.
-            *trans_y_inner = only_zero.y + TRANSLATE_Y_raw;
+            *trans_x_inner = only_zero.x + translate_x; // Do this only once per painting.
+            *trans_y_inner = only_zero.y + translate_y;
          }
 
          auto connectors = paintStraightRoadScene(
