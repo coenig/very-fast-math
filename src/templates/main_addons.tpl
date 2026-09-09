@@ -425,7 +425,7 @@ INIT env.section_4_end = 20;
 @{
 INIT env.veh___6[i]9___.is_on_sec_0 = 1;
 INIT env.veh___6[i]9___.abs_pos = @{[i]}@.eval[0] * (env.veh_length + 1);
-INVAR env.veh___6[i]9___.v <= 2;
+INVAR env.veh___6[i]9___.v <= env.veh___6[i]9___.current_seclet_length;
 @{
 INVAR env.veh___6[i]9___.is_on_sec_0 = 1 -> env.veh___6[i]9___.a >= 0; -- Go out forwards
 INVAR env.veh___6[i]9___.is_on_sec_0 = 1 -> env.veh___6[i]9___.v >= 0; -- Go out forwards
