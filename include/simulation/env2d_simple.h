@@ -145,7 +145,7 @@ public:
          canvas_width = (std::max)(1, static_cast<int>(content_w * ppm));
          canvas_height = (std::max)(1, static_cast<int>(content_h * ppm));
       }
-      // Copilot
+      // EO Copilot
       
       if (true || !outside_view_) { // TODO: Can we optimize that for performance?
          outside_view_ = std::make_shared<HighwayImage>(
