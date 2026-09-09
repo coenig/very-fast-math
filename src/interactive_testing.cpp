@@ -149,6 +149,10 @@ std::string retrievePathOfCachedEnvModel(const std::string& cached_dir, const st
             if (StaticHelper::existsFileSafe(envmodel_path)) {
                // We need to check that:
                // (1) All variables defined in the new JSON have the same values as in the cached EnvModel.
+               //    TODO: New variables that have never been cached before, cannot be detected for now.
+               //          Problem is to identify RELEVANT new variables, since they are given via the EnvModel, 
+               //          which is not generated (since we are in the process of figuring out if this is even necessary).
+               //          ==> So we run into false positive cache detection.
                // (2) All variables that are NOT defined in the new JSON have default value in the cached EnvModel.
 
                bool equals{ true };

@@ -829,17 +829,62 @@ void vfm::Image::drawPolygons(
    }
 }
 
-Image vfm::Image::scale(const Vec2Df factor)
+Image vfm::Image::scale(const Vec2Df factor, const bool use_bilinear_interpolation)
 {
    // TODO: Not supported in PDF, yet.
 
    Image result(width_ * factor.x, height_ * factor.y); // Deliberately cutting off possible fraction pixel. TODO: Is this always ok?
 
+   const auto clamp_x = [&](const int x) { return (std::max)(0, (std::min)(width_ - 1, x)); };
+   const auto clamp_y = [&](const int y) { return (std::max)(0, (std::min)(height_ - 1, y)); };
+   const auto lerp = [](const float a, const float b, const float t) { return a + (b - a) * t; };
+   const auto lerp_channel = [&](const color_t c00, const color_t c10, const color_t c01, const color_t c11, const float fx, const float fy) {
+      return static_cast<color_t>(lerp(lerp(c00, c10, fx), lerp(c01, c11, fx), fy));
+   };
+
    for (int x = 0; x < result.width_; x++) {
       for (int y = 0; y < result.height_; y++) {
-         result.putPixelUnsafe(x, y, getPixel(x * width_ / result.width_, y * height_ / result.height_));
+         if (use_bilinear_interpolation) {
+            const float src_x{ (x + 0.5f) * width_ / (float)result.width_ - 0.5f };
+            const float src_y{ (y + 0.5f) * height_ / (float)result.height_ - 0.5f };
+            const int x0{ (int)std::floor(src_x) };
+            const int y0{ (int)std::floor(src_y) };
+            const float fx{ src_x - x0 };
+            const float fy{ src_y - y0 };
+
+            const Color c00{ getPixel(clamp_x(x0), clamp_y(y0)) };
+            const Color c10{ getPixel(clamp_x(x0 + 1), clamp_y(y0)) };
+            const Color c01{ getPixel(clamp_x(x0), clamp_y(y0 + 1)) };
+            const Color c11{ getPixel(clamp_x(x0 + 1), clamp_y(y0 + 1)) };
+
+            result.putPixelUnsafe(x, y, Color{
+               lerp_channel(c00.r, c10.r, c01.r, c11.r, fx, fy),
+               lerp_channel(c00.g, c10.g, c01.g, c11.g, fx, fy),
+               lerp_channel(c00.b, c10.b, c01.b, c11.b, fx, fy),
+               lerp_channel(c00.a, c10.a, c01.a, c11.a, fx, fy) });
+         }
+         else {
+            result.putPixelUnsafe(x, y, getPixel(x * width_ / result.width_, y * height_ / result.height_));
+         }
       }
    }
+
+   return result;
+}
+
+Image vfm::Image::resizeAndScale(const int new_width, const int new_height, const bool preserve_aspect_ratio, const Color& background_color, const bool use_bilinear_interpolation)
+{
+   // TODO: Not supported in PDF, yet.
+
+   if (!preserve_aspect_ratio) {
+      return scale({ (float)new_width / width_, (float)new_height / height_ }, use_bilinear_interpolation);
+   }
+
+   const float uniform_factor{ (std::min)((float)new_width / width_, (float)new_height / height_) };
+   Image scaled{ scale({ uniform_factor, uniform_factor }, use_bilinear_interpolation) };
+   Image result(new_width, new_height);
+   result.fillImg(background_color);
+   result.insertImage(new_width / 2, new_height / 2, scaled, true);
 
    return result;
 }

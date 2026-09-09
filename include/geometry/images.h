@@ -553,7 +553,14 @@ public:
 
    void drawPolygon(const Polygon3D<float>& pol, const Color& col = WHITE, const bool close_polygon = true, const bool paint_nodes = false, const bool print_coordinates = false); // Accepts 2D polygon, as well.
 
-   Image scale(const Vec2Df factor);
+   /// If \p use_bilinear_interpolation is true, smooths the result (recommended for enlarging); otherwise uses nearest-neighbor sampling.
+   Image scale(const Vec2Df factor, const bool use_bilinear_interpolation = false);
+
+   /// Scales the image to exactly the given dimensions, preserving the original image content (not just cutting off).
+   /// If \p preserve_aspect_ratio is true, the image is scaled uniformly (keeping its original width/height ratio)
+   /// and centered within the new dimensions, with any remaining space filled with \p background_color.
+   /// If \p use_bilinear_interpolation is true, smooths the result (recommended for enlarging); otherwise uses nearest-neighbor sampling.
+   Image resizeAndScale(const int new_width, const int new_height, const bool preserve_aspect_ratio = true, const Color& background_color = BLACK, const bool use_bilinear_interpolation = false);
 
    void fillPolygon(const Polygon3D<float>& pol, const Color& col = WHITE); // Accepts 2D polygon, as well.
 

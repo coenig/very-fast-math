@@ -170,6 +170,7 @@ void Script::extractInscriptProcessors(std::string& processed_script, const bool
             + std::to_string(getScriptData().known_chains_.size()) + " known_chains_; "
             + std::to_string(getScriptData().method_part_begins_.size()) + " method_part_begins_; "
             + std::to_string(getScriptData().list_data_.size()) + " list_data_; "
+            + std::to_string(getScriptData().map_data_.size()) + " map_data_; "
             + std::to_string(processed_script.size()) + " script size; "
             + std::to_string(getScriptData().cache_hits_) + "/" + std::to_string(getScriptData().cache_misses_) + " cache hits/misses; "
          );
@@ -358,6 +359,63 @@ std::string Script::arclengthCubicBezierFromStreetTopology(
       ;
 }
 
+std::string Script::arclengthCubicBezierFromEndPoints(
+   const std::string& lane_str,
+   const std::string& origin_out_x_str,
+   const std::string& origin_out_y_str,
+   const std::string& drain_out_x_str,
+   const std::string& drain_out_y_str,
+   const std::string& source_in_x_str,
+   const std::string& source_in_y_str,
+   const std::string& drain_in_x_str,
+   const std::string& drain_in_y_str,
+   const std::string& num_lanes_str,
+   const std::string& lane_width_str)
+{
+   const std::string lane_trimmed{ StaticHelper::trimAndReturn(lane_str) };
+   const std::string num_lanes_trimmed{ StaticHelper::trimAndReturn(num_lanes_str) };
+
+   for (const auto& p : { std::pair{ "Lane", lane_trimmed }, std::pair{ "NumLanes", num_lanes_trimmed } }) {
+      if (!StaticHelper::isParsableAsInt(p.second)) addError(std::string{ p.first } + " '" + p.second + "' is not parsable as int in 'arclengthCubicBezierFromEndPoints'.");
+   }
+   for (const auto& p : { std::pair{ "OriginOutX", origin_out_x_str }, std::pair{ "OriginOutY", origin_out_y_str },
+                          std::pair{ "DrainOutX", drain_out_x_str }, std::pair{ "DrainOutY", drain_out_y_str },
+                          std::pair{ "SourceInX", source_in_x_str }, std::pair{ "SourceInY", source_in_y_str },
+                          std::pair{ "DrainInX", drain_in_x_str }, std::pair{ "DrainInY", drain_in_y_str },
+                          std::pair{ "LaneWidth", lane_width_str } }) {
+      if (!StaticHelper::isParsableAsFloat(p.second)) addError(std::string{ p.first } + " '" + p.second + "' is not parsable as float in 'arclengthCubicBezierFromEndPoints'.");
+   }
+   if (hasErrorOccurred()) return "#ERROR-Check-Log";
+
+   const int num_lanes{ std::stoi(num_lanes_trimmed) };
+   const int lane{ num_lanes - std::stoi(lane_trimmed) - 1 };
+   const float lane_width{ std::stof(lane_width_str) };
+   const float l{ (lane - (num_lanes - 1.0f) / 2.0f) * lane_width };
+
+   // The Bezier connects the drain of the outgoing section to the source of the incoming section,
+   // diving in tangentially to both. This mirrors the (accurate) painter calculation in road_graph.cpp,
+   // using the real endpoint coordinates rather than assuming a restricted section placement.
+   Vec2D arc_origin{ std::stof(drain_out_x_str), std::stof(drain_out_y_str) };
+   Vec2D arc_origin_from{ std::stof(origin_out_x_str), std::stof(origin_out_y_str) };
+   Vec2D arc_target{ std::stof(source_in_x_str), std::stof(source_in_y_str) };
+   Vec2D arc_target_from{ std::stof(drain_in_x_str), std::stof(drain_in_y_str) };
+
+   Vec2D lane_correction_dir_origin{ arc_origin - arc_origin_from };
+   Vec2D lane_correction_dir_target{ arc_target - arc_target_from };
+   lane_correction_dir_origin.ortho();
+   lane_correction_dir_target.ortho();
+   lane_correction_dir_origin.setLength(l);
+   lane_correction_dir_target.setLength(-l);
+   arc_origin.add(lane_correction_dir_origin);
+   arc_origin_from.add(lane_correction_dir_origin);
+   arc_target.add(lane_correction_dir_target);
+   arc_target_from.add(lane_correction_dir_target);
+
+   const auto nice_points = bezier::getNiceBetweenPoints(arc_origin, arc_origin_from, arc_target, arc_target_from);
+
+   return std::to_string((int) std::round(bezier::arcLength(1, arc_origin, nice_points[0], nice_points[2], arc_target)));
+}
+
 std::string Script::forloop(const std::string& body, const std::string& varname, const std::string& loop_vec)
 {
    return forloop(body, varname, loop_vec, "");
@@ -458,8 +516,16 @@ std::string Script::element(const std::string& sequence_str, const std::string& 
       return script_sequence.at(num);
    }
 
-   addError("Element with index " + std::to_string(num) + " not available in sequence ''" + sequence_str + "' of size " + std::to_string(script_sequence.size()) + ".");
+   addError("Element with index " + std::to_string(num) + " not available in sequence '" + sequence_str + "' of size " + std::to_string(script_sequence.size()) + ".");
    return "#INVALID";
+}
+
+std::string Script::contains(const std::string& sequence_str, const std::string& str)
+{
+   const std::vector<std::string> script_sequence{ processSequence(sequence_str) };
+   return std::find(script_sequence.begin(), script_sequence.end(), str) != script_sequence.end()
+      ? "1"
+      : "0";
 }
 
 float Script::stringToFloat(const std::string& str)
@@ -1343,14 +1409,11 @@ void Script::processSequence(const std::string& code, std::vector<std::string>& 
 
    if (StaticHelper::stringStartsWith(processed, BEGIN_TAG_IN_SEQUENCE)
       && StaticHelper::stringEndsWith(processed, END_TAG_IN_SEQUENCE)) {
-      // Sequence of scripts given.
       int indexTo{ StaticHelper::findMatchingEndTagLevelwise(
          processed, BEGIN_TAG_IN_SEQUENCE, END_TAG_IN_SEQUENCE, 0) };
       rest = processed.substr(indexTo + END_TAG_IN_SEQUENCE.length());
       processed = processed.substr(BEGIN_TAG_IN_SEQUENCE.length(), indexTo - BEGIN_TAG_IN_SEQUENCE.length());
-      //processSequence(processed, script_sequence);
    }
-   //else {
 
    std::string proc{ processed };
 
@@ -1360,6 +1423,45 @@ void Script::processSequence(const std::string& code, std::vector<std::string>& 
 
    script_sequence.push_back(proc);
    processSequence(rest, script_sequence);
+}
+
+std::map<std::string, std::string> vfm::macro::Script::processMap(const std::string& code)
+{
+   std::map<std::string, std::string> res{};
+   auto vec = processSequence(code);
+
+   for (const auto& el : vec) {
+      auto single_map = processSequence(el);
+
+      if (single_map.size() != 2) {
+         addError("String '" + code + "' does not encode a map.");
+         continue;
+      }
+
+      if (res.count(single_map[0])) {
+         addError("Element '" + single_map[0] + "' occurs twice in map '" + code + "'.");
+         continue;
+      }
+
+      res.insert({single_map[0], single_map[1]});
+   }
+
+   return res;
+}
+
+bool vfm::macro::Script::isMap(const std::string& code)
+{
+   auto vec = processSequence(code);
+
+   for (const auto& el : vec) {
+      auto single_map = processSequence(el);
+
+      if (single_map.size() != 2) {
+         return false;
+      }
+   }
+
+   return true;
 }
 
 std::string Script::evalItAllF(const std::string& n1Str, const std::string& n2Str, const std::function<float(float n1, float n2)> eval) {

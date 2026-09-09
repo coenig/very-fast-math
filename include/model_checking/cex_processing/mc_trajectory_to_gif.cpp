@@ -556,6 +556,10 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
       img = cockpit;
    }
 
+   if (visu_type & LiveSimType::gif_animation) { // TODO: Actually paint less to make it faster.
+      img = std::make_shared<Image>(img->resizeAndScale(1280, 720, true, BLACK, true)); // Rescale for smaller GIFs.
+   }
+
    if (((visu_type & LiveSimType::constant_image_output) || (visu_type & LiveSimType::incremental_image_output)) && img)
    {
       if (data && CREATE_BIRDSEYE_VIEW && CREATE_COCKPIT_VIEW) {
