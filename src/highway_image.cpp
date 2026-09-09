@@ -1102,7 +1102,7 @@ void vfm::HighwayImage::paintBezierConnectionsBetweenSections(
                            const int num_lanes_a{ (std::max)(1, A.thick_ > 0 ? r->getMyRoad().getNumActualLanes() : 1) };
                            const float border_thickness{ old_trans->is3D()
                               ? THICK * 2.1f
-                              : 1.5f * LANE_MARKER_THICKNESS * A.thick_ * norm_length_a / num_lanes_a }; // Match straight-section border thickness in 2D.
+                              : 1.3f * LANE_MARKER_THICKNESS * A.thick_ * norm_length_a / num_lanes_a }; // Match straight-section border thickness in 2D.
                            Pol2D arrow_square{};
                            arrow.add(*arrow.points_.begin());
                            arrow_square.createArrow(
