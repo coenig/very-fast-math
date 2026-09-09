@@ -118,6 +118,7 @@ public:
    {
       const bool infinite_highway{ false /*road_graph->getNodeCount() == 1*/ };
 
+      // Copilot
       int canvas_width{ 5000 };
       int canvas_height{ getImageHeight() * (!infinite_highway ? 7 : 1) };
 
@@ -144,7 +145,8 @@ public:
          canvas_width = (std::max)(1, static_cast<int>(content_w * ppm));
          canvas_height = (std::max)(1, static_cast<int>(content_h * ppm));
       }
-
+      // Copilot
+      
       if (true || !outside_view_) { // TODO: Can we optimize that for performance?
          outside_view_ = std::make_shared<HighwayImage>(
             canvas_width,
