@@ -23,7 +23,7 @@
    -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]].at[1]}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@] (map element)
 	)@
 	@(
-   -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]]}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@]
+   -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]].eval[0]}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@]
 	)@
    }@*.if[@{name_array}@.scriptVar.scriptVar.isMap]
 	}@**.for[[id], 0, @{@{@{name_array}@.scriptVar}@.scriptVar.size - 1}@.eval]
@@ -105,10 +105,10 @@
 @{FIXED_SECTION_CONNECTORS}@*******.defaultValueString[@{}@]
 
 @{FIXED_SECTION_IDs}@*******.ConvenienceVars
+@{FIXED_SECTION_LENGTHs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar] -- Putting the lengths before the other stuff makes it possible to rely on variables in length array.
 @{FIXED_SECTION_SOURCE_Xs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
 @{FIXED_SECTION_SOURCE_Ys}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
 @{FIXED_SECTION_ANGLEs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
-@{FIXED_SECTION_LENGTHs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
 @{FIXED_SECTION_CONNECTORS}@*******.ConvenienceVars2[@{FIXED_SECTION_CONNECTORS}@.printHeap.keyListFromMap]
 
 -- Helper variables for fixed sections and connectors
