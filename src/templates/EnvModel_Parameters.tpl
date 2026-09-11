@@ -39,6 +39,10 @@
 -- Note that the below exact formulation is used in regex for caching. 
 -- Do not change...
 
+@{VFM_PREPROCESSOR}@*******.defaultValueString[EMPTY_PREPROCESSOR]        -- Evaluated before the EnvModel is generated, can define variables etc.
+
+-- Preprocessor evaluation: @{VFM_PREPROCESSOR}@*******.printHeap = @{VFM_PREPROCESSOR}@*******.printHeap.eval
+
 -- Global options
 @{EM_LESS}@*******.defaultValue[false]
 @{SCENGEN_MODE}@*******.defaultValue[false]
@@ -105,10 +109,10 @@
 @{FIXED_SECTION_CONNECTORS}@*******.defaultValueString[@{}@]
 
 @{FIXED_SECTION_IDs}@*******.ConvenienceVars
-@{FIXED_SECTION_LENGTHs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar] -- Putting the lengths before the other stuff makes it possible to rely on variables in length array.
 @{FIXED_SECTION_SOURCE_Xs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
 @{FIXED_SECTION_SOURCE_Ys}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
 @{FIXED_SECTION_ANGLEs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
+@{FIXED_SECTION_LENGTHs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
 @{FIXED_SECTION_CONNECTORS}@*******.ConvenienceVars2[@{FIXED_SECTION_CONNECTORS}@.printHeap.keyListFromMap]
 
 -- Helper variables for fixed sections and connectors
