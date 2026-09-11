@@ -422,6 +422,10 @@ INIT env.section_4_end = 20;
 
 
 -- Parking
+INVAR env.angle_from_sec_0_to_sec_2 < 180 & env.angle_from_sec_0_to_sec_2 > 0;
+INVAR env.angle_from_sec_1_to_sec_2 > 180;
+INVAR env.outgoing_connection_0_of_section_0 != 1 & env.outgoing_connection_0_of_section_1 != 0;
+
 @{
 INIT env.veh___6[i]9___.is_on_sec_0 = 1;
 INIT env.veh___6[i]9___.abs_pos = @{[i]}@.eval[0] * (env.veh_length + 1);
