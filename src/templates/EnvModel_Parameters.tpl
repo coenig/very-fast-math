@@ -23,7 +23,7 @@
    -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]].at[1]}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@] (map element)
 	)@
 	@(
-   -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]]}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@]
+   -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]].eval[0]}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@]
 	)@
    }@*.if[@{name_array}@.scriptVar.scriptVar.isMap]
 	}@**.for[[id], 0, @{@{@{name_array}@.scriptVar}@.scriptVar.size - 1}@.eval]
@@ -38,6 +38,10 @@
 
 -- Note that the below exact formulation is used in regex for caching. 
 -- Do not change...
+
+@{VFM_PREPROCESSOR}@*******.defaultValueString[EMPTY_PREPROCESSOR]        -- Evaluated before the EnvModel is generated, can define variables etc.
+
+-- Preprocessor evaluation: @{VFM_PREPROCESSOR}@*******.printHeap = @{VFM_PREPROCESSOR}@*******.printHeap.eval
 
 -- Global options
 @{EM_LESS}@*******.defaultValue[false]
