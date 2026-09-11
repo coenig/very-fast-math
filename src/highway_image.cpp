@@ -1482,6 +1482,31 @@ void vfm::HighwayImage::paintRoadGraph(
 
    label:
    setTranslator(old_trans);
+
+   // Paint rectangular obstacles as a world-coordinate overlay, using the same transform pipeline as the sections
+   // (origin 0 / angle 0), so they stay aligned with the road under ego-normalization and fit-to-roads.
+   if (!my_r->getRectObstacles().empty()) {
+      const float tx{ *trans_x_inner };
+      const float ty{ *trans_y_inner };
+
+      const auto obstacle_trans_function = [tx, ty, lane_width](const Vec3D& p) -> Vec3D {
+         return { p.x + tx, p.y / lane_width + ty, p.z };
+      };
+
+      const auto obstacle_reverse_trans_function = [tx, ty, lane_width](const Vec3D& p) -> Vec3D {
+         return { p.x - tx, (p.y - ty) * lane_width, p.z };
+      };
+
+      setTranslator(std::make_shared<HighwayTranslatorWrapper>(old_trans, obstacle_trans_function, obstacle_reverse_trans_function));
+
+      for (const auto& obs : my_r->getRectObstacles()) {
+         fillRectangle(obs.tl_.x, obs.tl_.y, obs.br_.x - obs.tl_.x, obs.br_.y - obs.tl_.y, DARK_ORANGE, false);
+         rectangle(obs.tl_.x, obs.tl_.y, obs.br_.x - obs.tl_.x, obs.br_.y - obs.tl_.y, BLACK, false);
+      }
+
+      setTranslator(old_trans);
+   }
+
    //DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::ghosts_only); // For debugging.
    if (with_cars) DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
    setTranslator(old_trans);
