@@ -25,6 +25,10 @@ IMAGE_PATH = os.path.join(REPO_ROOT, "examples/gp_config/0/preview2/preview2_0.p
 # Re-runs the model checker on the already-generated EnvModel.smv (no tpl.json regeneration).
 # Path is relative to bin/, the working directory the MC runs in (see run_model_checker).
 MC_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.runMCJobs[16]"
+# Regenerates EnvModel.smv/main.smv from the config; required after any config change.
+ENVGEN_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.generateEnvmodels"
+# Renders only the smooth birdseye counterexample visualization (images/video).
+TESTCASE_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.generateTestCases[cex-smooth-birdseye]"
 
 
 def _read_trace_values(trace_path):
@@ -241,8 +245,8 @@ def _vfm_lib_context():
             _libc.dlclose(handle)
 
 
-def run_model_checker():
-    """Invoke the vfm library to re-run the MC on the current EnvModel.smv. Returns stdout text.
+def _run_vfm_script(script):
+    """Run a vfm template script with bin/ as cwd and a fresh libvfm. Returns stdout text.
 
     The config's relative paths (../examples, ../external, ...) resolve from bin/, so the call
     must run with bin/ as the working directory.
@@ -252,10 +256,15 @@ def run_model_checker():
     os.chdir(os.path.join(REPO_ROOT, 'bin'))
     try:
         with _vfm_lib_context() as lib:
-            res = lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
+            res = lib.expandScript(script.encode('utf-8'), result, sizeof(result))
     finally:
         os.chdir(prev_cwd)
     return res.decode(errors="replace") if res else ""
+
+
+def run_model_checker():
+    """Invoke the vfm library to re-run the MC on the current EnvModel.smv. Returns stdout text."""
+    return _run_vfm_script(MC_SCRIPT)
 
 
 def trace_has_counterexample(trace_path):
@@ -387,6 +396,14 @@ class MainWindow(QMainWindow):
         self.refresh_btn.clicked.connect(self.trigger_external_process)
         layout.addWidget(self.refresh_btn)
 
+        self.envgen_btn = QPushButton("Re-run EnvModel Generation")
+        self.envgen_btn.clicked.connect(self.run_envmodel_generation)
+        layout.addWidget(self.envgen_btn)
+
+        self.testcase_btn = QPushButton("Generate Test Case (Smooth Birdseye)")
+        self.testcase_btn.clicked.connect(self.run_testcase_generation)
+        layout.addWidget(self.testcase_btn)
+
         # Load image and obstacle rectangles from the current trace.
         self.reload_from_trace()
 
@@ -449,6 +466,42 @@ class MainWindow(QMainWindow):
                               int(round(br[0])), int(round(br[1]))))
         return obstacles
 
+    def _set_buttons_enabled(self, enabled):
+        for btn in (self.refresh_btn, self.envgen_btn, self.testcase_btn):
+            btn.setEnabled(enabled)
+
+    def _run_script_with_ui(self, script, description, reload_after):
+        """Run a vfm script with wait-cursor/disabled buttons and a completion dialog."""
+        self._set_buttons_enabled(False)
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        error = None
+        try:
+            print(f"\u26a1 Running {description}...")
+            print(_run_vfm_script(script))
+        except (Exception, KeyboardInterrupt) as e:
+            error = e
+            print(f"{description} aborted or failed: {e}")
+        finally:
+            QApplication.restoreOverrideCursor()
+            self._set_buttons_enabled(True)
+
+        if error is None and reload_after:
+            self.reload_from_trace()
+
+        if error is not None:
+            QMessageBox.warning(self, f"{description} failed",
+                                f"{description} was aborted or failed.")
+        else:
+            QMessageBox.information(self, f"{description} finished",
+                                    f"{description} completed successfully.")
+
+    def run_envmodel_generation(self):
+        self._run_script_with_ui(ENVGEN_SCRIPT, "EnvModel generation", reload_after=False)
+
+    def run_testcase_generation(self):
+        self._run_script_with_ui(TESTCASE_SCRIPT, "Test case generation (smooth birdseye)",
+                                 reload_after=True)
+
     def trigger_external_process(self):
         obstacles_world = self.collect_obstacles_world()
         if not obstacles_world:
@@ -469,7 +522,7 @@ class MainWindow(QMainWindow):
             if os.path.isfile(src):
                 shutil.copy2(src, dst)
 
-        self.refresh_btn.setEnabled(False)
+        self._set_buttons_enabled(False)
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
         mc_error = None
         try:
@@ -482,7 +535,7 @@ class MainWindow(QMainWindow):
             print(f"Model checker aborted or failed: {e}")
         finally:
             QApplication.restoreOverrideCursor()
-            self.refresh_btn.setEnabled(True)
+            self._set_buttons_enabled(True)
 
         if mc_error is None and trace_has_counterexample(self.trace_path):
             for backup in (trace_backup, image_backup):
