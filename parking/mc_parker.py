@@ -3,6 +3,7 @@ import re
 import math
 import os
 import platform
+import shutil
 import ctypes
 import ctypes.util
 from contextlib import contextmanager
@@ -460,22 +461,52 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "SMV update failed", str(e))
             return
 
+        # The MC run overwrites the trace and preview image; keep the previous ones so we can
+        # restore the last valid view if the new obstacle layout yields no counterexample.
+        trace_backup = self.trace_path + ".prev"
+        image_backup = self.image_path + ".prev"
+        for src, dst in ((self.trace_path, trace_backup), (self.image_path, image_backup)):
+            if os.path.isfile(src):
+                shutil.copy2(src, dst)
+
         self.refresh_btn.setEnabled(False)
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        mc_error = None
         try:
             print("⚡ Re-running model checker...")
             output = run_model_checker()
             print(output)
+        except (Exception, KeyboardInterrupt) as e:
+            # A user abort (Ctrl+C killing nuXmv) or any library failure must not crash the GUI.
+            mc_error = e
+            print(f"Model checker aborted or failed: {e}")
         finally:
             QApplication.restoreOverrideCursor()
             self.refresh_btn.setEnabled(True)
 
-        if trace_has_counterexample(self.trace_path):
+        if mc_error is None and trace_has_counterexample(self.trace_path):
+            for backup in (trace_backup, image_backup):
+                if os.path.isfile(backup):
+                    os.remove(backup)
             self.reload_from_trace()
+            return
+
+        # Aborted, failed, or no counterexample: revert to the preserved trace and image.
+        for backup, dst in ((trace_backup, self.trace_path), (image_backup, self.image_path)):
+            if os.path.isfile(backup):
+                shutil.move(backup, dst)
+        self.reload_from_trace()
+
+        if mc_error is not None:
+            QMessageBox.warning(
+                self, "Model checker aborted",
+                "The model checker run was aborted or failed.\n"
+                "Restored the previous trace and image.")
         else:
             QMessageBox.information(
                 self, "No counterexample",
-                "The model checker produced no counterexample for the new obstacle layout.")
+                "The model checker produced no counterexample for the new obstacle layout.\n"
+                "Restored the previous trace and image.")
 
 
 if __name__ == "__main__":
