@@ -422,7 +422,7 @@ INIT env.section_4_end = 20;
 
 
 -- Parking
-INVAR env.outgoing_connection_0_of_section_0 != 1 & env.outgoing_connection_0_of_section_1 != 0;
+-- INVAR env.outgoing_connection_0_of_section_0 != 1 & env.outgoing_connection_0_of_section_1 != 0;
 
 @{
 INIT env.veh___6[i]9___.is_on_sec_0 = 1 & env.veh___6[i]9___.abs_pos = 5;

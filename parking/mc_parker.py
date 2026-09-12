@@ -53,18 +53,61 @@ def _trace_getter(trace_path):
     return get
 
 
+def _ego_connected_sections(get):
+    """Return the set of section indices reachable from the ego's section.
+
+    C++ getBoundingBox(false) only spans the road graph connected to the ego via
+    applyToMeAndAllMySuccessorsAndPredecessors, so disconnected sections (e.g. a
+    separate parking spot with no car crossing towards it) are excluded from the fit.
+    Connections are directed edges section_N -> outgoing_connection_c_of_section_N;
+    traversal is undirected (successors and predecessors).
+    """
+    num_sections = 0
+    while get(f"section_{num_sections}.source.x") is not None:
+        num_sections += 1
+    if num_sections == 0:
+        return set()
+
+    adjacency = {i: set() for i in range(num_sections)}
+    for src in range(num_sections):
+        c = 0
+        while True:
+            target = get(f"outgoing_connection_{c}_of_section_{src}")
+            if target is None:
+                break
+            t = int(target)
+            if 0 <= t < num_sections:
+                adjacency[src].add(t)
+                adjacency[t].add(src)
+            c += 1
+
+    ego = get("ego.on_section")
+    ego_section = int(ego) if ego is not None and 0 <= int(ego) < num_sections else 0
+
+    component = set()
+    stack = [ego_section]
+    while stack:
+        node = stack.pop()
+        if node in component:
+            continue
+        component.add(node)
+        stack.extend(adjacency[node] - component)
+    return component
+
+
 def compute_fit_transform(trace_path, image_width, image_height):
     """Derive the world<->pixel mapping of the C++ 'fit_to_roads' birdseye painter.
 
-    The road-graph bounding box (section source+drain centerlines, ghosts excluded) is
-    centered in the canvas at a uniform scale 'ppm' (pixels per meter), no axis flip
-    (env2d_simple.h getBirdseyeView / highway_image.cpp). Returns (center_x, center_y, ppm).
+    The road-graph bounding box (source+drain centerlines of the sections connected to
+    the ego, ghosts excluded) is centered in the canvas at a uniform scale 'ppm' (pixels
+    per meter), no axis flip (env2d_simple.h getBirdseyeView / highway_image.cpp).
+    Returns (center_x, center_y, ppm).
     """
     get = _trace_getter(trace_path)
 
+    component = _ego_connected_sections(get)
     points = []
-    sec = 0
-    while get(f"section_{sec}.source.x") is not None:
+    for sec in sorted(component):
         sx = get(f"section_{sec}.source.x")
         sy = get(f"section_{sec}.source.y")
         angle_deg = get(f"section_{sec}.angle") or 0.0
@@ -73,7 +116,6 @@ def compute_fit_transform(trace_path, image_width, image_height):
         # Origin and drain point, exactly as RoadGraph::getDrainPoint() computes it.
         points.append((sx, sy))
         points.append((sx + length * math.cos(angle), sy + length * math.sin(angle)))
-        sec += 1
 
     if not points:
         return None
@@ -89,10 +131,14 @@ def compute_fit_transform(trace_path, image_width, image_height):
     lane_width = (get("lane_width") or 400.0) / 100.0
     num_lanes = get("num_lanes") or 1.0
 
+    # Mirrors highway_image.cpp fit_to_roads: content = max(1, bb) + 2*lateral_margin,
+    # ppm fits that (plus 10% padding) into the fixed canvas getWidth()/getHeight().
     lateral_margin = num_lanes * lane_width / 2.0 + lane_width
-    content_w = (max(1.0, max_x - min_x) + 2.0 * lateral_margin) * 1.10
-    content_h = (max(1.0, max_y - min_y) + 2.0 * lateral_margin) * 1.10
-    ppm = min(5000.0 / content_w, 40.0, 12000.0 / content_h)
+    content_w = max(1.0, max_x - min_x) + 2.0 * lateral_margin
+    content_h = max(1.0, max_y - min_y) + 2.0 * lateral_margin
+    padding_factor = 1.10
+    ppm = min(image_width / (content_w * padding_factor),
+              image_height / (content_h * padding_factor))
 
     return (center_x, center_y, ppm)
 
