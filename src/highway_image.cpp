@@ -631,7 +631,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
       overpaint.add(0, min_lane ? tl_orig : Vec2D{ tl_orig.x, br_orig.y });
       overpaint.add(0, min_lane ? Vec2D{ br_orig.x, tl_orig.y } : br_orig);
 
-      fillPolygon(overpaint, GRASS_COLOR);
+      fillPolygon(overpaint, concrete_platter_mode_ ? PAVEMENT_COLOR : GRASS_COLOR);
       fillPolygon(plain_2d_translator_->reverseTranslatePolygon(arrow), LANE_MARKER_COLOR);
 
       //drawPolygon(overpaint, RED, true, true, true);
@@ -1029,7 +1029,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       ConnectorPolygonEnding::Side::drain,
       Lin2D{ middle_right, middle_left - fix }, // Outgoing
       bottom_left_corner.distance(top_left_corner) * lane_width, // used to be the constant LANE_WIDTH (3.75);
-      std::make_shared<Color>(GRASS_COLOR),
+      std::make_shared<Color>(concrete_platter_mode_ ? PAVEMENT_COLOR : GRASS_COLOR),
       0,
       getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
 
@@ -1037,7 +1037,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       ConnectorPolygonEnding::Side::source,
       Lin2D{ middle_left, middle_right + fix }, // Incoming
       bottom_left_corner.distance(top_left_corner) * lane_width, // used to be the constant LANE_WIDTH (3.75);
-      std::make_shared<Color>(GRASS_COLOR),
+      std::make_shared<Color>(concrete_platter_mode_ ? PAVEMENT_COLOR : GRASS_COLOR),
       0,
       getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() } );
 
@@ -1136,9 +1136,11 @@ void vfm::HighwayImage::paintBezierConnectionsBetweenSections(
                               auto arrow_square_reverse = plain_2d_translator_->reverseTranslatePolygon(arrow_square);
                               auto stop_line_reversea = plain_2d_translator_->reverseTranslatePolygon(stop_linea);
                               auto stop_line_reverseb = plain_2d_translator_->reverseTranslatePolygon(stop_lineb);
-                              fillPolygon(arrow_square_reverse, LANE_MARKER_COLOR);
-                              fillPolygon(stop_line_reversea, LANE_MARKER_COLOR);
-                              fillPolygon(stop_line_reverseb, LANE_MARKER_COLOR);
+                              if (!concrete_platter_mode_) {
+                                 fillPolygon(arrow_square_reverse, LANE_MARKER_COLOR);
+                                 fillPolygon(stop_line_reversea, LANE_MARKER_COLOR);
+                                 fillPolygon(stop_line_reverseb, LANE_MARKER_COLOR);
+                              }
                            }
                            else {
                               // TODO: Get rid of this workaround.
@@ -1149,7 +1151,7 @@ void vfm::HighwayImage::paintBezierConnectionsBetweenSections(
                               }
                               // EO TODO: Get rid of this workaround.
 
-                              fillPolygon(arrow_square, LANE_MARKER_COLOR);
+                              if (!concrete_platter_mode_) fillPolygon(arrow_square, LANE_MARKER_COLOR);
                            }
 
                            Pol2D p2{};
@@ -1293,6 +1295,8 @@ void vfm::HighwayImage::paintRoadGraph(
    const float lane_width{ my_r->my_road_.getLaneWidth() }; // Assuming all lanes have same width.
    const bool infinite_road{ false /*all_nodes.size() == 1 && my_r->isUnturned()*/ }; // Only a single section, unturned, will be painted as infinite.
 
+   concrete_platter_mode_ = !my_r->getRectObstacles().empty(); // Obstacles => concrete-platter look.
+
    Vec2D dim_raw{ dim_raw_raw };
 
    // Copilot
@@ -1357,6 +1361,9 @@ void vfm::HighwayImage::paintRoadGraph(
    std::shared_ptr<float> trans_x_inner = std::make_shared<float>(plain_road ? 0 : translate_x);
    std::shared_ptr<float> trans_y_inner = std::make_shared<float>(plain_road ? 0 : translate_y);
 
+   if (concrete_platter_mode_ && !old_trans->is3D()) {
+      fillImg(PAVEMENT_COLOR); // Gray backdrop instead of grass/green.
+   }
    const auto DRAW_STRAIGHT_ROAD_OR_CARS = [this, plain_road, &lane_width, &all_nodes_ego_in_front, &dim_raw, old_trans, translate_x, translate_y, trans_x_inner, trans_y_inner, infinite_road, &var_vals, print_agent_ids](const RoadDrawingMode mode) {
       for (const auto r_sub : all_nodes_ego_in_front) {
          if (mode == RoadDrawingMode::road && r_sub->isGhost()
