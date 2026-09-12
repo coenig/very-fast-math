@@ -217,9 +217,17 @@ public:
       //cockpit_view_mirror_->setTranslator(no_trans);
       //cockpit_view_mirror_->paintEarthAndSky({ (float)mirror_width, (float)mirror_height });
 
+      // The 3D perspective reference { 500, 120 } is calibrated for the default cockpit size
+      // (2400x480); scale it with the actual canvas so the scene keeps the same framing (i.e.
+      // doesn't look zoomed out) when the combined view renders the cockpit larger.
+      constexpr float REFERENCE_COCKPIT_WIDTH{ 2400.0f };
+      constexpr float REFERENCE_COCKPIT_HEIGHT{ 480.0f };
+      const float perspective_x{ 500.0f * width / REFERENCE_COCKPIT_WIDTH };
+      const float perspective_y{ 120.0f * height / REFERENCE_COCKPIT_HEIGHT };
+
       cockpit_view_->paintRoadGraph(
          road_graph,
-         { 500, 120 },
+         { perspective_x, perspective_y },
          HighwayImage::PlainRoadMode::regular, // Paint cars.
          additional_var_vals,
          true);
