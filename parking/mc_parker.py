@@ -7,16 +7,13 @@ from PyQt6.QtGui import QPixmap, QBrush, QPen, QColor
 # Handle item for resizing
 class ResizeHandle(QGraphicsRectItem):
     def __init__(self, parent, is_bottom_right=True):
-        # Create a small 10x10 pixel handle (slightly larger for easier clicking)
         super().__init__(-5, -5, 10, 10, parent)
         self.parent_rect = parent
         self.is_bottom_right = is_bottom_right
         
-        # Style the handle (Blue squares)
         self.setBrush(QBrush(QColor("dodgerblue")))
         self.setPen(QPen(QColor("white"), 1))
         
-        # Enable dragging on the handle itself
         self.setFlags(
             QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable |
             QGraphicsRectItem.GraphicsItemFlag.ItemSendsGeometryChanges
@@ -25,14 +22,12 @@ class ResizeHandle(QGraphicsRectItem):
         self.update_position()
 
     def update_position(self):
-        """Place the handle at the correct corner of the parent rectangle."""
         rect = self.parent_rect.rect()
         if self.is_bottom_right:
             self.setPos(rect.right(), rect.bottom())
         else:
             self.setPos(rect.left(), rect.top())
 
-    # Intercept mouse events so the parent doesn't capture and move the whole rect!
     def mousePressEvent(self, event):
         event.accept()
         super().mousePressEvent(event)
@@ -47,7 +42,6 @@ class ResizeHandle(QGraphicsRectItem):
 
     def itemChange(self, change, value):
         if change == QGraphicsRectItem.GraphicsItemChange.ItemPositionChange and self.parent_rect:
-            # If the parent is updating handles, ignore to prevent recursive loops
             if getattr(self.parent_rect, '_updating_handles', False):
                 return super().itemChange(change, value)
                 
@@ -55,23 +49,18 @@ class ResizeHandle(QGraphicsRectItem):
             rect = self.parent_rect.rect()
             
             if self.is_bottom_right:
-                # Bottom-Right resizing
                 new_w = max(10, new_pos.x() - rect.left())
                 new_h = max(10, new_pos.y() - rect.top())
                 self.parent_rect.setRect(rect.left(), rect.top(), new_w, new_h)
             else:
-                # Top-Left resizing:
-                # Calculate how much the mouse moved from the previous top-left corner
                 dx = new_pos.x() - rect.left()
                 dy = new_pos.y() - rect.top()
                 
                 new_w = max(10, rect.width() - dx)
                 new_h = max(10, rect.height() - dy)
                 
-                # Adjust rect origin (internally)
                 self.parent_rect.setRect(rect.left() + dx, rect.top() + dy, new_w, new_h)
                 
-            # Sync other handles if any
             self.parent_rect.update_handles(exclude=self)
             
         return super().itemChange(change, value)
@@ -84,42 +73,32 @@ class ResizableRectItem(QGraphicsRectItem):
         self.setPos(x, y)
         self._updating_handles = False
         
-        # Styling the main box (Red border, transparent fill)
         self.setPen(QPen(QColor("red"), 2))
         self.setBrush(QBrush(Qt.GlobalColor.transparent))
         
-        # Enable moving and selection
         self.setFlags(
             QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable |
             QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable |
             QGraphicsRectItem.GraphicsItemFlag.ItemSendsGeometryChanges
         )
 
-        # 1. Initialize handle attributes to None first so they exist during setup
         self.tl_handle = None
         self.br_handle = None
 
-        # 2. Instantiate drag handles for BOTH corners
         self.tl_handle = ResizeHandle(self, is_bottom_right=False)
         self.br_handle = ResizeHandle(self, is_bottom_right=True)
         
-        # 3. Synchronize positions now that both are ready
         self.update_handles()
 
     def update_handles(self, exclude=None):
-        """Reposition handles when the rectangle's geometry changes."""
         self._updating_handles = True
-        
         if self.tl_handle and self.tl_handle != exclude:
             self.tl_handle.update_position()
-            
         if self.br_handle and self.br_handle != exclude:
             self.br_handle.update_position()
-            
         self._updating_handles = False
 
     def itemChange(self, change, value):
-        # If the rectangle itself is dragged, ensure handles stick along
         if change == QGraphicsRectItem.GraphicsItemChange.ItemPositionChange:
             self.update_handles()
         return super().itemChange(change, value)
@@ -139,6 +118,12 @@ class MainWindow(QMainWindow):
         # Setup Graphics Scene and View
         self.scene = QGraphicsScene()
         self.view = QGraphicsView(self.scene)
+        
+        # 💡 CRITICAL: Ensure smooth scaling behavior
+        self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.view.setRenderHint(self.view.renderHints().SmoothPixmapTransform)
+        
         layout.addWidget(self.view)
 
         # Add Button for External Process
@@ -152,7 +137,6 @@ class MainWindow(QMainWindow):
             self.add_rectangle(*rect)
 
     def load_image(self):
-        # We preserve existing Rectangles when reloading image
         existing_rects = [item for item in self.scene.items() if isinstance(item, ResizableRectItem)]
         
         self.scene.clear()
@@ -164,9 +148,21 @@ class MainWindow(QMainWindow):
             print(f"Warning: Could not load image from '{self.image_path}'")
             self.scene.setSceneRect(0, 0, 800, 600)
 
-        # Restore the rect items back onto the new background
         for rect in existing_rects:
             self.scene.addItem(rect)
+            
+        # Trigger an initial scale calculation
+        self.scale_to_fit()
+
+    def scale_to_fit(self):
+        """💡 Scale the scene layout to fit perfectly inside the viewport boundaries."""
+        if not self.scene.sceneRect().isEmpty():
+            self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
+
+    def resizeEvent(self, event):
+        """💡 Hook into window resize events to recalculate scale instantly."""
+        super().resizeEvent(event)
+        self.scale_to_fit()
 
     def add_rectangle(self, x1, y1, x2, y2):
         x = min(x1, x2)
@@ -184,7 +180,7 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == "__main__":
-    example_image = "parking.png" 
+    example_image = "examples/gp_config/0/preview2/preview2_0.png" 
     example_rects = [
         (50, 50, 150, 150),
         (200, 100, 320, 220)
