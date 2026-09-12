@@ -1,10 +1,29 @@
 import sys
 import re
 import math
+import os
+import platform
+import ctypes
+import ctypes.util
+from contextlib import contextmanager
+from ctypes import create_string_buffer, sizeof
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
-                             QPushButton, QGraphicsView, QGraphicsScene, QGraphicsRectItem)
+                             QPushButton, QGraphicsView, QGraphicsScene, QGraphicsRectItem,
+                             QMessageBox)
 from PyQt6.QtCore import Qt, QRectF
 from PyQt6.QtGui import QPixmap, QBrush, QPen, QColor
+
+
+# Repo root = parent of this parking/ folder; anchors all paths independent of the caller's cwd.
+REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# --- Fixed locations for the parking config (see EnvModel generation into examples/gp_config). ---
+TRACE_PATH = os.path.join(REPO_ROOT, "examples/gp_config/debug_trace_array.txt")
+SMV_PATH = os.path.join(REPO_ROOT, "examples/gp_config/EnvModel.smv")
+IMAGE_PATH = os.path.join(REPO_ROOT, "examples/gp_config/0/preview2/preview2_0.png")
+# Re-runs the model checker on the already-generated EnvModel.smv (no tpl.json regeneration).
+# Path is relative to bin/, the working directory the MC runs in (see run_model_checker).
+MC_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.runMCJobs[16]"
 
 
 def _read_trace_values(trace_path):
@@ -22,25 +41,27 @@ def _read_trace_values(trace_path):
     return values
 
 
-def obstacles_to_pixel_rects(trace_path, image_width, image_height):
-    """Read rectangular obstacles from an MC trace and map them into preview2 pixels.
-
-    Replicates the C++ 'fit_to_roads' birdseye painter (env2d_simple.h / highway_image.cpp):
-    the road-graph bounding box (section source+drain centerlines, ghosts excluded) is
-    centered in the canvas at a uniform scale 'ppm' (pixels per meter). Obstacles share the
-    same world frame as the section origins, so the same mapping applies to their corners.
-
-    Returns a list of (x1, y1, x2, y2) pixel tuples, one per obstacle.
-    """
+def _trace_getter(trace_path):
+    """Return a getter accepting both 'env.'-prefixed (dump) and bare (MC trace) names."""
     v = _read_trace_values(trace_path)
 
     def get(name):
-        # Accept both 'env.'-prefixed (dump) and bare (MC trace) variable names.
         if name in v:
             return v[name]
         return v.get("env." + name)
 
-    # --- Collect the road sections (source point, heading, length). ---
+    return get
+
+
+def compute_fit_transform(trace_path, image_width, image_height):
+    """Derive the world<->pixel mapping of the C++ 'fit_to_roads' birdseye painter.
+
+    The road-graph bounding box (section source+drain centerlines, ghosts excluded) is
+    centered in the canvas at a uniform scale 'ppm' (pixels per meter), no axis flip
+    (env2d_simple.h getBirdseyeView / highway_image.cpp). Returns (center_x, center_y, ppm).
+    """
+    get = _trace_getter(trace_path)
+
     points = []
     sec = 0
     while get(f"section_{sec}.source.x") is not None:
@@ -55,7 +76,7 @@ def obstacles_to_pixel_rects(trace_path, image_width, image_height):
         sec += 1
 
     if not points:
-        return []
+        return None
 
     xs = [p[0] for p in points]
     ys = [p[1] for p in points]
@@ -63,38 +84,146 @@ def obstacles_to_pixel_rects(trace_path, image_width, image_height):
     min_y, max_y = min(ys), max(ys)
     center_x = (min_x + max_x) / 2.0
     center_y = (min_y + max_y) / 2.0
-    bb_w = max_x - min_x
-    bb_h = max_y - min_y
 
     # Road-graph lane width is stored in cm in the trace (see mc_trajectory_to_gif.cpp).
     lane_width = (get("lane_width") or 400.0) / 100.0
     num_lanes = get("num_lanes") or 1.0
 
-    # Fit-to-roads canvas math (env2d_simple.h getBirdseyeView).
     lateral_margin = num_lanes * lane_width / 2.0 + lane_width
-    content_w = (max(1.0, bb_w) + 2.0 * lateral_margin) * 1.10
-    content_h = (max(1.0, bb_h) + 2.0 * lateral_margin) * 1.10
+    content_w = (max(1.0, max_x - min_x) + 2.0 * lateral_margin) * 1.10
+    content_h = (max(1.0, max_y - min_y) + 2.0 * lateral_margin) * 1.10
     ppm = min(5000.0 / content_w, 40.0, 12000.0 / content_h)
 
-    def to_pixel(wx, wy):
-        # Bounding-box center sits at the image center; uniform scale, no axis flip.
-        return ((wx - center_x) * ppm + image_width / 2.0,
-                (wy - center_y) * ppm + image_height / 2.0)
+    return (center_x, center_y, ppm)
 
-    rects = []
+
+def world_to_pixel(wx, wy, transform, image_width, image_height):
+    center_x, center_y, ppm = transform
+    return ((wx - center_x) * ppm + image_width / 2.0,
+            (wy - center_y) * ppm + image_height / 2.0)
+
+
+def pixel_to_world(px, py, transform, image_width, image_height):
+    center_x, center_y, ppm = transform
+    return ((px - image_width / 2.0) / ppm + center_x,
+            (py - image_height / 2.0) / ppm + center_y)
+
+
+def read_obstacles_world(trace_path):
+    """Return obstacles as [(tl_x, tl_y, br_x, br_y), ...] in world coords, by index order."""
+    get = _trace_getter(trace_path)
+    obstacles = []
     obs = 0
     while get(f"rect_obstacles_tl_x_{obs}") is not None:
-        tl = to_pixel(get(f"rect_obstacles_tl_x_{obs}"), get(f"rect_obstacles_tl_y_{obs}"))
-        br = to_pixel(get(f"rect_obstacles_br_x_{obs}"), get(f"rect_obstacles_br_y_{obs}"))
-        rects.append((tl[0], tl[1], br[0], br[1]))
+        obstacles.append((
+            get(f"rect_obstacles_tl_x_{obs}"), get(f"rect_obstacles_tl_y_{obs}"),
+            get(f"rect_obstacles_br_x_{obs}"), get(f"rect_obstacles_br_y_{obs}"),
+        ))
         obs += 1
+    return obstacles
 
+
+def obstacles_to_pixel_rects(trace_path, image_width, image_height):
+    """Read obstacles from an MC trace and map them into preview2 pixel rectangles.
+
+    Returns a list of (x1, y1, x2, y2) pixel tuples, one per obstacle.
+    """
+    transform = compute_fit_transform(trace_path, image_width, image_height)
+    if transform is None:
+        return []
+
+    rects = []
+    for tl_x, tl_y, br_x, br_y in read_obstacles_world(trace_path):
+        tl = world_to_pixel(tl_x, tl_y, transform, image_width, image_height)
+        br = world_to_pixel(br_x, br_y, transform, image_width, image_height)
+        rects.append((tl[0], tl[1], br[0], br[1]))
     return rects
+
+
+def patch_smv_obstacles(smv_path, obstacles_world):
+    """Overwrite the 'rect_obstacles_{tl,br}_{x,y}_N := <int>;' DEFINEs in EnvModel.smv.
+
+    'obstacles_world' is a list of (tl_x, tl_y, br_x, br_y) tuples (world coords) by index.
+    Only the numeric literals change, so the model stays otherwise identical.
+    """
+    with open(smv_path, "r") as f:
+        content = f.read()
+
+    for idx, (tl_x, tl_y, br_x, br_y) in enumerate(obstacles_world):
+        for field, value in (("tl_x", tl_x), ("tl_y", tl_y), ("br_x", br_x), ("br_y", br_y)):
+            pattern = re.compile(r"(rect_obstacles_" + field + "_" + str(idx) + r"\s*:=\s*)-?\d+(\s*;)")
+            content, n = pattern.subn(r"\g<1>" + str(int(round(value))) + r"\g<2>", content)
+            if n == 0:
+                raise RuntimeError(f"Could not find 'rect_obstacles_{field}_{idx}' in {smv_path}.")
+
+    with open(smv_path, "w") as f:
+        f.write(content)
+
+
+if platform.system() == 'Windows':
+    _kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    _kernel32.FreeLibrary.argtypes = [ctypes.c_void_p]
+    _kernel32.FreeLibrary.restype = ctypes.c_int
+elif platform.system() == 'Linux':
+    _libc = ctypes.CDLL(ctypes.util.find_library('c'))
+    _libc.dlclose.argtypes = [ctypes.c_void_p]
+    _libc.dlclose.restype = ctypes.c_int
+
+
+@contextmanager
+def _vfm_lib_context():
+    """Load libvfm.so freshly and unload it afterwards so each run starts from clean state."""
+    dll_name = 'libvfm.so'
+    dll_dir = os.path.join(REPO_ROOT, 'lib')
+    if platform.system() == 'Windows':
+        dll_name = 'VFM_MAIN_LIB.dll'
+        dll_dir = os.path.join(REPO_ROOT, 'bin')
+        if dll_dir not in os.environ.get('PATH', ''):
+            os.environ['PATH'] = dll_dir + os.pathsep + os.environ.get('PATH', '')
+
+    lib = ctypes.CDLL(os.path.join(dll_dir, dll_name))
+    try:
+        lib.expandScript.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t]
+        lib.expandScript.restype = ctypes.c_char_p
+        yield lib
+    finally:
+        handle = lib._handle
+        if platform.system() == 'Windows':
+            _kernel32.FreeLibrary(handle)
+        elif platform.system() == 'Linux':
+            _libc.dlclose(handle)
+
+
+def run_model_checker():
+    """Invoke the vfm library to re-run the MC on the current EnvModel.smv. Returns stdout text.
+
+    The config's relative paths (../examples, ../external, ...) resolve from bin/, so the call
+    must run with bin/ as the working directory.
+    """
+    result = create_string_buffer(1000000)
+    prev_cwd = os.getcwd()
+    os.chdir(os.path.join(REPO_ROOT, 'bin'))
+    try:
+        with _vfm_lib_context() as lib:
+            res = lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
+    finally:
+        os.chdir(prev_cwd)
+    return res.decode(errors="replace") if res else ""
+
+
+def trace_has_counterexample(trace_path):
+    """A CEX result file contains the counterexample marker; a blind run does not."""
+    if not os.path.isfile(trace_path):
+        return False
+    with open(trace_path, "r", errors="replace") as f:
+        content = f.read()
+    return ("Trace Type: Counterexample" in content
+            or "as demonstrated by the following" in content)
 
 # Handle item for resizing
 class ResizeHandle(QGraphicsRectItem):
     def __init__(self, parent, is_bottom_right=True):
-        super().__init__(-5, -5, 10, 10, parent)
+        super().__init__(-6, -6, 12, 12, parent)
         self.parent_rect = parent
         self.is_bottom_right = is_bottom_right
         
@@ -102,10 +231,11 @@ class ResizeHandle(QGraphicsRectItem):
         self.setPen(QPen(QColor("white"), 1))
         
         self.setFlags(
-            QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable |
+            QGraphicsRectItem.GraphicsItemFlag.ItemIgnoresTransformations |
             QGraphicsRectItem.GraphicsItemFlag.ItemSendsGeometryChanges
         )
-        self.setCursor(Qt.CursorShape.SizeAllCursor)
+        self.setZValue(1)  # keep handles above the rectangle so they stay grabbable
+        self.setCursor(Qt.CursorShape.SizeFDiagCursor if is_bottom_right else Qt.CursorShape.SizeBDiagCursor)
         self.update_position()
 
     def update_position(self):
@@ -117,40 +247,27 @@ class ResizeHandle(QGraphicsRectItem):
 
     def mousePressEvent(self, event):
         event.accept()
-        super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event):
+        # Resize by mapping the cursor's scene position into the rect's local space,
+        # so it works correctly regardless of the view's zoom/fit scale.
+        parent = self.parent_rect
+        local = parent.mapFromScene(event.scenePos())
+        rect = parent.rect()
+        if self.is_bottom_right:
+            new_w = max(10, local.x() - rect.left())
+            new_h = max(10, local.y() - rect.top())
+            parent.setRect(rect.left(), rect.top(), new_w, new_h)
+        else:
+            right, bottom = rect.right(), rect.bottom()
+            new_left = min(local.x(), right - 10)
+            new_top = min(local.y(), bottom - 10)
+            parent.setRect(new_left, new_top, right - new_left, bottom - new_top)
+        parent.update_handles()
         event.accept()
-        super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event):
         event.accept()
-        super().mouseReleaseEvent(event)
-
-    def itemChange(self, change, value):
-        if change == QGraphicsRectItem.GraphicsItemChange.ItemPositionChange and self.parent_rect:
-            if getattr(self.parent_rect, '_updating_handles', False):
-                return super().itemChange(change, value)
-                
-            new_pos = value
-            rect = self.parent_rect.rect()
-            
-            if self.is_bottom_right:
-                new_w = max(10, new_pos.x() - rect.left())
-                new_h = max(10, new_pos.y() - rect.top())
-                self.parent_rect.setRect(rect.left(), rect.top(), new_w, new_h)
-            else:
-                dx = new_pos.x() - rect.left()
-                dy = new_pos.y() - rect.top()
-                
-                new_w = max(10, rect.width() - dx)
-                new_h = max(10, rect.height() - dy)
-                
-                self.parent_rect.setRect(rect.left() + dx, rect.top() + dy, new_w, new_h)
-                
-            self.parent_rect.update_handles(exclude=self)
-            
-        return super().itemChange(change, value)
 
 
 # Custom rectangle item with handles
@@ -192,10 +309,15 @@ class ResizableRectItem(QGraphicsRectItem):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, image_path, rects_data):
+    def __init__(self, image_path, trace_path, smv_path):
         super().__init__()
         self.setWindowTitle("Simple Image Annotation Tool")
         self.image_path = image_path
+        self.trace_path = trace_path
+        self.smv_path = smv_path
+        self.rect_items = []
+        self.image_w = 0
+        self.image_h = 0
 
         # Main Widget & Layout
         main_widget = QWidget()
@@ -214,31 +336,35 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.view)
 
         # Add Button for External Process
-        self.refresh_btn = QPushButton("Trigger Refresh Process")
+        self.refresh_btn = QPushButton("Re-run Model Checker")
         self.refresh_btn.clicked.connect(self.trigger_external_process)
         layout.addWidget(self.refresh_btn)
 
-        # Load image and rectangles
-        self.load_image()
+        # Load image and obstacle rectangles from the current trace.
+        self.reload_from_trace()
+
+    def reload_from_trace(self):
+        """(Re)draw the preview image and overlay obstacle rectangles read from the trace."""
+        pixmap = QPixmap(self.image_path)
+        if pixmap.isNull():
+            print(f"Warning: Could not load image from '{self.image_path}'")
+            self.scene.clear()
+            self.rect_items = []
+            self.scene.setSceneRect(0, 0, 800, 600)
+            self.scale_to_fit()
+            return
+
+        self.image_w = pixmap.width()
+        self.image_h = pixmap.height()
+        rects_data = obstacles_to_pixel_rects(self.trace_path, self.image_w, self.image_h)
+
+        self.scene.clear()
+        self.rect_items = []
+        self.scene.addPixmap(pixmap)
+        self.scene.setSceneRect(QRectF(pixmap.rect()))
         for rect in rects_data:
             self.add_rectangle(*rect)
 
-    def load_image(self):
-        existing_rects = [item for item in self.scene.items() if isinstance(item, ResizableRectItem)]
-        
-        self.scene.clear()
-        pixmap = QPixmap(self.image_path)
-        if not pixmap.isNull():
-            self.scene.addPixmap(pixmap)
-            self.scene.setSceneRect(QRectF(pixmap.rect()))
-        else:
-            print(f"Warning: Could not load image from '{self.image_path}'")
-            self.scene.setSceneRect(0, 0, 800, 600)
-
-        for rect in existing_rects:
-            self.scene.addItem(rect)
-            
-        # Trigger an initial scale calculation
         self.scale_to_fit()
 
     def scale_to_fit(self):
@@ -259,25 +385,56 @@ class MainWindow(QMainWindow):
         
         rect_item = ResizableRectItem(x, y, w, h)
         self.scene.addItem(rect_item)
+        self.rect_items.append(rect_item)
+
+    def collect_obstacles_world(self):
+        """Inverse-transform the current on-screen rectangles back to integer world coords."""
+        transform = compute_fit_transform(self.trace_path, self.image_w, self.image_h)
+        if transform is None:
+            return []
+
+        obstacles = []
+        for item in self.rect_items:
+            scene_rect = item.mapRectToScene(item.rect())
+            tl = pixel_to_world(scene_rect.left(), scene_rect.top(), transform, self.image_w, self.image_h)
+            br = pixel_to_world(scene_rect.right(), scene_rect.bottom(), transform, self.image_w, self.image_h)
+            obstacles.append((int(round(tl[0])), int(round(tl[1])),
+                              int(round(br[0])), int(round(br[1]))))
+        return obstacles
 
     def trigger_external_process(self):
-        print("⚡ Triggering external process...")
-        # TODO: Run your subprocess here
-        self.load_image()
+        obstacles_world = self.collect_obstacles_world()
+        if not obstacles_world:
+            QMessageBox.warning(self, "No obstacles", "No obstacle rectangles to write.")
+            return
+
+        try:
+            patch_smv_obstacles(self.smv_path, obstacles_world)
+        except RuntimeError as e:
+            QMessageBox.critical(self, "SMV update failed", str(e))
+            return
+
+        self.refresh_btn.setEnabled(False)
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        try:
+            print("⚡ Re-running model checker...")
+            output = run_model_checker()
+            print(output)
+        finally:
+            QApplication.restoreOverrideCursor()
+            self.refresh_btn.setEnabled(True)
+
+        if trace_has_counterexample(self.trace_path):
+            self.reload_from_trace()
+        else:
+            QMessageBox.information(
+                self, "No counterexample",
+                "The model checker produced no counterexample for the new obstacle layout.")
 
 
 if __name__ == "__main__":
-    example_image = "examples/gp_config/0/preview2/preview2_0.png" 
-    example_rectangle_source = "examples/gp_config/debug_trace_array.txt"
-
-    # Obstacles come straight from the MC trace, transformed into preview2 pixel coordinates.
     app = QApplication(sys.argv)
-    pixmap = QPixmap(example_image)
-    image_w = pixmap.width() if not pixmap.isNull() else 2112
-    image_h = pixmap.height() if not pixmap.isNull() else 1936
-    example_rects = obstacles_to_pixel_rects(example_rectangle_source, image_w, image_h)
-
-    window = MainWindow(example_image, example_rects)
+    window = MainWindow(IMAGE_PATH, TRACE_PATH, SMV_PATH)
     window.resize(800, 600)
     window.show()
     sys.exit(app.exec())
