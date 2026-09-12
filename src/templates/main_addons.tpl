@@ -422,18 +422,36 @@ INIT env.section_4_end = 20;
 
 
 -- Parking
+-- INVAR env.outgoing_connection_0_of_section_0 != 1 & env.outgoing_connection_0_of_section_1 != 0;
+
 @{
-INIT env.veh___6[i]9___.is_on_sec_0 = 1;
-INIT env.veh___6[i]9___.abs_pos = @{[i]}@.eval[0] * (env.veh_length + 1);
+INIT env.veh___6[i]9___.is_on_sec_0 = 1 & env.veh___6[i]9___.abs_pos = 5;
+-- INIT env.veh___6[i]9___.abs_pos = @{[i]}@.eval[0] * (env.veh_length + 1);
 INVAR env.veh___6[i]9___.v <= env.veh___6[i]9___.current_seclet_length;
-@{
-INVAR env.veh___6[i]9___.is_on_sec_0 = 1 -> env.veh___6[i]9___.a >= 0; -- Go out forwards
-INVAR env.veh___6[i]9___.is_on_sec_0 = 1 -> env.veh___6[i]9___.v >= 0; -- Go out forwards
-INVAR env.veh___6[i]9___.is_on_sec_2 = 1 -> env.veh___6[i]9___.v <= 0; -- Dive in backwards
 TRANS env.veh___6[i]9___.v >= -env.veh___6[i]9___.next_seclet_length;
+INVAR env.veh___6[i]9___.is_on_sec_1 = 1 -> env.veh___6[i]9___.v <= 0; -- Dive in backwards
+-- INVAR env.veh___6[i]9___.is_on_sec_0 = 1 -> env.veh___6[i]9___.a >= 0; -- Go out forwards
+-- INVAR env.veh___6[i]9___.is_on_sec_0 = 1 -> env.veh___6[i]9___.v >= 0; -- Go out forwards
+@{
 INVAR env.veh___6[i]9___.on_straight_section < 0 -> (env.veh___6[i]9___.abs_pos >= env.veh_length & env.veh___6[i]9___.abs_pos <= env.veh___6[i]9___.current_seclet_length - env.veh_length); -- Do not collide too soon on junction entries.
 }@.nil
 }@***.for[[i], 0, @{NONEGOS - 1}@.eval]
+
+-- Disallow unrealistically steep turns between two CONNECTED sections (parking realism):
+-- the heading change along an active connection [sec] -> [sec2] must stay within +/-90 degrees.
+-- angle_from_sec_..._to_sec_... is normalized to [0, 360), so a turn magnitude <= 90 means the
+-- value is <= 90 or >= 270. Uses only the existing angle DEFINEs, so it stays linear.
+@{
+   @{
+      @{
+         @{
+            @{
+               INIT env.outgoing_connection_[con]_of_section_[sec] = [sec2] -> (env.angle_from_sec_[sec]_to_sec_[sec2] <= 90 | env.angle_from_sec_[sec]_to_sec_[sec2] >= 270);
+            }@.if[@{ [sec] != [sec2] }@.eval]
+         }@*.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval]
+      }@**.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+   }@***.for[[con], 0, @{MAXOUTGOINGCONNECTIONS - 1}@.eval]
+}@****.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 @{
 @{@{INIT env.section_[i].angle != env.section_[j].angle;

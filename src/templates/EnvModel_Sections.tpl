@@ -95,7 +95,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 
             @{section_[sec]_segment_[seg]_pos_begin}@*.scalingVariable[distance] : @{@(integer)@@(0 .. 1)@}@.if[@{CONCRETE_MODEL}@.eval];
          }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
-		 
+		
       @{
          @this_section_min_length = SECTIONSMINLENGTH;
          @this_section_max_length = SECTIONSMAXLENGTH;
@@ -103,8 +103,8 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
             @this_section_min_length = 0;
          }
          if (@{is_section_[sec]_fixed}@.scriptVar) {
-            @this_section_min_length = @{fixed_section_length_[sec]}@.scriptVar;
-            @this_section_max_length = @{fixed_section_length_[sec]}@.scriptVar;
+            @this_section_min_length = @{fixed_section_length_[sec]}@.scriptVar[-1];
+            @this_section_max_length = @{fixed_section_length_[sec]}@.scriptVar[-1];
          }
       }@.eval.nil
 
@@ -284,6 +284,27 @@ VAR
    ego.on_section : 0 .. @{SECTIONS - 1}@.eval[0];
 
 INIT ego.on_section = 0;
+
+DEFINE
+   @{
+      rect_obstacles_tl_x_[obs] := @{rect_obstacles_tl_x_[obs]}@.scriptVar;
+      rect_obstacles_tl_y_[obs] := @{rect_obstacles_tl_y_[obs]}@.scriptVar;
+      rect_obstacles_br_x_[obs] := @{rect_obstacles_br_x_[obs]}@.scriptVar;
+      rect_obstacles_br_y_[obs] := @{rect_obstacles_br_y_[obs]}@.scriptVar;
+   }@*.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
+
+
+@{
+   @{
+      @{
+         -- No source or drain point of section [sec] may lie within obstacle [obs].
+         INIT !(section_[sec].source.x >= rect_obstacles_tl_x_[obs] & section_[sec].source.x <= rect_obstacles_br_x_[obs]
+               & section_[sec].source.y >= rect_obstacles_tl_y_[obs] & section_[sec].source.y <= rect_obstacles_br_y_[obs]);
+         INIT !(section_[sec].drain.x >= rect_obstacles_tl_x_[obs] & section_[sec].drain.x <= rect_obstacles_br_x_[obs]
+               & section_[sec].drain.y >= rect_obstacles_tl_y_[obs] & section_[sec].drain.y <= rect_obstacles_br_y_[obs]);
+      }@.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval]
+   }@*.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
+}@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 --------------------------------------------------------
 -- EO Sections

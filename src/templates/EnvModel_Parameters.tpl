@@ -27,7 +27,7 @@
 	)@
    }@*.if[@{name_array}@.scriptVar.scriptVar.isMap]
 	}@**.for[[id], 0, @{@{@{name_array}@.scriptVar}@.scriptVar.size - 1}@.eval]
-	}@***.if[@{@{@{name_array}@.scriptVar}@.scriptVar.size > 0}@.eval]
+	}@***.if[@{#1#}@.strNempty].if[@{@{@{name_array}@.scriptVar}@.scriptVar.size > 0}@.eval]
 }@.removeBlankLines}@**********.newMethod[ConvenienceVars2, 1]
 
 @{
@@ -108,6 +108,11 @@
 @{FIXED_SECTION_LENGTHs}@*******.defaultValueString[@(100)@]  -- TODO: Might want to have fixed sections with free lengths (part. 0).
 @{FIXED_SECTION_CONNECTORS}@*******.defaultValueString[@{}@]
 
+@{RECT_OBSTACLES_TL_Xs}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_TL_Ys}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_BR_Xs}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_BR_Ys}@*******.defaultValueString[@{}@]
+
 @{FIXED_SECTION_IDs}@*******.ConvenienceVars
 @{FIXED_SECTION_SOURCE_Xs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
 @{FIXED_SECTION_SOURCE_Ys}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
@@ -136,7 +141,15 @@
 
 @{FIXED_SECTION_CONNECTORS}@*******.printHeap.storeMapFromSequence[fixed_section_connectors_plain]
 @{fixed_section_connectors_plain}@*******.writeConnectorsMap[@{MAXOUTGOINGCONNECTIONS}@.eval[0], @{SECTIONS}@.eval[0]]
+
 -- EO Helper variables for fixed sections and connectors
+
+-- Obstacles helper variables
+@{RECT_OBSTACLES_TL_Xs}@*******.ConvenienceVars
+@{RECT_OBSTACLES_TL_Ys}@*******.ConvenienceVars
+@{RECT_OBSTACLES_BR_Xs}@*******.ConvenienceVars
+@{RECT_OBSTACLES_BR_Ys}@*******.ConvenienceVars
+-- EO Obstacles helper variables
 
 @{
 @{@{#Fixed section ID [sec] is too high.}@.errorPrint}@*.if[@{[sec] >= SECTIONS}@****.eval]
