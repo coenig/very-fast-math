@@ -734,11 +734,12 @@ void vfm::RoadGraph::addPredecessor(const std::shared_ptr<RoadGraph> subgraph)
    subgraph->successors_.push_back(shared_from_this());
 }
 
-Rec2D vfm::RoadGraph::getBoundingBox() const
+Rec2D vfm::RoadGraph::getBoundingBox(const bool include_ghosts) const
 {
    Pol2D temp_pol{};
 
-   const_cast<RoadGraph*>(this)->applyToMeAndAllMySuccessorsAndPredecessors([&temp_pol](const std::shared_ptr<RoadGraph> r) {
+   const_cast<RoadGraph*>(this)->applyToMeAndAllMySuccessorsAndPredecessors([&temp_pol, include_ghosts](const std::shared_ptr<RoadGraph> r) {
+      if (!include_ghosts && r->isGhost()) return;
       temp_pol.add(r->getOriginPoint());
       temp_pol.add(r->getDrainPoint());
    });

@@ -319,7 +319,9 @@ public:
    void addSuccessor(const std::shared_ptr<RoadGraph> subgraph);
    void addPredecessor(const std::shared_ptr<RoadGraph> subgraph);
 
-   Rec2D getBoundingBox() const;
+   /// When include_ghosts is false, dynamically generated ghost sections (e.g. cars on
+   /// crossings) are excluded, yielding a bounding box that is stable across frames.
+   Rec2D getBoundingBox(const bool include_ghosts = true) const;
 
    /// Rectangular obstacles are stored in world coordinates on the graph and transformed together with it.
    void addRectObstacle(const Vec2D& tl, const Vec2D& br);

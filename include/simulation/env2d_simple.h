@@ -131,7 +131,7 @@ public:
          constexpr float PADDING_FACTOR{ 1.10f };
          constexpr int MAX_FIT_DIM{ 12000 };      // Safety cap against gigantic canvases.
 
-         const Rec2D bb{ road_graph->getBoundingBox() };
+         const Rec2D bb{ road_graph->getBoundingBox(false) }; // Exclude ghosts so the fit stays stable across frames.
          const float lane_width{ road_graph->getMyRoad().getLaneWidth() };
          float max_lanes{ 1.0f };
          for (const auto& node : road_graph->getAllNodes()) {

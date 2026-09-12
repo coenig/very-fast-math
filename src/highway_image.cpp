@@ -1306,7 +1306,7 @@ void vfm::HighwayImage::paintRoadGraph(
    float translate_y{ TRANSLATE_Y_raw };
 
    if (camera_mode == CameraMode::fit_to_roads && !plain_road && !old_trans->is3D()) {
-      const Rec2D bb{ my_r->getBoundingBox() };
+      const Rec2D bb{ my_r->getBoundingBox(false) }; // Exclude ghosts so zoom and centering stay stable across frames.
       const Vec2D bb_center{ bb.getCenter() };
 
       // getBoundingBox only spans the section centerlines; pad laterally for the actual lane width.
