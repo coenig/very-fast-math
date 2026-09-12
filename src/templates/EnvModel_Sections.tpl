@@ -298,9 +298,9 @@ DEFINE
    @{
       @{
          -- No source or drain point of section [sec] may lie within obstacle [obs].
-         INVAR !(section_[sec].source.x >= rect_obstacles_tl_x_[obs] & section_[sec].source.x <= rect_obstacles_br_x_[obs]
+         INIT !(section_[sec].source.x >= rect_obstacles_tl_x_[obs] & section_[sec].source.x <= rect_obstacles_br_x_[obs]
                & section_[sec].source.y >= rect_obstacles_tl_y_[obs] & section_[sec].source.y <= rect_obstacles_br_y_[obs]);
-         INVAR !(section_[sec].drain.x >= rect_obstacles_tl_x_[obs] & section_[sec].drain.x <= rect_obstacles_br_x_[obs]
+         INIT !(section_[sec].drain.x >= rect_obstacles_tl_x_[obs] & section_[sec].drain.x <= rect_obstacles_br_x_[obs]
                & section_[sec].drain.y >= rect_obstacles_tl_y_[obs] & section_[sec].drain.y <= rect_obstacles_br_y_[obs]);
       }@.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval]
    }@*.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
