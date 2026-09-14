@@ -4,6 +4,9 @@ import math
 import os
 import platform
 import shutil
+import signal
+import subprocess
+import time
 import ctypes
 import ctypes.util
 from contextlib import contextmanager
@@ -11,7 +14,7 @@ from ctypes import create_string_buffer, sizeof
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QPushButton, QGraphicsView, QGraphicsScene, QGraphicsRectItem,
                              QMessageBox)
-from PyQt6.QtCore import Qt, QRectF
+from PyQt6.QtCore import Qt, QRectF, QTimer
 from PyQt6.QtGui import QPixmap, QBrush, QPen, QColor
 
 
@@ -29,6 +32,136 @@ MC_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.runMCJobs[16]"
 ENVGEN_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.generateEnvmodels"
 # Renders only the smooth birdseye counterexample visualization (images/video).
 TESTCASE_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.generateTestCases[cex-smooth-birdseye]"
+
+# runMCJobs model-checks every examples/gp* package (except the bare 'gp' prefix folder). With a
+# >1 range on a '#'-variable in the tpl.json, generateEnvmodels emits one such package per value
+# (cross-product for several ranges), so a single MC run races multiple configs at once.
+EXAMPLES_DIR = os.path.join(REPO_ROOT, "examples")
+_PACKAGE_PREFIX = "gp"
+_MC_WORKER = os.path.join(REPO_ROOT, "parking", "_mc_worker.py")
+
+
+def discover_mc_packages():
+    """Folders runMCJobs will model-check: examples/gp* dirs, excluding the bare prefix dir."""
+    if not os.path.isdir(EXAMPLES_DIR):
+        return []
+    packages = []
+    for name in sorted(os.listdir(EXAMPLES_DIR)):
+        full = os.path.join(EXAMPLES_DIR, name)
+        if os.path.isdir(full) and name.startswith(_PACKAGE_PREFIX) and name != _PACKAGE_PREFIX:
+            packages.append(full)
+    return packages
+
+
+def package_trace_path(package_dir):
+    return os.path.join(package_dir, "debug_trace_array.txt")
+
+
+def package_image_path(package_dir):
+    return os.path.join(package_dir, "0", "preview2", "preview2_0.png")
+
+
+def select_startup_package():
+    """Pick which variant folder the GUI opens on launch.
+
+    A first-solution run may model-check several configs at once (one gp* package each). The one
+    that finishes first writes its counterexample trace + preview while the others are still
+    running (or get killed manually), so the winner is the package with a complete counterexample
+    whose preview was written most recently. This also ignores stale leftovers from earlier runs
+    (runMCJobs keeps old output), since those carry older preview timestamps. Falls back to the
+    base gp_config, then to any package with a preview, so the GUI always opens something.
+    """
+    candidates = discover_mc_packages()
+    base = os.path.join(EXAMPLES_DIR, "gp_config")
+    if os.path.isdir(base) and base not in candidates:
+        candidates.append(base)
+
+    solved = [p for p in candidates
+              if os.path.isfile(package_image_path(p))
+              and trace_has_counterexample(package_trace_path(p))]
+    if solved:
+        return max(solved, key=lambda p: os.path.getmtime(package_image_path(p)))
+
+    if os.path.isfile(package_image_path(base)):
+        return base
+    with_preview = [p for p in candidates if os.path.isfile(package_image_path(p))]
+    return with_preview[0] if with_preview else base
+
+
+def _kill_process_group(proc):
+    """Kill the worker and its nuXmv children (its own process group / job tree), then reap it."""
+    if proc is None:
+        return
+    if proc.poll() is None:
+        try:
+            if platform.system() == 'Windows':
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            else:
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except (ProcessLookupError, OSError):
+            pass
+    # Reap the killed worker so it doesn't linger as a zombie across many races.
+    try:
+        proc.wait(timeout=5)
+    except (subprocess.TimeoutExpired, OSError, ValueError):
+        pass
+
+
+def race_first_solution(poll_interval=1.0):
+    """Model-check all configured variants and stop at the FIRST complete counterexample.
+
+    Runs the worker detached from the terminal (stdin=/dev/null, own session) so the nuXmv
+    instances can never grab the tty and drop you into a shared interactive prompt, polls the
+    variant folders, then kills the whole job group the moment one variant has a fresh
+    counterexample. Returns the winning package dir, or None if none solved.
+    """
+    packages = discover_mc_packages()
+    if not packages:
+        print("No 'gp' packages found. Run EnvModel generation first.")
+        return None
+
+    pre_mtime = {p: (os.path.getmtime(package_image_path(p))
+                     if os.path.isfile(package_image_path(p)) else -1.0)
+                 for p in packages}
+
+    print(f"Racing {len(packages)} config(s); first counterexample wins...")
+    proc = subprocess.Popen(
+        [sys.executable, _MC_WORKER, MC_SCRIPT],
+        cwd=REPO_ROOT, start_new_session=True,
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    def winner(require_fresh):
+        for p in packages:
+            if not trace_has_counterexample(package_trace_path(p)):
+                continue
+            if not require_fresh:
+                return p
+            img = package_image_path(p)
+            if os.path.isfile(img) and os.path.getmtime(img) > pre_mtime.get(p, -1.0):
+                return p
+        return None
+
+    win = None
+    try:
+        while True:
+            win = winner(True)
+            if win:
+                break
+            if proc.poll() is not None:  # worker finished without a fresh winner
+                win = winner(False)
+                break
+            time.sleep(poll_interval)
+    except KeyboardInterrupt:
+        print("\nInterrupted; stopping all configs...")
+    finally:
+        _kill_process_group(proc)
+
+    if win:
+        print(f"Winner: {os.path.basename(win)} (remaining configs killed).")
+    else:
+        print("No variant produced a counterexample.")
+    return win
 
 
 def _read_trace_values(trace_path):
@@ -391,8 +524,9 @@ class MainWindow(QMainWindow):
         
         layout.addWidget(self.view)
 
-        # Add Button for External Process
-        self.refresh_btn = QPushButton("Re-run Model Checker")
+        # Model checks every configured variant in parallel and adopts the first counterexample
+        # (a single-variant config is just the degenerate one-runner case).
+        self.refresh_btn = QPushButton("Re-run Model Checker (first counterexample wins)")
         self.refresh_btn.clicked.connect(self.trigger_external_process)
         layout.addWidget(self.refresh_btn)
 
@@ -403,6 +537,12 @@ class MainWindow(QMainWindow):
         self.testcase_btn = QPushButton("Generate Test Case (Smooth Birdseye)")
         self.testcase_btn.clicked.connect(self.run_testcase_generation)
         layout.addWidget(self.testcase_btn)
+
+        # Race state: a killable worker process plus a poll timer watching the variant folders.
+        self._race_proc = None
+        self.race_timer = QTimer(self)
+        self.race_timer.setInterval(400)
+        self.race_timer.timeout.connect(self._poll_race)
 
         # Load image and obstacle rectangles from the current trace.
         self.reload_from_trace()
@@ -503,54 +643,123 @@ class MainWindow(QMainWindow):
                                  reload_after=True)
 
     def trigger_external_process(self):
+        """Race all configured variants; adopt the first counterexample and kill the rest.
+
+        Cheap variants (few sections / coarse granularity) finish first; if one already yields a
+        counterexample the race ends immediately and the more expensive configs are killed off.
+        Only escalation to a harder config (or all variants finishing UNSAT) resolves otherwise.
+        """
+        if self._race_proc is not None:
+            return  # A race is already in flight.
+
         obstacles_world = self.collect_obstacles_world()
         if not obstacles_world:
             QMessageBox.warning(self, "No obstacles", "No obstacle rectangles to write.")
             return
 
+        packages = discover_mc_packages()
+        if not packages:
+            QMessageBox.warning(self, "No model packages",
+                                "No generated 'gp' packages found.\n"
+                                "Run EnvModel generation first.")
+            return
+
+        # Every variant has its own EnvModel.smv; patch the drawn obstacles into each of them.
         try:
-            patch_smv_obstacles(self.smv_path, obstacles_world)
-        except RuntimeError as e:
+            for pkg in packages:
+                patch_smv_obstacles(os.path.join(pkg, "EnvModel.smv"), obstacles_world)
+        except (RuntimeError, OSError) as e:
             QMessageBox.critical(self, "SMV update failed", str(e))
             return
 
-        # The MC run overwrites the trace and preview image; keep the previous ones so we can
-        # restore the last valid view if the new obstacle layout yields no counterexample.
-        trace_backup = self.trace_path + ".prev"
-        image_backup = self.image_path + ".prev"
-        for src, dst in ((self.trace_path, trace_backup), (self.image_path, image_backup)):
+        # Preserve the currently shown trace/image so we can restore it if no variant wins.
+        self._race_trace_backup = self.trace_path + ".prev"
+        self._race_image_backup = self.image_path + ".prev"
+        for src, dst in ((self.trace_path, self._race_trace_backup),
+                         (self.image_path, self._race_image_backup)):
             if os.path.isfile(src):
                 shutil.copy2(src, dst)
 
+        # Snapshot each variant's preview mtime. A winner must have a freshly rewritten preview
+        # (written AFTER its trace) so we never adopt a stale prior-run result: runMCJobs runs
+        # with delete_old_output=false, leaving previous debug_trace_array.txt/preview files.
+        self._race_packages = packages
+        self._race_pre_mtime = {
+            p: (os.path.getmtime(package_image_path(p))
+                if os.path.isfile(package_image_path(p)) else -1.0)
+            for p in packages
+        }
+
         self._set_buttons_enabled(False)
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        mc_error = None
+        print(f"⚡ Racing {len(packages)} model-checker variant(s)...")
         try:
-            print("⚡ Re-running model checker...")
-            output = run_model_checker()
-            print(output)
-        except (Exception, KeyboardInterrupt) as e:
-            # A user abort (Ctrl+C killing nuXmv) or any library failure must not crash the GUI.
-            mc_error = e
-            print(f"Model checker aborted or failed: {e}")
-        finally:
+            self._race_proc = subprocess.Popen(
+                [sys.executable, _MC_WORKER, MC_SCRIPT],
+                cwd=REPO_ROOT, start_new_session=True,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError as e:
             QApplication.restoreOverrideCursor()
             self._set_buttons_enabled(True)
-
-        if mc_error is None and trace_has_counterexample(self.trace_path):
-            for backup in (trace_backup, image_backup):
-                if os.path.isfile(backup):
-                    os.remove(backup)
-            self.reload_from_trace()
+            QMessageBox.critical(self, "Launch failed", f"Could not start model checker: {e}")
             return
 
-        # Aborted, failed, or no counterexample: revert to the preserved trace and image.
-        for backup, dst in ((trace_backup, self.trace_path), (image_backup, self.image_path)):
-            if os.path.isfile(backup):
+        self.race_timer.start()
+
+    def _race_winner(self, require_fresh_preview):
+        """First variant (in folder order) with a counterexample; optionally require fresh preview."""
+        for pkg in self._race_packages:
+            if not trace_has_counterexample(package_trace_path(pkg)):
+                continue
+            if not require_fresh_preview:
+                return pkg
+            img = package_image_path(pkg)
+            if os.path.isfile(img) and os.path.getmtime(img) > self._race_pre_mtime.get(pkg, -1.0):
+                return pkg
+        return None
+
+    def _poll_race(self):
+        # An early winner (fresh preview => trace + image both fully written) ends the race now.
+        winner = self._race_winner(require_fresh_preview=True)
+        if winner is not None:
+            self._finish_race(winner, error=False)
+            return
+
+        rc = self._race_proc.poll()
+        if rc is not None:
+            # Worker finished without a fresh-preview winner. Relax to any variant carrying a
+            # counterexample marker (previews are already complete since the run is over).
+            winner = self._race_winner(require_fresh_preview=False)
+            self._finish_race(winner, error=(winner is None and rc != 0))
+
+    def _finish_race(self, winner, error):
+        self.race_timer.stop()
+        _kill_process_group(self._race_proc)
+        self._race_proc = None
+        QApplication.restoreOverrideCursor()
+        self._set_buttons_enabled(True)
+
+        if winner is not None:
+            for backup in (self._race_trace_backup, self._race_image_backup):
+                if backup and os.path.isfile(backup):
+                    os.remove(backup)
+            # Point the view at the winning variant's artifacts and redraw.
+            self.trace_path = package_trace_path(winner)
+            self.image_path = package_image_path(winner)
+            self.smv_path = os.path.join(winner, "EnvModel.smv")
+            self.reload_from_trace()
+            print(f"✅ Winner: {os.path.basename(winner)}")
+            return
+
+        # No variant produced a counterexample (or the worker crashed): restore the saved view.
+        for backup, dst in ((self._race_trace_backup, self.trace_path),
+                            (self._race_image_backup, self.image_path)):
+            if backup and os.path.isfile(backup):
                 shutil.move(backup, dst)
         self.reload_from_trace()
 
-        if mc_error is not None:
+        if error:
             QMessageBox.warning(
                 self, "Model checker aborted",
                 "The model checker run was aborted or failed.\n"
@@ -558,13 +767,29 @@ class MainWindow(QMainWindow):
         else:
             QMessageBox.information(
                 self, "No counterexample",
-                "The model checker produced no counterexample for the new obstacle layout.\n"
+                "No configured variant produced a counterexample for the new obstacle layout.\n"
                 "Restored the previous trace and image.")
+
+    def closeEvent(self, event):
+        """Never leave an orphaned worker (and its nuXmv children) running after the window closes."""
+        if self._race_proc is not None:
+            self.race_timer.stop()
+            _kill_process_group(self._race_proc)
+            self._race_proc = None
+        super().closeEvent(event)
 
 
 if __name__ == "__main__":
+    # `--race` runs the multi-config race first (detached, auto-killing losers) and opens the
+    # winner; otherwise it just opens whatever variant finished first (see select_startup_package).
+    raced_winner = race_first_solution() if "--race" in sys.argv else None
+
     app = QApplication(sys.argv)
-    window = MainWindow(IMAGE_PATH, TRACE_PATH, SMV_PATH)
+    startup_pkg = raced_winner or select_startup_package()
+    print(f"Opening package: {os.path.basename(startup_pkg)}")
+    window = MainWindow(package_image_path(startup_pkg),
+                        package_trace_path(startup_pkg),
+                        os.path.join(startup_pkg, "EnvModel.smv"))
     window.resize(800, 600)
     window.show()
     sys.exit(app.exec())
