@@ -16,12 +16,16 @@ import shutil
 import signal
 import time
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import asdict
 from pathlib import Path
 
 import networkx as nx
 
-from concretizer import _slot
+from concretizer import (
+    _slot, abstract_milestones, concrete_ltl_property,
+    concrete_reachability_monitor,
+)
 from generate_scenarios import (
     _at_least, _distance, render_role_smv, save_gif as save_abstract_gif,
     selected_graph, trace_used_graph,
@@ -150,11 +154,10 @@ def concrete_role_constraints(case: BenchmarkCase,
 
 
 def specialize_vfm_main(model_file: Path, case: BenchmarkCase, *,
-                        topology: str, fixed_roles: dict[str, int] | None = None) -> None:
+                        topology: str, fixed_roles: dict[str, int] | None = None,
+                        refinement: str = "monitor",
+                        milestones: list[tuple[int, ...]] | None = None) -> None:
     text = model_file.read_text()
-    text, count = re.subn(r"(?m)^LTLSPEC .*$", stages_to_monitor(case.stages), text, count=1)
-    if count != 1:
-        raise ValueError(f"expected one LTLSPEC in {model_file}, found {count}")
     for car in range(case.spec.cars):
         prefix = re.escape(f"env.veh___6{car}9___")
         text = re.sub(rf"(?m)^INIT {prefix}\.is_on_sec_\d+\s*=.*;$",
@@ -163,6 +166,16 @@ def specialize_vfm_main(model_file: Path, case: BenchmarkCase, *,
                       lambda match: "-- benchmark replaced: " + match.group(0), text)
         text = re.sub(rf"(?m)^INIT {prefix}\.v\s*=.*;$",
                       lambda match: "-- benchmark replaced: " + match.group(0), text)
+    if refinement not in {"stages", "monitor", "ltl"}:
+        raise ValueError(f"unknown refinement mode: {refinement}")
+    if refinement == "ltl":
+        if not milestones:
+            raise ValueError("LTL refinement requires abstract milestones")
+        property_text = concrete_ltl_property(milestones)
+    elif refinement == "monitor" and milestones:
+        property_text = concrete_reachability_monitor(milestones)
+    else:
+        property_text = stages_to_monitor(case.stages)
     additions = ["", concrete_role_constraints(case, fixed_roles), topology,
                  "-- Benchmark initial state and admissibility."]
     for car in range(case.spec.cars):
@@ -173,6 +186,11 @@ def specialize_vfm_main(model_file: Path, case: BenchmarkCase, *,
             f"INVAR {vehicle(car, 'v')} >= 0;",
         ))
     additions.append("INVAR !env.crash;")
+    # The generated VFM model has one original LTLSPEC.  For monitor mode the
+    # replacement contains VAR/ASSIGN/INVARSPEC; for LTL mode it is LTLSPEC.
+    text, count = re.subn(r"(?m)^LTLSPEC .*$", property_text, text, count=1)
+    if count != 1:
+        raise ValueError(f"expected one LTLSPEC in {model_file}, found {count}")
     model_file.write_text(text + "\n" + "\n".join(additions) + "\n")
 
 
@@ -205,11 +223,11 @@ def generate_concrete_base(case: BenchmarkCase, run_dir: Path):
     return generate_vfm_grid_parking_model(config, experiments_dir=relative_output)
 
 
-def check_concrete(model, model_file: Path, cex_name: str) -> Path | None:
+def check_concrete(model, model_file: Path, cex_name: str, *, property_kind: str = "invar") -> Path | None:
     try:
         return model.morty.model_check(
             cex_name, 0, model_file=model_file.name,
-            bound=model.config.bound, property_kind="invar",
+            bound=model.config.bound, property_kind=property_kind,
         )
     finally:
         model.morty.close_model_checker()
@@ -339,8 +357,12 @@ def _finish_concrete(result: dict, cex: Path, graph: nx.Graph, model,
     result["visualization_seconds"] = time.perf_counter() - visualization_started
 
 
-def execute_abstract_concretized(case: BenchmarkCase, run_dir: Path) -> dict:
+def execute_abstract_concretized(case: BenchmarkCase, run_dir: Path,
+                                 refinement: str = "monitor") -> dict:
+    if refinement not in {"monitor", "ltl"}:
+        raise ValueError(f"unknown concrete refinement mode: {refinement}")
     result = _base_result(case, "abstract_concretized", run_dir)
+    result["refinement"] = refinement
     total_started = time.perf_counter()
     abstract_dir = run_dir / "abstract"
     abstract_dir.mkdir(parents=True, exist_ok=True)
@@ -357,6 +379,8 @@ def execute_abstract_concretized(case: BenchmarkCase, run_dir: Path) -> dict:
     shutil.move(abstract_cex, abstract_target)
     abstract_states = parse_abstract_states(abstract_target)
     result["abstract_states"] = len(abstract_states)
+    milestones = abstract_milestones(abstract_states)
+    result["abstract_milestones"] = milestones
     graph = selected_graph(case.spec, abstract_states[0])
     used_graph = trace_used_graph(case.spec, abstract_states)
     roles = {role.name: int(abstract_states[0][role.name]) for role in case.prop.roles}
@@ -376,12 +400,17 @@ def execute_abstract_concretized(case: BenchmarkCase, run_dir: Path) -> dict:
     tick = time.perf_counter()
     model = generate_concrete_base(case, run_dir / "vfm")
     result["concrete_generation_seconds"] = time.perf_counter() - tick
-    specialize_vfm_main(model.model_file, case,
-                        topology=fixed_topology_constraints(case, set(graph.edges())),
-                        fixed_roles=roles)
+    specialize_vfm_main(
+        model.model_file, case,
+        topology=fixed_topology_constraints(case, set(graph.edges())),
+        fixed_roles=roles, refinement=refinement, milestones=milestones,
+    )
     tick = time.perf_counter()
     result["nuxmv_invocations"] = 2
-    cex = check_concrete(model, model.model_file, "cex_benchmark.xml")
+    cex = check_concrete(
+        model, model.model_file, "cex_benchmark.xml",
+        property_kind="ltl" if refinement == "ltl" else "invar",
+    )
     result["concrete_checking_seconds"] = time.perf_counter() - tick
     if cex is None:
         result["status"] = "concrete_no_witness_within_bound"
@@ -458,12 +487,16 @@ def execute_enumerated_vfm(case: BenchmarkCase, run_dir: Path) -> dict:
     return result
 
 
-def execute(case: BenchmarkCase, method: str, run_dir: Path) -> dict:
-    result = {
-        "enumerated_vfm": execute_enumerated_vfm,
-        "abstract_concretized": execute_abstract_concretized,
-        "symbolic_vfm": execute_symbolic_vfm,
-    }[method](case, run_dir)
+def execute(case: BenchmarkCase, method: str, run_dir: Path,
+            refinement: str | None = None) -> dict:
+    if method == "abstract_concretized":
+        result = execute_abstract_concretized(
+            case, run_dir, refinement or "monitor")
+    else:
+        result = {
+            "enumerated_vfm": execute_enumerated_vfm,
+            "symbolic_vfm": execute_symbolic_vfm,
+        }[method](case, run_dir)
     model_files = list(run_dir.rglob("*.smv"))
     result["smv_bytes"] = sum(path.stat().st_size for path in model_files)
     result["smv_lines"] = sum(sum(1 for _ in path.open(errors="ignore")) for path in model_files)
@@ -471,7 +504,8 @@ def execute(case: BenchmarkCase, method: str, run_dir: Path) -> dict:
     return result
 
 
-def worker(case: BenchmarkCase, method: str, run_dir: Path) -> None:
+def worker(case: BenchmarkCase, method: str, run_dir: Path,
+           refinement: str | None = None) -> None:
     os.setsid()
     with (run_dir / "stdout.log").open("w") as stdout, \
          (run_dir / "stderr.log").open("w") as stderr:
@@ -481,23 +515,27 @@ def worker(case: BenchmarkCase, method: str, run_dir: Path) -> None:
         os.dup2(stderr.fileno(), 2)
         try:
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                result = execute(case, method, run_dir)
+                result = execute(case, method, run_dir, refinement)
         except BaseException as error:
             traceback.print_exc(file=stderr)
             result = _base_result(case, method, run_dir)
+            if refinement is not None:
+                result["refinement"] = refinement
             result["error"] = f"{type(error).__name__}: {error}"
     (run_dir / "result.json").write_text(json.dumps(result, indent=2) + "\n")
 
 
-def run_timed(case: BenchmarkCase, method: str, run_dir: Path, timeout: int) -> dict:
+def run_timed(case: BenchmarkCase, method: str, run_dir: Path, timeout: int,
+              refinement: str | None = None) -> dict:
     # Resume may encounter a directory left by an interrupted worker before it
     # managed to checkpoint result.json. Reuse it and retain the partial logs.
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "case.json").write_text(json.dumps({
         "spec": asdict(case.spec), "property": asdict(case.prop),
         "stages": asdict(case)["stages"], "method": method,
+        "refinement": refinement,
     }, indent=2) + "\n")
-    process = mp.Process(target=worker, args=(case, method, run_dir))
+    process = mp.Process(target=worker, args=(case, method, run_dir, refinement))
     started = time.perf_counter()
     process.start()
     deadline = started + timeout
@@ -520,7 +558,8 @@ def run_timed(case: BenchmarkCase, method: str, run_dir: Path, timeout: int) -> 
                 pass
             process.join()
         result = _base_result(case, method, run_dir)
-        result.update(status="timeout", error=f"exceeded {timeout}-second whole-pipeline timeout",
+        result.update(status="timeout", refinement=refinement,
+                      error=f"exceeded {timeout}-second whole-pipeline timeout",
                       elapsed_at_timeout_seconds=time.perf_counter() - started)
         (run_dir / "result.json").write_text(json.dumps(result, indent=2) + "\n")
         return result
@@ -550,7 +589,17 @@ def main() -> int:
     parser.add_argument("--timeout", type=int, help="override whole-pipeline timeout")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--smoke", action="store_true", help="run the first scenario only")
+    parser.add_argument(
+        "--parallel", type=int, default=1,
+        help="number of independent benchmark jobs to run concurrently (default: 1)",
+    )
+    parser.add_argument(
+        "--refinement", choices=("monitor", "ltl", "both"), default="monitor",
+        help="concrete refinement encoding for abstract_concretized",
+    )
     args = parser.parse_args()
+    if args.parallel < 1:
+        raise SystemExit("--parallel must be at least 1")
     cases = list(load_benchmark_cases(args.catalog))
     if args.only:
         cases = [case for case in cases if case.identity in set(args.only)]
@@ -559,6 +608,11 @@ def main() -> int:
     if not cases:
         raise SystemExit("no scenarios selected")
     methods = tuple(args.method or METHODS)
+    jobs = [(method, refinement) for method in methods
+            for refinement in (("monitor", "ltl") if
+                               method == "abstract_concretized" and args.refinement == "both"
+                               else ((args.refinement,) if method == "abstract_concretized"
+                                     else (None,)))]
     args.output_dir.mkdir(parents=True, exist_ok=True)
     if args.resume:
         roots = sorted(path for path in args.output_dir.glob("run_*") if path.is_dir())
@@ -569,14 +623,17 @@ def main() -> int:
     shutil.copy2(args.catalog, root / "catalog.toml")
     results = []
     if args.resume:
-        for result_file in sorted(root.glob("*/*/result.json")):
+        for result_file in sorted(root.rglob("result.json")):
             try:
                 results.append(json.loads(result_file.read_text()))
             except (OSError, json.JSONDecodeError):
                 pass
+    pending = []
     for case in cases:
-        for method in methods:
+        for method, refinement in jobs:
             run_dir = root / case.identity / method
+            if refinement is not None and args.refinement == "both":
+                run_dir = run_dir / refinement
             result_file = run_dir / "result.json"
             if args.resume and result_file.exists():
                 existing = json.loads(result_file.read_text())
@@ -584,20 +641,43 @@ def main() -> int:
                 # record before the underlying case was actually attempted.
                 # Resume retries those records, while retaining real witness,
                 # timeout, and no-witness outcomes.
-                if existing.get("status") != "error":
+                matches_refinement = (
+                    existing.get("refinement", "monitor") == (refinement or "monitor")
+                )
+                if existing.get("status") != "error" and matches_refinement:
                     result = existing
+                    results = [item for item in results
+                               if not (item.get("case") == case.identity and
+                                       item.get("method") == method and
+                                       item.get("refinement", "monitor") == (refinement or "monitor"))]
+                    results.append(result)
+                    continue
                 else:
-                    result = run_timed(case, method, run_dir,
-                                       args.timeout or case.spec.timeout_seconds)
-            else:
-                result = run_timed(case, method, run_dir,
-                                   args.timeout or case.spec.timeout_seconds)
+                    pass
+            pending.append((case, method, refinement, run_dir,
+                            args.timeout or case.spec.timeout_seconds))
+
+    # Each job owns a separate directory and child process, so independent
+    # methods/cases can safely run concurrently.  Checkpointing remains in the
+    # coordinator thread as jobs complete.
+    with ThreadPoolExecutor(max_workers=args.parallel) as executor:
+        futures = {
+            executor.submit(run_timed, case, method, run_dir, timeout, refinement):
+            (case, method, refinement)
+            for case, method, refinement, run_dir, timeout in pending
+        }
+        for future in as_completed(futures):
+            case, method, refinement = futures[future]
+            result = future.result()
             results = [item for item in results
                        if not (item.get("case") == case.identity and
-                               item.get("method") == method)]
+                               item.get("method") == method and
+                               item.get("refinement", "monitor") == (refinement or "monitor"))]
             results.append(result)
             write_results(results, root)
-            print(f"{case.identity}/{method}: {result['status']}", flush=True)
+            label = f"{method}/{refinement}" if refinement else method
+            print(f"{case.identity}/{label}: {result['status']}", flush=True)
+    write_results(results, root)
     print(f"Results: {root.resolve()}")
     return 0
 
