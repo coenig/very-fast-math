@@ -54,6 +54,7 @@ INVAR num_technical_lanes = @{NUM_TECHNICAL_LANES}@.eval[0];
 
 @{EnvModel_Constants.tpl}@********.include
 @{EnvModel_Sections.tpl}@*******.include
+@{EnvModel_Reachability.tpl}@********.include.if[@{REACHABILITY_ONLY}@.eval]
 @{EnvModel_Behavior_Nonego.tpl}@********.include
 @{EnvModel_Behavior_Ego.tpl}@********.include
 @{EnvModel_Feasibility.tpl}@*******.include
