@@ -8,7 +8,7 @@
       "#007": "range(@nonegos, 1, 1);",
       "#008": "range(@lanes, 1, 1);",
       "#009": "range(@segments, 1, 1);",
-      "#010": "range(@sections, 3, 10);",
+      "#010": "range(@sections, 3, 5);",
       "#011": "range(@maxdist, 40, 40);",
       "#012": "range(@anglegran, 45, 45);",
       "#013": "range(@vehlen, 5, 5);",

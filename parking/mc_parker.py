@@ -14,8 +14,8 @@ from ctypes import create_string_buffer, sizeof
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QPushButton, QGraphicsView, QGraphicsScene, QGraphicsRectItem,
                              QMessageBox)
-from PyQt6.QtCore import Qt, QRectF, QTimer
-from PyQt6.QtGui import QPixmap, QBrush, QPen, QColor
+from PyQt6.QtCore import Qt, QRectF, QTimer, QPointF
+from PyQt6.QtGui import QPixmap, QBrush, QPen, QColor, QPainterPath, QPolygonF, QFont
 
 
 # Repo root = parent of this parking/ folder; anchors all paths independent of the caller's cwd.
@@ -324,6 +324,120 @@ def obstacles_to_pixel_rects(trace_path, image_width, image_height):
     return rects
 
 
+def road_segments_pixel(trace_path, image_width, image_height):
+    """Ego-connected road sections as pixel segments [(x1, y1, x2, y2, sec, is_ego), ...].
+
+    Uses the SAME fit transform as the obstacles, so the drawn roads and the obstacle frames
+    are guaranteed to line up (the cached C++ preview is a random sample layout, not this
+    counterexample, and the birdseye renderer crashes on reachability-only traces).
+    """
+    transform = compute_fit_transform(trace_path, image_width, image_height)
+    if transform is None:
+        return []
+
+    get = _trace_getter(trace_path)
+    ego = get("ego.on_section")
+    ego_section = int(ego) if ego is not None else 0
+
+    segments = []
+    for sec in sorted(_ego_connected_sections(get)):
+        sx = get(f"section_{sec}.source.x")
+        sy = get(f"section_{sec}.source.y")
+        if sx is None or sy is None:
+            continue
+        angle = 2.0 * math.pi * (get(f"section_{sec}.angle") or 0.0) / 360.0
+        length = get(f"section_{sec}_end") or 0.0
+        p1 = world_to_pixel(sx, sy, transform, image_width, image_height)
+        p2 = world_to_pixel(sx + length * math.cos(angle), sy + length * math.sin(angle),
+                            transform, image_width, image_height)
+        segments.append((p1[0], p1[1], p2[0], p2[1], sec, sec == ego_section))
+    return segments
+
+
+def target_section_from_smv(smv_path):
+    """Target section index from 'is_target_reachable := reach_..._of_sec_N;' (model uses sec 1)."""
+    try:
+        with open(smv_path, "r") as f:
+            content = f.read()
+    except OSError:
+        return 1
+    m = re.search(r"is_target_reachable\s*:=\s*reach_\d+_of_sec_(\d+)", content)
+    return int(m.group(1)) if m else 1
+
+
+def _cubic_bezier(t, p0, p1, p2, p3):
+    mt = 1.0 - t
+    a, b, c, d = mt * mt * mt, 3 * mt * mt * t, 3 * mt * t * t, t * t * t
+    return (a * p0[0] + b * p1[0] + c * p2[0] + d * p3[0],
+            a * p0[1] + b * p1[1] + c * p2[1] + d * p3[1])
+
+
+def connection_splines_pixel(trace_path, image_width, image_height, samples=24):
+    """Cubic-Bezier connection arcs between sections as pixel polylines [[(x, y), ...], ...].
+
+    Mirrors RoadGraph::Way::getNodesXML: each directed connection src->tgt is a cubic Bezier
+    from src's drain to tgt's origin, control points offset by dist/3 along each section's
+    tangent (dist = |drain_src - origin_tgt|). Only connections internal to the ego component
+    are drawn, matching road_segments_pixel.
+    """
+    transform = compute_fit_transform(trace_path, image_width, image_height)
+    if transform is None:
+        return []
+
+    get = _trace_getter(trace_path)
+    component = _ego_connected_sections(get)
+
+    def geom(sec):
+        sx = get(f"section_{sec}.source.x")
+        sy = get(f"section_{sec}.source.y")
+        if sx is None or sy is None:
+            return None
+        angle = 2.0 * math.pi * (get(f"section_{sec}.angle") or 0.0) / 360.0
+        length = get(f"section_{sec}_end") or 0.0
+        return (sx, sy), (sx + length * math.cos(angle), sy + length * math.sin(angle))
+
+    splines = []
+    for src in sorted(component):
+        src_geom = geom(src)
+        if src_geom is None:
+            continue
+        (osx, osy), odrain = src_geom
+        c = 0
+        while True:
+            tgt = get(f"outgoing_connection_{c}_of_section_{src}")
+            c += 1
+            if tgt is None:
+                break
+            tgt = int(tgt)
+            if tgt < 0 or tgt not in component:
+                continue
+            tgt_geom = geom(tgt)
+            if tgt_geom is None:
+                continue
+            (tsx, tsy), tdrain = tgt_geom
+
+            p0, p3 = odrain, (tsx, tsy)
+            dist = math.hypot(p3[0] - p0[0], p3[1] - p0[1])
+            if dist < 1e-6:
+                continue
+            # dir_mine = drain - origin (of src); dir_succ = origin - drain (of tgt); both len dist/3.
+            dm = (odrain[0] - osx, odrain[1] - osy)
+            dm_len = math.hypot(*dm) or 1.0
+            dm = (dm[0] / dm_len * dist / 3.0, dm[1] / dm_len * dist / 3.0)
+            ds = (tsx - tdrain[0], tsy - tdrain[1])
+            ds_len = math.hypot(*ds) or 1.0
+            ds = (ds[0] / ds_len * dist / 3.0, ds[1] / ds_len * dist / 3.0)
+            p1 = (p0[0] + dm[0], p0[1] + dm[1])
+            p2 = (p3[0] + ds[0], p3[1] + ds[1])
+
+            pts = [world_to_pixel(*_cubic_bezier(i / samples, p0, p1, p2, p3),
+                                  transform=transform, image_width=image_width,
+                                  image_height=image_height)
+                   for i in range(samples + 1)]
+            splines.append(pts)
+    return splines
+
+
 def patch_smv_obstacles(smv_path, obstacles_world):
     """Overwrite the 'rect_obstacles_{tl,br}_{x,y}_N := <int>;' DEFINEs in EnvModel.smv.
 
@@ -466,8 +580,9 @@ class ResizableRectItem(QGraphicsRectItem):
         self.setPos(x, y)
         self._updating_handles = False
         
-        self.setPen(QPen(QColor("red"), 2))
-        self.setBrush(QBrush(Qt.GlobalColor.transparent))
+        self.setPen(QPen(QColor("red"), 3))
+        self.setBrush(QBrush(QColor(220, 40, 40, 90)))
+        self.setZValue(5)
         
         self.setFlags(
             QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable |
@@ -548,28 +663,118 @@ class MainWindow(QMainWindow):
         self.reload_from_trace()
 
     def reload_from_trace(self):
-        """(Re)draw the preview image and overlay obstacle rectangles read from the trace."""
-        pixmap = QPixmap(self.image_path)
-        if pixmap.isNull():
-            print(f"Warning: Could not load image from '{self.image_path}'")
-            self.scene.clear()
-            self.rect_items = []
-            self.scene.setSceneRect(0, 0, 800, 600)
-            self.scale_to_fit()
-            return
+        """(Re)draw the road graph and overlay obstacle rectangles read from the trace.
 
-        self.image_w = pixmap.width()
-        self.image_h = pixmap.height()
+        The roads are drawn straight from the counterexample (same fit transform as the
+        obstacles) instead of the cached C++ preview: that preview is a random sample layout,
+        not this counterexample, so it does not line up with the solved obstacle positions.
+        """
+        pixmap = QPixmap(self.image_path)
+        # Canvas size only follows the cached preview (to keep the fit transform's aspect ratio);
+        # a default is used when no preview exists yet for this variant.
+        if not pixmap.isNull():
+            self.image_w, self.image_h = pixmap.width(), pixmap.height()
+        else:
+            self.image_w, self.image_h = 2200, 1650
+
+        segments = road_segments_pixel(self.trace_path, self.image_w, self.image_h)
+        splines = connection_splines_pixel(self.trace_path, self.image_w, self.image_h)
         rects_data = obstacles_to_pixel_rects(self.trace_path, self.image_w, self.image_h)
+        target_section = target_section_from_smv(self.smv_path)
+        transform = compute_fit_transform(self.trace_path, self.image_w, self.image_h)
+        ppm = transform[2] if transform else 50.0
 
         self.scene.clear()
         self.rect_items = []
-        self.scene.addPixmap(pixmap)
-        self.scene.setSceneRect(QRectF(pixmap.rect()))
-        for rect in rects_data:
-            self.add_rectangle(*rect)
+
+        if segments:
+            self._draw_roads(segments, splines, target_section, ppm)
+            # Static ghosts of the ORIGINAL obstacle positions, so the starting layout stays
+            # visible once the draggable (red) obstacles are moved during a session.
+            self._draw_obstacle_ghosts(rects_data)
+            for rect in rects_data:
+                self.add_rectangle(*rect)
+            # Frame roads AND obstacles (the fit is road-only, so obstacles may sit outside the
+            # image box); a gray backdrop behind everything keeps the birdseye look.
+            content = self.scene.itemsBoundingRect().adjusted(-60, -60, 60, 60)
+            backdrop = self.scene.addRect(content, QPen(Qt.GlobalColor.transparent),
+                                          QBrush(QColor(170, 170, 170)))
+            backdrop.setZValue(-10)
+            self.scene.setSceneRect(content)
+        else:
+            if not pixmap.isNull():
+                self.scene.addPixmap(pixmap)
+                self.scene.setSceneRect(QRectF(pixmap.rect()))
+            else:
+                print(f"Warning: no road geometry in '{self.trace_path}' and no preview image.")
+                self.scene.setSceneRect(0, 0, self.image_w, self.image_h)
+            self._draw_obstacle_ghosts(rects_data)
+            for rect in rects_data:
+                self.add_rectangle(*rect)
 
         self.scale_to_fit()
+
+    def _draw_obstacle_ghosts(self, rects_data):
+        """Filled, non-interactive ghosts marking where the obstacles originally were."""
+        ghost_pen = QPen(QColor(90, 90, 90), 2, Qt.PenStyle.DashLine)
+        ghost_brush = QBrush(QColor(90, 90, 90, 90))
+        for x1, y1, x2, y2 in rects_data:
+            ghost = self.scene.addRect(QRectF(min(x1, x2), min(y1, y2),
+                                              abs(x2 - x1), abs(y2 - y1)),
+                                       ghost_pen, ghost_brush)
+            ghost.setZValue(2)
+
+    def _draw_roads(self, segments, splines=None, target_section=None, ppm=50.0):
+        """Draw connection arcs, section centerlines, and white start/target parking markings."""
+        road_pen = QPen(QColor(60, 60, 60), 6)
+        road_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        ego_pen = QPen(QColor(0, 90, 200), 6)
+        ego_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        arc_pen = QPen(QColor(120, 120, 120), 5)
+        arc_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        arc_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        for pts in (splines or []):
+            if len(pts) < 2:
+                continue
+            path = QPainterPath(QPointF(pts[0][0], pts[0][1]))
+            for x, y in pts[1:]:
+                path.lineTo(x, y)
+            self.scene.addPath(path, arc_pen)
+        for x1, y1, x2, y2, sec, is_ego in segments:
+            self.scene.addLine(x1, y1, x2, y2, ego_pen if is_ego else road_pen)
+        for x1, y1, x2, y2, sec, is_ego in segments:
+            if is_ego:
+                self._draw_parking_marking(x1, y1, x2, y2, "START", ppm)
+            elif target_section is not None and sec == target_section:
+                self._draw_parking_marking(x1, y1, x2, y2, "TARGET", ppm)
+
+    def _draw_parking_marking(self, x1, y1, x2, y2, label, ppm):
+        """White parking-bay outline hugging a section, with a label (start/target indicator)."""
+        dx, dy = x2 - x1, y2 - y1
+        length = math.hypot(dx, dy) or 1.0
+        ux, uy = dx / length, dy / length
+        nx, ny = -uy, ux                    # unit normal
+        half = ppm * 1.0                    # ~2 m wide bay (1 m half-width), in world proportion
+        thickness = max(3.0, ppm * 0.15)    # ~0.15 m painted line, like real markings
+        corners = [
+            QPointF(x1 + nx * half, y1 + ny * half),
+            QPointF(x2 + nx * half, y2 + ny * half),
+            QPointF(x2 - nx * half, y2 - ny * half),
+            QPointF(x1 - nx * half, y1 - ny * half),
+        ]
+        white_pen = QPen(QColor(255, 255, 255), thickness)
+        white_pen.setJoinStyle(Qt.PenJoinStyle.MiterJoin)
+        bay = self.scene.addPolygon(QPolygonF(corners), white_pen,
+                                    QBrush(QColor(255, 255, 255, 40)))
+        bay.setZValue(3)
+
+        text = self.scene.addText(label, QFont("Sans", 16, QFont.Weight.Bold))
+        text.setDefaultTextColor(QColor(255, 255, 255))
+        br = text.boundingRect()
+        mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
+        text.setPos(mx - br.width() / 2.0, my - br.height() / 2.0)
+        text.setZValue(4)
+
 
     def scale_to_fit(self):
         """💡 Scale the scene layout to fit perfectly inside the viewport boundaries."""

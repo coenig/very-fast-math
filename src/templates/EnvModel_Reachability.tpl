@@ -10,6 +10,11 @@
 --
 --------------------------------------------------------
 
+-- The section topology (outgoing_connection_*_of_section_*) plus section geometry and the
+-- rect_obstacles_* DEFINEs / obstacle-avoidance INIT constraints are provided by
+-- EnvModel_Sections.tpl (included in reachability mode too). Here we only add the
+-- transitive-closure reachability DEFINEs on top of that frozen topology.
+
 DEFINE
    -- Direct successor relation: is section [sec2] a direct successor of section [sec]?
    @{

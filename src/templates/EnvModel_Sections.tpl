@@ -33,7 +33,7 @@
          esac;
    }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
    esac;
-   }@***.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
+   }@***.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval].if[@{!REACHABILITY_ONLY}@.eval] -- ego.abs_pos-based lane availability; not needed (and would dangle) in reachability mode.
 
    @{
 INIT 0 = @{section_[sec]_segment_0_pos_begin}@*.scalingVariable[distance];
