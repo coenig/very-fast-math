@@ -10,14 +10,46 @@ import sys
 import os
 import platform
 import ctypes
+import signal
+import threading
+import time
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _install_orphan_guard():
+    """Kill this worker's whole process group (incl. nuXmv children) if the launcher dies.
+
+    The GUI/CLI starts us in a new session (start_new_session) so it can kill the losing
+    variants once a winner is found. If that controller crashes or its terminal closes before
+    the race resolves, we would otherwise keep model-checking every variant (incl. the slow
+    high-section ones) to completion. Watch for reparenting (parent pid changes) and, when it
+    happens, SIGKILL the process group so no orphaned nuXmv jobs are left behind.
+    """
+    if platform.system() == 'Windows':
+        return  # No POSIX sessions/getppid; the GUI uses taskkill /T for the tree on Windows.
+    initial_ppid = os.getppid()
+    if initial_ppid <= 1:
+        return  # Already detached on purpose (e.g. nohup); nothing to guard against.
+
+    def _watch():
+        while True:
+            time.sleep(1.0)
+            if os.getppid() != initial_ppid:  # launcher exited -> we got reparented
+                try:
+                    os.killpg(os.getpgrp(), signal.SIGKILL)
+                finally:
+                    os._exit(1)
+
+    threading.Thread(target=_watch, daemon=True).start()
 
 
 def main():
     if len(sys.argv) < 2:
         sys.stderr.write("Missing script argument.\n")
         return 1
+
+    _install_orphan_guard()
 
     script = sys.argv[1]
 

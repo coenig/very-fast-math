@@ -76,7 +76,7 @@
       "MAXACCELEGO": "#{maxaccel}#",
       "MAXACCELNONEGO": "#{maxaccel}#",
       "MAXDISTCONNECTIONS": "#{30}#",
-      "MAXOUTGOINGCONNECTIONS": 1,
+      "MAXOUTGOINGCONNECTIONS": 2,
       "MAX_JUMP_OVER_TECHNICAL_LANES": 1,
       "MINACCELEGO": "#{minaccel}#",
       "MINACCELNONEGO": "#{minaccel}#",

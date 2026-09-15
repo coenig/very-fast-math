@@ -26,10 +26,17 @@ DEFINE
       }@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
    }@****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
 
-   -- Forward-terminal sections: no outgoing connection at all. Reaching such a section
-   -- forward, the ego can only continue by reversing (switch F -> B) at that pocket.
+   -- Forward-terminal: no outgoing connection at all (a forward dead-end pocket). The ego can
+   -- drive in nose-first and only continue by reversing gear (F -> B) there.
    @{
       is_forward_terminal_[sec] := @{outgoing_connection_[con]_of_section_[sec] = -1}@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS - 1}@.eval, 1, &];
+   }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
+   -- Backward-terminal: no INCOMING connection at all (a backward dead-end pocket). The mirror of
+   -- forward-terminal: the ego arrives in reverse (using one of the section's own outgoing
+   -- connections as a backward-incoming route), dead-ends at the source, and flips gear (B -> F).
+   @{
+      is_backward_terminal_[sec] := TRUE@{ @{& !is_direct_succ_[m]_to_[sec]}@*.if[@{[m] != [sec]}@.eval]}@**.for[[m], 0, @{SECTIONS - 1}@.eval];
    }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
    -- Oriented reachability over 2*SECTIONS nodes: (section, direction) with direction
@@ -44,11 +51,14 @@ DEFINE
    -- Layers 1..2*SECTIONS-1: one BFS relaxation each over the oriented edges:
    --   forward chain  (m,F) -> (sec,F)  iff is_direct_succ(m, sec)   (m -> sec)
    --   backward chain (m,B) -> (sec,B)  iff is_direct_succ(sec, m)   (sec -> m, traversed in reverse)
-   --   reversal       (sec,F) -> (sec,B) iff is_forward_terminal(sec) (back out of a pocket)
+   --   reversal F->B  (sec,F) -> (sec,B) iff is_forward_terminal(sec)  (nose into a dead end, back out)
+   --   reversal B->F  (sec,B) -> (sec,F) iff is_backward_terminal(sec) (reverse into a pocket, drive out)
+   -- Reversal is forbidden AT the target (sec 1) so its park-in orientation stays distinct
+   -- (forward = nose-in via an incoming connection, backward = tail-in via an outgoing one).
    @{
       @{
-         reach_@{[k] + 1}@.eval[0]_of_sec_[sec]_dir_F := reach_[k]_of_sec_[sec]_dir_F@{ @{| (reach_[k]_of_sec_[m]_dir_F & is_direct_succ_[m]_to_[sec])}@*.if[@{[m] != [sec]}@.eval]}@**.for[[m], 0, @{SECTIONS - 1}@.eval];
-         reach_@{[k] + 1}@.eval[0]_of_sec_[sec]_dir_B := reach_[k]_of_sec_[sec]_dir_B@{ @{| (reach_[k]_of_sec_[m]_dir_B & is_direct_succ_[sec]_to_[m])}@*.if[@{[m] != [sec]}@.eval]}@**.for[[m], 0, @{SECTIONS - 1}@.eval] | (reach_[k]_of_sec_[sec]_dir_F & is_forward_terminal_[sec]);
+         reach_@{[k] + 1}@.eval[0]_of_sec_[sec]_dir_F := reach_[k]_of_sec_[sec]_dir_F@{ @{| (reach_[k]_of_sec_[m]_dir_F & is_direct_succ_[m]_to_[sec])}@*.if[@{[m] != [sec]}@.eval]}@**.for[[m], 0, @{SECTIONS - 1}@.eval]@{ | (reach_[k]_of_sec_[sec]_dir_B & is_backward_terminal_[sec])}@.if[@{[sec] != 1}@.eval];
+         reach_@{[k] + 1}@.eval[0]_of_sec_[sec]_dir_B := reach_[k]_of_sec_[sec]_dir_B@{ @{| (reach_[k]_of_sec_[m]_dir_B & is_direct_succ_[sec]_to_[m])}@*.if[@{[m] != [sec]}@.eval]}@**.for[[m], 0, @{SECTIONS - 1}@.eval]@{ | (reach_[k]_of_sec_[sec]_dir_F & is_forward_terminal_[sec])}@.if[@{[sec] != 1}@.eval];
       }@***.for[[sec], 0, @{SECTIONS - 1}@.eval]
    }@****.for[[k], 0, @{2 * SECTIONS - 2}@.eval]
 

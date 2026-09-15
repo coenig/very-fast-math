@@ -89,18 +89,27 @@ def select_startup_package():
 
 
 def _kill_process_group(proc):
-    """Kill the worker and its nuXmv children (its own process group / job tree), then reap it."""
+    """Kill the worker and its nuXmv children (its own process group / job tree), then reap it.
+
+    Always targets the whole group, even if the worker itself has already exited: nuXmv
+    grandchildren keep the worker's process-group id after being reparented, so killing the
+    group is what actually reaps the lingering model-checker jobs of the losing variants.
+    """
     if proc is None:
         return
-    if proc.poll() is None:
-        try:
-            if platform.system() == 'Windows':
-                subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            else:
-                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        except (ProcessLookupError, OSError):
-            pass
+    try:
+        if platform.system() == 'Windows':
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(proc.pid)],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            # getpgid fails once the worker is fully reaped; the leader pid is still the pgid.
+            try:
+                pgid = os.getpgid(proc.pid)
+            except (ProcessLookupError, OSError):
+                pgid = proc.pid
+            os.killpg(pgid, signal.SIGKILL)
+    except (ProcessLookupError, OSError):
+        pass
     # Reap the killed worker so it doesn't linger as a zombie across many races.
     try:
         proc.wait(timeout=5)
