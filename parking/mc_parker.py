@@ -63,10 +63,6 @@ def package_image_path(package_dir):
     return os.path.join(package_dir, "0", "preview2", "preview2_0.png")
 
 
-def package_main_smv_path(package_dir):
-    return os.path.join(package_dir, "main.smv")
-
-
 def clear_package_trace(package_dir):
     """Delete a package's leftover debug_trace_array.txt so its content reflects THIS run only.
 
@@ -637,27 +633,25 @@ def trace_has_counterexample(trace_path):
 
 
 def package_has_fresh_counterexample(package_dir):
-    """True only if the package's trace holds a real counterexample AND postdates its model files.
+    """True only if the package's trace holds a real counterexample AND postdates EnvModel.smv.
 
     Two independent things must hold. (1) CONTENT: trace_has_counterexample distinguishes a real
     CEX (state list) from a blind "no counterexample found ... up to N" log -- both are written to
     debug_trace_array.txt, so content, not mere presence, decides winner vs dropout. (2) FRESHNESS:
     a KILLED check (race loser) never overwrites the file, so a prior run's CEX can linger; gate
-    the trace mtime against the NEWEST of EnvModel.smv (the authoritative input the GUI patches)
-    and main.smv (the built model nuXmv checks) so a stale or post-build-patched CEX is rejected.
-    Pre-race clear_package_trace makes (2) mostly moot, but it stays as a cheap second guard.
+    the trace mtime against EnvModel.smv, the authoritative model INPUT (written by generation and
+    patched by the GUI, always BEFORE the race). Do NOT gate against main.smv: the kratos build
+    writes it during the race in the same second as the trace, so sub-second ordering would falsely
+    reject a genuine fresh winner. Pre-race clear_package_trace already removes stale leftovers;
+    this EnvModel.smv check is the cheap second guard.
     """
     trace_path = package_trace_path(package_dir)
     if not trace_has_counterexample(trace_path):
         return False
-    model_mtime = -1.0
-    for model_path in (package_main_smv_path(package_dir),
-                       os.path.join(package_dir, "EnvModel.smv")):
-        if os.path.isfile(model_path):
-            model_mtime = max(model_mtime, os.path.getmtime(model_path))
-    if model_mtime < 0:
-        return True  # no model files to compare against; treat the trace as authoritative
-    return os.path.getmtime(trace_path) >= model_mtime
+    model_path = os.path.join(package_dir, "EnvModel.smv")
+    if not os.path.isfile(model_path):
+        return True  # no model to compare against; treat the trace as authoritative
+    return os.path.getmtime(trace_path) >= os.path.getmtime(model_path)
 
 # Handle item for resizing
 class ResizeHandle(QGraphicsRectItem):
@@ -1329,28 +1323,30 @@ class MainWindow(QMainWindow):
             print(f"✅ Winner: {os.path.basename(winner)}")
             return
 
-        # No variant produced a counterexample (or the worker crashed): restore the saved view.
+        # No variant produced a counterexample (or the worker crashed): keep the current view as
+        # the user left it (e.g. a rotated section) with the previous solution still drawn, rather
+        # than snapping edits back. Only restore the trace/image FILES that were cleared at race
+        # start so self.trace_path stays valid -- deliberately do NOT reload/redraw.
         for backup, dst in ((self._race_trace_backup, self.trace_path),
                             (self._race_image_backup, self.image_path)):
             if backup and os.path.isfile(backup):
                 shutil.move(backup, dst)
-        self.reload_from_trace()
 
         if aborted_by_user:
             QMessageBox.information(
                 self, "Model checker terminated",
                 "Terminated all model-checker instances.\n"
-                "Restored the previous trace and image.")
+                "Kept the current view.")
         elif error:
             QMessageBox.warning(
                 self, "Model checker aborted",
                 "The model checker run was aborted or failed.\n"
-                "Restored the previous trace and image.")
+                "Kept the current view.")
         else:
             QMessageBox.information(
                 self, "No counterexample",
                 "No configured variant produced a counterexample for the new obstacle layout.\n"
-                "Restored the previous trace and image.")
+                "Kept the current view (the previous solution is still shown).")
 
     def terminate_race(self):
         """Kill every nuXmv instance of the in-flight MC race (leaves other actions untouched)."""
