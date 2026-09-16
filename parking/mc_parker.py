@@ -55,10 +55,20 @@ def discover_mc_packages():
     return packages
 
 
+def remove_mc_packages():
+    """Delete every generated gp* working folder so a regen cannot leave obsolete variants behind."""
+    removed = 0
+    for pkg in discover_mc_packages():
+        try:
+            shutil.rmtree(pkg)
+            removed += 1
+        except OSError:
+            pass
+    return removed
+
+
 def package_trace_path(package_dir):
     return os.path.join(package_dir, "debug_trace_array.txt")
-
-
 def package_image_path(package_dir):
     return os.path.join(package_dir, "0", "preview2", "preview2_0.png")
 
@@ -1027,7 +1037,11 @@ class MainWindow(QMainWindow):
 
     def collect_obstacles_world(self):
         """Inverse-transform the current on-screen rectangles back to integer world coords."""
-        transform = compute_fit_transform(self.trace_path, self.image_w, self.image_h)
+        # Use the transform cached when the scene was drawn: the source trace file may have been
+        # deleted/replaced since, but the rectangles on screen still live in that pixel space.
+        transform = self._transform
+        if transform is None:
+            transform = compute_fit_transform(self.trace_path, self.image_w, self.image_h)
         if transform is None:
             return []
 
@@ -1170,6 +1184,9 @@ class MainWindow(QMainWindow):
             except (RuntimeError, OSError, ValueError) as e:
                 QMessageBox.critical(self, "Config update failed", str(e))
                 return
+        # Wipe existing gp* variant folders first so an old parameter range can't leave obsolete
+        # packages around (regeneration recreates the current set; the vfm cache keeps this fast).
+        remove_mc_packages()
         self._run_script_with_ui(ENVGEN_SCRIPT, "EnvModel generation", reload_after=False,
                                  on_success=self._on_regen_success)
 
