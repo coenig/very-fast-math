@@ -25,6 +25,8 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRACE_PATH = os.path.join(REPO_ROOT, "examples/gp_config/debug_trace_array.txt")
 SMV_PATH = os.path.join(REPO_ROOT, "examples/gp_config/EnvModel.smv")
 IMAGE_PATH = os.path.join(REPO_ROOT, "examples/gp_config/0/preview2/preview2_0.png")
+# The config template; section-1 pose and obstacle positions are written here before regeneration.
+TPL_PATH = os.path.join(REPO_ROOT, "src/templates/envmodel_config.tpl.json")
 # Re-runs the model checker on the already-generated EnvModel.smv (no tpl.json regeneration).
 # Path is relative to bin/, the working directory the MC runs in (see run_model_checker).
 MC_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.runMCJobs[16]"
@@ -467,6 +469,90 @@ def patch_smv_obstacles(smv_path, obstacles_world):
         f.write(content)
 
 
+def _parse_paren_list(packed):
+    """Split a '@(a)@@(b)@...' packed sequence into ['a', 'b', ...]."""
+    return re.findall(r"@\(([^)]*)\)@", packed)
+
+
+def _format_paren_list(values):
+    """Pack ['a', 'b', ...] back into '@(a)@@(b)@...'."""
+    return "".join(f"@({v})@" for v in values)
+
+
+def _replace_tpl_string_value(content, key, new_value):
+    """Replace the string value of a top-level \"key\": \"...\" entry, keeping the rest verbatim."""
+    pattern = re.compile(r'("' + re.escape(key) + r'"\s*:\s*")[^"]*(")')
+    new_content, n = pattern.subn(lambda m: m.group(1) + new_value + m.group(2), content, count=1)
+    if n == 0:
+        raise RuntimeError(f"Could not find key '{key}' in {TPL_PATH}.")
+    return new_content
+
+
+def target_slot_in_fixed_sections(tpl_path, target_section):
+    """Array index of 'target_section' within FIXED_SECTION_IDs, or None if it is not fixed."""
+    try:
+        with open(tpl_path) as f:
+            content = f.read()
+    except OSError:
+        return None
+    m = re.search(r'"FIXED_SECTION_IDs"\s*:\s*"([^"]*)"', content)
+    if not m:
+        return None
+    for i, v in enumerate(_parse_paren_list(m.group(1))):
+        if v.strip() == str(target_section):
+            return i
+    return None
+
+
+def parse_angle_granularity(tpl_path):
+    """ANGLEGRANULARITY (deg) from the tpl.json; fixed-section angles must be multiples of it."""
+    try:
+        with open(tpl_path) as f:
+            content = f.read()
+    except OSError:
+        return 15
+    m = re.search(r'"ANGLEGRANULARITY"\s*:\s*"([^"]*)"', content)
+    if m:
+        d = re.search(r"-?\d+", m.group(1))
+        if d:
+            return int(d.group(0))
+    return 15
+
+
+def patch_tpl_config(tpl_path, target_slot, section_x, section_y, section_angle, obstacles):
+    """Write the target section's pose and the obstacle rectangles into the tpl.json in place.
+
+    Only the affected \"key\": \"...\" values are rewritten; the fixed-section arrays keep every
+    other slot (crucially section 0 at 0/0/0). 'obstacles' is a list of (tl_x, tl_y, br_x, br_y).
+    """
+    with open(tpl_path) as f:
+        content = f.read()
+
+    for key, value in (("FIXED_SECTION_SOURCE_Xs", section_x),
+                       ("FIXED_SECTION_SOURCE_Ys", section_y),
+                       ("FIXED_SECTION_ANGLEs", section_angle)):
+        m = re.search(r'"' + key + r'"\s*:\s*"([^"]*)"', content)
+        if not m:
+            raise RuntimeError(f"Could not find key '{key}' in {tpl_path}.")
+        vals = _parse_paren_list(m.group(1))
+        if target_slot >= len(vals):
+            raise RuntimeError(f"Target slot {target_slot} out of range for '{key}' ({vals}).")
+        vals[target_slot] = str(value)
+        content = _replace_tpl_string_value(content, key, _format_paren_list(vals))
+
+    packed = {
+        "RECT_OBSTACLES_TL_Xs": [str(o[0]) for o in obstacles],
+        "RECT_OBSTACLES_TL_Ys": [str(o[1]) for o in obstacles],
+        "RECT_OBSTACLES_BR_Xs": [str(o[2]) for o in obstacles],
+        "RECT_OBSTACLES_BR_Ys": [str(o[3]) for o in obstacles],
+    }
+    for key, vals in packed.items():
+        content = _replace_tpl_string_value(content, key, _format_paren_list(vals))
+
+    with open(tpl_path, "w") as f:
+        f.write(content)
+
+
 if platform.system() == 'Windows':
     _kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
     _kernel32.FreeLibrary.argtypes = [ctypes.c_void_p]
@@ -621,6 +707,69 @@ class ResizableRectItem(QGraphicsRectItem):
         return super().itemChange(change, value)
 
 
+class SectionRotateHandle(QGraphicsRectItem):
+    """Grab point at the target section's free end; dragging rotates the section about its
+    source, snapping to the angle granularity."""
+    def __init__(self, parent):
+        super().__init__(-6, -6, 12, 12, parent)
+        self.section = parent
+        self.setBrush(QBrush(QColor("gold")))
+        self.setPen(QPen(QColor("black"), 1))
+        self.setFlags(QGraphicsRectItem.GraphicsItemFlag.ItemIgnoresTransformations)
+        self.setZValue(2)
+        self.setCursor(Qt.CursorShape.CrossCursor)
+        self.update_position()
+
+    def update_position(self):
+        self.setPos(self.section.length_px, 0)
+
+    def mousePressEvent(self, event):
+        event.accept()
+
+    def mouseMoveEvent(self, event):
+        source = self.section.pos()
+        p = event.scenePos()
+        angle = math.degrees(math.atan2(p.y() - source.y(), p.x() - source.x()))
+        gran = self.section.angle_granularity or 1
+        self.section.setRotation((round(angle / gran) * gran) % 360)
+        self.section.notify_changed()
+        event.accept()
+
+    def mouseReleaseEvent(self, event):
+        event.accept()
+
+
+class RotatableSectionItem(QGraphicsRectItem):
+    """Fixed-length target section: movable and rotatable (about its source end) but not
+    resizable. Rotation is constrained to multiples of the angle granularity."""
+    def __init__(self, source_px, length_px, angle_deg, half_width_px, angle_granularity, on_changed):
+        super().__init__(0.0, -half_width_px, length_px, 2.0 * half_width_px)
+        self.length_px = length_px
+        self.angle_granularity = angle_granularity
+        self._on_changed = on_changed
+        self.setPos(source_px)                  # local origin (0,0) is the section's source end
+        self.setTransformOriginPoint(0.0, 0.0)  # rotate about the source
+        self.setRotation(angle_deg % 360)
+        self.setPen(QPen(QColor("gold"), 3))
+        self.setBrush(QBrush(QColor(255, 200, 0, 70)))
+        self.setZValue(6)
+        self.setFlags(
+            QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable |
+            QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable |
+            QGraphicsRectItem.GraphicsItemFlag.ItemSendsGeometryChanges
+        )
+        self.handle = SectionRotateHandle(self)
+
+    def notify_changed(self):
+        if self._on_changed is not None:
+            self._on_changed()
+
+    def itemChange(self, change, value):
+        if change == QGraphicsRectItem.GraphicsItemChange.ItemPositionHasChanged:
+            self.notify_changed()
+        return super().itemChange(change, value)
+
+
 class MainWindow(QMainWindow):
     def __init__(self, image_path, trace_path, smv_path):
         super().__init__()
@@ -668,6 +817,20 @@ class MainWindow(QMainWindow):
         self.race_timer.setInterval(400)
         self.race_timer.timeout.connect(self._poll_race)
 
+        # Target-section (section 1) editing state. Moving/rotating it invalidates the current
+        # packages, so the MC re-run is blocked until the EnvModels are regenerated.
+        self._section_dirty = False
+        self.section_item = None
+        self._transform = None
+        self._target_slot = None
+        self._target_section = None
+        self._ppm = None
+        self.angle_granularity = parse_angle_granularity(TPL_PATH)
+        # Scene items re-baselined/removed once a moved layout is committed by regeneration.
+        self._trajectory_items = []
+        self._obstacle_ghost_items = []
+        self._section_ghost_item = None
+
         # Load image and obstacle rectangles from the current trace.
         self.reload_from_trace()
 
@@ -692,17 +855,30 @@ class MainWindow(QMainWindow):
         target_section = target_section_from_smv(self.smv_path)
         transform = compute_fit_transform(self.trace_path, self.image_w, self.image_h)
         ppm = transform[2] if transform else 50.0
+        self._transform = transform
+        self._ppm = ppm
+
+        # The target (section 1) is user-adjustable unless it is the pinned origin section 0.
+        self._target_section = target_section
+        self._target_slot = target_slot_in_fixed_sections(TPL_PATH, target_section)
+        draggable_target = target_section != 0 and self._target_slot is not None
+        self.section_item = None
 
         self.scene.clear()
         self.rect_items = []
+        self._trajectory_items = []
+        self._obstacle_ghost_items = []
+        self._section_ghost_item = None
 
         if segments:
-            self._draw_roads(segments, splines, target_section, ppm)
+            self._draw_roads(segments, splines, target_section, ppm, draggable_target)
             # Static ghosts of the ORIGINAL obstacle positions, so the starting layout stays
             # visible once the draggable (red) obstacles are moved during a session.
             self._draw_obstacle_ghosts(rects_data)
             for rect in rects_data:
                 self.add_rectangle(*rect)
+            if draggable_target:
+                self._create_section_item(segments, target_section, ppm)
             # Frame roads AND obstacles (the fit is road-only, so obstacles may sit outside the
             # image box); a gray backdrop behind everything keeps the birdseye look.
             content = self.scene.itemsBoundingRect().adjusted(-60, -60, 60, 60)
@@ -732,8 +908,10 @@ class MainWindow(QMainWindow):
                                               abs(x2 - x1), abs(y2 - y1)),
                                        ghost_pen, ghost_brush)
             ghost.setZValue(2)
+            self._obstacle_ghost_items.append(ghost)
 
-    def _draw_roads(self, segments, splines=None, target_section=None, ppm=50.0):
+    def _draw_roads(self, segments, splines=None, target_section=None, ppm=50.0,
+                    draggable_target=False):
         """Draw connection arcs, section centerlines, and white start/target parking markings."""
         road_pen = QPen(QColor(60, 60, 60), 6)
         road_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
@@ -748,13 +926,14 @@ class MainWindow(QMainWindow):
             path = QPainterPath(QPointF(pts[0][0], pts[0][1]))
             for x, y in pts[1:]:
                 path.lineTo(x, y)
-            self.scene.addPath(path, arc_pen)
+            self._trajectory_items.append(self.scene.addPath(path, arc_pen))
         for x1, y1, x2, y2, sec, is_ego in segments:
-            self.scene.addLine(x1, y1, x2, y2, ego_pen if is_ego else road_pen)
+            self._trajectory_items.append(
+                self.scene.addLine(x1, y1, x2, y2, ego_pen if is_ego else road_pen))
         for x1, y1, x2, y2, sec, is_ego in segments:
             if is_ego:
                 self._draw_parking_marking(x1, y1, x2, y2, "START", ppm)
-            elif target_section is not None and sec == target_section:
+            elif target_section is not None and sec == target_section and not draggable_target:
                 self._draw_parking_marking(x1, y1, x2, y2, "TARGET", ppm)
 
     def _draw_parking_marking(self, x1, y1, x2, y2, label, ppm):
@@ -820,11 +999,100 @@ class MainWindow(QMainWindow):
                               int(round(br[0])), int(round(br[1]))))
         return obstacles
 
-    def _set_buttons_enabled(self, enabled):
-        for btn in (self.refresh_btn, self.envgen_btn, self.testcase_btn):
-            btn.setEnabled(enabled)
+    def _create_section_item(self, segments, target_section, ppm):
+        """Add the draggable/rotatable target section (fixed length, angle-granularity snapping)."""
+        seg = next((s for s in segments if s[4] == target_section), None)
+        if seg is None:
+            return
+        x1, y1, x2, y2, _sec, _is_ego = seg
+        length_px = math.hypot(x2 - x1, y2 - y1)
+        angle_deg = math.degrees(math.atan2(y2 - y1, x2 - x1))
+        half_w = max(6.0, ppm * 1.0)
+        self._draw_section_ghost(x1, y1, length_px, angle_deg, half_w)
+        self.section_item = RotatableSectionItem(
+            QPointF(x1, y1), length_px, angle_deg, half_w,
+            self.angle_granularity, self._on_section_changed)
+        self.scene.addItem(self.section_item)
 
-    def _run_script_with_ui(self, script, description, reload_after):
+    def _draw_section_ghost(self, x1, y1, length_px, angle_deg, half_w):
+        """Faint outline of the target section's original pose (like the obstacle ghosts)."""
+        a = math.radians(angle_deg)
+        ux, uy = math.cos(a), math.sin(a)
+        nx, ny = -uy, ux
+        x2, y2 = x1 + length_px * ux, y1 + length_px * uy
+        corners = [QPointF(x1 + nx * half_w, y1 + ny * half_w),
+                   QPointF(x2 + nx * half_w, y2 + ny * half_w),
+                   QPointF(x2 - nx * half_w, y2 - ny * half_w),
+                   QPointF(x1 - nx * half_w, y1 - ny * half_w)]
+        ghost = self.scene.addPolygon(QPolygonF(corners),
+                                      QPen(QColor(200, 160, 0), 2, Qt.PenStyle.DashLine),
+                                      QBrush(QColor(255, 200, 0, 50)))
+        ghost.setZValue(2)
+        self._section_ghost_item = ghost
+
+    def _on_section_changed(self):
+        """The target section was moved/rotated: mark the config stale and block the MC re-run."""
+        if not self._section_dirty:
+            self._section_dirty = True
+            self.refresh_btn.setEnabled(False)
+            self.refresh_btn.setToolTip(
+                "Target section moved - regenerate the EnvModels before re-running the MC.")
+
+    def _write_config_from_scene(self):
+        """Hardcode the target section pose and the obstacle positions into the tpl.json."""
+        if self.section_item is None or self._transform is None or self._target_slot is None:
+            raise RuntimeError("No adjustable target section is available to write.")
+        src = self.section_item.pos()
+        sx_w, sy_w = pixel_to_world(src.x(), src.y(), self._transform, self.image_w, self.image_h)
+        angle = int(round(self.section_item.rotation())) % 360
+        obstacles = self.collect_obstacles_world()
+        patch_tpl_config(TPL_PATH, self._target_slot,
+                         int(round(sx_w)), int(round(sy_w)), angle, obstacles)
+
+    def _on_regen_success(self):
+        """After a successful regeneration the drawn layout matches the config again."""
+        committed = self._section_dirty
+        if self._section_dirty:
+            self._section_dirty = False
+            self.refresh_btn.setEnabled(True)
+            self.refresh_btn.setToolTip("")
+        if committed:
+            self._commit_scene()
+
+    def _commit_scene(self):
+        """Lock in the moved layout: drop the now-stale trajectory and re-baseline the ghosts."""
+        for item in self._trajectory_items:
+            self.scene.removeItem(item)
+        self._trajectory_items = []
+
+        # Obstacle ghosts snap onto the committed (moved) obstacle positions.
+        for ghost in self._obstacle_ghost_items:
+            self.scene.removeItem(ghost)
+        self._obstacle_ghost_items = []
+        current = []
+        for item in self.rect_items:
+            r = item.mapRectToScene(item.rect())
+            current.append((r.left(), r.top(), r.right(), r.bottom()))
+        self._draw_obstacle_ghosts(current)
+
+        # Section ghost snaps under the committed target-section pose.
+        if self._section_ghost_item is not None:
+            self.scene.removeItem(self._section_ghost_item)
+            self._section_ghost_item = None
+        if self.section_item is not None:
+            pos = self.section_item.pos()
+            half_w = max(6.0, (self._ppm or 50.0) * 1.0)
+            self._draw_section_ghost(pos.x(), pos.y(), self.section_item.length_px,
+                                     self.section_item.rotation(), half_w)
+
+    def _set_buttons_enabled(self, enabled):
+        self.envgen_btn.setEnabled(enabled)
+        self.testcase_btn.setEnabled(enabled)
+        # The MC re-run stays disabled while section 1 is moved: the current packages are stale
+        # until EnvModel regeneration writes the new pose into the config.
+        self.refresh_btn.setEnabled(enabled and not self._section_dirty)
+
+    def _run_script_with_ui(self, script, description, reload_after, on_success=None):
         """Run a vfm script with wait-cursor/disabled buttons and a completion dialog."""
         self._set_buttons_enabled(False)
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
@@ -839,6 +1107,9 @@ class MainWindow(QMainWindow):
             QApplication.restoreOverrideCursor()
             self._set_buttons_enabled(True)
 
+        if error is None and on_success is not None:
+            on_success()
+
         if error is None and reload_after:
             self.reload_from_trace()
 
@@ -850,7 +1121,16 @@ class MainWindow(QMainWindow):
                                     f"{description} completed successfully.")
 
     def run_envmodel_generation(self):
-        self._run_script_with_ui(ENVGEN_SCRIPT, "EnvModel generation", reload_after=False)
+        # A moved target section must be written into the config (with the obstacles hardcoded)
+        # BEFORE regenerating, so the new EnvModels reflect the drawn layout.
+        if self._section_dirty:
+            try:
+                self._write_config_from_scene()
+            except (RuntimeError, OSError, ValueError) as e:
+                QMessageBox.critical(self, "Config update failed", str(e))
+                return
+        self._run_script_with_ui(ENVGEN_SCRIPT, "EnvModel generation", reload_after=False,
+                                 on_success=self._on_regen_success)
 
     def run_testcase_generation(self):
         self._run_script_with_ui(TESTCASE_SCRIPT, "Test case generation (smooth birdseye)",
