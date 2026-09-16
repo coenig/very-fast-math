@@ -285,6 +285,7 @@ VAR
 
 INIT ego.on_section = 0;
 
+-- Caution: the below variables should remain as is, since they're directly changed by the mc_parker.
 DEFINE
    @{
       rect_obstacles_tl_x_[obs] := @{rect_obstacles_tl_x_[obs]}@.scriptVar;
@@ -292,7 +293,7 @@ DEFINE
       rect_obstacles_br_x_[obs] := @{rect_obstacles_br_x_[obs]}@.scriptVar;
       rect_obstacles_br_y_[obs] := @{rect_obstacles_br_y_[obs]}@.scriptVar;
    }@*.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
-
+-- EO Caution
 
 -- TDOO: The below two chunks for checking collisions with obstacles on a approximation basis are COP-generated.
 -- They work, but might be too costly. Keep in mind to possibly revert.

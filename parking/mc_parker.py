@@ -63,31 +63,49 @@ def package_image_path(package_dir):
     return os.path.join(package_dir, "0", "preview2", "preview2_0.png")
 
 
+def package_main_smv_path(package_dir):
+    return os.path.join(package_dir, "main.smv")
+
+
+def clear_package_trace(package_dir):
+    """Delete a package's leftover debug_trace_array.txt so its content reflects THIS run only.
+
+    debug_trace_array.txt is nuXmv's output log: a completed check always (re)writes it, with the
+    counterexample state list on a CEX or only "no counterexample found ... up to N" lines on a
+    blind (no-CEX) result. But runMCJobs runs with delete_old_output=false, so if a check is
+    KILLED before nuXmv runs (as the race does to losers) the previous run's log lingers untouched.
+    Removing it up front means a present file is necessarily from this run: CEX content => winner,
+    blind content => dropout, absent => never actually checked (no stale result can masquerade).
+    """
+    try:
+        os.remove(package_trace_path(package_dir))
+    except FileNotFoundError:
+        pass
+
+
 def select_startup_package():
     """Pick which variant folder the GUI opens on launch.
 
-    A first-solution run may model-check several configs at once (one gp* package each). The one
-    that finishes first writes its counterexample trace + preview while the others are still
-    running (or get killed manually), so the winner is the package with a complete counterexample
-    whose preview was written most recently. This also ignores stale leftovers from earlier runs
-    (runMCJobs keeps old output), since those carry older preview timestamps. Falls back to the
-    base gp_config, then to any package with a preview, so the GUI always opens something.
+    A first-solution run may model-check several configs at once (one gp* package each). The
+    winner is the package whose trace holds a counterexample; the newest such trace wins (older
+    leftovers from earlier runs carry older timestamps). The preview image is optional -- the
+    roads are drawn from the trace itself -- so selection keys off the trace, not the preview.
+    Falls back to any package with a readable trace, then to the base gp_config.
     """
     candidates = discover_mc_packages()
     base = os.path.join(EXAMPLES_DIR, "gp_config")
     if os.path.isdir(base) and base not in candidates:
         candidates.append(base)
 
-    solved = [p for p in candidates
-              if os.path.isfile(package_image_path(p))
-              and trace_has_counterexample(package_trace_path(p))]
+    solved = [p for p in candidates if package_has_fresh_counterexample(p)]
     if solved:
-        return max(solved, key=lambda p: os.path.getmtime(package_image_path(p)))
+        return max(solved, key=lambda p: os.path.getmtime(package_trace_path(p)))
 
-    if os.path.isfile(package_image_path(base)):
-        return base
-    with_preview = [p for p in candidates if os.path.isfile(package_image_path(p))]
-    return with_preview[0] if with_preview else base
+    with_trace = [p for p in candidates if os.path.isfile(package_trace_path(p))]
+    if with_trace:
+        return max(with_trace, key=lambda p: os.path.getmtime(package_trace_path(p)))
+
+    return base
 
 
 def _kill_process_group(proc):
@@ -132,9 +150,9 @@ def race_first_solution(poll_interval=1.0):
         print("No 'gp' packages found. Run EnvModel generation first.")
         return None
 
-    pre_mtime = {p: (os.path.getmtime(package_image_path(p))
-                     if os.path.isfile(package_image_path(p)) else -1.0)
-                 for p in packages}
+    # Clear leftover traces so a package can only win by producing a CEX in THIS run.
+    for p in packages:
+        clear_package_trace(p)
 
     print(f"Racing {len(packages)} config(s); first counterexample wins...")
     proc = subprocess.Popen(
@@ -142,25 +160,22 @@ def race_first_solution(poll_interval=1.0):
         cwd=REPO_ROOT, start_new_session=True,
         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    def winner(require_fresh):
+    def winner():
+        # A win requires a FRESH counterexample (trace newer than the just-built main.smv);
+        # a leftover CEX from a previous model must not end the race.
         for p in packages:
-            if not trace_has_counterexample(package_trace_path(p)):
-                continue
-            if not require_fresh:
-                return p
-            img = package_image_path(p)
-            if os.path.isfile(img) and os.path.getmtime(img) > pre_mtime.get(p, -1.0):
+            if package_has_fresh_counterexample(p):
                 return p
         return None
 
     win = None
     try:
         while True:
-            win = winner(True)
+            win = winner()
             if win:
                 break
-            if proc.poll() is not None:  # worker finished without a fresh winner
-                win = winner(False)
+            if proc.poll() is not None:  # worker finished
+                win = winner()
                 break
             time.sleep(poll_interval)
     except KeyboardInterrupt:
@@ -182,6 +197,8 @@ def _read_trace_values(trace_path):
     """
     values = {}
     line_re = re.compile(r'^\s*([A-Za-z_][\w.]*)\s*=\s*(-?\d+(?:\.\d+)?)\s*$')
+    if not os.path.isfile(trace_path):
+        return values
     with open(trace_path, "r") as f:
         for line in f:
             m = line_re.match(line)
@@ -618,6 +635,30 @@ def trace_has_counterexample(trace_path):
     return ("Trace Type: Counterexample" in content
             or "as demonstrated by the following" in content)
 
+
+def package_has_fresh_counterexample(package_dir):
+    """True only if the package's trace holds a real counterexample AND postdates its model files.
+
+    Two independent things must hold. (1) CONTENT: trace_has_counterexample distinguishes a real
+    CEX (state list) from a blind "no counterexample found ... up to N" log -- both are written to
+    debug_trace_array.txt, so content, not mere presence, decides winner vs dropout. (2) FRESHNESS:
+    a KILLED check (race loser) never overwrites the file, so a prior run's CEX can linger; gate
+    the trace mtime against the NEWEST of EnvModel.smv (the authoritative input the GUI patches)
+    and main.smv (the built model nuXmv checks) so a stale or post-build-patched CEX is rejected.
+    Pre-race clear_package_trace makes (2) mostly moot, but it stays as a cheap second guard.
+    """
+    trace_path = package_trace_path(package_dir)
+    if not trace_has_counterexample(trace_path):
+        return False
+    model_mtime = -1.0
+    for model_path in (package_main_smv_path(package_dir),
+                       os.path.join(package_dir, "EnvModel.smv")):
+        if os.path.isfile(model_path):
+            model_mtime = max(model_mtime, os.path.getmtime(model_path))
+    if model_mtime < 0:
+        return True  # no model files to compare against; treat the trace as authoritative
+    return os.path.getmtime(trace_path) >= model_mtime
+
 # Handle item for resizing
 class ResizeHandle(QGraphicsRectItem):
     def __init__(self, parent, is_bottom_right=True):
@@ -802,6 +843,12 @@ class MainWindow(QMainWindow):
         self.refresh_btn = QPushButton("Re-run Model Checker (first counterexample wins)")
         self.refresh_btn.clicked.connect(self.trigger_external_process)
         layout.addWidget(self.refresh_btn)
+
+        # Stays clickable while the MC race runs; kills every nuXmv instance at once.
+        self.terminate_btn = QPushButton("Terminate Model Checker (kill all nuXmv)")
+        self.terminate_btn.clicked.connect(self.terminate_race)
+        self.terminate_btn.setEnabled(False)
+        layout.addWidget(self.terminate_btn)
 
         self.envgen_btn = QPushButton("Re-run EnvModel Generation")
         self.envgen_btn.clicked.connect(self.run_envmodel_generation)
@@ -1174,15 +1221,21 @@ class MainWindow(QMainWindow):
             if os.path.isfile(src):
                 shutil.copy2(src, dst)
 
-        # Snapshot each variant's preview mtime. A winner must have a freshly rewritten preview
-        # (written AFTER its trace) so we never adopt a stale prior-run result: runMCJobs runs
-        # with delete_old_output=false, leaving previous debug_trace_array.txt/preview files.
+        # Clear every variant's leftover trace so its content reflects THIS run: runMCJobs runs
+        # with delete_old_output=false, so a race loser that is KILLED before nuXmv runs would
+        # keep a prior debug_trace_array.txt. After clearing, a present file is from this run --
+        # CEX content => winner, blind ("no counterexample ... up to N") => dropout, absent => unchecked.
         self._race_packages = packages
-        self._race_pre_mtime = {
-            p: (os.path.getmtime(package_image_path(p))
-                if os.path.isfile(package_image_path(p)) else -1.0)
+        for pkg in packages:
+            clear_package_trace(pkg)
+        # A variant's mc_runtimes.txt is bumped only after its nuXmv exits (and the trace is
+        # already fully written), so a bump tells us that variant finished -> report no-CEX ones.
+        self._race_pre_runtime_mtime = {
+            p: (os.path.getmtime(os.path.join(p, "mc_runtimes.txt"))
+                if os.path.isfile(os.path.join(p, "mc_runtimes.txt")) else -1.0)
             for p in packages
         }
+        self._race_reported_dropouts = set()
 
         self._set_buttons_enabled(False)
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
@@ -1199,39 +1252,69 @@ class MainWindow(QMainWindow):
             QMessageBox.critical(self, "Launch failed", f"Could not start model checker: {e}")
             return
 
+        self.terminate_btn.setEnabled(True)
         self.race_timer.start()
 
-    def _race_winner(self, require_fresh_preview):
-        """First variant (in folder order) with a counterexample; optionally require fresh preview."""
+    def _race_winner(self):
+        """First variant (in folder order) with a fresh counterexample from THIS run.
+
+        Leftover traces were cleared at race start, so any CEX trace present now was produced by
+        the current check; the mtime gate in package_has_fresh_counterexample is a second guard.
+        """
         for pkg in self._race_packages:
-            if not trace_has_counterexample(package_trace_path(pkg)):
-                continue
-            if not require_fresh_preview:
-                return pkg
-            img = package_image_path(pkg)
-            if os.path.isfile(img) and os.path.getmtime(img) > self._race_pre_mtime.get(pkg, -1.0):
+            if package_has_fresh_counterexample(pkg):
                 return pkg
         return None
 
     def _poll_race(self):
-        # An early winner (fresh preview => trace + image both fully written) ends the race now.
-        winner = self._race_winner(require_fresh_preview=True)
+        # Report variants that finished without a counterexample so a long race can be judged.
+        self._report_dropouts()
+
+        # The first variant to produce a fresh counterexample ends the race immediately.
+        winner = self._race_winner()
         if winner is not None:
             self._finish_race(winner, error=False)
             return
 
         rc = self._race_proc.poll()
         if rc is not None:
-            # Worker finished without a fresh-preview winner. Relax to any variant carrying a
-            # counterexample marker (previews are already complete since the run is over).
-            winner = self._race_winner(require_fresh_preview=False)
+            # Worker finished: no variant produced a counterexample this run.
+            winner = self._race_winner()
             self._finish_race(winner, error=(winner is None and rc != 0))
 
-    def _finish_race(self, winner, error):
+    def _report_dropouts(self):
+        """Print each variant whose MODEL CHECK finished without a counterexample, once.
+
+        Each variant appends to mc_runtimes.txt twice: after building (kratos) and again after
+        the nuXmv check. Only the nuXmv line means the check actually ran, so a bare mtime bump
+        (build done, check still pending or killed) must not be mistaken for a no-CEX result.
+        """
+        for pkg in self._race_packages:
+            if pkg in self._race_reported_dropouts:
+                continue
+            runtime_file = os.path.join(pkg, "mc_runtimes.txt")
+            if not os.path.isfile(runtime_file):
+                continue
+            if os.path.getmtime(runtime_file) <= self._race_pre_runtime_mtime.get(pkg, -1.0):
+                continue
+            try:
+                with open(runtime_file, "r", errors="replace") as f:
+                    lines = [ln for ln in f.read().splitlines() if ln.strip()]
+            except OSError:
+                continue
+            if not lines or "nuXmv" not in lines[-1]:
+                continue  # built but the check has not (yet) finished for this variant
+            if package_has_fresh_counterexample(pkg):
+                continue
+            self._race_reported_dropouts.add(pkg)
+            print(f"\u26aa {os.path.basename(pkg)} finished with no counterexample (dropped out).")
+
+    def _finish_race(self, winner, error, aborted_by_user=False):
         self.race_timer.stop()
         _kill_process_group(self._race_proc)
         self._race_proc = None
         QApplication.restoreOverrideCursor()
+        self.terminate_btn.setEnabled(False)
         self._set_buttons_enabled(True)
 
         if winner is not None:
@@ -1253,7 +1336,12 @@ class MainWindow(QMainWindow):
                 shutil.move(backup, dst)
         self.reload_from_trace()
 
-        if error:
+        if aborted_by_user:
+            QMessageBox.information(
+                self, "Model checker terminated",
+                "Terminated all model-checker instances.\n"
+                "Restored the previous trace and image.")
+        elif error:
             QMessageBox.warning(
                 self, "Model checker aborted",
                 "The model checker run was aborted or failed.\n"
@@ -1263,6 +1351,13 @@ class MainWindow(QMainWindow):
                 self, "No counterexample",
                 "No configured variant produced a counterexample for the new obstacle layout.\n"
                 "Restored the previous trace and image.")
+
+    def terminate_race(self):
+        """Kill every nuXmv instance of the in-flight MC race (leaves other actions untouched)."""
+        if self._race_proc is None:
+            return
+        print("\U0001f6d1 Terminating all model-checker instances...")
+        self._finish_race(winner=None, error=False, aborted_by_user=True)
 
     def closeEvent(self, event):
         """Never leave an orphaned worker (and its nuXmv children) running after the window closes."""
