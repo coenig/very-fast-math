@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from ctypes import create_string_buffer, sizeof
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QPushButton, QGraphicsView, QGraphicsScene, QGraphicsRectItem,
-                             QMessageBox)
+                             QGraphicsEllipseItem, QGraphicsSimpleTextItem, QMessageBox)
 from PyQt6.QtCore import Qt, QRectF, QTimer, QPointF
 from PyQt6.QtGui import QPixmap, QBrush, QPen, QColor, QPainterPath, QPolygonF, QFont
 
@@ -547,21 +547,24 @@ def patch_tpl_config(tpl_path, target_slot, section_x, section_y, section_angle,
 
     Only the affected \"key\": \"...\" values are rewritten; the fixed-section arrays keep every
     other slot (crucially section 0 at 0/0/0). 'obstacles' is a list of (tl_x, tl_y, br_x, br_y).
+    Pass target_slot=None (with section_* None) to rewrite only the obstacles.
     """
     with open(tpl_path) as f:
         content = f.read()
 
-    for key, value in (("FIXED_SECTION_SOURCE_Xs", section_x),
-                       ("FIXED_SECTION_SOURCE_Ys", section_y),
-                       ("FIXED_SECTION_ANGLEs", section_angle)):
-        m = re.search(r'"' + key + r'"\s*:\s*"([^"]*)"', content)
-        if not m:
-            raise RuntimeError(f"Could not find key '{key}' in {tpl_path}.")
-        vals = _parse_paren_list(m.group(1))
-        if target_slot >= len(vals):
-            raise RuntimeError(f"Target slot {target_slot} out of range for '{key}' ({vals}).")
-        vals[target_slot] = str(value)
-        content = _replace_tpl_string_value(content, key, _format_paren_list(vals))
+    # target_slot is None when no draggable section exists: then only the obstacles are rewritten.
+    if target_slot is not None:
+        for key, value in (("FIXED_SECTION_SOURCE_Xs", section_x),
+                           ("FIXED_SECTION_SOURCE_Ys", section_y),
+                           ("FIXED_SECTION_ANGLEs", section_angle)):
+            m = re.search(r'"' + key + r'"\s*:\s*"([^"]*)"', content)
+            if not m:
+                raise RuntimeError(f"Could not find key '{key}' in {tpl_path}.")
+            vals = _parse_paren_list(m.group(1))
+            if target_slot >= len(vals):
+                raise RuntimeError(f"Target slot {target_slot} out of range for '{key}' ({vals}).")
+            vals[target_slot] = str(value)
+            content = _replace_tpl_string_value(content, key, _format_paren_list(vals))
 
     packed = {
         "RECT_OBSTACLES_TL_Xs": [str(o[0]) for o in obstacles],
@@ -713,9 +716,38 @@ class ResizeHandle(QGraphicsRectItem):
         event.accept()
 
 
+class DeleteHandle(QGraphicsEllipseItem):
+    """Small red 'x' badge at an obstacle's top-right corner; clicking it removes the obstacle."""
+    def __init__(self, parent, on_delete):
+        super().__init__(-9, -9, 18, 18, parent)
+        self.parent_rect = parent
+        self._on_delete = on_delete
+        self.setBrush(QBrush(QColor(200, 0, 0)))
+        self.setPen(QPen(QColor("white"), 2))
+        self.setFlag(QGraphicsEllipseItem.GraphicsItemFlag.ItemIgnoresTransformations)
+        self.setZValue(3)  # above the resize handles so it stays clickable
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setToolTip("Remove this obstacle")
+        cross = QGraphicsSimpleTextItem("\u00d7", self)
+        cross.setBrush(QBrush(QColor("white")))
+        cross.setFont(QFont("Sans", 11, QFont.Weight.Bold))
+        br = cross.boundingRect()
+        cross.setPos(-br.width() / 2.0, -br.height() / 2.0)
+        self.update_position()
+
+    def update_position(self):
+        rect = self.parent_rect.rect()
+        self.setPos(rect.right(), rect.top())
+
+    def mousePressEvent(self, event):
+        event.accept()
+        if self._on_delete is not None:
+            self._on_delete(self.parent_rect)
+
+
 # Custom rectangle item with handles
 class ResizableRectItem(QGraphicsRectItem):
-    def __init__(self, x, y, w, h):
+    def __init__(self, x, y, w, h, on_delete=None):
         super().__init__(0, 0, w, h)
         self.setPos(x, y)
         self._updating_handles = False
@@ -732,9 +764,12 @@ class ResizableRectItem(QGraphicsRectItem):
 
         self.tl_handle = None
         self.br_handle = None
+        self.delete_handle = None
 
         self.tl_handle = ResizeHandle(self, is_bottom_right=False)
         self.br_handle = ResizeHandle(self, is_bottom_right=True)
+        if on_delete is not None:
+            self.delete_handle = DeleteHandle(self, on_delete)
         
         self.update_handles()
 
@@ -744,6 +779,8 @@ class ResizableRectItem(QGraphicsRectItem):
             self.tl_handle.update_position()
         if self.br_handle and self.br_handle != exclude:
             self.br_handle.update_position()
+        if self.delete_handle is not None:
+            self.delete_handle.update_position()
         self._updating_handles = False
 
     def itemChange(self, change, value):
@@ -842,6 +879,12 @@ class MainWindow(QMainWindow):
         
         layout.addWidget(self.view)
 
+        # Drops a new draggable obstacle; like moving section 1, this needs an EnvModel regen
+        # (the obstacle COUNT changes, which patch_smv_obstacles cannot do on the fly).
+        self.add_obstacle_btn = QPushButton("Add Obstacle")
+        self.add_obstacle_btn.clicked.connect(self.add_obstacle)
+        layout.addWidget(self.add_obstacle_btn)
+
         # Model checks every configured variant in parallel and adopts the first counterexample
         # (a single-variant config is just the degenerate one-runner case).
         self.refresh_btn = QPushButton("Re-run Model Checker (first counterexample wins)")
@@ -871,6 +914,8 @@ class MainWindow(QMainWindow):
         # Target-section (section 1) editing state. Moving/rotating it invalidates the current
         # packages, so the MC re-run is blocked until the EnvModels are regenerated.
         self._section_dirty = False
+        # Adding/removing obstacles also invalidates the packages (the obstacle count changes).
+        self._obstacles_dirty = False
         self.section_item = None
         self._transform = None
         self._target_slot = None
@@ -1031,9 +1076,31 @@ class MainWindow(QMainWindow):
         w = abs(x2 - x1)
         h = abs(y2 - y1)
         
-        rect_item = ResizableRectItem(x, y, w, h)
+        rect_item = ResizableRectItem(x, y, w, h, on_delete=self._remove_obstacle)
         self.scene.addItem(rect_item)
         self.rect_items.append(rect_item)
+
+    def add_obstacle(self):
+        """Drop a new obstacle in the middle of the view; needs a regen before the MC can run."""
+        rect = self.scene.sceneRect()
+        size = (self._ppm or 50.0) * 3.0  # ~3 m square default
+        cx, cy = rect.center().x(), rect.center().y()
+        self.add_rectangle(cx - size / 2.0, cy - size / 2.0,
+                           cx + size / 2.0, cy + size / 2.0)
+        self._mark_obstacles_dirty()
+
+    def _remove_obstacle(self, item):
+        """Delete an obstacle from the scene; needs a regen before the MC can run again."""
+        if item in self.rect_items:
+            self.rect_items.remove(item)
+        self.scene.removeItem(item)
+        self._mark_obstacles_dirty()
+
+    def _mark_obstacles_dirty(self):
+        """The obstacle set changed: block the MC re-run until the EnvModels are regenerated."""
+        self._obstacles_dirty = True
+        self._block_mc_until_regen(
+            "Obstacles added/removed - regenerate the EnvModels before re-running the MC.")
 
     def collect_obstacles_world(self):
         """Inverse-transform the current on-screen rectangles back to integer world coords."""
@@ -1089,29 +1156,40 @@ class MainWindow(QMainWindow):
         """The target section was moved/rotated: mark the config stale and block the MC re-run."""
         if not self._section_dirty:
             self._section_dirty = True
-            self.refresh_btn.setEnabled(False)
-            self.refresh_btn.setToolTip(
+            self._block_mc_until_regen(
                 "Target section moved - regenerate the EnvModels before re-running the MC.")
 
+    def _block_mc_until_regen(self, reason):
+        """Grey out the MC re-run and explain that an EnvModel regeneration is required first."""
+        self.refresh_btn.setEnabled(False)
+        self.refresh_btn.setToolTip(reason)
+
+    def _config_dirty(self):
+        """True while the scene has un-regenerated edits (section pose or obstacle set)."""
+        return self._section_dirty or self._obstacles_dirty
+
     def _write_config_from_scene(self):
-        """Hardcode the target section pose and the obstacle positions into the tpl.json."""
-        if self.section_item is None or self._transform is None or self._target_slot is None:
-            raise RuntimeError("No adjustable target section is available to write.")
-        src = self.section_item.pos()
-        sx_w, sy_w = pixel_to_world(src.x(), src.y(), self._transform, self.image_w, self.image_h)
-        angle = int(round(self.section_item.rotation())) % 360
+        """Hardcode the target section pose (when adjustable) and obstacles into the tpl.json."""
+        if self._transform is None:
+            raise RuntimeError("No transform available to write the scene into the config.")
         obstacles = self.collect_obstacles_world()
-        patch_tpl_config(TPL_PATH, self._target_slot,
-                         int(round(sx_w)), int(round(sy_w)), angle, obstacles)
+        if self.section_item is not None and self._target_slot is not None:
+            src = self.section_item.pos()
+            sx_w, sy_w = pixel_to_world(src.x(), src.y(), self._transform, self.image_w, self.image_h)
+            angle = int(round(self.section_item.rotation())) % 360
+            patch_tpl_config(TPL_PATH, self._target_slot,
+                             int(round(sx_w)), int(round(sy_w)), angle, obstacles)
+        else:
+            patch_tpl_config(TPL_PATH, None, None, None, None, obstacles)
 
     def _on_regen_success(self):
         """After a successful regeneration the drawn layout matches the config again."""
-        committed = self._section_dirty
-        if self._section_dirty:
-            self._section_dirty = False
+        committed = self._config_dirty()
+        self._section_dirty = False
+        self._obstacles_dirty = False
+        if committed:
             self.refresh_btn.setEnabled(True)
             self.refresh_btn.setToolTip("")
-        if committed:
             self._commit_scene()
 
     def _commit_scene(self):
@@ -1143,9 +1221,10 @@ class MainWindow(QMainWindow):
     def _set_buttons_enabled(self, enabled):
         self.envgen_btn.setEnabled(enabled)
         self.testcase_btn.setEnabled(enabled)
-        # The MC re-run stays disabled while section 1 is moved: the current packages are stale
-        # until EnvModel regeneration writes the new pose into the config.
-        self.refresh_btn.setEnabled(enabled and not self._section_dirty)
+        self.add_obstacle_btn.setEnabled(enabled)
+        # The MC re-run stays disabled while section 1 or the obstacle set has un-regenerated
+        # edits: the current packages are stale until EnvModel regeneration writes them in.
+        self.refresh_btn.setEnabled(enabled and not self._config_dirty())
 
     def _run_script_with_ui(self, script, description, reload_after, on_success=None):
         """Run a vfm script with wait-cursor/disabled buttons and a completion dialog."""
@@ -1176,9 +1255,9 @@ class MainWindow(QMainWindow):
                                     f"{description} completed successfully.")
 
     def run_envmodel_generation(self):
-        # A moved target section must be written into the config (with the obstacles hardcoded)
+        # A moved target section or a changed obstacle set must be written into the config
         # BEFORE regenerating, so the new EnvModels reflect the drawn layout.
-        if self._section_dirty:
+        if self._config_dirty():
             try:
                 self._write_config_from_scene()
             except (RuntimeError, OSError, ValueError) as e:
@@ -1205,8 +1284,11 @@ class MainWindow(QMainWindow):
             return  # A race is already in flight.
 
         obstacles_world = self.collect_obstacles_world()
-        if not obstacles_world:
-            QMessageBox.warning(self, "No obstacles", "No obstacle rectangles to write.")
+        # Zero obstacles is a valid scenario (empty lot); only warn when rectangles are on screen
+        # but cannot be mapped to world coords (a genuine transform failure).
+        if self.rect_items and not obstacles_world:
+            QMessageBox.warning(self, "Obstacle mapping failed",
+                                "Could not map the on-screen obstacles to world coordinates.")
             return
 
         packages = discover_mc_packages()
