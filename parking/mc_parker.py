@@ -327,6 +327,26 @@ def pixel_to_world(px, py, transform, image_width, image_height):
             (py - image_height / 2.0) / ppm + center_y)
 
 
+def _snap_scene_to_world_raster(px, py, transform, image_width, image_height, step=1.0):
+    """Snap a scene/pixel point onto the world raster (integer metres) the tpl.json quantises to."""
+    wx, wy = pixel_to_world(px, py, transform, image_width, image_height)
+    return world_to_pixel(round(wx / step) * step, round(wy / step) * step,
+                          transform, image_width, image_height)
+
+
+# Set by MainWindow once the world<->pixel transform for the current scene is known, so the
+# draggable items can snap their pose onto the same 1 m world raster as the target-section angle
+# snaps to its granularity. None (identity) until a transform is available.
+_scene_raster_snap = None  # callable(scene_x, scene_y) -> (scene_x, scene_y)
+
+
+def snap_scene_point(px, py):
+    """Snap a scene point onto the active 1 m world raster (identity if no transform is set)."""
+    if _scene_raster_snap is None:
+        return px, py
+    return _scene_raster_snap(px, py)
+
+
 def read_obstacles_world(trace_path):
     """Return obstacles as [(tl_x, tl_y, br_x, br_y), ...] in world coords, by index order."""
     get = _trace_getter(trace_path)
@@ -696,9 +716,11 @@ class ResizeHandle(QGraphicsRectItem):
 
     def mouseMoveEvent(self, event):
         # Resize by mapping the cursor's scene position into the rect's local space,
-        # so it works correctly regardless of the view's zoom/fit scale.
+        # so it works correctly regardless of the view's zoom/fit scale. The dragged corner
+        # snaps to the 1 m world raster (the opposite corner is already on it).
         parent = self.parent_rect
-        local = parent.mapFromScene(event.scenePos())
+        snapped = QPointF(*snap_scene_point(event.scenePos().x(), event.scenePos().y()))
+        local = parent.mapFromScene(snapped)
         rect = parent.rect()
         if self.is_bottom_right:
             new_w = max(10, local.x() - rect.left())
@@ -773,6 +795,16 @@ class ResizableRectItem(QGraphicsRectItem):
         
         self.update_handles()
 
+    def set_editable(self, editable):
+        """Clean-view toggle: hide the resize/delete handles and lock the obstacle in place."""
+        for handle in (self.tl_handle, self.br_handle, self.delete_handle):
+            if handle is not None:
+                handle.setVisible(editable)
+        self.setFlag(QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable, editable)
+        self.setFlag(QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable, editable)
+        if not editable:
+            self.setSelected(False)
+
     def update_handles(self, exclude=None):
         self._updating_handles = True
         if self.tl_handle and self.tl_handle != exclude:
@@ -785,6 +817,11 @@ class ResizableRectItem(QGraphicsRectItem):
 
     def itemChange(self, change, value):
         if change == QGraphicsRectItem.GraphicsItemChange.ItemPositionChange:
+            # Snap the obstacle's top-left corner onto the 1 m world raster while dragging; the
+            # rect's size stays constant (already raster-aligned), so both corners land on it.
+            sx, sy = snap_scene_point(value.x(), value.y())
+            return QPointF(sx, sy)
+        if change == QGraphicsRectItem.GraphicsItemChange.ItemPositionHasChanged:
             self.update_handles()
         return super().itemChange(change, value)
 
@@ -842,11 +879,25 @@ class RotatableSectionItem(QGraphicsRectItem):
         )
         self.handle = SectionRotateHandle(self)
 
+    def set_editable(self, editable):
+        """Clean-view toggle: hide the rotate handle and lock the section in place."""
+        if self.handle is not None:
+            self.handle.setVisible(editable)
+        self.setFlag(QGraphicsRectItem.GraphicsItemFlag.ItemIsMovable, editable)
+        self.setFlag(QGraphicsRectItem.GraphicsItemFlag.ItemIsSelectable, editable)
+        if not editable:
+            self.setSelected(False)
+
     def notify_changed(self):
         if self._on_changed is not None:
             self._on_changed()
 
     def itemChange(self, change, value):
+        if change == QGraphicsRectItem.GraphicsItemChange.ItemPositionChange:
+            # Snap the section's source end onto the 1 m world raster while dragging, matching the
+            # angle-granularity snap of the rotate handle and the raster the tpl.json quantises to.
+            sx, sy = snap_scene_point(value.x(), value.y())
+            return QPointF(sx, sy)
         if change == QGraphicsRectItem.GraphicsItemChange.ItemPositionHasChanged:
             self.notify_changed()
         return super().itemChange(change, value)
@@ -905,6 +956,14 @@ class MainWindow(QMainWindow):
         self.testcase_btn.clicked.connect(self.run_testcase_generation)
         layout.addWidget(self.testcase_btn)
 
+        # Clean-view toggle: hides all editing handles and locks items so the birdseye can be
+        # screenshotted without resize/rotate/delete decorations. Purely visual, no config change.
+        self.visu_mode = False
+        self.visu_btn = QPushButton("Clean View for Screenshots (hide handles)")
+        self.visu_btn.setCheckable(True)
+        self.visu_btn.clicked.connect(self.toggle_visu_mode)
+        layout.addWidget(self.visu_btn)
+
         # Race state: a killable worker process plus a poll timer watching the variant folders.
         self._race_proc = None
         self.race_timer = QTimer(self)
@@ -954,6 +1013,14 @@ class MainWindow(QMainWindow):
         self._transform = transform
         self._ppm = ppm
 
+        # Activate 1 m world-raster snapping for the draggable items against this scene's transform.
+        global _scene_raster_snap
+        if transform is not None:
+            _scene_raster_snap = (lambda px, py, t=transform, iw=self.image_w, ih=self.image_h:
+                                  _snap_scene_to_world_raster(px, py, t, iw, ih))
+        else:
+            _scene_raster_snap = None
+
         # The target (section 1) is user-adjustable unless it is the pinned origin section 0.
         self._target_section = target_section
         self._target_slot = target_slot_in_fixed_sections(TPL_PATH, target_section)
@@ -993,6 +1060,7 @@ class MainWindow(QMainWindow):
             for rect in rects_data:
                 self.add_rectangle(*rect)
 
+        self._apply_visu_mode()
         self.scale_to_fit()
 
     def _draw_obstacle_ghosts(self, rects_data):
@@ -1038,7 +1106,7 @@ class MainWindow(QMainWindow):
         length = math.hypot(dx, dy) or 1.0
         ux, uy = dx / length, dy / length
         nx, ny = -uy, ux                    # unit normal
-        half = ppm * 1.0                    # ~2 m wide bay (1 m half-width), in world proportion
+        half = ppm * 1.25                    # ~2 m wide bay (1 m half-width), in world proportion
         thickness = max(3.0, ppm * 0.15)    # ~0.15 m painted line, like real markings
         corners = [
             QPointF(x1 + nx * half, y1 + ny * half),
@@ -1065,12 +1133,31 @@ class MainWindow(QMainWindow):
         if not self.scene.sceneRect().isEmpty():
             self.view.fitInView(self.scene.sceneRect(), Qt.AspectRatioMode.KeepAspectRatio)
 
+    def toggle_visu_mode(self):
+        """Flip the clean-view mode and (re)apply it to every editable item on the scene."""
+        self.visu_mode = self.visu_btn.isChecked()
+        self.visu_btn.setText(
+            "Editing View (show handles)" if self.visu_mode
+            else "Clean View for Screenshots (hide handles)")
+        self._apply_visu_mode()
+
+    def _apply_visu_mode(self):
+        """Show/hide handles and lock/unlock all obstacles and the target section."""
+        editable = not self.visu_mode
+        for item in self.rect_items:
+            item.set_editable(editable)
+        if self.section_item is not None:
+            self.section_item.set_editable(editable)
+
     def resizeEvent(self, event):
         """💡 Hook into window resize events to recalculate scale instantly."""
         super().resizeEvent(event)
         self.scale_to_fit()
 
     def add_rectangle(self, x1, y1, x2, y2):
+        # Snap both corners onto the 1 m world raster so new/loaded obstacles start aligned.
+        x1, y1 = snap_scene_point(x1, y1)
+        x2, y2 = snap_scene_point(x2, y2)
         x = min(x1, x2)
         y = min(y1, y2)
         w = abs(x2 - x1)
@@ -1129,7 +1216,7 @@ class MainWindow(QMainWindow):
         x1, y1, x2, y2, _sec, _is_ego = seg
         length_px = math.hypot(x2 - x1, y2 - y1)
         angle_deg = math.degrees(math.atan2(y2 - y1, x2 - x1))
-        half_w = max(6.0, ppm * 1.0)
+        half_w = max(6.0, ppm * 1.25)
         self._draw_section_ghost(x1, y1, length_px, angle_deg, half_w)
         self.section_item = RotatableSectionItem(
             QPointF(x1, y1), length_px, angle_deg, half_w,
