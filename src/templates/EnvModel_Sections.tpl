@@ -295,8 +295,6 @@ DEFINE
    }@*.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
 -- EO Caution
 
--- TDOO: The below two chunks for checking collisions with obstacles on a approximation basis are COP-generated.
--- They work, but might be too costly. Keep in mind to possibly revert.
 @{
    @{
       @{
@@ -305,41 +303,52 @@ DEFINE
                & section_[sec].source.y >= rect_obstacles_tl_y_[obs] & section_[sec].source.y <= rect_obstacles_br_y_[obs]);
          INIT !(section_[sec].drain.x >= rect_obstacles_tl_x_[obs] & section_[sec].drain.x <= rect_obstacles_br_x_[obs]
                & section_[sec].drain.y >= rect_obstacles_tl_y_[obs] & section_[sec].drain.y <= rect_obstacles_br_y_[obs]);
-         -- Approximate segment-in-obstacle: also sample interior points of the centerline source->drain
-         -- at t=1/4, 1/2, 3/4 (scaled x4 to stay integer/linear) so a long section cannot cross obstacle [obs]
-         -- with only its endpoints outside. Point(t)*4 = (4-k)*source + k*drain.
-         INIT !(3 * section_[sec].source.x + section_[sec].drain.x >= 4 * rect_obstacles_tl_x_[obs] & 3 * section_[sec].source.x + section_[sec].drain.x <= 4 * rect_obstacles_br_x_[obs]
-               & 3 * section_[sec].source.y + section_[sec].drain.y >= 4 * rect_obstacles_tl_y_[obs] & 3 * section_[sec].source.y + section_[sec].drain.y <= 4 * rect_obstacles_br_y_[obs]);
-         INIT !(2 * section_[sec].source.x + 2 * section_[sec].drain.x >= 4 * rect_obstacles_tl_x_[obs] & 2 * section_[sec].source.x + 2 * section_[sec].drain.x <= 4 * rect_obstacles_br_x_[obs]
-               & 2 * section_[sec].source.y + 2 * section_[sec].drain.y >= 4 * rect_obstacles_tl_y_[obs] & 2 * section_[sec].source.y + 2 * section_[sec].drain.y <= 4 * rect_obstacles_br_y_[obs]);
-         INIT !(section_[sec].source.x + 3 * section_[sec].drain.x >= 4 * rect_obstacles_tl_x_[obs] & section_[sec].source.x + 3 * section_[sec].drain.x <= 4 * rect_obstacles_br_x_[obs]
-               & section_[sec].source.y + 3 * section_[sec].drain.y >= 4 * rect_obstacles_tl_y_[obs] & section_[sec].source.y + 3 * section_[sec].drain.y <= 4 * rect_obstacles_br_y_[obs]);
       }@.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval]
    }@*.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
 }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
--- Approximate connection-arc-in-obstacle: forbid the straight chord between two connected sections
--- (drain of [sec] -> source of [sec2], active iff outgoing_connection_[con]_of_section_[sec] = [sec2])
--- from crossing an obstacle, by sampling its interior at t=1/4, 1/2, 3/4 (scaled x4). This is a chord
--- approximation of the Bezier arc; cheap and linear (no variable*variable products).
+-- The straight connector line of each active connection (from the drain of section [sec] to the
+-- source of the connected section [sec2]) may not overlap obstacle [obs]. An exact segment/rectangle
+-- crossing test needs a cross product = variable*variable (nonlinear, ruins nuXmv). Instead we split
+-- the connector into OBSTACLE_CONNECTOR_SUBDIVISIONS equal straight sub-segments and require each
+-- sub-segment's axis-aligned bounding box to be separated from the obstacle (on x or on y). This is
+-- LINEAR (variable-vs-constant only), still has NO false negatives (a real crossing overlaps some
+-- sub-box), and the smaller sub-boxes hug the straight line so the (false-positive) over-pruning
+-- shrinks ~1/K towards the exact test. Only constrained when the connection is actually taken.
+
+-- Sub-segment endpoints along each potential connector (drain of [sec] -> source of [sec2]).
+-- Scaled by K = OBSTACLE_CONNECTOR_SUBDIVISIONS so the interpolation stays integer/linear:
+-- ksx := K*p_[seg].x = K*drain.x + [seg]*(source.x - drain.x), for [seg] in 0..K.
+DEFINE
+@{
+   @{
+      @{
+         @{
+            conn_[sec]_to_[sec2]_sub_[seg]_ksx := @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * section_[sec].drain.x + [seg] * (section_[sec2].source.x - section_[sec].drain.x);
+            conn_[sec]_to_[sec2]_sub_[seg]_ksy := @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * section_[sec].drain.y + [seg] * (section_[sec2].source.y - section_[sec].drain.y);
+         }@*.for[[seg], 0, @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval]
+      }@**.if[@{ [sec] != [sec2] && MODEL_INTERSECTION_GEOMETRY }@.eval]
+   }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+}@****.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
 @{
    @{
       @{
          @{
             @{
-               @{
-                  INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> !(3 * section_[sec].drain.x + section_[sec2].source.x >= 4 * rect_obstacles_tl_x_[obs] & 3 * section_[sec].drain.x + section_[sec2].source.x <= 4 * rect_obstacles_br_x_[obs]
-                        & 3 * section_[sec].drain.y + section_[sec2].source.y >= 4 * rect_obstacles_tl_y_[obs] & 3 * section_[sec].drain.y + section_[sec2].source.y <= 4 * rect_obstacles_br_y_[obs]);
-                  INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> !(2 * section_[sec].drain.x + 2 * section_[sec2].source.x >= 4 * rect_obstacles_tl_x_[obs] & 2 * section_[sec].drain.x + 2 * section_[sec2].source.x <= 4 * rect_obstacles_br_x_[obs]
-                        & 2 * section_[sec].drain.y + 2 * section_[sec2].source.y >= 4 * rect_obstacles_tl_y_[obs] & 2 * section_[sec].drain.y + 2 * section_[sec2].source.y <= 4 * rect_obstacles_br_y_[obs]);
-                  INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> !(section_[sec].drain.x + 3 * section_[sec2].source.x >= 4 * rect_obstacles_tl_x_[obs] & section_[sec].drain.x + 3 * section_[sec2].source.x <= 4 * rect_obstacles_br_x_[obs]
-                        & section_[sec].drain.y + 3 * section_[sec2].source.y >= 4 * rect_obstacles_tl_y_[obs] & section_[sec].drain.y + 3 * section_[sec2].source.y <= 4 * rect_obstacles_br_y_[obs]);
-               }@.if[@{ [sec] != [sec2] }@.eval]
-            }@*.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval]
-         }@**.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
-      }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
-   }@****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS - 1}@.eval]
-}@*****.for[[sec], 0, @{SECTIONS - 1}@.eval]
+               INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> (
+                  @{
+                     ( (conn_[sec]_to_[sec2]_sub_[seg]_ksx < @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_tl_x_[obs] & conn_[sec]_to_[sec2]_sub_@{[seg] + 1}@.eval[0]_ksx < @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_tl_x_[obs])
+                     | (conn_[sec]_to_[sec2]_sub_[seg]_ksx > @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_br_x_[obs] & conn_[sec]_to_[sec2]_sub_@{[seg] + 1}@.eval[0]_ksx > @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_br_x_[obs])
+                     | (conn_[sec]_to_[sec2]_sub_[seg]_ksy < @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_tl_y_[obs] & conn_[sec]_to_[sec2]_sub_@{[seg] + 1}@.eval[0]_ksy < @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_tl_y_[obs])
+                     | (conn_[sec]_to_[sec2]_sub_[seg]_ksy > @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_br_y_[obs] & conn_[sec]_to_[sec2]_sub_@{[seg] + 1}@.eval[0]_ksy > @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_br_y_[obs]) )
+                  }@*.for[[seg], 0, @{OBSTACLE_CONNECTOR_SUBDIVISIONS - 1}@.eval, 1, &]
+               );
+            }@**.if[@{ [sec] != [sec2] && MODEL_INTERSECTION_GEOMETRY }@.eval]
+         }@***.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
+      }@****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+   }@*****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS - 1}@.eval]
+}@******.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 --------------------------------------------------------
 -- EO Sections
