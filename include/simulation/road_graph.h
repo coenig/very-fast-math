@@ -246,6 +246,12 @@ class RoadGraph : public Parsable, public std::enable_shared_from_this<RoadGraph
 public:
    constexpr static int EGO_MOCK_ID{ -100 };
 
+   /// Axis-aligned rectangular obstacle in world coordinates (same frame as section origin points).
+   struct RectObstacle {
+      Vec2D tl_{};
+      Vec2D br_{};
+   };
+
    RoadGraph(const int id);
 
    std::shared_ptr<RoadGraph> findFirstSectionWithProperty(const std::function<bool(const std::shared_ptr<RoadGraph>)> property);
@@ -313,7 +319,13 @@ public:
    void addSuccessor(const std::shared_ptr<RoadGraph> subgraph);
    void addPredecessor(const std::shared_ptr<RoadGraph> subgraph);
 
-   Rec2D getBoundingBox() const;
+   /// When include_ghosts is false, dynamically generated ghost sections (e.g. cars on
+   /// crossings) are excluded, yielding a bounding box that is stable across frames.
+   Rec2D getBoundingBox(const bool include_ghosts = true) const;
+
+   /// Rectangular obstacles are stored in world coordinates on the graph and transformed together with it.
+   void addRectObstacle(const Vec2D& tl, const Vec2D& br);
+   const std::vector<RectObstacle>& getRectObstacles() const;
 
    std::vector<std::shared_ptr<RoadGraph>> getSuccessors() const;
    std::vector<std::shared_ptr<RoadGraph>> getPredecessors() const;
@@ -352,9 +364,10 @@ private:
    Vec2D origin_point_{ 0.0F, 0.0F };
    float angle_{ 0 }; // In RAD
    int id_{};
-
    std::vector<std::shared_ptr<RoadGraph>> successors_{};
    std::vector<std::shared_ptr<RoadGraph>> predecessors_{};
+
+   std::vector<RectObstacle> rect_obstacles_{}; // World-coordinate obstacles; conventionally only held by the root node.
 
    std::map<std::shared_ptr<RoadGraph>, std::vector<CarPars>> nonegos_towards_successors_{};
 

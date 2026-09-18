@@ -1394,6 +1394,7 @@ inline std::string Script::getMyPath() const
 std::vector<std::string> vfm::macro::Script::processSequence(const std::string& code)
 {
    std::vector<std::string> dummy{};
+   if (code == "@{}@") return dummy;
    processSequence(code, dummy);
    return dummy;
 }

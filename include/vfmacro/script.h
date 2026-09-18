@@ -1082,8 +1082,10 @@ private:
          std::string res{};
 
          for (const auto& el : vec) {
-            auto single_entry = processSequence(el);
-            res += BEGIN_TAG_IN_SEQUENCE + single_entry.at(0) + END_TAG_IN_SEQUENCE;
+            if (!el.empty()) {
+               auto single_entry = processSequence(el);
+               res += BEGIN_TAG_IN_SEQUENCE + single_entry.at(0) + END_TAG_IN_SEQUENCE;
+            }
          }
 
          return res;
@@ -1107,6 +1109,32 @@ private:
          return std::to_string(isMap(body));
       }
    };
+
+   ScriptMethodDescription scriptVarFunc{ "scriptVar", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
+         std::string varname{ body };
+
+         if (!getScriptData().list_data_.count(varname)) {
+            std::string error{ "Variable '" + varname + "' has not been declared." };
+            addError(error);
+            return "#" + error + "#";
+         }
+
+         return getScriptData().list_data_.at(varname).at(0);
+      } 
+   };
+
+   ScriptMethodDescription scriptVarDefaultFunc{ "scriptVar", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
+         std::string varname{ body };
+
+         if (!getScriptData().list_data_.count(varname)) {
+            return parameters.at(0);
+         }
+
+         return getScriptData().list_data_.at(varname).at(0);
+      } 
+   };
+
+   ScriptMethodDescription strNemptyFunc{ "strNempty", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return std::to_string(!body.empty()); } };
 
    ScriptMethodDescription speci0{
       "writeConnectorsMap", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
@@ -1253,6 +1281,7 @@ private:
       { "simplify", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return simplifyExpression(body); } },
       { "eval", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return evaluateExpression(body); } },
       { "eval", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return evaluateExpression(body, parameters.at(0)); } },
+      { "evalSafe", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return body.empty() ? "0" : evaluateExpression(body, parameters.at(0)); }},
       { "nil", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return nil(); } },
       { "id", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return body; } },
       { "idd", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return idd(body); } },
@@ -1299,7 +1328,9 @@ private:
       { "newMethod", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return newMethod(body, parameters.at(0), parameters.at(1)); } },
       { "newMethod", 3, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return newMethodD(body, parameters.at(0), parameters.at(1), parameters.at(2)); } },
       { "strsize", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return std::to_string(body.length()); } },
-      { "seqlength", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return std::to_string(processSequence(body).size()); }},
+      { "strempty", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return std::to_string(body.empty()); } },
+      strNemptyFunc,
+      // { "seqlength", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return std::to_string(processSequence(body).size()); }},
       { "firstLetterCapital", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::firstLetterCapital(body); } },
       { "toUpperCamelCase", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {  return StaticHelper::toUpperCamelCase(body); } },
       { "toUpperCase", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return StaticHelper::toUpperCase(body); } },
@@ -1514,17 +1545,8 @@ private:
       { "setScriptVar", 2, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
          return setScriptVar(body, parameters[0], parameters[1]);
       } },
-      { "scriptVar", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
-         std::string varname{ body };
-
-         if (!getScriptData().list_data_.count(varname)) {
-            std::string error{ "Variable '" + varname + "' has not been declared." };
-            addError(error);
-            return "#" + error + "#";
-         }
-
-         return getScriptData().list_data_.at(varname).at(0);
-      } },
+      scriptVarFunc,
+      scriptVarDefaultFunc,
       isScriptVarDeclared,
       { "include", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string {
          return includeMe(body);
@@ -1733,7 +1755,8 @@ private:
          if (getScriptData().map_data_.count(parameters[0])) {
             return "#Error-map-exists";
          } else {
-            getScriptData().map_data_[parameters[0]] = processMap(body);
+            std::map<std::string, std::string> dummy{};
+            getScriptData().map_data_[parameters[0]] = (body == "@{}@") ? dummy : processMap(body);
          }
          
          return "";
