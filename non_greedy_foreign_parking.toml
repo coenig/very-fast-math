@@ -1,0 +1,60 @@
+[defaults]
+timeout_seconds = 7200
+
+[[specification]]
+name = "forced_foreign_parking_yield"
+grid_size = [5, 5]
+n_cars = 2
+bound = 250
+initial_layout = "first_row"
+timeout_seconds = 7200
+
+[[specification.ltl_properties]]
+name = "vacate_gate_wait_pass_rejoin"
+explanation = "Car 0 vacates a shared gate into car 1's parking role, waits while car 1 passes through the gate and reaches its own parking role, then car 0 returns through the gate and reaches its parking role."
+
+# Every role is symbolic. nuXmv chooses the concrete cells together with the
+# optional grid edges and the complete vehicle trace.
+roles = [
+  { name = "start_0", initial_car = 0, minimum_degree = 1 },
+  { name = "start_1", initial_car = 1, minimum_degree = 1 },
+  { name = "shared_gate", exclude_initial = true, minimum_start_distance = 3, minimum_degree = 2 },
+  { name = "parking_0", exclude_initial = true, minimum_degree = 1 },
+  { name = "parking_1", exclude_initial = true, minimum_degree = 1 },
+]
+
+# Keep the starts, gate, and final parking roles far apart so that the witness
+# contains real travel rather than a sequence of adjacent-cell transitions.
+role_distances = [
+  { from = "start_0", to = "start_1", minimum = 3 },
+  { from = "start_0", to = "shared_gate", minimum = 5 },
+  { from = "start_1", to = "shared_gate", minimum = 4 },
+  { from = "shared_gate", to = "parking_0", minimum = 5 },
+  { from = "shared_gate", to = "parking_1", minimum = 5 },
+  { from = "parking_0", to = "parking_1", minimum = 4 },
+]
+
+# Desired history:
+#   1. Car 0 reaches the shared gate first.
+#   2. Car 0 moves into parking_1, which is not its final parking role.
+#   3. Car 0 stays in parking_1 until car 1 reaches the vacated gate.
+#   4. Car 0 keeps waiting while car 1 travels to parking_1's approach/final
+#      role. Capacity ensures car 0 must leave before car 1 occupies parking_1.
+#   5. Car 0 returns through the same shared gate only after car 1 has passed.
+#   6. Car 0 finally reaches parking_0 and car 1 finishes in parking_1.
+formula = """
+(!(loc_0 = shared_gate)) U
+((loc_0 = shared_gate) &
+ X ((!(loc_0 = parking_1)) U
+    ((loc_0 = parking_1) &
+     X ((loc_0 = parking_1) U
+        ((loc_0 = parking_1 & loc_1 = shared_gate) &
+         X ((loc_0 = parking_1) U
+            ((loc_0 = parking_1 & loc_1 != shared_gate) &
+             X ((!(loc_1 = parking_1)) U
+                ((loc_1 = parking_1) &
+                 X ((!(loc_0 = shared_gate)) U
+                    ((loc_0 = shared_gate & loc_1 = parking_1) &
+                     X ((!(loc_0 = parking_0 & loc_1 = parking_1)) U
+                        (loc_0 = parking_0 & loc_1 = parking_1)))))))))))))
+"""

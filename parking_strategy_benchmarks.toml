@@ -1,0 +1,257 @@
+# [defaults]
+# timeout_seconds = 1800
+# bound = 120
+# 
+# # Stage atoms use CAR@ROLE (at role) and CAR!ROLE (not at role).  The runner
+# # generates both nested U/X LTL and the equivalent passive VFM observer.
+# 
+# [[scenario]]
+# name = "s01_remote_visit"
+# tier = "simple"
+# explanation = "Car 0 visits a remote section."
+# grid_size = [2, 3]
+# n_cars = 2
+# bound = 60
+# maximum_edges = 5
+# roles = [{name="remote", exclude_initial=true, minimum_start_distance=1, minimum_degree=1}]
+# stages = [{event=["0@remote"]}]
+# 
+# [[scenario]]
+# name = "s02_ordered_parking"
+# tier = "simple"
+# explanation = "Two cars park in a required order."
+# grid_size = [2, 3]
+# n_cars = 2
+# bound = 70
+# maximum_edges = 5
+# roles = [{name="park_0", exclude_initial=true, minimum_degree=1}, {name="park_1", exclude_initial=true, minimum_degree=1}]
+# stages = [{event=["0@park_0"]}, {event=["0@park_0", "1@park_1"], hold=["0@park_0"]}]
+# 
+# [[scenario]]
+# name = "s03_checkpoint_then_park"
+# tier = "simple"
+# explanation = "A car visits a checkpoint before its parking section."
+# grid_size = [2, 4]
+# n_cars = 2
+# bound = 80
+# maximum_edges = 7
+# roles = [{name="checkpoint", exclude_initial=true, minimum_degree=2}, {name="park", exclude_initial=true, minimum_degree=1}]
+# role_distances = [{from="checkpoint", to="park", minimum=2}]
+# stages = [{event=["0@checkpoint"]}, {event=["0@park"]}]
+# 
+# [[scenario]]
+# name = "s04_sequential_gate"
+# tier = "simple"
+# explanation = "Two cars cross one symbolic gate sequentially."
+# grid_size = [2, 4]
+# n_cars = 2
+# bound = 80
+# maximum_edges = 7
+# roles = [{name="gate", exclude_initial=true, minimum_start_distance=2, minimum_degree=2}]
+# stages = [{event=["0@gate"]}, {event=["1@gate"]}]
+# 
+# [[scenario]]
+# name = "s05_refuge_wait"
+# tier = "simple"
+# explanation = "Car 0 waits in a refuge while car 1 reaches a checkpoint."
+# grid_size = [3, 3]
+# n_cars = 2
+# bound = 90
+# maximum_edges = 8
+# roles = [{name="refuge", exclude_initial=true, minimum_degree=1}, {name="checkpoint", exclude_initial=true, minimum_degree=2}]
+# stages = [{event=["0@refuge"]}, {event=["1@checkpoint"], hold=["0@refuge"]}]
+# 
+# [[scenario]]
+# name = "s06_three_car_arrival"
+# tier = "simple"
+# explanation = "Three cars reach separate parking roles in order."
+# grid_size = [3, 3]
+# n_cars = 3
+# bound = 100
+# maximum_edges = 8
+# roles = [{name="p0", exclude_initial=true}, {name="p1", exclude_initial=true}, {name="p2", exclude_initial=true}]
+# stages = [{event=["0@p0"]}, {event=["1@p1"]}, {event=["2@p2"]}]
+# 
+# [[scenario]]
+# name = "s07_staged_swap"
+# tier = "simple"
+# explanation = "Two cars exchange parking roles through an empty buffer."
+# grid_size = [3, 3]
+# n_cars = 2
+# bound = 100
+# maximum_edges = 8
+# roles = [{name="p0", initial_car=0}, {name="p1", initial_car=1}, {name="buffer", exclude_initial=true, minimum_degree=1}]
+# stages = [{event=["0@buffer"]}, {event=["1@p0"], hold=["0@buffer"]}, {event=["0@p1", "1@p0"]}]
+# 
+# [[scenario]]
+# name = "s08_three_car_relay"
+# tier = "simple"
+# explanation = "Three cars visit a relay point one after another."
+# grid_size = [3, 4]
+# n_cars = 3
+# bound = 110
+# maximum_edges = 11
+# roles = [{name="relay", exclude_initial=true, minimum_start_distance=2, minimum_degree=2}]
+# stages = [{event=["0@relay"]}, {event=["1@relay"]}, {event=["2@relay"]}]
+# 
+# [[scenario]]
+# name = "m01_foreign_space_yield"
+# tier = "medium"
+# explanation = "Car 0 occupies car 1's parking role until car 1 passes a gate."
+# grid_size = [3, 4]
+# n_cars = 2
+# bound = 120
+# maximum_edges = 10
+# roles = [{name="foreign", exclude_initial=true, minimum_degree=1}, {name="gate", exclude_initial=true, minimum_degree=2}, {name="home", exclude_initial=true, minimum_degree=1}]
+# role_distances = [{from="foreign", to="home", minimum=3}]
+# stages = [{event=["0@foreign"]}, {event=["1@gate"], hold=["0@foreign"]}, {event=["0@home"]}]
+# 
+# [[scenario]]
+# name = "m02_double_pass"
+# tier = "medium"
+# explanation = "Car 0 remains in one refuge while two cars pass checkpoints."
+# grid_size = [3, 4]
+# n_cars = 3
+# bound = 130
+# maximum_edges = 10
+# roles = [{name="refuge", exclude_initial=true, minimum_degree=1}, {name="gate_1", exclude_initial=true, minimum_degree=2}, {name="gate_2", exclude_initial=true, minimum_degree=2}, {name="rejoin", exclude_initial=true}]
+# stages = [{event=["0@refuge"]}, {event=["1@gate_1"], hold=["0@refuge"]}, {event=["2@gate_2"], hold=["0@refuge"]}, {event=["0@rejoin"]}]
+
+# [[scenario]]
+# name = "m03_three_car_rotation"
+# tier = "medium"
+# explanation = "Three occupied roles rotate through a buffer."
+# grid_size = [3, 4]
+# n_cars = 3
+# bound = 140
+# maximum_edges = 11
+# roles = [{name="p0", initial_car=0}, {name="p1", initial_car=1}, {name="p2", initial_car=2}, {name="buffer", exclude_initial=true}]
+# stages = [{event=["0@buffer"]}, {event=["1@p0"], hold=["0@buffer"]}, {event=["2@p1"]}, {event=["0@p2", "1@p0", "2@p1"]}]
+
+[defaults]
+timeout_seconds = 1800
+bound = 120
+
+# [[scenario]]
+# name = "_m04_gate_return"
+# tier = "medium"
+# explanation = "A car crosses a gate, yields remotely, and later returns through it."
+# grid_size = [3, 5]
+# n_cars = 2
+# bound = 140
+# maximum_edges = 13
+# roles = [{name="gate", exclude_initial=true, minimum_degree=2}, {name="refuge", exclude_initial=true}, {name="goal", exclude_initial=true}]
+# role_distances = [{from="gate", to="refuge", minimum=3}]
+# stages = [{event=["0@gate"]}, {event=["0@refuge"]}, {event=["1@gate"], hold=["0@refuge"]}, {event=["0@gate"]}, {event=["0@goal"]}]
+# 
+# [[scenario]]
+# name = "_m05_chained_yields"
+# tier = "medium"
+# explanation = "Cars 0 and 1 perform consecutive refuge maneuvers for car 2."
+# grid_size = [3, 5]
+# n_cars = 3
+# bound = 150
+# maximum_edges = 13
+# roles = [{name="r0", exclude_initial=true}, {name="r1", exclude_initial=true}, {name="gate", exclude_initial=true, minimum_degree=2}, {name="finish", exclude_initial=true}]
+# stages = [{event=["0@r0"]}, {event=["2@gate"], hold=["0@r0"]}, {event=["1@r1"]}, {event=["2@finish"], hold=["1@r1"]}]
+# 
+# [[scenario]]
+# name = "_m06_four_car_cascade"
+# tier = "medium"
+# explanation = "Four cars shift occupied roles after one car enters a buffer."
+# grid_size = [2, 4]
+# n_cars = 4
+# bound = 150
+# maximum_edges = 7
+# roles = [{name="p0", initial_car=0}, {name="p1", initial_car=1}, {name="p2", initial_car=2}, {name="p3", initial_car=3}, {name="buffer", exclude_initial=true}]
+# stages = [{event=["0@buffer"]}, {event=["1@p0"], hold=["0@buffer"]}, {event=["2@p1"]}, {event=["3@p2"]}, {event=["0@p3"]}]
+# 
+# [[scenario]]
+# name = "_m07_two_refuges"
+# tier = "medium"
+# explanation = "Two different cars yield in separate refuges before parking."
+# grid_size = [3, 4]
+# n_cars = 3
+# bound = 150
+# maximum_edges = 10
+# roles = [{name="r0", exclude_initial=true}, {name="r1", exclude_initial=true}, {name="gate0", exclude_initial=true, minimum_degree=2}, {name="gate1", exclude_initial=true, minimum_degree=2}, {name="goal0", exclude_initial=true}, {name="goal1", exclude_initial=true}]
+# stages = [{event=["0@r0"]}, {event=["2@gate0"], hold=["0@r0"]}, {event=["0@goal0"]}, {event=["1@r1"]}, {event=["2@gate1"], hold=["1@r1"]}, {event=["1@goal1"]}]
+# 
+# [[scenario]]
+# name = "_h01_forced_wait_pass_rejoin"
+# tier = "hard"
+# explanation = "Car 0 waits in car 1's destination, lets car 1 pass a shared gate, vacates, returns, and parks."
+# grid_size = [3, 4]
+# n_cars = 2
+# bound = 180
+# maximum_edges = 9
+# roles = [{name="gate", exclude_initial=true, minimum_start_distance=2, minimum_degree=2}, {name="foreign", exclude_initial=true}, {name="home", exclude_initial=true}]
+# role_distances = [{from="gate", to="home", minimum=3}, {from="foreign", to="home", minimum=3}]
+# stages = [{event=["0@gate"]}, {event=["0@foreign"]}, {event=["1@gate"], hold=["0@foreign"]}, {event=["1@foreign"]}, {event=["0@gate"], hold=["1@foreign"]}, {event=["0@home", "1@foreign"]}]
+# 
+# [[scenario]]
+# name = "_h02_three_car_buffer_rotation"
+# tier = "hard"
+# explanation = "A three-car rotation requires a remote buffer and ordered releases."
+# grid_size = [3, 4]
+# n_cars = 3
+# bound = 190
+# maximum_edges = 10
+# roles = [{name="p0", initial_car=0}, {name="p1", initial_car=1}, {name="p2", initial_car=2}, {name="buffer", exclude_initial=true, minimum_start_distance=3}]
+# stages = [{event=["0@buffer"]}, {event=["1@p0"], hold=["0@buffer"]}, {event=["2@p1"], hold=["0@buffer"]}, {event=["0@p2", "1@p0", "2@p1"]}]
+# 
+# [[scenario]]
+# name = "_h03_two_bay_cascade"
+# tier = "rich"
+# explanation = "Three cars use two different waiting bays during an ordered cascade."
+# grid_size = [8, 5]
+# n_cars = 3
+# bound = 600
+# maximum_edges = 28
+# roles = [{name="p0", initial_car=0}, {name="p1", initial_car=1}, {name="p2", initial_car=2}, {name="bay0", exclude_initial=true, minimum_start_distance=4}, {name="bay1", exclude_initial=true, minimum_start_distance=4}]
+# role_distances = [{from="bay0", to="bay1", minimum=4}]
+# stages = [{event=["0@bay0"]}, {event=["1@p0"], hold=["0@bay0"]}, {event=["2@bay1"]}, {event=["0@p2"], hold=["2@bay1"]}, {event=["2@p1"]}]
+# 
+# [[scenario]]
+# name = "_h04_double_yield"
+# tier = "rich"
+# explanation = "A lead car yields twice while two followers cross different gates."
+# grid_size = [8, 5]
+# n_cars = 3
+# bound = 1200
+# maximum_edges = 35
+# roles = [{name="bay0", exclude_initial=true, minimum_start_distance=5}, {name="bay1", exclude_initial=true, minimum_start_distance=5}, {name="gate0", exclude_initial=true, minimum_start_distance=3, minimum_degree=2}, {name="gate1", exclude_initial=true, minimum_start_distance=3, minimum_degree=2}, {name="goal", exclude_initial=true}]
+# role_distances = [{from="bay0", to="bay1", minimum=5}, {from="gate0", to="gate1", minimum=4}]
+# stages = [{event=["0@bay0"]}, {event=["1@gate0"], hold=["0@bay0"]}, {event=["0@bay1"]}, {event=["2@gate1"], hold=["0@bay1"]}, {event=["0@goal"]}]
+# 
+# [[scenario]]
+# name = "_h05_double_rotation"
+# tier = "rich"
+# explanation = "Three cars perform two compact rotations, using the same buffer at different times."
+# grid_size = [8, 5]
+# n_cars = 3
+# bound = 1800
+# maximum_edges = 40
+# roles = [{name="p0", initial_car=0}, {name="p1", initial_car=1}, {name="p2", initial_car=2}, {name="buffer", exclude_initial=true, minimum_start_distance=6}]
+# role_distances = [{from="buffer", to="p0", minimum=6}]
+# stages = [{event=["0@buffer"]}, {event=["1@p0"], hold=["0@buffer"]}, {event=["2@p1"]}, {event=["0@p2"]}, {event=["1@buffer"]}, {event=["2@p0"], hold=["1@buffer"]}, {event=["0@p1"]}, {event=["1@p2"]}]
+
+[[scenario]]
+name = "h06_three_car_column_reversal"
+tier = "meaningful"
+explanation = "Three cars reverse their complete ordering on the same first-row parking aisle through a temporary buffer."
+grid_size = [2, 3]
+n_cars = 3
+bound = 2800
+maximum_edges = 5
+roles = [
+  {name="left", initial_car=2, minimum_degree=1},
+  {name="middle", initial_car=1, minimum_degree=1},
+  {name="right", initial_car=0, minimum_degree=1},
+  {name="buffer", exclude_initial=true, minimum_degree=1}
+]
+stages = [
+  {event=["0@buffer"]},
+  {event=["2@right"], hold=["0@buffer"]},
+  {event=["0@left", "1@middle", "2@right"], hold=["2@right"]}
+]

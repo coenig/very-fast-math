@@ -1,0 +1,190 @@
+[defaults]
+timeout_seconds = 900
+
+[[specification]]
+name = "large_three_car"
+grid_size = [6, 8]
+n_cars = 3
+bound = 250
+initial_layout = "first_row"
+
+[[specification.ltl_properties]]
+name = "double_pass"
+explanation = "Car 0 waits in one refuge while cars 1 and 2 pass distinct checkpoints, then rejoins elsewhere."
+roles = [
+  { name = "refuge", exclude_initial = true, minimum_start_distance = 3, minimum_degree = 1 },
+  { name = "checkpoint_1", exclude_initial = true, minimum_degree = 2 },
+  { name = "checkpoint_2", exclude_initial = true, minimum_degree = 2 },
+  { name = "rejoin", exclude_initial = true, minimum_degree = 1 },
+]
+role_distances = [
+  { from = "refuge", to = "rejoin", minimum = 4 },
+  { from = "checkpoint_1", to = "checkpoint_2", minimum = 2 },
+]
+formula = """
+(!(loc_0 = refuge)) U
+((loc_0 = refuge) &
+ X ((loc_0 = refuge) U
+    ((loc_0 = refuge & loc_1 = checkpoint_1) &
+     X ((loc_0 = refuge) U
+        ((loc_0 = refuge & loc_2 = checkpoint_2) &
+         X ((!(loc_0 = rejoin)) U (loc_0 = rejoin)))))))
+"""
+
+[[specification.ltl_properties]]
+name = "three_car_rotation"
+explanation = "Car 0 uses a remote buffer while cars 1 and 2 successively rotate through the released parking roles."
+roles = [
+  { name = "parking_0", initial_car = 0, minimum_degree = 1 },
+  { name = "parking_1", initial_car = 1, minimum_degree = 2 },
+  { name = "parking_2", initial_car = 2, minimum_degree = 1 },
+  { name = "buffer", exclude_initial = true, minimum_degree = 1 },
+]
+role_distances = [
+  { from = "buffer", to = "parking_0", minimum = 6 },
+]
+formula = """
+(!(loc_0 = buffer)) U
+((loc_0 = buffer) &
+ X ((!(loc_1 = parking_0)) U
+    ((loc_1 = parking_0) &
+     X ((!(loc_2 = parking_1)) U
+        ((loc_2 = parking_1) &
+         X ((!(loc_0 = parking_2)) U (loc_0 = parking_2)))))))
+"""
+
+[[specification]]
+name = "large_four_car"
+grid_size = [8, 10]
+n_cars = 4
+bound = 350
+initial_layout = "first_row"
+
+[[specification.ltl_properties]]
+name = "four_car_cascade"
+explanation = "One car uses a remote buffer while the other three shift through occupied parking roles."
+roles = [
+  { name = "parking_0", initial_car = 0, minimum_degree = 1 },
+  { name = "parking_1", initial_car = 1, minimum_degree = 2 },
+  { name = "parking_2", initial_car = 2, minimum_degree = 2 },
+  { name = "parking_3", initial_car = 3, minimum_degree = 1 },
+  { name = "buffer", exclude_initial = true, minimum_degree = 1 },
+]
+role_distances = [
+  { from = "buffer", to = "parking_0", minimum = 8 },
+]
+formula = """
+(!(loc_0 = buffer)) U
+((loc_0 = buffer) &
+ X ((!(loc_1 = parking_0)) U
+    ((loc_1 = parking_0) &
+     X ((!(loc_2 = parking_1)) U
+        ((loc_2 = parking_1) &
+         X ((!(loc_3 = parking_2)) U
+            ((loc_3 = parking_2) &
+             X ((!(loc_0 = parking_3)) U (loc_0 = parking_3)))))))))
+"""
+
+[[specification.ltl_properties]]
+name = "ordered_double_yield"
+explanation = "Cars 0 and 2 perform separate ordered refuge-and-rejoin maneuvers for cars 1 and 3."
+roles = [
+  { name = "refuge_0", exclude_initial = true, minimum_start_distance = 3, minimum_degree = 1 },
+  { name = "checkpoint_1", exclude_initial = true, minimum_degree = 2 },
+  { name = "rejoin_0", exclude_initial = true, minimum_degree = 1 },
+  { name = "refuge_2", exclude_initial = true, minimum_start_distance = 3, minimum_degree = 1 },
+  { name = "checkpoint_3", exclude_initial = true, minimum_degree = 2 },
+  { name = "rejoin_2", exclude_initial = true, minimum_degree = 1 },
+]
+role_distances = [
+  { from = "refuge_0", to = "rejoin_0", minimum = 4 },
+  { from = "refuge_2", to = "rejoin_2", minimum = 4 },
+]
+formula = """
+(!(loc_0 = refuge_0)) U
+((loc_0 = refuge_0) &
+ X ((loc_0 = refuge_0) U
+    ((loc_0 = refuge_0 & loc_1 = checkpoint_1) &
+     X ((!(loc_0 = rejoin_0)) U
+        ((loc_0 = rejoin_0) &
+         X ((!(loc_2 = refuge_2)) U
+            ((loc_2 = refuge_2) &
+             X ((loc_2 = refuge_2) U
+                ((loc_2 = refuge_2 & loc_3 = checkpoint_3) &
+                 X ((!(loc_2 = rejoin_2)) U (loc_2 = rejoin_2)))))))))))
+"""
+
+[[specification]]
+name = "very_large_five_car"
+grid_size = [10, 12]
+n_cars = 5
+bound = 500
+initial_layout = "first_row"
+
+[[specification.ltl_properties]]
+name = "five_car_rotation"
+explanation = "Five cars complete a full parking rotation through a distant symbolic buffer."
+roles = [
+  { name = "parking_0", initial_car = 0, minimum_degree = 1 },
+  { name = "parking_1", initial_car = 1, minimum_degree = 2 },
+  { name = "parking_2", initial_car = 2, minimum_degree = 2 },
+  { name = "parking_3", initial_car = 3, minimum_degree = 2 },
+  { name = "parking_4", initial_car = 4, minimum_degree = 1 },
+  { name = "buffer", exclude_initial = true, minimum_degree = 1 },
+]
+role_distances = [
+  { from = "buffer", to = "parking_0", minimum = 10 },
+]
+formula = """
+(!(loc_0 = buffer)) U
+((loc_0 = buffer) &
+ X ((!(loc_1 = parking_0)) U
+    ((loc_1 = parking_0) &
+     X ((!(loc_2 = parking_1)) U
+        ((loc_2 = parking_1) &
+         X ((!(loc_3 = parking_2)) U
+            ((loc_3 = parking_2) &
+             X ((!(loc_4 = parking_3)) U
+                ((loc_4 = parking_3) &
+                 X ((!(loc_0 = parking_4)) U (loc_0 = parking_4)))))))))))
+"""
+
+[[specification.ltl_properties]]
+name = "two_five_car_rotations"
+explanation = "After one full five-car rotation, a different car uses the buffer and triggers a second rotation."
+roles = [
+  { name = "parking_0", initial_car = 0, minimum_degree = 1 },
+  { name = "parking_1", initial_car = 1, minimum_degree = 2 },
+  { name = "parking_2", initial_car = 2, minimum_degree = 2 },
+  { name = "parking_3", initial_car = 3, minimum_degree = 2 },
+  { name = "parking_4", initial_car = 4, minimum_degree = 1 },
+  { name = "buffer", exclude_initial = true, minimum_degree = 1 },
+]
+role_distances = [
+  { from = "buffer", to = "parking_0", minimum = 10 },
+]
+formula = """
+(!(loc_0 = buffer)) U
+((loc_0 = buffer) & X
+ ((!(loc_1 = parking_0)) U
+  ((loc_1 = parking_0) & X
+   ((!(loc_2 = parking_1)) U
+    ((loc_2 = parking_1) & X
+     ((!(loc_3 = parking_2)) U
+      ((loc_3 = parking_2) & X
+       ((!(loc_4 = parking_3)) U
+        ((loc_4 = parking_3) & X
+         ((!(loc_0 = parking_4)) U
+          ((loc_0 = parking_4) & X
+           ((!(loc_1 = buffer)) U
+            ((loc_1 = buffer) & X
+             ((!(loc_2 = parking_0)) U
+              ((loc_2 = parking_0) & X
+               ((!(loc_3 = parking_1)) U
+                ((loc_3 = parking_1) & X
+                 ((!(loc_4 = parking_2)) U
+                  ((loc_4 = parking_2) & X
+                   ((!(loc_0 = parking_3)) U
+                    ((loc_0 = parking_3) & X
+                     ((!(loc_1 = parking_4)) U (loc_1 = parking_4)))))))))))))))))))))))
+"""

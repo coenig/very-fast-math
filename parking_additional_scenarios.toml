@@ -1,0 +1,208 @@
+[defaults]
+timeout_seconds = 1800
+bound = 300
+
+# Additional role-based scenarios.  Locations are named roles rather than
+# explicit cells; the grid topology remains symbolic and optional.
+
+[[scenario]]
+name = "a01_three_car_column_reversal"
+tier = "meaningful"
+explanation = "Three cars reverse their complete ordering through one temporary buffer."
+grid_size = [2, 3]
+n_cars = 3
+bound = 800
+maximum_edges = 5
+roles = [
+  {name="left", initial_car=2, minimum_degree=1},
+  {name="middle", initial_car=1, minimum_degree=1},
+  {name="right", initial_car=0, minimum_degree=1},
+  {name="buffer", exclude_initial=true, minimum_degree=1}
+]
+stages = [
+  {event=["0@buffer"]},
+  {event=["2@right"], hold=["0@buffer"]},
+  {event=["0@left", "1@middle", "2@right"], hold=["2@right"]}
+]
+
+[[scenario]]
+name = "a02_three_car_left_rotation"
+tier = "meaningful"
+explanation = "Three cars rotate one position left through an empty buffer."
+grid_size = [3, 4]
+n_cars = 3
+bound = 500
+maximum_edges = 9
+roles = [
+  {name="p0", initial_car=0}, {name="p1", initial_car=1},
+  {name="p2", initial_car=2}, {name="buffer", exclude_initial=true, minimum_degree=1}
+]
+stages = [
+  {event=["0@buffer"]},
+  {event=["1@p0"], hold=["0@buffer"]},
+  {event=["2@p1"], hold=["0@buffer"]},
+  {event=["0@p2", "1@p0", "2@p1"]}
+]
+
+[[scenario]]
+name = "a03_three_car_right_rotation"
+tier = "meaningful"
+explanation = "Three cars rotate one position right through an empty buffer."
+grid_size = [3, 4]
+n_cars = 3
+bound = 500
+maximum_edges = 9
+roles = [
+  {name="p0", initial_car=0}, {name="p1", initial_car=1},
+  {name="p2", initial_car=2}, {name="buffer", exclude_initial=true, minimum_degree=1}
+]
+stages = [
+  {event=["2@buffer"]},
+  {event=["1@p2"], hold=["2@buffer"]},
+  {event=["0@p1"], hold=["2@buffer"]},
+  {event=["2@p0", "1@p2", "0@p1"]}
+]
+
+[[scenario]]
+name = "a04_four_car_reversal"
+tier = "hard"
+explanation = "Four cars reverse their ordering using two temporary buffers."
+grid_size = [3, 4]
+n_cars = 4
+bound = 900
+maximum_edges = 11
+roles = [
+  {name="p0", initial_car=0}, {name="p1", initial_car=1},
+  {name="p2", initial_car=2}, {name="p3", initial_car=3},
+  {name="buffer0", exclude_initial=true}, {name="buffer1", exclude_initial=true}
+]
+stages = [
+  {event=["0@buffer0"]},
+  {event=["1@buffer1"], hold=["0@buffer0"]},
+  {event=["2@p1"], hold=["0@buffer0", "1@buffer1"]},
+  {event=["3@p0"], hold=["0@buffer0", "1@buffer1"]},
+  {event=["0@p3", "1@p2", "2@p1", "3@p0"]}
+]
+
+[[scenario]]
+name = "a05_shared_gate_yield"
+tier = "meaningful"
+explanation = "One car waits in a refuge while two other cars cross a shared gate."
+grid_size = [3, 4]
+n_cars = 3
+bound = 550
+maximum_edges = 10
+roles = [
+  {name="refuge", exclude_initial=true, minimum_degree=1},
+  {name="gate", exclude_initial=true, minimum_degree=2},
+  {name="goal", exclude_initial=true, minimum_degree=1}
+]
+stages = [
+  {event=["0@refuge"]},
+  {event=["1@gate"], hold=["0@refuge"]},
+  {event=["2@gate"], hold=["0@refuge"]},
+  {event=["0@goal"]}
+]
+
+[[scenario]]
+name = "a06_checkpoint_detour"
+tier = "meaningful"
+explanation = "A car must visit two checkpoints before reaching its final role."
+grid_size = [4, 5]
+n_cars = 2
+bound = 500
+maximum_edges = 16
+roles = [
+  {name="checkpoint0", exclude_initial=true, minimum_degree=1},
+  {name="checkpoint1", exclude_initial=true, minimum_degree=1},
+  {name="goal", exclude_initial=true, minimum_degree=1}
+]
+stages = [
+  {event=["0@checkpoint0"]},
+  {event=["0@checkpoint1"]},
+  {event=["0@goal"]}
+]
+
+[[scenario]]
+name = "a07_foreign_parking_chain"
+tier = "hard"
+explanation = "Each of three cars temporarily occupies a foreign parking role before the next car passes."
+grid_size = [4, 5]
+n_cars = 3
+bound = 800
+maximum_edges = 16
+roles = [
+  {name="foreign0", exclude_initial=true},
+  {name="foreign1", exclude_initial=true},
+  {name="gate", exclude_initial=true, minimum_degree=2},
+  {name="goal", exclude_initial=true}
+]
+stages = [
+  {event=["0@foreign0"]},
+  {event=["1@gate"], hold=["0@foreign0"]},
+  {event=["0@foreign1"], hold=["1@gate"]},
+  {event=["2@gate"], hold=["0@foreign1"]},
+  {event=["0@goal"]}
+]
+
+[[scenario]]
+name = "a08_swap_then_return"
+tier = "meaningful"
+explanation = "Two cars swap roles through a buffer, then the first car returns through the vacated role."
+grid_size = [3, 4]
+n_cars = 2
+bound = 600
+maximum_edges = 10
+roles = [
+  {name="p0", initial_car=0}, {name="p1", initial_car=1},
+  {name="buffer", exclude_initial=true}, {name="return_goal", exclude_initial=true}
+]
+stages = [
+  {event=["0@buffer"]},
+  {event=["1@p0"], hold=["0@buffer"]},
+  {event=["0@return_goal"], hold=["1@p0"]},
+  {event=["1@buffer"], hold=["0@return_goal"]}
+]
+
+[[scenario]]
+name = "a09_two_refuge_sequence"
+tier = "meaningful"
+explanation = "Two cars use separate refuges in sequence while a third car reaches the final gate."
+grid_size = [5, 5]
+n_cars = 3
+bound = 900
+maximum_edges = 20
+roles = [
+  {name="refuge0", exclude_initial=true},
+  {name="refuge1", exclude_initial=true},
+  {name="gate", exclude_initial=true, minimum_degree=2},
+  {name="goal", exclude_initial=true}
+]
+stages = [
+  {event=["0@refuge0"]},
+  {event=["2@gate"], hold=["0@refuge0"]},
+  {event=["1@refuge1"]},
+  {event=["2@goal"], hold=["1@refuge1"]},
+  {event=["0@goal"]}
+]
+
+[[scenario]]
+name = "a10_four_car_relay"
+tier = "hard"
+explanation = "Four cars cross a relay role in sequence and then settle into distinct goals."
+grid_size = [8, 5]
+n_cars = 4
+bound = 1600
+maximum_edges = 35
+roles = [
+  {name="relay", exclude_initial=true, minimum_degree=2},
+  {name="goal0", exclude_initial=true}, {name="goal1", exclude_initial=true},
+  {name="goal2", exclude_initial=true}, {name="goal3", exclude_initial=true}
+]
+stages = [
+  {event=["0@relay"]},
+  {event=["1@relay"]},
+  {event=["2@relay"]},
+  {event=["3@relay"]},
+  {event=["0@goal0", "1@goal1", "2@goal2", "3@goal3"]}
+]

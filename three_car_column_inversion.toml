@@ -1,0 +1,25 @@
+[defaults]
+timeout_seconds = 1800
+bound = 180
+
+[[scenario]]
+name = "three_car_column_inversion"
+tier = "meaningful"
+explanation = "Three cars start on columns i<j<k and finish in inverted order on the same row."
+grid_size = [2, 3]
+n_cars = 3
+bound = 180
+maximum_edges = 5
+
+roles = [
+  {name="left",   initial_car=2, minimum_degree=1},
+  {name="middle", initial_car=1, minimum_degree=1},
+  {name="right",  initial_car=0, minimum_degree=1},
+  {name="buffer", exclude_initial=true, minimum_degree=1}
+]
+
+stages = [
+  {event=["0@buffer"]},
+  {event=["2@right"], hold=["0@buffer"]},
+  {event=["0@left", "1@middle", "2@right"], hold=["2@right"]}
+]

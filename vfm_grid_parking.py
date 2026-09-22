@@ -179,10 +179,12 @@ def _specialize_grid_env(source: Path, config: VfmGridParkingConfig) -> Path:
     for start in range(config.sections):
         for end in range(config.sections):
             if start != end:
+                if "MODEL_INTERSECTION_GEOMETRY" in text and "source.x" in text:
+                    continue
                 text = _replace_singleton_domain(
                     text, f"arclength_from_sec_{start}_to_sec_{end}_on_lane_0",
                     config.connection_length,
-                )
+                ) if re.search(rf"(?m)^\s*arclength_from_sec_{start}_to_sec_{end}_on_lane_0\s*:", text) else text
     output = source.with_name("EnvModel_GridParking.smv")
     output.write_text(
         "-- Full VFM with neighbour-only symbolic grid topology.\n"
@@ -208,7 +210,9 @@ def generate_vfm_grid_parking_model(
         "MINDISTCONNECTIONS": config.connection_length,
         "MAXDISTCONNECTIONS": config.connection_length,
         "MAXOUTGOINGCONNECTIONS": 4,
-        "MODEL_INTERSECTION_GEOMETRY": 0,
+        # Emit source/angle/drain geometry so concrete traces can be rendered
+        # by the native VFM visualizer.
+        "MODEL_INTERSECTION_GEOMETRY": 1,
         "SPEC": relational_ltl_property(config),
     }
     morty = generate_scenario(
