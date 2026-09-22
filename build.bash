@@ -90,11 +90,11 @@ if [[ -z "$CMAKE_GENERATOR" && -z "$VCINSTALLDIR" ]]; then
 fi
 
 if [ -z "$DEBUGOPTSCMAKE" ]; then
-  $CMAKE_BIN $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release $COVERAGE_OPT ..
+  $CMAKE_BIN $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON $COVERAGE_OPT ..
   $CMAKE_BIN --build . --config Release --parallel 16
 else
    printf "Redirecting cmake and make outputs to files due to debug mode."
-  $CMAKE_BIN $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release $COVERAGE_OPT .. > cmake.log 2> cmake.err
+  $CMAKE_BIN $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release -DCMAKE_EXPORT_COMPILE_COMMANDS=ON $COVERAGE_OPT .. > cmake.log 2> cmake.err
   $CMAKE_BIN --build . --config Release --parallel 16 > make.log 2> make.err
 fi
 
