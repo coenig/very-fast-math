@@ -163,6 +163,18 @@ class Morty:
             raise RuntimeError(
                 f"nuXmv reported a counterexample but did not create {output_cex}"
             )
+        # Keep NuSMV's native textual trace next to the XML CEX.  This is the
+        # format consumed by the existing VFM renderer (and is intentionally
+        # emitted by NuSMV rather than reconstructed from XML).
+        # nuXmv runs with the model directory as its cwd.  Resolve the output
+        # path just as for the XML trace; otherwise a repository-relative
+        # target is interpreted a second time below that cwd.
+        output_txt = (target_path / "debug_trace_array.txt").resolve()
+        output_txt.unlink(missing_ok=True)
+        self.nuxmv._send(f"show_traces -o {output_txt} 1")
+        text_trace_output = self.nuxmv._read_response()
+        print("OUTP:", text_trace_output)
+        self._raise_on_nuxmv_error(text_trace_output, "show_traces (text)")
         return output_cex
 
     @staticmethod

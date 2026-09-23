@@ -261,6 +261,10 @@ def check_model(model: Path, bound: int, *, temporal: bool = False,
         output = (model.parent / "cex_grid_parking.xml").resolve()
         connection._send(f"show_traces -p 6 -o {output} 1")
         connection._read_response()
+        text_output = model.parent / "debug_trace_array.txt"
+        text_output.unlink(missing_ok=True)
+        connection._send(f"show_traces -o {text_output} 1")
+        connection._read_response()
         return output if output.exists() else None
     finally:
         connection.close()
