@@ -570,6 +570,8 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
       img = cockpit;
    }
 
+   const std::shared_ptr<Image> pdf_img{ img }; // Resized copy below doesn't carry the tracked PDF document.
+
    if (visu_type & LiveSimType::gif_animation) { // TODO: Actually paint less to make it faster.
       img = std::make_shared<Image>(img->resizeAndScale(1280, 720, true, BLACK, true)); // Rescale for smaller GIFs.
    }
@@ -613,6 +615,8 @@ std::shared_ptr<Image> LiveSimGenerator::updateOutputImages(
                path = StaticHelper::removeLastFileExtension(image_file_output, "/") + "/pdf/";
                StaticHelper::createDirectoriesSafe(path);
                path += StaticHelper::getLastFileExtension(image_file_output, "/");
+               pdf_img->store(path, single_images_output_type);
+               continue;
             }
 
             img->store(path, single_images_output_type);
