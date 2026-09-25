@@ -753,7 +753,7 @@ std::string McWorkflow::getValueForJSONKeyAsStringPlain(const std::string& key_t
    }
 
 
-   addError("#KEY-NOT-FOUND in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "').");
+   addFatalError("#KEY-NOT-FOUND in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "').");
    return "#KEY-NOT-FOUND";
 }
 
