@@ -1,6 +1,6 @@
 These templates are (for now) intended to be pasted over "envmodel_config.tpl.json" in the father folder. 
 
-Task 4 (updated June 9)
+Task 4 (updated September 25)
 Task 7 (updated September 23)
 Task 10 (updated August 2)
 
