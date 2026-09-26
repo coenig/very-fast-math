@@ -23,13 +23,11 @@ In **ultra-cooperative driving mode**, a fleet of cars can be steered live in tr
 <img src="examples/cex.gif" width="1000" />
 
 ## How to build
-`vfm` is implemented in `C++` and can be built with CMake (stable) or Bazel (experimental). With CMake, simply run 
-
+`vfm` is implemented in `C++` and can be built by simply running
 ```build.bash```
-
 *(On Windows, you can alternatively open the top-level `CMakeLists.txt` with Visual Studio and build the `vfm` target.)*
 
-Run `vfm(.exe)` from the `bin` folder.
+Then, run `vfm(.exe)` from the `bin` folder.
 
 ### Build dependencies
 | Dependency | Minimum version | Platform |
