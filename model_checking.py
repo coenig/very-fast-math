@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import shutil
 import subprocess
 from ctypes import CDLL, c_char_p, c_size_t
 from pathlib import Path
@@ -89,7 +90,18 @@ class Morty:
     def generate_smv_files(self, args: list[str]) -> None:
         self.args = args
         self.morty_lib.generate_smv_files(";".join(args).encode("utf-8"))
-        target_path = Path(args[5])
+        requested_target = Path(args[5])
+        # VFM's native generator strips the leading slash from absolute
+        # targets and therefore creates them below the repository root.
+        # Locate that native path for Kratos, then move the finished scenario
+        # back to the path requested by Python.
+        native_target = (
+            Path.cwd() / str(requested_target).lstrip("/")
+            if requested_target.is_absolute() else requested_target
+        )
+        target_path = (
+            requested_target if requested_target.exists() else native_target
+        )
         subprocess.run(
             [
                 "external/linux64/kratos",
@@ -102,6 +114,10 @@ class Morty:
             text=True,
             check=False,
         )
+        if target_path != requested_target and target_path.exists():
+            requested_target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(target_path), str(requested_target))
+            self.args[5] = str(requested_target)
 
     def model_check(
         self,

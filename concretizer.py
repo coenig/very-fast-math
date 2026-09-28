@@ -41,6 +41,39 @@ def load_abstract_run(run: Path) -> tuple[dict, list[dict[str, str]], nx.Graph]:
     return config, states, graph
 
 
+def _anchor_geometry_at_section_zero(geometry: dict) -> None:
+    """Translate the fixed geometry so VFM's mandatory section 0 starts at 0/0."""
+    sections = geometry.get("sections", [])
+    if not sections:
+        return
+    root = next(section for section in sections if int(section["id"]) == 0)
+    dx, dy = int(root["source_x"]), int(root["source_y"])
+    if dx == 0 and dy == 0:
+        return
+    for section in sections:
+        section["source_x"] = int(section["source_x"]) - dx
+        section["source_y"] = int(section["source_y"]) - dy
+
+
+def _scale_geometry(geometry: dict, factor: float) -> None:
+    """Scale concrete coordinates and lengths while preserving topology."""
+    if factor <= 0:
+        raise ValueError("geometry scale must be positive")
+    for section in geometry.get("sections", []):
+        section["source_x"] = int(round(float(section["source_x"]) * factor))
+        section["source_y"] = int(round(float(section["source_y"]) * factor))
+        section["length"] = max(1, int(round(float(section["length"]) * factor)))
+    for targets in geometry.get("connection_lengths", {}).values():
+        for target, length in targets.items():
+            targets[target] = max(1, int(round(float(length) * factor)))
+    geometry["max_connection_length"] = max(
+        (length for targets in geometry.get("connection_lengths", {}).values()
+         for length in targets.values()),
+        default=1,
+    )
+    geometry["scale"] = factor
+
+
 def _abstract_milestone_indices(states: list[dict[str, str]]) -> list[int]:
     """Return source-state indices retained by the concrete monitor."""
     if "permutation_phase" not in states[0]:
@@ -245,7 +278,7 @@ def _rewrite_main(model_file: Path, milestones: list[tuple[int, ...]],
 
 def concretize(abstract_run: Path, *, bound: int, section_length: int,
                connection_length: int, lane_offset: int, junction_radius: int,
-               parking_lane_offset: int, output_dir: Path,
+               parking_lane_offset: int, scale: float, output_dir: Path,
                false_property: bool = False):
     abstract_config, abstract_states, graph = load_abstract_run(abstract_run)
     rows = int(abstract_config["rows"])
@@ -267,9 +300,19 @@ def concretize(abstract_run: Path, *, bound: int, section_length: int,
             parking_lane_offset=parking_lane_offset,
         ),
     )
+    _anchor_geometry_at_section_zero(geometry)
+    _scale_geometry(geometry, scale)
     validate_geometry(geometry)
+    # The generic main_template.json does not contain fixed-section arrays.
+    # Build a config from the standard VFM config and specialize those arrays
+    # for this concrete geometry before expanding the templates.
+    generation_config_path = output_dir / "concrete_generation_config.json"
+    write_vfm_render_config(geometry, generation_config_path)
     model = generate_vfm_grid_parking_model(
-        config, experiments_dir=output_dir, concrete_geometry=geometry
+        config,
+        input_config=generation_config_path,
+        experiments_dir=output_dir,
+        concrete_geometry=geometry,
     )
     env_file = model.target_path / "EnvModel_GridParking.smv"
     _rewrite_main(
@@ -312,6 +355,8 @@ def main() -> int:
                         help="radius of the connector area around each grid node")
     parser.add_argument("--parking-lane-offset", type=int, default=5,
                         help="half-separation of inbound/outbound parking sections")
+    parser.add_argument("--scale", type=float, default=1.0,
+                        help="uniform scale factor for concrete geometry")
     parser.add_argument("--output-dir", type=Path,
                         default=Path("vfm-with-parking/concretized"))
     parser.add_argument("--generate-only", action="store_true")
@@ -327,6 +372,7 @@ def main() -> int:
         lane_offset=args.lane_offset,
         junction_radius=args.junction_radius,
         parking_lane_offset=args.parking_lane_offset,
+        scale=args.scale,
         output_dir=args.output_dir,
         false_property=args.false_property,
     )
@@ -358,7 +404,13 @@ def main() -> int:
         print(f"Concrete topology: {topology.resolve()}")
         return 0
     gif = model.target_path / "concretized_vfm.gif"
-    save_trace_gif(counterexample, nx.MultiDiGraph(abstract_graph), model.config, gif)
+    save_trace_gif(
+        counterexample,
+        nx.MultiDiGraph(abstract_graph),
+        model.config,
+        gif,
+        geometry=geometry,
+    )
     print(f"Concrete counterexample: {counterexample}")
     print(f"Animation: {gif.resolve()}")
     return 0

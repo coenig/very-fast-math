@@ -196,18 +196,20 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
                               & (section_[sec2].source.y = section_[sec].drain.y + (dist_[con]_of_section_[sec]_to_[sec2] * (sin_of_section_[sec]_angle + sin_of_section_[sec2]_angle)) / 100)
                         );
                      )@
-                  }@*.if[@{ @{is_section_[sec]_fixed}@.scriptVar && @{is_section_[sec2]_fixed}@.scriptVar && @{is_connection_[con]_from_section_[sec]_fixed}@.scriptVar }@.eval]
+                  }@*.if[@{ @{!FIXED_TOPOLOGY}@.eval && @{is_section_[sec]_fixed}@.scriptVar && @{is_section_[sec2]_fixed}@.scriptVar && @{is_connection_[con]_from_section_[sec]_fixed}@.scriptVar }@.eval]
                }@**.if[@{ [sec] != [sec2] }@.eval]
             }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
          }@****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval] -- Several elements can be equal, so we have at least 1 and at most @{MAXOUTGOINGCONNECTIONS}@.eval[0] outgoing connections.
 
          @{
+            @{
             INIT @{ vec(section_[sec].source.x; section_[sec].source.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
                >= @{MAXDISTENDPOINTS}@.eval[0]; -- Use only farther away coordinate as lower bound.
             INIT @{ vec(section_[sec].source.x; section_[sec].source.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].drain.x; section_[sec2].drain.y) ] 
                >= @{MAXDISTENDPOINTS}@.eval[0]; -- Use only farther away coordinate as lower bound.
             INIT @{ vec(section_[sec].drain.x; section_[sec].drain.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
                >= @{MAXDISTENDPOINTS}@.eval[0]; -- Use only farther away coordinate as lower bound.
+            }@***.if[@{!FIXED_TOPOLOGY}@.eval]
          }@*.for[[sec2], 0, @{[sec]}@.sub[1]]
 
          @{

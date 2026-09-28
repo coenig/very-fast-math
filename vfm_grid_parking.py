@@ -218,24 +218,19 @@ def _fixed_macro_list(values: list[int]) -> str:
     return "@(" + ")@@(".join(str(value) for value in values) + ")@"
 
 
-def _fixed_macro_connectors(outgoing: dict[str, list[int]], section_count: int) -> str:
+def _fixed_macro_connectors(
+    outgoing: dict[str, list[int]], section_count: int, max_outgoing: int = 5,
+) -> str:
     """Encode section IDs and their outgoing connector slots for VFM."""
     entries: list[str] = []
     for section in range(section_count):
-        targets = outgoing.get(str(section), [])
-        inner = _fixed_macro_list([int(target) for target in targets])
-        # Do not add the outer-list terminator to each entry.  The VFM macro
-        # grammar uses ``@)`` as the end of an entry and ``@@(`` as the
-        # separator; adding another ``@`` here produces ``@@@(``.
-        entries.append(f"@({section})@@({inner})")
-    # The outer list uses ``@@(`` between entries; each entry already starts
-    # with ``@(``, so remove that prefix after the first entry.
-    return (
-        "@("
-        + entries[0]
-        + "".join("@@(" + entry for entry in entries[1:])
-        + ")@"
-    )
+        targets = [int(target) for target in outgoing.get(str(section), [])]
+        targets = (targets + [-1] * max_outgoing)[:max_outgoing]
+        inner = _fixed_macro_list(targets)
+        # A connector map entry is ``@(section)@@(target-list)@)``;
+        # the final ``@)`` closes the entry in the outer list.
+        entries.append(f"@({section})@@({inner})@)")
+    return "@(" + "@@(".join(entries) + "@"
 
 
 def write_vfm_render_config(geometry: dict, output: Path,
@@ -265,7 +260,9 @@ def write_vfm_render_config(geometry: dict, output: Path,
         "FIXED_SECTION_LENGTHs": _fixed_macro_list([int(s["length"]) for s in sections]),
         "FIXED_SECTION_SOURCE_Xs": _fixed_macro_list([int(s["source_x"]) for s in sections]),
         "FIXED_SECTION_SOURCE_Ys": _fixed_macro_list([int(s["source_y"]) for s in sections]),
-        "FIXED_SECTION_CONNECTORS": _fixed_macro_connectors(outgoing, section_count),
+        "FIXED_SECTION_CONNECTORS": _fixed_macro_connectors(
+            outgoing, section_count, int(geometry.get("max_outgoing", 5))
+        ),
         "_CEX_FILE_NAME": "debug_trace_array.txt",
     })
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -346,7 +343,10 @@ def _specialize_grid_env(source: Path, config: VfmGridParkingConfig,
     )
     max_slots = int(geometry.get("max_outgoing", 5)) if geometry is not None else 4
     expected = section_count * (max_slots - 1)
-    if removed != expected:
+    # FIXED_TOPOLOGY makes the template omit these rules at expansion time;
+    # older cached/generated templates still contain them and are stripped
+    # here for compatibility.
+    if removed not in {0, expected}:
         raise ValueError(f"expected to remove {expected} slot-compaction rules, removed {removed}")
     for section in range(section_count):
         length = config.section_length
@@ -447,6 +447,10 @@ def generate_vfm_grid_parking_model(
         # _specialize_grid_env adds equivalent frozen geometry metadata after
         # topology is fixed, keeping concrete generation tractable.
         "MODEL_INTERSECTION_GEOMETRY": 0,
+        # The grid topology is fixed by _edge_topology_constraints below.
+        # This is a template-generation switch, not an SMV runtime variable:
+        # omit symbolic topology consistency checks from the expanded model.
+        "FIXED_TOPOLOGY": concrete_geometry is not None,
         "SPEC": relational_ltl_property(config),
     }
     morty = generate_scenario(
@@ -561,7 +565,10 @@ def _car_point(state: dict[str, str], car: int, positions: dict[int, tuple[float
         # A grid node represents an entire road section, not a geometrically
         # horizontal lane. Keep the marker on that node; otherwise using
         # abs_pos as an x-offset makes cars on vertical parts leave the road.
-        return positions[section]
+        # Concrete VFM traces also contain generated parking sections, which
+        # are not present in the abstract grid layout.  Keep rendering robust
+        # if an older caller does not provide a concrete layout.
+        return positions.get(section, positions.get(0, (0.0, 0.0)))
     start = int(state.get(vehicle(car, "traversion_from"), "0"))
     end = int(state.get(vehicle(car, "traversion_to"), "0"))
     fraction = max(0.0, min(1.0, distance / config.connection_length))
@@ -569,16 +576,39 @@ def _car_point(state: dict[str, str], car: int, positions: dict[int, tuple[float
 
 
 def save_trace_gif(counterexample: Path, graph: nx.MultiDiGraph,
-                   config: VfmGridParkingConfig, output: Path) -> None:
+                   config: VfmGridParkingConfig, output: Path,
+                   geometry: dict | None = None) -> None:
     from matplotlib import pyplot as plt
     from matplotlib.animation import FuncAnimation, PillowWriter
 
     states = parse_states(counterexample)
-    positions = _layout(config)
+    if geometry is None:
+        positions = _layout(config)
+        display_graph = graph
+    else:
+        # A concrete grid has directed road and parking sections, while the
+        # abstract graph contains only grid nodes.  Render the concrete
+        # section graph whenever it is available.
+        positions = {
+            int(section["id"]): (
+                float(section["source_x"]) / 100.0,
+                float(section["source_y"]) / 100.0,
+            )
+            for section in geometry.get("sections", [])
+        }
+        display_graph = nx.MultiDiGraph()
+        display_graph.add_nodes_from(positions)
+        for source, targets in geometry.get("outgoing", {}).items():
+            for target in targets:
+                if int(target) >= 0:
+                    display_graph.add_edge(int(source), int(target))
+        if not positions:
+            positions = _layout(config)
+            display_graph = graph
     figure, axes = plt.subplots(figsize=(2.4 * config.columns, 2.2 * config.rows))
-    nx.draw_networkx_nodes(graph, positions, ax=axes, node_color="#edf2f8", node_size=950)
-    nx.draw_networkx_labels(graph, positions, ax=axes)
-    nx.draw_networkx_edges(graph, positions, ax=axes, arrows=True, arrowsize=18,
+    nx.draw_networkx_nodes(display_graph, positions, ax=axes, node_color="#edf2f8", node_size=950)
+    nx.draw_networkx_labels(display_graph, positions, ax=axes)
+    nx.draw_networkx_edges(display_graph, positions, ax=axes, arrows=True, arrowsize=18,
                            connectionstyle="arc3,rad=0.08")
     palette = plt.get_cmap("tab10")
     dots = [

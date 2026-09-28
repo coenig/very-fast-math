@@ -91,9 +91,43 @@ def _first_state_values(trace: Path) -> dict[str, str]:
 
 def _load_manifest(trace: Path) -> dict:
     manifest = trace.with_name("concrete_geometry.json")
-    if not manifest.is_file():
+    if manifest.is_file():
+        return json.loads(manifest.read_text())
+
+    # Benchmark VFM runs use the abstract grid directly and therefore do not
+    # emit concrete_geometry.json. Reconstruct a simple section layout from
+    # the selected grid and its nearby VFM configuration.
+    selected_grid = None
+    config = None
+    for parent in (trace.parent, *trace.parents):
+        candidate_grid = parent / "selected_grid.json"
+        candidate_config = trace.parent / "vfm_grid_parking_config.json"
+        if selected_grid is None and candidate_grid.is_file():
+            selected_grid = candidate_grid
+        if config is None and candidate_config.is_file():
+            config = candidate_config
+        if selected_grid is not None and config is not None:
+            break
+    if selected_grid is None:
         return {}
-    return json.loads(manifest.read_text())
+    grid = json.loads(selected_grid.read_text())
+    values = json.loads(config.read_text()) if config is not None else {}
+    columns = int(values.get("columns", 1))
+    pitch = float(values.get("section_length", 100) + 40)
+    sections = []
+    for node in grid.get("nodes", []):
+        identifier = int(node["id"])
+        row = int(node.get("row", identifier // columns))
+        column = int(node.get("column", identifier % columns))
+        sections.append({
+            "id": identifier,
+            "source_x": column * pitch,
+            "source_y": -row * pitch,
+            "angle": 0,
+            "length": float(values.get("section_length", 100)),
+            "kind": "road",
+        })
+    return {"sections": sections}
 
 
 def load_trace_geometry(trace: Path) -> tuple[list[Section], dict[int, list[int]]]:

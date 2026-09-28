@@ -61,6 +61,7 @@
 @{MAXDISTCONNECTIONS}@*******.defaultValue[50]            -- The maximal "X" variable when going from the drain of one road to the source of a connected one
 @{MAXDISTENDPOINTS}@*******.defaultValue[5]               -- Two end points must be at least this apart (approximated by maxvar method)
 @{MODEL_INTERSECTION_GEOMETRY}@*******.defaultValue[true] -- If the length of the junctions is calculated subject to connections etc. (Makes calculation slow, but needed at least for multi-lane road networks.)
+@{FIXED_TOPOLOGY}@*******.defaultValue[false] -- Topology and geometry are supplied by the caller; omit symbolic topology-consistency checks.
 
 -- Parameters for ego and non-ego vehicles (vehicle length is below in LC section)
 @{EGOLESS}@*******.defaultValue[false]

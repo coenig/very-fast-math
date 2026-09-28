@@ -156,7 +156,8 @@ def concrete_role_constraints(case: BenchmarkCase,
 def specialize_vfm_main(model_file: Path, case: BenchmarkCase, *,
                         topology: str, fixed_roles: dict[str, int] | None = None,
                         refinement: str = "monitor",
-                        milestones: list[tuple[int, ...]] | None = None) -> None:
+                        milestones: list[tuple[int, ...]] | None = None,
+                        section_length: int = 100) -> None:
     text = model_file.read_text()
     for car in range(case.spec.cars):
         prefix = re.escape(f"env.veh___6{car}9___")
@@ -178,10 +179,14 @@ def specialize_vfm_main(model_file: Path, case: BenchmarkCase, *,
         property_text = stages_to_monitor(case.stages)
     additions = ["", concrete_role_constraints(case, fixed_roles), topology,
                  "-- Benchmark initial state and admissibility."]
+    front_position = max(2, int(round(0.6 * section_length)))
+    rear_position = max(1, int(round(0.2 * section_length)))
+    if rear_position >= front_position:
+        rear_position = max(0, front_position - 1)
     for car in range(case.spec.cars):
         additions.extend((
             f"INIT {vehicle(car, f'is_on_sec_{case.spec.cars - 1 - car}')} = 1;",
-            f"INIT {vehicle(car, 'abs_pos')} = {60 if car == 0 else 20};",
+            f"INIT {vehicle(car, 'abs_pos')} = {front_position if car == 0 else rear_position};",
             f"INIT {vehicle(car, 'v')} = 5;",
             f"INVAR {vehicle(car, 'v')} >= 0;",
         ))
@@ -211,10 +216,17 @@ def render_abstract_model(case: BenchmarkCase) -> str:
     return text + "\n" + "\n".join(fixed_initial_roles) + "\n"
 
 
-def generate_concrete_base(case: BenchmarkCase, run_dir: Path):
+def generate_concrete_base(case: BenchmarkCase, run_dir: Path,
+                           section_length: int):
+    initial_a_position = max(2, int(round(0.6 * section_length)))
+    initial_b_position = max(1, int(round(0.2 * section_length)))
+    if initial_b_position >= initial_a_position:
+        initial_b_position = max(0, initial_a_position - 1)
     config = VfmGridParkingConfig(
         rows=case.spec.rows, columns=case.spec.columns, cars=case.spec.cars,
-        section_length=100, connection_length=20, bound=case.spec.bound,
+        section_length=section_length, connection_length=20, bound=case.spec.bound,
+        initial_a_position=initial_a_position,
+        initial_b_position=initial_b_position,
     )
     # VFM's generator treats an absolute output path as if it were relative
     # (prefixing it with ``./``), while the kratos post-pass does not.  Passing
@@ -358,7 +370,8 @@ def _finish_concrete(result: dict, cex: Path, graph: nx.Graph, model,
 
 
 def execute_abstract_concretized(case: BenchmarkCase, run_dir: Path,
-                                 refinement: str = "monitor") -> dict:
+                                 refinement: str = "monitor",
+                                 section_length: int = 100) -> dict:
     if refinement not in {"monitor", "ltl"}:
         raise ValueError(f"unknown concrete refinement mode: {refinement}")
     result = _base_result(case, "abstract_concretized", run_dir)
@@ -398,12 +411,13 @@ def execute_abstract_concretized(case: BenchmarkCase, run_dir: Path,
         time.perf_counter() - abstract_visualization_started
     )
     tick = time.perf_counter()
-    model = generate_concrete_base(case, run_dir / "vfm")
+    model = generate_concrete_base(case, run_dir / "vfm", section_length)
     result["concrete_generation_seconds"] = time.perf_counter() - tick
     specialize_vfm_main(
         model.model_file, case,
         topology=fixed_topology_constraints(case, set(graph.edges())),
         fixed_roles=roles, refinement=refinement, milestones=milestones,
+        section_length=section_length,
     )
     tick = time.perf_counter()
     result["nuxmv_invocations"] = 2
@@ -424,14 +438,16 @@ def execute_abstract_concretized(case: BenchmarkCase, run_dir: Path,
     return result
 
 
-def execute_symbolic_vfm(case: BenchmarkCase, run_dir: Path) -> dict:
+def execute_symbolic_vfm(case: BenchmarkCase, run_dir: Path,
+                        section_length: int = 100) -> dict:
     result = _base_result(case, "symbolic_vfm", run_dir)
     started = time.perf_counter()
     tick = time.perf_counter()
-    model = generate_concrete_base(case, run_dir / "vfm")
+    model = generate_concrete_base(case, run_dir / "vfm", section_length)
     result["concrete_generation_seconds"] = time.perf_counter() - tick
     specialize_vfm_main(model.model_file, case,
-                        topology=symbolic_topology_constraints(case))
+                        topology=symbolic_topology_constraints(case),
+                        section_length=section_length)
     tick = time.perf_counter()
     result["nuxmv_invocations"] = 1
     cex = check_concrete(model, model.model_file, "cex_benchmark.xml")
@@ -454,11 +470,12 @@ def execute_symbolic_vfm(case: BenchmarkCase, run_dir: Path) -> dict:
     return result
 
 
-def execute_enumerated_vfm(case: BenchmarkCase, run_dir: Path) -> dict:
+def execute_enumerated_vfm(case: BenchmarkCase, run_dir: Path,
+                           section_length: int = 100) -> dict:
     result = _base_result(case, "enumerated_vfm", run_dir)
     started = time.perf_counter()
     tick = time.perf_counter()
-    model = generate_concrete_base(case, run_dir / "vfm")
+    model = generate_concrete_base(case, run_dir / "vfm", section_length)
     result["concrete_generation_seconds"] = time.perf_counter() - tick
     base_text = model.model_file.read_text()
     checking = 0.0
@@ -471,7 +488,8 @@ def execute_enumerated_vfm(case: BenchmarkCase, run_dir: Path) -> dict:
         candidate = model.target_path / "main_benchmark_candidate.smv"
         candidate.write_text(base_text)
         specialize_vfm_main(candidate, case,
-                            topology=fixed_topology_constraints(case, enabled))
+                            topology=fixed_topology_constraints(case, enabled),
+                            section_length=section_length)
         tick = time.perf_counter()
         result["nuxmv_invocations"] += 1
         cex = check_concrete(model, candidate, "cex_benchmark_candidate.xml")
@@ -488,15 +506,15 @@ def execute_enumerated_vfm(case: BenchmarkCase, run_dir: Path) -> dict:
 
 
 def execute(case: BenchmarkCase, method: str, run_dir: Path,
-            refinement: str | None = None) -> dict:
+            refinement: str | None = None, section_length: int = 100) -> dict:
     if method == "abstract_concretized":
         result = execute_abstract_concretized(
-            case, run_dir, refinement or "monitor")
+            case, run_dir, refinement or "monitor", section_length)
     else:
         result = {
             "enumerated_vfm": execute_enumerated_vfm,
             "symbolic_vfm": execute_symbolic_vfm,
-        }[method](case, run_dir)
+        }[method](case, run_dir, section_length)
     model_files = list(run_dir.rglob("*.smv"))
     result["smv_bytes"] = sum(path.stat().st_size for path in model_files)
     result["smv_lines"] = sum(sum(1 for _ in path.open(errors="ignore")) for path in model_files)
@@ -505,7 +523,7 @@ def execute(case: BenchmarkCase, method: str, run_dir: Path,
 
 
 def worker(case: BenchmarkCase, method: str, run_dir: Path,
-           refinement: str | None = None) -> None:
+           refinement: str | None = None, section_length: int = 100) -> None:
     os.setsid()
     with (run_dir / "stdout.log").open("w") as stdout, \
          (run_dir / "stderr.log").open("w") as stderr:
@@ -515,7 +533,7 @@ def worker(case: BenchmarkCase, method: str, run_dir: Path,
         os.dup2(stderr.fileno(), 2)
         try:
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                result = execute(case, method, run_dir, refinement)
+                result = execute(case, method, run_dir, refinement, section_length)
         except BaseException as error:
             traceback.print_exc(file=stderr)
             result = _base_result(case, method, run_dir)
@@ -526,7 +544,7 @@ def worker(case: BenchmarkCase, method: str, run_dir: Path,
 
 
 def run_timed(case: BenchmarkCase, method: str, run_dir: Path, timeout: int,
-              refinement: str | None = None) -> dict:
+              refinement: str | None = None, section_length: int = 100) -> dict:
     # Resume may encounter a directory left by an interrupted worker before it
     # managed to checkpoint result.json. Reuse it and retain the partial logs.
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -535,7 +553,10 @@ def run_timed(case: BenchmarkCase, method: str, run_dir: Path, timeout: int,
         "stages": asdict(case)["stages"], "method": method,
         "refinement": refinement,
     }, indent=2) + "\n")
-    process = mp.Process(target=worker, args=(case, method, run_dir, refinement))
+    process = mp.Process(
+        target=worker,
+        args=(case, method, run_dir, refinement, section_length),
+    )
     started = time.perf_counter()
     process.start()
     deadline = started + timeout
@@ -587,6 +608,10 @@ def main() -> int:
     parser.add_argument("--only", action="append", help="scenario name (repeatable)")
     parser.add_argument("--method", action="append", choices=METHODS)
     parser.add_argument("--timeout", type=int, help="override whole-pipeline timeout")
+    parser.add_argument(
+        "--section-length", type=int, default=100,
+        help="road-section length used by the concrete VFM model",
+    )
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--smoke", action="store_true", help="run the first scenario only")
     parser.add_argument(
@@ -655,16 +680,19 @@ def main() -> int:
                 else:
                     pass
             pending.append((case, method, refinement, run_dir,
-                            args.timeout or case.spec.timeout_seconds))
+                            args.timeout or case.spec.timeout_seconds,
+                            args.section_length))
 
     # Each job owns a separate directory and child process, so independent
     # methods/cases can safely run concurrently.  Checkpointing remains in the
     # coordinator thread as jobs complete.
     with ThreadPoolExecutor(max_workers=args.parallel) as executor:
         futures = {
-            executor.submit(run_timed, case, method, run_dir, timeout, refinement):
+            executor.submit(
+                run_timed, case, method, run_dir, timeout, refinement, section_length
+            ):
             (case, method, refinement)
-            for case, method, refinement, run_dir, timeout in pending
+            for case, method, refinement, run_dir, timeout, section_length in pending
         }
         for future in as_completed(futures):
             case, method, refinement = futures[future]
