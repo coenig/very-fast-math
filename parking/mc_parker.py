@@ -47,6 +47,7 @@ EGO_REAR_AXLE_PX = (142.5, 129.0)
 EGO_CENTRE_AHEAD_OF_AXLE_M = EGO_LENGTH_M / 2.0 - EGO_REAR_OVERHANG_M
 EGO_ACCEL_MPS2 = 1.5
 EGO_MAX_SPEED_MPS = 4.0
+EGO_GEAR_CHANGE_PAUSE_S = 0.5
 
 # runMCJobs model-checks every examples/gp* package (except the bare 'gp' prefix folder). With a
 # >1 range on a '#'-variable in the tpl.json, generateEnvmodels emits one such package per value
@@ -512,52 +513,106 @@ def connection_splines_pixel(trace_path, image_width, image_height, samples=24):
     return splines
 
 
-def ego_route_world(trace_path, start_sec, target_sec, samples=48):
-    """Centerline polyline from start_sec's source over the connection arcs to target_sec's drain.
+def target_park_in_dirs(smv_path):
+    """Accepted park-in directions ('F', 'B') from 'is_target_reachable := ...' in EnvModel.smv."""
+    try:
+        with open(smv_path, "r") as f:
+            m = re.search(r"is_target_reachable\s*:=([^;]*);", f.read())
+    except OSError:
+        m = None
+    dirs = tuple(d for d, name in (("F", "forward"), ("B", "backward"))
+                 if m and f"is_target_reachable_{name}" in m.group(1))
+    return dirs or ("F", "B")
 
-    Uses the fewest-hops chain of directed connections. Returns (points, cumulative lengths,
-    arc length of start_sec's middle, arc length of target_sec's middle), or None if unreachable.
+
+def ego_route_world(trace_path, target_sec, target_dirs=("F", "B"), samples=48):
+    """Drive legs from the middle of Sec. 0 to the middle of target_sec, as the MC reaches it.
+
+    Mirrors EnvModel_Reachability.tpl: BFS over (section, F/B) states seeded with (0, F) and
+    (0, B); F follows connections forward, B follows them in reverse, and the gear flips only in
+    a forward/backward-terminal section other than the target. Each gear flip happens with the
+    car centre on the section middle. Returns [(points, cumulative lengths, gear), ...] with the
+    rear-axle path in motion order and gear +1/-1, or None if the target is unreachable.
     """
     get = _trace_getter(trace_path)
-    if start_sec == target_sec or _section_geom(get, start_sec) is None:
+    geoms = {}
+    while _section_geom(get, len(geoms)) is not None:
+        geoms[len(geoms)] = _section_geom(get, len(geoms))
+    if 0 not in geoms or target_sec not in geoms or target_sec == 0:
         return None
-    prev = {start_sec: None}
-    queue = deque([start_sec])
-    while queue and target_sec not in prev:
-        node = queue.popleft()
+
+    succ = {s: set() for s in geoms}
+    pred = {s: set() for s in geoms}
+    for s in geoms:
         c = 0
-        while True:
-            tgt = get(f"outgoing_connection_{c}_of_section_{node}")
+        while (t := get(f"outgoing_connection_{c}_of_section_{s}")) is not None:
             c += 1
-            if tgt is None:
-                break
-            tgt = int(tgt)
-            if tgt >= 0 and tgt not in prev and _section_geom(get, tgt) is not None:
-                prev[tgt] = node
-                queue.append(tgt)
-    if target_sec not in prev:
-        return None
+            t = int(t)
+            if t in geoms and t != s:
+                succ[s].add(t)
+                pred[t].add(s)
 
-    chain = [target_sec]
-    while prev[chain[-1]] is not None:
-        chain.append(prev[chain[-1]])
-    geoms = [_section_geom(get, sec) for sec in reversed(chain)]
-
-    points = list(geoms[0])
-    for src_geom, tgt_geom in zip(geoms, geoms[1:]):
-        bezier = _connection_bezier(src_geom, tgt_geom)
-        if bezier is not None:
-            points.extend(_cubic_bezier(i / samples, *bezier) for i in range(1, samples + 1))
+    def neighbours(sec, d):
+        if d == "F":
+            nxt = [(t, "F") for t in sorted(succ[sec])]
+            flip = not succ[sec]
         else:
-            points.append(tgt_geom[0])
-        points.append(tgt_geom[1])
+            nxt = [(m, "B") for m in sorted(pred[sec])]
+            flip = not pred[sec]
+        if flip and sec != target_sec:
+            nxt.append((sec, "B" if d == "F" else "F"))
+        return nxt
 
-    cum = [0.0]
-    for (x1, y1), (x2, y2) in zip(points, points[1:]):
-        cum.append(cum[-1] + math.hypot(x2 - x1, y2 - y1))
-    start_len = math.dist(*geoms[0])
-    target_len = math.dist(*geoms[-1])
-    return points, cum, start_len / 2.0, cum[-1] - target_len / 2.0
+    prev = {(0, "F"): None, (0, "B"): None}
+    queue = deque(prev)
+    goal = None
+    while queue and goal is None:
+        state = queue.popleft()
+        for nxt in neighbours(*state):
+            if nxt not in prev:
+                prev[nxt] = state
+                queue.append(nxt)
+                if nxt[0] == target_sec and nxt[1] in target_dirs:
+                    goal = nxt
+                    break
+    if goal is None:
+        return None
+    states = [goal]
+    while prev[states[-1]] is not None:
+        states.append(prev[states[-1]])
+    states.reverse()
+
+    def at(sec, u):
+        (sx, sy), (dx, dy) = geoms[sec]
+        length = math.dist((sx, sy), (dx, dy)) or 1.0
+        return sx + (dx - sx) * u / length, sy + (dy - sy) * u / length
+
+    raw_legs, pts = [], []
+    for k, (sec, d) in enumerate(states):
+        length = math.dist(*geoms[sec])
+        mid = length / 2.0 - EGO_CENTRE_AHEAD_OF_AXLE_M
+        last = k == len(states) - 1
+        u_in = mid if k == 0 or states[k - 1][0] == sec else (0.0 if d == "F" else length)
+        u_out = mid if last or states[k + 1][0] == sec else (length if d == "F" else 0.0)
+        pts += [at(sec, u_in), at(sec, u_out)]
+        if last or states[k + 1][0] == sec:
+            raw_legs.append((pts, 1 if d == "F" else -1))
+            pts = []
+            continue
+        nsec = states[k + 1][0]
+        bezier = (_connection_bezier(geoms[sec], geoms[nsec]) if d == "F"
+                  else _connection_bezier(geoms[nsec], geoms[sec]))
+        if bezier is not None:
+            ts = range(1, samples) if d == "F" else range(samples - 1, 0, -1)
+            pts.extend(_cubic_bezier(i / samples, *bezier) for i in ts)
+
+    legs = []
+    for points, gear in raw_legs:
+        cum = [0.0]
+        for p, q in zip(points, points[1:]):
+            cum.append(cum[-1] + math.dist(p, q))
+        legs.append((points, cum, gear))
+    return legs
 
 
 def _polyline_point(points, cum, s):
@@ -593,6 +648,13 @@ def trapezoid_distance(t, dist, accel=EGO_ACCEL_MPS2, vmax=EGO_MAX_SPEED_MPS):
     if tb >= t_acc:
         return dist, True
     return d_acc + v_peak * t_cruise + v_peak * tb - 0.5 * accel * tb * tb, False
+
+
+def trapezoid_duration(dist, accel=EGO_ACCEL_MPS2, vmax=EGO_MAX_SPEED_MPS):
+    if dist <= 0.0:
+        return 0.0
+    v_peak = min(vmax, math.sqrt(accel * dist))
+    return 2.0 * v_peak / accel + (dist - v_peak * v_peak / accel) / v_peak
 
 
 def patch_smv_obstacles(smv_path, obstacles_world):
@@ -1206,7 +1268,8 @@ class MainWindow(QMainWindow):
         car.setScale(transform[2] * EGO_LENGTH_M / pixmap.width())
         car.setZValue(3.5)
         self._ego_item = car
-        self._ego_route = ego_route_world(self.trace_path, 0, target_section)
+        self._ego_route = ego_route_world(self.trace_path, target_section,
+                                          target_park_in_dirs(self.smv_path))
         self._place_ego_at_start()
 
     def _place_ego_at_start(self):
@@ -1239,10 +1302,20 @@ class MainWindow(QMainWindow):
         self.play_timer.start()
 
     def _play_step(self):
-        points, cum, s_start, s_end = self._ego_route
-        d, finished = trapezoid_distance(time.monotonic() - self._play_t0, s_end - s_start)
-        self._set_ego_pose(*polyline_pose(points, cum, s_start - EGO_CENTRE_AHEAD_OF_AXLE_M + d))
-        if finished:
+        t = time.monotonic() - self._play_t0
+        last = len(self._ego_route) - 1
+        for i, (points, cum, gear) in enumerate(self._ego_route):
+            d, finished = trapezoid_distance(t, cum[-1])
+            if not finished or i == last:
+                break
+            t -= trapezoid_duration(cum[-1])
+            if t < EGO_GEAR_CHANGE_PAUSE_S:
+                break
+            t -= EGO_GEAR_CHANGE_PAUSE_S
+        x, y, yaw = polyline_pose(points, cum, d)
+        # In reverse the car faces against its direction of motion.
+        self._set_ego_pose(x, y, yaw if gear > 0 else yaw + math.pi)
+        if finished and i == last:
             self.play_timer.stop()
 
     def _draw_obstacle_ghosts(self, rects_data):
