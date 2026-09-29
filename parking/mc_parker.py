@@ -1095,29 +1095,29 @@ class MainWindow(QMainWindow):
         
         layout.addWidget(self.view)
 
+        self.play_btn = QPushButton("Play")
+        self.play_btn.clicked.connect(self.play_ego)
+        layout.addWidget(self.play_btn)
+
+        # Discards unregenerated edits: back to the layout the current packages were built from.
+        self.reset_btn = QPushButton("Reset")
+        self.reset_btn.clicked.connect(self.reset_scene)
+        layout.addWidget(self.reset_btn)
+
         # Drops a new draggable obstacle; like moving section 1, this needs an EnvModel regen
         # (the obstacle COUNT changes, which patch_smv_obstacles cannot do on the fly).
         self.add_obstacle_btn = QPushButton("Add Obstacle")
         self.add_obstacle_btn.clicked.connect(self.add_obstacle)
         layout.addWidget(self.add_obstacle_btn)
 
-        # Discards unregenerated edits: back to the layout the current packages were built from.
-        self.reset_btn = QPushButton("Reset Obstacles / Target Section")
-        self.reset_btn.clicked.connect(self.reset_scene)
-        layout.addWidget(self.reset_btn)
-
-        self.play_btn = QPushButton("Play (drive ego to target section)")
-        self.play_btn.clicked.connect(self.play_ego)
-        layout.addWidget(self.play_btn)
-
         # Model checks every configured variant in parallel and adopts the first counterexample
         # (a single-variant config is just the degenerate one-runner case).
-        self.refresh_btn = QPushButton("Re-run Model Checker (first counterexample wins)")
+        self.refresh_btn = QPushButton("Run Model Checker")
         self.refresh_btn.clicked.connect(self.trigger_external_process)
         layout.addWidget(self.refresh_btn)
 
         # Stays clickable while the MC race runs; kills every nuXmv instance at once.
-        self.terminate_btn = QPushButton("Terminate Model Checker (kill all nuXmv)")
+        self.terminate_btn = QPushButton("Terminate Model Checker")
         self.terminate_btn.clicked.connect(self.terminate_race)
         self.terminate_btn.setEnabled(False)
         layout.addWidget(self.terminate_btn)
