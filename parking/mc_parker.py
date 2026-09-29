@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout,
                              QPushButton, QGraphicsView, QGraphicsScene, QGraphicsRectItem,
                              QGraphicsEllipseItem, QGraphicsSimpleTextItem, QMessageBox)
 from PyQt6.QtCore import Qt, QRectF, QTimer, QPointF
-from PyQt6.QtGui import QPixmap, QBrush, QPen, QColor, QPainterPath, QPolygonF, QFont
+from PyQt6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QPainterPath, QPolygonF, QFont
 
 
 # Repo root = parent of this parking/ folder; anchors all paths independent of the caller's cwd.
@@ -34,6 +34,12 @@ MC_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.runMCJobs[16]"
 ENVGEN_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.generateEnvmodels"
 # Renders only the smooth birdseye counterexample visualization (images/video).
 TESTCASE_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.generateTestCases[cex-smooth-birdseye]"
+
+# Ego sprite (639x258 px, rear bumper at x=0, front to +x); dimensions from EGO_* in activation_pose.py.
+EGO_CAR_IMAGE = os.path.join(REPO_ROOT, "parking", "ego_car.png")
+EGO_LENGTH_M = 4.53
+# Car centre (MC reference); APA would use the rear axle at x=142.5.
+EGO_ANCHOR_PX = (319.5, 129.0)
 
 # runMCJobs model-checks every examples/gp* package (except the bare 'gp' prefix folder). With a
 # >1 range on a '#'-variable in the tpl.json, generateEnvmodels emits one such package per value
@@ -936,6 +942,11 @@ class MainWindow(QMainWindow):
         self.add_obstacle_btn.clicked.connect(self.add_obstacle)
         layout.addWidget(self.add_obstacle_btn)
 
+        # Discards unregenerated edits: back to the layout the current packages were built from.
+        self.reset_btn = QPushButton("Reset Obstacles / Target Section")
+        self.reset_btn.clicked.connect(self.reset_scene)
+        layout.addWidget(self.reset_btn)
+
         # Model checks every configured variant in parallel and adopts the first counterexample
         # (a single-variant config is just the degenerate one-runner case).
         self.refresh_btn = QPushButton("Re-run Model Checker (first counterexample wins)")
@@ -985,6 +996,7 @@ class MainWindow(QMainWindow):
         self._trajectory_items = []
         self._obstacle_ghost_items = []
         self._section_ghost_item = None
+        self._baseline = None
 
         # Load image and obstacle rectangles from the current trace.
         self.reload_from_trace()
@@ -1035,6 +1047,7 @@ class MainWindow(QMainWindow):
 
         if segments:
             self._draw_roads(segments, splines, target_section, ppm, draggable_target)
+            self._draw_ego_car(transform)
             # Static ghosts of the ORIGINAL obstacle positions, so the starting layout stays
             # visible once the draggable (red) obstacles are moved during a session.
             self._draw_obstacle_ghosts(rects_data)
@@ -1060,8 +1073,38 @@ class MainWindow(QMainWindow):
             for rect in rects_data:
                 self.add_rectangle(*rect)
 
+        self._capture_baseline()
         self._apply_visu_mode()
         self.scale_to_fit()
+
+    def _draw_ego_car(self, transform):
+        """Ego sprite centred on the middle of Sec. 0, heading along Sec. 0 (source -> drain)."""
+        image = QImage(EGO_CAR_IMAGE)
+        if image.isNull() or transform is None:
+            return
+        # White background -> transparent; near-white too, so the anti-aliased rim leaves no halo.
+        image = image.convertToFormat(QImage.Format.Format_ARGB32)
+        for y in range(image.height()):
+            for x in range(image.width()):
+                p = image.pixel(x, y)
+                if min((p >> 16) & 0xFF, (p >> 8) & 0xFF, p & 0xFF) >= 245:
+                    image.setPixel(x, y, 0)
+        pixmap = QPixmap.fromImage(image)
+        get = _trace_getter(self.trace_path)
+        yaw_deg = get("section_0.angle") or 0.0
+        half_len = (get("section_0_end") or 0.0) / 2.0
+        yaw = math.radians(yaw_deg)
+        ax, ay = world_to_pixel((get("section_0.source.x") or 0.0) + half_len * math.cos(yaw),
+                                (get("section_0.source.y") or 0.0) + half_len * math.sin(yaw),
+                                transform, self.image_w, self.image_h)
+        ox, oy = EGO_ANCHOR_PX
+        car = self.scene.addPixmap(pixmap)
+        car.setTransformationMode(Qt.TransformationMode.SmoothTransformation)
+        car.setTransformOriginPoint(ox, oy)
+        car.setPos(ax - ox, ay - oy)
+        car.setScale(transform[2] * EGO_LENGTH_M / pixmap.width())
+        car.setRotation(yaw_deg)
+        car.setZValue(3.5)
 
     def _draw_obstacle_ghosts(self, rects_data):
         """Filled, non-interactive ghosts marking where the obstacles originally were."""
@@ -1304,11 +1347,44 @@ class MainWindow(QMainWindow):
             half_w = max(6.0, (self._ppm or 50.0) * 1.0)
             self._draw_section_ghost(pos.x(), pos.y(), self.section_item.length_px,
                                      self.section_item.rotation(), half_w)
+        self._capture_baseline()
+
+    def _capture_baseline(self):
+        """Remember the obstacle/section layout that matches the current packages (for Reset)."""
+        rects = []
+        for item in self.rect_items:
+            r = item.mapRectToScene(item.rect())
+            rects.append((r.left(), r.top(), r.right(), r.bottom()))
+        section = None
+        if self.section_item is not None:
+            section = (QPointF(self.section_item.pos()), self.section_item.rotation())
+        self._baseline = (rects, section)
+
+    def reset_scene(self):
+        """Undo all unregenerated edits and unblock the MC re-run (no regeneration needed)."""
+        if self._baseline is None or self._race_proc is not None:
+            return
+        rects, section = self._baseline
+        for item in self.rect_items:
+            self.scene.removeItem(item)
+        self.rect_items = []
+        for rect in rects:
+            self.add_rectangle(*rect)
+        if self.section_item is not None and section is not None:
+            self.section_item.setPos(section[0])
+            self.section_item.setRotation(section[1])
+        # Set after restoring: moving the section item re-marks it dirty via notify_changed.
+        self._section_dirty = False
+        self._obstacles_dirty = False
+        self.refresh_btn.setEnabled(True)
+        self.refresh_btn.setToolTip("")
+        self._apply_visu_mode()
 
     def _set_buttons_enabled(self, enabled):
         self.envgen_btn.setEnabled(enabled)
         self.testcase_btn.setEnabled(enabled)
         self.add_obstacle_btn.setEnabled(enabled)
+        self.reset_btn.setEnabled(enabled)
         # The MC re-run stays disabled while section 1 or the obstacle set has un-regenerated
         # edits: the current packages are stale until EnvModel regeneration writes them in.
         self.refresh_btn.setEnabled(enabled and not self._config_dirty())
