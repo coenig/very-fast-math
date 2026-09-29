@@ -9,6 +9,8 @@ import subprocess
 import time
 import ctypes
 import ctypes.util
+from bisect import bisect_right
+from collections import deque
 from contextlib import contextmanager
 from ctypes import create_string_buffer, sizeof
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
@@ -38,8 +40,13 @@ TESTCASE_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.generateTestCas
 # Ego sprite (639x258 px, rear bumper at x=0, front to +x); dimensions from EGO_* in activation_pose.py.
 EGO_CAR_IMAGE = os.path.join(REPO_ROOT, "parking", "ego_car.png")
 EGO_LENGTH_M = 4.53
-# Car centre (MC reference); APA would use the rear axle at x=142.5.
-EGO_ANCHOR_PX = (319.5, 129.0)
+EGO_REAR_OVERHANG_M = 1.01
+EGO_REAR_AXLE_PX = (142.5, 129.0)
+# The sprite is driven by its rear axle (APA); start/end poses put the car CENTRE (MC reference)
+# on the section middles, which lies this far ahead of the rear axle.
+EGO_CENTRE_AHEAD_OF_AXLE_M = EGO_LENGTH_M / 2.0 - EGO_REAR_OVERHANG_M
+EGO_ACCEL_MPS2 = 1.5
+EGO_MAX_SPEED_MPS = 4.0
 
 # runMCJobs model-checks every examples/gp* package (except the bare 'gp' prefix folder). With a
 # >1 range on a '#'-variable in the tpl.json, generateEnvmodels emits one such package per value
@@ -432,6 +439,35 @@ def _cubic_bezier(t, p0, p1, p2, p3):
             a * p0[1] + b * p1[1] + c * p2[1] + d * p3[1])
 
 
+def _section_geom(get, sec):
+    """(source, drain) of a section in world coords, as RoadGraph::getDrainPoint() computes it."""
+    sx = get(f"section_{sec}.source.x")
+    sy = get(f"section_{sec}.source.y")
+    if sx is None or sy is None:
+        return None
+    angle = 2.0 * math.pi * (get(f"section_{sec}.angle") or 0.0) / 360.0
+    length = get(f"section_{sec}_end") or 0.0
+    return (sx, sy), (sx + length * math.cos(angle), sy + length * math.sin(angle))
+
+
+def _connection_bezier(src_geom, tgt_geom):
+    """Control points (p0, p1, p2, p3) of the connection arc src drain -> tgt source, or None."""
+    (osx, osy), odrain = src_geom
+    (tsx, tsy), tdrain = tgt_geom
+    p0, p3 = odrain, (tsx, tsy)
+    dist = math.hypot(p3[0] - p0[0], p3[1] - p0[1])
+    if dist < 1e-6:
+        return None
+    # dir_mine = drain - origin (of src); dir_succ = origin - drain (of tgt); both len dist/3.
+    dm = (odrain[0] - osx, odrain[1] - osy)
+    dm_len = math.hypot(*dm) or 1.0
+    dm = (dm[0] / dm_len * dist / 3.0, dm[1] / dm_len * dist / 3.0)
+    ds = (tsx - tdrain[0], tsy - tdrain[1])
+    ds_len = math.hypot(*ds) or 1.0
+    ds = (ds[0] / ds_len * dist / 3.0, ds[1] / ds_len * dist / 3.0)
+    return p0, (p0[0] + dm[0], p0[1] + dm[1]), (p3[0] + ds[0], p3[1] + ds[1]), p3
+
+
 def connection_splines_pixel(trace_path, image_width, image_height, samples=24):
     """Cubic-Bezier connection arcs between sections as pixel polylines [[(x, y), ...], ...].
 
@@ -447,21 +483,11 @@ def connection_splines_pixel(trace_path, image_width, image_height, samples=24):
     get = _trace_getter(trace_path)
     component = _ego_connected_sections(get)
 
-    def geom(sec):
-        sx = get(f"section_{sec}.source.x")
-        sy = get(f"section_{sec}.source.y")
-        if sx is None or sy is None:
-            return None
-        angle = 2.0 * math.pi * (get(f"section_{sec}.angle") or 0.0) / 360.0
-        length = get(f"section_{sec}_end") or 0.0
-        return (sx, sy), (sx + length * math.cos(angle), sy + length * math.sin(angle))
-
     splines = []
     for src in sorted(component):
-        src_geom = geom(src)
+        src_geom = _section_geom(get, src)
         if src_geom is None:
             continue
-        (osx, osy), odrain = src_geom
         c = 0
         while True:
             tgt = get(f"outgoing_connection_{c}_of_section_{src}")
@@ -471,31 +497,102 @@ def connection_splines_pixel(trace_path, image_width, image_height, samples=24):
             tgt = int(tgt)
             if tgt < 0 or tgt not in component:
                 continue
-            tgt_geom = geom(tgt)
+            tgt_geom = _section_geom(get, tgt)
             if tgt_geom is None:
                 continue
-            (tsx, tsy), tdrain = tgt_geom
-
-            p0, p3 = odrain, (tsx, tsy)
-            dist = math.hypot(p3[0] - p0[0], p3[1] - p0[1])
-            if dist < 1e-6:
+            bezier = _connection_bezier(src_geom, tgt_geom)
+            if bezier is None:
                 continue
-            # dir_mine = drain - origin (of src); dir_succ = origin - drain (of tgt); both len dist/3.
-            dm = (odrain[0] - osx, odrain[1] - osy)
-            dm_len = math.hypot(*dm) or 1.0
-            dm = (dm[0] / dm_len * dist / 3.0, dm[1] / dm_len * dist / 3.0)
-            ds = (tsx - tdrain[0], tsy - tdrain[1])
-            ds_len = math.hypot(*ds) or 1.0
-            ds = (ds[0] / ds_len * dist / 3.0, ds[1] / ds_len * dist / 3.0)
-            p1 = (p0[0] + dm[0], p0[1] + dm[1])
-            p2 = (p3[0] + ds[0], p3[1] + ds[1])
 
-            pts = [world_to_pixel(*_cubic_bezier(i / samples, p0, p1, p2, p3),
+            pts = [world_to_pixel(*_cubic_bezier(i / samples, *bezier),
                                   transform=transform, image_width=image_width,
                                   image_height=image_height)
                    for i in range(samples + 1)]
             splines.append(pts)
     return splines
+
+
+def ego_route_world(trace_path, start_sec, target_sec, samples=48):
+    """Centerline polyline from start_sec's source over the connection arcs to target_sec's drain.
+
+    Uses the fewest-hops chain of directed connections. Returns (points, cumulative lengths,
+    arc length of start_sec's middle, arc length of target_sec's middle), or None if unreachable.
+    """
+    get = _trace_getter(trace_path)
+    if start_sec == target_sec or _section_geom(get, start_sec) is None:
+        return None
+    prev = {start_sec: None}
+    queue = deque([start_sec])
+    while queue and target_sec not in prev:
+        node = queue.popleft()
+        c = 0
+        while True:
+            tgt = get(f"outgoing_connection_{c}_of_section_{node}")
+            c += 1
+            if tgt is None:
+                break
+            tgt = int(tgt)
+            if tgt >= 0 and tgt not in prev and _section_geom(get, tgt) is not None:
+                prev[tgt] = node
+                queue.append(tgt)
+    if target_sec not in prev:
+        return None
+
+    chain = [target_sec]
+    while prev[chain[-1]] is not None:
+        chain.append(prev[chain[-1]])
+    geoms = [_section_geom(get, sec) for sec in reversed(chain)]
+
+    points = list(geoms[0])
+    for src_geom, tgt_geom in zip(geoms, geoms[1:]):
+        bezier = _connection_bezier(src_geom, tgt_geom)
+        if bezier is not None:
+            points.extend(_cubic_bezier(i / samples, *bezier) for i in range(1, samples + 1))
+        else:
+            points.append(tgt_geom[0])
+        points.append(tgt_geom[1])
+
+    cum = [0.0]
+    for (x1, y1), (x2, y2) in zip(points, points[1:]):
+        cum.append(cum[-1] + math.hypot(x2 - x1, y2 - y1))
+    start_len = math.dist(*geoms[0])
+    target_len = math.dist(*geoms[-1])
+    return points, cum, start_len / 2.0, cum[-1] - target_len / 2.0
+
+
+def _polyline_point(points, cum, s):
+    s = min(max(s, 0.0), cum[-1])
+    i = min(max(bisect_right(cum, s) - 1, 0), len(points) - 2)
+    seg = cum[i + 1] - cum[i]
+    t = (s - cum[i]) / seg if seg > 0 else 0.0
+    (x1, y1), (x2, y2) = points[i], points[i + 1]
+    return x1 + t * (x2 - x1), y1 + t * (y2 - y1)
+
+
+def polyline_pose(points, cum, s, ds=0.25):
+    """(x, y, yaw) at arc length s; yaw is the local path tangent (central difference)."""
+    x, y = _polyline_point(points, cum, s)
+    ax, ay = _polyline_point(points, cum, s - ds)
+    bx, by = _polyline_point(points, cum, s + ds)
+    return x, y, math.atan2(by - ay, bx - ax)
+
+
+def trapezoid_distance(t, dist, accel=EGO_ACCEL_MPS2, vmax=EGO_MAX_SPEED_MPS):
+    """Distance covered after t seconds (accelerate, cruise, brake to a stop); (d, finished)."""
+    if dist <= 0.0:
+        return 0.0, True
+    v_peak = min(vmax, math.sqrt(accel * dist))
+    t_acc = v_peak / accel
+    d_acc = 0.5 * accel * t_acc * t_acc
+    t_cruise = (dist - 2.0 * d_acc) / v_peak
+    if t < t_acc:
+        return 0.5 * accel * t * t, False
+    if t < t_acc + t_cruise:
+        return d_acc + v_peak * (t - t_acc), False
+    tb = t - t_acc - t_cruise
+    if tb >= t_acc:
+        return dist, True
+    return d_acc + v_peak * t_cruise + v_peak * tb - 0.5 * accel * tb * tb, False
 
 
 def patch_smv_obstacles(smv_path, obstacles_world):
@@ -947,6 +1044,10 @@ class MainWindow(QMainWindow):
         self.reset_btn.clicked.connect(self.reset_scene)
         layout.addWidget(self.reset_btn)
 
+        self.play_btn = QPushButton("Play (drive ego to target section)")
+        self.play_btn.clicked.connect(self.play_ego)
+        layout.addWidget(self.play_btn)
+
         # Model checks every configured variant in parallel and adopts the first counterexample
         # (a single-variant config is just the degenerate one-runner case).
         self.refresh_btn = QPushButton("Re-run Model Checker (first counterexample wins)")
@@ -980,6 +1081,13 @@ class MainWindow(QMainWindow):
         self.race_timer = QTimer(self)
         self.race_timer.setInterval(400)
         self.race_timer.timeout.connect(self._poll_race)
+
+        self._ego_item = None
+        self._ego_route = None
+        self._play_t0 = 0.0
+        self.play_timer = QTimer(self)
+        self.play_timer.setInterval(30)
+        self.play_timer.timeout.connect(self._play_step)
 
         # Target-section (section 1) editing state. Moving/rotating it invalidates the current
         # packages, so the MC re-run is blocked until the EnvModels are regenerated.
@@ -1039,6 +1147,8 @@ class MainWindow(QMainWindow):
         draggable_target = target_section != 0 and self._target_slot is not None
         self.section_item = None
 
+        self.play_timer.stop()
+        self._ego_item = None
         self.scene.clear()
         self.rect_items = []
         self._trajectory_items = []
@@ -1047,7 +1157,7 @@ class MainWindow(QMainWindow):
 
         if segments:
             self._draw_roads(segments, splines, target_section, ppm, draggable_target)
-            self._draw_ego_car(transform)
+            self._draw_ego_car(transform, target_section)
             # Static ghosts of the ORIGINAL obstacle positions, so the starting layout stays
             # visible once the draggable (red) obstacles are moved during a session.
             self._draw_obstacle_ghosts(rects_data)
@@ -1077,7 +1187,7 @@ class MainWindow(QMainWindow):
         self._apply_visu_mode()
         self.scale_to_fit()
 
-    def _draw_ego_car(self, transform):
+    def _draw_ego_car(self, transform, target_section):
         """Ego sprite centred on the middle of Sec. 0, heading along Sec. 0 (source -> drain)."""
         image = QImage(EGO_CAR_IMAGE)
         if image.isNull() or transform is None:
@@ -1090,21 +1200,50 @@ class MainWindow(QMainWindow):
                 if min((p >> 16) & 0xFF, (p >> 8) & 0xFF, p & 0xFF) >= 245:
                     image.setPixel(x, y, 0)
         pixmap = QPixmap.fromImage(image)
-        get = _trace_getter(self.trace_path)
-        yaw_deg = get("section_0.angle") or 0.0
-        half_len = (get("section_0_end") or 0.0) / 2.0
-        yaw = math.radians(yaw_deg)
-        ax, ay = world_to_pixel((get("section_0.source.x") or 0.0) + half_len * math.cos(yaw),
-                                (get("section_0.source.y") or 0.0) + half_len * math.sin(yaw),
-                                transform, self.image_w, self.image_h)
-        ox, oy = EGO_ANCHOR_PX
         car = self.scene.addPixmap(pixmap)
         car.setTransformationMode(Qt.TransformationMode.SmoothTransformation)
-        car.setTransformOriginPoint(ox, oy)
-        car.setPos(ax - ox, ay - oy)
+        car.setTransformOriginPoint(*EGO_REAR_AXLE_PX)
         car.setScale(transform[2] * EGO_LENGTH_M / pixmap.width())
-        car.setRotation(yaw_deg)
         car.setZValue(3.5)
+        self._ego_item = car
+        self._ego_route = ego_route_world(self.trace_path, 0, target_section)
+        self._place_ego_at_start()
+
+    def _place_ego_at_start(self):
+        geom = _section_geom(_trace_getter(self.trace_path), 0)
+        if self._ego_item is None or geom is None:
+            return
+        (sx, sy), (dx, dy) = geom
+        yaw = math.atan2(dy - sy, dx - sx)
+        back = math.dist((sx, sy), (dx, dy)) / 2.0 - EGO_CENTRE_AHEAD_OF_AXLE_M
+        self._set_ego_pose(sx + back * math.cos(yaw), sy + back * math.sin(yaw), yaw)
+
+    def _set_ego_pose(self, axle_x, axle_y, yaw):
+        """Place the sprite by its rear axle (world coords) and heading (rad)."""
+        px, py = world_to_pixel(axle_x, axle_y, self._transform, self.image_w, self.image_h)
+        ox, oy = EGO_REAR_AXLE_PX
+        self._ego_item.setPos(px - ox, py - oy)
+        self._ego_item.setRotation(math.degrees(yaw))
+
+    def play_ego(self):
+        """Drive the ego from the middle of Sec. 0 to the middle of the target section."""
+        if self._ego_item is None:
+            return
+        if self._ego_route is None:
+            QMessageBox.information(self, "No route",
+                                    f"No connection chain from Sec. 0 to target Sec. "
+                                    f"{self._target_section} in the current trace.")
+            return
+        self._play_t0 = time.monotonic()
+        self._play_step()
+        self.play_timer.start()
+
+    def _play_step(self):
+        points, cum, s_start, s_end = self._ego_route
+        d, finished = trapezoid_distance(time.monotonic() - self._play_t0, s_end - s_start)
+        self._set_ego_pose(*polyline_pose(points, cum, s_start - EGO_CENTRE_AHEAD_OF_AXLE_M + d))
+        if finished:
+            self.play_timer.stop()
 
     def _draw_obstacle_ghosts(self, rects_data):
         """Filled, non-interactive ghosts marking where the obstacles originally were."""
@@ -1364,6 +1503,8 @@ class MainWindow(QMainWindow):
         """Undo all unregenerated edits and unblock the MC re-run (no regeneration needed)."""
         if self._baseline is None or self._race_proc is not None:
             return
+        self.play_timer.stop()
+        self._place_ego_at_start()
         rects, section = self._baseline
         for item in self.rect_items:
             self.scene.removeItem(item)
@@ -1385,6 +1526,7 @@ class MainWindow(QMainWindow):
         self.testcase_btn.setEnabled(enabled)
         self.add_obstacle_btn.setEnabled(enabled)
         self.reset_btn.setEnabled(enabled)
+        self.play_btn.setEnabled(enabled)
         # The MC re-run stays disabled while section 1 or the obstacle set has un-regenerated
         # edits: the current packages are stale until EnvModel regeneration writes them in.
         self.refresh_btn.setEnabled(enabled and not self._config_dirty())
