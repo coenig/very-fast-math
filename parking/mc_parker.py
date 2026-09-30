@@ -588,12 +588,20 @@ def ego_route_world(trace_path, target_sec, target_dirs=("F", "B"), samples=48):
         return sx + (dx - sx) * u / length, sy + (dy - sy) * u / length
 
     raw_legs, pts = [], []
+    u_flip = 0.0
     for k, (sec, d) in enumerate(states):
         length = math.dist(*geoms[sec])
         mid = length / 2.0 - EGO_CENTRE_AHEAD_OF_AXLE_M
         last = k == len(states) - 1
-        u_in = mid if k == 0 or states[k - 1][0] == sec else (0.0 if d == "F" else length)
+        if k > 0 and states[k - 1][0] == sec:
+            u_in = u_flip
+        else:
+            u_in = mid if k == 0 else (0.0 if d == "F" else length)
         u_out = mid if last or states[k + 1][0] == sec else (length if d == "F" else 0.0)
+        # Never back-track within a leg: in a section shorter than the car, the rear axle would
+        # otherwise have to move against the gear to put the car centre on the middle.
+        u_out = max(u_out, u_in) if d == "F" else min(u_out, u_in)
+        u_flip = u_out
         pts += [at(sec, u_in), at(sec, u_out)]
         if last or states[k + 1][0] == sec:
             raw_legs.append((pts, 1 if d == "F" else -1))
