@@ -15,8 +15,8 @@ from contextlib import contextmanager
 from ctypes import create_string_buffer, sizeof
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QPushButton, QGraphicsView, QGraphicsScene, QGraphicsRectItem,
-                             QGraphicsEllipseItem, QGraphicsSimpleTextItem, QMessageBox)
-from PyQt6.QtCore import Qt, QRectF, QTimer, QPointF
+                             QGraphicsEllipseItem, QGraphicsSimpleTextItem, QMessageBox, QProgressBar)
+from PyQt6.QtCore import Qt, QRectF, QTimer, QPointF, QObject, QThread, pyqtSignal
 from PyQt6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QPainterPath, QPolygonF, QFont
 
 
@@ -27,6 +27,7 @@ REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TRACE_PATH = os.path.join(REPO_ROOT, "examples/gp_config/debug_trace_array.txt")
 SMV_PATH = os.path.join(REPO_ROOT, "examples/gp_config/EnvModel.smv")
 IMAGE_PATH = os.path.join(REPO_ROOT, "examples/gp_config/0/preview2/preview2_0.png")
+PROGRESS_PATH = os.path.join(REPO_ROOT, "examples/gp")
 # The config template; section-1 pose and obstacle positions are written here before regeneration.
 TPL_PATH = os.path.join(REPO_ROOT, "src/templates/envmodel_config.tpl.json")
 # Re-runs the model checker on the already-generated EnvModel.smv (no tpl.json regeneration).
@@ -55,6 +56,22 @@ EGO_GEAR_CHANGE_PAUSE_S = 0.5
 EXAMPLES_DIR = os.path.join(REPO_ROOT, "examples")
 _PACKAGE_PREFIX = "gp"
 _MC_WORKER = os.path.join(REPO_ROOT, "parking", "_mc_worker.py")
+
+
+
+class EnvModelWorker(QObject):
+    finished = pyqtSignal(str)
+
+    def run(self):
+        result = create_string_buffer(1000000)
+        prev_cwd = os.getcwd()
+        os.chdir(os.path.join(REPO_ROOT, 'bin'))
+        try:
+            with _vfm_lib_context() as lib:
+                res = lib.expandScript(ENVGEN_SCRIPT.encode('utf-8'), result, sizeof(result))
+        finally:
+            os.chdir(prev_cwd)
+        self.finished.emit(res.decode('utf-8'))
 
 
 def discover_mc_packages():
@@ -1103,6 +1120,17 @@ class MainWindow(QMainWindow):
         
         layout.addWidget(self.view)
 
+        self.progress_bar = QProgressBar(self)
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setValue(0)
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setTextVisible(True)
+        layout.addWidget(self.progress_bar)
+
+        self.poll_timer = QTimer(self)
+        self.poll_timer.setInterval(100)
+        self.poll_timer.timeout.connect(self.poll_progress_file)
+
         self.play_btn = QPushButton("Play")
         self.play_btn.clicked.connect(self.play_ego)
         layout.addWidget(self.play_btn)
@@ -1640,6 +1668,54 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, f"{description} finished",
                                     f"{description} completed successfully.")
 
+    def poll_progress_file(self):
+        """Reads the progress file from disk and updates the GUI progress bar."""
+        if os.path.exists(PROGRESS_PATH + "/progress.morty"):
+            self.progress_bar.setVisible(True)
+            progress_value = -1
+            second = ""
+            config = "NIL"
+            
+            try:
+                with open(PROGRESS_PATH + "/progress.morty", "r") as f:
+                    content = f.read().strip().split('#')
+                    
+                    if content[0].isdigit():
+                        raw = int(content[0])
+                        progress_value = (raw - 2) * 100
+                    if content[1].isdigit():
+                        base_max = int(content[1]) * 100
+                        self.progress_bar.setRange(0, base_max)
+                    
+                    second = str(raw - 1) + "/" + content[1] + "   " + content[2].replace("_config_", "").replace("_", " | ")
+                    config = content[2]
+            except IOError:
+                pass
+
+            try:
+                if os.path.exists(PROGRESS_PATH + config + "/progress.morty"):
+                    with open(PROGRESS_PATH + config + "/progress.morty", "r") as f:
+                        content2 = f.read().strip().split('#')
+                        
+                        if content2[0].isdigit():
+                            progress_value = progress_value + int(content2[0])
+                        
+                        second = second + " [" + content2[2] + "]"
+            except IOError:
+                pass
+            
+            if progress_value >= 0:
+                self.progress_bar.setValue(progress_value)
+                self.progress_bar.setFormat(second)
+
+        else:
+            self.progress_bar.setVisible(False)
+
+    def handle_results(self, result):
+        self._on_regen_success()
+        self.poll_timer.stop()
+        self.poll_progress_file()
+
     def run_envmodel_generation(self):
         # A moved target section or a changed obstacle set must be written into the config
         # BEFORE regenerating, so the new EnvModels reflect the drawn layout.
@@ -1651,9 +1727,23 @@ class MainWindow(QMainWindow):
                 return
         # Wipe existing gp* variant folders first so an old parameter range can't leave obsolete
         # packages around (regeneration recreates the current set; the vfm cache keeps this fast).
-        remove_mc_packages()
-        self._run_script_with_ui(ENVGEN_SCRIPT, "EnvModel generation", reload_after=False,
-                                 on_success=self._on_regen_success)
+        # remove_mc_packages() # TODO: Might be good to remove only those packages which are not (anymore) re-created. But we should not lose already existing results.
+        
+        self.thread = QThread()
+        self.worker = EnvModelWorker()
+        self.worker.moveToThread(self.thread)
+
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.handle_results)
+
+        # Clean up thread memory when done
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+
+        # Start the background work AND start the GUI timer
+        self.thread.start()
+        self.poll_timer.start()
 
     def run_testcase_generation(self):
         self._run_script_with_ui(TESTCASE_SCRIPT, "Test case generation (smooth birdseye)",
