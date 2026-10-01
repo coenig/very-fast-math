@@ -122,7 +122,10 @@ def _worker(output):
     main, count = re.subn(r"(?ms)^--ADDONS\s*$.*?^--EO-ADDONS\s*$", "-- Grid initial state supplied by refinement monitor.", main)
     if count != 1:
         raise RuntimeError("could not isolate generated main addons")
-    main, count = re.subn(r"(?m)^INVARSPEC FALSE;?\s*$", monitor(graph, geometry), main)
+    # A local sequential model supplies its own initialization/target after
+    # flattening; keep the common VFM dynamics independent of either strategy.
+    refinement = "INVARSPEC FALSE;" if job.get("baseline_only") else monitor(graph, geometry)
+    main, count = re.subn(r"(?m)^INVARSPEC FALSE;?\s*$", refinement, main)
     if count != 1:
         raise RuntimeError("could not replace generated property")
     model = target / "main_endpoint_grid.smv"

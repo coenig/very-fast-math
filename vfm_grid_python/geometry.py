@@ -52,9 +52,13 @@ def build(graph, road_length=20, parking_length=7, radius=6):
         sections.append({"id": len(sections), "edge": [u,v], "kind": "parking" if parking else "road",
                          "source": source, "drain": drain, "source_x": source[0], "source_y": source[1],
                          "length": length, "angle": int(round(math.degrees(math.atan2(dy, dx)))) % 360})
+    section_incidence = {n: [] for n in nodes}
+    for s in sections:
+        for node in s["edge"]:
+            section_incidence[node].append(s)
     connections = []
     for node in nodes:
-        neighbours = [s for s in sections if node in s["edge"]]
+        neighbours = section_incidence[node]
         for a, b in combinations(neighbours, 2):
             ae, be = a["edge"][1] == node, b["edge"][1] == node
             p0, p3 = a["drain"] if ae else a["source"], b["drain"] if be else b["source"]

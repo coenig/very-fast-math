@@ -16,6 +16,7 @@ def main():
     parser.add_argument("--concrete-bound", type=int, default=300)
     parser.add_argument("--timeout", type=float, default=1800)
     parser.add_argument("--concretize", action="store_true", help="refine successful abstract witnesses after all abstract searches")
+    parser.add_argument('--refinement',choices=('monitor','sequential-local'),default='monitor')
     args = parser.parse_args()
     catalog = json.loads(args.catalog.read_text())
     if args.only and set(args.only) - catalog.keys():
@@ -43,13 +44,15 @@ def main():
             results[name] = {"abstract": {"status": "error", "message": str(exc)}}
         dump(output / "summary.json", results)
     if args.concretize:
+        from .sequential import run as sequential_run
+        refine=sequential_run if args.refinement=='sequential-local' else concrete_run
         for name, record in results.items():
             if record["abstract"]["status"] != "witness":
                 continue
             record["concrete"] = {"status": "running"}
             dump(output / "summary.json", results)
             try:
-                record["concrete"] = concrete_run(output / name / "abstract", output / name / "concrete",
+                record["concrete"] = refine(output / name / "abstract", output / name / "concrete",
                                                   args.concrete_bound, args.timeout)
             except Exception as exc:
                 record["concrete"] = {"status": "error", "message": str(exc)}

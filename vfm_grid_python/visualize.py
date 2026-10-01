@@ -93,6 +93,8 @@ def main():
     geometry=args.run/"geometry.json"
     if geometry.exists():
         trace=args.trace
+        if trace is None:
+            trace=next((args.run/name for name in ('trace.xml','partial_trace.xml') if (args.run/name).exists()),None)
         if trace is None and (args.run/"model.json").exists():
             trace=Path(json.loads((args.run/"model.json").read_text())["model"]).parent/"trace.xml"
             if not trace.exists(): trace=None

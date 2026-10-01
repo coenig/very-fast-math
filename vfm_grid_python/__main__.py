@@ -8,11 +8,14 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     config_args(parser)
     concretize.arguments(parser)
+    parser.add_argument('--refinement',choices=('monitor','sequential-local'),default='monitor')
     args=parser.parse_args()
     output=args.output_dir.resolve()
     result=abstract.run(load_config(args),output / "abstract",args.bound,args.timeout,not args.no_gif)
     if result["status"] == "witness":
-        result=concretize.run(output / "abstract",output / "concrete",args.concrete_bound,
+        from . import sequential
+        refine=sequential.run if args.refinement=='sequential-local' else concretize.run
+        result=refine(output / "abstract",output / "concrete",args.concrete_bound,
                              args.timeout,args.road_length,args.parking_length,args.junction_radius,
                              args.template_config,not args.no_gif)
     dump(output / "result.json",result)
