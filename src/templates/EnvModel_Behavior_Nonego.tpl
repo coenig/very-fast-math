@@ -222,7 +222,8 @@ INIT
 
 DEFINE
    veh___6[i]9___.rel_pos := veh___6[i]9___.abs_pos - ego.abs_pos; -- relative position to ego in m (valid only if ego is on same section), rel_pos < 0 means the rear bumber of the other vehicle is behind the rear bumper of the ego
-   veh___6[i]9___.next_abs_pos := veh___6[i]9___.abs_pos + next(veh___6[i]9___.v);
+   @{veh___6[i]9___.next_abs_pos := veh___6[i]9___.abs_pos + next(veh___6[i]9___.v);}@.if[@{!ENDPOINT_CONNECTIONS}@.eval]
+   @{veh___6[i]9___.next_abs_pos := veh___6[i]9___.abs_pos + min(max(veh___6[i]9___.v + veh___6[i]9___.a, -max_vel), max_vel);}@.if[@{ENDPOINT_CONNECTIONS}@.eval]
 
 INVAR
     veh___6[i]9___.lane_single | veh___6[i]9___.lane_crossing;
@@ -266,10 +267,12 @@ INVAR -- Non-Ego cars may not collide (except in INIT state, when in UCD mode).
 @{cnt = 0 | }@.if[@{UCD}@.eval]
     (veh_[i]_and_veh_[j]_on_same_seclet -> (veh___6[i]9___.laterally_overlapping_with_veh_[j] -> (abs(veh___6[j]9___.abs_pos - veh___6[i]9___.abs_pos) > (veh_length + (veh___6[i]9___.halber_tacho * @{10 * SAFETY_DISTANCE_FACTOR_NONEGO}@.eval[0]) / 10))));
 
+@{
 INVAR -- Non-Ego cars may not "jump" over each other.
     veh_[i]_and_veh_[j]_on_same_seclet -> (
        !(veh___6[i]9___.laterally_overlapping_with_veh_[j] & (veh___6[j]9___.prev_abs_pos < veh___6[i]9___.prev_abs_pos) & (veh___6[j]9___.abs_pos >= veh___6[i]9___.abs_pos)) &
        !(veh___6[i]9___.laterally_overlapping_with_veh_[j] & (veh___6[i]9___.prev_abs_pos < veh___6[j]9___.prev_abs_pos) & (veh___6[i]9___.abs_pos >= veh___6[j]9___.abs_pos)));
+}@.if[@{!ENDPOINT_CONNECTIONS}@.eval]
 	
 }@.for[[j], 0, @{[i]}@.sub[1]]}@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 
@@ -301,7 +304,7 @@ ASSIGN
 @{
 @(
    @{next(veh___6[i]9___.time_since_last_lc) := case
-      veh___6[i]9___.time_since_last_lc < min_time_between_lcs : veh___6[i]9___.time_since_last_lc + 1;
+      veh___6[i]9___.time_since_last_lc < min_time_between_lcs : min(veh___6[i]9___.time_since_last_lc + 1, min_time_between_lcs);
       TRUE : 0;
    esac;}@******.if[@{MIN_TIME_BETWEEN_LANECHANGES > 0}@.eval]
 )@
@@ -377,6 +380,7 @@ ASSIGN
     next(veh___6[i]9___.prev_rel_pos) := veh___6[i]9___.rel_pos;
     next(veh___6[i]9___.prev_abs_pos) := veh___6[i]9___.abs_pos;
 
+@{
 DEFINE
     veh___6[i]9___.current_seclet_length := case
        @{
@@ -508,6 +512,8 @@ ASSIGN
              }@.if[@{[sec] != [sec2]}@.eval]
              }@****.for[[sec], 0, @{SECTIONS - 1}@.eval]
        }@*****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+
+}@******.if[@{!ENDPOINT_CONNECTIONS}@.eval]
 
     @{
        @{

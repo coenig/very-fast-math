@@ -2151,6 +2151,7 @@ extern "C" char* generate_smv_files(const char* _argv) {
                 argv[4], // "../src/examples/ego_less/vfm-includes.txt",
                 argv[5], // "../src/gp",
                 argv[6], // "../examples/tmp",
+                argv[0],
                 argv[7], // "../src/templates",
                 std::string("GUI_NAME") + std::string("_Related"));
     }
@@ -2161,13 +2162,13 @@ extern "C" char* generate_smv_files(const char* _argv) {
 extern "C" void generate_cex_gif(const char* _argv) {
     auto argv = StaticHelper::split(_argv, ';');
     auto generated_dir = argv[5];
-    auto cex_file = generated_dir + std::string("/cex.xml");
-      mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
-         { 0 }, // TODO: For now only first CEX if several given.
-         generated_dir,
-         StaticHelper::removeLastFileExtension(cex_file),
-         mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv),
-         mc::ALL_TESTCASE_MODES);
+    // auto cex_file = generated_dir + std::string("/cex.xml");
+    //   mc::trajectory_generator::VisualizationLaunchers::quickGenerateGIFs(
+    //      { 0 }, // TODO: For now only first CEX if several given.
+    //      generated_dir,
+    //      StaticHelper::removeLastFileExtension(cex_file),
+    //      mc::trajectory_generator::CexType(mc::trajectory_generator::CexTypeEnum::smv),
+    //      mc::ALL_TESTCASE_MODES);
 }
 
 extern "C"

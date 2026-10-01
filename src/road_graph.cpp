@@ -488,22 +488,29 @@ std::pair<Vec2D, float> vfm::RoadGraph::getEgoOriginAndRotation()
       return { ego_location.on_section_or_origin_section_->getOriginPoint(), ego_location.on_section_or_origin_section_->getAngle() };
    }
    else { // Ego between sections.
-      auto p_orig_from = ego_location.on_section_or_origin_section_->getOriginPoint();
-      auto p_orig = ego_location.on_section_or_origin_section_->getDrainPoint();
-      auto p_targ = ego_location.optional_target_section_->getOriginPoint();
-      auto p_targ_to = ego_location.optional_target_section_->getDrainPoint();
+      const auto points = ego_location.on_section_or_origin_section_->getConnectionPoints(ego_location.optional_target_section_);
+      const auto& p_orig = points[0];
+      const auto& p_orig_from = points[1];
+      const auto& p_targ = points[2];
+      const auto& p_targ_to = points[3];
 
-      auto nice_points = bezier::getNiceBetweenPoints(p_orig, p_orig - p_orig_from, p_targ, p_targ - p_targ_to);
+      auto nice_points = bezier::getNiceBetweenPoints(p_orig, p_orig_from, p_targ, p_targ_to);
+      const float arc_length = bezier::arcLength(1, p_orig, nice_points[0], nice_points[2], p_targ);
+      const float trace_length = ego_location.on_section_or_origin_section_->getConnectionEndpoints(
+         ego_location.optional_target_section_->getID()).length;
+      const float ratio = std::clamp(ego_location.the_car_->car_rel_pos_ /
+         (trace_length > 0 ? trace_length : arc_length), 0.0f, 1.0f);
+      const float parameter = bezier::findT(ratio * arc_length, p_orig, nice_points[0], nice_points[2], p_targ);
 
       Vec2D dir{ bezier::B_prime(
-         ego_location.the_car_->car_rel_pos_, 
+         parameter,
          p_orig,
          nice_points[0],
          nice_points[2],
          p_targ)
       };
 
-      return { ego_location.on_section_or_origin_section_->getDrainPoint(), dir.angle({ 1, 0 }) };
+      return { p_orig, dir.angle({ 1, 0 }) };
    }
 }
 
@@ -580,10 +587,11 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
          std::shared_ptr<RoadGraph> r_target{ cars_pair.first };
 
          for (const auto& car : cars_pair.second) {
-            Vec2D arc_origin{ r->getDrainPoint() };
-            Vec2D arc_origin_from{ r->getOriginPoint() };
-            Vec2D arc_target{ r_target->getOriginPoint() };
-            Vec2D arc_target_from{ r_target->getDrainPoint() };
+            const auto points = r->getConnectionPoints(r_target);
+            Vec2D arc_origin{ points[0] };
+            Vec2D arc_origin_from{ points[1] };
+            Vec2D arc_target{ points[2] };
+            Vec2D arc_target_from{ points[3] };
 
             Vec2D lane_correction_dir_origin_prereq{ arc_origin - arc_origin_from };
             Vec2D lane_correction_dir_target_prereq{ arc_target - arc_target_from };
@@ -607,12 +615,15 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
             Vec2D between2 = nice_points[2]; // ...between2_dir [3] not used.
 
             float arc_length{ bezier::arcLength(1, arc_origin, between1, between2, arc_target) };
-            float rel{ car.car_rel_pos_ / arc_length };
+            const float trace_length = r->getConnectionEndpoints(r_target->getID()).length;
+            float rel{ car.car_rel_pos_ / (trace_length > 0 ? trace_length : arc_length) };
 
             rel = std::max(0.0f, std::min(1.0f, rel));
 
             Vec2D p{ bezier::pointAtRatio(rel, arc_origin, between1, between2, arc_target) };
-            Vec2D dir{ bezier::B_prime(rel, arc_origin, between1, between2, arc_target) };
+            const float parameter = trace_length > 0
+               ? bezier::findT(rel * arc_length, arc_origin, between1, between2, arc_target) : rel;
+            Vec2D dir{ bezier::B_prime(parameter, arc_origin, between1, between2, arc_target) };
 
             auto node = std::make_shared<RoadGraph>(free_id++);
             node->makeGhost();
@@ -707,6 +718,35 @@ void vfm::RoadGraph::addPredecessor(const std::shared_ptr<RoadGraph> subgraph)
 
    predecessors_.push_back(subgraph);
    subgraph->successors_.push_back(shared_from_this());
+}
+
+void vfm::RoadGraph::setConnectionEndpoints(int successor_id, bool from_end, bool to_end, float length)
+{
+   connection_endpoints_[successor_id] = { from_end, to_end, length };
+}
+
+vfm::RoadGraph::ConnectionEndpoints vfm::RoadGraph::getConnectionEndpoints(int successor_id) const
+{
+   const auto found = connection_endpoints_.find(successor_id);
+   return found == connection_endpoints_.end() ? ConnectionEndpoints{} : found->second;
+}
+
+bool vfm::RoadGraph::matchesConnectionSides(int successor_id, ConnectorPolygonEnding::Side from,
+   ConnectorPolygonEnding::Side to) const
+{
+   const auto ends = getConnectionEndpoints(successor_id);
+   using Side = ConnectorPolygonEnding::Side;
+   return from == (ends.from_end ? Side::drain : Side::source)
+      && to == (ends.to_end ? Side::drain : Side::source);
+}
+
+std::array<Vec2D, 4> vfm::RoadGraph::getConnectionPoints(const std::shared_ptr<RoadGraph> successor) const
+{
+   const auto ends = getConnectionEndpoints(successor->getID());
+   return { ends.from_end ? getDrainPoint() : getOriginPoint(),
+            ends.from_end ? getOriginPoint() : getDrainPoint(),
+            ends.to_end ? successor->getDrainPoint() : successor->getOriginPoint(),
+            ends.to_end ? successor->getOriginPoint() : successor->getDrainPoint() };
 }
 
 Rec2D vfm::RoadGraph::getBoundingBox() const
@@ -852,6 +892,7 @@ bool vfm::RoadGraph::parseProgram(const std::string& program_raw)
    // RESET
    successors_.clear();
    predecessors_.clear();
+   connection_endpoints_.clear();
    nonegos_towards_successors_.clear();
    ghost_section_ = false;
    connectors_.clear();
@@ -902,10 +943,12 @@ std::shared_ptr<xml::CodeXML> vfm::Way::getNodesXML() const
 
    // Connectors towards successors.
    for (const auto& r_succ : my_road_graph_->getSuccessors()) {
-      Vec2D origin_succ{ r_succ->getOriginPoint() };
-      Vec2D drain_succ{ r_succ->getDrainPoint() };
-      float dist{ drain.distance(origin_succ) };
-      Vec2D dir_mine{ drain - origin };
+      const auto points = my_road_graph_->getConnectionPoints(r_succ);
+      const Vec2D attachment{ points[0] };
+      Vec2D origin_succ{ points[2] };
+      Vec2D drain_succ{ points[3] };
+      float dist{ attachment.distance(origin_succ) };
+      Vec2D dir_mine{ attachment - points[1] };
       Vec2D dir_succ{ origin_succ - drain_succ };
       dir_mine.setLength(dist / 3);
       dir_succ.setLength(dist / 3);
@@ -918,8 +961,11 @@ std::shared_ptr<xml::CodeXML> vfm::Way::getNodesXML() const
 
       Pol2D pol{};
       Pol2D arrow{};
-      pol.bezier(drain, drain + dir_mine, origin_succ + dir_succ, origin_succ, 0.1, true);
-      arrow.createArrow(pol, lane_width, { drain_right, drain_left }, { origin_right_succ, origin_left_succ });
+      Vec2D attachment_lat{ attachment - points[1] };
+      attachment_lat.ortho();
+      attachment_lat.setLength(lane_width / 2);
+      pol.bezier(attachment, attachment + dir_mine, origin_succ + dir_succ, origin_succ, 0.1, true);
+      arrow.createArrow(pol, lane_width, { attachment + attachment_lat, attachment - attachment_lat }, { origin_right_succ, origin_left_succ });
 
       std::vector<int> node_ids_left{};
       std::vector<int> node_ids_right{};
@@ -1086,6 +1132,7 @@ std::shared_ptr<RoadGraph> vfm::RoadGraph::copy(std::map<int, std::shared_ptr<Ro
    my_copy->ghost_section_ = ghost_section_;
    my_copy->my_road_ = my_road_; // TODO: do we need to copy ego, if any? It's only a pointer copy, for now.
    my_copy->origin_point_ = origin_point_;
+   my_copy->connection_endpoints_ = connection_endpoints_;
 
    for (const auto& predecessor : predecessors_) {
       auto tmp_copy = predecessor->copy(copied);

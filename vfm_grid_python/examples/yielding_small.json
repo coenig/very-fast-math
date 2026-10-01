@@ -1,0 +1,11 @@
+{
+  "rows": 2,
+  "columns": 3,
+  "cars": 2,
+  "starts": [1, 0],
+  "goals": [3, 2],
+  "labels": {"0": "N", "1": "N", "2": "P", "3": "P", "4": "P", "5": "N"},
+  "edges": [[0, 1], [0, 3], [1, 2], [1, 4]],
+  "desired_ltl": "F (loc_0 = 4 & X ((loc_0 = 4) U (loc_1 = 2 & X F all_parked)))",
+  "vfm": {"LANES_MIN_SPEEDS": "@(-5)@", "LANES_MAX_SPEEDS": "@(5)@", "MAXSPEEDNONEGO": 5}
+}

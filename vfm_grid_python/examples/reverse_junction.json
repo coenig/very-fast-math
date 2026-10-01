@@ -1,0 +1,11 @@
+{
+  "rows": 2,
+  "columns": 3,
+  "cars": 1,
+  "starts": [4],
+  "start_types": ["P"],
+  "goals": [5],
+  "labels": {"0": "N", "1": "N", "2": "N", "3": "N", "4": "P", "5": "P"},
+  "edges": [[0, 1], [1, 2], [1, 4], [2, 5]],
+  "vfm": {"LANES_MIN_SPEEDS": "@(-5)@", "LANES_MAX_SPEEDS": "@(5)@", "MAXSPEEDNONEGO": 5}
+}

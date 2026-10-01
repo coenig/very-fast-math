@@ -98,6 +98,7 @@
 @{LANES_MIN_SPEEDS}@*******.defaultValueString[@(0)@@(0)@@(0)@@(0)@@(0)@@(0)@@(0)@@(0)@@(0)@]
 @{FORWARD_DRIVING_CAR_IDS}@*******.defaultValueString[@{}@]   -- Strictly forward-driving, cannot have negative velocity.
 @{BACKWARD_DRIVING_CAR_IDS}@*******.defaultValueString[@{}@]  -- Strictly backward-driving, cannot have positive velocity.
+@{ENDPOINT_CONNECTIONS}@*******.defaultValue[false] -- Fixed single-lane graph, connectors may attach to either endpoint.
 
 -- ## Limiting degrees of freedom at COMPILE TIME for better performance ##
 --   Place sections to predefined x/y/angle. Has to be "possible" wrt. to angle granularity etc.

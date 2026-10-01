@@ -1059,7 +1059,7 @@ void vfm::HighwayImage::paintBezierConnectionsBetweenSections(
                for (const auto& A : r->connectors_) {
                   for (const auto& B : r_succ->connectors_) {
                      if (!r->isGhost() && !r_succ->isGhost()
-                        && A.id_ == i && A.id_ == B.id_ && A.side_ == ConnectorPolygonEnding::Side::drain && B.side_ == ConnectorPolygonEnding::Side::source) {
+                        && A.id_ == i && A.id_ == B.id_ && r->matchesConnectionSides(r_succ->getID(), A.side_, B.side_)) {
                         auto trans_a = A.my_trans_;
                         auto trans_b = B.my_trans_;
 
@@ -1211,7 +1211,7 @@ void vfm::HighwayImage::paintGraphConnectionsBetweenSections(
       for (const auto& r_succ : r->getSuccessors()) {
          for (const auto& A : r->connectors_) {
             for (const auto& B : r_succ->connectors_) {
-               if (/* A.id_ == i && */ A.id_ == B.id_ && A.side_ == ConnectorPolygonEnding::Side::drain && B.side_ == ConnectorPolygonEnding::Side::source) {
+               if (/* A.id_ == i && */ A.id_ == B.id_ && r->matchesConnectionSides(r_succ->getID(), A.side_, B.side_)) {
                   auto trans_a = A.my_trans_;
                   auto trans_b = B.my_trans_;
 

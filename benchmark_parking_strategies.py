@@ -24,7 +24,8 @@ import networkx as nx
 
 from concretizer import (
     _slot, abstract_milestones, concrete_ltl_property,
-    concrete_reachability_monitor,
+    concrete_reachability_monitor, concrete_milestone_expression,
+    abstract_milestone_modes, _anchor_geometry_at_section_zero,
 )
 from generate_scenarios import (
     _at_least, _distance, render_role_smv, save_gif as save_abstract_gif,
@@ -37,7 +38,10 @@ from scalable_grid_parking import check_model, edge_name, grid_edges
 from scalable_parking import parse_states as parse_abstract_states
 from vfm_grid_parking import (
     VfmGridParkingConfig, generate_vfm_grid_parking_model, parse_states,
-    save_trace_gif, vehicle,
+    save_trace_gif, vehicle, write_vfm_render_config, _edge_topology_constraints,
+)
+from parking_geometry import (
+    GeometryConfig, build_candidate_geometry, restrict_geometry,
 )
 
 
@@ -254,6 +258,15 @@ def graph_from_edges(case: BenchmarkCase, enabled: set[tuple[int, int]]) -> nx.G
     return graph
 
 
+def _rich_graph_from_state(case: BenchmarkCase, geometry: dict,
+                           state: dict[str, str]) -> nx.Graph:
+    graph = graph_from_edges(case, set())
+    for index, edge in enumerate(geometry.get("candidate_edges", [])):
+        if state.get(f"rich_edge_{index}") == "TRUE":
+            graph.add_edge(int(edge["source"]), int(edge["target"]))
+    return graph
+
+
 def iter_topologies(case: BenchmarkCase):
     edges = tuple(tuple(sorted(edge)) for edge in grid_edges(case.spec))  # type: ignore[arg-type]
     index = 0
@@ -343,6 +356,7 @@ def _base_result(case: BenchmarkCase, method: str, run_dir: Path) -> dict:
         "abstract_states": "", "concrete_states": "", "selected_edges": "",
         "smv_lines": "", "smv_bytes": "", "peak_child_rss_kb": "",
         "run_directory": str(run_dir.resolve()), "error": "",
+        "concrete_layout": "legacy",
     }
 
 
@@ -354,7 +368,7 @@ def _save_graph(graph: nx.Graph, run_dir: Path) -> None:
 
 
 def _finish_concrete(result: dict, cex: Path, graph: nx.Graph, model,
-                     run_dir: Path) -> None:
+                     run_dir: Path, geometry: dict | None = None) -> None:
     target = run_dir / "concrete_counterexample.xml"
     shutil.copy2(cex, target)
     result["concrete_states"] = len(parse_states(target))
@@ -363,19 +377,289 @@ def _finish_concrete(result: dict, cex: Path, graph: nx.Graph, model,
     visualization_started = time.perf_counter()
     try:
         save_trace_gif(target, nx.MultiDiGraph(graph), model.config,
-                       run_dir / "concrete_scenario.gif")
+                       run_dir / "concrete_scenario.gif", geometry=geometry)
     except Exception as error:
         (run_dir / "visualization_error.txt").write_text(str(error) + "\n")
     result["visualization_seconds"] = time.perf_counter() - visualization_started
 
 
+def _rich_model(case: BenchmarkCase, run_dir: Path, geometry: dict,
+                section_length: int):
+    """Generate a VFM model over the directed-section geometry universe."""
+    run_dir.mkdir(parents=True, exist_ok=True)
+    config = VfmGridParkingConfig(
+        rows=case.spec.rows, columns=case.spec.columns, cars=case.spec.cars,
+        section_length=section_length, connection_length=20,
+        bound=case.spec.bound,
+        initial_a_position=max(2, int(round(0.6 * section_length))),
+        initial_b_position=max(1, int(round(0.2 * section_length))),
+    )
+    relative = Path(os.path.relpath(run_dir.resolve(), ROOT))
+    generation_config = run_dir / "rich_generation_config.json"
+    write_vfm_render_config(geometry, generation_config)
+    (run_dir / "concrete_geometry.json").write_text(
+        json.dumps(geometry, indent=2) + "\n"
+    )
+    return generate_vfm_grid_parking_model(
+        config, input_config=generation_config,
+        experiments_dir=relative, concrete_geometry=geometry,
+    )
+
+
+def _rich_universe(case: BenchmarkCase, section_length: int) -> dict:
+    grid = {"nodes": [
+        {"id": node, "row": node // case.spec.columns,
+         "column": node % case.spec.columns}
+        for node in range(case.spec.nodes)
+    ]}
+    geometry = build_candidate_geometry(
+        grid, GeometryConfig(
+            grid_pitch=section_length + 40, road_length=section_length,
+        )
+    )
+    _anchor_geometry_at_section_zero(geometry)
+    return geometry
+
+
+def _specialize_rich_main(model_file: Path, case: BenchmarkCase,
+                          geometry: dict, milestones: list[tuple[int, ...]],
+                          refinement: str,
+                          parked_modes: list[tuple[bool, ...]]) -> None:
+    """Install a monitor/LTL refinement and concrete initial states."""
+    text = model_file.read_text()
+    if refinement == "ltl":
+        property_text = concrete_ltl_property(milestones)
+    else:
+        property_text = concrete_reachability_monitor(
+            milestones, geometry, parked_modes
+        )
+    text, count = re.subn(r"(?m)^LTLSPEC .*$", property_text, text, count=1)
+    if count != 1:
+        raise ValueError(f"expected one LTLSPEC in {model_file}, found {count}")
+    # The rich model has no default initial vehicle assignment.  Translate the
+    # first abstract state to a road/parking section using the geometry map.
+    initial = parked_modes[0]
+    for car, node in enumerate(milestones[0]):
+        if initial[car]:
+            section = int(geometry["parking_by_node"][str(node)]["inbound"])
+            position = max(0, int(geometry["sections"][section]["length"]) - 5)
+            velocity = 0
+        else:
+            section = int(geometry["start_by_node"].get(str(node),
+                           geometry["parking_by_node"][str(node)]["inbound"]))
+            position = 0
+            velocity = 5
+        text += (
+            f"\nINIT {vehicle(car, f'is_on_sec_{section}')} = 1;"
+            f"\nINIT {vehicle(car, 'abs_pos')} = {position};"
+            f"\nINIT {vehicle(car, 'v')} = {velocity};"
+            f"\nINVAR {vehicle(car, 'v')} >= 0;"
+        )
+    text += "\nINVAR !env.crash;\n"
+    model_file.write_text(text)
+
+
+def _specialize_rich_stage_main(model_file: Path, case: BenchmarkCase,
+                                geometry: dict,
+                                fixed_roles: dict[str, int] | None = None) -> None:
+    """Install a role-stage property on a rich concrete model."""
+    text = model_file.read_text()
+    property_text = _rich_stage_property(case, geometry, fixed_roles)
+    text, count = re.subn(r"(?m)^LTLSPEC .*$", property_text, text, count=1)
+    if count != 1:
+        raise ValueError(f"expected one LTLSPEC in {model_file}, found {count}")
+    if fixed_roles is None:
+        text += _rich_symbolic_roles(case, geometry)
+    starts = {
+        role.initial_car: int(value)
+        for role in case.prop.roles
+        if role.initial_car is not None
+        for value in [case.spec.cars - 1 - role.initial_car]
+    }
+    for car in range(case.spec.cars):
+        node = starts.get(car, case.spec.cars - 1 - car)
+        section = geometry["start_by_node"].get(str(node))
+        if section is None:
+            section = geometry["parking_by_node"][str(node)]["inbound"]
+        text += (
+            f"\nINIT {vehicle(car, f'is_on_sec_{int(section)}')} = 1;"
+            f"\nINIT {vehicle(car, 'abs_pos')} = 0;"
+            f"\nINIT {vehicle(car, 'v')} = 5;"
+            f"\nINVAR {vehicle(car, 'v')} >= 0;"
+        )
+    text += "\nINVAR !env.crash;\n"
+    model_file.write_text(text)
+
+
+def _rich_role_atom(atom, geometry: dict, fixed_roles: dict[str, int] | None = None) -> str:
+    """Translate a symbolic role atom to concrete section observations."""
+    role_value = fixed_roles.get(atom.role) if fixed_roles is not None else None
+    nodes = [role_value] if role_value is not None else [
+        int(node["id"]) for node in geometry["nodes"]
+    ]
+    terms = []
+    for node in nodes:
+        observation = concrete_milestone_expression(
+            (node,), geometry, (False,)
+        )
+        if role_value is not None:
+            terms.append(observation if not atom.negated else f"!{observation}")
+        else:
+            terms.append(f"({atom.role} = {node} & "
+                         f"{observation if not atom.negated else '!' + observation})")
+    return "(" + " | ".join(terms) + ")" if terms else "FALSE"
+
+
+def _rich_stage_property(case: BenchmarkCase, geometry: dict,
+                         fixed_roles: dict[str, int] | None = None) -> str:
+    """Build the benchmark's role-based history over rich concrete sections."""
+    final = len(case.stages)
+    dead = final + 1
+    cases = []
+    for index, stage in enumerate(case.stages):
+        event = "(" + " & ".join(
+            _rich_role_atom(atom, geometry, fixed_roles) for atom in stage.event
+        ) + ")"
+        cases.append(f"    parking_phase = {index} & {event} : {index + 1};")
+        if stage.hold:
+            hold = "(" + " & ".join(
+                _rich_role_atom(atom, geometry, fixed_roles) for atom in stage.hold
+            ) + ")"
+            cases.append(f"    parking_phase = {index} & !{hold} : {dead};")
+    return "\n".join((
+        "-- Rich concrete observer compiled from symbolic role stages.",
+        "VAR", f"  parking_phase : 0..{dead};", "ASSIGN",
+        "  init(parking_phase) := 0;", "  next(parking_phase) := case",
+        *cases, "    TRUE : parking_phase;", "  esac;",
+        f"INVARSPEC parking_phase != {final};",
+    ))
+
+
+def _rich_symbolic_roles(case: BenchmarkCase, geometry: dict) -> str:
+    """Declare symbolic role locations for the rich direct-search model."""
+    lines = ["-- Symbolic role locations over abstract grid nodes.", "FROZENVAR"]
+    for role in case.prop.roles:
+        lines.append(f"  {role.name} : 0..{case.spec.nodes - 1};")
+    for role in case.prop.roles:
+        if role.initial_car is not None:
+            lines.append(f"INIT {role.name} = {case.spec.cars - 1 - role.initial_car};")
+        if role.exclude_initial:
+            for car in range(case.spec.cars):
+                lines.append(f"INIT {role.name} != {case.spec.cars - 1 - car};")
+    for first_index, first in enumerate(case.prop.roles):
+        for second in case.prop.roles[first_index + 1:]:
+            lines.append(f"INIT {first.name} != {second.name};")
+    candidates = [tuple(sorted((int(edge["source"]), int(edge["target"]))))
+                  for edge in geometry.get("candidate_edges", [])]
+    for role in case.prop.roles:
+        if not role.minimum_degree:
+            continue
+        for node in range(case.spec.nodes):
+            incident = [
+                f"rich_edge_{index}"
+                for index, edge in enumerate(candidates) if node in edge
+            ]
+            lines.append(
+                f"INIT {role.name} = {node} -> {_at_least(incident, role.minimum_degree)};"
+            )
+    return "\n".join(lines) + "\n"
+
+
+def _rewrite_rich_topology(model_file: Path, constraints: str) -> None:
+    text = model_file.read_text()
+    marker = "-- Exact edge-based grid topology"
+    if marker in text:
+        text = text.split(marker, 1)[0]
+    model_file.write_text(text + constraints)
+
+
+def _rich_topology_constraints(geometry: dict, *, symbolic: bool = False,
+                               case: BenchmarkCase | None = None) -> str:
+    """Emit fixed or paired symbolic connector assignments for rich sections."""
+    if not symbolic:
+        return _edge_topology_constraints(geometry)
+    if case is None:
+        raise ValueError("symbolic rich topology requires a benchmark case")
+    lines = ["-- Symbolic topology over the directed rich section universe.",
+             "FROZENVAR"]
+    candidates = [
+        tuple(sorted((int(edge["source"]), int(edge["target"]))))
+        for edge in geometry.get("candidate_edges", [])
+    ]
+    for index, (source, target) in enumerate(candidates):
+        lines.append(f"  rich_edge_{index} : boolean;")
+    for index in range(len(candidates)):
+        lines.append(f"INIT rich_edge_{index} = TRUE | rich_edge_{index} = FALSE;")
+    edge_count = " + ".join(
+        f"case rich_edge_{index} : 1; TRUE : 0; esac"
+        for index in range(len(candidates))
+    )
+    lines.append(f"INVAR ({edge_count}) <= {case.spec.maximum_edges};")
+    # Connector activation is encoded per slot.  The generated model receives
+    # no exact topology assignments in symbolic mode.
+    by_edge = {edge: index for index, edge in enumerate(candidates)}
+    sections = geometry["sections"]
+    roads = {
+        (int(section["edge"][0]), int(section["edge"][1])): int(section["id"])
+        for section in sections if section.get("kind") == "road"
+    }
+    all_edges = set(candidates)
+    def connector(slot: int, section: int) -> str:
+        return f"env.outgoing_connection_{slot}_of_section_{section}"
+
+    for section in sections:
+        sid = int(section["id"])
+        targets: list[tuple[str, int]] = []
+        if section.get("kind") == "road":
+            source, target = (int(value) for value in section["edge"])
+            own = by_edge[tuple(sorted((source, target)))]
+            exits = sorted(
+                (edge, roads[(target, other)])
+                for edge in all_edges if target in edge
+                for other in [edge[1] if edge[0] == target else edge[0]]
+                if edge != tuple(sorted((source, target)))
+            )
+            targets = [(f"rich_edge_{by_edge[edge]}", target_id)
+                       for edge, target_id in exits]
+            targets.append((f"rich_edge_{own}", int(geometry["parking_by_node"][str(target)]["inbound"])))
+            guard = f"rich_edge_{own}"
+        elif section.get("kind") == "parking_in":
+            targets = [("TRUE", int(geometry["parking_by_node"][str(section["grid_node"])]["outbound"]))]
+            guard = "TRUE"
+        else:
+            node = int(section["grid_node"])
+            exits = sorted(
+                (edge, roads[(node, other)])
+                for edge in all_edges if node in edge
+                for other in [edge[1] if edge[0] == node else edge[0]]
+            )
+            targets = [(f"rich_edge_{by_edge[edge]}", target_id)
+                       for edge, target_id in exits]
+            guard = "TRUE"
+        for slot in range(int(geometry.get("max_outgoing", 5))):
+            if slot < len(targets):
+                edge_guard, target_id = targets[slot]
+                lines.append(
+                    f"INIT ({guard} & {edge_guard}) -> "
+                    f"{connector(slot, sid)} = {target_id};")
+                lines.append(
+                    f"INIT (!({guard} & {edge_guard})) -> "
+                    f"{connector(slot, sid)} = -1;")
+            else:
+                lines.append(
+                    f"INIT {connector(slot, sid)} = -1;")
+    return "\n".join(lines) + "\n"
+
+
 def execute_abstract_concretized(case: BenchmarkCase, run_dir: Path,
                                  refinement: str = "monitor",
-                                 section_length: int = 100) -> dict:
+                                 section_length: int = 100,
+                                 concrete_layout: str = "legacy") -> dict:
     if refinement not in {"monitor", "ltl"}:
         raise ValueError(f"unknown concrete refinement mode: {refinement}")
     result = _base_result(case, "abstract_concretized", run_dir)
     result["refinement"] = refinement
+    result["concrete_layout"] = concrete_layout
     total_started = time.perf_counter()
     abstract_dir = run_dir / "abstract"
     abstract_dir.mkdir(parents=True, exist_ok=True)
@@ -411,14 +695,29 @@ def execute_abstract_concretized(case: BenchmarkCase, run_dir: Path,
         time.perf_counter() - abstract_visualization_started
     )
     tick = time.perf_counter()
-    model = generate_concrete_base(case, run_dir / "vfm", section_length)
+    if concrete_layout == "rich":
+        geometry = _rich_universe(case, section_length)
+        geometry = restrict_geometry(geometry, set(graph.edges()))
+        model = _rich_model(case, run_dir / "vfm", geometry, section_length)
+        (run_dir / "vfm" / "concrete_geometry.json").write_text(
+            json.dumps(geometry, indent=2) + "\n"
+        )
+    else:
+        geometry = None
+        model = generate_concrete_base(case, run_dir / "vfm", section_length)
     result["concrete_generation_seconds"] = time.perf_counter() - tick
-    specialize_vfm_main(
-        model.model_file, case,
-        topology=fixed_topology_constraints(case, set(graph.edges())),
-        fixed_roles=roles, refinement=refinement, milestones=milestones,
-        section_length=section_length,
-    )
+    if concrete_layout == "rich":
+        _specialize_rich_main(
+            model.model_file, case, geometry, milestones, refinement,
+            abstract_milestone_modes(abstract_states),
+        )
+    else:
+        specialize_vfm_main(
+            model.model_file, case,
+            topology=fixed_topology_constraints(case, set(graph.edges())),
+            fixed_roles=roles, refinement=refinement, milestones=milestones,
+            section_length=section_length,
+        )
     tick = time.perf_counter()
     result["nuxmv_invocations"] = 2
     cex = check_concrete(
@@ -434,20 +733,39 @@ def execute_abstract_concretized(case: BenchmarkCase, run_dir: Path,
         - float(result["abstract_visualization_seconds"] or 0)
     )
     result["status"] = "witness"
-    _finish_concrete(result, cex, graph, model, run_dir)
+    _finish_concrete(result, cex, graph, model, run_dir, geometry)
     return result
 
 
 def execute_symbolic_vfm(case: BenchmarkCase, run_dir: Path,
-                        section_length: int = 100) -> dict:
+                        section_length: int = 100,
+                        concrete_layout: str = "legacy") -> dict:
     result = _base_result(case, "symbolic_vfm", run_dir)
+    result["concrete_layout"] = concrete_layout
     started = time.perf_counter()
     tick = time.perf_counter()
-    model = generate_concrete_base(case, run_dir / "vfm", section_length)
+    if concrete_layout == "rich":
+        geometry = _rich_universe(case, section_length)
+        model = _rich_model(case, run_dir / "vfm", geometry, section_length)
+        env_path = model.target_path / "EnvModel_GridParking.smv"
+        env_text = env_path.read_text()
+        env_path.write_text(env_text.split(
+            "-- Exact edge-based grid topology", 1
+        )[0])
+        _rewrite_rich_topology(
+            model.model_file,
+            _rich_topology_constraints(geometry, symbolic=True, case=case),
+        )
+    else:
+        geometry = None
+        model = generate_concrete_base(case, run_dir / "vfm", section_length)
     result["concrete_generation_seconds"] = time.perf_counter() - tick
-    specialize_vfm_main(model.model_file, case,
-                        topology=symbolic_topology_constraints(case),
-                        section_length=section_length)
+    if concrete_layout == "rich":
+        _specialize_rich_stage_main(model.model_file, case, geometry)
+    else:
+        specialize_vfm_main(model.model_file, case,
+                            topology=symbolic_topology_constraints(case),
+                            section_length=section_length)
     tick = time.perf_counter()
     result["nuxmv_invocations"] = 1
     cex = check_concrete(model, model.model_file, "cex_benchmark.xml")
@@ -464,20 +782,32 @@ def execute_symbolic_vfm(case: BenchmarkCase, run_dir: Path,
         forward, reverse = _edge_slots(source, target, case.spec.columns)
         if first.get(forward) == str(target) and first.get(reverse) == str(source):
             enabled.add(tuple(sorted(edge)))
-    graph = graph_from_edges(case, enabled)
+    graph = (_rich_graph_from_state(case, geometry, first)
+             if concrete_layout == "rich" else graph_from_edges(case, enabled))
     result["status"] = "witness"
-    _finish_concrete(result, cex, graph, model, run_dir)
+    _finish_concrete(result, cex, graph, model, run_dir, geometry)
     return result
 
 
 def execute_enumerated_vfm(case: BenchmarkCase, run_dir: Path,
-                           section_length: int = 100) -> dict:
+                           section_length: int = 100,
+                           concrete_layout: str = "legacy") -> dict:
     result = _base_result(case, "enumerated_vfm", run_dir)
+    result["concrete_layout"] = concrete_layout
     started = time.perf_counter()
     tick = time.perf_counter()
-    model = generate_concrete_base(case, run_dir / "vfm", section_length)
+    if concrete_layout == "rich":
+        geometry = _rich_universe(case, section_length)
+        model = _rich_model(case, run_dir / "vfm", geometry, section_length)
+    else:
+        geometry = None
+        model = generate_concrete_base(case, run_dir / "vfm", section_length)
     result["concrete_generation_seconds"] = time.perf_counter() - tick
     base_text = model.model_file.read_text()
+    rich_env_base = None
+    if concrete_layout == "rich":
+        env_path = model.target_path / "EnvModel_GridParking.smv"
+        rich_env_base = env_path.read_text()
     checking = 0.0
     for index, enabled in iter_topologies(case):
         result["candidates_enumerated"] = index + 1
@@ -486,10 +816,21 @@ def execute_enumerated_vfm(case: BenchmarkCase, run_dir: Path,
             continue
         result["candidates_checked"] += 1
         candidate = model.target_path / "main_benchmark_candidate.smv"
-        candidate.write_text(base_text)
-        specialize_vfm_main(candidate, case,
-                            topology=fixed_topology_constraints(case, enabled),
-                            section_length=section_length)
+        if concrete_layout == "rich":
+            restricted = restrict_geometry(geometry, enabled)
+            env_candidate = model.target_path / "EnvModel_BenchmarkCandidate.smv"
+            env_prefix = rich_env_base.split("-- Exact edge-based grid topology", 1)[0]
+            env_candidate.write_text(env_prefix + _edge_topology_constraints(restricted))
+            candidate.write_text(base_text.replace(
+                '#include "EnvModel_GridParking.smv"',
+                f'#include "{env_candidate.name}"',
+            ))
+            _specialize_rich_stage_main(candidate, case, restricted)
+        else:
+            candidate.write_text(base_text)
+            specialize_vfm_main(candidate, case,
+                                topology=fixed_topology_constraints(case, enabled),
+                                section_length=section_length)
         tick = time.perf_counter()
         result["nuxmv_invocations"] += 1
         cex = check_concrete(model, candidate, "cex_benchmark_candidate.xml")
@@ -499,22 +840,25 @@ def execute_enumerated_vfm(case: BenchmarkCase, run_dir: Path,
             result["total_time_to_concrete_xml_seconds"] = time.perf_counter() - started
             result["status"] = "witness"
             shutil.copy2(candidate, run_dir / "winning_fixed_main.smv")
-            _finish_concrete(result, cex, graph_from_edges(case, enabled), model, run_dir)
+            _finish_concrete(result, cex, graph_from_edges(case, enabled), model,
+                             run_dir, geometry if concrete_layout == "rich" else None)
             return result
     result.update(status="exhaustive_no_witness", concrete_checking_seconds=checking)
     return result
 
 
 def execute(case: BenchmarkCase, method: str, run_dir: Path,
-            refinement: str | None = None, section_length: int = 100) -> dict:
+                        refinement: str | None = None, section_length: int = 100,
+            concrete_layout: str = "legacy") -> dict:
     if method == "abstract_concretized":
         result = execute_abstract_concretized(
-            case, run_dir, refinement or "monitor", section_length)
+            case, run_dir, refinement or "monitor", section_length,
+            concrete_layout)
     else:
         result = {
             "enumerated_vfm": execute_enumerated_vfm,
             "symbolic_vfm": execute_symbolic_vfm,
-        }[method](case, run_dir, section_length)
+        }[method](case, run_dir, section_length, concrete_layout)
     model_files = list(run_dir.rglob("*.smv"))
     result["smv_bytes"] = sum(path.stat().st_size for path in model_files)
     result["smv_lines"] = sum(sum(1 for _ in path.open(errors="ignore")) for path in model_files)
@@ -523,7 +867,8 @@ def execute(case: BenchmarkCase, method: str, run_dir: Path,
 
 
 def worker(case: BenchmarkCase, method: str, run_dir: Path,
-           refinement: str | None = None, section_length: int = 100) -> None:
+           refinement: str | None = None, section_length: int = 100,
+           concrete_layout: str = "legacy") -> None:
     os.setsid()
     with (run_dir / "stdout.log").open("w") as stdout, \
          (run_dir / "stderr.log").open("w") as stderr:
@@ -533,29 +878,32 @@ def worker(case: BenchmarkCase, method: str, run_dir: Path,
         os.dup2(stderr.fileno(), 2)
         try:
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                result = execute(case, method, run_dir, refinement, section_length)
+                result = execute(case, method, run_dir, refinement, section_length,
+                                 concrete_layout)
         except BaseException as error:
             traceback.print_exc(file=stderr)
             result = _base_result(case, method, run_dir)
             if refinement is not None:
                 result["refinement"] = refinement
+            result["concrete_layout"] = concrete_layout
             result["error"] = f"{type(error).__name__}: {error}"
     (run_dir / "result.json").write_text(json.dumps(result, indent=2) + "\n")
 
 
 def run_timed(case: BenchmarkCase, method: str, run_dir: Path, timeout: int,
-              refinement: str | None = None, section_length: int = 100) -> dict:
+              refinement: str | None = None, section_length: int = 100,
+              concrete_layout: str = "legacy") -> dict:
     # Resume may encounter a directory left by an interrupted worker before it
     # managed to checkpoint result.json. Reuse it and retain the partial logs.
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "case.json").write_text(json.dumps({
         "spec": asdict(case.spec), "property": asdict(case.prop),
         "stages": asdict(case)["stages"], "method": method,
-        "refinement": refinement,
+        "refinement": refinement, "concrete_layout": concrete_layout,
     }, indent=2) + "\n")
     process = mp.Process(
         target=worker,
-        args=(case, method, run_dir, refinement, section_length),
+        args=(case, method, run_dir, refinement, section_length, concrete_layout),
     )
     started = time.perf_counter()
     process.start()
@@ -611,6 +959,10 @@ def main() -> int:
     parser.add_argument(
         "--section-length", type=int, default=100,
         help="road-section length used by the concrete VFM model",
+    )
+    parser.add_argument(
+        "--concrete-layout", choices=("legacy", "rich"), default="legacy",
+        help="concrete representation: node sections or directed-edge geometry",
     )
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--smoke", action="store_true", help="run the first scenario only")
@@ -669,7 +1021,8 @@ def main() -> int:
                 matches_refinement = (
                     existing.get("refinement", "monitor") == (refinement or "monitor")
                 )
-                if existing.get("status") != "error" and matches_refinement:
+                matches_layout = existing.get("concrete_layout", "legacy") == args.concrete_layout
+                if existing.get("status") != "error" and matches_refinement and matches_layout:
                     result = existing
                     results = [item for item in results
                                if not (item.get("case") == case.identity and
@@ -681,7 +1034,7 @@ def main() -> int:
                     pass
             pending.append((case, method, refinement, run_dir,
                             args.timeout or case.spec.timeout_seconds,
-                            args.section_length))
+                            args.section_length, args.concrete_layout))
 
     # Each job owns a separate directory and child process, so independent
     # methods/cases can safely run concurrently.  Checkpointing remains in the
@@ -689,10 +1042,11 @@ def main() -> int:
     with ThreadPoolExecutor(max_workers=args.parallel) as executor:
         futures = {
             executor.submit(
-                run_timed, case, method, run_dir, timeout, refinement, section_length
+                run_timed, case, method, run_dir, timeout, refinement, section_length,
+                concrete_layout
             ):
             (case, method, refinement)
-            for case, method, refinement, run_dir, timeout, section_length in pending
+            for case, method, refinement, run_dir, timeout, section_length, concrete_layout in pending
         }
         for future in as_completed(futures):
             case, method, refinement = futures[future]

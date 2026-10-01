@@ -13,7 +13,7 @@ include_directories(${GTEST_INCLUDE_DIRS})
 
 #add_executable (TEST_EXECUTABLE google_test.cpp)
 
-add_executable(runTests our_sample_test.cpp)
+add_executable(runTests our_sample_test.cpp endpoint_rendering_test.cpp)
 
 
 #TEST_EXECUTABLE
@@ -46,4 +46,3 @@ add_test (NAME OurUnitTests COMMAND runTests)
 # # Link runTests with what we want to test and the GTest and pthread library
 # add_executable(runTests our_sample_test.cpp)
 # target_link_libraries(runTests ${GTEST_LIBRARIES} pthread)
-

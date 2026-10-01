@@ -300,6 +300,56 @@ void MCinterpretedTrace::interpolate(const std::string& vehicle_name, FullTrajec
             : (int)std::stof(trace.getLastValueOfVariableAtStep("env.arclength_from_sec_" + std::to_string(next_traversion_from) + "_to_sec_" + std::to_string(next_traversion_to) + "_on_lane_" + std::to_string(next_on_lane), trace_cnt))
             ) };
       const bool is_switching_towards_next_step{ trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt) != trace.getLastValueOfVariableAtStep(vehicle_name + ".on_straight_section", trace_cnt + 2) };
+
+      // Endpoint-aware traces use a canonical coordinate on each connector.
+      // Crossing a start-start or end-end attachment flips the coordinate
+      // direction, so the legacy "append the next length" rule does not apply.
+      const bool leaving_section = on_straight_section >= 0;
+      const int connector_from = leaving_section ? next_traversion_from : traversion_from;
+      const int connector_to = leaving_section ? next_traversion_to : traversion_to;
+      const std::string endpoint = "env.endpoint_" + std::to_string(connector_from)
+         + "_" + std::to_string(connector_to);
+      const auto& initial = trace.at(0).second;
+      if (is_switching_towards_next_step && initial.count(endpoint + "_from_end")
+         && initial.count(endpoint + "_to_end")) {
+         const int section = leaving_section ? on_straight_section : next_on_straight_section;
+         const bool at_from = section == connector_from;
+         const bool section_end = StaticHelper::isBooleanTrue(initial.at(endpoint + (at_from ? "_from_end" : "_to_end")));
+         const double exit = leaving_section ? (section_end ? current_seclet_length : 0)
+            : (at_from ? 0 : current_seclet_length);
+         const double entry = leaving_section ? (at_from ? 0 : next_seclet_length)
+            : (section_end ? next_seclet_length : 0);
+         const double distance_before = std::abs(exit - prev_param.at(PossibleParameter::pos_x));
+         const double distance_after = std::abs(next_param.at(PossibleParameter::pos_x) - entry);
+         const double direction_before = exit == 0 ? -1 : 1;
+         const double direction_after = entry == 0 ? 1 : -1;
+         for (size_t j = 1; j <= steps_between; ++j) {
+            const double alpha = j * factor;
+            const double distance = alpha * (distance_before + distance_after);
+            const bool before = distance <= distance_before;
+            ParameterMap parameters;
+            for (const auto& pp : prev_param) {
+               const auto& details = getParameterDetails(pp.first);
+               details.interpolation_method_->clearAdditionalData();
+               parameters[pp.first] = details.interpolation_method_->interpolate(pp.second, next_param.at(pp.first), alpha);
+            }
+            const auto& location = before ? prev_param : next_param;
+            for (auto key : {PossibleParameter::on_straight_section, PossibleParameter::traversion_from, PossibleParameter::traversion_to}) {
+               parameters[key] = location.at(key);
+            }
+            parameters[PossibleParameter::pos_x] = before
+               ? prev_param.at(PossibleParameter::pos_x) + direction_before * distance
+               : entry + direction_after * (distance - distance_before);
+            parameters[PossibleParameter::vel_x] = (before ? direction_before : direction_after)
+               * ((1 - alpha) * std::abs(prev_param.at(PossibleParameter::vel_x))
+                  + alpha * std::abs(next_param.at(PossibleParameter::vel_x)));
+            editable_trajectory.insert(editable_trajectory.begin() + i + j,
+               {prev.first + alpha * (next_time - prev.first), parameters});
+         }
+         i += steps_between;
+         trace_cnt += 2;
+         continue;
+      }
 		const int current_velocity{ (int)std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".v", trace_cnt)) };
 		const int next_velocity{ (int)std::stof(trace.getLastValueOfVariableAtStep(vehicle_name + ".v", trace_cnt + 2)) };
 
@@ -623,4 +673,3 @@ double VehicleWithTrajectory::getDuration() const
 {
 	return m_trajectory.back().first;
 }
-

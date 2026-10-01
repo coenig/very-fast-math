@@ -13,6 +13,7 @@
 #include "failable.h"
 #include "static_helper.h"
 #include <string>
+#include <array>
 
 namespace vfm {
 
@@ -313,6 +314,20 @@ public:
    void addSuccessor(const std::shared_ptr<RoadGraph> subgraph);
    void addPredecessor(const std::shared_ptr<RoadGraph> subgraph);
 
+   // Successor IDs identify connectors, not necessarily drain-to-source roads.
+   // Missing metadata retains the legacy drain-to-source convention.
+   struct ConnectionEndpoints {
+      bool from_end{ true };
+      bool to_end{ false };
+      float length{ 0 }; // Optional trace coordinate length (may be rounded).
+   };
+   void setConnectionEndpoints(int successor_id, bool from_end, bool to_end, float length = 0);
+   ConnectionEndpoints getConnectionEndpoints(int successor_id) const;
+   bool matchesConnectionSides(int successor_id, ConnectorPolygonEnding::Side from,
+      ConnectorPolygonEnding::Side to) const;
+   // Attachment A, interior point of A, attachment B, interior point of B.
+   std::array<Vec2D, 4> getConnectionPoints(const std::shared_ptr<RoadGraph> successor) const;
+
    Rec2D getBoundingBox() const;
 
    std::vector<std::shared_ptr<RoadGraph>> getSuccessors() const;
@@ -355,6 +370,7 @@ private:
 
    std::vector<std::shared_ptr<RoadGraph>> successors_{};
    std::vector<std::shared_ptr<RoadGraph>> predecessors_{};
+   std::map<int, ConnectionEndpoints> connection_endpoints_{};
 
    std::map<std::shared_ptr<RoadGraph>, std::vector<CarPars>> nonegos_towards_successors_{};
 

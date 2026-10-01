@@ -255,7 +255,10 @@ ASSIGN
     init(ego.time_since_last_lc) := min_time_between_lcs;       -- init with max value such that lane change is immediately allowed after start
 
     -- ego.v 
-    next(ego.v) := min(max(ego.v + ego.a, -ego.max_vel), ego.max_vel);
+    -- Endpoint mode converts the local velocity coordinate when crossing a
+    -- start/start or end/end connector. The INVAR synchronization with car 0
+    -- below already defines ego.v; a second update would forbid that conversion.
+    @{next(ego.v) := min(max(ego.v + ego.a, -ego.max_vel), ego.max_vel);}@.if[@{!ENDPOINT_CONNECTIONS}@.eval]
 
 
 -- check that non-ego drives non-maliciously, i.e., behavior does not lead to inevitable crash with ego

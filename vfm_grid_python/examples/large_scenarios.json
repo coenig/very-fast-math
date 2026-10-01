@@ -1,0 +1,76 @@
+{
+  "shared_gate_5x5": {
+    "rows": 5,
+    "columns": 5,
+    "cars": 3,
+    "parkings": 4,
+    "roles": {
+      "gate": "N"
+    },
+    "description": "Three cars with distant goals visit the same degree-two gate in order, then all park.",
+    "desired_ltl": "distance_to_goal_0 >= 4 & distance_to_goal_1 >= 4 & distance_to_goal_2 >= 4 & role_gate_degree = 2 & role_gate != start_0 & role_gate != start_1 & role_gate != start_2 & F (loc_0 = role_gate & X (F (loc_1 = role_gate & X (F (loc_2 = role_gate & X (F (all_parked)))))))",
+    "vfm": {
+      "LANES_MIN_SPEEDS": "@(-5)@",
+      "LANES_MAX_SPEEDS": "@(5)@",
+      "MAXSPEEDNONEGO": 5
+    }
+  },
+  "shared_spot_5x5": {
+    "rows": 5,
+    "columns": 5,
+    "cars": 3,
+    "parkings": 4,
+    "roles": {
+      "slot": "P"
+    },
+    "description": "A and B use C's eventual parking spot in turn and leave it; C takes ownership and everyone parks.",
+    "desired_ltl": "distance_to_goal_0 >= 3 & distance_to_goal_1 >= 3 & distance_to_goal_2 >= 3 & role_slot = goal_2 & F (loc_0 = role_slot & X (F (loc_1 = role_slot & X (F (loc_2 = role_slot & X (F (all_parked)))))))",
+    "vfm": {
+      "LANES_MIN_SPEEDS": "@(-5)@",
+      "LANES_MAX_SPEEDS": "@(5)@",
+      "MAXSPEEDNONEGO": 5
+    }
+  },
+  "double_yield_5x5": {
+    "rows": 5,
+    "columns": 5,
+    "cars": 3,
+    "parkings": 4,
+    "description": "A waits in a foreign parking next to its starting junction while B and C visit that junction in order; A then leaves and all park.",
+    "desired_ltl": "distance_to_goal_0 >= 3 & distance_to_goal_1 >= 3 & distance_to_goal_2 >= 3 & F (foreign_parked_0 & beside_start_0 & X ((foreign_parked_0 & beside_start_0) U (foreign_parked_0 & beside_start_0 & loc_1 = start_0 & X ((foreign_parked_0 & beside_start_0) U (foreign_parked_0 & beside_start_0 & loc_2 = start_0 & X F all_parked)))))",
+    "vfm": {
+      "LANES_MIN_SPEEDS": "@(-5)@",
+      "LANES_MAX_SPEEDS": "@(5)@",
+      "MAXSPEEDNONEGO": 5
+    }
+  },
+  "distant_parking_8x5": {
+    "rows": 8,
+    "columns": 5,
+    "cars": 3,
+    "parkings": 5,
+    "description": "Three cars start at least six grid cells from their respective goals and all eventually park.",
+    "desired_ltl": "distance_to_goal_0 >= 6 & distance_to_goal_1 >= 6 & distance_to_goal_2 >= 6 & F all_parked",
+    "vfm": {
+      "LANES_MIN_SPEEDS": "@(-5)@",
+      "LANES_MAX_SPEEDS": "@(5)@",
+      "MAXSPEEDNONEGO": 5
+    }
+  },
+  "gate_roundtrip_8x5": {
+    "rows": 8,
+    "columns": 5,
+    "cars": 3,
+    "parkings": 5,
+    "roles": {
+      "gate": "N"
+    },
+    "description": "Three cars visit a shared gate and park; A then leaves its goal, revisits the gate and parks again.",
+    "desired_ltl": "distance_to_goal_0 >= 6 & distance_to_goal_1 >= 6 & distance_to_goal_2 >= 6 & role_gate_degree = 2 & role_gate != start_0 & role_gate != start_1 & role_gate != start_2 & F (loc_0 = role_gate & X (F (loc_1 = role_gate & X (F (loc_2 = role_gate & X (F (all_parked & X (F (loc_0 = role_gate & X (F (all_parked)))))))))))",
+    "vfm": {
+      "LANES_MIN_SPEEDS": "@(-5)@",
+      "LANES_MAX_SPEEDS": "@(5)@",
+      "MAXSPEEDNONEGO": 5
+    }
+  }
+}

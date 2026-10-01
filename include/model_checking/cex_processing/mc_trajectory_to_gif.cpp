@@ -228,6 +228,15 @@ std::shared_ptr<RoadGraph> LiveSimGenerator::getRoadGraphTopologyFrom(const MCTr
 
          if (successor >= 0) { // -1 is code for "not present".
             road_graphs[sec]->addSuccessor(road_graphs.at(successor));
+            const std::string endpoint = "env.endpoint_" + std::to_string(sec) + "_" + std::to_string(successor);
+            if (first_state.count(endpoint + "_from_end") && first_state.count(endpoint + "_to_end")) {
+               const std::string length = "arclength_from_sec_" + std::to_string(sec)
+                  + "_to_sec_" + std::to_string(successor) + "_on_lane_0";
+               road_graphs[sec]->setConnectionEndpoints(successor,
+                  StaticHelper::isBooleanTrue(first_state.at(endpoint + "_from_end")),
+                  StaticHelper::isBooleanTrue(first_state.at(endpoint + "_to_end")),
+                  first_state.count(length) ? std::stof(first_state.at(length)) : 0);
+            }
          }
       }
    }
