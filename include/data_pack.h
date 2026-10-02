@@ -273,7 +273,7 @@ public:
    int deleteHeapCells(const int cells);
    int getUsedHeapSize() const;
 
-   std::vector<float> getVfmMemory() const;
+   const std::vector<float>& getVfmMemory() const;
    void addStringToDataPack(const std::string& string_raw, const std::string& var_name);
    std::string printHeap(const std::string& varname, const std::string& default_on_undeclared = "") const;
    void isStringAtAdressWhichComparesTo(const std::string& address_var, const std::string& comp_string, bool& same_length, bool& same);

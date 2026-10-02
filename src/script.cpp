@@ -65,16 +65,101 @@ vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shar
    putPlaceholderMapping(EXPR_END_TAG_AFTER);
 }
 
-int findLongestChainOfPrioritySymbols(const std::string& sub_script)
-{
-   std::string s{};
+namespace {
 
-   while (StaticHelper::stringContains(sub_script, INSCR_END_TAG + s + INSCR_PRIORITY_SYMB)) {
-      s += INSCR_PRIORITY_SYMB; // TODO: This is not the most efficient way to do it. At least remember where you were and don't start from top every time.
+/// Finds the first end tag followed by the longest run of priority symbols ("}@***"), without rescanning the
+/// whole script in every step. Invariants:
+/// - max_level_ is an upper bound of the longest run in the script.
+/// - No end tag with a run of exactly k starts before watermark_[k].
+class EndTagScanner {
+public:
+   explicit EndTagScanner(const std::string& script)
+   {
+      raiseMaxLevelByTagsStartingIn(script, 0, script.size());
    }
 
-   return s.size();
-}
+   /// @return Position of the first end tag with the longest run, or npos if there is no end tag. Sets the run length in level.
+   size_t findFirstOfLongest(const std::string& script, int& level)
+   {
+      for (int k = max_level_; k >= 0; k--) {
+         for (size_t p = script.find(INSCR_END_TAG, watermark_[k]); p != std::string::npos; p = script.find(INSCR_END_TAG, p + 1)) {
+            if (runAt(script, p) == k) {
+               watermark_[k] = p;
+               max_level_ = k;
+               level = k;
+               return p;
+            }
+         }
+
+         watermark_[k] = script.size(); // No end tag with run k at all.
+      }
+
+      max_level_ = -1;
+      return std::string::npos;
+   }
+
+   /// To be called after [pos, pos + old_length) has been replaced by new_length characters (the part before pos must be unchanged).
+   void notifyReplaced(const std::string& script, const size_t pos, const size_t old_length, const size_t new_length)
+   {
+      // Tags before pos can only be affected if their priority symbols reach into the changed part.
+      size_t from{ pos };
+      while (from > 0 && script[from - 1] == INSCR_PRIORITY_SYMB) from--;
+      from = from >= INSCR_END_TAG.size() ? from - INSCR_END_TAG.size() : 0;
+
+      const size_t old_end{ pos + old_length };
+      const size_t new_end{ pos + new_length };
+      std::vector<char> level_present{};
+
+      for (size_t p = script.find(INSCR_END_TAG, from); p != std::string::npos && p < new_end; p = script.find(INSCR_END_TAG, p + 1)) {
+         const int run{ runAt(script, p) };
+         max_level_ = (std::max)(max_level_, run);
+         if (level_present.size() <= (size_t)run) level_present.resize(run + 1, 0);
+         level_present[run] = 1;
+      }
+
+      if (watermark_.size() < (size_t)(max_level_ + 1)) watermark_.resize(max_level_ + 1, 0);
+
+      for (size_t level = 0; level < watermark_.size(); level++) {
+         size_t& w{ watermark_[level] };
+
+         if (level < level_present.size() && level_present[level]) {
+            w = (std::min)(w, from);
+         }
+         else if (w >= old_end) {
+            w = w - old_length + new_length; // Tail was only shifted.
+         }
+         else if (w > from) {
+            w = new_end; // Replaced part contains no tag of this level.
+         }
+      }
+   }
+
+private:
+   static int runAt(const std::string& script, const size_t tag_pos)
+   {
+      size_t run_end{ tag_pos + INSCR_END_TAG.size() };
+      while (run_end < script.size() && script[run_end] == INSCR_PRIORITY_SYMB) run_end++;
+      return (int)(run_end - (tag_pos + INSCR_END_TAG.size()));
+   }
+
+   void raiseMaxLevelByTagsStartingIn(const std::string& script, const size_t from, const size_t to)
+   {
+      for (size_t p = script.find(INSCR_END_TAG, from); p != std::string::npos && p < to; p = script.find(INSCR_END_TAG, p + 1)) {
+         max_level_ = (std::max)(max_level_, runAt(script, p));
+      }
+
+      if (watermark_.size() < (size_t)(max_level_ + 1)) watermark_.resize(max_level_ + 1, 0);
+   }
+
+   int max_level_{ -1 };
+   std::vector<size_t> watermark_{};
+};
+
+} // namespace
+
+/// Finds the inner-most, left-most inscript begin tag position, preferring more '*' symbols after the end tag over fewer.
+/// Returns -1 if there is none; otherwise num_priority_symbols is the number of '*' following the end tag at end_tag_pos.
+static int findNextInscriptPos(const std::string& script, EndTagScanner& scanner, int& num_priority_symbols, size_t& end_tag_pos);
 
 std::string Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step)
 {
@@ -103,35 +188,44 @@ std::string Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw
 void Script::extractInscriptProcessors(std::string& processed_script, const bool only_one_step)
 {
    // Find next preprocessor.
-   int indexOfPrep = findNextInscriptPos(processed_script);
+   EndTagScanner end_tag_scanner{ processed_script };
+   int num_priority_symbols{};
+   size_t end_tag_pos{};
+   int indexOfPrep = findNextInscriptPos(processed_script, end_tag_scanner, num_priority_symbols, end_tag_pos);
    int i{};
 
    while (!stop_me_ && indexOfPrep >= 0) {
       std::string preprocessorScript = *StaticHelper::extractFirstSubstringLevelwise(processed_script, INSCR_BEG_TAG, INSCR_END_TAG, indexOfPrep);
-      int lengthOfPreprocessor = preprocessorScript.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length();
-      std::string partBefore = processed_script.substr(0, indexOfPrep);
-      std::string partAfter = processed_script.substr(indexOfPrep + lengthOfPreprocessor);
 
-      int indexCurr = getNextNonInscriptPosition(partAfter);
-      indexCurr = (std::min)(indexCurr, (int)partAfter.length());
+      if (num_priority_symbols > 0 && indexOfPrep + INSCR_BEG_TAG.length() + preprocessorScript.length() != end_tag_pos) {
+         // Forward matching ended at a different end tag than the chosen one: erase its '*' first, as the replaced part differs from it.
+         processed_script.erase(end_tag_pos + INSCR_END_TAG.length(), num_priority_symbols);
+         end_tag_scanner.notifyReplaced(processed_script, end_tag_pos + INSCR_END_TAG.length(), num_priority_symbols, 0);
+         num_priority_symbols = 0;
+         preprocessorScript = *StaticHelper::extractFirstSubstringLevelwise(processed_script, INSCR_BEG_TAG, INSCR_END_TAG, indexOfPrep);
+      }
 
-      std::string methods = partAfter.substr(0, indexCurr);
-      partAfter = partAfter.substr(indexCurr);
+      const int lengthOfPreprocessor = preprocessorScript.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length() + num_priority_symbols;
+      const int afterPos = indexOfPrep + lengthOfPreprocessor;
+
+      const int indexCurr = getNextNonInscriptPosition(processed_script, afterPos); // Relative to afterPos.
+
       int methodPartBegin = preprocessorScript.length();
-      preprocessorScript = preprocessorScript + methods;
+      preprocessorScript.append(processed_script, afterPos, indexCurr);
+      const int lengthOfReplacedPart = lengthOfPreprocessor + indexCurr;
       std::string placeholder_for_inscript{};
 
-      int begin = indexOfPrep;
       auto trimmed = StaticHelper::trimAndReturn(preprocessorScript);
+      const auto cache_it = getScriptData().method_part_begins_.find(trimmed);
 
-      if (getScriptData().method_part_begins_.count(trimmed) && getScriptData().method_part_begins_.at(trimmed).cachable_) { // TODO: Avoid multiple accesses to map.
+      if (cache_it != getScriptData().method_part_begins_.end() && cache_it->second.cachable_) {
          // TODO: We can wrongly end up here even if uncachable methods are called within the parameters.
          getScriptData().cache_hits_++;
-         placeholder_for_inscript = getScriptData().method_part_begins_.at(trimmed).result_;
+         placeholder_for_inscript = cache_it->second.result_;
       }
       else {
          getScriptData().cache_misses_++;
-         std::vector<std::string> methodSignaturesArray = getMethodSinaturesFromChain(methods); // TODO: Done twice for each subscript. Is this expensive?
+         std::vector<std::string> methodSignaturesArray = getMethodSinaturesFromChain(preprocessorScript.substr(methodPartBegin)); // TODO: Done twice for each subscript. Is this expensive?
          bool is_this_cachable{ isCachableChain(methodSignaturesArray) };
 
          if (methodPartBegin != preprocessorScript.length() && methodPartBegin >= 0) {
@@ -153,17 +247,15 @@ void Script::extractInscriptProcessors(std::string& processed_script, const bool
 
          if (StaticHelper::startsWithUppercase(methodSignaturesArray.at(0))) {
             // Expand whole current subscript before anything else, if method starts with uppercase letter.
-
-            processed_script = placeholder_for_inscript;
-            extractInscriptProcessors(processed_script, false);
-            placeholder_for_inscript = processed_script;
+            extractInscriptProcessors(placeholder_for_inscript, false);
          }
 
          getScriptData().method_part_begins_[trimmed].result_ = placeholder_for_inscript;
       }
 
-      std::string placeholderFinal = checkForPlainTextTags(placeholder_for_inscript);
-      processed_script = partBefore + placeholderFinal + partAfter;
+      const std::string placeholder_final{ checkForPlainTextTags(placeholder_for_inscript) };
+      processed_script.replace(indexOfPrep, lengthOfReplacedPart, placeholder_final);
+      end_tag_scanner.notifyReplaced(processed_script, indexOfPrep, lengthOfReplacedPart, placeholder_final.size());
 
       if (i++ % 100 == 0) {
          addNote(""
@@ -178,7 +270,7 @@ void Script::extractInscriptProcessors(std::string& processed_script, const bool
 
       if (only_one_step) return;
 
-      indexOfPrep = findNextInscriptPos(processed_script);
+      indexOfPrep = findNextInscriptPos(processed_script, end_tag_scanner, num_priority_symbols, end_tag_pos);
    }
 }
 
@@ -928,10 +1020,14 @@ std::string Script::getConversionTag(const std::string& scriptWithoutComments)
    return conversionTag;
 }
 
-int Script::findNextInscriptPos(std::string& script)
+static int findNextInscriptPos(const std::string& script, EndTagScanner& scanner, int& num_priority_symbols, size_t& end_tag_pos)
 {
-   int length_of_longest_priority_chain{ findLongestChainOfPrioritySymbols(script)};
-   int pos = script.find(INSCR_END_TAG + std::string(length_of_longest_priority_chain, INSCR_PRIORITY_SYMB));
+   const size_t pos_of_first_longest{ scanner.findFirstOfLongest(script, num_priority_symbols) };
+
+   if (pos_of_first_longest == std::string::npos) return -1;
+
+   end_tag_pos = pos_of_first_longest;
+   const int pos{ (int)pos_of_first_longest };
    int count = 0;               // Because we start on an end tag.
 
    for (int i = pos; i >= 0; i--) {
@@ -944,10 +1040,6 @@ int Script::findNextInscriptPos(std::string& script)
       }
 
       if (count == 0) {
-         int starPos = pos + INSCR_END_TAG.length();
-         script = script.substr(0, starPos)
-            + script.substr(starPos + length_of_longest_priority_chain);
-
          return i;
       }
    }
@@ -1002,26 +1094,26 @@ std::string Script::undoPlaceholdersForPlainText(const std::string& script)
    return replacePlaceholders(script, false);
 }
 
-int Script::getNextNonInscriptPosition(const std::string& partAfter) 
+int Script::getNextNonInscriptPosition(const std::string& partAfter, const int offset) 
 {
    int count = 0;
    bool lastWasMethodEnd = true;
 
-   for (int i = 0; i < partAfter.length(); i++) {
+   for (int i = offset; i < partAfter.length(); i++) {
       char currChar = partAfter.at(i);
       std::string currStr = StaticHelper::makeString(currChar);
 
       if (count == 0) {
          if (lastWasMethodEnd) {
             if (!StaticHelper::stringStartsWith(partAfter, METHOD_CHAIN_SEPARATOR, i)) {
-               return i; // No methods more to come (particularly at pos 0 if no methods at all).
+               return i - offset; // No methods more to come (particularly at pos 0 if no methods at all).
             }
          }
          else if (!StaticHelper::isAlphaNumericOrUnderscore(currStr)
             && currStr != METHOD_PARS_BEGIN_TAG
             && currStr != METHOD_PARS_END_TAG
             && currStr != METHOD_CHAIN_SEPARATOR) {
-            return i;
+            return i - offset;
          }
       }
 
@@ -1038,11 +1130,11 @@ int Script::getNextNonInscriptPosition(const std::string& partAfter)
       }
 
       if (count < 0) {
-         return i;
+         return i - offset;
       }
    }
 
-   return partAfter.length(); // Whole partAfter belongs to preprocessor.
+   return (int)partAfter.length() - offset; // Whole remainder belongs to preprocessor.
 }
 
 std::string Script::inferPlaceholdersForPlainText(const std::string& script) 
