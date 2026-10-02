@@ -1682,12 +1682,12 @@ class MainWindow(QMainWindow):
                     
                     if content[0].isdigit():
                         raw = int(content[0])
-                        progress_value = (raw - 2) * 100
+                        progress_value = (raw - 1) * 100
                     if content[1].isdigit():
                         base_max = int(content[1]) * 100
                         self.progress_bar.setRange(0, base_max)
                     
-                    second = str(raw - 1) + "/" + content[1] + "   " + content[2].replace("_config_", "").replace("_", " | ")
+                    second = str(raw) + "/" + content[1] + "   " + content[2].replace("_config_", "").replace("_", " | ")
                     config = content[2]
             except IOError:
                 pass
