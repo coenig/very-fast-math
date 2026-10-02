@@ -425,11 +425,15 @@ INIT env.section_4_end = 20;
 -- INVAR env.outgoing_connection_0_of_section_0 != 1 & env.outgoing_connection_0_of_section_1 != 0;
 
 @{
-INIT env.veh___6[i]9___.is_on_sec_0 = 1 & env.veh___6[i]9___.abs_pos = 5;
--- INIT env.veh___6[i]9___.abs_pos = @{[i]}@.eval[0] * (env.veh_length + 1);
+INIT env.veh___6[i]9___.is_on_sec_0 = 1;
+@{INIT env.veh___6[i]9___.abs_pos = 5;
+}@.if[@{NONEGOS == 1}@.eval]
+@{INIT env.veh___6[i]9___.abs_pos = @{[i]}@.eval[0] * (env.veh_length + 1);
+}@*.if[@{NONEGOS != 1}@.eval]
 INVAR env.veh___6[i]9___.v <= env.veh___6[i]9___.current_seclet_length;
 TRANS env.veh___6[i]9___.v >= -env.veh___6[i]9___.next_seclet_length;
-INVAR env.veh___6[i]9___.is_on_sec_1 = 1 -> env.veh___6[i]9___.v <= 0; -- Dive in backwards
+@{INVAR env.veh___6[i]9___.is_on_sec_1 = 1 -> env.veh___6[i]9___.v <= 0; -- Dive in backwards
+}@.if[@{SECTIONS > 1}@.eval]
 -- INVAR env.veh___6[i]9___.is_on_sec_0 = 1 -> env.veh___6[i]9___.a >= 0; -- Go out forwards
 -- INVAR env.veh___6[i]9___.is_on_sec_0 = 1 -> env.veh___6[i]9___.v >= 0; -- Go out forwards
 @{
