@@ -100,6 +100,7 @@ const std::string tpljson{R"(
     )"};
 
 TEST(nuXmvTests, basicRun) {
+    vfm::StaticHelper::removeAllFilesSafe(std::filesystem::path("../tmp"));
     vfm::StaticHelper::createDirectoriesSafe(std::string("../tmp"));
     vfm::StaticHelper::createDirectoriesSafe(std::string("../tmp/generated"));
     vfm::StaticHelper::createDirectoriesSafe(std::string("../tmp/cached"));

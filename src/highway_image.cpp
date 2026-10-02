@@ -631,7 +631,7 @@ void vfm::HighwayImage::removeNonExistentLanesAndMarkShoulders(
       overpaint.add(0, min_lane ? tl_orig : Vec2D{ tl_orig.x, br_orig.y });
       overpaint.add(0, min_lane ? Vec2D{ br_orig.x, tl_orig.y } : br_orig);
 
-      fillPolygon(overpaint, GRASS_COLOR);
+      fillPolygon(overpaint, concrete_platter_mode_ ? PAVEMENT_COLOR : GRASS_COLOR);
       fillPolygon(plain_2d_translator_->reverseTranslatePolygon(arrow), LANE_MARKER_COLOR);
 
       //drawPolygon(overpaint, RED, true, true, true);
@@ -1029,7 +1029,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       ConnectorPolygonEnding::Side::drain,
       Lin2D{ middle_right, middle_left - fix }, // Outgoing
       bottom_left_corner.distance(top_left_corner) * lane_width, // used to be the constant LANE_WIDTH (3.75);
-      std::make_shared<Color>(GRASS_COLOR),
+      std::make_shared<Color>(concrete_platter_mode_ ? PAVEMENT_COLOR : GRASS_COLOR),
       0,
       getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() });
 
@@ -1037,7 +1037,7 @@ std::vector<ConnectorPolygonEnding> vfm::HighwayImage::paintStraightRoadScene(
       ConnectorPolygonEnding::Side::source,
       Lin2D{ middle_left, middle_right + fix }, // Incoming
       bottom_left_corner.distance(top_left_corner) * lane_width, // used to be the constant LANE_WIDTH (3.75);
-      std::make_shared<Color>(GRASS_COLOR),
+      std::make_shared<Color>(concrete_platter_mode_ ? PAVEMENT_COLOR : GRASS_COLOR),
       0,
       getHighwayTranslator()->is3D() ? plain_2d_translator_wrapped_ : getHighwayTranslator() } );
 
@@ -1136,9 +1136,11 @@ void vfm::HighwayImage::paintBezierConnectionsBetweenSections(
                               auto arrow_square_reverse = plain_2d_translator_->reverseTranslatePolygon(arrow_square);
                               auto stop_line_reversea = plain_2d_translator_->reverseTranslatePolygon(stop_linea);
                               auto stop_line_reverseb = plain_2d_translator_->reverseTranslatePolygon(stop_lineb);
-                              fillPolygon(arrow_square_reverse, LANE_MARKER_COLOR);
-                              fillPolygon(stop_line_reversea, LANE_MARKER_COLOR);
-                              fillPolygon(stop_line_reverseb, LANE_MARKER_COLOR);
+                              if (!concrete_platter_mode_) {
+                                 fillPolygon(arrow_square_reverse, LANE_MARKER_COLOR);
+                                 fillPolygon(stop_line_reversea, LANE_MARKER_COLOR);
+                                 fillPolygon(stop_line_reverseb, LANE_MARKER_COLOR);
+                              }
                            }
                            else {
                               // TODO: Get rid of this workaround.
@@ -1149,7 +1151,7 @@ void vfm::HighwayImage::paintBezierConnectionsBetweenSections(
                               }
                               // EO TODO: Get rid of this workaround.
 
-                              fillPolygon(arrow_square, LANE_MARKER_COLOR);
+                              if (!concrete_platter_mode_) fillPolygon(arrow_square, LANE_MARKER_COLOR);
                            }
 
                            Pol2D p2{};
@@ -1293,6 +1295,8 @@ void vfm::HighwayImage::paintRoadGraph(
    const float lane_width{ my_r->my_road_.getLaneWidth() }; // Assuming all lanes have same width.
    const bool infinite_road{ false /*all_nodes.size() == 1 && my_r->isUnturned()*/ }; // Only a single section, unturned, will be painted as infinite.
 
+   concrete_platter_mode_ = !my_r->getRectObstacles().empty(); // Obstacles => concrete-platter look.
+
    Vec2D dim_raw{ dim_raw_raw };
 
    // Copilot
@@ -1302,7 +1306,7 @@ void vfm::HighwayImage::paintRoadGraph(
    float translate_y{ TRANSLATE_Y_raw };
 
    if (camera_mode == CameraMode::fit_to_roads && !plain_road && !old_trans->is3D()) {
-      const Rec2D bb{ my_r->getBoundingBox() };
+      const Rec2D bb{ my_r->getBoundingBox(false) }; // Exclude ghosts so zoom and centering stay stable across frames.
       const Vec2D bb_center{ bb.getCenter() };
 
       // getBoundingBox only spans the section centerlines; pad laterally for the actual lane width.
@@ -1357,6 +1361,9 @@ void vfm::HighwayImage::paintRoadGraph(
    std::shared_ptr<float> trans_x_inner = std::make_shared<float>(plain_road ? 0 : translate_x);
    std::shared_ptr<float> trans_y_inner = std::make_shared<float>(plain_road ? 0 : translate_y);
 
+   if (concrete_platter_mode_ && !old_trans->is3D()) {
+      fillImg(PAVEMENT_COLOR); // Gray backdrop instead of grass/green.
+   }
    const auto DRAW_STRAIGHT_ROAD_OR_CARS = [this, plain_road, &lane_width, &all_nodes_ego_in_front, &dim_raw, old_trans, translate_x, translate_y, trans_x_inner, trans_y_inner, infinite_road, &var_vals, print_agent_ids](const RoadDrawingMode mode) {
       for (const auto r_sub : all_nodes_ego_in_front) {
          if (mode == RoadDrawingMode::road && r_sub->isGhost()
@@ -1482,6 +1489,31 @@ void vfm::HighwayImage::paintRoadGraph(
 
    label:
    setTranslator(old_trans);
+
+   // Paint rectangular obstacles as a world-coordinate overlay, using the same transform pipeline as the sections
+   // (origin 0 / angle 0), so they stay aligned with the road under ego-normalization and fit-to-roads.
+   if (!my_r->getRectObstacles().empty()) {
+      const float tx{ *trans_x_inner };
+      const float ty{ *trans_y_inner };
+
+      const auto obstacle_trans_function = [tx, ty, lane_width](const Vec3D& p) -> Vec3D {
+         return { p.x + tx, p.y / lane_width + ty, p.z };
+      };
+
+      const auto obstacle_reverse_trans_function = [tx, ty, lane_width](const Vec3D& p) -> Vec3D {
+         return { p.x - tx, (p.y - ty) * lane_width, p.z };
+      };
+
+      setTranslator(std::make_shared<HighwayTranslatorWrapper>(old_trans, obstacle_trans_function, obstacle_reverse_trans_function));
+
+      for (const auto& obs : my_r->getRectObstacles()) {
+         fillRectangle(obs.tl_.x, obs.tl_.y, obs.br_.x - obs.tl_.x, obs.br_.y - obs.tl_.y, DARK_ORANGE, false);
+         rectangle(obs.tl_.x, obs.tl_.y, obs.br_.x - obs.tl_.x, obs.br_.y - obs.tl_.y, BLACK, false);
+      }
+
+      setTranslator(old_trans);
+   }
+
    //DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::ghosts_only); // For debugging.
    if (with_cars) DRAW_STRAIGHT_ROAD_OR_CARS(RoadDrawingMode::cars);
    setTranslator(old_trans);

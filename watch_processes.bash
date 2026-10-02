@@ -5,7 +5,8 @@
 # Continuously lists all running process instances whose command line matches
 # a given pattern (default: nuXmv), refreshing the display at a fixed interval.
 # For every instance it shows the PID, how long it has been running (elapsed
-# time) and the "config" (the exp_config_* segment of the nuXmv command line).
+# time) and the "config" (the exp_config_* / gp_config_* segment of the nuXmv
+# command line; override the matched segment with -c).
 # New instances appear automatically.
 # Terminated instances are kept in the list (marked "done") for a while: the
 # most recently finished N instances remain visible with their final runtime.
@@ -13,13 +14,16 @@
 # found) or "blind" (nuXmv reported "no counterexample found").
 #
 # Usage:
-#   ./watch_processes.bash [-i INTERVAL] [-n KEEP] [PATTERN]
+#   ./watch_processes.bash [-i INTERVAL] [-n KEEP] [-c CONFIGRE] [PATTERN]
 #
 #   PATTERN     String (extended regex) to match against the command line.
 #               Defaults to "nuXmv".
 #   -i INTERVAL Refresh interval in seconds (default: 2).
 #   -n KEEP     Number of terminated instances to keep showing (default: 10,
 #               use 0 to disable).
+#   -c CONFIGRE Extended-regex for the config path segment shown in the CONFIG
+#               column and used to locate each run's result file. Defaults to
+#               "(exp|gp)_config" (UCD exp_config_* and parking gp_config_*).
 #
 # Examples:
 #   ./watch_processes.bash                 # watch nuXmv instances
@@ -33,15 +37,21 @@ set -u
 
 interval=2
 keep=20
+# Config path segment (extended regex) shown in the CONFIG column and used to find
+# each run's result file. Matches UCD (exp_config_*) and parking (gp_config_*).
+config_seg='(exp|gp)_config'
 
 # --- Parse options ------------------------------------------------------------
-while getopts ":i:n:h" opt; do
+while getopts ":i:n:c:h" opt; do
   case "${opt}" in
     i)
       interval="${OPTARG}"
       ;;
     n)
       keep="${OPTARG}"
+      ;;
+    c)
+      config_seg="${OPTARG}"
       ;;
     h)
       grep '^#' "$0" | sed 's/^#//'
@@ -84,12 +94,12 @@ trap cleanup INT TERM
 printf '\033[?25l'
 
 # --- Helpers ------------------------------------------------------------------
-# Extract the "config" of a nuXmv invocation, i.e. the path segment that starts
-# with "exp_config" (e.g. "exp_config_vehlen=8_vehwidth=6"). Falls back to "?"
-# if no such segment is present. The result is truncated to the given width.
+# Extract the "config" of a nuXmv invocation, i.e. the path segment matching
+# ${config_seg} (e.g. "exp_config_vehlen=8_vehwidth=6" or "gp_config_sections=4").
+# Falls back to "?" if absent. The result is truncated to the given width.
 extract_config() {
   local args="$1" width="$2" cfg half
-  if [[ "${args}" =~ (exp_config[^/[:space:]]*) ]]; then
+  if [[ "${args}" =~ (${config_seg}[^/[:space:]]*) ]]; then
     cfg="${BASH_REMATCH[1]}"
   else
     cfg="?"
@@ -201,7 +211,7 @@ while true; do
     # Resolve the absolute config directory while the process is still alive
     # (so we can locate its result file after it terminates).
     reldir=""
-    [[ "${args}" =~ ([^[:space:]]*exp_config[^/[:space:]]*) ]] && reldir="${BASH_REMATCH[1]}"
+    [[ "${args}" =~ ([^[:space:]]*${config_seg}[^/[:space:]]*) ]] && reldir="${BASH_REMATCH[1]}"
     dir=""
     if [[ -n "${reldir}" ]]; then
       if [[ "${reldir}" == /* ]]; then

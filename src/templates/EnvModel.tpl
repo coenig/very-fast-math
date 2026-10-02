@@ -20,7 +20,7 @@ INIT !ego.flCond_full;
 --INIT !ego.slCond_full;
 INIT !ego.abCond_full;
 -- EO TODO
-}@.if[@{!UCD}@.eval]
+}@.if[@{!UCD && !REACHABILITY_ONLY}@.eval]
 
 @{
 ## THIS IS JUST AN EXAMPLE OF HOW TO USE THE GEOMETRY FUNCTIONS ##
@@ -41,6 +41,7 @@ INIT !ego.abCond_full;
 )@
 @( -- EM-full build
 
+@{
 VAR
    cnt : integer;
    num_lanes : integer;
@@ -53,11 +54,15 @@ INVAR num_lanes = @{NUMLANES}@.eval[0];
 INVAR num_technical_lanes = @{NUM_TECHNICAL_LANES}@.eval[0];
 
 @{EnvModel_Constants.tpl}@********.include
-@{EnvModel_Sections.tpl}@*******.include
+}@*********.if[@{!REACHABILITY_ONLY}@.eval]
+@{EnvModel_Sections.tpl}@*******.include -- Geometry + obstacle avoidance; needed in both modes (reachability uses the section graph & obstacle constraints).
+@{EnvModel_Reachability.tpl}@********.include.if[@{REACHABILITY_ONLY}@.eval]
+@{
 @{EnvModel_Behavior_Nonego.tpl}@********.include
 @{EnvModel_Behavior_Ego.tpl}@********.include
 @{EnvModel_Feasibility.tpl}@*******.include
 @{EnvModel_AngleBasedLC.tpl}@*******.include
+}@*********.if[@{!REACHABILITY_ONLY}@.eval]
 
 )@
 }@**.if[@{EM_LESS}@.eval]

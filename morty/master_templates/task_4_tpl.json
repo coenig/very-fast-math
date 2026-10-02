@@ -55,7 +55,13 @@
       "DISTANCESCALING": "#{4000}#",
       "EGOLESS": true,
       "UCD": true,
+      "UCD_USE_SHORTCUT": true,
       "FEASIBILITY": false,
+      "FIXED_SECTION_IDs": "@(0)@",
+      "FIXED_SECTION_SOURCE_Xs": "@(0)@",
+      "FIXED_SECTION_SOURCE_Ys": "@(0)@",
+      "FIXED_SECTION_ANGLEs": "@(0)@",
+      "FIXED_SECTION_LENGTHs": "@(10000)@",
       "KEEP_EGO_FROM_GREEN": true,
       "LANES_MAX_SPEEDS": "@(70)@@(70)@@(70)@@(70)@",
       "LANES_MIN_SPEEDS": "@(-70)@@(-70)@@(-70)@@(-70)@",
@@ -87,7 +93,10 @@
       "MAXSTARTSPEEDNONEGO_UCD": 30,
       "UCD_CONFIG_PRIOS": "_config_vehlen=7_vehwidth=8;_config_vehlen=6_vehwidth=8;_config_vehlen=5_vehwidth=8;_config_vehlen=7_vehwidth=7;_config_vehlen=6_vehwidth=7;_config_vehlen=5_vehwidth=7;_config_vehlen=7_vehwidth=6;_config_vehlen=6_vehwidth=6;_config_vehlen=5_vehwidth=6;",
       "UCD_EXP_NUM": 4,
-      "UCD_FORMULA_PP_DISTANCE": "10 + 2 * velocity",
+      "UCD_PP_STRATEGIES": "@MCIMMEDIATE = 1;",
+      "UCD_PP_STRATEGIES_FALLBACK": "@MCIMMEDIATE = 0;",
+      "UCD_FORMULA_PP_DISTANCE": "MCIMMEDIATE * next_immediate_x",
+      "UCD_FORMULA_PP_LATSHIFT": "MCIMMEDIATE * next_immediate_y",
       "UCD_MIN_VELOCITY_TO_ALLOW_LC": 10,
       "SECTIONSMAXLENGTH": "#{10000}#",
       "SECTIONSMINLENGTH": "#{10000}#",
@@ -111,6 +120,7 @@
       "_CACHED_PATH": "./examples/tmp",
       "_EXTERNAL_PATH": "./external",
       "_GENERATED_PATH": "./examples/exp",
-      "_ENVMODEL_PATH": "./src/templates"
+      "_ENVMODEL_PATH": "./src/templates",
+      "_CEX_FILE_NAME": "debug_trace_array.txt"
    }
 }

@@ -33,7 +33,7 @@
          esac;
    }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
    esac;
-   }@***.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
+   }@***.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval].if[@{!REACHABILITY_ONLY}@.eval] -- ego.abs_pos-based lane availability; not needed (and would dangle) in reachability mode.
 
    @{
 INIT 0 = @{section_[sec]_segment_0_pos_begin}@*.scalingVariable[distance];
@@ -95,7 +95,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 
             @{section_[sec]_segment_[seg]_pos_begin}@*.scalingVariable[distance] : @{@(integer)@@(0 .. 1)@}@.if[@{CONCRETE_MODEL}@.eval];
          }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
-		 
+		
       @{
          @this_section_min_length = SECTIONSMINLENGTH;
          @this_section_max_length = SECTIONSMAXLENGTH;
@@ -103,8 +103,8 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
             @this_section_min_length = 0;
          }
          if (@{is_section_[sec]_fixed}@.scriptVar) {
-            @this_section_min_length = @{fixed_section_length_[sec]}@.scriptVar;
-            @this_section_max_length = @{fixed_section_length_[sec]}@.scriptVar;
+            @this_section_min_length = @{fixed_section_length_[sec]}@.scriptVar[-1];
+            @this_section_max_length = @{fixed_section_length_[sec]}@.scriptVar[-1];
          }
       }@.eval.nil
 
@@ -284,6 +284,71 @@ VAR
    ego.on_section : 0 .. @{SECTIONS - 1}@.eval[0];
 
 INIT ego.on_section = 0;
+
+-- Caution: the below variables should remain as is, since they're directly changed by the mc_parker.
+DEFINE
+   @{
+      rect_obstacles_tl_x_[obs] := @{rect_obstacles_tl_x_[obs]}@.scriptVar;
+      rect_obstacles_tl_y_[obs] := @{rect_obstacles_tl_y_[obs]}@.scriptVar;
+      rect_obstacles_br_x_[obs] := @{rect_obstacles_br_x_[obs]}@.scriptVar;
+      rect_obstacles_br_y_[obs] := @{rect_obstacles_br_y_[obs]}@.scriptVar;
+   }@*.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
+-- EO Caution
+
+@{
+   @{
+      @{
+         -- No source or drain point of section [sec] may lie within obstacle [obs].
+         INIT !(section_[sec].source.x >= rect_obstacles_tl_x_[obs] & section_[sec].source.x <= rect_obstacles_br_x_[obs]
+               & section_[sec].source.y >= rect_obstacles_tl_y_[obs] & section_[sec].source.y <= rect_obstacles_br_y_[obs]);
+         INIT !(section_[sec].drain.x >= rect_obstacles_tl_x_[obs] & section_[sec].drain.x <= rect_obstacles_br_x_[obs]
+               & section_[sec].drain.y >= rect_obstacles_tl_y_[obs] & section_[sec].drain.y <= rect_obstacles_br_y_[obs]);
+      }@.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval]
+   }@*.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
+}@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
+-- The straight connector line of each active connection (from the drain of section [sec] to the
+-- source of the connected section [sec2]) may not overlap obstacle [obs]. An exact segment/rectangle
+-- crossing test needs a cross product = variable*variable (nonlinear, ruins nuXmv). Instead we split
+-- the connector into OBSTACLE_CONNECTOR_SUBDIVISIONS equal straight sub-segments and require each
+-- sub-segment's axis-aligned bounding box to be separated from the obstacle (on x or on y). This is
+-- LINEAR (variable-vs-constant only), still has NO false negatives (a real crossing overlaps some
+-- sub-box), and the smaller sub-boxes hug the straight line so the (false-positive) over-pruning
+-- shrinks ~1/K towards the exact test. Only constrained when the connection is actually taken.
+
+-- Sub-segment endpoints along each potential connector (drain of [sec] -> source of [sec2]).
+-- Scaled by K = OBSTACLE_CONNECTOR_SUBDIVISIONS so the interpolation stays integer/linear:
+-- ksx := K*p_[seg].x = K*drain.x + [seg]*(source.x - drain.x), for [seg] in 0..K.
+DEFINE
+@{
+   @{
+      @{
+         @{
+            conn_[sec]_to_[sec2]_sub_[seg]_ksx := @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * section_[sec].drain.x + [seg] * (section_[sec2].source.x - section_[sec].drain.x);
+            conn_[sec]_to_[sec2]_sub_[seg]_ksy := @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * section_[sec].drain.y + [seg] * (section_[sec2].source.y - section_[sec].drain.y);
+         }@*.for[[seg], 0, @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval]
+      }@**.if[@{ [sec] != [sec2] && MODEL_INTERSECTION_GEOMETRY }@.eval]
+   }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+}@****.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
+@{
+   @{
+      @{
+         @{
+            @{
+               INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> (
+                  @{
+                     ( (conn_[sec]_to_[sec2]_sub_[seg]_ksx < @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_tl_x_[obs] & conn_[sec]_to_[sec2]_sub_@{[seg] + 1}@.eval[0]_ksx < @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_tl_x_[obs])
+                     | (conn_[sec]_to_[sec2]_sub_[seg]_ksx > @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_br_x_[obs] & conn_[sec]_to_[sec2]_sub_@{[seg] + 1}@.eval[0]_ksx > @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_br_x_[obs])
+                     | (conn_[sec]_to_[sec2]_sub_[seg]_ksy < @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_tl_y_[obs] & conn_[sec]_to_[sec2]_sub_@{[seg] + 1}@.eval[0]_ksy < @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_tl_y_[obs])
+                     | (conn_[sec]_to_[sec2]_sub_[seg]_ksy > @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_br_y_[obs] & conn_[sec]_to_[sec2]_sub_@{[seg] + 1}@.eval[0]_ksy > @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_br_y_[obs]) )
+                  }@*.for[[seg], 0, @{OBSTACLE_CONNECTOR_SUBDIVISIONS - 1}@.eval, 1, &]
+               );
+            }@**.if[@{ [sec] != [sec2] && MODEL_INTERSECTION_GEOMETRY }@.eval]
+         }@***.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
+      }@****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+   }@*****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS - 1}@.eval]
+}@******.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 --------------------------------------------------------
 -- EO Sections

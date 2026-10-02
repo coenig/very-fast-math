@@ -537,6 +537,16 @@ void vfm::RoadGraph::normalizeRoadGraphToEgo()
       }
 
       r->origin_point_.add(-specialPoint.x, -specialPoint.y);
+
+      for (auto& obs : r->rect_obstacles_) {
+         if (FOLLOW_ANGLE_TOO) {
+            obs.tl_.rotate(theta, specialPoint);
+            obs.br_.rotate(theta, specialPoint);
+         }
+
+         obs.tl_.add(-specialPoint.x, -specialPoint.y);
+         obs.br_.add(-specialPoint.x, -specialPoint.y);
+      }
    }
 
    assert(!FOLLOW_ANGLE_TOO || r_ego->isUnturned());
@@ -546,7 +556,22 @@ void vfm::RoadGraph::translateGraph(const Vec2D& trans)
 {
    applyToMeAndAllMySuccessorsAndPredecessors([&trans](const std::shared_ptr<RoadGraph> r) {
       r->origin_point_.add(trans);
+
+      for (auto& obs : r->rect_obstacles_) {
+         obs.tl_.add(trans);
+         obs.br_.add(trans);
+      }
    });
+}
+
+void vfm::RoadGraph::addRectObstacle(const Vec2D& tl, const Vec2D& br)
+{
+   rect_obstacles_.push_back({ tl, br });
+}
+
+const std::vector<vfm::RoadGraph::RectObstacle>& vfm::RoadGraph::getRectObstacles() const
+{
+   return rect_obstacles_;
 }
 
 void vfm::RoadGraph::removeAllGhostSectionsFromThis()
@@ -709,11 +734,12 @@ void vfm::RoadGraph::addPredecessor(const std::shared_ptr<RoadGraph> subgraph)
    subgraph->successors_.push_back(shared_from_this());
 }
 
-Rec2D vfm::RoadGraph::getBoundingBox() const
+Rec2D vfm::RoadGraph::getBoundingBox(const bool include_ghosts) const
 {
    Pol2D temp_pol{};
 
-   const_cast<RoadGraph*>(this)->applyToMeAndAllMySuccessorsAndPredecessors([&temp_pol](const std::shared_ptr<RoadGraph> r) {
+   const_cast<RoadGraph*>(this)->applyToMeAndAllMySuccessorsAndPredecessors([&temp_pol, include_ghosts](const std::shared_ptr<RoadGraph> r) {
+      if (!include_ghosts && r->isGhost()) return;
       temp_pol.add(r->getOriginPoint());
       temp_pol.add(r->getDrainPoint());
    });
@@ -1086,6 +1112,7 @@ std::shared_ptr<RoadGraph> vfm::RoadGraph::copy(std::map<int, std::shared_ptr<Ro
    my_copy->ghost_section_ = ghost_section_;
    my_copy->my_road_ = my_road_; // TODO: do we need to copy ego, if any? It's only a pointer copy, for now.
    my_copy->origin_point_ = origin_point_;
+   my_copy->rect_obstacles_ = rect_obstacles_;
 
    for (const auto& predecessor : predecessors_) {
       auto tmp_copy = predecessor->copy(copied);

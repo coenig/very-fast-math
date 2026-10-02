@@ -354,6 +354,8 @@ good_ones = []
 all_cex_length_histories = {}
 all_selected_runtime_histories = {}
 
+def collapse_empty_lines(text): # Replace n > 1 empty lines with exactly one empty line.
+    return re.sub(r'\n\s*\n+', '\n\n', text)
 
 def write_spec_to_main_smv(ucd_config_str, spec_str):
     with open(generated_path_prefix + ucd_config_str + "/main.smv", "r+") as f:
@@ -369,7 +371,7 @@ def write_spec_to_main_smv(ucd_config_str, spec_str):
                 content = content[:invarspec_idx] + spec_str + content[semicolon_idx + 1:]
 
         f.seek(0)
-        f.write(content)
+        f.write(collapse_empty_lines(content))
         f.truncate()
     
 def write_addons_to_main_smv(ucd_config_str, addons_str):
@@ -384,7 +386,7 @@ def write_addons_to_main_smv(ucd_config_str, addons_str):
         content = content.replace("--EO-ADDONS", addons_str + "\n--EO-ADDONS")
 
         f.seek(0)
-        f.write(content)
+        f.write(collapse_empty_lines(content))
         f.truncate()
 
 specification = create_string_buffer(2000)
@@ -1115,17 +1117,17 @@ for run_id, seedo in scheduler:
             env.render()
 
         # Flush partial video every iteration.
-        if args.record_video and not args.dryrun and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
-            from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
-            clip = ImageSequenceClip(env.recorded_frames, fps=env.frames_per_sec)
-            clip.write_videofile(f"{generated_path_prefix}/videos/vid_{run_id}.mp4", logger=None)
-            clip.close()
-            print("Video written")
+        # if args.record_video and not args.dryrun and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
+        #     from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
+        #     clip = ImageSequenceClip(env.recorded_frames, fps=env.frames_per_sec)
+        #     clip.write_videofile(f"{generated_path_prefix}/videos/vid_{run_id}.mp4", logger=None)
+        #     clip.close()
+        #     print("Video written")
 
-            from PIL import Image
-            last_frame = env.recorded_frames[-1]
-            img = Image.fromarray(last_frame)
-            img.save(f"{generated_path_prefix}/current_state.png")
+        #     from PIL import Image
+        #     last_frame = env.recorded_frames[-1]
+        #     img = Image.fromarray(last_frame)
+        #     img.save(f"{generated_path_prefix}/current_state.png")
 
         archive(run_id, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
 
