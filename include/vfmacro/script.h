@@ -433,13 +433,6 @@ private:
    /// @return  The object-specific placeholder to replace the symbol with.
    std::string symbolToPlaceholder(const std::string& symbol);
 
-   /// Returns the next position which is after the complete method chain of
-   /// the preprocessor.
-   ///
-   /// @param partAfter  The part AFTER the preprocessor base script.
-   /// @return  The next position outside the preprocessor's method chain.
-   int getNextNonInscriptPosition(const std::string& partAfter, const int offset = 0);
-
    /// Undoes the placeholder replacement for plain-text parts. As the placeholders
    /// were object-specific, we don't care about what has happened in the
    /// meantime with the plain-text parts, but just replace all the

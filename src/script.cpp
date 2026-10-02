@@ -14,6 +14,7 @@
 #include "simulation/env2d_simple.h"
 #include "simulation/highway_translators.h"
 #include <cmath>
+#include <cstring>
 #include <sstream>
 
 
@@ -67,57 +68,163 @@ vfm::macro::Script::Script(const std::shared_ptr<DataPack> data, const std::shar
 
 namespace {
 
+/// Text buffer with a gap at the last edit position, so that repeated nearby replacements do not move the whole tail.
+class GapString {
+public:
+   explicit GapString(std::string&& text)
+   {
+      gap_end_ = (std::max)((size_t)4096, text.size() / 8);
+      text.insert(0, gap_end_, '\0');
+      buf_ = std::move(text);
+   }
+
+   size_t size() const { return buf_.size() - (gap_end_ - gap_begin_); }
+
+   char operator[](const size_t i) const { return buf_[i < gap_begin_ ? i : i + (gap_end_ - gap_begin_)]; }
+
+   /// Like std::string::find for a non-empty needle.
+   size_t find(const std::string& needle, const size_t pos) const
+   {
+      const std::string_view left{ buf_.data(), gap_begin_ };
+      const std::string_view right{ buf_.data() + gap_end_, buf_.size() - gap_end_ };
+
+      if (pos < left.size()) {
+         const size_t r{ left.find(needle, pos) };
+         if (r != std::string_view::npos) return r;
+      }
+
+      for (size_t s = (std::max)(pos, left.size() >= needle.size() ? left.size() - needle.size() + 1 : (size_t)0); s < left.size(); s++) { // Matches across the gap.
+         if (startsWith(needle, s)) return s;
+      }
+
+      const size_t r{ right.find(needle, pos > left.size() ? pos - left.size() : 0) };
+      return r == std::string_view::npos ? std::string::npos : r + left.size();
+   }
+
+   bool startsWith(const std::string& prefix, const size_t pos) const
+   {
+      if (pos + prefix.size() > size()) return false;
+      for (size_t k = 0; k < prefix.size(); k++) if ((*this)[pos + k] != prefix[k]) return false;
+      return true;
+   }
+
+   void appendTo(std::string& out, const size_t pos, const size_t len) const
+   {
+      if (pos < gap_begin_) out.append(buf_, pos, (std::min)(len, gap_begin_ - pos));
+      if (pos + len > gap_begin_) {
+         const size_t from{ (std::max)(pos, gap_begin_) };
+         out.append(buf_, from + (gap_end_ - gap_begin_), pos + len - from);
+      }
+   }
+
+   std::string substr(const size_t pos, const size_t len) const
+   {
+      std::string out{};
+      out.reserve(len);
+      appendTo(out, pos, len);
+      return out;
+   }
+
+   void replace(const size_t pos, const size_t len, const std::string& with)
+   {
+      moveGapTo(pos);
+      gap_end_ += len;
+      ensureGap(with.size());
+      with.copy(&buf_[gap_begin_], with.size());
+      gap_begin_ += with.size();
+   }
+
+   void erase(const size_t pos, const size_t len) { replace(pos, len, std::string{}); }
+
+   std::string release()
+   {
+      moveGapTo(size());
+      buf_.resize(gap_begin_);
+      return std::move(buf_);
+   }
+
+private:
+   void moveGapTo(const size_t pos)
+   {
+      if (pos < gap_begin_) {
+         const size_t count{ gap_begin_ - pos };
+         std::memmove(&buf_[gap_end_ - count], &buf_[pos], count);
+         gap_begin_ = pos;
+         gap_end_ -= count;
+      }
+      else if (pos > gap_begin_) {
+         const size_t count{ pos - gap_begin_ };
+         std::memmove(&buf_[gap_begin_], &buf_[gap_end_], count);
+         gap_begin_ += count;
+         gap_end_ += count;
+      }
+   }
+
+   void ensureGap(const size_t needed)
+   {
+      if (gap_end_ - gap_begin_ >= needed) return;
+
+      const size_t extra{ (std::max)({ needed, size() / 2, (size_t)4096 }) };
+      std::string bigger{};
+      bigger.reserve(buf_.size() + extra);
+      bigger.append(buf_, 0, gap_begin_);
+      bigger.append(extra + (gap_end_ - gap_begin_), '\0');
+      bigger.append(buf_, gap_end_, std::string::npos);
+      gap_end_ = gap_begin_ + extra + (gap_end_ - gap_begin_);
+      buf_ = std::move(bigger);
+   }
+
+   std::string buf_{};   // Characters [gap_begin_, gap_end_) are unused.
+   size_t gap_begin_{ 0 };
+   size_t gap_end_{ 0 };
+};
+
 /// Finds the first end tag followed by the longest run of priority symbols ("}@***"), without rescanning the
 /// whole script in every step. Invariants:
-/// - max_level_ is an upper bound of the longest run in the script.
+/// - counts_[k] is the exact number of end tags followed by a run of k priority symbols.
 /// - No end tag with a run of exactly k starts before watermark_[k].
 class EndTagScanner {
 public:
-   explicit EndTagScanner(const std::string& script)
+   explicit EndTagScanner(const GapString& script)
    {
-      raiseMaxLevelByTagsStartingIn(script, 0, script.size());
+      std::vector<char> unused{};
+      addTagsStartingIn(script, 0, script.size(), 1, unused);
    }
 
    /// @return Position of the first end tag with the longest run, or npos if there is no end tag. Sets the run length in level.
-   size_t findFirstOfLongest(const std::string& script, int& level)
+   size_t findFirstOfLongest(const GapString& script, int& level)
    {
-      for (int k = max_level_; k >= 0; k--) {
+      for (int k = highestLevel(); k >= 0; k = highestLevel()) {
          for (size_t p = script.find(INSCR_END_TAG, watermark_[k]); p != std::string::npos; p = script.find(INSCR_END_TAG, p + 1)) {
             if (runAt(script, p) == k) {
                watermark_[k] = p;
-               max_level_ = k;
                level = k;
                return p;
             }
          }
 
-         watermark_[k] = script.size(); // No end tag with run k at all.
+         counts_[k] = 0; // Cannot happen with exact counts; avoids an endless loop if it ever does.
       }
 
-      max_level_ = -1;
       return std::string::npos;
    }
 
-   /// To be called after [pos, pos + old_length) has been replaced by new_length characters (the part before pos must be unchanged).
-   void notifyReplaced(const std::string& script, const size_t pos, const size_t old_length, const size_t new_length)
+   /// To be called before [pos, pos + old_length) is replaced (the part before pos must stay unchanged).
+   void beforeReplace(const GapString& script, const size_t pos, const size_t old_length)
    {
-      // Tags before pos can only be affected if their priority symbols reach into the changed part.
-      size_t from{ pos };
-      while (from > 0 && script[from - 1] == INSCR_PRIORITY_SYMB) from--;
-      from = from >= INSCR_END_TAG.size() ? from - INSCR_END_TAG.size() : 0;
+      std::vector<char> unused{};
+      addTagsStartingIn(script, windowStart(script, pos), pos + old_length, -1, unused);
+   }
 
+   /// To be called after [pos, pos + old_length) has been replaced by new_length characters.
+   void afterReplace(const GapString& script, const size_t pos, const size_t old_length, const size_t new_length)
+   {
+      const size_t from{ windowStart(script, pos) };
       const size_t old_end{ pos + old_length };
       const size_t new_end{ pos + new_length };
       std::vector<char> level_present{};
 
-      for (size_t p = script.find(INSCR_END_TAG, from); p != std::string::npos && p < new_end; p = script.find(INSCR_END_TAG, p + 1)) {
-         const int run{ runAt(script, p) };
-         max_level_ = (std::max)(max_level_, run);
-         if (level_present.size() <= (size_t)run) level_present.resize(run + 1, 0);
-         level_present[run] = 1;
-      }
-
-      if (watermark_.size() < (size_t)(max_level_ + 1)) watermark_.resize(max_level_ + 1, 0);
+      addTagsStartingIn(script, from, new_end, 1, level_present);
 
       for (size_t level = 0; level < watermark_.size(); level++) {
          size_t& w{ watermark_[level] };
@@ -135,23 +242,47 @@ public:
    }
 
 private:
-   static int runAt(const std::string& script, const size_t tag_pos)
+   // Tags before pos can only be affected if their priority symbols reach into the changed part.
+   static size_t windowStart(const GapString& script, const size_t pos)
+   {
+      size_t from{ pos };
+      while (from > 0 && script[from - 1] == INSCR_PRIORITY_SYMB) from--;
+      return from >= INSCR_END_TAG.size() ? from - INSCR_END_TAG.size() : 0;
+   }
+
+   static int runAt(const GapString& script, const size_t tag_pos)
    {
       size_t run_end{ tag_pos + INSCR_END_TAG.size() };
       while (run_end < script.size() && script[run_end] == INSCR_PRIORITY_SYMB) run_end++;
       return (int)(run_end - (tag_pos + INSCR_END_TAG.size()));
    }
 
-   void raiseMaxLevelByTagsStartingIn(const std::string& script, const size_t from, const size_t to)
+   int highestLevel() const
    {
-      for (size_t p = script.find(INSCR_END_TAG, from); p != std::string::npos && p < to; p = script.find(INSCR_END_TAG, p + 1)) {
-         max_level_ = (std::max)(max_level_, runAt(script, p));
-      }
-
-      if (watermark_.size() < (size_t)(max_level_ + 1)) watermark_.resize(max_level_ + 1, 0);
+      for (int k = (int)counts_.size() - 1; k >= 0; k--) if (counts_[k] > 0) return k;
+      return -1;
    }
 
-   int max_level_{ -1 };
+   void addTagsStartingIn(const GapString& script, const size_t from, const size_t to, const long delta, std::vector<char>& level_present)
+   {
+      for (size_t p = script.find(INSCR_END_TAG, from); p != std::string::npos && p < to; p = script.find(INSCR_END_TAG, p + 1)) {
+         const size_t run{ (size_t)runAt(script, p) };
+
+         if (counts_.size() <= run) {
+            counts_.resize(run + 1, 0);
+            watermark_.resize(run + 1, 0);
+         }
+
+         counts_[run] += delta;
+
+         if (delta > 0) {
+            if (level_present.size() <= run) level_present.resize(run + 1, 0);
+            level_present[run] = 1;
+         }
+      }
+   }
+
+   std::vector<long> counts_{};
    std::vector<size_t> watermark_{};
 };
 
@@ -159,7 +290,13 @@ private:
 
 /// Finds the inner-most, left-most inscript begin tag position, preferring more '*' symbols after the end tag over fewer.
 /// Returns -1 if there is none; otherwise num_priority_symbols is the number of '*' following the end tag at end_tag_pos.
-static int findNextInscriptPos(const std::string& script, EndTagScanner& scanner, int& num_priority_symbols, size_t& end_tag_pos);
+static int findNextInscriptPos(const GapString& script, EndTagScanner& scanner, int& num_priority_symbols, size_t& end_tag_pos);
+
+/// Same as the end tag position found by StaticHelper::findMatchingEndTagLevelwise for the begin tag at begin_pos, or -1.
+static int findMatchingEndTagForward(const GapString& script, const int begin_pos);
+
+/// Returns the next position which is after the complete method chain of the preprocessor, relative to offset.
+static int getNextNonInscriptPosition(const GapString& script, const int offset);
 
 std::string Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw2, const bool only_one_step)
 {
@@ -187,32 +324,48 @@ std::string Script::applyDeclarationsAndPreprocessors(const std::string& codeRaw
 
 void Script::extractInscriptProcessors(std::string& processed_script, const bool only_one_step)
 {
+   if (processed_script.find(INSCR_END_TAG) == std::string::npos) return; // No preprocessor at all.
+
+   GapString text{ std::move(processed_script) };
+   struct WriteBack {
+      std::string& target;
+      GapString& source;
+      ~WriteBack() { target = source.release(); }
+   } write_back{ processed_script, text };
+
    // Find next preprocessor.
-   EndTagScanner end_tag_scanner{ processed_script };
+   EndTagScanner end_tag_scanner{ text };
    int num_priority_symbols{};
    size_t end_tag_pos{};
-   int indexOfPrep = findNextInscriptPos(processed_script, end_tag_scanner, num_priority_symbols, end_tag_pos);
+   int indexOfPrep = findNextInscriptPos(text, end_tag_scanner, num_priority_symbols, end_tag_pos);
    int i{};
 
    while (!stop_me_ && indexOfPrep >= 0) {
-      std::string preprocessorScript = *StaticHelper::extractFirstSubstringLevelwise(processed_script, INSCR_BEG_TAG, INSCR_END_TAG, indexOfPrep);
+      int endOfPreprocessor = findMatchingEndTagForward(text, indexOfPrep);
 
-      if (num_priority_symbols > 0 && indexOfPrep + INSCR_BEG_TAG.length() + preprocessorScript.length() != end_tag_pos) {
-         // Forward matching ended at a different end tag than the chosen one: erase its '*' first, as the replaced part differs from it.
-         processed_script.erase(end_tag_pos + INSCR_END_TAG.length(), num_priority_symbols);
-         end_tag_scanner.notifyReplaced(processed_script, end_tag_pos + INSCR_END_TAG.length(), num_priority_symbols, 0);
-         num_priority_symbols = 0;
-         preprocessorScript = *StaticHelper::extractFirstSubstringLevelwise(processed_script, INSCR_BEG_TAG, INSCR_END_TAG, indexOfPrep);
+      if (endOfPreprocessor < 0) { // Not matched: behave exactly as before.
+         std::string flat{ text.substr(0, text.size()) };
+         endOfPreprocessor = indexOfPrep + INSCR_BEG_TAG.length() + StaticHelper::extractFirstSubstringLevelwise(flat, INSCR_BEG_TAG, INSCR_END_TAG, indexOfPrep)->length();
       }
 
-      const int lengthOfPreprocessor = preprocessorScript.length() + INSCR_BEG_TAG.length() + INSCR_END_TAG.length() + num_priority_symbols;
-      const int afterPos = indexOfPrep + lengthOfPreprocessor;
+      if (num_priority_symbols > 0 && (size_t)endOfPreprocessor != end_tag_pos) {
+         // Forward matching ended at a different end tag than the chosen one: erase its '*' first, as the replaced part differs from it.
+         end_tag_scanner.beforeReplace(text, end_tag_pos + INSCR_END_TAG.length(), num_priority_symbols);
+         text.erase(end_tag_pos + INSCR_END_TAG.length(), num_priority_symbols);
+         end_tag_scanner.afterReplace(text, end_tag_pos + INSCR_END_TAG.length(), num_priority_symbols, 0);
+         num_priority_symbols = 0;
+         endOfPreprocessor = findMatchingEndTagForward(text, indexOfPrep);
+      }
 
-      const int indexCurr = getNextNonInscriptPosition(processed_script, afterPos); // Relative to afterPos.
+      const int innerBegin = indexOfPrep + INSCR_BEG_TAG.length();
+      std::string preprocessorScript = text.substr(innerBegin, endOfPreprocessor - innerBegin);
+      const int afterPos = endOfPreprocessor + INSCR_END_TAG.length() + num_priority_symbols;
+
+      const int indexCurr = getNextNonInscriptPosition(text, afterPos); // Relative to afterPos.
 
       int methodPartBegin = preprocessorScript.length();
-      preprocessorScript.append(processed_script, afterPos, indexCurr);
-      const int lengthOfReplacedPart = lengthOfPreprocessor + indexCurr;
+      text.appendTo(preprocessorScript, afterPos, indexCurr);
+      const int lengthOfReplacedPart = afterPos + indexCurr - indexOfPrep;
       std::string placeholder_for_inscript{};
 
       auto trimmed = StaticHelper::trimAndReturn(preprocessorScript);
@@ -254,8 +407,9 @@ void Script::extractInscriptProcessors(std::string& processed_script, const bool
       }
 
       const std::string placeholder_final{ checkForPlainTextTags(placeholder_for_inscript) };
-      processed_script.replace(indexOfPrep, lengthOfReplacedPart, placeholder_final);
-      end_tag_scanner.notifyReplaced(processed_script, indexOfPrep, lengthOfReplacedPart, placeholder_final.size());
+      end_tag_scanner.beforeReplace(text, indexOfPrep, lengthOfReplacedPart);
+      text.replace(indexOfPrep, lengthOfReplacedPart, placeholder_final);
+      end_tag_scanner.afterReplace(text, indexOfPrep, lengthOfReplacedPart, placeholder_final.size());
 
       if (i++ % 100 == 0) {
          addNote(""
@@ -263,14 +417,14 @@ void Script::extractInscriptProcessors(std::string& processed_script, const bool
             + std::to_string(getScriptData().method_part_begins_.size()) + " method_part_begins_; "
             + std::to_string(getScriptData().list_data_.size()) + " list_data_; "
             + std::to_string(getScriptData().map_data_.size()) + " map_data_; "
-            + std::to_string(processed_script.size()) + " script size; "
+            + std::to_string(text.size()) + " script size; "
             + std::to_string(getScriptData().cache_hits_) + "/" + std::to_string(getScriptData().cache_misses_) + " cache hits/misses; "
          );
       }
 
       if (only_one_step) return;
 
-      indexOfPrep = findNextInscriptPos(processed_script, end_tag_scanner, num_priority_symbols, end_tag_pos);
+      indexOfPrep = findNextInscriptPos(text, end_tag_scanner, num_priority_symbols, end_tag_pos);
    }
 }
 
@@ -1020,7 +1174,7 @@ std::string Script::getConversionTag(const std::string& scriptWithoutComments)
    return conversionTag;
 }
 
-static int findNextInscriptPos(const std::string& script, EndTagScanner& scanner, int& num_priority_symbols, size_t& end_tag_pos)
+static int findNextInscriptPos(const GapString& script, EndTagScanner& scanner, int& num_priority_symbols, size_t& end_tag_pos)
 {
    const size_t pos_of_first_longest{ scanner.findFirstOfLongest(script, num_priority_symbols) };
 
@@ -1031,11 +1185,11 @@ static int findNextInscriptPos(const std::string& script, EndTagScanner& scanner
    int count = 0;               // Because we start on an end tag.
 
    for (int i = pos; i >= 0; i--) {
-      if (StaticHelper::stringStartsWith(script, INSCR_BEG_TAG, i)) {
+      if (script.startsWith(INSCR_BEG_TAG, i)) {
          count++;
       }
 
-      if (StaticHelper::stringStartsWith(script, INSCR_END_TAG, i)) {
+      if (script.startsWith(INSCR_END_TAG, i)) {
          count--;
       }
 
@@ -1045,6 +1199,75 @@ static int findNextInscriptPos(const std::string& script, EndTagScanner& scanner
    }
 
    return -1;
+}
+
+static int findMatchingEndTagForward(const GapString& script, const int begin_pos)
+{
+   int count = 0; // Because we start on a begin tag.
+   int next_inc = 1;
+
+   for (int i = begin_pos; i < (int)script.size(); i += next_inc) {
+      next_inc = 1;
+
+      if (script.startsWith(INSCR_BEG_TAG, i)) {
+         count++;
+         next_inc = INSCR_BEG_TAG.size();
+      }
+
+      if (script.startsWith(INSCR_END_TAG, i)) {
+         count--;
+         next_inc = INSCR_END_TAG.size();
+      }
+
+      if (count == 0) {
+         return i;
+      }
+   }
+
+   return -1;
+}
+
+static int getNextNonInscriptPosition(const GapString& script, const int offset)
+{
+   int count = 0;
+   bool lastWasMethodEnd = true;
+
+   for (int i = offset; i < (int)script.size(); i++) {
+      const char currChar = script[i];
+      const std::string currStr = StaticHelper::makeString(currChar);
+
+      if (count == 0) {
+         if (lastWasMethodEnd) {
+            if (!script.startsWith(METHOD_CHAIN_SEPARATOR, i)) {
+               return i - offset; // No methods more to come (particularly at pos 0 if no methods at all).
+            }
+         }
+         else if (!StaticHelper::isAlphaNumericOrUnderscore(currStr)
+            && currStr != METHOD_PARS_BEGIN_TAG
+            && currStr != METHOD_PARS_END_TAG
+            && currStr != METHOD_CHAIN_SEPARATOR) {
+            return i - offset;
+         }
+      }
+
+      lastWasMethodEnd = false;
+
+      if (script.startsWith(METHOD_PARS_BEGIN_TAG, i)) {
+         lastWasMethodEnd = false;
+         count++;
+      }
+
+      if (script.startsWith(METHOD_PARS_END_TAG, i)) {
+         lastWasMethodEnd = true;
+         count--;
+      }
+
+      if (count < 0) {
+         return i - offset;
+      }
+   }
+
+   return (int)script.size() - offset; // Whole remainder belongs to preprocessor.
 }
 
 ScriptData& Script::getScriptData() const
@@ -1092,49 +1315,6 @@ std::string Script::removeTaggedPartsOnTopLevel(
 std::string Script::undoPlaceholdersForPlainText(const std::string& script)
 {
    return replacePlaceholders(script, false);
-}
-
-int Script::getNextNonInscriptPosition(const std::string& partAfter, const int offset) 
-{
-   int count = 0;
-   bool lastWasMethodEnd = true;
-
-   for (int i = offset; i < partAfter.length(); i++) {
-      char currChar = partAfter.at(i);
-      std::string currStr = StaticHelper::makeString(currChar);
-
-      if (count == 0) {
-         if (lastWasMethodEnd) {
-            if (!StaticHelper::stringStartsWith(partAfter, METHOD_CHAIN_SEPARATOR, i)) {
-               return i - offset; // No methods more to come (particularly at pos 0 if no methods at all).
-            }
-         }
-         else if (!StaticHelper::isAlphaNumericOrUnderscore(currStr)
-            && currStr != METHOD_PARS_BEGIN_TAG
-            && currStr != METHOD_PARS_END_TAG
-            && currStr != METHOD_CHAIN_SEPARATOR) {
-            return i - offset;
-         }
-      }
-
-      lastWasMethodEnd = false;
-
-      if (StaticHelper::stringStartsWith(partAfter, METHOD_PARS_BEGIN_TAG, i)) {
-         lastWasMethodEnd = false;
-         count++;
-      }
-
-      if (StaticHelper::stringStartsWith(partAfter, METHOD_PARS_END_TAG, i)) {
-         lastWasMethodEnd = true;
-         count--;
-      }
-
-      if (count < 0) {
-         return i - offset;
-      }
-   }
-
-   return (int)partAfter.length() - offset; // Whole remainder belongs to preprocessor.
 }
 
 std::string Script::inferPlaceholdersForPlainText(const std::string& script) 
