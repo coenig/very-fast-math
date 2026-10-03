@@ -29,7 +29,7 @@ float TermPrint::eval(const std::shared_ptr<DataPack>& varVals, const std::share
 
    if (len >= 0) {
       for (int i = beg; i < beg + len; i++) {
-         auto val = varVals->getVfmMemory();
+         const auto& val = varVals->getVfmMemory();
          std::cout << (char) val.at(i);
       }
    }

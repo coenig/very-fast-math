@@ -70,32 +70,42 @@ std::map<std::string, std::string> getRelevantVariablesFromEnvModel(
 {
    std::map<std::string, std::string> res{};
 
-   std::regex variableRegex1(R"(\bFound variable (\w+) with value (\S*) during generation of EnvModel)");
-   std::smatch match1;
-   std::string::const_iterator searchStart1(env_model.cbegin());
+   // std::regex is slow on the full model; all matches are single-line and contain this marker.
+   static const std::string MARKER{ "during generation of EnvModel" };
+   std::string relevant_lines{};
 
-   while (std::regex_search(searchStart1, env_model.cend(), match1, variableRegex1)) {
+   for (size_t pos = env_model.find(MARKER); pos != std::string::npos; pos = env_model.find(MARKER, pos)) {
+      const size_t prev_newline{ env_model.rfind('\n', pos) };
+      const size_t begin{ prev_newline == std::string::npos ? 0 : prev_newline + 1 };
+      pos = (std::min)(env_model.find('\n', pos), env_model.size());
+      relevant_lines.append(env_model, begin, pos - begin).push_back('\n');
+   }
+
+   static const std::regex variableRegex1(R"(\bFound variable (\w+) with value (\S*) during generation of EnvModel)");
+   std::smatch match1;
+   std::string::const_iterator searchStart1(relevant_lines.cbegin());
+
+   while (std::regex_search(searchStart1, relevant_lines.cend(), match1, variableRegex1)) {
       res[match1[1]] = match1[2];
       //res.insert(match1[1]);
       searchStart1 = match1.suffix().first;
    }
 
-   std::regex variableRegex2(R"(\bUndeclared variable (\w+) found during generation of EnvModel\. Setting to default value (\S*)\.)");
+   static const std::regex variableRegex2(R"(\bUndeclared variable (\w+) found during generation of EnvModel\. Setting to default value (\S*)\.)");
    std::smatch match2;
-   std::string::const_iterator searchStart2(env_model.cbegin());
+   std::string::const_iterator searchStart2(relevant_lines.cbegin());
 
-   while (std::regex_search(searchStart2, env_model.cend(), match2, variableRegex2)) {
+   while (std::regex_search(searchStart2, relevant_lines.cend(), match2, variableRegex2)) {
       res[match2[1]] = match2[2];
       //res.insert(match2[2]);
       searchStart2 = match2.suffix().first;
    }
 
-   std::string envmodel_copy{ env_model };
-   std::regex pattern("-- Found variable (\\w+) with value (\\S*) during generation of EnvModel \\(default would be (\\S*)\\)\\.");
+   static const std::regex pattern("-- Found variable (\\w+) with value (\\S*) during generation of EnvModel \\(default would be (\\S*)\\)\\.");
    std::smatch matches;
 
-   std::string::const_iterator searchStart(envmodel_copy.cbegin());
-   while (std::regex_search(searchStart, envmodel_copy.cend(), matches, pattern)) {
+   std::string::const_iterator searchStart(relevant_lines.cbegin());
+   while (std::regex_search(searchStart, relevant_lines.cend(), matches, pattern)) {
       default_values[matches[1].str()] = { matches[2].str(), matches[3].str() };
       //std::cout << "Variable: " << matches[1] << std::endl;
       //std::cout << "Value: " << matches[2] << std::endl;
@@ -139,7 +149,11 @@ bool checkEqual(const std::string& val_desired, const std::string& val_cached)
 std::string retrievePathOfCachedEnvModel(const std::string& cached_dir, const std::string& desired_envmodel_definition)
 {
    if (!cached_dir.empty() && std::filesystem::is_directory(cached_dir)) {
-      auto split_desired{ StaticHelper::split(desired_envmodel_definition.substr(2), ",") };
+      std::vector<std::vector<std::string>> split_desired{};
+
+      for (const auto& varval_desired_str : StaticHelper::split(desired_envmodel_definition.substr(2), ",")) {
+         split_desired.push_back(StaticHelper::split(varval_desired_str, "="));
+      }
 
       for (const auto& entry : std::filesystem::directory_iterator(cached_dir)) {
          if (std::filesystem::is_directory(entry)) {
@@ -165,9 +179,7 @@ std::string retrievePathOfCachedEnvModel(const std::string& cached_dir, const st
                   const std::string val_cached{ varval_cached.second };
 
                   // (1) Check if all defined new (desired) variables have the same value as the cached.
-                  for (const auto& varval_desired_str : split_desired) {
-                     const auto varval_desired{ StaticHelper::split(varval_desired_str, "=") };
-
+                  for (const auto& varval_desired : split_desired) {
                      if (varval_desired.size() >= 2) { // TODO: Only special case is "G" which is deprecated.
                         assert(varval_desired.size() == 2);
                         const std::string var_desired{ varval_desired[0] };

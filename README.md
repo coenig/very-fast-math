@@ -23,21 +23,19 @@ In **ultra-cooperative driving mode**, a fleet of cars can be steered live in tr
 <img src="examples/cex.gif" width="1000" />
 
 ## How to build
-`vfm` is implemented in `C++` and can be built with CMake (stable) or Bazel (experimental). With CMake, simply run 
-
+`vfm` is implemented in `C++` and can be built by simply running
 ```build.bash```
-
 *(On Windows, you can alternatively open the top-level `CMakeLists.txt` with Visual Studio and build the `vfm` target.)*
 
-Run `vfm(.exe)` from the `bin` folder.
+Then, run `vfm(.exe)` from the `bin` folder.
 
 ### Build dependencies
-| Dependency | Minimum version | Platform | Notes |
-|---|---|---|---|
-| CMake | 3.21+ | Both | Required for VS 2022+ generator support |
-| GCC/G++ | 7+ | Linux | C++17 support required |
-| Visual Studio | 2019+ | Windows | Build Tools or full IDE |
-| Git Bash / MSYS2 | — | Windows | Only for using `build.bash` to compile |
+| Dependency | Minimum version | Platform |
+|---|---|---|
+| CMake | 3.21+ | Both | 
+| GCC/G++ | 7+ | Linux | 
+| Visual Studio | 2019+ | Windows | 
+| Git Bash / MSYS2 | — | Windows | 
 
 ### Troubleshoot
 There are no additional dependencies, except `gtest` if you want to run the tests, and `opengl` if you want to compile fltk agains it. These dependencies are technically optional, but in the recent versions they are required for the build script to work. Should you receive errors, do:
@@ -84,7 +82,7 @@ pip install highway-env
 
 Run from the project root directory, for example:
 ```bash
-python -m morty.morty --num_runs 1 --steps_per_run 300 --headless --record_video
+python3 -m morty.morty --headless --record_video
 ```
 The task to solve is defined in `morty/envmodel_config.tpl.json`. Use the `morty/master_templates` for a first trial.
 

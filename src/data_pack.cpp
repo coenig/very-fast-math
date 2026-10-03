@@ -1511,7 +1511,7 @@ std::set<std::string> vfm::DataPack::getAllArrayNamesMatchingRegex(const std::st
    return set;
 }
 
-std::vector<float> vfm::DataPack::getVfmMemory() const
+const std::vector<float>& vfm::DataPack::getVfmMemory() const
 {
    return vfm_memory_;
 }
@@ -1549,8 +1549,10 @@ std::string vfm::DataPack::printHeap(const std::string& varname, const std::stri
 
    std::string str{};
 
-   for (int i = getSingleVal(varname); getVfmMemory()[i] != 0; i++) {
-      str += (char)getVfmMemory()[i];
+   const auto& memory{ getVfmMemory() };
+
+   for (int i = getSingleVal(varname); memory[i] != 0; i++) {
+      str += (char)memory[i];
    }
 
    return StaticHelper::replaceAll(str, "\\n", "\n");
@@ -1570,8 +1572,10 @@ void vfm::DataPack::isStringAtAdressWhichComparesTo(const std::string& address_v
    std::string str{};
    int i = getSingleVal(address_var);
 
-   for (; getVfmMemory()[i] != 0; i++) {
-      str += (char)getVfmMemory()[i];
+   const auto& memory{ getVfmMemory() };
+
+   for (; memory[i] != 0; i++) {
+      str += (char)memory[i];
       if (str.size() > comp_string.size()) {
          same_length = false;
          same = false;

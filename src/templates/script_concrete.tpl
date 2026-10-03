@@ -1,4 +1,5 @@
 @{
+set on_failure_script_quits 1
 go_msat
 @{
 @(

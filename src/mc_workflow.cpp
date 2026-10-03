@@ -71,7 +71,10 @@ void vfm::mc::McWorkflow::generateEnvmodels(
       }
    }
 
+   StaticHelper::createDirectoriesSafe(path_generated.string());
+
    for (const auto& envmodeldef : envmodeldefs) {
+      StaticHelper::writeTextToFile(std::to_string(cnt) + "#" + std::to_string(max) + "#" + envmodeldef.first, path_generated.string() + "/progress.morty");
       addNote("Generating EnvModel " + std::to_string(cnt++) + "/" + std::to_string(max) + ".");
 
       if (envmodeldef.first != JSON_TEMPLATE_DENOTER) {
@@ -87,6 +90,8 @@ void vfm::mc::McWorkflow::generateEnvmodels(
             GUI_NAME + "_Related");
       }
    }
+
+   StaticHelper::removeFileSafe(path_generated.string() + "/progress.morty");
 }
 
 std::vector<std::string> vfm::mc::McWorkflow::runMCJobs(
@@ -753,7 +758,7 @@ std::string McWorkflow::getValueForJSONKeyAsStringPlain(const std::string& key_t
    }
 
 
-   addError("#KEY-NOT-FOUND in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "').");
+   addFatalError("#KEY-NOT-FOUND in 'getValueForJSONKeyAsString' (key: '" + key_to_find + "', config: '" + config_name + "').");
    return "#KEY-NOT-FOUND";
 }
 

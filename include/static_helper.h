@@ -698,8 +698,14 @@ public:
    static std::vector<std::string> split(const std::string& s, char delim);
    template<typename Out>
    static void split(const std::string &s, char delim, Out result);
-   static std::vector<std::string> split(const std::string& s, const std::string& delim, SplitCondition& f = FUNC_ALL_STRINGS_TO_TRUE, const bool keep_delimiter = false);
-   static std::vector<std::string> split(const std::vector<std::string>& ss, const std::string& delim, SplitCondition& f = FUNC_ALL_STRINGS_TO_TRUE, const bool keep_delimiter = false);
+   static std::vector<std::string> split(const std::string& s, const std::string& delim);
+   static std::vector<std::string> split(const std::string& s, const std::string& delim, SplitCondition& f, const bool keep_delimiter = false);
+   static std::vector<std::string> split(const std::vector<std::string>& ss, const std::string& delim);
+   static std::vector<std::string> split(const std::vector<std::string>& ss, const std::string& delim, SplitCondition& f, const bool keep_delimiter = false);
+
+   /// Same result as split(s, delim, [&](const std::string& rest, const int pos) { return !isWithinLevelwise(rest, pos, begin_tag, end_tag); }),
+   /// but without copying the remainder of the string for each part.
+   static std::vector<std::string> splitUnlessWithinLevelwise(const std::string& s, const std::string& delim, const std::string& begin_tag, const std::string& end_tag);
    
    static std::string wrapOnTokens(const std::string& text_raw, const std::set<std::string>& wrap_before, const std::set<std::string>& wrap_after);
    static std::string wrapOnLineLength(const std::string& text_raw, const size_t max_line_length);

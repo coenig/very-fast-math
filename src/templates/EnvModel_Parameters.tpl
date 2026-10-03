@@ -27,7 +27,7 @@
 	)@
    }@*.if[@{name_array}@.scriptVar.scriptVar.isMap]
 	}@**.for[[id], 0, @{@{@{name_array}@.scriptVar}@.scriptVar.size - 1}@.eval]
-	}@***.if[@{@{@{name_array}@.scriptVar}@.scriptVar.size > 0}@.eval]
+	}@***.if[@{#1#}@.strNempty].if[@{@{@{name_array}@.scriptVar}@.scriptVar.size > 0}@.eval]
 }@.removeBlankLines}@**********.newMethod[ConvenienceVars2, 1]
 
 @{
@@ -62,6 +62,10 @@
 @{MAXDISTENDPOINTS}@*******.defaultValue[5]               -- Two end points must be at least this apart (approximated by maxvar method)
 @{MODEL_INTERSECTION_GEOMETRY}@*******.defaultValue[true] -- If the length of the junctions is calculated subject to connections etc. (Makes calculation slow, but needed at least for multi-lane road networks.)
 @{FIXED_TOPOLOGY}@*******.defaultValue[false] -- Topology and geometry are supplied by the caller; omit symbolic topology-consistency checks.
+@{OBSTACLE_CONNECTOR_SUBDIVISIONS}@*******.defaultValue[4] -- Connector-vs-obstacle check: number of straight sub-segments the drain->source connector is split into for the (linear) bounding-box separation test. Higher = less over-pruning (converges to exact), but more constraints. 1 = single whole-connector bbox.
+@{REACHABILITY_ONLY}@*******.defaultValue[false] -- If set, replaces the driving-dynamics model with a static section-graph reachability query (source sec 0 -> target sec 1). Keeps vehicle initial states, drops driving transitions, emits reachability DEFINEs + SPEC. When unset, no reachability vars are generated.
+@{PARK_IN_FORWARD}@*******.defaultValue[true]   -- (REACHABILITY_ONLY) Accept reaching the target section entering it FORWARD (nose-in).
+@{PARK_IN_BACKWARD}@*******.defaultValue[true]  -- (REACHABILITY_ONLY) Accept reaching the target section entering it BACKWARD (backed-in). Both true = either direction.
 
 -- Parameters for ego and non-ego vehicles (vehicle length is below in LC section)
 @{EGOLESS}@*******.defaultValue[false]
@@ -110,6 +114,11 @@
 @{FIXED_SECTION_LENGTHs}@*******.defaultValueString[@(100)@]  -- TODO: Might want to have fixed sections with free lengths (part. 0).
 @{FIXED_SECTION_CONNECTORS}@*******.defaultValueString[@{}@]
 
+@{RECT_OBSTACLES_TL_Xs}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_TL_Ys}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_BR_Xs}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_BR_Ys}@*******.defaultValueString[@{}@]
+
 @{FIXED_SECTION_IDs}@*******.ConvenienceVars
 @{FIXED_SECTION_SOURCE_Xs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
 @{FIXED_SECTION_SOURCE_Ys}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
@@ -138,7 +147,15 @@
 
 @{FIXED_SECTION_CONNECTORS}@*******.printHeap.storeMapFromSequence[fixed_section_connectors_plain]
 @{fixed_section_connectors_plain}@*******.writeConnectorsMap[@{MAXOUTGOINGCONNECTIONS}@.eval[0], @{SECTIONS}@.eval[0]]
+
 -- EO Helper variables for fixed sections and connectors
+
+-- Obstacles helper variables
+@{RECT_OBSTACLES_TL_Xs}@*******.ConvenienceVars
+@{RECT_OBSTACLES_TL_Ys}@*******.ConvenienceVars
+@{RECT_OBSTACLES_BR_Xs}@*******.ConvenienceVars
+@{RECT_OBSTACLES_BR_Ys}@*******.ConvenienceVars
+-- EO Obstacles helper variables
 
 @{
 @{@{#Fixed section ID [sec] is too high.}@.errorPrint}@*.if[@{[sec] >= SECTIONS}@****.eval]
