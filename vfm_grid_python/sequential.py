@@ -14,10 +14,10 @@ from .common import ROOT, both, either, dump, execute, check, states
 from .concretize import arguments
 from .endpoint import collision_constraints
 from .geometry import build, location_expression
-from .local_model import GeometryIndex, OCCUPANCY, flatten, flat_body, global_state, handoff
+from .local_model import GeometryIndex, OCCUPANCY, flatten, flat_body, global_state, handoff, schema
 
 
-def step_constraints(left, right, geometry):
+def step_constraints(left, right, geometry,following=None):
     lines=[]
     for car,(u,v) in enumerate(zip(left,right)):
         terms=[location_expression(geometry,car,u),location_expression(geometry,car,v)]
@@ -25,11 +25,21 @@ def step_constraints(left, right, geometry):
             section=next(s for s in geometry['sections'] if set(s['edge'])=={u,v})
             terms.append(f"env.veh___6{car}9___.on_straight_section = {section['id']}")
         lines.append('INVAR '+either(terms)+';')
+        if following is not None and following[car]!=v:
+            # A grid node abstracts several concrete connectors. Entering a
+            # connector unrelated to the next road can strand the next local
+            # query: changing connectors would require leaving the junction.
+            onward=next(s['id'] for s in geometry['sections'] if set(s['edge'])=={v,following[car]})
+            p=f'env.veh___6{car}9___'
+            compatible=either([f'{p}.on_straight_section >= 0',
+                               f'{p}.traversion_from = {onward}',f'{p}.traversion_to = {onward}'])
+            lines.append(f'INVAR {location_expression(geometry,car,v)} -> {compatible};')
     lines.append(collision_constraints(geometry,len(left)))
     return '\n'.join(lines)+'\n'
 
 
-def write_step(text, variables, geometry, mapping, left, right, previous, directory):
+def write_step(text, variables, geometry, mapping, left, right, previous, directory,
+               rejected=(),require_transition=True,following=None,stop_cars=()):
     initial={}
     model=flat_body(text,resumed=previous is not None)
     if previous is None:
@@ -40,17 +50,61 @@ def write_step(text, variables, geometry, mapping, left, right, previous, direct
         initial=handoff(previous,variables,mapping)
         model+='\n'.join(f'INIT {k} = {v};' for k,v in initial.items())+'\n'
         counter=int(previous['env.cnt'])
-    model+=step_constraints(left,right,geometry)
+    model+=step_constraints(left,right,geometry,following)
+    for terminal in rejected:
+        assignment=handoff(terminal,variables,mapping)
+        model+='INVAR !'+both([f'{name} = {value}' for name,value in assignment.items()])+';\n'
     dump(directory/'initial_state.json',initial)
     target=both([location_expression(geometry,c,n) for c,n in enumerate(right)])
-    dump(directory/'target.json',{'source':left,'target':right,'predicate':target,'after_tick':counter})
+    target=both([target]+[f'env.veh___6{c}9___.v = 0 & env.veh___6{c}9___.a = 0' for c in stop_cars])
+    dump(directory/'target.json',{'source':left,'target':right,'predicate':target,'after_tick':counter,
+                                'stopped_cars':list(stop_cars)})
     # The existing concrete clock enforces a real transition, even for repeats.
-    reach=f'INVARSPEC !({target} & env.cnt > {counter});\n'
+    progress=f' & env.cnt > {counter}' if require_transition else ''
+    reach=f'INVARSPEC !({target}{progress});\n'
     (directory/'segment.smv').write_text(model+reach)
     sanity=directory/'initial_check'
     sanity.mkdir()
     (sanity/'initial.smv').write_text(model+'INVARSPEC FALSE;\n')
     return initial
+
+
+def annotate_monitor(frames,graph,geometry):
+    """Recompute the deterministic global monitor from physical observations.
+
+Braking can keep a local query running after its positions were first reached.
+The monitor advances on that first observation, not on the query boundary.
+"""
+    milestones=graph['milestones']; kinds={n['id']:n['kind'] for n in geometry['nodes']}
+    connectors={(c['from'],c['to']):c['node'] for c in geometry['connections']}
+    def observed(frame,car,node):
+        p=f'env.veh___6{car}9___.'; s=int(frame[p+'on_straight_section'])
+        if s<0:
+            return kinds[node]=='N' and connectors.get((int(frame[p+'traversion_from']),int(frame[p+'traversion_to'])))==node
+        section=geometry['sections'][s]; pos=int(frame[p+'abs_pos'])
+        at=(section['edge'][0]==node and pos==0) or (section['edge'][1]==node and pos==section['length'])
+        return at and (kinds[node]!='P' or int(frame[p+'v'])==0)
+    phase=0
+    for tick,frame in enumerate(frames):
+        if tick and phase+1<len(milestones) and all(observed(frame,c,n) for c,n in enumerate(milestones[phase+1])):
+            phase+=1
+        frame['refinement_phase']=str(phase)
+
+
+def cached_baseline(directory,key,geometry,cars,config,template_config):
+    """Reuse an explicitly supplied, completed cache from the same VFM build."""
+    if directory is None: return None
+    base=Path(directory).resolve()/key[:16]
+    if not (base/'flat/baseline.smv').exists() or not (base/'generation_job.json').exists(): return None
+    job=json.loads((base/'generation_job.json').read_text())
+    # JSON normalizes integer dictionary keys (geometry centers) to strings.
+    matches=(job.get('baseline_only') and job['geometry']==json.loads(json.dumps(geometry))
+             and len(job['graph']['milestones'][0])==cars
+             and job.get('vfm',{})==config.get('vfm',{})
+             and Path(job['template_config']).resolve()==Path(template_config).resolve())
+    if not matches: return None
+    text=(base/'flat/baseline.smv').read_text()
+    return text,schema(text),base
 
 
 def geometry_values(geometry):
@@ -80,10 +134,24 @@ def geometry_values(geometry):
     return result
 
 
-def export_trace(frames,geometry,directory,complete):
-    """Delta-encoded stitched trace, explicitly not a single solver witness."""
+def export_trace(frames,geometry,directory,complete,model=None):
+    """Full XML states and delta-encoded text, in nuXmv's trace format.
+
+Only a model-completed, validated export is marked complete. Partial files
+remain useful for diagnostics before the global model has been generated.
+"""
     prefix='' if complete else 'partial_'
-    root=ET.Element('counter-example',{'type':'stitched-sequential','complete':str(complete).lower(),'id':'1'})
+    if complete and model is None:
+        raise ValueError('a complete export requires the global model inventory')
+    if model is not None:
+        frames=model.complete(frames,geometry)
+        model.validate(frames)
+        static=geometry_values(geometry)
+        for name,value in static.items():
+            if name in frames[0] and frames[0][name]!=value:
+                raise ValueError(f'global model geometry mismatch: {name}')
+    root=ET.Element('counter-example',{'type':'0','id':'1',
+        'desc':'Python-stitched sequential concrete trace' if complete else 'Partial sequential concrete trace'})
     text=['Trace Description: Stitched sequential-local concrete trace', 'Trace Type: Counterexample']
     # Clear aliases that occurred in a different patch, otherwise sparse trace
     # readers can retain an old TRUE traversal flag across a boundary.
@@ -91,19 +159,64 @@ def export_trace(frames,geometry,directory,complete):
     static=geometry_values(geometry)
     old={}
     for i,frame in enumerate(frames):
-        current={**static,**{k:'0' for k in aliases},**frame}
+        current=frame if model is not None else {**static,**{k:'0' for k in aliases},**frame}
         node=ET.SubElement(root,'node')
         state=ET.SubElement(node,'state',{'id':str(i+1)})
         text.append(f'  -> State: 1.{i+1} <-')
         for key,value in sorted(current.items()):
+            ET.SubElement(state,'value',{'variable':key}).text=str(value)
             if old.get(key)!=str(value):
-                ET.SubElement(state,'value',{'variable':key}).text=str(value)
                 text.append(f'    {key} = {value}')
         old=current
+    ET.SubElement(root,'loops').text=' '
     xml=directory/(prefix+'trace.xml')
-    ET.ElementTree(root).write(xml,encoding='unicode')
+    pending=directory/(prefix+'trace.pending.xml')
+    ET.indent(root)
+    ET.ElementTree(root).write(pending,encoding='unicode')
+    if model is not None:
+        report=model.validate(states(pending))
+        if hasattr(model,'source'):
+            report['xml_import']=model.check_xml_import(pending,directory/'xml_import',model.timeout)
+        report.update(complete=complete,source='Python concatenation, checked against full concrete model')
+        dump(directory/(prefix+'model_validation.json'),report)
+    pending.replace(xml)
     (directory/(prefix+'debug_trace_array.txt')).write_text('\n'.join(text)+'\n')
     return xml
+
+
+def global_inventory(graph,geometry,config,output,template_config,timeout,model=None):
+    """Generate/flatten the global model once, without a global solver search."""
+    from .trace_model import TraceModel
+    output.mkdir(parents=True,exist_ok=True)
+    if model is None:
+        dump(output/'generation_job.json',{'graph':graph,'geometry':geometry,
+             'template_config':str(Path(template_config).resolve()),'vfm':config.get('vfm',{})})
+        result=execute([sys.executable,'-m','vfm_grid_python.concretize','--worker',str(output)],
+                       ROOT,output/'generation.log',timeout)
+        dump(output/'generation_result.json',result)
+        if result['status']!='finished': raise RuntimeError(f'global inventory generation {result["status"]}')
+        model=Path(json.loads((output/'model.json').read_text())['model'])
+    text,variables,result=flatten(model,output/'flat',timeout)
+    inventory=TraceModel(text)
+    inventory.source=(output/'flat/baseline.smv').resolve()
+    inventory.timeout=timeout
+    expected_cars={f'env.veh___6{i}9___.on_straight_section' for i in range(len(graph['milestones'][0]))}
+    import re
+    actual_cars={n for n in set(variables)|inventory.state_defines
+                 if re.fullmatch(r'env\.veh___6\d+9___\.on_straight_section',n)}
+    if actual_cars!=expected_cars: raise ValueError('global validation model has a different fleet')
+    symbols=set(variables)|inventory.state_defines
+    required=set(geometry_values(geometry))|{'refinement_phase'}
+    if required-symbols:
+        raise ValueError(f'global validation model lacks required geometry/monitor symbols: {sorted(required-symbols)[:8]}')
+    expected_sections={f'env.section_{s["id"]}_end' for s in geometry['sections']}
+    actual_sections={n for n in symbols if re.fullmatch(r'env\.section_\d+_end',n)}
+    if actual_sections!=expected_sections: raise ValueError('global validation model has different sections')
+    dump(output/'inventory.json',{'model':str(Path(model).resolve()),'variables':variables,
+         'state_defines':sorted(inventory.state_defines),
+         'transition_defines':sorted(n for n in inventory.defines
+                                    if not n.startswith('__expr') and n not in inventory.state_defines)})
+    return inventory
 
 
 def validate_graph(graph):
@@ -139,9 +252,10 @@ def replay(full_model,frames,geometry,output,timeout):
 
 def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length=7,
         radius=6,template_config=ROOT/'main_template.json',gif=True,generate_only=False,
-        replay_model=None):
+        replay_model=None,validation_model=None,backtracks=0,model_cache=None):
     if generate_only: raise ValueError('sequential-local requires checking to determine subsequent initial states')
     if bound<1 or timeout<=0: raise ValueError('bound must be >=1 and timeout >0')
+    if backtracks<0: raise ValueError('backtracks must be nonnegative')
     abstract_run,output=Path(abstract_run).resolve(),Path(output).resolve()
     if output.exists() and any(output.iterdir()): raise FileExistsError(f'use a new output directory: {output}')
     output.mkdir(parents=True,exist_ok=True)
@@ -154,27 +268,46 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
     dump(output/'geometry.json',geometry)
     dump(output/'selected_graph.json',graph)
     dump(output/'config.json',{'abstract_run':str(abstract_run),'bound':bound,'timeout':timeout,
-                             'strategy':'sequential-local','vfm':config.get('vfm',{})})
+                             'strategy':'sequential-local','vfm':config.get('vfm',{}),
+                             'backtracks':backtracks,'model_cache':str(model_cache) if model_cache else None})
     index=GeometryIndex(geometry)
     summary={'status':'running','strategy':'sequential-local','segments':[],
              'geometry_seconds':geometry_seconds,
              'generation_seconds':0.0,'flatten_seconds':0.0,'initial_check_seconds':0.0,
-             'checking_seconds':0.0,'validation_seconds':0.0,'rendering_seconds':0.0}
+             'checking_seconds':0.0,'validation_seconds':0.0,'rendering_seconds':0.0,
+             'backtracks_used':0,'accepted_segments':[]}
     dump(output/'result.json',summary)
     frames=[]; previous=None; cache={}
     milestones=graph['milestones']
     pairs=list(zip(milestones,milestones[1:]))
     # A zero-move abstract witness is a valid initial-state reachability query.
+    initial_only=not pairs
     if not pairs: pairs=[(milestones[0],milestones[0])]
+    attempts={}; rejected={}; checkpoints=[]; i=0
     try:
-        for i,(left,right) in enumerate(pairs):
-            step=output/f'segment_{i:04d}'; step.mkdir()
-            record={'index':i,'status':'running'}; summary['segments'].append(record)
+        while i<len(pairs):
+            left,right=pairs[i]
+            # Look beyond waits at the same node, too. No exact coordinates or
+            # velocity strategy are prescribed by this compatibility filter.
+            following=[next((m[c] for m in milestones[i+2:] if m[c]!=v),v)
+                       for c,v in enumerate(right)]
+            stop_cars=[c for c,(u,v) in enumerate(zip(left,right)) if u==v or
+                       (i+2<len(milestones) and milestones[i+2][c]==v)]
+            attempt=attempts.get(i,0); attempts[i]=attempt+1
+            suffix=f'_attempt_{attempt:02d}' if attempt else ''
+            step=output/f'segment_{i:04d}{suffix}'; step.mkdir()
+            record={'index':i,'attempt':attempt,'directory':str(step),'status':'running'}
+            summary['segments'].append(record)
             dump(output/'result.json',summary)
             local,mapping=index.select(left,right,previous)
             dump(step/'geometry.json',local); dump(step/'mapping.json',mapping)
             record.update(sections=len(local['sections']),connectors=len(local['connections']))
             key=hashlib.sha256(json.dumps(local,sort_keys=True).encode()).hexdigest()
+            if key not in cache:
+                reused=cached_baseline(model_cache,key,local,len(left),config,template_config)
+                if reused:
+                    cache[key]=reused; record['reused_model']=True
+                    print(f'Step {i+1}/{len(pairs)}: reusing cached local model',flush=True)
             if key not in cache:
                 generation=output/'models'/key[:16]; generation.mkdir(parents=True)
                 dump(generation/'generation_job.json',{'graph':{'milestones':[left]},'geometry':local,
@@ -194,7 +327,9 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
             else: record['generation_seconds']=0.0
             text,variables,generation=cache[key]
             record['baseline']=str(generation)
-            initial=write_step(text,variables,local,mapping,left,right,previous,step)
+            initial=write_step(text,variables,local,mapping,left,right,previous,step,
+                               rejected.get(i,()),require_transition=not initial_only,
+                               following=following,stop_cars=stop_cars)
             initial_result=check(step/'initial_check/initial.smv',0,timeout)
             summary['initial_check_seconds']+=initial_result['seconds']
             record['initial_check']=initial_result
@@ -205,9 +340,31 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
             result=check(step/'segment.smv',bound,timeout)
             summary['checking_seconds']+=result['seconds']
             record.update(status=result['status'],checking_seconds=result['seconds'])
-            if result['status']!='witness': summary['status']=result['status']; break
+            if result['status']!='witness':
+                if (result['status'] in ('no_witness_within_bound','timeout') and i>0
+                        and summary['backtracks_used']<backtracks):
+                    # Reject exactly the unsuccessful handoff, not just its
+                    # positions. Other velocities/history may admit continuation.
+                    rejected.setdefault(i-1,[]).append(previous)
+                    for later in list(rejected):
+                        if later>=i: del rejected[later]
+                    frames=frames[:checkpoints.pop()]
+                    previous=frames[-1] if frames else None
+                    summary['accepted_segments'].pop()
+                    summary['backtracks_used']+=1
+                    record['backtracked']=True
+                    i-=1
+                    if frames: export_trace(frames,geometry,output,False)
+                    else:
+                        for name in ('partial_trace.xml','partial_debug_trace_array.txt'):
+                            (output/name).unlink(missing_ok=True)
+                    dump(output/'result.json',summary)
+                    print(f'Retrying step {i+1} with a different terminal state',flush=True)
+                    continue
+                summary['status']=result['status']; break
             local_frames=states(step/'trace.xml')
-            if len(local_frames)<2: raise ValueError('segment did not perform a concrete transition')
+            if len(local_frames)<(1 if initial_only else 2):
+                raise ValueError('segment did not perform a concrete transition')
             for name,value in initial.items():
                 if local_frames[0].get(name)!=value:
                     raise ValueError(f'seam does not preserve {name}')
@@ -217,6 +374,7 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
             projected=[global_state(s,mapping) for s in local_frames]
             for state in projected: state['refinement_phase']=str(i if len(milestones)>1 else 0)
             projected[-1]['refinement_phase']=str(min(i+1,len(milestones)-1))
+            checkpoints.append(len(frames))
             if frames:
                 if frames[-1]['env.cnt']!=projected[0]['env.cnt']: raise ValueError('clock reset at seam')
                 frames.extend(projected[1:])
@@ -225,28 +383,39 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
             dump(step/'terminal_global_state.json',previous)
             record['states']=len(local_frames)
             record['status']='witness'
+            summary['accepted_segments'].append(str(step))
             export_trace(frames,geometry,output,False)
             dump(output/'result.json',summary)
+            i+=1
         else:
             summary['status']='witness'
+    except KeyboardInterrupt:
+        summary.update(status='interrupted')
+        if summary['segments']: summary['segments'][-1].update(status='interrupted')
     except Exception as exc:
         summary.update(status='error',error=str(exc))
         if summary['segments']: summary['segments'][-1].update(status='error',error=str(exc))
     if frames:
         complete=summary['status']=='witness'
+        partial_graph={**graph,'milestones':milestones[:int(frames[-1]['refinement_phase'])+1]}
+        annotate_monitor(frames,graph if complete else partial_graph,geometry)
         xml=export_trace(frames,geometry,output,False)
-        summary['time_to_trace_seconds']=time.perf_counter()-started
+        summary['time_to_prefix_seconds']=time.perf_counter()-started
         validation_started=time.perf_counter()
         try:
             from .validate import validate_trace
-            partial_graph={**graph,'milestones':milestones[:int(frames[-1]['refinement_phase'])+1]}
             report=validate_trace(graph if complete else partial_graph,geometry,xml)
             report.update(complete=complete,source='stitched local solver witnesses; not one monolithic check')
             if complete and replay_model:
                 summary['replay']=replay(replay_model,frames,geometry,output/'replay',timeout)
                 if summary['replay']['status']!='witness': summary['status']='replay_failed'
             if complete and summary['status']=='witness':
-                xml=export_trace(frames,geometry,output,True)
+                print('Completing and validating all global model variables...',flush=True)
+                inventory=global_inventory(graph,geometry,config,output/'global_model',
+                                           template_config,timeout,validation_model or replay_model)
+                xml=export_trace(frames,geometry,output,True,inventory)
+                summary['time_to_trace_seconds']=time.perf_counter()-started
+                report['full_model']=json.loads((output/'model_validation.json').read_text())
             else:
                 report['complete']=False
             dump(output/('validation.json' if summary['status']=='witness' else 'partial_validation.json'),report)
@@ -277,10 +446,16 @@ def main():
     p.add_argument('--timeout',type=float,default=1800)
     p.add_argument('--no-gif',action='store_true')
     p.add_argument('--replay-model',type=Path,help='optional full concrete model for fixed-trace replay validation')
+    p.add_argument('--validation-model',type=Path,help='reuse a matching global monitor model for Python trace validation')
+    p.add_argument('--backtracks',type=int,default=0,
+                   help='maximum retries of a preceding segment after a failed continuation (default: 0)')
+    p.add_argument('--model-cache',type=Path,
+                   help='reuse completed local models from a previous run/models directory using the same VFM build/templates')
     arguments(p)
     a=p.parse_args()
     result=run(a.abstract_run,a.output_dir,a.concrete_bound,a.timeout,a.road_length,a.parking_length,
-               a.junction_radius,a.template_config,not a.no_gif,replay_model=a.replay_model)
+               a.junction_radius,a.template_config,not a.no_gif,replay_model=a.replay_model,
+               validation_model=a.validation_model,backtracks=a.backtracks,model_cache=a.model_cache)
     return 0 if result['status']=='witness' else 2
 
 

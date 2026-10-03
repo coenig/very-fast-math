@@ -63,6 +63,89 @@ absolute SMV path. Its directory contains `trace.xml` and
 are directly under the concrete output directory. The abstract directory holds
 its own SMV, XML/text traces, selected graph JSON, PNG and GIF.
 
+## Sequential local concretization
+
+To refine an existing abstract witness one transition at a time:
+
+```bash
+python -m vfm_grid_python.sequential /path/to/abstract \
+  --output-dir /path/to/new-concrete \
+  --concrete-bound 500 --timeout 3600
+```
+
+The input directory needs `selected_graph.json` and `config.json`. Each local
+model retains the incident sections of the current and next abstract positions,
+including stationary vehicles. All persistent state is transferred to the next
+check, with local section numbers mapped to global numbers. At a destination
+junction, an arriving connector must touch the road needed by the next move
+(looking beyond repeated waits). This prevents a valid abstract node arrival
+from stranding the next query on an unrelated concrete connector. Each invocation of
+model generation, flattening or checking has the specified timeout; it is not
+a total time limit for the entire pipeline.
+
+Cars that wait during the current abstract move, or must wait during the next
+one, finish the local query with zero speed and zero acceleration. This avoids
+handing a waiting car to the next query too close to a connector end to brake.
+The exported monitor phase is recomputed from the first physical observation of
+each milestone; braking may finish after that observation. The full concrete
+monitor and transition constraints still validate the assembled execution.
+
+`--model-cache /path/to/previous-concrete/models` reuses completed local models
+from the same VFM build and templates. Geometry, fleet size and VFM parameters
+must match. Use a fresh output directory for the new queries; the cache is read
+only. Do not reuse a cache after changing its template files or native build.
+
+After all segments succeed, the script generates and flattens the complete
+concrete monitor model once, **without running a global search**. Python uses
+this model to reconstruct every declared state variable and every state-only
+`DEFINE`, including unused occupancy aliases and constant geometry fields.
+It checks domains, frozen values, initial conditions, invariants, transitions,
+assignments and derived values over the concatenated trace. Unsupported model
+syntax fails explicitly. The existing independent motion/collision validator
+also runs. Internal flattening helpers and expressions involving `next` are not
+state observations and are listed separately from the exported state symbols.
+Before publishing the final XML, nuXmv imports and re-exports it using only
+`build_flat_model` and the trace reader/writer. Python compares the returned
+values. This compatibility check performs no SMT/BDD search.
+
+Successful outputs directly under the concrete directory are:
+
+- `trace.xml`: full valuations in every state, using nuXmv's XML trace format.
+- `debug_trace_array.txt`: the same concatenated trace in readable, delta format.
+- `model_validation.json`: full-model validation and symbol counts.
+- `validation.json`: geometry/movement validation and full-model report.
+- `global_model/inventory.json`: the global symbol inventory and model path.
+- `topology.png` and `concrete.gif`: Matplotlib visualizations (GIF skipped with
+  `--no-gif`).
+
+An unfinished run retains `partial_trace.xml` and a partial text trace. These
+diagnostic files are not certified as complete global-model exports. A final
+`trace.xml` is only published after validation succeeds.
+
+`--validation-model /path/to/main_endpoint_grid.smv` reuses an existing matching
+global monitor model instead of generating one. `--replay-model` additionally
+asks nuXmv to validate the fixed execution, which is optional and distinct from
+the Python checks.
+
+`--backtracks 2` permits up to two retries of a preceding segment when a later
+segment times out or has no witness within its bound. Each retry excludes the
+exact unsuccessful terminal state and preserves attempt directories. This is a
+bounded recovery strategy, not a completeness guarantee. By default backtracking
+is disabled. A one-state abstract witness is checked at its initial state;
+repeated milestones in a longer witness still require a real transition.
+
+If all local segments succeeded but final global VFM generation failed, resume
+only that final stage after changing the VFM build or heap setting:
+
+```bash
+python -m vfm_grid_python.finalize \
+  /path/to/concrete-run --timeout 3600
+```
+
+This reads `partial_trace.xml`, reuses the saved geometry and selected graph,
+and writes the final `trace.xml`, validation report and GIF. It does not rerun
+the abstract or local concrete checks.
+
 ## Model semantics
 
 Node IDs are `row * columns + column`. Every orthogonal edge is optional, with
@@ -98,6 +181,24 @@ nuXmv. `role_gate_degree` exposes the selected degree. Roles need not be distinc
 unless the property says so. These name places in the scenario, not fixed cells.
 
 ## Larger symbolic scenarios
+
+`examples/two_shared_gates_5x5_8cars.json` selects a 5×5 partial grid with eight
+cars and eight parking nodes. Cars 0–3 visit gate A before reaching their goals;
+cars 4–7 visit gate B. Both gates have degree two. At each gate a car must wait
+on an adjacent queue node while another occupies the gate, and later enter the
+gate itself. All locations and edges are symbolic. Visiting a gate does not
+require crossing to its opposite side, and the property does not assert that
+the gate is a graph-theoretic cut vertex.
+
+```bash
+python -m vfm_grid_python.abstract \
+  --config vfm_grid_python/examples/two_shared_gates_5x5_8cars.json \
+  --output-dir vfm-with-parking/my-two-gates/abstract --bound 100 --timeout 3600
+
+python -m vfm_grid_python.sequential vfm-with-parking/my-two-gates/abstract \
+  --output-dir vfm-with-parking/my-two-gates/concrete \
+  --concrete-bound 500 --timeout 3600 --backtracks 2
+```
 
 `examples/large_scenarios.json` contains five three-car scenarios:
 

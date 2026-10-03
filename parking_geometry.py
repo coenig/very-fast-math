@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import math
+import copy
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -253,6 +254,86 @@ def build_geometry(grid: dict, config: GeometryConfig = GeometryConfig()) -> dic
     return manifest
 
 
+def build_candidate_geometry(grid: dict, config: GeometryConfig = GeometryConfig()) -> dict:
+    """Build a fixed section universe for every possible grid edge.
+
+    The ordinary :func:`build_geometry` only allocates sections for edges in
+    ``grid['edges']``.  Symbolic topology search needs stable section IDs
+    before an edge is selected, so this helper allocates both directions for
+    every orthogonal neighbour pair and records the full candidate universe.
+    Call :func:`restrict_geometry` to disable edges for a fixed candidate.
+    """
+    nodes = {int(node["id"]): node for node in grid["nodes"]}
+    by_coord = {(int(node["row"]), int(node["column"])): node_id
+                for node_id, node in nodes.items()}
+    edges: list[dict[str, int]] = []
+    for node_id, node in sorted(nodes.items()):
+        row, column = int(node["row"]), int(node["column"])
+        for neighbour in ((row, column + 1), (row + 1, column)):
+            target = by_coord.get(neighbour)
+            if target is not None:
+                edges.append({"source": node_id, "target": target})
+    universe = {"nodes": list(grid["nodes"]), "edges": edges}
+    manifest = build_geometry(universe, config)
+    manifest["candidate_edges"] = edges
+    manifest["active_edges"] = edges
+    return manifest
+
+
+def restrict_geometry(manifest: dict, active_edges: set[tuple[int, int]]) -> dict:
+    """Restrict a candidate geometry without changing section identifiers."""
+    result = copy.deepcopy(manifest)
+    normalized = {tuple(sorted((int(source), int(target))))
+                  for source, target in active_edges}
+    result["active_edges"] = [
+        {"source": source, "target": target}
+        for source, target in sorted(normalized)
+    ]
+    sections = result["sections"]
+    roads = [section for section in sections if section.get("kind") == "road"]
+    active_roads = [
+        section for section in roads
+        if tuple(sorted((int(section["edge"][0]), int(section["edge"][1])))) in normalized
+    ]
+    exits_by_node: dict[int, list[int]] = {}
+    incoming_by_node: dict[int, list[int]] = {}
+    for road in active_roads:
+        source, target = (int(value) for value in road["edge"])
+        exits_by_node.setdefault(source, []).append(int(road["id"]))
+        incoming_by_node.setdefault(target, []).append(int(road["id"]))
+    outgoing = {str(section["id"]): [] for section in sections}
+    start_by_node: dict[str, int] = {}
+    for node in sorted(int(item["id"]) for item in result["nodes"]):
+        exits = sorted(exits_by_node.get(node, []))
+        incoming = sorted(incoming_by_node.get(node, []))
+        parking = result["parking_by_node"][str(node)]
+        parking_in = int(parking["inbound"])
+        parking_out = int(parking["outbound"])
+        if exits:
+            start_by_node[str(node)] = exits[0]
+        for road in incoming:
+            outgoing[str(road)] = exits + [parking_in]
+        outgoing[str(parking_in)] = [parking_out]
+        outgoing[str(parking_out)] = exits
+    result["outgoing"] = outgoing
+    result["start_by_node"] = start_by_node
+    result["max_outgoing"] = max((len(targets) for targets in outgoing.values()), default=1)
+    by_id = {int(section["id"]): section for section in sections}
+    result["connection_lengths"] = {
+        source: {
+            str(target): connection_path_length(by_id[int(source)], by_id[int(target)])
+            for target in targets
+        }
+        for source, targets in outgoing.items()
+    }
+    result["max_connection_length"] = max(
+        (length for targets in result["connection_lengths"].values()
+         for length in targets.values()), default=1,
+    )
+    validate_geometry(result)
+    return result
+
+
 def write_geometry(grid_file: Path, output: Path,
                    config: GeometryConfig = GeometryConfig()) -> None:
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -274,6 +355,10 @@ def validate_geometry(manifest: dict) -> None:
     parking = manifest["parking_by_node"]
     if set(map(int, parking)) != node_ids:
         raise ValueError("each grid node must have one parking bay")
+    active_edge_set = {
+        tuple(sorted((int(edge["source"]), int(edge["target"]))))
+        for edge in manifest.get("active_edges", manifest["edges"])
+    }
     for node in node_ids:
         pair = parking[str(node)]
         if set(pair) != {"inbound", "outbound"}:
@@ -299,13 +384,19 @@ def validate_geometry(manifest: dict) -> None:
     outgoing = {int(source): list(map(int, targets))
                 for source, targets in manifest["outgoing"].items()}
     for node in node_ids:
-        incoming = {int(road["id"]) for road in roads if int(road["edge"][1]) == node}
-        exits = {int(road["id"]) for road in roads if int(road["edge"][0]) == node}
+        active_roads = [road for road in roads if tuple(sorted(
+            (int(road["edge"][0]), int(road["edge"][1])))) in active_edge_set]
+        incoming = {int(road["id"]) for road in active_roads if int(road["edge"][1]) == node}
+        exits = {int(road["id"]) for road in active_roads if int(road["edge"][0]) == node}
         parking_in = int(parking[str(node)]["inbound"])
         parking_out = int(parking[str(node)]["outbound"])
         for road in incoming:
             if set(outgoing[road]) != exits | {parking_in}:
                 raise ValueError(f"incoming section {road} has incomplete junction access")
+        inactive = {int(road["id"]) for road in roads
+                    if int(road["edge"][1]) == node and int(road["id"]) not in incoming}
+        if any(outgoing[road] for road in inactive):
+            raise ValueError("inactive incoming section has outgoing connections")
         if outgoing[parking_in] != [parking_out]:
             raise ValueError("parking inbound must connect to parking outbound")
         if set(outgoing[parking_out]) != exits:

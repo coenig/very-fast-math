@@ -15,7 +15,7 @@
 
 namespace vfm { class DataPack; }
 std::ostream& operator<<(std::ostream &os, const vfm::DataPack & m);
-constexpr auto VFM_HEAP_SIZE = 1000000;
+constexpr auto VFM_HEAP_SIZE = 10000000;
 constexpr auto VFM_HEAP_EMPTY_VALUE = 0;
 
 namespace vfm {

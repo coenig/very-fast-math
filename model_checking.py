@@ -89,6 +89,18 @@ class Morty:
 
     def generate_smv_files(self, args: list[str]) -> None:
         self.args = args
+        # The JSON passed here is normally a temporary file removed by
+        # ``scenario_generation.generate_scenario`` after native expansion.
+        # Preserve its exact contents in the redirected generation log so a
+        # failed/archived run remains reproducible.
+        config_path = Path(args[0])
+        if config_path.is_file():
+            config_text = config_path.read_text()
+            print("ENV_MODEL_CONFIG_BEGIN", flush=True)
+            print(config_text, end="", flush=True)
+            if not config_text.endswith("\n"):
+                print(flush=True)
+            print("ENV_MODEL_CONFIG_END", flush=True)
         self.morty_lib.generate_smv_files(";".join(args).encode("utf-8"))
         requested_target = Path(args[5])
         # VFM's native generator strips the leading slash from absolute
