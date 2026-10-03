@@ -433,13 +433,6 @@ private:
    /// @return  The object-specific placeholder to replace the symbol with.
    std::string symbolToPlaceholder(const std::string& symbol);
 
-   /// Returns the next position which is after the complete method chain of
-   /// the preprocessor.
-   ///
-   /// @param partAfter  The part AFTER the preprocessor base script.
-   /// @return  The next position outside the preprocessor's method chain.
-   int getNextNonInscriptPosition(const std::string& partAfter);
-
    /// Undoes the placeholder replacement for plain-text parts. As the placeholders
    /// were object-specific, we don't care about what has happened in the
    /// meantime with the plain-text parts, but just replace all the
@@ -474,26 +467,6 @@ private:
    ///
    /// @return  The string with each expression replaced by its evaluation.
    std::string evaluateAll(const std::string& string, const std::string& opening_tag, const std::string& closing_tag);
-
-   /// Finds the inner-most, left-most inscript preprocessor position, by
-   /// preferring more <code>*</code> symbols in the end over less.</BR>
-   /// </BR>
-   /// For example:
-   /// <UL>
-   /// <LI><code>.@{.@{.}@.}@.@{.}@.</code> will return 4.</LI>
-   /// <LI><code>.@{.@{.}@.}@.@{.}@*.</code> will return 13.</LI>
-   /// <LI><code>.@{.@{.}@.}@*.@{.}@*.</code> will return 1.</LI>
-   /// <LI><code>.@{.@{.}@.}@*.@{.}@*.</code> will return 1.</LI>
-   /// <LI><code>.@{.@{.}@.}@*.@{.}@*.@{.}@**</code> will return 21.</LI>
-   /// <LI><code>.@{.@{.}@*.}@*.@{.}@*.</code> will return 4.</LI>
-   /// </UL>
-   /// As a side effect, the extra <code>@</code> symbols of the end tag
-   /// matching the returned begin tag position are deleted from
-   /// processedScript.
-   ///
-   /// @return  The next inscript begin tag position. If no such position
-   ///          exists, -1 is returned and no side effects occur.
-   int findNextInscriptPos(std::string& script);
 
    ScriptData& getScriptData() const;
 

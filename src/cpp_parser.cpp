@@ -4965,40 +4965,45 @@ VariablesWithKinds CppParser::kreateKratosFilesAndCheckFormula(const std::string
    for (const auto& var : allvars) allvars_str += var + "\n";
    StaticHelper::writeTextToFile(allvars_str, varpath.string());
 
-   const std::vector<std::pair<std::string, std::string>> replacements
-   {
-      { "\n", "\n\\l" },
-      { " ", "\\ " },
-      { "{", "\\{" },
-      { "}", "\\}" },
-      { ">", "\\>" },
-      { "<", "\\<" },
-      { "@", "" },
-      { "|", "\\|" },
-      { "&", "\\&" }
-   };
+   if (options_.getCreateAdditionalDebugFiles().getEnumAsString() == VFM_OPTION_CREATE_ADDITIONAL_FILES_ALL) {
+      const std::vector<std::pair<std::string, std::string>> replacements
+      {
+         { "\n", "\n\\l" },
+         { " ", "\\ " },
+         { "{", "\\{" },
+         { "}", "\\}" },
+         { ">", "\\>" },
+         { "<", "\\<" },
+         { "@", "" },
+         { "|", "\\|" },
+         { "&", "\\&" }
+      };
 
-   static const int MAX_LABEL_SIZE = 1000000;
+      static const int MAX_LABEL_SIZE = 1000000;
 
-   std::string kratos_code_file{ kratos_file + ".dot" };
-   std::string vfm_code_file{ StaticHelper::replaceAll(kratos_code_file, ".k2", ".vfm") };
+      std::string kratos_code_file{ kratos_file + ".dot" };
+      std::string vfm_code_file{ StaticHelper::replaceAll(kratos_code_file, ".k2", ".vfm") };
 
-   addNote("Kreating Kratos PDF code in '" + kratos_code_file + "'.");
-   StaticHelper::createImageFromGraphvizDot(
-      std::string("digraph G {\n")
-      + "r [shape=record label=\"" + StaticHelper::shortenToMaxSize(StaticHelper::replaceManyTimes(kratos_code, replacements), MAX_LABEL_SIZE) + "\\l\"];\n"
-      + "}",
-      kratos_code_file);
+      addNote("Kreating Kratos PDF code in '" + kratos_code_file + "'.");
+      StaticHelper::createImageFromGraphvizDot(
+         std::string("digraph G {\n")
+         + "r [shape=record label=\"" + StaticHelper::shortenToMaxSize(StaticHelper::replaceManyTimes(kratos_code, replacements), MAX_LABEL_SIZE) + "\\l\"];\n"
+         + "}",
+         kratos_code_file);
 
-   addNote("Creating vfm PDF code in '" + vfm_code_file + "'.");
-   StaticHelper::createImageFromGraphvizDot(
-      std::string("digraph G {\n")
-      + "s [shape=record label=\"" + StaticHelper::shortenToMaxSize(StaticHelper::replaceManyTimes(vfm_code, replacements), MAX_LABEL_SIZE) + "\\l\"];\n"
-      + "}",
-      vfm_code_file);
+      addNote("Creating vfm PDF code in '" + vfm_code_file + "'.");
+      StaticHelper::createImageFromGraphvizDot(
+         std::string("digraph G {\n")
+         + "s [shape=record label=\"" + StaticHelper::shortenToMaxSize(StaticHelper::replaceManyTimes(vfm_code, replacements), MAX_LABEL_SIZE) + "\\l\"];\n"
+         + "}",
+         vfm_code_file);
 
-   addNote("Kreating Kratos tree PDF in '" + kratos_file + "_TREE.dot.pdf" + "'.");
-   StaticHelper::createImageFromGraphvizDot(full_formula->generateGraphviz(0, false), kratos_file + "_TREE.dot");
+      addNote("Kreating Kratos tree PDF in '" + kratos_file + "_TREE.dot.pdf" + "'.");
+      StaticHelper::createImageFromGraphvizDot(full_formula->generateGraphviz(0, false), kratos_file + "_TREE.dot");
+   }
+   else {
+      addNote("Omitting Kratos/vfm code and tree graphs (option '" + VFM_OPTION_CREATE_ADDITIONAL_FILES + "' = '" + options_.getCreateAdditionalDebugFiles().getEnumAsString() + "').");
+   }
 
    return fsm_controlled_out;
 }

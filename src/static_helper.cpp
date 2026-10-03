@@ -1546,6 +1546,78 @@ std::vector<std::string> StaticHelper::split(const std::string& s, char delim)
    return elems;
 }
 
+std::vector<std::string> StaticHelper::split(const std::string& str, const std::string& delimiter)
+{
+   if (delimiter.empty()) return split(str, delimiter, FUNC_ALL_STRINGS_TO_TRUE); // Keeps the (endless) behavior of the generic version.
+
+   std::vector<std::string> parts;
+   size_t start{ 0 };
+
+   for (size_t pos = str.find(delimiter); pos != std::string::npos; pos = str.find(delimiter, start)) {
+      parts.push_back(str.substr(start, pos - start));
+      start = pos + delimiter.length();
+   }
+
+   parts.push_back(str.substr(start));
+   return parts;
+}
+
+std::vector<std::string> StaticHelper::split(const std::vector<std::string>& ss, const std::string& delim)
+{
+   std::vector<std::string> result;
+
+   for (const auto& s : ss) {
+      auto vec = split(s, delim);
+      result.insert(result.end(), std::make_move_iterator(vec.begin()), std::make_move_iterator(vec.end()));
+   }
+
+   return result;
+}
+
+std::vector<std::string> StaticHelper::splitUnlessWithinLevelwise(const std::string& str, const std::string& delimiter, const std::string& begin_tag, const std::string& end_tag)
+{
+   if (delimiter.empty() || begin_tag.empty() || end_tag.empty() || begin_tag == end_tag) {
+      return split(str, delimiter, [&](const std::string& rest, const int pos) { return !isWithinLevelwise(rest, pos, begin_tag, end_tag); });
+   }
+
+   // isWithinLevelwise only looks at the tags after pos: it is true iff, walking over them in order
+   // (begin tag: +1, end tag: -1), the count gets negative. M[j] is the lowest count reached when starting at event j.
+   std::vector<std::pair<size_t, int>> events{};
+
+   for (size_t p = str.find(begin_tag); p != std::string::npos; p = str.find(begin_tag, p + 1)) events.push_back({ p, 1 });
+   for (size_t p = str.find(end_tag); p != std::string::npos; p = str.find(end_tag, p + 1)) events.push_back({ p, -1 });
+   std::sort(events.begin(), events.end());
+
+   std::vector<int> lowest(events.size());
+
+   for (int j = (int)events.size() - 1; j >= 0; j--) {
+      lowest[j] = events[j].second + ((size_t)j + 1 < events.size() ? (std::min)(0, lowest[j + 1]) : 0);
+   }
+
+   const auto is_within = [&](const size_t pos) {
+      const auto first = std::upper_bound(events.begin(), events.end(), std::pair<size_t, int>{ pos, 1 });
+      return first != events.end() && lowest[first - events.begin()] < 0;
+   };
+
+   std::vector<std::string> parts;
+   size_t start{ 0 };
+   size_t pos{ 0 };
+
+   for (pos = str.find(delimiter); pos != std::string::npos; pos = str.find(delimiter, pos)) {
+      if (is_within(pos)) {
+         pos += delimiter.size();
+      }
+      else {
+         parts.push_back(str.substr(start, pos - start));
+         start = pos + delimiter.length();
+         pos = start;
+      }
+   }
+
+   parts.push_back(str.substr(start));
+   return parts;
+}
+
 std::vector<std::string> StaticHelper::split(const std::string& str, const std::string& delimiter, const SplitCondition& f, const bool keep_delimiter)
 {
    std::vector<std::string> split;

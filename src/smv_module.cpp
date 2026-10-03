@@ -66,12 +66,7 @@ bool vfm::mc::smv::Module::parseProgram(const std::string& program_raw)
 std::vector<std::string> vfm::mc::smv::Module::splitAlongLines(const std::string& raw_code) const
 {
    auto res_raw = vfm::StaticHelper::removeBlankLines(vfm::StaticHelper::removeSingleLineComments(raw_code, "--"));
-   auto res = vfm::StaticHelper::split(
-      res_raw,
-      ";",
-      [](const std::string& split_str, const int pos) -> bool {
-         return !StaticHelper::isWithinLevelwise(split_str, pos, "case", "esac");
-      });
+   auto res = vfm::StaticHelper::splitUnlessWithinLevelwise(res_raw, ";", "case", "esac");
 
    for (auto&& el : res) {
       StaticHelper::trim(el);

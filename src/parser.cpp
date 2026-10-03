@@ -292,6 +292,7 @@ void FormulaParser::createSimpleAnyways()
 
 // --- Register static operators. (Don't forget to update arithmetic, logic or misc. terms in MathStruct.h.) ---
 void FormulaParser::init() {
+   ++definitions_version_;
    all_ops_ = {
       { SYMB_PLUS, { { TermPlus::my_struct.arg_num, TermPlus::my_struct } } },
       { SYMB_POW, { { TermPow::my_struct.arg_num, TermPow::my_struct } } },
@@ -499,6 +500,7 @@ std::shared_ptr<Term> FormulaParser::termFactory(
          : OperatorStructure(all_ops_.at(optor).at(terms.size()))};
       std::shared_ptr<Term> dummy_meta = std::make_shared<TermVar>(FORWARD_DECLARATION_PREFIX + "<" + optor + ", " + std::to_string(terms.size()) + ">");
       auto unfinished_term = TermCompound::compoundFactory(terms, dummy_meta, opstruct);
+      ++definitions_version_;
       forward_declared_terms_.push_back(unfinished_term);
       return unfinished_term;
    }
@@ -509,6 +511,7 @@ std::shared_ptr<Term> FormulaParser::termFactory(
 
 void vfm::FormulaParser::addDynamicTermViaFuncRef(const std::vector<std::shared_ptr<Term>>& terms)
 {
+   ++definitions_version_;
    static const std::string INVALID_FUNCTION_NAME{ "#INVALID" };
    std::string func_name{ terms[0]->getOptor() };
    bool dummy{};
@@ -795,6 +798,7 @@ std::shared_ptr<earley::Grammar> vfm::FormulaParser::createGrammar(const bool in
 
 void vfm::FormulaParser::initializeValuesBy(const FormulaParser& other)
 {
+   ++definitions_version_;
    curr_terms_.clear();
    dynamic_term_metas_.clear();
    forward_declared_terms_.clear();
@@ -838,12 +842,14 @@ void vfm::FormulaParser::initializeValuesBy(const std::shared_ptr<FormulaParser>
 
 void vfm::FormulaParser::resetRawDynamicTerm(const std::string& op_name, const TermPtr new_term, const int num_params)
 {
+   ++definitions_version_;
    dynamic_term_metas_.at(op_name) = {};
    dynamic_term_metas_.at(op_name).insert({ num_params, new_term });
 }
 
 void vfm::FormulaParser::removeDynamicTerm(const std::string& op_name, const int num_params)
 {
+   ++definitions_version_;
    dynamic_term_metas_.at(op_name).erase(num_params);
 }
 
@@ -875,6 +881,7 @@ bool FormulaParser::isArray(const std::string& optor)
    bool isit = StaticHelper::isVariableNameDenotingArray(optor);
 
    if (isit) { // Note that term_array_float has the same op_struct as TermArray.
+      if (!all_ops_.count(optor)) ++definitions_version_;
       all_ops_.insert({ optor, { { 1, TermArray::getOpStruct(optor) } } });
       all_arrs_.insert({ optor, { { 1, TermArray::getOpStruct(optor) } } });
    }
@@ -1051,6 +1058,8 @@ void FormulaParser::addDynamicTerm(
    const std::shared_ptr<Term> meta_struct,
    const bool is_native)
 {
+   ++definitions_version_;
+
    if (is_native) {
       native_funcs_.insert({ op_struct.op_name, op_struct.arg_num });
    }
@@ -1333,6 +1342,11 @@ std::shared_ptr<Term> FormulaParser::parseShuntingYard(const std::shared_ptr<std
       if (token.empty()) continue; // For func_ref_mode we possibly insert empty tokens, see below.
 
       if (StaticHelper::isArgumentDelimiter(token)) { // Delimiter.
+         if (op_stack.empty()) {
+            addError("Stack ran out of items.");
+            return std::make_shared<TermVar>(PARSING_ERROR_STRING);
+         }
+
          std::string el = op_stack.back().first;
           while (!StaticHelper::isOpeningBracket(el)) {            
             pushToOutput(el, nested_function_args_stack);
@@ -1945,6 +1959,7 @@ std::pair<std::string, int> vfm::FormulaParser::getFunctionName(const int func_a
 void FormulaParser::registerAddress(const std::string& func_name, const int num_params)
 {
    if (num_params >= 0 && !names_to_addresses.count({ func_name, num_params })) {
+      ++definitions_version_;
       names_to_addresses.insert({ { func_name, num_params }, function_count_ });
       addresses_to_names.insert({ function_count_, { func_name, num_params } });
       ++function_count_;
