@@ -1158,11 +1158,8 @@ std::shared_ptr<RoadGraph> vfm::RoadGraph::copy(std::map<int, std::shared_ptr<Ro
    my_copy->ghost_section_ = ghost_section_;
    my_copy->my_road_ = my_road_; // TODO: do we need to copy ego, if any? It's only a pointer copy, for now.
    my_copy->origin_point_ = origin_point_;
-<<<<<<< HEAD
    my_copy->connection_endpoints_ = connection_endpoints_;
-=======
    my_copy->rect_obstacles_ = rect_obstacles_;
->>>>>>> origin/feature/improve-script-performance
 
    for (const auto& predecessor : predecessors_) {
       auto tmp_copy = predecessor->copy(copied);
