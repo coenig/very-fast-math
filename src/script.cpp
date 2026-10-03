@@ -1613,11 +1613,46 @@ std::string Script::evaluateExpression(const std::string& expression)
    return evaluateExpression(expression, "-1");
 }
 
+static constexpr size_t MAX_CACHED_EXPRESSIONS{ 10000 };
+
+/// Parses the expression without substituting constants of the data pack, so that the formula depends on the text only and can be reused.
+static std::shared_ptr<MathStruct> parseExpressionCached(
+   ScriptData& script_data,
+   const std::shared_ptr<FormulaParser>& parser,
+   const std::string& expression)
+{
+   auto& cache{ script_data.parsed_expressions_ };
+   const auto cached{ cache.find(expression) };
+
+   if (cached != cache.end() && cached->second.parser_.lock() == parser && cached->second.definitions_version_ == parser->getDefinitionsVersion()) {
+      return cached->second.tree_;
+   }
+
+   const auto num_problems = [&parser]() {
+      const auto singleton{ Failable::getSingleton() };
+
+      return parser->hasErrorOccurred(ErrorLevelEnum::error, false) + parser->hasErrorOccurred(ErrorLevelEnum::warning, false)
+         + singleton->hasErrorOccurred(ErrorLevelEnum::error, false) + singleton->hasErrorOccurred(ErrorLevelEnum::warning, false);
+   };
+
+   const int problems_before{ num_problems() };
+   const unsigned long version_before{ parser->getDefinitionsVersion() };
+   auto tree{ MathStruct::parseMathStruct(expression, parser, std::shared_ptr<DataPack>{}) };
+
+   // Don't cache if parsing complained or changed what the parser knows: The messages and effects must repeat as before.
+   if (tree && num_problems() == problems_before && parser->getDefinitionsVersion() == version_before) {
+      if (cache.size() >= MAX_CACHED_EXPRESSIONS) cache.clear();
+      cache[expression] = ParsedExpression{ tree, parser, version_before };
+   }
+
+   return tree;
+}
+
 std::string Script::evaluateExpression(const std::string& expression, const std::string& decimals_str) 
 {
    int decimals{-1};
 
-   auto result = MathStruct::parseMathStruct(expression, vfm_parser_, vfm_data_)->eval(vfm_data_, vfm_parser_);
+   auto result = parseExpressionCached(getScriptData(), vfm_parser_, expression)->eval(vfm_data_, vfm_parser_);
 
 
    if (!StaticHelper::isParsableAsFloat(decimals_str)) {

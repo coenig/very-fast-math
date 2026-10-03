@@ -53,6 +53,13 @@ struct MethodPartBegin {
    bool cachable_{};
 };
 
+/// A formula parsed from a script expression, valid as long as the parser's definitions have not changed.
+struct ParsedExpression {
+   std::shared_ptr<MathStruct> tree_{};
+   std::weak_ptr<FormulaParser> parser_{};
+   unsigned long definitions_version_{};
+};
+
 struct ScriptData {
    inline ScriptData() 
    {
@@ -68,6 +75,7 @@ struct ScriptData {
    std::map<std::string, std::vector<std::string>> list_data_{};
    std::map<std::string, std::map<std::string, std::string>> map_data_{};
    std::map<std::string, MethodPartBegin> method_part_begins_{};
+   std::map<std::string, ParsedExpression> parsed_expressions_{};
    int cache_hits_{ 0 };
    int cache_misses_{ 0 };
 
@@ -85,6 +93,7 @@ struct ScriptData {
       inscriptMethodParNums.clear();
       inscriptMethodParPatterns.clear();
       method_part_begins_.clear();
+      parsed_expressions_.clear();
       list_data_.clear();
       map_data_.clear();
       cache_hits_ = 0;
