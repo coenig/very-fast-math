@@ -16,8 +16,9 @@ from ctypes import create_string_buffer, sizeof
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QPushButton, QGraphicsView, QGraphicsScene, QGraphicsRectItem,
                              QGraphicsEllipseItem, QGraphicsSimpleTextItem, QMessageBox, QProgressBar)
-from PyQt6.QtCore import Qt, QRectF, QTimer, QPointF, QObject, QThread, pyqtSignal
-from PyQt6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QPainterPath, QPolygonF, QFont
+from PyQt6.QtCore import Qt, QRectF, QTimer, QPointF, QObject, QThread, QUrl, pyqtSignal
+from PyQt6.QtGui import (QPixmap, QImage, QBrush, QPen, QColor, QPainterPath, QPolygonF, QFont,
+                         QDesktopServices)
 
 
 # Repo root = parent of this parking/ folder; anchors all paths independent of the caller's cwd.
@@ -35,8 +36,6 @@ TPL_PATH = os.path.join(REPO_ROOT, "src/templates/envmodel_config.tpl.json")
 MC_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.runMCJobs[16]"
 # Regenerates EnvModel.smv/main.smv from the config; required after any config change.
 ENVGEN_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.generateEnvmodels"
-# Renders only the smooth birdseye counterexample visualization (images/video).
-TESTCASE_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.generateTestCases[cex-smooth-birdseye]"
 
 # Ego sprite (639x258 px, rear bumper at x=0, front to +x); dimensions from EGO_* in activation_pose.py.
 EGO_CAR_IMAGE = os.path.join(REPO_ROOT, "parking", "ego_car.png")
@@ -1159,12 +1158,18 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.terminate_btn)
 
         self.envgen_btn = QPushButton("Re-run EnvModel Generation")
-        self.envgen_btn.clicked.connect(self.run_envmodel_generation)
+        self.envgen_btn.clicked.connect(lambda: self.run_envmodel_generation())
+        # Right-click = forced regeneration: wipe the EnvModel cache and rewrite the tpl.json first.
+        self.envgen_btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.envgen_btn.customContextMenuRequested.connect(
+            lambda _pos: self.run_envmodel_generation(force=True))
+        self.envgen_btn.setToolTip("Right-click: clear the EnvModel cache, write all current "
+                                   "obstacle positions to the tpl.json, then regenerate.")
         layout.addWidget(self.envgen_btn)
 
-        self.testcase_btn = QPushButton("Generate Test Case (Smooth Birdseye)")
-        self.testcase_btn.clicked.connect(self.run_testcase_generation)
-        layout.addWidget(self.testcase_btn)
+        self.reveal_btn = QPushButton("Reveal Model Folder")
+        self.reveal_btn.clicked.connect(self.reveal_model_folder)
+        layout.addWidget(self.reveal_btn)
 
         # Clean-view toggle: hides all editing handles and locks items so the birdseye can be
         # screenshotted without resize/rotate/delete decorations. Purely visual, no config change.
@@ -1546,12 +1551,13 @@ class MainWindow(QMainWindow):
         """True while the scene has un-regenerated edits (section pose or obstacle set)."""
         return self._section_dirty or self._obstacles_dirty
 
-    def _write_config_from_scene(self):
+    def _write_config_from_scene(self, obstacles_only=False):
         """Hardcode the target section pose (when adjustable) and obstacles into the tpl.json."""
         if self._transform is None:
             raise RuntimeError("No transform available to write the scene into the config.")
         obstacles = self.collect_obstacles_world()
-        if self.section_item is not None and self._target_slot is not None:
+        if (not obstacles_only and self.section_item is not None
+                and self._target_slot is not None):
             src = self.section_item.pos()
             sx_w, sy_w = pixel_to_world(src.x(), src.y(), self._transform, self.image_w, self.image_h)
             angle = int(round(self.section_item.rotation())) % 360
@@ -1632,7 +1638,6 @@ class MainWindow(QMainWindow):
 
     def _set_buttons_enabled(self, enabled):
         self.envgen_btn.setEnabled(enabled)
-        self.testcase_btn.setEnabled(enabled)
         self.add_obstacle_btn.setEnabled(enabled)
         self.reset_btn.setEnabled(enabled)
         self.play_btn.setEnabled(enabled)
@@ -1640,33 +1645,22 @@ class MainWindow(QMainWindow):
         # edits: the current packages are stale until EnvModel regeneration writes them in.
         self.refresh_btn.setEnabled(enabled and not self._config_dirty())
 
-    def _run_script_with_ui(self, script, description, reload_after, on_success=None):
-        """Run a vfm script with wait-cursor/disabled buttons and a completion dialog."""
-        self._set_buttons_enabled(False)
-        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        error = None
+    def reveal_model_folder(self):
+        """Open the folder behind the shown maneuver; also print it, as opening fails on remote."""
+        folder = os.path.dirname(os.path.abspath(self.trace_path))
+        print(f"Model folder: {folder}")
+        opener = shutil.which("xdg-open") if platform.system() == "Linux" else None
+        if opener is None:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+            return
+        # Detached and silenced: the file manager's own GLib/D-Bus warnings (frequent over
+        # remote X) would otherwise spam this terminal and tie it to the GUI's process group.
         try:
-            print(f"\u26a1 Running {description}...")
-            print(_run_vfm_script(script))
-        except (Exception, KeyboardInterrupt) as e:
-            error = e
-            print(f"{description} aborted or failed: {e}")
-        finally:
-            QApplication.restoreOverrideCursor()
-            self._set_buttons_enabled(True)
-
-        if error is None and on_success is not None:
-            on_success()
-
-        if error is None and reload_after:
-            self.reload_from_trace()
-
-        if error is not None:
-            QMessageBox.warning(self, f"{description} failed",
-                                f"{description} was aborted or failed.")
-        else:
-            QMessageBox.information(self, f"{description} finished",
-                                    f"{description} completed successfully.")
+            subprocess.Popen([opener, folder], start_new_session=True,
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+        except OSError as e:
+            print(f"Could not open the file manager: {e}")
 
     def poll_progress_file(self):
         """Reads the progress file from disk and updates the GUI progress bar."""
@@ -1682,12 +1676,12 @@ class MainWindow(QMainWindow):
                     
                     if content[0].isdigit():
                         raw = int(content[0])
-                        progress_value = (raw - 2) * 100
+                        progress_value = (raw - 1) * 100
                     if content[1].isdigit():
                         base_max = int(content[1]) * 100
                         self.progress_bar.setRange(0, base_max)
                     
-                    second = str(raw - 1) + "/" + content[1] + "   " + content[2].replace("_config_", "").replace("_", " | ")
+                    second = str(raw) + "/" + content[1] + "   " + content[2].replace("_config_", "").replace("_", " | ")
                     config = content[2]
             except IOError:
                 pass
@@ -1716,15 +1710,18 @@ class MainWindow(QMainWindow):
         self.poll_timer.stop()
         self.poll_progress_file()
 
-    def run_envmodel_generation(self):
+    def run_envmodel_generation(self, force=False):
         # A moved target section or a changed obstacle set must be written into the config
         # BEFORE regenerating, so the new EnvModels reflect the drawn layout.
-        if self._config_dirty():
+        # force: always sync the obstacles and drop the EnvModel cache so nothing is reused.
+        if force or self._config_dirty():
             try:
-                self._write_config_from_scene()
+                self._write_config_from_scene(obstacles_only=force and not self._config_dirty())
             except (RuntimeError, OSError, ValueError) as e:
                 QMessageBox.critical(self, "Config update failed", str(e))
                 return
+        if force:
+            shutil.rmtree(os.path.join(EXAMPLES_DIR, "tmp"), ignore_errors=True)
         # Wipe existing gp* variant folders first so an old parameter range can't leave obsolete
         # packages around (regeneration recreates the current set; the vfm cache keeps this fast).
         # remove_mc_packages() # TODO: Might be good to remove only those packages which are not (anymore) re-created. But we should not lose already existing results.
@@ -1744,10 +1741,6 @@ class MainWindow(QMainWindow):
         # Start the background work AND start the GUI timer
         self.thread.start()
         self.poll_timer.start()
-
-    def run_testcase_generation(self):
-        self._run_script_with_ui(TESTCASE_SCRIPT, "Test case generation (smooth birdseye)",
-                                 reload_after=True)
 
     def trigger_external_process(self):
         """Race all configured variants; adopt the first counterexample and kill the rest.

@@ -185,6 +185,9 @@ public:
    bool parseProgram(const std::string& dynamic_term_commands) override;
    std::map<std::string, std::map<int, OperatorStructure>>& getAllOps();
 
+   /// Changes whenever operators, functions or arrays known to the parser change, i.e., when parsing the same text could yield something different.
+   inline unsigned long getDefinitionsVersion() const { return definitions_version_; }
+
    void checkForUndeclaredVariables(const std::shared_ptr<DataPack> d);
 
    inline std::string getCurrentAutoExtractedFunctionName() const
@@ -240,6 +243,7 @@ private:
    std::map<std::pair<std::string, int>, int> names_to_addresses{};
    std::map<int, std::pair<std::string, int>> addresses_to_names{};
    int function_count_ = 0;
+   unsigned long definitions_version_ = 0;
    bool is_in_function_ref_mode_ = false;
    //std::set<std::string> operators_with_flexible_number_of_arguments_; // TODO: Delete including all commented-out usages!
 
