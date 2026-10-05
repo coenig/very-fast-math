@@ -16,8 +16,9 @@ from ctypes import create_string_buffer, sizeof
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QPushButton, QGraphicsView, QGraphicsScene, QGraphicsRectItem,
                              QGraphicsEllipseItem, QGraphicsSimpleTextItem, QMessageBox, QProgressBar)
-from PyQt6.QtCore import Qt, QRectF, QTimer, QPointF, QObject, QThread, pyqtSignal
-from PyQt6.QtGui import QPixmap, QImage, QBrush, QPen, QColor, QPainterPath, QPolygonF, QFont
+from PyQt6.QtCore import Qt, QRectF, QTimer, QPointF, QObject, QThread, QUrl, pyqtSignal
+from PyQt6.QtGui import (QPixmap, QImage, QBrush, QPen, QColor, QPainterPath, QPolygonF, QFont,
+                         QDesktopServices)
 
 
 # Repo root = parent of this parking/ folder; anchors all paths independent of the caller's cwd.
@@ -35,8 +36,6 @@ TPL_PATH = os.path.join(REPO_ROOT, "src/templates/envmodel_config.tpl.json")
 MC_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.runMCJobs[16]"
 # Regenerates EnvModel.smv/main.smv from the config; required after any config change.
 ENVGEN_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.generateEnvmodels"
-# Renders only the smooth birdseye counterexample visualization (images/video).
-TESTCASE_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.generateTestCases[cex-smooth-birdseye]"
 
 # Ego sprite (639x258 px, rear bumper at x=0, front to +x); dimensions from EGO_* in activation_pose.py.
 EGO_CAR_IMAGE = os.path.join(REPO_ROOT, "parking", "ego_car.png")
@@ -1168,9 +1167,9 @@ class MainWindow(QMainWindow):
                                    "obstacle positions to the tpl.json, then regenerate.")
         layout.addWidget(self.envgen_btn)
 
-        self.testcase_btn = QPushButton("Generate Test Case (Smooth Birdseye)")
-        self.testcase_btn.clicked.connect(self.run_testcase_generation)
-        layout.addWidget(self.testcase_btn)
+        self.reveal_btn = QPushButton("Reveal Model Folder")
+        self.reveal_btn.clicked.connect(self.reveal_model_folder)
+        layout.addWidget(self.reveal_btn)
 
         # Clean-view toggle: hides all editing handles and locks items so the birdseye can be
         # screenshotted without resize/rotate/delete decorations. Purely visual, no config change.
@@ -1639,7 +1638,6 @@ class MainWindow(QMainWindow):
 
     def _set_buttons_enabled(self, enabled):
         self.envgen_btn.setEnabled(enabled)
-        self.testcase_btn.setEnabled(enabled)
         self.add_obstacle_btn.setEnabled(enabled)
         self.reset_btn.setEnabled(enabled)
         self.play_btn.setEnabled(enabled)
@@ -1647,33 +1645,22 @@ class MainWindow(QMainWindow):
         # edits: the current packages are stale until EnvModel regeneration writes them in.
         self.refresh_btn.setEnabled(enabled and not self._config_dirty())
 
-    def _run_script_with_ui(self, script, description, reload_after, on_success=None):
-        """Run a vfm script with wait-cursor/disabled buttons and a completion dialog."""
-        self._set_buttons_enabled(False)
-        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
-        error = None
+    def reveal_model_folder(self):
+        """Open the folder behind the shown maneuver; also print it, as opening fails on remote."""
+        folder = os.path.dirname(os.path.abspath(self.trace_path))
+        print(f"Model folder: {folder}")
+        opener = shutil.which("xdg-open") if platform.system() == "Linux" else None
+        if opener is None:
+            QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+            return
+        # Detached and silenced: the file manager's own GLib/D-Bus warnings (frequent over
+        # remote X) would otherwise spam this terminal and tie it to the GUI's process group.
         try:
-            print(f"\u26a1 Running {description}...")
-            print(_run_vfm_script(script))
-        except (Exception, KeyboardInterrupt) as e:
-            error = e
-            print(f"{description} aborted or failed: {e}")
-        finally:
-            QApplication.restoreOverrideCursor()
-            self._set_buttons_enabled(True)
-
-        if error is None and on_success is not None:
-            on_success()
-
-        if error is None and reload_after:
-            self.reload_from_trace()
-
-        if error is not None:
-            QMessageBox.warning(self, f"{description} failed",
-                                f"{description} was aborted or failed.")
-        else:
-            QMessageBox.information(self, f"{description} finished",
-                                    f"{description} completed successfully.")
+            subprocess.Popen([opener, folder], start_new_session=True,
+                             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                             stderr=subprocess.DEVNULL)
+        except OSError as e:
+            print(f"Could not open the file manager: {e}")
 
     def poll_progress_file(self):
         """Reads the progress file from disk and updates the GUI progress bar."""
@@ -1754,10 +1741,6 @@ class MainWindow(QMainWindow):
         # Start the background work AND start the GUI timer
         self.thread.start()
         self.poll_timer.start()
-
-    def run_testcase_generation(self):
-        self._run_script_with_ui(TESTCASE_SCRIPT, "Test case generation (smooth birdseye)",
-                                 reload_after=True)
 
     def trigger_external_process(self):
         """Race all configured variants; adopt the first counterexample and kill the rest.
