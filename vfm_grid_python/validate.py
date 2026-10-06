@@ -7,6 +7,12 @@ def validate_trace(graph,geometry,trace):
     cars=len(graph["milestones"][0])
     sections=geometry["sections"]
     connections={(c["from"],c["to"]):c for c in geometry["connections"]}
+    stable=graph.get('semantics')=='stable_concurrent'
+    if stable:
+        from .stable import anchors
+        choices=anchors(graph)
+        holding={u:next(s for s in sections if set(s['edge'])=={u,v})
+                 for u,v in choices.items() if v>=0}
 
     def decode(frame,car):
         p=f"env.veh___6{car}9___"
@@ -17,7 +23,11 @@ def validate_trace(graph,geometry,trace):
     def length(seclet):
         return sections[seclet[1]]["length"] if seclet[0]=="s" else connections[seclet[1:]]["length"]
 
-    def observed(seclet,pos,vel,node):
+    def observed(seclet,pos,vel,node,acc=0):
+        if stable:
+            s=holding[node]
+            endpoint=s['length'] if s['edge'][1]==node else 0
+            return seclet==('s',s['id']) and pos==endpoint and vel==0 and acc==0
         kind=next(n["kind"] for n in geometry["nodes"] if n["id"]==node)
         if seclet[0]=="c":
             return kind=="N" and connections[seclet[1:]]["node"]==node
@@ -35,12 +45,26 @@ def validate_trace(graph,geometry,trace):
             if not 0<=pos<=length(seclet):
                 raise ValueError(f"tick {index}, car {car}: position outside seclet")
             if index==0 or phase!=int(frames[index-1]["refinement_phase"]):
-                if not observed(seclet,pos,vel,graph["milestones"][phase][car]):
+                if not observed(seclet,pos,vel,graph["milestones"][phase][car],acc):
                     raise ValueError(f"tick {index}: incorrect milestone observation")
             u=graph["milestones"][phase][car]
             v=graph["milestones"][min(phase+1,len(graph["milestones"])-1)][car]
             travelling=(seclet[0]=="s" and u!=v and set(sections[seclet[1]]["edge"])=={u,v})
-            if not (travelling or observed(seclet,pos,vel,u) or observed(seclet,pos,vel,v)):
+            permitted=travelling or observed(seclet,pos,vel,u,acc) or observed(seclet,pos,vel,v,acc)
+            if stable:
+                if u==v:
+                    permitted=observed(seclet,pos,vel,u,acc)
+                else:
+                    travel=next(s for s in sections if set(s['edge'])=={u,v})
+                    permitted=seclet==('s',travel['id'])
+                    for node in (u,v):
+                        anchor=holding[node]
+                        endpoint=anchor['length'] if anchor['edge'][1]==node else 0
+                        permitted |= seclet==('s',anchor['id']) and abs(pos-endpoint)<=1
+                        if seclet[0]=='c':
+                            c=connections[seclet[1:]]
+                            permitted |= c['node']==node and {c['from'],c['to']}=={anchor['id'],travel['id']}
+            if not permitted:
                 raise ValueError(f"tick {index}: car deviated from abstract route")
             occupied=set()
             if seclet[0]=="c":

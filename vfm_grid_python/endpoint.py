@@ -12,8 +12,9 @@ def movement(geometry, cars):
     sections, connections = geometry["sections"], geometry["connections"]
     lines = ["-- Endpoint motion: generated from selected section incidences only."]
     for c in connections:
-        lines += [f"DEFINE endpoint_{c['from']}_{c['to']}_from_end := {'TRUE' if c['from_end'] else 'FALSE'};",
-                  f"DEFINE endpoint_{c['from']}_{c['to']}_to_end := {'TRUE' if c['to_end'] else 'FALSE'};"]
+        flag = lambda value: ('TRUE' if value else 'FALSE') if isinstance(value,bool) else value
+        lines += [f"DEFINE endpoint_{c['from']}_{c['to']}_from_end := {flag(c['from_end'])};",
+                  f"DEFINE endpoint_{c['from']}_{c['to']}_to_end := {flag(c['to_end'])};"]
     for car in range(cars):
         v = f"veh___6{car}9___"
         speed = f"{v}.endpoint_step_v"
@@ -35,27 +36,33 @@ def movement(geometry, cars):
 
         valid = []
         for s in sections:
-            on = at(s["id"])
+            on = both([at(s["id"]),s.get('active','TRUE')])
             valid.append(f"{on} & {v}.abs_pos >= 0 & {v}.abs_pos <= {s['length']}")
             move(f"{on} & {raw} >= 0 & {raw} <= {s['length']}", at(s["id"], nxt=True), raw, speed)
         for c in connections:
             a, b, length = c["from"], c["to"], c["length"]
             al, bl = sections[a]["length"], sections[b]["length"]
-            on = at(connector=c)
+            active = c.get('active','TRUE')
+            on = both([at(connector=c),active])
             valid.append(f"{on} & {v}.abs_pos >= 0 & {v}.abs_pos <= {length}")
             move(f"{on} & {raw} >= 0 & {raw} <= {length}", at(connector=c,nxt=True), raw, speed)
-            if c["from_end"]:
-                move(f"{at(a)} & {raw} > {al}", at(connector=c,nxt=True), f"{raw} - {al}", speed)
-                move(f"{on} & {raw} < 0", at(a,nxt=True), f"{al} + {raw}", speed)
-            else:
-                move(f"{at(a)} & {raw} < 0", at(connector=c,nxt=True), f"-({raw})", f"-({speed})")
-                move(f"{on} & {raw} < 0", at(a,nxt=True), f"-({raw})", f"-({speed})")
-            if c["to_end"]:
-                move(f"{at(b)} & {raw} > {bl}", at(connector=c,nxt=True), f"{length} - ({raw} - {bl})", f"-({speed})")
-                move(f"{on} & {raw} > {length}", at(b,nxt=True), f"{bl} - ({raw} - {length})", f"-({speed})")
-            else:
-                move(f"{at(b)} & {raw} < 0", at(connector=c,nxt=True), f"{length} + {raw}", speed)
-                move(f"{on} & {raw} > {length}", at(b,nxt=True), f"{raw} - {length}", speed)
+            # Frozen symbolic endpoint orientation uses the very same cases as
+            # fixed/local geometry. Guards specialize away when labels are fixed.
+            for end in (True,False):
+                af,bf=c['from_end'],c['to_end']
+                ag=('TRUE' if af==end else 'FALSE') if isinstance(af,bool) else (f'({af})' if end else f'!({af})')
+                bg=('TRUE' if bf==end else 'FALSE') if isinstance(bf,bool) else (f'({bf})' if end else f'!({bf})')
+                a_on=both([at(a),active,ag]); b_on=both([at(b),active,bg])
+                if end:
+                    move(f"{a_on} & {raw} > {al}", at(connector=c,nxt=True), f"{raw} - {al}", speed)
+                    move(f"{on} & {ag} & {raw} < 0", at(a,nxt=True), f"{al} + {raw}", speed)
+                    move(f"{b_on} & {raw} > {bl}", at(connector=c,nxt=True), f"{length} - ({raw} - {bl})", f"-({speed})")
+                    move(f"{on} & {bg} & {raw} > {length}", at(b,nxt=True), f"{bl} - ({raw} - {length})", f"-({speed})")
+                else:
+                    move(f"{a_on} & {raw} < 0", at(connector=c,nxt=True), f"-({raw})", f"-({speed})")
+                    move(f"{on} & {ag} & {raw} < 0", at(a,nxt=True), f"-({raw})", f"-({speed})")
+                    move(f"{b_on} & {raw} < 0", at(connector=c,nxt=True), f"{length} + {raw}", speed)
+                    move(f"{on} & {bg} & {raw} > {length}", at(b,nxt=True), f"{raw} - {length}", speed)
         lines += ["INVAR " + either(valid) + ";", "TRANS " + either(options) + ";"]
         for other in range(car):
             w = f"veh___6{other}9___"

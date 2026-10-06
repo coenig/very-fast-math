@@ -13,6 +13,9 @@ from .endpoint import movement, collision_constraints
 
 
 def monitor(graph, geometry):
+    from .stable import enabled, observation, support
+    stable=enabled(graph)
+    observe=(lambda g,c,n,stopped=False: observation(g,c,n,graph)) if stable else location_expression
     milestones = graph["milestones"]
     cars = len(milestones[0])
     if not milestones or any(len(m) != cars for m in milestones):
@@ -26,14 +29,17 @@ def monitor(graph, geometry):
     lines = [f"VAR refinement_phase : 0..{len(milestones)-1};", "ASSIGN init(refinement_phase) := 0;",
              "next(refinement_phase) := case"]
     for index, milestone in enumerate(milestones[1:]):
-        obs = both([location_expression(geometry, car, node) for car,node in enumerate(milestone)])
+        obs = both([observe(geometry, car, node) for car,node in enumerate(milestone)])
         lines += [f"  refinement_phase = {index} & next({obs}) : {index+1};"]
     lines += ["  TRUE : refinement_phase; esac;", f"INVARSPEC refinement_phase != {len(milestones)-1};"]
     for car, node in enumerate(milestones[0]):
-        lines += [f"INIT {location_expression(geometry, car, node, stopped=True)};"]
+        lines += [f"INIT {observe(geometry, car, node, stopped=True)};"]
     for index, milestone in enumerate(milestones):
         target = milestones[min(index+1,len(milestones)-1)]
         for car, (u,v) in enumerate(zip(milestone,target)):
+            if stable:
+                lines += [f"INVAR refinement_phase = {index} -> {support(geometry,car,u,v,graph)};"]
+                continue
             terms = [location_expression(geometry,car,u), location_expression(geometry,car,v)]
             if u != v:
                 section = next(s for s in geometry["sections"] if set(s["edge"]) == {u,v})
@@ -69,6 +75,11 @@ def _worker(output):
         "ENDPOINT_CONNECTIONS": True, "ENDPOINT_TRANSITIONS": movement(geometry,cars),
         "SPEC": "INVARSPEC FALSE;", "SCENGEN_MODE": False,
     }
+    if job.get('symbolic_endpoint'):
+        from .benchmark_symbolic import symbolic_movement
+        config['ENDPOINT_TRANSITIONS'] = symbolic_movement(geometry,cars)
+    if job.get('semantics')=='stable_concurrent' or graph.get('semantics')=='stable_concurrent':
+        config.update(VEHICLE_LENGTH=5,VEHICLE_WIDTH=185,MINACCELNONEGO=-8,MAXACCELNONEGO=3)
     def array(values):
         return "".join(f"@({value})@" for value in values)
     config.update({
@@ -111,6 +122,9 @@ def _worker(output):
     # Highway initial separation uses local coordinates even on different sections.
     text = re.sub(r"(?m)^\s*INIT abs\(veh___6\d+9___\.rel_pos\) > veh_length \| !ego\.laterally_overlapping_with_veh_\d+;\s*", "\n", text)
     text += "\n" + _geometry_metadata(geometry)
+    if job.get('symbolic_endpoint'):
+        from .benchmark_symbolic import transform_environment
+        text = transform_environment(text,geometry)
     # Squared speed is independent of the current coordinate orientation.
     text = re.sub(r"(?m)^(\s*)((?:veh___6\d+9___|ego)\.v) = (\d+) : (\d+);",
                   r"\1abs(\2) = \3 : \4;", text)
@@ -129,6 +143,10 @@ def _worker(output):
     if count != 1:
         raise RuntimeError("could not replace generated property")
     model = target / "main_endpoint_grid.smv"
+    if job.get("scenario"):
+        from .benchmark_scenarios import observer
+        boundary='next(refinement_phase) != refinement_phase' if graph.get('semantics')=='stable_concurrent' else 'TRUE'
+        main += "\n" + observer(job["scenario"], geometry, graph, boundary)
     model.write_text(main)
     dump(output / "model.json", {"model": str(model.resolve())})
 

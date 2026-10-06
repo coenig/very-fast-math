@@ -41,7 +41,15 @@ def both(terms):
 
 def execute(command, cwd, log, timeout):
     """Bound the whole subprocess tree and keep native expansion output off stdout."""
+    from .benchmark_timing import remaining, event
+    import uuid
+    timeout = remaining(timeout)
+    if timeout <= 0:
+        return {"status": "timeout", "seconds": 0.0}
     started = time.monotonic()
+    identifier = uuid.uuid4().hex
+    category = "generation" if Path(log).name == "generation.log" else "preprocessing"
+    event(kind="start", id=identifier, category=category, log=str(log))
     with Path(log).open("w") as stream:
         process = subprocess.Popen(command, cwd=cwd, stdout=stream,
                                    stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
@@ -57,12 +65,15 @@ def execute(command, cwd, log, timeout):
                     if elapsed>=timeout:
                         os.killpg(process.pid, signal.SIGKILL)
                         process.wait()
+                        event(kind="end", id=identifier)
                         return {"status": "timeout", "seconds": elapsed}
                     print(f"[{Path(log).name}] still running: {elapsed:.0f}s / {timeout:g}s",flush=True)
         except BaseException:
             os.killpg(process.pid, signal.SIGKILL)
             process.wait()
+            event(kind="end", id=identifier)
             raise
+    event(kind="end", id=identifier)
     return {"status": "finished" if returncode == 0 else "error",
             "returncode": returncode, "seconds": time.monotonic() - started}
 
@@ -81,13 +92,17 @@ def check(model, bound=100, timeout=1800, temporal=False):
     script = model.parent / "check.cmd"
     script.write_text(f'go_msat\n{command}\nshow_traces -p 6 -o trace.xml 1\n'
                       'show_traces -o debug_trace_array.txt 1\nquit\n')
-    result = execute(["nuXmv", "-quiet", "-pre", "cpp", "-source", str(script),
-                      model.name], model.parent, model.parent / "checking.log", timeout)
+    from .benchmark_timing import JOURNAL, interactive_check
+    if os.environ.get(JOURNAL):
+        result = interactive_check(model, command, timeout)
+    else:
+        result = execute(["nuXmv", "-quiet", "-pre", "cpp", "-source", str(script),
+                          model.name], model.parent, model.parent / "checking.log", timeout)
     log = (model.parent / "checking.log").read_text()
-    invalid = re.search(r'"[^"\n]+" undefined|undefined symbol|syntax error|type error|invalid preprocessing directive',log,re.I)
+    invalid = re.search(r'"[^"\n]+" undefined|undefined symbol|syntax error|type error|invalid preprocessing directive|Division by non word expression',log,re.I)
     if invalid:
         result["status"] = "error"
-    elif xml.exists() and xml.stat().st_size and states(xml):
+    elif result["status"] != "timeout" and xml.exists() and xml.stat().st_size and states(xml):
         result["status"] = "witness"
     elif result["status"] != "timeout":
         result["status"] = ("no_witness_within_bound" if
@@ -105,6 +120,7 @@ def grid_edges(rows, columns):
 
 
 def config_args(parser):
+    parser.add_argument('--semantics',choices=('legacy','stable_concurrent'))
     parser.add_argument("--config", type=Path, help="JSON configuration (optional)")
     parser.add_argument("--rows", type=int)
     parser.add_argument("--columns", type=int)
@@ -118,6 +134,7 @@ def config_args(parser):
 
 def load_config(args):
     config = json.loads(args.config.read_text()) if args.config else {}
+    if getattr(args,'semantics',None): config['semantics']=args.semantics
     for key in ("rows", "columns", "cars", "parkings"):
         if getattr(args, key) is not None:
             config[key] = getattr(args, key)

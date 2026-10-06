@@ -39,6 +39,7 @@ def validate(config):
 
 def render(config):
     validate(config)
+    from .stable import enabled, abstract_guards
     n, cars = config["rows"] * config["columns"], config["cars"]
     edges = grid_edges(config["rows"], config["columns"])
     lines = ["MODULE main", "FROZENVAR"]
@@ -106,20 +107,28 @@ def render(config):
                       f"TRANS !(next(loc_{i}) = loc_{j} & next(loc_{j}) = loc_{i});"]
     lines += ["INIT " + expr + ";" for expr in config.get("initial_constraints", [])]
     lines += ["INVAR " + expr + ";" for expr in config.get("constraints", [])]
-    if config.get("desired_ltl"):
+    if enabled(config): lines += [abstract_guards(config)]
+    if config.get("scenario_stages"):
+        if config.get("desired_ltl"):
+            raise ValueError("choose either scenario_stages or desired_ltl")
+        from .benchmark_scenarios import observer
+        lines += [observer(config), "INVARSPEC !scenario_accepted;"]
+    elif config.get("desired_ltl"):
         lines += [f"LTLSPEC !({config['desired_ltl']});"]
     else:
         lines += ["INVARSPEC !all_parked;"]
     return "\n".join(lines) + "\n"
 
 
-def run(config, output, bound=100, timeout=1800, gif=True):
+def run(config, output, bound=100, timeout=1800, gif=True, visualize=True):
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=True)
     model = output / "abstract.smv"
     if model.exists():
         raise FileExistsError(f"use a new output directory: {output}")
-    model.write_text(render(config))
+    from .benchmark_timing import interval
+    with interval("generation", model=str(model)):
+        model.write_text(render(config))
     dump(output / "config.json", config)
     result = check(model, bound, timeout, bool(config.get("desired_ltl")))
     if result["status"] != "witness":
@@ -137,8 +146,18 @@ def run(config, output, bound=100, timeout=1800, gif=True):
              "roles": {name: int(first[f"role_{name}"]) for name in config.get("roles", {})},
              "milestones": [[int(s[f"loc_{i}"]) for i in range(config["cars"])] for s in trace]}
     dump(output / "selected_graph.json", graph)
-    from .visualize import abstract_plot
-    abstract_plot(graph, output, gif)
+    if config.get('semantics') == 'stable_concurrent':
+        from .stable import profile, anchors
+        graph['semantics']='stable_concurrent'
+        graph['holding_neighbours']=anchors(graph)
+        dump(output/'contract.json',profile(config))
+        dump(output/'selected_graph.json',graph)
+    if config.get("scenario_stages"):
+        graph["scenario_phases"] = [int(s["scenario_phase"]) for s in trace]
+        dump(output / "selected_graph.json", graph)
+    if visualize:
+        from .visualize import abstract_plot
+        abstract_plot(graph, output, gif)
     return result
 
 

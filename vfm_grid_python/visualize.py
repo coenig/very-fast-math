@@ -42,7 +42,9 @@ def car_point(state,car,geometry):
     sec=int(state[f"{prefix}.on_straight_section"])
     pos=int(state[f"{prefix}.abs_pos"])
     if sec>=0:
-        s=geometry["sections"][sec]
+        # A symbolic model retains candidate slot IDs; its exported geometry
+        # contains only active sections, so IDs need not be dense.
+        s=next(s for s in geometry["sections"] if s['id']==sec)
         return point([s["source"],s["drain"]],pos/s["length"])
     a,b=int(state[f"{prefix}.traversion_from"]),int(state[f"{prefix}.traversion_to"])
     c=next(c for c in geometry["connections"] if (c["from"],c["to"])==(a,b))

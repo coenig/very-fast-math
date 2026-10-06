@@ -224,9 +224,19 @@ class TraceModel:
         if kind=='set': return any(self.temporal(a) for a in node[1])
         return any(self.temporal(a) for a in node[2:])
 
-    def complete(self,frames,geometry):
+    def complete(self,frames,geometry,preserve_topology=False):
         mapping={'local_to_global':list(range(len(geometry['sections'])))}
-        completed=[handoff(f,self.variables,mapping) for f in frames]
+        if preserve_topology:
+            # A monolithic symbolic witness already supplies its frozen
+            # topology. Do not apply the local-patch handoff restrictions.
+            completed=[]
+            for frame in frames:
+                missing=set(self.variables)-frame.keys()
+                if missing:
+                    raise ValueError(f'monolithic trace lacks state variables: {sorted(missing)[:8]}')
+                completed.append({name:frame[name] for name in self.variables})
+        else:
+            completed=[handoff(f,self.variables,mapping) for f in frames]
         evaluation=Evaluation(self,completed)
         for tick,frame in enumerate(completed):
             for name in sorted(self.state_defines): frame[name]=encode(evaluation.name(name,tick))

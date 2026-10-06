@@ -39,24 +39,37 @@ def step_constraints(left, right, geometry,following=None):
 
 
 def write_step(text, variables, geometry, mapping, left, right, previous, directory,
-               rejected=(),require_transition=True,following=None,stop_cars=()):
+               rejected=(),require_transition=True,following=None,stop_cars=(),
+               scenario_phase=None, initial_scenario_phase=None, contract_graph=None):
+    from .stable import observation, support
+    observe=(lambda g,c,n,stopped=False: observation(g,c,n,contract_graph)) if contract_graph else location_expression
     initial={}
     model=flat_body(text,resumed=previous is not None)
     if previous is None:
-        model+='\n'.join('INIT '+location_expression(geometry,c,n,stopped=True)+';'
+        model+='\n'.join('INIT '+observe(geometry,c,n,stopped=True)+';'
                           for c,n in enumerate(left))+'\n'
         counter=0
+        if initial_scenario_phase is not None:
+            model += f'INIT scenario_phase = {initial_scenario_phase};\n'
     else:
         initial=handoff(previous,variables,mapping)
         model+='\n'.join(f'INIT {k} = {v};' for k,v in initial.items())+'\n'
         counter=int(previous['env.cnt'])
-    model+=step_constraints(left,right,geometry,following)
+    if contract_graph:
+        model+='\n'.join('INVAR '+support(geometry,c,u,v,contract_graph)+';' for c,(u,v) in enumerate(zip(left,right)))+'\n'
+        model+=collision_constraints(geometry,len(left))
+    else:
+        model+=step_constraints(left,right,geometry,following)
     for terminal in rejected:
         assignment=handoff(terminal,variables,mapping)
         model+='INVAR !'+both([f'{name} = {value}' for name,value in assignment.items()])+';\n'
     dump(directory/'initial_state.json',initial)
-    target=both([location_expression(geometry,c,n) for c,n in enumerate(right)])
+    target=both([observe(geometry,c,n) for c,n in enumerate(right)])
+    if contract_graph and scenario_phase is not None:
+        model+=f'TRANS next({target}) -> next(scenario_phase) = {scenario_phase};\n'
     target=both([target]+[f'env.veh___6{c}9___.v = 0 & env.veh___6{c}9___.a = 0' for c in stop_cars])
+    if scenario_phase is not None:
+        target=both([target, f'scenario_phase = {scenario_phase}'])
     dump(directory/'target.json',{'source':left,'target':right,'predicate':target,'after_tick':counter,
                                 'stopped_cars':list(stop_cars)})
     # The existing concrete clock enforces a real transition, even for repeats.
@@ -79,6 +92,12 @@ The monitor advances on that first observation, not on the query boundary.
     connectors={(c['from'],c['to']):c['node'] for c in geometry['connections']}
     def observed(frame,car,node):
         p=f'env.veh___6{car}9___.'; s=int(frame[p+'on_straight_section'])
+        if graph.get('semantics')=='stable_concurrent':
+            from .stable import anchors
+            neighbour=anchors(graph)[node]
+            section=next(t for t in geometry['sections'] if set(t['edge'])=={node,neighbour})
+            pos=section['length'] if section['edge'][1]==node else 0
+            return s==section['id'] and int(frame[p+'abs_pos'])==pos and int(frame[p+'v'])==0 and int(frame[p+'a'])==0
         if s<0:
             return kinds[node]=='N' and connectors.get((int(frame[p+'traversion_from']),int(frame[p+'traversion_to'])))==node
         section=geometry['sections'][s]; pos=int(frame[p+'abs_pos'])
@@ -101,6 +120,7 @@ def cached_baseline(directory,key,geometry,cars,config,template_config):
     matches=(job.get('baseline_only') and job['geometry']==json.loads(json.dumps(geometry))
              and len(job['graph']['milestones'][0])==cars
              and job.get('vfm',{})==config.get('vfm',{})
+             and job.get('semantics','legacy')==config.get('semantics','legacy')
              and Path(job['template_config']).resolve()==Path(template_config).resolve())
     if not matches: return None
     text=(base/'flat/baseline.smv').read_text()
@@ -134,7 +154,7 @@ def geometry_values(geometry):
     return result
 
 
-def export_trace(frames,geometry,directory,complete,model=None):
+def export_trace(frames,geometry,directory,complete,model=None,description=None,validate_geometry=True):
     """Full XML states and delta-encoded text, in nuXmv's trace format.
 
 Only a model-completed, validated export is marked complete. Partial files
@@ -144,15 +164,17 @@ remain useful for diagnostics before the global model has been generated.
     if complete and model is None:
         raise ValueError('a complete export requires the global model inventory')
     if model is not None:
-        frames=model.complete(frames,geometry)
-        model.validate(frames)
+        from .benchmark_timing import interval
+        with interval('validation'):
+            frames=model.complete(frames,geometry,preserve_topology=not validate_geometry)
+            model.validate(frames)
         static=geometry_values(geometry)
-        for name,value in static.items():
+        for name,value in (static.items() if validate_geometry else ()):
             if name in frames[0] and frames[0][name]!=value:
                 raise ValueError(f'global model geometry mismatch: {name}')
-    root=ET.Element('counter-example',{'type':'0','id':'1',
-        'desc':'Python-stitched sequential concrete trace' if complete else 'Partial sequential concrete trace'})
-    text=['Trace Description: Stitched sequential-local concrete trace', 'Trace Type: Counterexample']
+    description = description or ('Python-stitched sequential concrete trace' if complete else 'Partial sequential concrete trace')
+    root=ET.Element('counter-example',{'type':'0','id':'1','desc':description})
+    text=['Trace Description: '+description, 'Trace Type: Counterexample']
     # Clear aliases that occurred in a different patch, otherwise sparse trace
     # readers can retain an old TRUE traversal flag across a boundary.
     aliases={k for s in frames for k in s if OCCUPANCY.match(k)}
@@ -174,7 +196,8 @@ remain useful for diagnostics before the global model has been generated.
     ET.indent(root)
     ET.ElementTree(root).write(pending,encoding='unicode')
     if model is not None:
-        report=model.validate(states(pending))
+        with interval('validation'):
+            report=model.validate(states(pending))
         if hasattr(model,'source'):
             report['xml_import']=model.check_xml_import(pending,directory/'xml_import',model.timeout)
         report.update(complete=complete,source='Python concatenation, checked against full concrete model')
@@ -190,7 +213,8 @@ def global_inventory(graph,geometry,config,output,template_config,timeout,model=
     output.mkdir(parents=True,exist_ok=True)
     if model is None:
         dump(output/'generation_job.json',{'graph':graph,'geometry':geometry,
-             'template_config':str(Path(template_config).resolve()),'vfm':config.get('vfm',{})})
+             'template_config':str(Path(template_config).resolve()),'vfm':config.get('vfm',{}),
+             'scenario':config if config.get('scenario_stages') else None})
         result=execute([sys.executable,'-m','vfm_grid_python.concretize','--worker',str(output)],
                        ROOT,output/'generation.log',timeout)
         dump(output/'generation_result.json',result)
@@ -263,11 +287,25 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
     graph=json.loads((abstract_run/'selected_graph.json').read_text())
     config=json.loads((abstract_run/'config.json').read_text())
     validate_graph(graph)
-    geometry=build(graph,road_length,parking_length,radius)
+    stable=config.get('semantics')=='stable_concurrent'
+    if stable:
+        from .stable import profile,validate_witness
+        if graph.get('semantics')!='stable_concurrent': raise ValueError('abstract witness has no stable contract')
+        dump(output/'contract.json',profile(config,road_length,parking_length,radius))
+        dump(output/'contract_validation.json',validate_witness(graph,config))
+    if config.get('scenario_stages'):
+        phases=graph.get('scenario_phases')
+        if phases is None or len(phases)!=len(graph['milestones']):
+            raise ValueError('scenario witness lacks observer phases')
+        if phases[-1]!=len(config['scenario_stages']):
+            raise ValueError('abstract witness did not accept the original scenario')
+    from .benchmark_timing import interval
+    with interval('generation'):
+        geometry=build(graph,road_length,parking_length,radius)
     geometry_seconds=time.perf_counter()-started
     dump(output/'geometry.json',geometry)
     dump(output/'selected_graph.json',graph)
-    dump(output/'config.json',{'abstract_run':str(abstract_run),'bound':bound,'timeout':timeout,
+    dump(output/'config.json',{**config,'abstract_run':str(abstract_run),'bound':bound,'timeout':timeout,
                              'strategy':'sequential-local','vfm':config.get('vfm',{}),
                              'backtracks':backtracks,'model_cache':str(model_cache) if model_cache else None})
     index=GeometryIndex(geometry)
@@ -302,7 +340,8 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
             local,mapping=index.select(left,right,previous)
             dump(step/'geometry.json',local); dump(step/'mapping.json',mapping)
             record.update(sections=len(local['sections']),connectors=len(local['connections']))
-            key=hashlib.sha256(json.dumps(local,sort_keys=True).encode()).hexdigest()
+            cache_description=dict(geometry=local,contract='stable-concurrent.v1') if stable else local
+            key=hashlib.sha256(json.dumps(cache_description,sort_keys=True).encode()).hexdigest()
             if key not in cache:
                 reused=cached_baseline(model_cache,key,local,len(left),config,template_config)
                 if reused:
@@ -311,7 +350,8 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
             if key not in cache:
                 generation=output/'models'/key[:16]; generation.mkdir(parents=True)
                 dump(generation/'generation_job.json',{'graph':{'milestones':[left]},'geometry':local,
-                     'template_config':str(Path(template_config).resolve()),'vfm':config.get('vfm',{}),'baseline_only':True})
+                     'template_config':str(Path(template_config).resolve()),'vfm':config.get('vfm',{}),'baseline_only':True,
+                     'semantics':config.get('semantics','legacy')})
                 print(f"Step {i+1}/{len(pairs)}: generating {len(local['sections'])} sections",flush=True)
                 result=execute([sys.executable,'-m','vfm_grid_python.concretize','--worker',str(generation)],
                                ROOT,generation/'generation.log',timeout)
@@ -326,10 +366,21 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
                 record['generation_seconds']=result['seconds']
             else: record['generation_seconds']=0.0
             text,variables,generation=cache[key]
+            if config.get('scenario_stages'):
+                from .benchmark_scenarios import observer
+                from .stable import observation
+                boundary='next('+both([observation(local,c,n,graph) for c,n in enumerate(right)])+')' if stable else 'TRUE'
+                text += '\n' + observer(config,local,graph,boundary)
+                variables = schema(text)
             record['baseline']=str(generation)
             initial=write_step(text,variables,local,mapping,left,right,previous,step,
                                rejected.get(i,()),require_transition=not initial_only,
-                               following=following,stop_cars=stop_cars)
+                               following=following,stop_cars=stop_cars,
+                               scenario_phase=(graph['scenario_phases'][min(i+1,len(milestones)-1)]
+                                               if config.get('scenario_stages') else None),
+                               initial_scenario_phase=(graph['scenario_phases'][0]
+                                                       if config.get('scenario_stages') else None),
+                               contract_graph=graph if stable else None)
             initial_result=check(step/'initial_check/initial.smv',0,timeout)
             summary['initial_check_seconds']+=initial_result['seconds']
             record['initial_check']=initial_result
@@ -414,6 +465,8 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
                 inventory=global_inventory(graph,geometry,config,output/'global_model',
                                            template_config,timeout,validation_model or replay_model)
                 xml=export_trace(frames,geometry,output,True,inventory)
+                if config.get('scenario_stages') and int(frames[-1]['scenario_phase']) != len(config['scenario_stages']):
+                    raise ValueError('concrete witness did not accept the original scenario')
                 summary['time_to_trace_seconds']=time.perf_counter()-started
                 report['full_model']=json.loads((output/'model_validation.json').read_text())
             else:

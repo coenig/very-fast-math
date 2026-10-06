@@ -265,6 +265,48 @@ witness is a candidate, not a guarantee of concrete feasibility; a bound limit
 or timeout is reported as such. Successful traces are independently checked
 for movement, milestones, route adherence and reserved-space conflicts.
 
+## Stable concurrent milestones (opt-in)
+
+`semantics = "stable_concurrent"` selects the new contract; the default remains
+`legacy`, so existing campaigns are unchanged. Each abstract node has a
+deterministically selected incident holding section. At every concrete milestone,
+**all cars have zero velocity and acceleration** at their canonical endpoint.
+Waiting cars remain there. A moving car reserves its travel section, endpoint
+holding sections and normal-node turning regions. Joint moves with overlapping
+reservations are rejected; multiple cars may move in the same abstract step when
+their reservations are disjoint. This is conservative, not single-car scheduling.
+Scenario events are observed at these boundaries; stage holds also constrain
+motion between boundaries.
+
+The initial supported profile has 20 m road sections, 7 m parking sections and
+6 m junction radius, with finite cars of length 5 m and width at most 2 m.
+Unsupported geometry/profile overrides fail explicitly. Each run records a
+`contract.json`; sequential refinement also independently checks abstract
+reservations in `contract_validation.json`. All three benchmark methods use the
+same milestone and reservation contract. Direct concrete search chooses joint
+targets in the full model; it does not invoke an abstract solver first.
+
+The paper's conditional realizability argument assumes real-valued reversible
+motion, adequate geometric clearance and extendible auxiliary dynamics.
+It does **not** guarantee a witness within an integer BMC bound, or preserve
+every feasible concrete maneuver. Full concrete trace validation remains required.
+
+Run the new catalog in a fresh directory (timeout is per whole method job):
+
+```bash
+python -m vfm_grid_python.benchmark \
+  --catalog parking_benchmark_scenarios/stable_concurrent.toml \
+  --output-dir vfm-with-parking/stable-concurrent/campaign_01 --timeout 1800
+python -m vfm_grid_python.benchmark_report \
+  vfm-with-parking/stable-concurrent/campaign_01 \
+  --output-dir vfm-with-parking/stable-concurrent/report --gifs
+```
+
+Use `--semantics stable_concurrent` to override another benchmark catalog, or set
+the same field in an abstract configuration before generating a **new** witness.
+Do not relabel old traces: they may violate the contract. Reports distinguish
+contract versions rather than pooling legacy and stable measurements.
+
 ## Visualization compatibility
 
 Both this package's Matplotlib renderer and the native C++ GIF renderer support
