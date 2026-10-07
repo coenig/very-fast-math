@@ -17,6 +17,20 @@ from .geometry import build, location_expression
 from .local_model import GeometryIndex, OCCUPANCY, flatten, flat_body, global_state, handoff, schema
 
 
+def handoff_stop_cars(left, right, following, next_milestone=None):
+    """Stop waits and immediate edge reversals, without stopping onward traffic.
+
+    ``following`` skips waits to identify the next different abstract node.
+    A reversal needs a rest boundary: merely reaching an endpoint with outward
+    velocity can leave the next query with no legal successor. Acceleration
+    must also be zero because the concrete update uses its current value.
+    This is a sufficient local handoff policy, not a realizability theorem.
+    """
+    return [c for c, (u, v) in enumerate(zip(left, right))
+            if u == v or following[c] == u
+            or (next_milestone is not None and next_milestone[c] == v)]
+
+
 def step_constraints(left, right, geometry,following=None):
     lines=[]
     for car,(u,v) in enumerate(zip(left,right)):
@@ -329,8 +343,9 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
             # velocity strategy are prescribed by this compatibility filter.
             following=[next((m[c] for m in milestones[i+2:] if m[c]!=v),v)
                        for c,v in enumerate(right)]
-            stop_cars=[c for c,(u,v) in enumerate(zip(left,right)) if u==v or
-                       (i+2<len(milestones) and milestones[i+2][c]==v)]
+            stop_cars=handoff_stop_cars(
+                left,right,following,
+                milestones[i+2] if i+2<len(milestones) else None)
             attempt=attempts.get(i,0); attempts[i]=attempt+1
             suffix=f'_attempt_{attempt:02d}' if attempt else ''
             step=output/f'segment_{i:04d}{suffix}'; step.mkdir()
