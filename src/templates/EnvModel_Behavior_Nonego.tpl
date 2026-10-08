@@ -57,14 +57,14 @@ VAR
             INVAR (veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1) <-> (veh___6[i]9___.traversion_from = [sec] & veh___6[i]9___.traversion_to = [sec2]);
             }@.if[@{[sec] != [sec2]}@.eval]
          }@*.for[[sec], 0, @{SECTIONS - 1}@.eval]
-      }@**.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+      }@**.for[[sec2], 0, @{SECTIONS - 1}@.eval].if[@{!ENDPOINT_CONNECTIONS}@.eval]
 
 	}@***.for[[i], 0, @{NONEGOS - 1}@.eval]
 
    
    @{
-      INVAR @{veh___6[i]9___.is_on_sec_[sec]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval, 1, +]
-         @{@{@{+ veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]}@.if[@{[sec] != [sec2]}@.eval]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval]}@**.for[[sec2], 0, @{SECTIONS - 1}@.eval] = 1;
+      @{INVAR @{veh___6[i]9___.is_on_sec_[sec]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval, 1, +]
+         @{@{@{+ veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]}@.if[@{[sec] != [sec2]}@.eval]}@*.for[[sec], 0, @{SECTIONS - 1}@.eval]}@**.for[[sec2], 0, @{SECTIONS - 1}@.eval] = 1;}@.if[@{!ENDPOINT_CONNECTIONS}@.eval]
 
       @{
          TRANS veh___6[i]9___.time_since_last_lc < min_time_between_lcs @{| abs(veh___6[i]9___.v) < @{UCD_MIN_VELOCITY_TO_ALLOW_LC}@.velocityWorldToEnvModelConst }@****.if[@{UCD}@.eval] -> veh___6[i]9___.lane_unchanged;
@@ -520,7 +520,7 @@ ASSIGN
           @{INVAR (veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1) -> (veh___6[i]9___.v <= @{20}@.velocityWorldToEnvModelConst & veh___6[i]9___.lane_single);}@.if[@{[sec] != [sec2]}@.eval]
           @{TRANS next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) = 1 -> veh___6[i]9___.lane_single;}@.if[@{[sec] != [sec2]}@.eval]
        }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
-    }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+    }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval].if[@{!ENDPOINT_CONNECTIONS}@.eval]
 }@****.for[[i], @{STANDINGCARSUPTOID + 1}@.eval, @{NONEGOS - 1}@.eval]
 
 @{

@@ -17,6 +17,17 @@ def movement(geometry, cars):
                   f"DEFINE endpoint_{c['from']}_{c['to']}_to_end := {flag(c['to_end'])};"]
     for car in range(cars):
         v = f"veh___6{car}9___"
+        # Occupancy is an observation of the location tuple, not independent
+        # state. Only real connectors have observations in endpoint models.
+        for s in sections:
+            lines.append(f"DEFINE {v}.is_on_sec_{s['id']} := case {v}.on_straight_section = {s['id']} : 1; TRUE : 0; esac;")
+        for c in connections:
+            lines.append(f"DEFINE {v}.is_traversing_from_sec_{c['from']}_to_sec_{c['to']} := case {v}.traversion_from = {c['from']} & {v}.traversion_to = {c['to']} : 1; TRUE : 0; esac;")
+            lines += [f"INVAR {v}.is_traversing_from_sec_{c['from']}_to_sec_{c['to']} = 1 -> ({v}.v <= 20 & {v}.lane_single);",
+                      f"TRANS next({v}.is_traversing_from_sec_{c['from']}_to_sec_{c['to']}) = 1 -> {v}.lane_single;"]
+        allowed = set(geometry.get('car_sections', [range(len(sections))]*cars)[car])
+        car_roads = [s for s in sections if s['id'] in allowed]
+        car_connectors = [c for c in connections if c['from'] in allowed and c['to'] in allowed]
         speed = f"{v}.endpoint_step_v"
         raw = f"{v}.next_abs_pos"
         lines += [f"DEFINE {speed} := min(max({v}.v + {v}.a, -max_vel), max_vel);"]
@@ -35,11 +46,11 @@ def movement(geometry, cars):
                                  f"next({v}.v) = ({velocity})"]))
 
         valid = []
-        for s in sections:
+        for s in car_roads:
             on = both([at(s["id"]),s.get('active','TRUE')])
             valid.append(f"{on} & {v}.abs_pos >= 0 & {v}.abs_pos <= {s['length']}")
             move(f"{on} & {raw} >= 0 & {raw} <= {s['length']}", at(s["id"], nxt=True), raw, speed)
-        for c in connections:
+        for c in car_connectors:
             a, b, length = c["from"], c["to"], c["length"]
             al, bl = sections[a]["length"], sections[b]["length"]
             active = c.get('active','TRUE')
@@ -82,28 +93,35 @@ approach margins). Swept reservations prevent opposite cars crossing a border
 in a single discrete step. It can reject some otherwise feasible close convoys.
 """
     lines = []
+    possible_resources = []
     for car in range(cars):
         v = f"env.veh___6{car}9___"
+        allowed = set(geometry.get('car_sections', [range(len(geometry['sections']))]*cars)[car])
         resources = []
         for s in geometry["sections"]:
-            resources.append((f"edge_{s['id']}", f"{v}.on_straight_section = {s['id']}"))
+            if s['id'] in allowed:
+                resources.append((f"edge_{s['id']}", f"{v}.on_straight_section = {s['id']}"))
         for n in geometry["nodes"]:
             if n["kind"] != "N":
                 continue
             terms = []
             for s in geometry["sections"]:
-                if n["id"] in s["edge"]:
+                if s['id'] in allowed and n["id"] in s["edge"]:
                     distance = f"{s['length']} - {v}.abs_pos" if s["edge"][1] == n["id"] else f"{v}.abs_pos"
                     terms.append(f"{v}.on_straight_section = {s['id']} & {distance} <= env.veh_length")
             for c in geometry["connections"]:
-                if c["node"] == n["id"]:
+                if c['from'] in allowed and c['to'] in allowed and c["node"] == n["id"]:
                     terms.append(f"{v}.traversion_from = {c['from']} & {v}.traversion_to = {c['to']}")
-            resources.append((f"junction_{n['id']}", either(terms)))
+            if terms:
+                resources.append((f"junction_{n['id']}", either(terms)))
         for name, expr in resources:
             ident = f"occupied_{name}_{car}"
             lines += [f"DEFINE {ident} := {expr};"]
             for other in range(car):
+                if name not in possible_resources[other]:
+                    continue
                 other_id = f"occupied_{name}_{other}"
                 lines += [f"INVAR !({ident} & {other_id});",
                           f"TRANS !(({ident} | next({ident})) & ({other_id} | next({other_id})));"]
+        possible_resources.append({name for name, _ in resources})
     return "\n".join(lines) + "\n"

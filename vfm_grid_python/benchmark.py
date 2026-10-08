@@ -42,6 +42,8 @@ def catalog(path):
                               variant.get("repetitions",1), variant.get("parkings"),
                               parking_span=variant.get('parking_span'))
             config['semantics']=variant.get('semantics',raw.get('semantics','legacy'))
+            from .braking import with_speed
+            config=with_speed(config,variant.get('max_speed',raw.get('max_speed')))
             from .stable import enabled,profile
             if enabled(config): profile(config)
             result.append(dict(id=identifier, family=variant["family"], config=config,

@@ -44,6 +44,7 @@ def run(concrete_run, timeout=3600, template_config=ROOT / "main_template.json",
         from .visualize import concrete_plot
         concrete_plot(geometry,concrete_run,final,True)
     summary=json.loads(result_path.read_text()) if result_path.exists() else {}
+    summary.pop('error',None)  # A successful retry supersedes the prior failure.
     summary.update(status='witness',trace=str(final),states=len(frames),
                    finalization_seconds=time.perf_counter()-started,
                    model_validation=report['full_model'])

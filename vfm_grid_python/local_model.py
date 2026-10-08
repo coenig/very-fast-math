@@ -93,8 +93,44 @@ class GeometryIndex:
             self.connectors[c['from']].append(c)
             self.connectors[c['to']].append(c)
 
-    def select(self, left, right, previous=None):
-        selected = set().union(*(self.incident[n] for n in set(left+right)))
+    def select(self, left, right, previous=None, following=None, incoming=None, continuation=None):
+        # Without a continuation keep the historical neighbourhood selection
+        # for callers relying on it (including the stable contract).
+        if following is None:
+            selected = set().union(*(self.incident[n] for n in set(left+right)))
+        else:
+            selected = set()
+            car_sections = []
+            for car, (u, v, w) in enumerate(zip(left, right, following)):
+                support = set()
+                moves = [(u, v), (v, w)]
+                if incoming is not None:
+                    moves.append((incoming[car], u))
+                if continuation is not None:
+                    moves.append((continuation[0][car], continuation[1][car]))
+                for a, b in moves:
+                    if a != b:
+                        road = self.incident[a] & self.incident[b]
+                        if len(road) != 1:
+                            raise ValueError(f'no unique road for abstract move {a}->{b}')
+                        support.update(road)
+                prefix = f'env.veh___6{car}9___.'
+                for field in ('on_straight_section', 'traversion_from', 'traversion_to'):
+                    value = int((previous or {}).get(prefix+field, -1))
+                    if value >= 0:
+                        support.add(value)
+                if u == v:
+                    # Waiting at an abstract node permits any incident endpoint
+                    # or connector. Picking just one road can force two cars
+                    # onto the same reserved section, removing valid placements.
+                    # Retain these alternatives also after a handoff: the initial
+                    # state stays fixed, but the car may reposition within this
+                    # junction. This adds at most four roads on a grid.
+                    if not self.incident[u]:
+                        raise ValueError(f'car {car} waits at an isolated node')
+                    support.update(self.incident[u])
+                car_sections.append(support)
+                selected.update(support)
         if previous is None:
             # VFM's *initial* auxiliary ego.on_section is hard-coded to 0.
             # Preserve global section 0 rather than changing this initial state
@@ -130,6 +166,8 @@ class GeometryIndex:
                     'nodes':[self.nodes[n] for n in nodes],
                     'centers':{n:transform(self.geometry['centers'][n]) for n in nodes},
                     'sections':sections,'connections':connections}
+        if following is not None:
+            geometry['car_sections'] = [sorted(to_local[s] for s in support) for support in car_sections]
         mapping={'local_to_global':ids,'global_to_local':to_local,
                  'global_origin':origin,'rotation_degrees':angle}
         return geometry,mapping

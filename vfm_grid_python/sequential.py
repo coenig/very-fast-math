@@ -18,20 +18,15 @@ from .local_model import GeometryIndex, OCCUPANCY, flatten, flat_body, global_st
 
 
 def handoff_stop_cars(left, right, following, next_milestone=None):
-    """Stop waits and immediate edge reversals, without stopping onward traffic.
+    """No artificial rest boundaries; parking observation still requires v=0.
 
-    ``following`` skips waits to identify the next different abstract node.
-    A reversal needs a rest boundary: merely reaching an endpoint with outward
-    velocity can leave the next query with no legal successor. Acceleration
-    must also be zero because the concrete update uses its current value.
-    This is a sufficient local handoff policy, not a realizability theorem.
+    Length-dependent limits and the two-goal window constrain continuation.
+    Kept as the policy hook for callers inspecting the handoff requirements.
     """
-    return [c for c, (u, v) in enumerate(zip(left, right))
-            if u == v or following[c] == u
-            or (next_milestone is not None and next_milestone[c] == v)]
+    return []
 
 
-def step_constraints(left, right, geometry,following=None):
+def step_constraints(left, right, geometry,following=None,collisions=True):
     lines=[]
     for car,(u,v) in enumerate(zip(left,right)):
         terms=[location_expression(geometry,car,u),location_expression(geometry,car,v)]
@@ -48,14 +43,18 @@ def step_constraints(left, right, geometry,following=None):
             compatible=either([f'{p}.on_straight_section >= 0',
                                f'{p}.traversion_from = {onward}',f'{p}.traversion_to = {onward}'])
             lines.append(f'INVAR {location_expression(geometry,car,v)} -> {compatible};')
-    lines.append(collision_constraints(geometry,len(left)))
+    if collisions:
+        lines.append(collision_constraints(geometry,len(left)))
     return '\n'.join(lines)+'\n'
 
 
 def write_step(text, variables, geometry, mapping, left, right, previous, directory,
                rejected=(),require_transition=True,following=None,stop_cars=(),
-               scenario_phase=None, initial_scenario_phase=None, contract_graph=None):
+               scenario_phase=None, initial_scenario_phase=None, contract_graph=None,
+               lookahead=None):
     from .stable import observation, support
+    if lookahead is not None and contract_graph:
+        raise ValueError('lookahead is only supported for legacy semantics')
     observe=(lambda g,c,n,stopped=False: observation(g,c,n,contract_graph)) if contract_graph else location_expression
     initial={}
     model=flat_body(text,resumed=previous is not None)
@@ -71,6 +70,17 @@ def write_step(text, variables, geometry, mapping, left, right, previous, direct
         counter=int(previous['env.cnt'])
     if contract_graph:
         model+='\n'.join('INVAR '+support(geometry,c,u,v,contract_graph)+';' for c,(u,v) in enumerate(zip(left,right)))+'\n'
+        model+=collision_constraints(geometry,len(left))
+    elif lookahead is not None:
+        for phase, (source, destination, onward) in enumerate((
+                (left,right,following), (right,lookahead['target'],lookahead['following']))):
+            constraints=step_constraints(source,destination,geometry,onward,collisions=False)
+            guard='lookahead_phase = 0' if phase==0 else 'lookahead_phase >= 1'
+            for line in constraints.splitlines():
+                if line.startswith('INVAR '):
+                    model+=f'INVAR ({guard}) -> ({line[6:-1]});\n'
+                elif line.strip():
+                    raise ValueError('unexpected non-invariant stage support')
         model+=collision_constraints(geometry,len(left))
     else:
         model+=step_constraints(left,right,geometry,following)
@@ -89,6 +99,20 @@ def write_step(text, variables, geometry, mapping, left, right, previous, direct
     # The existing concrete clock enforces a real transition, even for repeats.
     progress=f' & env.cnt > {counter}' if require_transition else ''
     reach=f'INVARSPEC !({target}{progress});\n'
+    if lookahead is not None:
+        final=both([observe(geometry,c,n) for c,n in enumerate(lookahead['target'])]+
+                   [f'env.veh___6{c}9___.v = 0 & env.veh___6{c}9___.a = 0'
+                    for c in lookahead['stop_cars']])
+        if lookahead.get('scenario_phase') is not None:
+            final=both([final,f"scenario_phase = {lookahead['scenario_phase']}"])
+        model+=('VAR lookahead_phase : 0..2;\nASSIGN init(lookahead_phase) := 0;\n'
+                'next(lookahead_phase) := case\n'
+                f'lookahead_phase = 0 & next({target}) : 1;\n'
+                f'lookahead_phase = 1 & next({final}) : 2;\n'
+                'TRUE : lookahead_phase; esac;\n')
+        reach='INVARSPEC lookahead_phase != 2;\n'
+        dump(directory/'lookahead.json',dict(lookahead, handoff_predicate=target,
+                                           final_predicate=final))
     (directory/'segment.smv').write_text(model+reach)
     sanity=directory/'initial_check'
     sanity.mkdir()
@@ -228,7 +252,8 @@ def global_inventory(graph,geometry,config,output,template_config,timeout,model=
     if model is None:
         dump(output/'generation_job.json',{'graph':graph,'geometry':geometry,
              'template_config':str(Path(template_config).resolve()),'vfm':config.get('vfm',{}),
-             'scenario':config if config.get('scenario_stages') else None})
+             'scenario':config if config.get('scenario_stages') else None,
+             'braking_margin':config.get('braking_margin',0)})
         result=execute([sys.executable,'-m','vfm_grid_python.concretize','--worker',str(output)],
                        ROOT,output/'generation.log',timeout)
         dump(output/'generation_result.json',result)
@@ -290,7 +315,8 @@ def replay(full_model,frames,geometry,output,timeout):
 
 def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length=7,
         radius=6,template_config=ROOT/'main_template.json',gif=True,generate_only=False,
-        replay_model=None,validation_model=None,backtracks=0,model_cache=None):
+        replay_model=None,validation_model=None,backtracks=0,model_cache=None,lookahead=True,
+        max_speed=None,braking_margin=0,braking_check_only=False):
     if generate_only: raise ValueError('sequential-local requires checking to determine subsequent initial states')
     if bound<1 or timeout<=0: raise ValueError('bound must be >=1 and timeout >0')
     if backtracks<0: raise ValueError('backtracks must be nonnegative')
@@ -300,6 +326,9 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
     started=time.perf_counter()
     graph=json.loads((abstract_run/'selected_graph.json').read_text())
     config=json.loads((abstract_run/'config.json').read_text())
+    from .braking import with_speed, preflight
+    config=with_speed(config,max_speed)
+    config['braking_margin']=braking_margin
     validate_graph(graph)
     stable=config.get('semantics')=='stable_concurrent'
     if stable:
@@ -321,9 +350,18 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
     dump(output/'selected_graph.json',graph)
     dump(output/'config.json',{**config,'abstract_run':str(abstract_run),'bound':bound,'timeout':timeout,
                              'strategy':'sequential-local','vfm':config.get('vfm',{}),
+                             'lookahead':bool(lookahead and not stable),
                              'backtracks':backtracks,'model_cache':str(model_cache) if model_cache else None})
+    report=preflight(geometry,config,template_config,output,braking_margin)
+    if not report['passed'] or braking_check_only:
+        summary={'status':'braking_checked' if report['passed'] else 'braking_budget_failed',
+                 'braking_check':report,'seconds':time.perf_counter()-started,
+                 'generation_seconds':0.0,'checking_seconds':0.0,'solver_seconds':0.0}
+        dump(output/'result.json',summary)
+        return summary
     index=GeometryIndex(geometry)
     summary={'status':'running','strategy':'sequential-local','segments':[],
+             'lookahead':bool(lookahead and not stable),
              'geometry_seconds':geometry_seconds,
              'generation_seconds':0.0,'flatten_seconds':0.0,'initial_check_seconds':0.0,
              'checking_seconds':0.0,'validation_seconds':0.0,'rendering_seconds':0.0,
@@ -346,16 +384,30 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
             stop_cars=handoff_stop_cars(
                 left,right,following,
                 milestones[i+2] if i+2<len(milestones) else None)
+            preview=None
+            incoming=[next((m[c] for m in reversed(milestones[:i]) if m[c]!=u),u)
+                      for c,u in enumerate(left)]
+            if lookahead and not stable and i+2<len(milestones):
+                future=milestones[i+2]
+                onward=[next((m[c] for m in milestones[i+3:] if m[c]!=v),v)
+                        for c,v in enumerate(future)]
+                preview=dict(target=future,following=onward,
+                    stop_cars=handoff_stop_cars(right,future,onward,
+                        milestones[i+3] if i+3<len(milestones) else None),
+                    scenario_phase=graph['scenario_phases'][i+2] if config.get('scenario_stages') else None)
             attempt=attempts.get(i,0); attempts[i]=attempt+1
             suffix=f'_attempt_{attempt:02d}' if attempt else ''
             step=output/f'segment_{i:04d}{suffix}'; step.mkdir()
             record={'index':i,'attempt':attempt,'directory':str(step),'status':'running'}
             summary['segments'].append(record)
             dump(output/'result.json',summary)
-            local,mapping=index.select(left,right,previous)
+            local,mapping=index.select(left,right,previous,following=None if stable else following,
+                                       incoming=incoming if lookahead and not stable else None,
+                                       continuation=(preview['target'],preview['following']) if preview else None)
             dump(step/'geometry.json',local); dump(step/'mapping.json',mapping)
             record.update(sections=len(local['sections']),connectors=len(local['connections']))
-            cache_description=dict(geometry=local,contract='stable-concurrent.v1') if stable else local
+            cache_description=dict(geometry=local,contract='local-speed.v1',braking_margin=braking_margin,
+                                   semantics='stable-concurrent.v1' if stable else 'legacy')
             key=hashlib.sha256(json.dumps(cache_description,sort_keys=True).encode()).hexdigest()
             if key not in cache:
                 reused=cached_baseline(model_cache,key,local,len(left),config,template_config)
@@ -366,7 +418,7 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
                 generation=output/'models'/key[:16]; generation.mkdir(parents=True)
                 dump(generation/'generation_job.json',{'graph':{'milestones':[left]},'geometry':local,
                      'template_config':str(Path(template_config).resolve()),'vfm':config.get('vfm',{}),'baseline_only':True,
-                     'semantics':config.get('semantics','legacy')})
+                     'semantics':config.get('semantics','legacy'),'braking_margin':braking_margin})
                 print(f"Step {i+1}/{len(pairs)}: generating {len(local['sections'])} sections",flush=True)
                 result=execute([sys.executable,'-m','vfm_grid_python.concretize','--worker',str(generation)],
                                ROOT,generation/'generation.log',timeout)
@@ -395,7 +447,7 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
                                                if config.get('scenario_stages') else None),
                                initial_scenario_phase=(graph['scenario_phases'][0]
                                                        if config.get('scenario_stages') else None),
-                               contract_graph=graph if stable else None)
+                               contract_graph=graph if stable else None,lookahead=preview)
             initial_result=check(step/'initial_check/initial.smv',0,timeout)
             summary['initial_check_seconds']+=initial_result['seconds']
             record['initial_check']=initial_result
@@ -429,6 +481,16 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
                     continue
                 summary['status']=result['status']; break
             local_frames=states(step/'trace.xml')
+            if preview is not None:
+                if local_frames[-1].get('lookahead_phase')!='2':
+                    raise ValueError('lookahead witness did not reach its second goal')
+                cut=next(j for j,s in enumerate(local_frames) if s.get('lookahead_phase')=='1')
+                record.update(lookahead_states=len(local_frames),handoff_index=cut)
+                # Keep the exact witnessed boundary; the proven continuation is
+                # retained in segment/trace.xml but is not committed twice.
+                local_frames=local_frames[:cut+1]
+                for state in local_frames:
+                    state.pop('lookahead_phase',None)
             if len(local_frames)<(1 if initial_only else 2):
                 raise ValueError('segment did not perform a concrete transition')
             for name,value in initial.items():
@@ -519,12 +581,15 @@ def main():
                    help='maximum retries of a preceding segment after a failed continuation (default: 0)')
     p.add_argument('--model-cache',type=Path,
                    help='reuse completed local models from a previous run/models directory using the same VFM build/templates')
+    p.add_argument('--no-lookahead',action='store_true',help='disable the default two-goal window for legacy refinement')
     arguments(p)
     a=p.parse_args()
     result=run(a.abstract_run,a.output_dir,a.concrete_bound,a.timeout,a.road_length,a.parking_length,
                a.junction_radius,a.template_config,not a.no_gif,replay_model=a.replay_model,
-               validation_model=a.validation_model,backtracks=a.backtracks,model_cache=a.model_cache)
-    return 0 if result['status']=='witness' else 2
+               validation_model=a.validation_model,backtracks=a.backtracks,model_cache=a.model_cache,
+               lookahead=not a.no_lookahead,max_speed=a.max_speed,
+               braking_margin=a.braking_margin,braking_check_only=a.braking_check_only)
+    return 0 if result['status'] in ('witness','braking_checked') else 2
 
 
 if __name__=='__main__': raise SystemExit(main())

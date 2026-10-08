@@ -97,6 +97,13 @@ def _worker(output):
     if protected.intersection(overrides):
         raise ValueError(f"structural VFM parameters cannot be overridden: {sorted(protected.intersection(overrides))}")
     config.update(overrides)
+    from .braking import effective_parameters, speed_constraints
+    parameters = effective_parameters(job['template_config'], overrides,
+        job.get('semantics') == 'stable_concurrent' or graph.get('semantics') == 'stable_concurrent')
+    limits, braking_report = speed_constraints(geometry, cars, parameters,
+        job.get('braking_margin', 0), symbolic=job.get('symbolic_endpoint', False))
+    config['ENDPOINT_TRANSITIONS'] += '\n' + limits
+    dump(output / 'braking_check.json', braking_report)
     dump(output / "vfm_parameters.json", config)
     morty = generate_scenario(config, input_config=job["template_config"],
                              experiments_dir=output / "vfm", scenario_suffix="endpoint_grid")
@@ -152,17 +159,27 @@ def _worker(output):
 
 
 def run(abstract_run, output, bound=200, timeout=1800, road_length=20, parking_length=7,
-        radius=6, template_config=ROOT / "main_template.json", gif=True, generate_only=False):
+        radius=6, template_config=ROOT / "main_template.json", gif=True, generate_only=False,
+        max_speed=None, braking_margin=0, braking_check_only=False):
     abstract_run, output = Path(abstract_run).resolve(), Path(output).resolve()
     graph = json.loads((abstract_run / "selected_graph.json").read_text())
     abstract_config = json.loads((abstract_run / "config.json").read_text())
+    from .braking import with_speed, preflight
+    abstract_config = with_speed(abstract_config, max_speed)
     geometry = build(graph,road_length,parking_length,radius)
     output.mkdir(parents=True,exist_ok=True)
     if (output / "generation_job.json").exists():
         raise FileExistsError(f"use a new output directory: {output}")
     dump(output / "geometry.json", geometry)
+    report = preflight(geometry, abstract_config, template_config, output, braking_margin)
+    if not report['passed'] or braking_check_only:
+        result = dict(status='braking_checked' if report['passed'] else 'braking_budget_failed',
+                      braking_check=report)
+        dump(output / 'result.json', result)
+        return result
     dump(output / "generation_job.json", {"graph":graph,"geometry":geometry,
-         "template_config":str(Path(template_config).resolve()), "vfm":abstract_config.get("vfm",{})})
+         "template_config":str(Path(template_config).resolve()), "vfm":abstract_config.get("vfm",{}),
+         "braking_margin":braking_margin})
     print(f"Generating VFM ({len(geometry['sections'])} sections, {len(geometry['connections'])} connectors); log: {output / 'generation.log'}",flush=True)
     result = execute([sys.executable,"-m","vfm_grid_python.concretize","--worker",str(output)],
                      ROOT,output / "generation.log",timeout)
@@ -191,6 +208,11 @@ def arguments(parser):
     parser.add_argument("--parking-length",type=int,default=7)
     parser.add_argument("--junction-radius",type=int,default=6)
     parser.add_argument("--template-config",type=Path,default=ROOT / "main_template.json")
+    parser.add_argument('--max-speed',type=int,help='explicit symmetric speed cap (also sets lane limits)')
+    parser.add_argument('--braking-margin',type=float,default=0,
+                        help='extra clearance in metres, in addition to one vehicle length')
+    parser.add_argument('--braking-check-only',action='store_true',
+                        help='write geometry and braking report without generating/checking VFM')
 
 
 def main():
@@ -207,8 +229,9 @@ def main():
     args=parser.parse_args()
     result=run(args.abstract_run,args.output_dir,args.concrete_bound,args.timeout,
                args.road_length,args.parking_length,args.junction_radius,args.template_config,
-               not args.no_gif,args.generate_only)
-    return 0 if result["status"] in ("witness","generated") else 2
+               not args.no_gif,args.generate_only,max_speed=args.max_speed,
+               braking_margin=args.braking_margin,braking_check_only=args.braking_check_only)
+    return 0 if result["status"] in ("witness","generated","braking_checked") else 2
 
 
 if __name__ == "__main__":

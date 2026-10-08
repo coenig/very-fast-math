@@ -17,9 +17,10 @@ def main():
         refine=sequential.run if args.refinement=='sequential-local' else concretize.run
         result=refine(output / "abstract",output / "concrete",args.concrete_bound,
                              args.timeout,args.road_length,args.parking_length,args.junction_radius,
-                             args.template_config,not args.no_gif)
+                             args.template_config,not args.no_gif,max_speed=args.max_speed,
+                             braking_margin=args.braking_margin,braking_check_only=args.braking_check_only)
     dump(output / "result.json",result)
-    return 0 if result["status"] == "witness" else 2
+    return 0 if result["status"] in ("witness", "braking_checked") else 2
 
 
 if __name__ == "__main__":

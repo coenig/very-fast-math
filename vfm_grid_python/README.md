@@ -73,9 +73,39 @@ python -m vfm_grid_python.sequential /path/to/abstract \
   --concrete-bound 500 --timeout 3600
 ```
 
-The input directory needs `selected_graph.json` and `config.json`. Each local
-model retains the incident sections of the current and next abstract positions,
-including stationary vehicles. All persistent state is transferred to the next
+The input directory needs `selected_graph.json` and `config.json`. For legacy
+semantics, refinement uses a two-goal window by default: reach B and then C.
+Only the prefix ending at B is committed. Its exact full concrete state is
+passed into the next window; the successful suffix remains in the segment's
+`trace.xml` as evidence that C is reachable. `lookahead.json` records the goals,
+and `result.json` records the handoff index. The temporary `lookahead_phase`
+variable is not included in the concatenated full-model trace.
+
+Legacy refinement no longer forces `v=0, a=0` at intermediate waiting or
+reversal milestones. Parking observations still require `v=0`, and cars still
+start at rest. Length-dependent speed limits apply on every physical element;
+the solver chooses acceleration and braking to reach the next milestone and
+its lookahead continuation. Stable-concurrent retains its separate rest contract.
+
+This rules out handoffs with no continuation to the next goal, including
+wrong acceleration at an otherwise correct endpoint. It does not guarantee
+extension beyond that next goal; the existing `--backtracks` option can revisit
+earlier choices. `--concrete-bound` covers both goals in each window.
+`--no-lookahead` reproduces the former single-goal queries. Stable semantics
+continues to use its existing boundary contract.
+
+Each local model retains the traversed roads, the onward roads needed
+for compatible handoffs, and sections occupied by physical or auxiliary state.
+Two-goal windows also retain the next move's roads and the incoming road at
+the current junction, so continuation is possible after moving the window.
+For a waiting car, all sections incident to its node and their actual connectors
+remain available (at most four incident sections on a grid). This applies both
+initially and after a handoff: an arbitrary single-section choice could force a
+waiting car onto another car's reserved section. The transferred initial state
+is still fixed; additional placements are choices for synthesis, not state resets.
+Each car's movement relation uses only its own retained
+roads and their actual connectors. The stable contract retains its historical
+neighbourhood selection. All persistent state is transferred to the next
 check, with local section numbers mapped to global numbers. At a destination
 junction, an arriving connector must touch the road needed by the next move
 (looking beyond repeated waits). This prevents a valid abstract node arrival
@@ -83,8 +113,14 @@ from stranding the next query on an unrelated concrete connector. Each invocatio
 model generation, flattening or checking has the specified timeout; it is not
 a total time limit for the entire pipeline.
 
-Cars that wait during the current abstract move, or must wait during the next
-one, finish the local query with zero speed and zero acceleration. This avoids
+Endpoint models compute occupancy flags as DEFINE observations of the vehicle
+location tuple, and generate connector flags only for actual connectors. They
+do not introduce independent occupancy state for every pair of sections.
+Old model caches are separated by the sparse encoding version.
+
+Cars that wait during the current abstract move, must wait during the next
+one, or reverse along the same edge on their next move, finish the local query
+with zero speed and zero acceleration. This avoids
 handing a waiting car to the next query too close to a connector end to brake.
 The exported monitor phase is recomputed from the first physical observation of
 each milestone; braking may finish after that observation. The full concrete
@@ -338,3 +374,65 @@ python -m unittest discover -s tests -p test_vfm_grid_python.py
 
 These include nuXmv checks of all 16 endpoint entry/exit combinations, symbolic
 parking selection, forbidden adjacent swaps, and geometry validation.
+## Braking-budget preflight
+
+Monitor and sequential concretization now check a conservative longitudinal
+budget **before native model generation**, including benchmark calls to these
+entrypoints. They write `braking_check.json`; an incompatible configuration returns
+`braking_budget_failed` without invoking the solver. Existing runs are unchanged.
+The worker inserts local speed constraints into monitor, sequential, direct
+symbolic and enumerated models. Symbolic sections use the parking limit when
+their selected label makes them parking sections, and the road limit otherwise.
+
+With the endpoint model's one-second tick, let
+`b = min(-MINACCELNONEGO, MAXACCELNONEGO)` and candidate speed `V`.
+Braking selected now cannot change the already committed next displacement.
+Therefore the bound is
+
+```
+n = ceil(V / b)
+D_stop = n*V - b*n*(n-1)/2
+D_stop <= element_length - VEHICLE_LENGTH - braking_margin
+```
+
+We conservatively reserve a full vehicle length in each section and connector.
+For curved connectors the check uses the smaller of the encoded length and the
+sampled chord-sum arc length (a lower bound), not the rounded-up encoded length
+alone. Each element receives the largest integer speed satisfying this formula,
+capped by `MAXSPEEDNONEGO`. This limit is enforced throughout that element in
+both directions, including its entry state, so the solver must slow down before
+entering a shorter/slower element. It is not a distance-to-end formula forcing
+zero speed at every junction. Straight-lane limits can further restrict speeds.
+Defaults are read from the VFM parameter template, then the selected configuration
+and concrete overrides are applied; unresolved numeric expressions are rejected.
+The endpoint compiler fixes time/distance scaling to 1000/1000.
+
+The report records each element's `speed_limit_mps` and its stopping distance.
+Failure now means an element has no positive integer speed under this budget;
+a short parking section no longer reduces the speed on every road. The report
+also retains the comparison with a uniform global cap. `--max-speed N` changes
+the global ceiling and lane limits to `[-N,N]`; `--braking-margin M` adds extra
+clearance in metres. Acceleration bounds are not changed.
+
+For example, check an existing witness without generating a concrete model:
+
+```bash
+python -m vfm_grid_python.sequential \
+  vfm-with-parking/bottleneck-interactions/campaign_legacy_reversal_3600/opposing_exchange__fleet8/abstract_sequential/abstract \
+  --output-dir /tmp/opposing-exchange-braking-check \
+  --max-speed 5 --braking-check-only
+```
+
+Remove `--braking-check-only`, use a new output directory, and add
+`--concrete-bound 300 --timeout 3600` to run refinement with these bounds.
+Reducing the speed can require a larger concrete bound.
+
+**Scope:** passing is an element-entry braking-budget check, not a proof that
+every handoff or fleet scenario is realizable. A handoff can have less remaining
+clearance than an entire element; its committed direction, other vehicles,
+turning footprints and auxiliary state still matter. The compatibility filter
+and lookahead remain enabled. Failure means this conservative policy cannot
+certify the bounds, not that there are no slower valid trajectories. In
+particular, with a 5 m/s global ceiling, 5 m vehicle, acceleration [-8,3] and no
+extra margin, 20 m roads allow 5 m/s and 7 m parking sections allow 2 m/s.
+This does not optimize travel time; a witness may still choose slower movements.
