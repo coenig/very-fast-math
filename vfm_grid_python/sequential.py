@@ -14,7 +14,8 @@ from .common import ROOT, both, either, dump, execute, check, states
 from .concretize import arguments
 from .endpoint import collision_constraints
 from .geometry import build, location_expression
-from .local_model import GeometryIndex, OCCUPANCY, flatten, flat_body, global_state, handoff, schema
+from .local_model import (GeometryIndex, OCCUPANCY, flatten, flat_body, global_state,
+                          handoff, schema, continuation_sections)
 
 
 def handoff_stop_cars(left, right, following, next_milestone=None):
@@ -121,10 +122,11 @@ def write_step(text, variables, geometry, mapping, left, right, previous, direct
 
 
 def annotate_monitor(frames,graph,geometry):
-    """Recompute the deterministic global monitor from physical observations.
+    """Recompute the global monitor from positions AND scenario-stage observations.
 
 Braking can keep a local query running after its positions were first reached.
-The monitor advances on that first observation, not on the query boundary.
+The monitor advances on the first complete observation, not on positions alone
+or on the query boundary. This matches the segment and global model guards.
 """
     milestones=graph['milestones']; kinds={n['id']:n['kind'] for n in geometry['nodes']}
     connectors={(c['from'],c['to']):c['node'] for c in geometry['connections']}
@@ -143,7 +145,10 @@ The monitor advances on that first observation, not on the query boundary.
         return at and (kinds[node]!='P' or int(frame[p+'v'])==0)
     phase=0
     for tick,frame in enumerate(frames):
-        if tick and phase+1<len(milestones) and all(observed(frame,c,n) for c,n in enumerate(milestones[phase+1])):
+        stage_matches = (graph.get('scenario_phases') is None or
+                         (phase+1<len(milestones) and
+                          int(frame['scenario_phase']) == graph['scenario_phases'][phase+1]))
+        if tick and phase+1<len(milestones) and stage_matches and all(observed(frame,c,n) for c,n in enumerate(milestones[phase+1])):
             phase+=1
         frame['refinement_phase']=str(phase)
 
@@ -374,6 +379,9 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
     initial_only=not pairs
     if not pairs: pairs=[(milestones[0],milestones[0])]
     attempts={}; rejected={}; checkpoints=[]; i=0
+    # Keyed by the receiving step so retries restore the corresponding support.
+    # Only the witnessed preview is retained, not all previous local geometry.
+    retained_support={}
     try:
         while i<len(pairs):
             left,right=pairs[i]
@@ -403,7 +411,9 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
             dump(output/'result.json',summary)
             local,mapping=index.select(left,right,previous,following=None if stable else following,
                                        incoming=incoming if lookahead and not stable else None,
-                                       continuation=(preview['target'],preview['following']) if preview else None)
+                                       continuation=(preview['target'],preview['following']) if preview else None,
+                                       retained_sections=retained_support.get(i))
+            dump(step/'retained_sections.json',retained_support.get(i,[]))
             dump(step/'geometry.json',local); dump(step/'mapping.json',mapping)
             record.update(sections=len(local['sections']),connectors=len(local['connections']))
             cache_description=dict(geometry=local,contract='local-speed.v1',braking_margin=braking_margin,
@@ -466,6 +476,8 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
                     rejected.setdefault(i-1,[]).append(previous)
                     for later in list(rejected):
                         if later>=i: del rejected[later]
+                    for later in list(retained_support):
+                        if later>=i: del retained_support[later]
                     frames=frames[:checkpoints.pop()]
                     previous=frames[-1] if frames else None
                     summary['accepted_segments'].pop()
@@ -486,6 +498,8 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
                     raise ValueError('lookahead witness did not reach its second goal')
                 cut=next(j for j,s in enumerate(local_frames) if s.get('lookahead_phase')=='1')
                 record.update(lookahead_states=len(local_frames),handoff_index=cut)
+                retained_support[i+1]=continuation_sections(local_frames[cut:],mapping,len(left))
+                dump(step/'continuation_sections.json',retained_support[i+1])
                 # Keep the exact witnessed boundary; the proven continuation is
                 # retained in segment/trace.xml but is not committed twice.
                 local_frames=local_frames[:cut+1]

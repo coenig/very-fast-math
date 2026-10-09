@@ -18,7 +18,7 @@ from .benchmark_scenarios import scenario
 from .benchmark_timing import DEADLINE, JOURNAL, PHASE, totals
 from .common import ROOT, dump
 
-METHODS = ("enumerated_concrete", "direct_symbolic", "abstract_sequential")
+METHODS = ("enumerated_concrete", "direct_symbolic", "abstract_sequential", "abstract_monitor")
 AVAILABLE = METHODS
 SCHEMA = "endpoint-benchmark.v1"
 
@@ -59,8 +59,8 @@ def worker(job):
     output = Path(job["directory"])
     config = job["case"]["config"]
     timeout = job["timeout"]
-    if job["method"] == "abstract_sequential":
-        from . import abstract, sequential
+    if job["method"] in ("abstract_sequential", "abstract_monitor"):
+        from . import abstract, sequential, concretize
         start = time.monotonic()
         os.environ[PHASE]='abstract'
         result = abstract.run(config, output/"abstract", job["case"]["abstract_bound"],
@@ -71,6 +71,13 @@ def worker(job):
         if result["status"] != "witness":
             return dict(status="abstract_"+result["status"])
         os.environ[PHASE]='concrete'
+        if job['method'] == 'abstract_monitor':
+            result = concretize.run(output/'abstract', output/'concrete',
+                                    bound=job['case']['concrete_bound'], timeout=timeout,
+                                    gif=False)
+            if result['status'] != 'witness':
+                result = dict(result, status='refinement_'+result['status'])
+            return dict(result, abstract_witness_seconds=abstract_seconds)
         concrete_started=time.monotonic()
         result = sequential.run(output/"abstract", output/"concrete",
                                 bound=job["case"]["concrete_bound"], timeout=timeout,

@@ -81,6 +81,26 @@ def flatten(model, output, timeout):
     return text, variables, result
 
 
+def continuation_sections(frames, mapping, cars):
+    """Per-car global road IDs used by an already witnessed continuation.
+
+    Include both arms of occupied connectors, not just straight sections.
+    This is geometry support only: no vehicle state is modified or prescribed.
+    """
+    support = [set() for _ in range(cars)]
+    ids = mapping['local_to_global']
+    for frame in frames:
+        for car in range(cars):
+            prefix = f'env.veh___6{car}9___.'
+            section = int(frame[prefix+'on_straight_section'])
+            occupied = [section] if section >= 0 else [
+                int(frame[prefix+field]) for field in ('traversion_from', 'traversion_to')]
+            for section in occupied:
+                if section >= 0:
+                    support[car].add(ids[section])
+    return [sorted(sections) for sections in support]
+
+
 class GeometryIndex:
     def __init__(self, geometry):
         self.geometry = geometry
@@ -93,7 +113,8 @@ class GeometryIndex:
             self.connectors[c['from']].append(c)
             self.connectors[c['to']].append(c)
 
-    def select(self, left, right, previous=None, following=None, incoming=None, continuation=None):
+    def select(self, left, right, previous=None, following=None, incoming=None, continuation=None,
+               retained_sections=None):
         # Without a continuation keep the historical neighbourhood selection
         # for callers relying on it (including the stable contract).
         if following is None:
@@ -102,7 +123,7 @@ class GeometryIndex:
             selected = set()
             car_sections = []
             for car, (u, v, w) in enumerate(zip(left, right, following)):
-                support = set()
+                support = set(retained_sections[car]) if retained_sections is not None else set()
                 moves = [(u, v), (v, w)]
                 if incoming is not None:
                     moves.append((incoming[car], u))

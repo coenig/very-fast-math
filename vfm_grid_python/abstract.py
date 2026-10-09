@@ -12,15 +12,17 @@ def validate(config):
         if type(config[key]) is not int or config[key] < 1:
             raise ValueError(f"{key} must be a positive integer")
     count = config["rows"] * config["columns"]
+    if type(config.get("distinct_goals", True)) is not bool:
+        raise ValueError("distinct_goals must be boolean")
     if config["cars"] >= count:
         raise ValueError("at least one empty node is required")
     if "parkings" in config and (type(config["parkings"]) is not int or
-            not config["cars"] <= config["parkings"] < count):
-        raise ValueError("parkings must be at least cars (distinct goals) and less than the node count")
+            not (config["cars"] if config.get("distinct_goals", True) else 1) <= config["parkings"] < count):
+        raise ValueError("parkings must be positive and less than the node count; distinct goals require at least cars")
     for key in ("starts", "goals"):
         values = config.get(key)
         if values is not None and (len(values) != config["cars"] or
-                len(set(values)) != len(values) or
+                ((key == "starts" or config.get("distinct_goals", True)) and len(set(values)) != len(values)) or
                 any(type(v) is not int or not 0 <= v < count for v in values)):
             raise ValueError(f"{key} must give distinct valid node IDs, one per car")
     for node, kind in config.get("labels", {}).items():
@@ -103,8 +105,10 @@ def render(config):
             moves += [f"edge_{u}_{v} & loc_{i} = {a} & next(loc_{i}) = {b}" for a, b in ((u,v),(v,u))]
         lines += ["TRANS " + either(moves) + ";"]
         for j in range(i):
-            lines += [f"INVAR loc_{i} != loc_{j};", f"INIT goal_{i} != goal_{j};",
+            lines += [f"INVAR loc_{i} != loc_{j};",
                       f"TRANS !(next(loc_{i}) = loc_{j} & next(loc_{j}) = loc_{i});"]
+            if config.get("distinct_goals", True):
+                lines += [f"INIT goal_{i} != goal_{j};"]
     lines += ["INIT " + expr + ";" for expr in config.get("initial_constraints", [])]
     lines += ["INVAR " + expr + ";" for expr in config.get("constraints", [])]
     if enabled(config): lines += [abstract_guards(config)]

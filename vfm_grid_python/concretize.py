@@ -6,8 +6,9 @@ import json
 from pathlib import Path
 import re
 import sys
+import time
 
-from .common import ROOT, both, either, dump, execute, check
+from .common import ROOT, both, either, dump, execute, check, states
 from .geometry import build, location_expression
 from .endpoint import movement, collision_constraints
 
@@ -30,8 +31,12 @@ def monitor(graph, geometry):
              "next(refinement_phase) := case"]
     for index, milestone in enumerate(milestones[1:]):
         obs = both([observe(geometry, car, node) for car,node in enumerate(milestone)])
+        if graph.get('scenario_phases') is not None:
+            obs = both([obs, f"scenario_phase = {graph['scenario_phases'][index+1]}"])
         lines += [f"  refinement_phase = {index} & next({obs}) : {index+1};"]
     lines += ["  TRUE : refinement_phase; esac;", f"INVARSPEC refinement_phase != {len(milestones)-1};"]
+    if graph.get('scenario_phases') is not None:
+        lines += [f"INIT scenario_phase = {graph['scenario_phases'][0]};"]
     for car, node in enumerate(milestones[0]):
         lines += [f"INIT {observe(geometry, car, node, stopped=True)};"]
     for index, milestone in enumerate(milestones):
@@ -166,11 +171,15 @@ def run(abstract_run, output, bound=200, timeout=1800, road_length=20, parking_l
     abstract_config = json.loads((abstract_run / "config.json").read_text())
     from .braking import with_speed, preflight
     abstract_config = with_speed(abstract_config, max_speed)
-    geometry = build(graph,road_length,parking_length,radius)
+    from .benchmark_timing import interval
+    with interval('generation'):
+        geometry = build(graph,road_length,parking_length,radius)
     output.mkdir(parents=True,exist_ok=True)
     if (output / "generation_job.json").exists():
         raise FileExistsError(f"use a new output directory: {output}")
     dump(output / "geometry.json", geometry)
+    dump(output / "selected_graph.json", graph)
+    dump(output / "config.json", abstract_config)
     report = preflight(geometry, abstract_config, template_config, output, braking_margin)
     if not report['passed'] or braking_check_only:
         result = dict(status='braking_checked' if report['passed'] else 'braking_budget_failed',
@@ -179,26 +188,43 @@ def run(abstract_run, output, bound=200, timeout=1800, road_length=20, parking_l
         return result
     dump(output / "generation_job.json", {"graph":graph,"geometry":geometry,
          "template_config":str(Path(template_config).resolve()), "vfm":abstract_config.get("vfm",{}),
-         "braking_margin":braking_margin})
+         "braking_margin":braking_margin,
+         "scenario":abstract_config if abstract_config.get('scenario_stages') else None})
     print(f"Generating VFM ({len(geometry['sections'])} sections, {len(geometry['connections'])} connectors); log: {output / 'generation.log'}",flush=True)
     result = execute([sys.executable,"-m","vfm_grid_python.concretize","--worker",str(output)],
                      ROOT,output / "generation.log",timeout)
     dump(output / "generation_result.json",result)
     if result["status"] != "finished":
-        raise RuntimeError(f"VFM generation {result['status']}; inspect {output / 'generation.log'}")
+        result = dict(result, status='generation_'+result['status'])
+        dump(output/'result.json',result)
+        return result
     model = Path(json.loads((output / "model.json").read_text())["model"])
     from .visualize import concrete_plot
-    concrete_plot(geometry,output,None,False)
+    if gif:
+        concrete_plot(geometry,output,None,False)
     if generate_only:
         print(f"Model: {model}")
         return {"status":"generated"}
     result = check(model,bound,timeout)
     if result["status"] == "witness":
         from .validate import validate_trace
-        report = validate_trace(graph,geometry,model.parent / "trace.xml")
+        from .sequential import global_inventory, export_trace
+        trace = states(model.parent/'trace.xml')
+        inventory = global_inventory(graph,geometry,abstract_config,output/'inventory',
+                                     template_config,timeout,model=model)
+        xml = export_trace(trace,geometry,output,True,inventory)
+        with interval('validation'):
+            report = validate_trace(graph,geometry,xml)
+            if abstract_config.get('scenario_stages') and int(trace[-1]['scenario_phase']) != len(abstract_config['scenario_stages']):
+                raise ValueError('scenario observer did not accept')
+        report.update(complete=True,full_model=json.loads((output/'model_validation.json').read_text()))
         dump(output / "validation.json",report)
-        concrete_plot(geometry,output,model.parent / "trace.xml",gif)
-        print(f"Concrete XML: {model.parent / 'trace.xml'}\nConcrete text: {model.parent / 'debug_trace_array.txt'}")
+        result.update(trace=str(xml),validated=True,states=len(trace),validated_at_monotonic=time.monotonic())
+        if gif:
+            with interval('rendering'):
+                concrete_plot(geometry,output,xml,True)
+        print(f"Concrete XML: {xml}\nConcrete text: {output / 'debug_trace_array.txt'}")
+    dump(output/'result.json',result)
     return result
 
 

@@ -106,7 +106,7 @@ Parallel jobs compete for resources; consult runs.csv before comparing experimen
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
         fig,ax=plt.subplots(figsize=(max(8,len(data)*.2),5))
-        colors=dict(zip(METHODS,("#276fbf","#e08e00","#268545")))
+        colors=dict(zip(METHODS,("#276fbf","#e08e00","#268545","#9b51b6")))
         for method in METHODS:
             points=[(index,row) for index,row in enumerate(data) if row["method"]==method]
             successes=[(index,row) for index,row in points if row.get("validated") and row["status"]=="witness"]
