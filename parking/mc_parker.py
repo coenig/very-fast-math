@@ -13,9 +13,10 @@ from bisect import bisect_right
 from collections import deque
 from contextlib import contextmanager
 from ctypes import create_string_buffer, sizeof
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QGraphicsView, QGraphicsScene, QGraphicsRectItem,
-                             QGraphicsEllipseItem, QGraphicsSimpleTextItem, QMessageBox, QProgressBar)
+                             QGraphicsEllipseItem, QGraphicsSimpleTextItem, QMessageBox, QProgressBar,
+                             QGroupBox, QLabel, QSpinBox, QToolButton)
 from PyQt6.QtCore import Qt, QRectF, QTimer, QPointF, QObject, QThread, QUrl, pyqtSignal
 from PyQt6.QtGui import (QPixmap, QImage, QBrush, QPen, QColor, QPainterPath, QPolygonF, QFont,
                          QDesktopServices)
@@ -751,6 +752,66 @@ def parse_angle_granularity(tpl_path):
     return 15
 
 
+# The #TEMPLATE entry defining the '@anglegran' variants, e.g. "#012": "@anglegran = array(3); ...".
+_ANGLEGRAN_ENTRY = re.compile(r'("#\d+"\s*:\s*")([^"]*@anglegran\b[^"]*)(")')
+
+
+def parse_angle_granularity_variants(tpl_path):
+    """Values of the '@anglegran' variable (one EnvModel package each), or None if absent."""
+    try:
+        with open(tpl_path) as f:
+            content = f.read()
+    except OSError:
+        return None
+    m = _ANGLEGRAN_ENTRY.search(content)
+    if not m:
+        return None
+    body = m.group(2)
+    r = re.search(r"range\(\s*@anglegran\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\)", body)
+    if r:
+        values = list(range(int(r.group(1)), int(r.group(2)) + 1))
+    else:
+        values = [int(v) for v in re.findall(r"@anglegran\[\d+\]\s*=\s*(-?\d+)\s*;", body)]
+    return values or None
+
+
+def patch_tpl_angle_granularities(tpl_path, values):
+    """Rewrite the '@anglegran' definition as an explicit nan-terminated array of 'values'."""
+    with open(tpl_path) as f:
+        content = f.read()
+    n = len(values)
+    body = (f"@anglegran = array({n + 1}); "
+            + "".join(f"@anglegran[{i}] = {v}; " for i, v in enumerate(values))
+            + f"@anglegran[{n}] = nan();")
+    content, count = _ANGLEGRAN_ENTRY.subn(lambda m: m.group(1) + body + m.group(3), content, count=1)
+    if count == 0:
+        raise RuntimeError(f"Could not find the '@anglegran' definition in {tpl_path}.")
+    with open(tpl_path, "w") as f:
+        f.write(content)
+
+
+def parse_fixed_section_angles(tpl_path):
+    """FIXED_SECTION_ANGLEs (deg) from the tpl.json; non-numeric entries are skipped."""
+    try:
+        with open(tpl_path) as f:
+            content = f.read()
+    except OSError:
+        return []
+    m = re.search(r'"FIXED_SECTION_ANGLEs"\s*:\s*"([^"]*)"', content)
+    angles = []
+    for v in _parse_paren_list(m.group(1)) if m else []:
+        try:
+            angles.append(int(round(float(v))) % 360)
+        except ValueError:
+            pass
+    return angles
+
+
+def modelled_fixed_angle(angle, gran):
+    """Heading an EnvModel gives a fixed section: angle_raw = round(angle / gran), C++ std::round."""
+    return (math.floor(angle / gran + 0.5) * gran) % 360
+
+
 def patch_tpl_config(tpl_path, target_slot, section_x, section_y, section_angle, obstacles):
     """Write the target section's pose and the obstacle rectangles into the tpl.json in place.
 
@@ -1116,8 +1177,12 @@ class MainWindow(QMainWindow):
         self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.view.setRenderHint(self.view.renderHints().SmoothPixmapTransform)
-        
-        layout.addWidget(self.view)
+
+        self.gran_panel = self._build_gran_panel()
+        top = QHBoxLayout()
+        top.addWidget(self.gran_panel, 0, Qt.AlignmentFlag.AlignTop)
+        top.addWidget(self.view, 1)
+        layout.addLayout(top)
 
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setRange(0, 100)
@@ -1202,7 +1267,15 @@ class MainWindow(QMainWindow):
         self._target_slot = None
         self._target_section = None
         self._ppm = None
-        self.angle_granularity = parse_angle_granularity(TPL_PATH)
+        # '@anglegran' variants: edited in the left panel, written to the tpl.json on regeneration.
+        self._gran_values = parse_angle_granularity_variants(TPL_PATH)
+        self._gran_baseline = list(self._gran_values) if self._gran_values else None
+        self._gran_dirty = False
+        self._tpl_fixed_angles = parse_fixed_section_angles(TPL_PATH)
+        # Rotation snap = gcd of all variants, so every variant's grid is reachable.
+        self.angle_granularity = (math.gcd(*self._gran_values) if self._gran_values
+                                  else parse_angle_granularity(TPL_PATH))
+        self._rebuild_gran_rows()
         # Scene items re-baselined/removed once a moved layout is committed by regeneration.
         self._trajectory_items = []
         self._obstacle_ghost_items = []
@@ -1541,6 +1614,111 @@ class MainWindow(QMainWindow):
             self._section_dirty = True
             self._block_mc_until_regen(
                 "Target section moved - regenerate the EnvModels before re-running the MC.")
+        self._refresh_gran_status()
+
+    def _build_gran_panel(self):
+        """Left-side editor for the '@anglegran' variants (one EnvModel package per value)."""
+        box = QGroupBox("Angle granularity variants")
+        box.setFixedWidth(250)
+        v = QVBoxLayout(box)
+        self._gran_info = QLabel()
+        self._gran_info.setWordWrap(True)
+        v.addWidget(self._gran_info)
+        self._gran_rows_layout = QVBoxLayout()
+        v.addLayout(self._gran_rows_layout)
+        self._gran_add_btn = QPushButton("Add Variant")
+        self._gran_add_btn.clicked.connect(self._add_gran_variant)
+        v.addWidget(self._gran_add_btn)
+        self._gran_status_labels = []
+        return box
+
+    def _rebuild_gran_rows(self):
+        while self._gran_rows_layout.count():
+            old = self._gran_rows_layout.takeAt(0).widget()
+            old.setParent(None)
+            old.deleteLater()
+        self._gran_status_labels = []
+        self._gran_add_btn.setEnabled(self._gran_values is not None)
+        for i, value in enumerate(self._gran_values or []):
+            row = QWidget()
+            h = QHBoxLayout(row)
+            h.setContentsMargins(0, 0, 0, 0)
+            spin = QSpinBox()
+            spin.setRange(1, 180)
+            spin.setSuffix("°")
+            spin.setValue(value)
+            spin.valueChanged.connect(lambda val, i=i: self._set_gran_variant(i, val))
+            status = QLabel()
+            remove = QToolButton()
+            remove.setText("×")
+            remove.setToolTip("Remove this variant")
+            remove.setEnabled(len(self._gran_values) > 1)
+            remove.clicked.connect(lambda _checked=False, i=i: self._remove_gran_variant(i))
+            h.addWidget(spin)
+            h.addWidget(status, 1)
+            h.addWidget(remove)
+            self._gran_rows_layout.addWidget(row)
+            self._gran_status_labels.append(status)
+        self._refresh_gran_status()
+
+    def _current_fixed_angles(self):
+        angles = list(self._tpl_fixed_angles)
+        if (self._section_dirty and self.section_item is not None
+                and self._target_slot is not None and self._target_slot < len(angles)):
+            angles[self._target_slot] = int(round(self.section_item.rotation())) % 360
+        return angles
+
+    def _refresh_gran_status(self):
+        """Per variant: can it represent every fixed-section heading exactly, or does it round?"""
+        if self._gran_values is None:
+            self._gran_info.setText("No '@anglegran' variable in the tpl.json; "
+                                    f"ANGLEGRANULARITY = {self.angle_granularity}°.")
+            return
+        angles = self._current_fixed_angles()
+        self._gran_info.setText(
+            "One EnvModel package per value (applied on regeneration).\n"
+            f"Fixed headings: {', '.join(f'{a}°' for a in angles) or '-'}\n"
+            f"Target rotation snaps to {self.angle_granularity}°.")
+        for i, (value, label) in enumerate(zip(self._gran_values, self._gran_status_labels)):
+            off = [(a, modelled_fixed_angle(a, value)) for a in angles if a % value]
+            if value in self._gran_values[:i]:
+                label.setText("duplicate")
+                label.setStyleSheet("color: gray;")
+                label.setToolTip("Ignored: the same value is listed above.")
+            elif off:
+                label.setText("≈ " + ", ".join(f"{a}→{m}°" for a, m in off))
+                label.setStyleSheet("color: #c06000;")
+                label.setToolTip(f"Not a multiple of {value}°: this variant rounds the heading as "
+                                 "shown, while positions keep the exact angle.")
+            else:
+                label.setText("✓ exact")
+                label.setStyleSheet("color: green;")
+                label.setToolTip("")
+
+    def _on_gran_values_changed(self):
+        self.angle_granularity = math.gcd(*self._gran_values)
+        if self.section_item is not None:
+            self.section_item.angle_granularity = self.angle_granularity
+        self._gran_dirty = True
+        self._block_mc_until_regen(
+            "Angle granularity variants changed - regenerate the EnvModels before re-running the MC.")
+
+    def _set_gran_variant(self, index, value):
+        self._gran_values[index] = value
+        self._on_gran_values_changed()
+        self._refresh_gran_status()
+
+    def _add_gran_variant(self):
+        self._gran_values.append(
+            next((v for v in (30, 45, 15, 90, 20, 10, 5) if v not in self._gran_values), 1))
+        self._on_gran_values_changed()
+        self._rebuild_gran_rows()
+
+    def _remove_gran_variant(self, index):
+        if len(self._gran_values) > 1:
+            del self._gran_values[index]
+            self._on_gran_values_changed()
+            self._rebuild_gran_rows()
 
     def _block_mc_until_regen(self, reason):
         """Grey out the MC re-run and explain that an EnvModel regeneration is required first."""
@@ -1548,15 +1726,18 @@ class MainWindow(QMainWindow):
         self.refresh_btn.setToolTip(reason)
 
     def _config_dirty(self):
-        """True while the scene has un-regenerated edits (section pose or obstacle set)."""
-        return self._section_dirty or self._obstacles_dirty
+        """True while there are un-regenerated edits (section pose, obstacle set, granularities)."""
+        return self._section_dirty or self._obstacles_dirty or self._gran_dirty
 
     def _write_config_from_scene(self, obstacles_only=False):
         """Hardcode the target section pose (when adjustable) and obstacles into the tpl.json."""
+        if self._gran_dirty:
+            patch_tpl_angle_granularities(TPL_PATH, list(dict.fromkeys(self._gran_values)))
         if self._transform is None:
             raise RuntimeError("No transform available to write the scene into the config.")
         obstacles = self.collect_obstacles_world()
-        if (not obstacles_only and self.section_item is not None
+        # Only a moved section is written: the drawn pose may be a variant's rounded heading.
+        if (not obstacles_only and self._section_dirty and self.section_item is not None
                 and self._target_slot is not None):
             src = self.section_item.pos()
             sx_w, sy_w = pixel_to_world(src.x(), src.y(), self._transform, self.image_w, self.image_h)
@@ -1571,6 +1752,11 @@ class MainWindow(QMainWindow):
         committed = self._config_dirty()
         self._section_dirty = False
         self._obstacles_dirty = False
+        if self._gran_dirty:
+            self._gran_dirty = False
+            self._gran_baseline = list(self._gran_values)
+        self._tpl_fixed_angles = parse_fixed_section_angles(TPL_PATH)
+        self._refresh_gran_status()
         if committed:
             self.refresh_btn.setEnabled(True)
             self.refresh_btn.setToolTip("")
@@ -1632,11 +1818,19 @@ class MainWindow(QMainWindow):
         # Set after restoring: moving the section item re-marks it dirty via notify_changed.
         self._section_dirty = False
         self._obstacles_dirty = False
+        if self._gran_baseline is not None:
+            self._gran_values = list(self._gran_baseline)
+            self.angle_granularity = math.gcd(*self._gran_values)
+            if self.section_item is not None:
+                self.section_item.angle_granularity = self.angle_granularity
+        self._gran_dirty = False
+        self._rebuild_gran_rows()
         self.refresh_btn.setEnabled(True)
         self.refresh_btn.setToolTip("")
         self._apply_visu_mode()
 
     def _set_buttons_enabled(self, enabled):
+        self.gran_panel.setEnabled(enabled)
         self.envgen_btn.setEnabled(enabled)
         self.add_obstacle_btn.setEnabled(enabled)
         self.reset_btn.setEnabled(enabled)
