@@ -19,7 +19,7 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QH
                              QGroupBox, QLabel, QSpinBox, QToolButton)
 from PyQt6.QtCore import Qt, QRectF, QTimer, QPointF, QObject, QThread, QUrl, pyqtSignal
 from PyQt6.QtGui import (QPixmap, QImage, QBrush, QPen, QColor, QPainterPath, QPolygonF, QFont,
-                         QDesktopServices)
+                         QDesktopServices, QTransform)
 
 
 # Repo root = parent of this parking/ folder; anchors all paths independent of the caller's cwd.
@@ -536,12 +536,13 @@ def _connection_bezier(src_geom, tgt_geom):
 
 
 def connection_splines_pixel(trace_path, image_width, image_height, samples=24):
-    """Cubic-Bezier connection arcs between sections as pixel polylines [[(x, y), ...], ...].
+    """Cubic-Bezier connection arcs between sections as [(pixel polyline, model_len, drawn_len)].
 
     Mirrors RoadGraph::Way::getNodesXML: each directed connection src->tgt is a cubic Bezier
     from src's drain to tgt's origin, control points offset by dist/3 along each section's
     tangent (dist = |drain_src - origin_tgt|). Only connections internal to the ego component
-    are drawn, matching road_segments_pixel.
+    are drawn, matching road_segments_pixel. model_len is the MC's lane-0 arclength (None if
+    absent from the trace), drawn_len the length of the drawn Bezier (both in metres).
     """
     transform = compute_fit_transform(trace_path, image_width, image_height)
     if transform is None:
@@ -571,11 +572,15 @@ def connection_splines_pixel(trace_path, image_width, image_height, samples=24):
             if bezier is None:
                 continue
 
-            pts = [world_to_pixel(*_cubic_bezier(i / samples, *bezier),
-                                  transform=transform, image_width=image_width,
+            world_pts = [_cubic_bezier(i / samples, *bezier) for i in range(samples + 1)]
+            pts = [world_to_pixel(*p, transform=transform, image_width=image_width,
                                   image_height=image_height)
-                   for i in range(samples + 1)]
-            splines.append(pts)
+                   for p in world_pts]
+            drawn_len = sum(math.dist(a, b) for a, b in zip(world_pts, world_pts[1:]))
+            model_len = get(f"arclength_from_sec_{src}_to_sec_{tgt}_on_lane_0")
+            if model_len is not None and model_len < 0:
+                model_len = None
+            splines.append((pts, model_len, drawn_len))
     return splines
 
 
@@ -1508,13 +1513,14 @@ class MainWindow(QMainWindow):
         arc_pen = QPen(QColor(120, 120, 120), 5)
         arc_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         arc_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        for pts in (splines or []):
+        for pts, model_len, drawn_len in (splines or []):
             if len(pts) < 2:
                 continue
             path = QPainterPath(QPointF(pts[0][0], pts[0][1]))
             for x, y in pts[1:]:
                 path.lineTo(x, y)
             self._trajectory_items.append(self.scene.addPath(path, arc_pen))
+            self._draw_arclength_label(pts[len(pts) // 2], model_len, drawn_len)
         for x1, y1, x2, y2, sec, is_ego in segments:
             self._trajectory_items.append(
                 self.scene.addLine(x1, y1, x2, y2, ego_pen if is_ego else road_pen))
@@ -1523,6 +1529,22 @@ class MainWindow(QMainWindow):
                 self._draw_parking_marking(x1, y1, x2, y2, "START", ppm)
             elif target_section is not None and sec == target_section and not draggable_target:
                 self._draw_parking_marking(x1, y1, x2, y2, "TARGET", ppm)
+
+    def _draw_arclength_label(self, mid, model_len, drawn_len):
+        """Arclength badge at an arc's midpoint: the MC's value, else the drawn Bezier's (≈)."""
+        text = f"{model_len:g} m" if model_len is not None else f"≈{drawn_len:.1f} m"
+        label = self.scene.addText("", QFont("Sans", 10, QFont.Weight.Bold))
+        label.setHtml(f'<span style="background-color:#303030; color:white;">&nbsp;{text}&nbsp;</span>')
+        model_tip = (f"Model arclength (lane 0): {model_len:g} m" if model_len is not None
+                     else "Model arclength: not in trace")
+        label.setToolTip(f"{model_tip}\nDrawn Bezier length: {drawn_len:.1f} m")
+        # Constant on-screen size regardless of the fit zoom, centred on the arc midpoint.
+        label.setFlag(label.GraphicsItemFlag.ItemIgnoresTransformations)
+        br = label.boundingRect()
+        label.setTransform(QTransform.fromTranslate(-br.width() / 2.0, -br.height() / 2.0))
+        label.setPos(mid[0], mid[1])
+        label.setZValue(4)
+        self._trajectory_items.append(label)
 
     def _draw_parking_marking(self, x1, y1, x2, y2, label, ppm):
         """White parking-bay outline hugging a section, with a label (start/target indicator)."""
