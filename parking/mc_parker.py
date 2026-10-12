@@ -2087,7 +2087,26 @@ class MainWindow(QMainWindow):
             return
 
         self.terminate_btn.setEnabled(True)
+        self._show_race_progress()
         self.race_timer.start()
+
+    def _show_race_progress(self):
+        """Red ('negative') bar: advances by one per variant that dropped out without a CEX."""
+        self.progress_bar.setStyleSheet(
+            "QProgressBar { text-align: center; }"
+            "QProgressBar::chunk { background-color: #c62828; }")
+        self.progress_bar.setRange(0, len(self._race_packages))
+        self._update_race_progress()
+        self.progress_bar.setVisible(True)
+
+    def _update_race_progress(self):
+        dropped, total = len(self._race_reported_dropouts), len(self._race_packages)
+        self.progress_bar.setValue(dropped)
+        self.progress_bar.setFormat(f"{dropped}/{total} variants dropped out (no counterexample)")
+
+    def _hide_race_progress(self):
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setStyleSheet("")
 
     def _race_winner(self):
         """First variant (in folder order) with a fresh counterexample from THIS run.
@@ -2141,12 +2160,14 @@ class MainWindow(QMainWindow):
             if package_has_fresh_counterexample(pkg):
                 continue
             self._race_reported_dropouts.add(pkg)
+            self._update_race_progress()
             print(f"\u26aa {os.path.basename(pkg)} finished with no counterexample (dropped out).")
 
     def _finish_race(self, winner, error, aborted_by_user=False):
         self.race_timer.stop()
         _kill_process_group(self._race_proc)
         self._race_proc = None
+        self._hide_race_progress()
         QApplication.restoreOverrideCursor()
         self.terminate_btn.setEnabled(False)
         self._set_buttons_enabled(True)
