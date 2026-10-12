@@ -244,15 +244,61 @@ def _read_trace_values(trace_path):
     return values
 
 
+def _config_values(tpl_path):
+    """Trace-like {name: value} map of the fixed sections and obstacles in the tpl.json."""
+    try:
+        with open(tpl_path) as f:
+            content = f.read()
+    except OSError:
+        return {}
+
+    def numbers(key):
+        m = re.search(r'"' + key + r'"\s*:\s*"([^"]*)"', content)
+        out = []
+        for v in _parse_paren_list(m.group(1)) if m else []:
+            try:
+                out.append(float(v))
+            except ValueError:
+                out.append(None)
+        return out
+
+    values = {}
+    for sec, x, y, angle, length in zip(
+            numbers("FIXED_SECTION_IDs"), numbers("FIXED_SECTION_SOURCE_Xs"),
+            numbers("FIXED_SECTION_SOURCE_Ys"), numbers("FIXED_SECTION_ANGLEs"),
+            numbers("FIXED_SECTION_LENGTHs")):
+        if None in (sec, x, y, angle, length):
+            continue
+        sec = int(sec)
+        values[f"section_{sec}.source.x"] = x
+        values[f"section_{sec}.source.y"] = y
+        values[f"section_{sec}.angle"] = angle
+        values[f"section_{sec}_end"] = length
+    for k, corners in enumerate(zip(
+            numbers("RECT_OBSTACLES_TL_Xs"), numbers("RECT_OBSTACLES_TL_Ys"),
+            numbers("RECT_OBSTACLES_BR_Xs"), numbers("RECT_OBSTACLES_BR_Ys"))):
+        for field, value in zip(("tl_x", "tl_y", "br_x", "br_y"), corners):
+            values[f"rect_obstacles_{field}_{k}"] = value
+    return values
+
+
 def _trace_getter(trace_path):
-    """Return a getter accepting both 'env.'-prefixed (dump) and bare (MC trace) names."""
+    """Return a getter accepting both 'env.'-prefixed (dump) and bare (MC trace) names.
+
+    Without solution geometry in the trace (missing, wiped by regeneration, or blind), the
+    getter serves the configured fixed sections and obstacles instead (get.from_config).
+    """
     v = _read_trace_values(trace_path)
+    from_config = "section_0.source.x" not in v and "env.section_0.source.x" not in v
+    if from_config:
+        v = _config_values(TPL_PATH)
 
     def get(name):
         if name in v:
             return v[name]
         return v.get("env." + name)
 
+    get.from_config = from_config
     return get
 
 
@@ -268,6 +314,9 @@ def _ego_connected_sections(get):
     num_sections = 0
     while get(f"section_{num_sections}.source.x") is not None:
         num_sections += 1
+    # The config has no connections yet, so show every configured section.
+    if getattr(get, "from_config", False):
+        return set(range(num_sections))
     if num_sections == 0:
         return set()
 
@@ -1301,6 +1350,8 @@ class MainWindow(QMainWindow):
             self.image_w, self.image_h = 2200, 1650
 
         segments = road_segments_pixel(self.trace_path, self.image_w, self.image_h)
+        if _trace_getter(self.trace_path).from_config:
+            print("No solution trace; drawing the configured sections and obstacles only.")
         splines = connection_splines_pixel(self.trace_path, self.image_w, self.image_h)
         rects_data = obstacles_to_pixel_rects(self.trace_path, self.image_w, self.image_h)
         target_section = target_section_from_smv(self.smv_path)
@@ -1407,6 +1458,10 @@ class MainWindow(QMainWindow):
         if self._ego_item is None:
             return
         if self._ego_route is None:
+            if _trace_getter(self.trace_path).from_config:
+                QMessageBox.information(self, "No solution",
+                                        "No solution loaded yet - run the model checker first.")
+                return
             QMessageBox.information(self, "No route",
                                     f"No connection chain from Sec. 0 to target Sec. "
                                     f"{self._target_section} in the current trace.")
@@ -1916,9 +1971,10 @@ class MainWindow(QMainWindow):
                 return
         if force:
             shutil.rmtree(os.path.join(EXAMPLES_DIR, "tmp"), ignore_errors=True)
+
         # Wipe existing gp* variant folders first so an old parameter range can't leave obsolete
         # packages around (regeneration recreates the current set; the vfm cache keeps this fast).
-        # remove_mc_packages() # TODO: Might be good to remove only those packages which are not (anymore) re-created. But we should not lose already existing results.
+        remove_mc_packages()
         
         self.thread = QThread()
         self.worker = EnvModelWorker()
