@@ -23,7 +23,7 @@
    -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]].at[1]}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@] (map element)
 	)@
 	@(
-   -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]].eval[0]}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@]
+   -- @{@{@{name_array}@.scriptVar}@.scriptVar.at[[id]].eval}@.setScriptVar[@{name_var}@.scriptVar@{_@{#1#}@.at[[id]]}@]
 	)@
    }@*.if[@{name_array}@.scriptVar.scriptVar.isMap]
 	}@**.for[[id], 0, @{@{@{name_array}@.scriptVar}@.scriptVar.size - 1}@.eval]
@@ -97,6 +97,7 @@
 @{CLOSETOEGOPAR}@*******.defaultValue[80]
 @{TIMESCALING}@*******.defaultValue[1000]        -- nondimensionalization constant for time, in milliseconds
 @{DISTANCESCALING}@*******.defaultValue[1000]    -- nondimensionalization constant for distance, in millimeters
+@{GEOMETRYSCALING}@*******.defaultValue[1000]    -- nondimensionalization constant for the static x/y section geometry (coordinates, connection distances, obstacles), in millimeters
 
 @{LANES_MAX_SPEEDS}@*******.defaultValueString[@(70)@@(70)@@(70)@@(70)@@(70)@@(70)@@(70)@@(70)@@(70)@]
 @{LANES_MIN_SPEEDS}@*******.defaultValueString[@(0)@@(0)@@(0)@@(0)@@(0)@@(0)@@(0)@@(0)@@(0)@]

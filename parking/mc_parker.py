@@ -227,20 +227,69 @@ def race_first_solution(poll_interval=1.0):
     return win
 
 
-def _read_trace_values(trace_path):
-    """Parse a debug_trace_array.txt dump into a {name: float} map.
+_SCALING_FACTOR_RE = re.compile(r"-- (TIME|DISTANCE|GEOMETRY)SCALING\(\(\(\((-?[\d.]+)\)\)\)\)")
+_SCALED_VAR_RE = re.compile(r"^--\s*([\w.]+),(\w+)\s*$")
+_scaling_cache = {}
 
-    Names keep whatever prefix they have in the file (e.g. 'env.section_0.source.x').
+
+def read_scaling(smv_path):
+    """Return ({'TIME'|'DISTANCE'|'GEOMETRY': factor}, {var: scale type}) from a generated EnvModel.smv.
+
+    Mirrors vfm's ScaleDescription; factors default to 1 and the var map is empty if absent.
+    """
+    factors = {"TIME": 1.0, "DISTANCE": 1.0, "GEOMETRY": 1.0}
+    types = {}
+    try:
+        mtime = os.path.getmtime(smv_path)
+        if _scaling_cache.get(smv_path, (None,))[0] == mtime:
+            return _scaling_cache[smv_path][1]
+        with open(smv_path, "r") as f:
+            content = f.read()
+    except OSError:
+        return factors, types
+    for kind, value in _SCALING_FACTOR_RE.findall(content):
+        factors[kind] = float(value)
+    begin = content.find("-- SCALING DESCRIPTIONS")
+    end = content.find("-- EO SCALING DESCRIPTIONS", begin)
+    if begin >= 0 and end >= 0:
+        for line in content[begin:end].splitlines()[1:]:
+            m = _SCALED_VAR_RE.match(line.strip())
+            if m:
+                types[m.group(1)] = m.group(2)
+    _scaling_cache[smv_path] = (mtime, (factors, types))
+    return factors, types
+
+
+def _model_to_world(value, scale_type, factors):
+    """EnvModel -> world conversion, identical to StaticHelper::applyTimescaling."""
+    t, d, g = factors["TIME"], factors["DISTANCE"], factors["GEOMETRY"]
+    return {
+        "time": lambda v: v / t,
+        "distance": lambda v: v / d,
+        "velocity": lambda v: v * t / d,
+        "acceleration": lambda v: v * t * t / d,
+        "geometry": lambda v: v / g,
+    }.get(scale_type, lambda v: v)(value)
+
+
+def _read_trace_values(trace_path):
+    """Parse a debug_trace_array.txt dump into a {name: float} map in world units.
+
+    Names keep whatever prefix they have in the file (e.g. 'env.section_0.source.x'). Values are
+    scaled back via the scaling header of the sibling EnvModel.smv (if present).
     """
     values = {}
     line_re = re.compile(r'^\s*([A-Za-z_][\w.]*)\s*=\s*(-?\d+(?:\.\d+)?)\s*$')
     if not os.path.isfile(trace_path):
         return values
+    factors, types = read_scaling(os.path.join(os.path.dirname(trace_path), "EnvModel.smv"))
     with open(trace_path, "r") as f:
         for line in f:
             m = line_re.match(line)
             if m:
-                values[m.group(1)] = float(m.group(2))
+                name = m.group(1)
+                scale_type = types.get(name[4:] if name.startswith("env.") else name)
+                values[name] = _model_to_world(float(m.group(2)), scale_type, factors)
     return values
 
 
@@ -408,23 +457,38 @@ def pixel_to_world(px, py, transform, image_width, image_height):
 
 
 def _snap_scene_to_world_raster(px, py, transform, image_width, image_height, step=1.0):
-    """Snap a scene/pixel point onto the world raster (integer metres) the tpl.json quantises to."""
+    """Snap a scene/pixel point onto the world raster (step in metres) the model quantises to."""
     wx, wy = pixel_to_world(px, py, transform, image_width, image_height)
     return world_to_pixel(round(wx / step) * step, round(wy / step) * step,
                           transform, image_width, image_height)
 
 
 # Set by MainWindow once the world<->pixel transform for the current scene is known, so the
-# draggable items can snap their pose onto the same 1 m world raster as the target-section angle
+# draggable items can snap their pose onto the model's world raster as the target-section angle
 # snaps to its granularity. None (identity) until a transform is available.
 _scene_raster_snap = None  # callable(scene_x, scene_y) -> (scene_x, scene_y)
 
 
 def snap_scene_point(px, py):
-    """Snap a scene point onto the active 1 m world raster (identity if no transform is set)."""
+    """Snap a scene point onto the active world raster (identity if no transform is set)."""
     if _scene_raster_snap is None:
         return px, py
     return _scene_raster_snap(px, py)
+
+
+def world_raster_step(smv_path):
+    """World raster (m) of the model's GEOMETRYSCALING grid; 1 m without such a header."""
+    return 1.0 / read_scaling(smv_path)[0]["GEOMETRY"]
+
+
+def snap_world(value, step):
+    """Round a world coordinate (m) onto the raster; the inner round() drops float noise."""
+    return round(round(value / step) * step, 6)
+
+
+def _fmt_world(value):
+    """Compact tpl.json number: '3' instead of '3.0', '2.25' stays."""
+    return f"{value:g}"
 
 
 def read_obstacles_world(trace_path):
@@ -740,15 +804,17 @@ def patch_smv_obstacles(smv_path, obstacles_world):
     """Overwrite the 'rect_obstacles_{tl,br}_{x,y}_N := <int>;' DEFINEs in EnvModel.smv.
 
     'obstacles_world' is a list of (tl_x, tl_y, br_x, br_y) tuples (world coords) by index.
-    Only the numeric literals change, so the model stays otherwise identical.
+    Only the numeric literals change, so the model stays otherwise identical. Values are written in
+    the model's GEOMETRYSCALING units.
     """
+    geometry_scaling = read_scaling(smv_path)[0]["GEOMETRY"]
     with open(smv_path, "r") as f:
         content = f.read()
 
     for idx, (tl_x, tl_y, br_x, br_y) in enumerate(obstacles_world):
         for field, value in (("tl_x", tl_x), ("tl_y", tl_y), ("br_x", br_x), ("br_y", br_y)):
             pattern = re.compile(r"(rect_obstacles_" + field + "_" + str(idx) + r"\s*:=\s*)-?\d+(\s*;)")
-            content, n = pattern.subn(r"\g<1>" + str(int(round(value))) + r"\g<2>", content)
+            content, n = pattern.subn(r"\g<1>" + str(int(round(value * geometry_scaling))) + r"\g<2>", content)
             if n == 0:
                 raise RuntimeError(f"Could not find 'rect_obstacles_{field}_{idx}' in {smv_path}.")
 
@@ -887,14 +953,14 @@ def patch_tpl_config(tpl_path, target_slot, section_x, section_y, section_angle,
             vals = _parse_paren_list(m.group(1))
             if target_slot >= len(vals):
                 raise RuntimeError(f"Target slot {target_slot} out of range for '{key}' ({vals}).")
-            vals[target_slot] = str(value)
+            vals[target_slot] = _fmt_world(value)
             content = _replace_tpl_string_value(content, key, _format_paren_list(vals))
 
     packed = {
-        "RECT_OBSTACLES_TL_Xs": [str(o[0]) for o in obstacles],
-        "RECT_OBSTACLES_TL_Ys": [str(o[1]) for o in obstacles],
-        "RECT_OBSTACLES_BR_Xs": [str(o[2]) for o in obstacles],
-        "RECT_OBSTACLES_BR_Ys": [str(o[3]) for o in obstacles],
+        "RECT_OBSTACLES_TL_Xs": [_fmt_world(o[0]) for o in obstacles],
+        "RECT_OBSTACLES_TL_Ys": [_fmt_world(o[1]) for o in obstacles],
+        "RECT_OBSTACLES_BR_Xs": [_fmt_world(o[2]) for o in obstacles],
+        "RECT_OBSTACLES_BR_Ys": [_fmt_world(o[3]) for o in obstacles],
     }
     for key, vals in packed.items():
         content = _replace_tpl_string_value(content, key, _format_paren_list(vals))
@@ -1217,6 +1283,7 @@ class MainWindow(QMainWindow):
         self.rect_items = []
         self.image_w = 0
         self.image_h = 0
+        self._raster_step = 1.0
 
         # Main Widget & Layout
         main_widget = QWidget()
@@ -1365,11 +1432,13 @@ class MainWindow(QMainWindow):
         self._transform = transform
         self._ppm = ppm
 
-        # Activate 1 m world-raster snapping for the draggable items against this scene's transform.
+        # Activate world-raster snapping (the model's GEOMETRYSCALING grid) for the draggable items.
         global _scene_raster_snap
+        self._raster_step = world_raster_step(self.smv_path)
         if transform is not None:
-            _scene_raster_snap = (lambda px, py, t=transform, iw=self.image_w, ih=self.image_h:
-                                  _snap_scene_to_world_raster(px, py, t, iw, ih))
+            _scene_raster_snap = (lambda px, py, t=transform, iw=self.image_w, ih=self.image_h,
+                                  s=self._raster_step:
+                                  _snap_scene_to_world_raster(px, py, t, iw, ih, s))
         else:
             _scene_raster_snap = None
 
@@ -1636,7 +1705,7 @@ class MainWindow(QMainWindow):
             "Obstacles added/removed - regenerate the EnvModels before re-running the MC.")
 
     def collect_obstacles_world(self):
-        """Inverse-transform the current on-screen rectangles back to integer world coords."""
+        """Inverse-transform the current on-screen rectangles back to world coords on the model raster."""
         # Use the transform cached when the scene was drawn: the source trace file may have been
         # deleted/replaced since, but the rectangles on screen still live in that pixel space.
         transform = self._transform
@@ -1650,8 +1719,7 @@ class MainWindow(QMainWindow):
             scene_rect = item.mapRectToScene(item.rect())
             tl = pixel_to_world(scene_rect.left(), scene_rect.top(), transform, self.image_w, self.image_h)
             br = pixel_to_world(scene_rect.right(), scene_rect.bottom(), transform, self.image_w, self.image_h)
-            obstacles.append((int(round(tl[0])), int(round(tl[1])),
-                              int(round(br[0])), int(round(br[1]))))
+            obstacles.append(tuple(snap_world(v, self._raster_step) for v in (*tl, *br)))
         return obstacles
 
     def _create_section_item(self, segments, target_section, ppm):
@@ -1820,7 +1888,8 @@ class MainWindow(QMainWindow):
             sx_w, sy_w = pixel_to_world(src.x(), src.y(), self._transform, self.image_w, self.image_h)
             angle = int(round(self.section_item.rotation())) % 360
             patch_tpl_config(TPL_PATH, self._target_slot,
-                             int(round(sx_w)), int(round(sy_w)), angle, obstacles)
+                             snap_world(sx_w, self._raster_step), snap_world(sy_w, self._raster_step),
+                             angle, obstacles)
         else:
             patch_tpl_config(TPL_PATH, None, None, None, None, obstacles)
 

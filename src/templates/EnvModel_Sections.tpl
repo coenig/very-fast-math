@@ -74,8 +74,8 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
    @{ 
       FROZENVAR
       @{
-         section_[sec].source.x : @{@(@{fixed_section_source_x_[sec]}@.scriptVar .. @{fixed_section_source_x_[sec]}@.scriptVar)@@(integer)@}@*.if[@{is_section_[sec]_fixed}@.scriptVar];
-         section_[sec].source.y : @{@(@{fixed_section_source_y_[sec]}@.scriptVar .. @{fixed_section_source_y_[sec]}@.scriptVar)@@(integer)@}@*.if[@{is_section_[sec]_fixed}@.scriptVar];
+         @{section_[sec].source.x}@*.scalingVariable[geometry] : @{@(@{@{fixed_section_source_x_[sec]}@.scriptVar}@.geometryWorldToEnvModelConst .. @{@{fixed_section_source_x_[sec]}@.scriptVar}@.geometryWorldToEnvModelConst)@@(integer)@}@*.if[@{is_section_[sec]_fixed}@.scriptVar];
+         @{section_[sec].source.y}@*.scalingVariable[geometry] : @{@(@{@{fixed_section_source_y_[sec]}@.scriptVar}@.geometryWorldToEnvModelConst .. @{@{fixed_section_source_y_[sec]}@.scriptVar}@.geometryWorldToEnvModelConst)@@(integer)@}@*.if[@{is_section_[sec]_fixed}@.scriptVar];
          section_[sec].angle_raw : @{@(@{@{fixed_section_angle_[sec]}@.scriptVar / ANGLEGRANULARITY }@.eval[0] .. @{@{fixed_section_angle_[sec]}@.scriptVar / ANGLEGRANULARITY }@.eval[0])@@(0 .. @{ trunc(359 / ANGLEGRANULARITY) }@.eval[0])@}@*.if[@{is_section_[sec]_fixed}@.scriptVar];
       }@******.if[@{MODEL_INTERSECTION_GEOMETRY}@.eval] @{ Optionally remove everything geometry-related. }@**********.nil
 
@@ -158,27 +158,27 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 			}@**.if[@{is_section_[sec]_fixed}@.scriptVar]
 
 
-         section_[sec].drain.x := @{
-            @(@{sec_[sec]_drain_x_fixed}@.scriptVar.eval[0])@
-            @(section_[sec].source.x + (section_[sec]_end * cos_of_section_[sec]_angle) / 100)@
+         @{section_[sec].drain.x}@*.scalingVariable[geometry] := @{
+            @(@{sec_[sec]_drain_x_fixed}@.scriptVar.geometryWorldToEnvModelConst)@
+            @(section_[sec].source.x + (section_[sec]_end * cos_of_section_[sec]_angle * @{GEOMETRYSCALING * 1000}@.eval[0]) / @{DISTANCESCALING * 100000}@.eval[0])@
             }@*.if[@{is_section_[sec]_fixed}@.scriptVar];
 
-         section_[sec].drain.y := @{
-            @(@{sec_[sec]_drain_y_fixed}@.scriptVar.eval[0])@
-            @(section_[sec].source.y + (section_[sec]_end * sin_of_section_[sec]_angle) / 100)@
+         @{section_[sec].drain.y}@*.scalingVariable[geometry] := @{
+            @(@{sec_[sec]_drain_y_fixed}@.scriptVar.geometryWorldToEnvModelConst)@
+            @(section_[sec].source.y + (section_[sec]_end * sin_of_section_[sec]_angle * @{GEOMETRYSCALING * 1000}@.eval[0]) / @{DISTANCESCALING * 100000}@.eval[0])@
             }@*.if[@{is_section_[sec]_fixed}@.scriptVar];
          
          @{
             @{
                @{
-                  FROZENVAR dist_[con]_of_section_[sec]_to_[sec2] : 
+                  FROZENVAR @{dist_[con]_of_section_[sec]_to_[sec2]}@*.scalingVariable[geometry] : 
                   @{
                      @(
                         @{
                         @( 
                            @{ sqrt(
                            (@{sec_[sec]_drain_x_fixed}@.scriptVar - @{fixed_section_source_x_[sec2]}@.scriptVar)**2 
-                         + (@{sec_[sec]_drain_y_fixed}@.scriptVar - @{fixed_section_source_y_[sec2]}@.scriptVar)**2) }@.eval[0].setScriptVar[connection_distance_sec_[sec]_to_sec_[sec2]_fixed, force].nil
+                         + (@{sec_[sec]_drain_y_fixed}@.scriptVar - @{fixed_section_source_y_[sec2]}@.scriptVar)**2) * GEOMETRYSCALING }@.eval[0].setScriptVar[connection_distance_sec_[sec]_to_sec_[sec2]_fixed, force].nil
                             @{connection_distance_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar
                             .. 
                             @{connection_distance_sec_[sec]_to_sec_[sec2]_fixed}@.scriptVar; -- Precalculated distance since all is fixed. Stored in connection_distance_sec_[sec]_to_sec_[sec2]_fixed. TODO: Note that possibly >1 connections might have the same target section, we choose the last one then.
@@ -189,7 +189,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
                         }@.if[@{@{fixed_section_connector_[sec]}@.scriptVar.at[[con]] == [sec2]}@.eval]
                      )@
                      @(
-                        @{MINDISTCONNECTIONS}@.eval[0] .. @{MAXDISTCONNECTIONS}@.eval[0]; -- "Classic" case, no implications from fixed variables.
+                        @{MINDISTCONNECTIONS}@.geometryWorldToEnvModelConst .. @{MAXDISTCONNECTIONS}@.geometryWorldToEnvModelConst; -- "Classic" case, no implications from fixed variables.
 
                         INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> (
                               (section_[sec2].source.x = section_[sec].drain.x + (dist_[con]_of_section_[sec]_to_[sec2] * (cos_of_section_[sec]_angle + cos_of_section_[sec2]_angle)) / 100)
@@ -203,11 +203,11 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 
          @{
             INIT @{ vec(section_[sec].source.x; section_[sec].source.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
-               >= @{MAXDISTENDPOINTS}@.eval[0]; -- Use only farther away coordinate as lower bound.
+               >= @{MAXDISTENDPOINTS}@.geometryWorldToEnvModelConst; -- Use only farther away coordinate as lower bound.
             INIT @{ vec(section_[sec].source.x; section_[sec].source.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].drain.x; section_[sec2].drain.y) ] 
-               >= @{MAXDISTENDPOINTS}@.eval[0]; -- Use only farther away coordinate as lower bound.
+               >= @{MAXDISTENDPOINTS}@.geometryWorldToEnvModelConst; -- Use only farther away coordinate as lower bound.
             INIT @{ vec(section_[sec].drain.x; section_[sec].drain.y) }@.syntacticMaxCoordDistance[ vec(section_[sec2].source.x; section_[sec2].source.y) ] 
-               >= @{MAXDISTENDPOINTS}@.eval[0]; -- Use only farther away coordinate as lower bound.
+               >= @{MAXDISTENDPOINTS}@.geometryWorldToEnvModelConst; -- Use only farther away coordinate as lower bound.
          }@*.for[[sec2], 0, @{[sec]}@.sub[1]]
 
          @{
@@ -226,8 +226,8 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
                         @{fixed_section_source_x_[sec]}@.scriptVar, @{fixed_section_source_y_[sec]}@.scriptVar,
                         @{sec_[sec]_drain_x_fixed}@.scriptVar, @{sec_[sec]_drain_y_fixed}@.scriptVar,
                         @{fixed_section_source_x_[sec2]}@.scriptVar, @{fixed_section_source_y_[sec2]}@.scriptVar,
-                        @{ @{fixed_section_source_x_[sec2]}@.scriptVar + @{fixed_section_length_[sec2]}@.scriptVar * cos(@{fixed_section_angle_[sec2]}@.scriptVar / 360 * 2 * 3.1415) }@.eval[0],
-                        @{ @{fixed_section_source_y_[sec2]}@.scriptVar + @{fixed_section_length_[sec2]}@.scriptVar * sin(@{fixed_section_angle_[sec2]}@.scriptVar / 360 * 2 * 3.1415) }@.eval[0],
+                        @{ @{fixed_section_source_x_[sec2]}@.scriptVar + @{fixed_section_length_[sec2]}@.scriptVar * cos(@{fixed_section_angle_[sec2]}@.scriptVar / 360 * 2 * 3.1415) }@.eval,
+                        @{ @{fixed_section_source_y_[sec2]}@.scriptVar + @{fixed_section_length_[sec2]}@.scriptVar * sin(@{fixed_section_angle_[sec2]}@.scriptVar / 360 * 2 * 3.1415) }@.eval,
                         @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst;
                   }@**.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
 
@@ -241,29 +241,40 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
                      TRUE : angle_from_sec_[sec]_to_sec_[sec2]_raw;
                   esac;
 
-                  connection_distance_sec_[sec]_to_sec_[sec2] := case -- TODO: We could have several connections for the same sections with different conn. distances.
+                  @{connection_distance_sec_[sec]_to_sec_[sec2]}@*.scalingVariable[geometry] := case -- TODO: We could have several connections for the same sections with different conn. distances.
                      @{
                         outgoing_connection_[con]_of_section_[sec] = [sec2] : dist_[con]_of_section_[sec]_to_[sec2];
                      }@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval]
                      TRUE : -1;
                   esac;
 
+                  @{ Single lane: the connector Bezier scales linearly with dist, so one factor per angle suffices. }@**********.nil
                   @{
                      @{arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane]}@*.scalingVariable[distance] := case
-                        @{@{
-                              angle_from_sec_[sec]_to_sec_[sec2] = [angle] & connection_distance_sec_[sec]_to_sec_[sec2] = [dist] : @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[[angle], [dist], @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst;
-                           }@*.for[[dist], @{MINDISTCONNECTIONS}@.eval, @{MAXDISTCONNECTIONS}@.eval]
-                        }@**.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
+                        @{
+                           @(
+                              connection_distance_sec_[sec]_to_sec_[sec2] < 0 : -1;
+                              @{
+                                 angle_from_sec_[sec]_to_sec_[sec2] = [angle] : (connection_distance_sec_[sec]_to_sec_[sec2] * @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[[angle], 1000, @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst + @{GEOMETRYSCALING * 500}@.eval[0]) / @{GEOMETRYSCALING * 1000}@.eval[0];
+                              }@*.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
+                           )@
+                           @(
+                              @{@{
+                                    angle_from_sec_[sec]_to_sec_[sec2] = [angle] & connection_distance_sec_[sec]_to_sec_[sec2] = [dist] : @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[[angle], @{[dist] / GEOMETRYSCALING}@.eval, @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst;
+                                 }@*.for[[dist], @{MINDISTCONNECTIONS}@.geometryWorldToEnvModelConst, @{MAXDISTCONNECTIONS}@.geometryWorldToEnvModelConst]
+                              }@**.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
+                           )@
+                        }@***.if[@{NUM_TECHNICAL_LANES == 1}@.eval]
                         TRUE : -1;
                      esac;
-                  }@***.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
+                  }@****.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
 
                   @{
-                     min_dist_for_turning_radius_from_sec_[sec]_to_sec_[sec2] := case
+                     @{min_dist_for_turning_radius_from_sec_[sec]_to_sec_[sec2]}@*.scalingVariable[geometry] := case
                         @{
-                           angle_from_sec_[sec]_to_sec_[sec2] = [angle] : @{[angle]}@.minDistConnectionForTurningRadius[@{MIN_TURNING_RADIUS}@.eval, @{MINDISTCONNECTIONS}@.eval[0], @{MAXDISTCONNECTIONS}@.eval[0], @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval];
+                           angle_from_sec_[sec]_to_sec_[sec2] = [angle] : @{[angle]}@.minDistConnectionForTurningRadius[@{MIN_TURNING_RADIUS}@.eval, @{MINDISTCONNECTIONS}@.geometryWorldToEnvModelConst, @{MAXDISTCONNECTIONS}@.geometryWorldToEnvModelConst, @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval, @{GEOMETRYSCALING}@.eval];
                         }@*.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
-                        TRUE : @{MINDISTCONNECTIONS}@.eval[0];
+                        TRUE : @{MINDISTCONNECTIONS}@.geometryWorldToEnvModelConst;
                      esac;
 
                      @{
@@ -301,10 +312,10 @@ INIT ego.on_section = 0;
 -- Caution: the below variables should remain as is, since they're directly changed by the mc_parker.
 DEFINE
    @{
-      rect_obstacles_tl_x_[obs] := @{rect_obstacles_tl_x_[obs]}@.scriptVar;
-      rect_obstacles_tl_y_[obs] := @{rect_obstacles_tl_y_[obs]}@.scriptVar;
-      rect_obstacles_br_x_[obs] := @{rect_obstacles_br_x_[obs]}@.scriptVar;
-      rect_obstacles_br_y_[obs] := @{rect_obstacles_br_y_[obs]}@.scriptVar;
+      @{rect_obstacles_tl_x_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_tl_x_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
+      @{rect_obstacles_tl_y_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_tl_y_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
+      @{rect_obstacles_br_x_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_x_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
+      @{rect_obstacles_br_y_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_y_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
    }@*.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
 -- EO Caution
 

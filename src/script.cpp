@@ -618,7 +618,8 @@ std::string Script::minDistConnectionForTurningRadius(
    const std::string& min_dist_str,
    const std::string& max_dist_str,
    const std::string& num_lanes_str,
-   const std::string& lane_width_str)
+   const std::string& lane_width_str,
+   const std::string& units_per_meter_str)
 {
    if (!StaticHelper::isParsableAsFloat(angle_str)) addError("Angle '" + angle_str + "' is not parsable as float in 'minDistConnectionForTurningRadius'.");
    if (!StaticHelper::isParsableAsFloat(radius_str)) addError("Radius '" + radius_str + "' is not parsable as float in 'minDistConnectionForTurningRadius'.");
@@ -626,6 +627,7 @@ std::string Script::minDistConnectionForTurningRadius(
    if (!StaticHelper::isParsableAsInt(max_dist_str)) addError("MaxDist '" + max_dist_str + "' is not parsable as int in 'minDistConnectionForTurningRadius'.");
    if (!StaticHelper::isParsableAsInt(num_lanes_str)) addError("NumLanes '" + num_lanes_str + "' is not parsable as int in 'minDistConnectionForTurningRadius'.");
    if (!StaticHelper::isParsableAsFloat(lane_width_str)) addError("Lane width '" + lane_width_str + "' is not parsable as float in 'minDistConnectionForTurningRadius'.");
+   if (!StaticHelper::isParsableAsFloat(units_per_meter_str)) addError("UnitsPerMeter '" + units_per_meter_str + "' is not parsable as float in 'minDistConnectionForTurningRadius'.");
    if (hasErrorOccurred()) return "#ERROR-Check-Log";
 
    const float angle_deg{ std::stof(angle_str) };
@@ -634,6 +636,7 @@ std::string Script::minDistConnectionForTurningRadius(
    const int max_dist{ std::stoi(max_dist_str) };
    const int num_lanes{ std::stoi(num_lanes_str) };
    const float lane_width{ std::stof(lane_width_str) };
+   const float units_per_meter{ std::stof(units_per_meter_str) };
 
    if (radius <= 0 || std::fmod(angle_deg, 360.0f) == 0) return std::to_string(min_dist); // Straight connectors have no curvature.
 
@@ -641,7 +644,7 @@ std::string Script::minDistConnectionForTurningRadius(
       bool wide_enough{ true };
 
       for (int lane = 0; lane < num_lanes && wide_enough; ++lane) {
-         const auto [p0, p1, p2, p3] = streetTopologyBezier(lane, num_lanes, deg2Rad(angle_deg), dist, lane_width);
+         const auto [p0, p1, p2, p3] = streetTopologyBezier(lane, num_lanes, deg2Rad(angle_deg), dist / units_per_meter, lane_width);
          wide_enough = bezier::maxCurvature(p0, p1, p2, p3) * radius <= 1.0f;
       }
 

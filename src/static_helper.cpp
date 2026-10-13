@@ -3733,6 +3733,9 @@ void vfm::StaticHelper::applyTimescaling(MCTrace& trace, const ScaleDescription&
                else if (ts.type_ == ScaleTypeEnum::acceleration) {
                   var_assignment.second = std::to_string(std::stof(var_assignment.second) * ts_description.getTimeScalingFactor() * ts_description.getTimeScalingFactor() / ts_description.getDistanceScalingFactor());
                }
+               else if (ts.type_ == ScaleTypeEnum::geometry) {
+                  var_assignment.second = std::to_string(std::stof(var_assignment.second) / ts_description.getGeometryScalingFactor());
+               }
                else if (ts.type_ == ScaleTypeEnum::none) {
                   // Do nothing.
                }
