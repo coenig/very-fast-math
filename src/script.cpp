@@ -13,6 +13,7 @@
 #include "simulation/highway_image.h"
 #include "simulation/env2d_simple.h"
 #include "simulation/highway_translators.h"
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <sstream>
@@ -556,6 +557,23 @@ float deg2Rad(const float deg)
    return deg * PI / 180;
 }
 
+// Connector Bezier as implied by the EnvModel placement: source_in = drain_out + distance * (dir_out + dir_in). Angle in rad.
+static std::array<Vec2D, 4> streetTopologyBezier(const int lane, const int num_lanes, const float angle, const float distance, const float lane_width)
+{
+   const float l{ (lane - (num_lanes - 1.0f) / 2.0f) * lane_width };
+
+   const Vec2D v{ std::cos(angle - deg2Rad(180)), sin(angle - deg2Rad(180)) };
+   const Vec2D vr{ std::cos(angle + deg2Rad(90)), sin(angle + deg2Rad(90)) };
+   const Vec2D P3{ Vec2D{distance, 0} - v * distance };
+
+   const Vec2D p0{ 0,  l };
+   const Vec2D p3{ P3 + vr * l };
+
+   const float d{ p0.distance(p3) / 3.0f };
+
+   return { p0, Vec2D{ d, l }, p3 + v * d, p3 };
+}
+
 std::string Script::arclengthCubicBezierFromStreetTopology(
    const std::string& lane_str, 
    const std::string& angle_str, 
@@ -575,19 +593,8 @@ std::string Script::arclengthCubicBezierFromStreetTopology(
    const float angle{ deg2Rad(std::stof(angle_str)) };
    const float distance{ std::stof(distance_str) };
    const float lane_width{ std::stof(lane_width_str) };
-   const float l{ (lane - (num_lanes - 1.0f) / 2.0f) * lane_width };
 
-   const Vec2D v{ std::cos(angle - deg2Rad(180)), sin(angle - deg2Rad(180)) };
-   const Vec2D vr{ std::cos(angle + deg2Rad(90)), sin(angle + deg2Rad(90)) };
-   const Vec2D P3{ Vec2D{distance, 0} - v * distance };
-
-   const Vec2D p0{ 0,  l };
-   const Vec2D p3{ P3 + vr * l };
-
-   const float d{ p0.distance(p3) / 3.0f };
-
-   Vec2D p1{ d, l };
-   Vec2D p2{ p3 + v * d };
+   const auto [p0, p1, p2, p3] = streetTopologyBezier(lane, num_lanes, angle, distance, lane_width);
    
    return std::to_string((int) std::round(bezier::arcLength(1, p0, p1, p2, p3)))
       // Output for debugging, but does not work with distance scaling.
@@ -603,6 +610,45 @@ std::string Script::arclengthCubicBezierFromStreetTopology(
       //+ ", d=" + std::to_string(d)
       //+ ", N=" + std::to_string(num_lanes)
       ;
+}
+
+std::string Script::minDistConnectionForTurningRadius(
+   const std::string& angle_str,
+   const std::string& radius_str,
+   const std::string& min_dist_str,
+   const std::string& max_dist_str,
+   const std::string& num_lanes_str,
+   const std::string& lane_width_str)
+{
+   if (!StaticHelper::isParsableAsFloat(angle_str)) addError("Angle '" + angle_str + "' is not parsable as float in 'minDistConnectionForTurningRadius'.");
+   if (!StaticHelper::isParsableAsFloat(radius_str)) addError("Radius '" + radius_str + "' is not parsable as float in 'minDistConnectionForTurningRadius'.");
+   if (!StaticHelper::isParsableAsInt(min_dist_str)) addError("MinDist '" + min_dist_str + "' is not parsable as int in 'minDistConnectionForTurningRadius'.");
+   if (!StaticHelper::isParsableAsInt(max_dist_str)) addError("MaxDist '" + max_dist_str + "' is not parsable as int in 'minDistConnectionForTurningRadius'.");
+   if (!StaticHelper::isParsableAsInt(num_lanes_str)) addError("NumLanes '" + num_lanes_str + "' is not parsable as int in 'minDistConnectionForTurningRadius'.");
+   if (!StaticHelper::isParsableAsFloat(lane_width_str)) addError("Lane width '" + lane_width_str + "' is not parsable as float in 'minDistConnectionForTurningRadius'.");
+   if (hasErrorOccurred()) return "#ERROR-Check-Log";
+
+   const float angle_deg{ std::stof(angle_str) };
+   const float radius{ std::stof(radius_str) };
+   const int min_dist{ std::stoi(min_dist_str) };
+   const int max_dist{ std::stoi(max_dist_str) };
+   const int num_lanes{ std::stoi(num_lanes_str) };
+   const float lane_width{ std::stof(lane_width_str) };
+
+   if (radius <= 0 || std::fmod(angle_deg, 360.0f) == 0) return std::to_string(min_dist); // Straight connectors have no curvature.
+
+   for (int dist = min_dist; dist <= max_dist; ++dist) {
+      bool wide_enough{ true };
+
+      for (int lane = 0; lane < num_lanes && wide_enough; ++lane) {
+         const auto [p0, p1, p2, p3] = streetTopologyBezier(lane, num_lanes, deg2Rad(angle_deg), dist, lane_width);
+         wide_enough = bezier::maxCurvature(p0, p1, p2, p3) * radius <= 1.0f;
+      }
+
+      if (wide_enough) return std::to_string(dist);
+   }
+
+   return std::to_string(max_dist + 1); // Unreachable lower bound, i.e., this angle is forbidden.
 }
 
 std::string Script::arclengthCubicBezierFromEndPoints(

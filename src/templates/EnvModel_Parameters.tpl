@@ -60,6 +60,7 @@
 @{MINDISTCONNECTIONS}@*******.defaultValue[20]            -- The minimal "X" variable when going from the drain of one road to the source of a connected one
 @{MAXDISTCONNECTIONS}@*******.defaultValue[50]            -- The maximal "X" variable when going from the drain of one road to the source of a connected one
 @{MAXDISTENDPOINTS}@*******.defaultValue[5]               -- Two end points must be at least this apart (approximated by maxvar method)
+@{MIN_TURNING_RADIUS}@*******.defaultValue[0]             -- In m. Connector Beziers must not curve tighter than this (via a per-angle lower bound on the connection distance). 0 = off.
 @{MODEL_INTERSECTION_GEOMETRY}@*******.defaultValue[true] -- If the length of the junctions is calculated subject to connections etc. (Makes calculation slow, but needed at least for multi-lane road networks.)
 @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@*******.defaultValue[4] -- Connector-vs-obstacle check: number of straight sub-segments the drain->source connector is split into for the (linear) bounding-box separation test. Higher = less over-pruning (converges to exact), but more constraints. 1 = single whole-connector bbox.
 @{REACHABILITY_ONLY}@*******.defaultValue[false] -- If set, replaces the driving-dynamics model with a static section-graph reachability query (source sec 0 -> target sec 1). Keeps vehicle initial states, drops driving transitions, emits reachability DEFINEs + SPEC. When unset, no reachability vars are generated.

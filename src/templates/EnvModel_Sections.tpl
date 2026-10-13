@@ -257,6 +257,19 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
                         TRUE : -1;
                      esac;
                   }@***.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
+
+                  @{
+                     min_dist_for_turning_radius_from_sec_[sec]_to_sec_[sec2] := case
+                        @{
+                           angle_from_sec_[sec]_to_sec_[sec2] = [angle] : @{[angle]}@.minDistConnectionForTurningRadius[@{MIN_TURNING_RADIUS}@.eval, @{MINDISTCONNECTIONS}@.eval[0], @{MAXDISTCONNECTIONS}@.eval[0], @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval];
+                        }@*.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
+                        TRUE : @{MINDISTCONNECTIONS}@.eval[0];
+                     esac;
+
+                     @{
+                        INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> dist_[con]_of_section_[sec]_to_[sec2] >= min_dist_for_turning_radius_from_sec_[sec]_to_sec_[sec2];
+                     }@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS-1}@.eval]
+                  }@**.if[@{MIN_TURNING_RADIUS > 0}@.eval]
                )@
                }@****.if[ @{ @{is_section_[sec]_fixed}@.scriptVar && @{is_section_[sec2]_fixed}@.scriptVar && (@{is_section_[sec2]_certain_successor_of_section_[sec]}@.scriptVar || @{is_section_[sec2]_certainly_no_successor_of_section_[sec]}@.scriptVar) }@.eval]
 

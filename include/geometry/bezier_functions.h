@@ -8,7 +8,9 @@
 
 #include "geometry/polygon_2d.h"
 #include "geometry/vector_2d.h"
+#include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace vfm::bezier {
 
@@ -20,6 +22,20 @@ static Vec2D cubicBezier(float t, const Vec2D& p0, const Vec2D& p1, const Vec2D&
 // Function to calculate the derivative of a cubic Bezier curve
 static Vec2D B_prime(float t, const Vec2D& p0, const Vec2D& p1, const Vec2D& p2, const Vec2D& p3) {
    return (p1 - p0) * (3 * pow(1 - t, 2)) + (p2 - p1) * (6 * (1 - t) * t) + (p3 - p2) * (3 * pow(t, 2));
+}
+
+// Maximum unsigned curvature of a cubic Bezier curve, sampled at n + 1 parameter values; infinite at a cusp.
+static float maxCurvature(const Vec2D& p0, const Vec2D& p1, const Vec2D& p2, const Vec2D& p3, int n = 500) {
+   float k_max = 0;
+   for (int i = 0; i <= n; ++i) {
+      const float t = static_cast<float>(i) / n;
+      const Vec2D d1 = B_prime(t, p0, p1, p2, p3);
+      const Vec2D d2 = (p2 - p1 * 2 + p0) * (6 * (1 - t)) + (p3 - p2 * 2 + p1) * (6 * t);
+      const float speed = d1.length();
+      if (speed < 1e-6f) return std::numeric_limits<float>::infinity();
+      k_max = std::max(k_max, std::abs(d1.x * d2.y - d1.y * d2.x) / (speed * speed * speed));
+   }
+   return k_max;
 }
 
 // Function to approximate the arc length from s to B(t) using numerical integration (Trapezoidal Rule)
