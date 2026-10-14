@@ -1441,9 +1441,10 @@ class MainWindow(QMainWindow):
 
         # Model checks every configured variant in parallel and adopts the first counterexample
         # (a single-variant config is just the degenerate one-runner case).
-        self.refresh_btn = QPushButton("Run Model Checker")
-        self.refresh_btn.clicked.connect(self.trigger_external_process)
-        layout.addWidget(self.refresh_btn)
+        # Obsolete: Rather run Env Model generation every time, and auto-trigger MC.
+        # self.refresh_btn = QPushButton("Run Model Checker")
+        # self.refresh_btn.clicked.connect(self.trigger_external_process)
+        # layout.addWidget(self.refresh_btn)
 
         # Stays clickable while the MC race runs; kills every nuXmv instance at once.
         self.terminate_btn = QPushButton("Terminate Model Checker")
@@ -1451,7 +1452,7 @@ class MainWindow(QMainWindow):
         self.terminate_btn.setEnabled(False)
         layout.addWidget(self.terminate_btn)
 
-        self.envgen_btn = QPushButton("Re-run EnvModel Generation")
+        self.envgen_btn = QPushButton("Run Model Checker")
         self.envgen_btn.clicked.connect(lambda: self.run_envmodel_generation())
         # Right-click = forced regeneration: wipe the EnvModel cache and rewrite the tpl.json first.
         self.envgen_btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -1820,8 +1821,8 @@ class MainWindow(QMainWindow):
     def _mark_obstacles_dirty(self):
         """The obstacle set changed: block the MC re-run until the EnvModels are regenerated."""
         self._obstacles_dirty = True
-        self._block_mc_until_regen(
-            "Obstacles added/removed - regenerate the EnvModels before re-running the MC.")
+        # self._block_mc_until_regen(
+        #     "Obstacles added/removed - regenerate the EnvModels before re-running the MC.")
 
     def collect_obstacles_world(self):
         """Inverse-transform the current on-screen rectangles back to world coords on the model raster."""
@@ -1877,8 +1878,8 @@ class MainWindow(QMainWindow):
         """The target section was moved/rotated: mark the config stale and block the MC re-run."""
         if not self._section_dirty:
             self._section_dirty = True
-            self._block_mc_until_regen(
-                "Target section moved - regenerate the EnvModels before re-running the MC.")
+            # self._block_mc_until_regen(
+            #     "Target section moved - regenerate the EnvModels before re-running the MC.")
         self._refresh_gran_status()
         self._refresh_grid_status()
 
@@ -1917,8 +1918,8 @@ class MainWindow(QMainWindow):
         if self.section_item is not None:
             self.section_item.angle_granularity = self.angle_granularity
         self._gran_dirty = True
-        self._block_mc_until_regen(
-            "Angle granularity variants changed - regenerate the EnvModels before re-running the MC.")
+        # self._block_mc_until_regen(
+        #     "Angle granularity variants changed - regenerate the EnvModels before re-running the MC.")
         self._refresh_gran_status()
 
     def _grid_raster_step(self):
@@ -1966,14 +1967,14 @@ class MainWindow(QMainWindow):
     def _on_grid_values_changed(self):
         self._raster_step = self._grid_raster_step()
         self._grid_dirty = True
-        self._block_mc_until_regen(
-            "Distance grid variants changed - regenerate the EnvModels before re-running the MC.")
+        # self._block_mc_until_regen(
+        #     "Distance grid variants changed - regenerate the EnvModels before re-running the MC.")
         self._refresh_grid_status()
 
-    def _block_mc_until_regen(self, reason):
-        """Grey out the MC re-run and explain that an EnvModel regeneration is required first."""
-        self.refresh_btn.setEnabled(False)
-        self.refresh_btn.setToolTip(reason)
+    # def _block_mc_until_regen(self, reason):
+    #     """Grey out the MC re-run and explain that an EnvModel regeneration is required first."""
+    #     self.refresh_btn.setEnabled(False)
+    #     self.refresh_btn.setToolTip(reason)
 
     def _config_dirty(self):
         """True while there are un-regenerated edits (section pose, obstacle set, granularities)."""
@@ -2016,8 +2017,8 @@ class MainWindow(QMainWindow):
         self._refresh_gran_status()
         self._refresh_grid_status()
         if committed:
-            self.refresh_btn.setEnabled(True)
-            self.refresh_btn.setToolTip("")
+            # self.refresh_btn.setEnabled(True)
+            # self.refresh_btn.setToolTip("")
             self._commit_scene()
 
     def _commit_scene(self):
@@ -2088,8 +2089,8 @@ class MainWindow(QMainWindow):
             self._raster_step = self._grid_raster_step()
         self._grid_dirty = False
         self._refresh_grid_status()
-        self.refresh_btn.setEnabled(True)
-        self.refresh_btn.setToolTip("")
+        # self.refresh_btn.setEnabled(True)
+        # self.refresh_btn.setToolTip("")
         self._apply_visu_mode()
 
     def _set_buttons_enabled(self, enabled):
@@ -2101,7 +2102,7 @@ class MainWindow(QMainWindow):
         self.play_btn.setEnabled(enabled)
         # The MC re-run stays disabled while section 1 or the obstacle set has un-regenerated
         # edits: the current packages are stale until EnvModel regeneration writes them in.
-        self.refresh_btn.setEnabled(enabled and not self._config_dirty())
+        # self.refresh_btn.setEnabled(enabled and not self._config_dirty())
 
     def reveal_model_folder(self):
         """Open the folder behind the shown maneuver; also print it, as opening fails on remote."""
@@ -2167,6 +2168,7 @@ class MainWindow(QMainWindow):
         self._on_regen_success()
         self.poll_timer.stop()
         self.poll_progress_file()
+        self.trigger_external_process()
 
     def run_envmodel_generation(self, force=False):
         # A moved target section or a changed obstacle set must be written into the config
