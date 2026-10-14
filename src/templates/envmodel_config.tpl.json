@@ -59,7 +59,7 @@
       "EGOLESS": false,
       "FEASIBILITY": false,
       "VFM_PREPROCESSOR": "@sec_zero_length=20;@angles1=70;@angles2=250;@slot_distance=9;@road_sec_length=2",
-      "FIXED_SECTION_ANGLEs": "@(0)@@(35)@",
+      "FIXED_SECTION_ANGLEs": "@(0)@@(305)@",
       "FIXED_SECTION_CONNECTORS": "",
       "FIXED_SECTION_IDs": "@(0)@@(1)@",
       "FIXED_SECTION_LENGTHs": "@(1)@@(1)@",

@@ -41,11 +41,6 @@ ENVGEN_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.generateEnvmodels
 # Ego sprite (639x258 px, rear bumper at x=0, front to +x); dimensions from EGO_* in activation_pose.py.
 EGO_CAR_IMAGE = os.path.join(REPO_ROOT, "parking", "ego_car.png")
 EGO_LENGTH_M = 4.53
-EGO_REAR_OVERHANG_M = 1.01
-EGO_REAR_AXLE_PX = (142.5, 129.0)
-# The sprite is driven by its rear axle (APA); start/end poses put the car CENTRE (MC reference)
-# on the section middles, which lies this far ahead of the rear axle.
-EGO_CENTRE_AHEAD_OF_AXLE_M = EGO_LENGTH_M / 2.0 - EGO_REAR_OVERHANG_M
 EGO_ACCEL_MPS2 = 1.5
 EGO_MAX_SPEED_MPS = 4.0
 EGO_GEAR_CHANGE_PAUSE_S = 0.5
@@ -676,7 +671,7 @@ def ego_route_world(trace_path, target_sec, target_dirs=("F", "B"), samples=48):
     (0, B); F follows connections forward, B follows them in reverse, and the gear flips only in
     a forward/backward-terminal section other than the target. Each gear flip happens with the
     car centre on the section middle. Returns [(points, cumulative lengths, gear), ...] with the
-    rear-axle path in motion order and gear +1/-1, or None if the target is unreachable.
+    car-centre path in motion order and gear +1/-1, or None if the target is unreachable.
     """
     get = _trace_getter(trace_path)
     geoms = {}
@@ -732,31 +727,18 @@ def ego_route_world(trace_path, target_sec, target_dirs=("F", "B"), samples=48):
         return sx + (dx - sx) * u / length, sy + (dy - sy) * u / length
 
     raw_legs, pts = [], []
-    u_flip = 0.0
     for k, (sec, d) in enumerate(states):
         length = math.dist(*geoms[sec])
-        mid = length / 2.0 - EGO_CENTRE_AHEAD_OF_AXLE_M
+        mid = length / 2.0
         last = k == len(states) - 1
-        if k > 0 and states[k - 1][0] == sec:
-            u_in = u_flip
+        flip_next = not last and states[k + 1][0] == sec
+        if k == 0 or states[k - 1][0] == sec:
+            u_in = mid
         else:
-            u_in = mid if k == 0 else (0.0 if d == "F" else length)
-        u_out = mid if last or states[k + 1][0] == sec else (length if d == "F" else 0.0)
-        if last and d == "F" and u_out < u_in:
-            # Short target: the rear axle must stop before its source, i.e. still on the approach arc.
-            (sx, sy), (dx, dy) = geoms[sec]
-            ux, uy = (dx - sx) / (length or 1.0), (dy - sy) / (length or 1.0)
-            while len(pts) > 1 and (pts[-1][0] - sx) * ux + (pts[-1][1] - sy) * uy >= u_out:
-                pts.pop()
-            pts.append(at(sec, u_out))
-            raw_legs.append((pts, 1))
-            break
-        # Never back-track within a leg: in a section shorter than the car, the rear axle would
-        # otherwise have to move against the gear to put the car centre on the middle.
-        u_out = max(u_out, u_in) if d == "F" else min(u_out, u_in)
-        u_flip = u_out
+            u_in = 0.0 if d == "F" else length
+        u_out = mid if last or flip_next else (length if d == "F" else 0.0)
         pts += [at(sec, u_in), at(sec, u_out)]
-        if last or states[k + 1][0] == sec:
+        if last or flip_next:
             raw_legs.append((pts, 1 if d == "F" else -1))
             pts = []
             continue
@@ -765,14 +747,7 @@ def ego_route_world(trace_path, target_sec, target_dirs=("F", "B"), samples=48):
                   else _connection_bezier(geoms[nsec], geoms[sec]))
         if bezier is not None:
             ts = range(1, samples) if d == "F" else range(samples - 1, 0, -1)
-            arc = [_cubic_bezier(i / samples, *bezier) for i in ts]
-            # In a section shorter than the car the rear axle may already be past the arc start.
-            (sx, sy), (dx, dy) = geoms[sec]
-            sgn = 1.0 if d == "F" else -1.0
-            ax, ay = pts[-1]
-            first = next((i for i, (x, y) in enumerate(arc)
-                          if ((x - ax) * (dx - sx) + (y - ay) * (dy - sy)) * sgn > 0), len(arc))
-            pts.extend(arc[first:])
+            pts.extend(_cubic_bezier(i / samples, *bezier) for i in ts)
 
     legs = []
     for points, gear in raw_legs:
@@ -1643,7 +1618,7 @@ class MainWindow(QMainWindow):
         pixmap = QPixmap.fromImage(image)
         car = self.scene.addPixmap(pixmap)
         car.setTransformationMode(Qt.TransformationMode.SmoothTransformation)
-        car.setTransformOriginPoint(*EGO_REAR_AXLE_PX)
+        car.setTransformOriginPoint(pixmap.width() / 2.0, pixmap.height() / 2.0)
         car.setScale(transform[2] * EGO_LENGTH_M / pixmap.width())
         car.setZValue(3.5)
         self._ego_item = car
@@ -1656,15 +1631,13 @@ class MainWindow(QMainWindow):
         if self._ego_item is None or geom is None:
             return
         (sx, sy), (dx, dy) = geom
-        yaw = math.atan2(dy - sy, dx - sx)
-        back = math.dist((sx, sy), (dx, dy)) / 2.0 - EGO_CENTRE_AHEAD_OF_AXLE_M
-        self._set_ego_pose(sx + back * math.cos(yaw), sy + back * math.sin(yaw), yaw)
+        self._set_ego_pose((sx + dx) / 2.0, (sy + dy) / 2.0, math.atan2(dy - sy, dx - sx))
 
-    def _set_ego_pose(self, axle_x, axle_y, yaw):
-        """Place the sprite by its rear axle (world coords) and heading (rad)."""
-        px, py = world_to_pixel(axle_x, axle_y, self._transform, self.image_w, self.image_h)
-        ox, oy = EGO_REAR_AXLE_PX
-        self._ego_item.setPos(px - ox, py - oy)
+    def _set_ego_pose(self, x, y, yaw):
+        """Place the sprite by its centre (world coords, the MC's vehicle reference) and heading (rad)."""
+        px, py = world_to_pixel(x, y, self._transform, self.image_w, self.image_h)
+        origin = self._ego_item.transformOriginPoint()
+        self._ego_item.setPos(px - origin.x(), py - origin.y())
         self._ego_item.setRotation(math.degrees(yaw))
 
     def play_ego(self):
