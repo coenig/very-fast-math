@@ -49,6 +49,9 @@ EGO_CENTRE_AHEAD_OF_AXLE_M = EGO_LENGTH_M / 2.0 - EGO_REAR_OVERHANG_M
 EGO_ACCEL_MPS2 = 1.5
 EGO_MAX_SPEED_MPS = 4.0
 EGO_GEAR_CHANGE_PAUSE_S = 0.5
+# Drawn parking bays span at least this length, centred on the section middle (= car centre), so a
+# short start section (quick turn-out) still shows a full-size slot.
+PARKING_SLOT_LENGTH_M = 7.0
 
 # runMCJobs model-checks every examples/gp* package (except the bare 'gp' prefix folder). With a
 # >1 range on a '#'-variable in the tpl.json, generateEnvmodels emits one such package per value
@@ -747,7 +750,14 @@ def ego_route_world(trace_path, target_sec, target_dirs=("F", "B"), samples=48):
                   else _connection_bezier(geoms[nsec], geoms[sec]))
         if bezier is not None:
             ts = range(1, samples) if d == "F" else range(samples - 1, 0, -1)
-            pts.extend(_cubic_bezier(i / samples, *bezier) for i in ts)
+            arc = [_cubic_bezier(i / samples, *bezier) for i in ts]
+            # In a section shorter than the car the rear axle may already be past the arc start.
+            (sx, sy), (dx, dy) = geoms[sec]
+            sgn = 1.0 if d == "F" else -1.0
+            ax, ay = pts[-1]
+            first = next((i for i, (x, y) in enumerate(arc)
+                          if ((x - ax) * (dx - sx) + (y - ay) * (dy - sy)) * sgn > 0), len(arc))
+            pts.extend(arc[first:])
 
     legs = []
     for points, gear in raw_legs:
@@ -1729,11 +1739,15 @@ class MainWindow(QMainWindow):
         self._trajectory_items.append(label)
 
     def _draw_parking_marking(self, x1, y1, x2, y2, label, ppm):
-        """White parking-bay outline hugging a section, with a label (start/target indicator)."""
+        """White parking-bay outline around a section's middle, with a label (start/target indicator)."""
         dx, dy = x2 - x1, y2 - y1
         length = math.hypot(dx, dy) or 1.0
         ux, uy = dx / length, dy / length
         nx, ny = -uy, ux                    # unit normal
+        mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
+        half_len = max(length, PARKING_SLOT_LENGTH_M * ppm) / 2.0
+        x1, y1 = mx - ux * half_len, my - uy * half_len
+        x2, y2 = mx + ux * half_len, my + uy * half_len
         half = ppm * 1.25                    # ~2 m wide bay (1 m half-width), in world proportion
         thickness = max(3.0, ppm * 0.15)    # ~0.15 m painted line, like real markings
         corners = [
@@ -1751,7 +1765,6 @@ class MainWindow(QMainWindow):
         text = self.scene.addText(label, QFont("Sans", 16, QFont.Weight.Bold))
         text.setDefaultTextColor(QColor(255, 255, 255))
         br = text.boundingRect()
-        mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
         text.setPos(mx - br.width() / 2.0, my - br.height() / 2.0)
         text.setZValue(4)
 
