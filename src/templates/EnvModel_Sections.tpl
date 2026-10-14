@@ -316,7 +316,7 @@ DEFINE
       @{rect_obstacles_tl_y_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_tl_y_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
       @{rect_obstacles_br_x_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_x_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
       @{rect_obstacles_br_y_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_y_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
-   }@*.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
+   }@**.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
 -- EO Caution
 
 @{
