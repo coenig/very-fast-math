@@ -53,6 +53,12 @@ EGO_GEAR_CHANGE_PAUSE_S = 0.5
 # short start section (quick turn-out) still shows a full-size slot.
 PARKING_SLOT_LENGTH_M = 7.0
 
+
+def slot_extent(section_length, slot_length):
+    """(start, end) of a bay centred on a section's middle, measured along it from its source."""
+    span = max(section_length, slot_length)
+    return (section_length - span) / 2.0, (section_length + span) / 2.0
+
 # runMCJobs model-checks every examples/gp* package (except the bare 'gp' prefix folder). With a
 # >1 range on a '#'-variable in the tpl.json, generateEnvmodels emits one such package per value
 # (cross-product for several ranges), so a single MC run races multiple configs at once.
@@ -736,6 +742,15 @@ def ego_route_world(trace_path, target_sec, target_dirs=("F", "B"), samples=48):
         else:
             u_in = mid if k == 0 else (0.0 if d == "F" else length)
         u_out = mid if last or states[k + 1][0] == sec else (length if d == "F" else 0.0)
+        if last and d == "F" and u_out < u_in:
+            # Short target: the rear axle must stop before its source, i.e. still on the approach arc.
+            (sx, sy), (dx, dy) = geoms[sec]
+            ux, uy = (dx - sx) / (length or 1.0), (dy - sy) / (length or 1.0)
+            while len(pts) > 1 and (pts[-1][0] - sx) * ux + (pts[-1][1] - sy) * uy >= u_out:
+                pts.pop()
+            pts.append(at(sec, u_out))
+            raw_legs.append((pts, 1))
+            break
         # Never back-track within a leg: in a section shorter than the car, the rear axle would
         # otherwise have to move against the gear to put the car centre on the middle.
         u_out = max(u_out, u_in) if d == "F" else min(u_out, u_in)
@@ -1239,7 +1254,7 @@ class SectionRotateHandle(QGraphicsRectItem):
         self.update_position()
 
     def update_position(self):
-        self.setPos(self.section.length_px, 0)
+        self.setPos(self.section.slot_end_px, 0)
 
     def mousePressEvent(self, event):
         event.accept()
@@ -1258,10 +1273,12 @@ class SectionRotateHandle(QGraphicsRectItem):
 
 
 class RotatableSectionItem(QGraphicsRectItem):
-    """Fixed-length target section: movable and rotatable (about its source end) but not
-    resizable. Rotation is constrained to multiples of the angle granularity."""
-    def __init__(self, source_px, length_px, angle_deg, half_width_px, angle_granularity, on_changed):
-        super().__init__(0.0, -half_width_px, length_px, 2.0 * half_width_px)
+    """Fixed-length target section, drawn as its parking bay: movable and rotatable (about its
+    source end) but not resizable. Rotation is constrained to multiples of the angle granularity."""
+    def __init__(self, source_px, length_px, angle_deg, half_width_px, angle_granularity, on_changed,
+                 slot_px=0.0):
+        slot_start, self.slot_end_px = slot_extent(length_px, slot_px)
+        super().__init__(slot_start, -half_width_px, self.slot_end_px - slot_start, 2.0 * half_width_px)
         self.length_px = length_px
         self.angle_granularity = angle_granularity
         self._on_changed = on_changed
@@ -1863,15 +1880,16 @@ class MainWindow(QMainWindow):
         self._draw_section_ghost(x1, y1, length_px, angle_deg, half_w)
         self.section_item = RotatableSectionItem(
             QPointF(x1, y1), length_px, angle_deg, half_w,
-            self.angle_granularity, self._on_section_changed)
+            self.angle_granularity, self._on_section_changed, PARKING_SLOT_LENGTH_M * ppm)
         self.scene.addItem(self.section_item)
 
     def _draw_section_ghost(self, x1, y1, length_px, angle_deg, half_w):
-        """Faint outline of the target section's original pose (like the obstacle ghosts)."""
+        """Faint outline of the target bay's original pose (like the obstacle ghosts)."""
         a = math.radians(angle_deg)
         ux, uy = math.cos(a), math.sin(a)
         nx, ny = -uy, ux
-        x2, y2 = x1 + length_px * ux, y1 + length_px * uy
+        start, end = slot_extent(length_px, PARKING_SLOT_LENGTH_M * (self._ppm or 50.0))
+        x1, y1, x2, y2 = x1 + start * ux, y1 + start * uy, x1 + end * ux, y1 + end * uy
         corners = [QPointF(x1 + nx * half_w, y1 + ny * half_w),
                    QPointF(x2 + nx * half_w, y2 + ny * half_w),
                    QPointF(x2 - nx * half_w, y2 - ny * half_w),
