@@ -16,10 +16,10 @@ from ctypes import create_string_buffer, sizeof
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QGraphicsView, QGraphicsScene, QGraphicsRectItem,
                              QGraphicsEllipseItem, QGraphicsSimpleTextItem, QMessageBox, QProgressBar,
-                             QGroupBox, QLabel, QSpinBox, QToolButton)
+                             QGroupBox, QLabel, QSpinBox, QToolButton, QFileDialog)
 from PyQt6.QtCore import Qt, QRectF, QTimer, QPointF, QObject, QThread, QUrl, pyqtSignal
 from PyQt6.QtGui import (QPixmap, QImage, QBrush, QPen, QColor, QPainterPath, QPolygonF, QFont,
-                         QDesktopServices, QTransform)
+                         QDesktopServices, QTransform, QPainter)
 
 
 # Repo root = parent of this parking/ folder; anchors all paths independent of the caller's cwd.
@@ -44,6 +44,9 @@ EGO_LENGTH_M = 4.53
 EGO_ACCEL_MPS2 = 1.5
 EGO_MAX_SPEED_MPS = 4.0
 EGO_GEAR_CHANGE_PAUSE_S = 0.5
+GIF_FPS = 20
+GIF_MAX_WIDTH_PX = 1000
+GIF_FINAL_HOLD_S = 1.5
 # Drawn parking bays span at least this length, centred on the section middle (= car centre), so a
 # short start section (quick turn-out) still shows a full-size slot.
 PARKING_SLOT_LENGTH_M = 7.0
@@ -1428,6 +1431,10 @@ class MainWindow(QMainWindow):
         self.play_btn.clicked.connect(self.play_ego)
         layout.addWidget(self.play_btn)
 
+        self.gif_btn = QPushButton("Export Drive as GIF")
+        self.gif_btn.clicked.connect(self.export_gif)
+        layout.addWidget(self.gif_btn)
+
         # Discards unregenerated edits: back to the layout the current packages were built from.
         self.reset_btn = QPushButton("Reset")
         self.reset_btn.clicked.connect(self.reset_scene)
@@ -1641,25 +1648,90 @@ class MainWindow(QMainWindow):
         self._ego_item.setPos(px - origin.x(), py - origin.y())
         self._ego_item.setRotation(math.degrees(yaw))
 
-    def play_ego(self):
-        """Drive the ego from the middle of Sec. 0 to the middle of the target section."""
+    def _ego_route_ready(self):
         if self._ego_item is None:
-            return
+            return False
         if self._ego_route is None:
             if _trace_getter(self.trace_path).from_config:
                 QMessageBox.information(self, "No solution",
                                         "No solution loaded yet - run the model checker first.")
-                return
+                return False
             QMessageBox.information(self, "No route",
                                     f"No connection chain from Sec. 0 to target Sec. "
                                     f"{self._target_section} in the current trace.")
+            return False
+        return True
+
+    def play_ego(self):
+        """Drive the ego from the middle of Sec. 0 to the middle of the target section."""
+        if not self._ego_route_ready():
             return
         self._play_t0 = time.monotonic()
         self._play_step()
         self.play_timer.start()
 
     def _play_step(self):
-        t = time.monotonic() - self._play_t0
+        if self._set_ego_pose_at(time.monotonic() - self._play_t0):
+            self.play_timer.stop()
+
+    def export_gif(self):
+        """Render the Play drive (start -> target) frame by frame into an animated GIF."""
+        if not self._ego_route_ready():
+            return
+        default = os.path.join(os.path.dirname(os.path.abspath(self.trace_path)), "ego_drive.gif")
+        path, _ = QFileDialog.getSaveFileName(self, "Export Drive as GIF", default,
+                                              "GIF images (*.gif)")
+        if not path:
+            return
+        from PIL import Image
+
+        self.play_timer.stop()
+        source = self.scene.sceneRect()
+        scale = min(1.0, GIF_MAX_WIDTH_PX / source.width())
+        w, h = max(1, round(source.width() * scale)), max(1, round(source.height() * scale))
+        # Frames are rendered without editing handles, like the clean screenshot view.
+        prev_visu = self.visu_mode
+        self.visu_mode = True
+        self._apply_visu_mode()
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        frames = []
+        try:
+            dt = 1.0 / GIF_FPS
+            t, done = 0.0, False
+            while not done:
+                done = self._set_ego_pose_at(t)
+                image = QImage(w, h, QImage.Format.Format_RGBA8888)
+                image.fill(Qt.GlobalColor.white)
+                painter = QPainter(image)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+                self.scene.render(painter, QRectF(0, 0, w, h), source)
+                painter.end()
+                bits = image.constBits()
+                bits.setsize(image.sizeInBytes())
+                frames.append(Image.frombuffer("RGBA", (w, h), bytes(bits), "raw", "RGBA",
+                                               image.bytesPerLine(), 1).convert("RGB"))
+                t += dt
+            # One shared palette avoids per-frame colour flicker of the static background.
+            first = frames[0].quantize(colors=256)
+            paletted = [first] + [f.quantize(palette=first, dither=Image.Dither.NONE)
+                                  for f in frames[1:]]
+            durations = [round(1000 * dt)] * len(paletted)
+            durations[-1] = round(1000 * GIF_FINAL_HOLD_S)
+            paletted[0].save(path, save_all=True, append_images=paletted[1:],
+                             duration=durations, loop=0)
+        except OSError as e:
+            QMessageBox.warning(self, "GIF export failed", str(e))
+            return
+        finally:
+            QApplication.restoreOverrideCursor()
+            self.visu_mode = prev_visu
+            self._apply_visu_mode()
+            self._place_ego_at_start()
+        print(f"Exported {len(frames)} frames to {path}")
+
+    def _set_ego_pose_at(self, t):
+        """Pose the ego at drive time t (s); returns True once it has reached the target."""
         last = len(self._ego_route) - 1
         for i, (points, cum, gear) in enumerate(self._ego_route):
             d, finished = trapezoid_distance(t, cum[-1])
@@ -1672,8 +1744,7 @@ class MainWindow(QMainWindow):
         x, y, yaw = polyline_pose(points, cum, d)
         # In reverse the car faces against its direction of motion.
         self._set_ego_pose(x, y, yaw if gear > 0 else yaw + math.pi)
-        if finished and i == last:
-            self.play_timer.stop()
+        return finished and i == last
 
     def _draw_obstacle_ghosts(self, rects_data):
         """Filled, non-interactive ghosts marking where the obstacles originally were."""
@@ -2100,6 +2171,7 @@ class MainWindow(QMainWindow):
         self.add_obstacle_btn.setEnabled(enabled)
         self.reset_btn.setEnabled(enabled)
         self.play_btn.setEnabled(enabled)
+        self.gif_btn.setEnabled(enabled)
         # The MC re-run stays disabled while section 1 or the obstacle set has un-regenerated
         # edits: the current packages are stale until EnvModel regeneration writes them in.
         # self.refresh_btn.setEnabled(enabled and not self._config_dirty())
