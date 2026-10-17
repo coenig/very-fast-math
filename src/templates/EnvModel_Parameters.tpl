@@ -130,6 +130,8 @@
 @{RECT_OBSTACLES_GROW_MAX_Ws}@*******.defaultValueString[@{}@]
 @{RECT_OBSTACLES_GROW_MIN_Hs}@*******.defaultValueString[@{}@]
 @{RECT_OBSTACLES_GROW_MAX_Hs}@*******.defaultValueString[@{}@]
+-- Workspace (e.g. the parking lot) as @(min_x)@@(min_y)@@(max_x)@@(max_y)@ in m: all sections must stay inside. Empty = unbounded.
+@{WORKSPACE_BOUNDs}@*******.defaultValueString[@{}@]
 @{RECT_OBSTACLES_SHIFT_STEP}@*******.defaultValue[1]
 
 @{FIXED_SECTION_IDs}@*******.ConvenienceVars
@@ -176,6 +178,7 @@
 @{RECT_OBSTACLES_GROW_MAX_Ws}@*******.ConvenienceVars
 @{RECT_OBSTACLES_GROW_MIN_Hs}@*******.ConvenienceVars
 @{RECT_OBSTACLES_GROW_MAX_Hs}@*******.ConvenienceVars
+@{WORKSPACE_BOUNDs}@*******.ConvenienceVars
 -- obs_[obs]_[f]: the obstacle's free-range bound, 0 where the list is shorter.
 @{
    @{

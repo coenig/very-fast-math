@@ -19,6 +19,7 @@ Otherwise the shorter route yields a lemma "some free obstacle blocks this route
 """
 import argparse
 import json
+import math
 import os
 import re
 import shutil
@@ -31,6 +32,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import mc_parker as mp  # noqa: E402
 
 TARGET_SECTION = 1
+EGO_WIDTH_M = 2.0
 LEMMA_BEGIN = "-- BEGIN OBSTACLE SYNTH LEMMAS (patched by parking/synth_obstacles.py)"
 LEMMA_END = "-- END OBSTACLE SYNTH LEMMAS"
 _FREE_DECL_RE = re.compile(
@@ -218,15 +220,31 @@ def write_packages(packages, base, goal_moves, fixed_shifts, clauses, exact=Fals
             f.write(patch_model(base[p], goal_moves, fixed_shifts, clauses, geometry_factor(base[p]), exact))
 
 
-def target_points(tpl_path):
-    """Source, middle and drain of the (fixed) target section in world coords, or [] if not fixed."""
+def hug_groups(tpl_path, mode):
+    """Point groups around the (fixed) target slot that free boxes should hug, [] if not fixed.
+
+    slot: one group (the section's ends and middle). ends: in front of / behind the parked car
+    (parallel parking), sides: left / right of it (perpendicular parking); with two groups, the
+    hugging boxes are spread over both.
+    """
     values = mp._config_values(tpl_path)
     geom = mp._section_geom(values.get, TARGET_SECTION)
     if geom is None:
         return []
     (sx, sy), (dx, dy) = geom
-    return [(Fraction(x).limit_denominator(1000), Fraction(y).limit_denominator(1000))
-            for x, y in ((sx, sy), ((sx + dx) / 2, (sy + dy) / 2), (dx, dy))]
+    mx, my = (sx + dx) / 2, (sy + dy) / 2
+    length = math.hypot(dx - sx, dy - sy) or 1.0
+    ux, uy = (dx - sx) / length, (dy - sy) / length
+    if mode == "ends":
+        a, (vx, vy) = mp.EGO_LENGTH_M / 2 + 0.5, (ux, uy)
+        groups = [[(mx + vx * a, my + vy * a)], [(mx - vx * a, my - vy * a)]]
+    elif mode == "sides":
+        a, (vx, vy) = EGO_WIDTH_M / 2 + 0.5, (-uy, ux)
+        groups = [[(mx + vx * a, my + vy * a)], [(mx - vx * a, my - vy * a)]]
+    else:
+        groups = [[(sx, sy), (mx, my), (dx, dy)]]
+    return [[(Fraction(x).limit_denominator(1000), Fraction(y).limit_denominator(1000)) for x, y in g]
+            for g in groups]
 
 
 def all_proven(packages):
@@ -318,6 +336,10 @@ def main():
                     help="Clearance ladder (m, comma-separated): first require every free box within "
                          "this distance of the target slot (tight gaps force moves, like parallel "
                          "parking), relaxing step by step and finally dropping it; '' = off.")
+    ap.add_argument("--hug-at", choices=("slot", "ends", "sides"),
+                    help="Where boxes hug the target: slot = anywhere around it, ends = in front of and "
+                         "behind the car (parallel parking), sides = left and right of it (perpendicular "
+                         "parking). Default: SYNTH_HUG_AT from the config, else slot.")
     args = ap.parse_args()
 
     if args.history:
@@ -357,7 +379,9 @@ def main():
              f"change needs its own dead-end section (start and target can't serve), so moves <= "
              f"SECTIONS - 1. Allow {n_moves + 1} sections or lower PARK_MOVES.")
     target_dirs = mp.target_park_in_dirs(smv_path(packages[0]))
-    hug_points = target_points(tpl_path)
+    hug_at = args.hug_at or cfg.get("SYNTH_HUG_AT", "slot")
+    groups = hug_groups(tpl_path, hug_at)
+    hug_points = [p for g in groups for p in g]
 
     def huggers(c):
         """Free boxes whose shift/grow ranges can bring them within c of the target slot."""
@@ -375,7 +399,8 @@ def main():
     hugs = [c for c in hugs if huggers(c)] + [None]
     print(f"{len(packages)} package(s), free obstacles {sorted(free_obs)}, target: exactly {n_moves} move(s).")
     emit("start", packages=[os.path.basename(p) for p in packages], moves=n_moves,
-         free=sorted(free_obs), max_iters=args.max_iters, hug=[float(h) for h in hugs if h is not None])
+         free=sorted(free_obs), max_iters=args.max_iters, hug=[float(h) for h in hugs if h is not None],
+         hug_at=hug_at)
 
     lemmas, shifts, certified = [], None, False
     directed = args.margin > 0
@@ -385,8 +410,12 @@ def main():
         out = [(sorted(free_obs), strong if directed else plain) for plain, strong in lemmas]
         c = hugs[hug_idx]
         if c is not None:
-            squares = [(x - c, x + c, y - c, y + c) for x, y in hug_points]
-            out += [([o], squares) for o in huggers(c)]
+            boxes = huggers(c)
+            # Enough boxes for every group: spread them (front/back or left/right), else any point.
+            spread = len(boxes) >= len(groups)
+            for i, o in enumerate(boxes):
+                pts = groups[i % len(groups)] if spread else hug_points
+                out.append(([o], [(x - c, x + c, y - c, y + c) for x, y in pts]))
         return out
 
     def refute(win, it, secs, obstacles_world):
