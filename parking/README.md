@@ -72,6 +72,11 @@ repeats. `--apply` writes the result into `RECT_OBSTACLES_*`, resets the shifts 
 Without it, `python3 parking/mc_parker.py` opens the certified solution. In the GUI a free box is
 drawn where the MC put it; dragging it moves its configured base box (the shift range stays).
 
+The search is directed: it first checks the configured placement for a shorter route (seed; skip
+with `--no-seed`), and candidates first have to cover every refuting route with `--margin` (default
+0.5 m) to spare, so near-identical routes are blocked too. If no placement manages that, it falls
+back to plain blocking, which alone decides "no solution".
+
 In the GUI, **"Synthesize Free Obstacles"** runs the same loop (writing pending scene edits to the
 config first) and shows every step live: each candidate with its N-move route, then the shorter
 route refuting it (Play animates it). Refuted placements stay as dashed red outlines; the status

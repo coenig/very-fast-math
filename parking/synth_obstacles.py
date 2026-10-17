@@ -230,23 +230,31 @@ def race(packages, mc_script, label, **phase):
     return win, time.time() - t0
 
 
-def route_boxes(raw, smv_text, target_dirs):
-    """World-coordinate boxes the model's obstacle check uses along the min-move route."""
+def route_boxes(raw, smv_text, target_dirs, margin):
+    """Lemma boxes along the min-move route: (plain, directed, moves, states).
+
+    Plain boxes are exactly the model's obstacle checks (a free box overlapping any of them blocks
+    the route). Directed ones are inverted boxes around points on the route: overlapping one means
+    covering that point with 'margin' to spare, so slightly shifted variants of the route are
+    blocked too. Directed implies plain.
+    """
     states = mp.route_states(raw.get, TARGET_SECTION, target_dirs)
     if states is None:
         fail("Counterexample trace holds no route to the target (trace parsing problem?).")
     g = geometry_factor(smv_text)
     m = _K_RE.search(smv_text)
     k = int(m.group(1)) if m else 0
+    d = Fraction(margin).limit_denominator(1000)
 
     def pt(sec, end):
         return raw[f"section_{sec}.{end}.x"], raw[f"section_{sec}.{end}.y"]
 
-    boxes = set()
+    boxes, points = set(), set()
     for sec in {s for s, _ in states}:
         for end in ("source", "drain"):
             x, y = pt(sec, end)
             boxes.add((Fraction(x) / g, Fraction(x) / g, Fraction(y) / g, Fraction(y) / g))
+            points.add((Fraction(x) / g, Fraction(y) / g))
     for (s1, d1), (s2, _) in zip(states, states[1:]):
         if s1 == s2 or k == 0:
             continue
@@ -256,8 +264,12 @@ def route_boxes(raw, smv_text, target_dirs):
             xs = (k * dx + seg * (sx - dx), k * dx + (seg + 1) * (sx - dx))
             ys = (k * dy + seg * (sy - dy), k * dy + (seg + 1) * (sy - dy))
             boxes.add(tuple(Fraction(v, k) / g for v in (min(xs), max(xs), min(ys), max(ys))))
+        for j in range(2 * k + 1):  # sub-segment ends and midpoints: inside the plain boxes
+            points.add((Fraction(2 * k * dx + j * (sx - dx), 2 * k) / g,
+                        Fraction(2 * k * dy + j * (sy - dy), 2 * k) / g))
+    directed = sorted((x + d, x - d, y + d, y - d) for x, y in points)
     moves = 1 + sum(1 for (a, _), (b, _) in zip(states, states[1:]) if a == b)
-    return sorted(boxes), moves, states
+    return sorted(boxes), directed, moves, states
 
 
 def world_obstacles(raw, g, n_obs):
@@ -275,6 +287,11 @@ def main():
                     help="Write the result into RECT_OBSTACLES_*, fix all shifts and regenerate.")
     ap.add_argument("--no-regen", action="store_true", help="Reuse the already generated packages.")
     ap.add_argument("--history", help="Snapshot/event dir (default: <examples>/synth_history).")
+    ap.add_argument("--margin", type=float, default=0.5,
+                    help="Directed search: first look for placements covering each refuting route with "
+                         "this margin (m); 0 = plain blocking only.")
+    ap.add_argument("--no-seed", action="store_true",
+                    help="Skip checking the configured placement for shorter routes first.")
     args = ap.parse_args()
 
     if args.history:
@@ -309,9 +326,39 @@ def main():
          free=sorted(free_obs), max_iters=args.max_iters)
 
     lemmas, shifts, certified = [], None, False
+    directed = args.margin > 0
+
+    def active(lemma_list):
+        return [strong if directed else plain for plain, strong in lemma_list]
+
+    def refute(win, it, secs, obstacles_world):
+        raw = read_raw_trace(mp.package_trace_path(win))
+        plain, strong, moves, states = route_boxes(raw, read_text(smv_path(win)), target_dirs, args.margin)
+        print(f"  refuted by a {moves}-move route in {os.path.basename(win)}: {states}")
+        lemmas.append((plain, strong))
+        emit("refuted", iter=it, snapshot=snapshot(history_dir, f"iter{it:02d}_refutation", win),
+             package=os.path.basename(win), moves=moves, lemmas=len(lemmas), obstacles=obstacles_world,
+             free=sorted(free_obs), seconds=secs)
+
+    if n_moves > 1 and not args.no_seed:
+        # Start from the configured boxes: the shorter route they allow is the first one to block.
+        seed = {o: {p: min(max(0, lo), hi) for p, (lo, hi) in free_obs[o].items()} for o in free_obs}
+        write_packages(packages, base, n_moves - 1, seed, [], free_obs)
+        win, secs = race(packages, mc_script, f"seed: verify < {n_moves} moves", phase="verify", iter=0)
+        if win is not None:
+            seed_raw = read_raw_trace(mp.package_trace_path(win))
+            refute(win, 0, secs, world_obstacles(seed_raw, geometry_factor(base[win]), len(obstacles)))
+
     for it in range(1, args.max_iters + 1):
-        write_packages(packages, base, n_moves, None, lemmas, free_obs)
+        write_packages(packages, base, n_moves, None, active(lemmas), free_obs)
         win, secs = race(packages, mc_script, f"iter {it}: synth <= {n_moves} moves", phase="synth", iter=it)
+        if win is None and directed and lemmas:
+            # Covering every route with margin is impossible; plain blocking decides the rest.
+            directed = False
+            print(f"  no placement covers all refuting routes with {args.margin} m margin; plain blocking now")
+            emit("fallback", iter=it, margin=args.margin)
+            write_packages(packages, base, n_moves, None, active(lemmas), free_obs)
+            win, secs = race(packages, mc_script, f"iter {it}: synth <= {n_moves} moves", phase="synth", iter=it)
         if win is None:
             print(f"No placement of the free obstacles forces exactly {n_moves} moves (within the model).")
             emit("impossible", iter=it, lemmas=len(lemmas), moves=n_moves, seconds=secs)
@@ -330,18 +377,12 @@ def main():
             certified = True
             break
 
-        write_packages(packages, base, n_moves - 1, shifts, lemmas, free_obs)
+        write_packages(packages, base, n_moves - 1, shifts, active(lemmas), free_obs)
         win, secs = race(packages, mc_script, f"iter {it}: verify < {n_moves} moves", phase="verify", iter=it)
         if win is None:
             certified = True
             break
-        raw = read_raw_trace(mp.package_trace_path(win))
-        boxes, moves, states = route_boxes(raw, read_text(smv_path(win)), target_dirs)
-        print(f"  refuted by a {moves}-move route in {os.path.basename(win)}: {states}")
-        lemmas.append(boxes)
-        emit("refuted", iter=it, snapshot=snapshot(history_dir, f"iter{it:02d}_refutation", win),
-             package=os.path.basename(win), moves=moves, lemmas=len(lemmas), obstacles=cand_obstacles,
-             free=sorted(free_obs), seconds=secs)
+        refute(win, it, secs, cand_obstacles)
 
     if not certified:
         print(f"Gave up after {args.max_iters} iterations ({len(lemmas)} lemmas).")
@@ -349,7 +390,7 @@ def main():
         return 3
 
     # Restore the synth solution (goal N, placement fixed) as the freshest CEX for mc_parker.py.
-    write_packages(packages, base, n_moves, shifts, lemmas, free_obs)
+    write_packages(packages, base, n_moves, shifts, active(lemmas), free_obs)
     for p in packages:
         mp.clear_package_trace(p)
     with open(mp.package_trace_path(synth_win), "w") as f:

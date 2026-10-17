@@ -2655,6 +2655,9 @@ class MainWindow(QMainWindow):
             elif ev["phase"] == "synth":
                 self._synth_say(f"Iteration {it}: searching a placement of the free obstacles that "
                                 f"still allows parking within {self._synth_moves} move(s)...")
+            elif it == 0:
+                self._synth_say(f"Seed: checking whether the configured placement allows a route with "
+                                f"FEWER than {self._synth_moves} move(s) (the first route to block)...")
             else:
                 self._synth_say(f"Iteration {it}: checking every package for a route with FEWER "
                                 f"than {self._synth_moves} move(s) around this placement...")
@@ -2670,9 +2673,13 @@ class MainWindow(QMainWindow):
         elif kind == "refuted":
             self._synth_refuted += [tuple(ev["obstacles"][o]) for o in ev["free"]]
             self._show_snapshot(ev["snapshot"])
-            self._synth_say(f"Iteration {it}: REFUTED by the shown {ev['moves']}-move route "
-                            f"({ev['package']}, {ev['seconds']:.0f} s). Next placements must block it "
-                            f"({ev['lemmas']} route(s) to block; dashed red = refuted placements).")
+            self._synth_say(f"{'Seed' if it == 0 else f'Iteration {it}'}: REFUTED by the shown "
+                            f"{ev['moves']}-move route ({ev['package']}, {ev['seconds']:.0f} s). Next "
+                            f"placements must block it ({ev['lemmas']} route(s) to block; dashed red = "
+                            f"refuted placements).")
+        elif kind == "fallback":
+            self._synth_say(f"Iteration {it}: no placement covers all refuting routes with a "
+                            f"{ev['margin']:g} m margin; continuing with plain blocking.")
         elif kind == "certified":
             self._synth_done = True
             pkg = ev["package"]
