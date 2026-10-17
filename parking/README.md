@@ -87,3 +87,24 @@ Focused native regressions can be run without regenerating packages or deleting 
 cmake --build build --target runTests --parallel 4
 bin/runTests --gtest_filter='ConnectorGeometryTests.*:TurningRadiusTests.*:GeometryScalingTests.*:SectionTemplateTests.*'
 ```
+
+## Free obstacles: force exactly N moves
+A *move* is one drive in a single gear (moves = gear changes + 1). `synth_obstacles.py` lets the
+MC place some obstacles such that parking **needs exactly** `PARK_MOVES` moves:
+```
+python3 parking/synth_obstacles.py            # [--apply] [--max-iters 30] [--max-sections 6]
+```
+Config (`envmodel_config.tpl.json`):
+- `PARK_MOVES`: N (start small, e.g. 2). With N > 0 the normal race also asks for "within N moves".
+- `RECT_OBSTACLES_SHIFT_{MIN,MAX}_{X,Y}s`: per obstacle, how far (m) the MC may translate the box
+  given by `RECT_OBSTACLES_*`; all zero = fixed. `RECT_OBSTACLES_SHIFT_STEP` is the grid (m).
+- `BMC_CNT: 0`: the reachability model is all-frozen, so a single BMC check at bound 0 is a
+  complete proof (`REACHABILITY_ONLY` always uses BMC; IC3 was minutes vs. seconds here).
+- Keep `@sections` at most 6; larger packages make every proof very slow (the script refuses them).
+
+Each iteration first lets the MC pick shifts that allow an N-move route, then fixes them and asks
+every package for a route with fewer moves. If none exists, the placement is certified (within the
+model); otherwise that shorter route becomes a lemma ("some free box must block it") and the loop
+repeats. `--apply` writes the result into `RECT_OBSTACLES_*`, resets the shifts and regenerates.
+Without it, `python3 parking/mc_parker.py` opens the certified solution. In the GUI a free box is
+drawn where the MC put it; dragging it moves its configured base box (the shift range stays).
