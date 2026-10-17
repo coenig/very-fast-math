@@ -125,6 +125,11 @@
 @{RECT_OBSTACLES_SHIFT_MAX_Xs}@*******.defaultValueString[@{}@]
 @{RECT_OBSTACLES_SHIFT_MIN_Ys}@*******.defaultValueString[@{}@]
 @{RECT_OBSTACLES_SHIFT_MAX_Ys}@*******.defaultValueString[@{}@]
+-- Same for growing/shrinking (m, on the same grid): the bottom-right corner moves by (grow_w, grow_h) relative to the top-left one.
+@{RECT_OBSTACLES_GROW_MIN_Ws}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_GROW_MAX_Ws}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_GROW_MIN_Hs}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_GROW_MAX_Hs}@*******.defaultValueString[@{}@]
 @{RECT_OBSTACLES_SHIFT_STEP}@*******.defaultValue[1]
 
 @{FIXED_SECTION_IDs}@*******.ConvenienceVars
@@ -167,12 +172,22 @@
 @{RECT_OBSTACLES_SHIFT_MAX_Xs}@*******.ConvenienceVars
 @{RECT_OBSTACLES_SHIFT_MIN_Ys}@*******.ConvenienceVars
 @{RECT_OBSTACLES_SHIFT_MAX_Ys}@*******.ConvenienceVars
+@{RECT_OBSTACLES_GROW_MIN_Ws}@*******.ConvenienceVars
+@{RECT_OBSTACLES_GROW_MAX_Ws}@*******.ConvenienceVars
+@{RECT_OBSTACLES_GROW_MIN_Hs}@*******.ConvenienceVars
+@{RECT_OBSTACLES_GROW_MAX_Hs}@*******.ConvenienceVars
+-- obs_[obs]_[f]: the obstacle's free-range bound, 0 where the list is shorter.
 @{
    @{
-      @(-- @{@{@{rect_obstacles_shift_min_x_[obs]}@.scriptVar != @{rect_obstacles_shift_max_x_[obs]}@.scriptVar || @{rect_obstacles_shift_min_y_[obs]}@.scriptVar != @{rect_obstacles_shift_max_y_[obs]}@.scriptVar}@.eval[0]}@.setScriptVar[is_obstacle_[obs]_free])@
-      @(-- @{0}@.setScriptVar[is_obstacle_[obs]_free])@
-   }@*.if[@{@{rect_obstacles_shift_min_xs_size}@.scriptVar > [obs]}@.eval]
-}@**.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
+      @{
+         @(-- @{@{rect_obstacles_[f]_[obs]}@.scriptVar}@.setScriptVar[obs_[obs]_[f]])@
+         @(-- @{0}@.setScriptVar[obs_[obs]_[f]])@
+      }@*.if[@{@{rect_obstacles_[f]s_size}@.scriptVar > [obs]}@.eval]
+   }@**.for[[f], @(shift_min_x)@@(shift_max_x)@@(shift_min_y)@@(shift_max_y)@@(grow_min_w)@@(grow_max_w)@@(grow_min_h)@@(grow_max_h)@]
+}@***.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
+@{
+   -- @{@{@{obs_[obs]_shift_min_x}@.scriptVar != @{obs_[obs]_shift_max_x}@.scriptVar || @{obs_[obs]_shift_min_y}@.scriptVar != @{obs_[obs]_shift_max_y}@.scriptVar || @{obs_[obs]_grow_min_w}@.scriptVar != @{obs_[obs]_grow_max_w}@.scriptVar || @{obs_[obs]_grow_min_h}@.scriptVar != @{obs_[obs]_grow_max_h}@.scriptVar}@.eval[0]}@.setScriptVar[is_obstacle_[obs]_free]
+}@*.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
 -- EO Obstacles helper variables
 
 @{

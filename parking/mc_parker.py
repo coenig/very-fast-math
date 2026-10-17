@@ -851,12 +851,11 @@ def patch_smv_obstacles(smv_path, obstacles_world):
         f.write(content)
 
 
-_FREE_OBSTACLE_RE = re.compile(
-    r"rect_obstacles_tl_([xy])_(\d+)\s*:=\s*-?\d+\s*\+\s*(\d+)\s*\*\s*rect_obstacles_shift_k[xy]_\d+")
+_FREE_OBSTACLE_RE = re.compile(r"rect_obstacles_(tl_x|tl_y|br_x|br_y)_(\d+)\s*:=\s*(-?\d+)\s*\+")
 
 
-def free_obstacle_shifts_world(trace_path, smv_path):
-    """{obs: (dx, dy)} world offset the MC applied to each free obstacle (0 without a solution)."""
+def free_obstacle_offsets_world(trace_path, smv_path):
+    """{obs: (d_tl_x, d_tl_y, d_br_x, d_br_y)}: how far the MC moved each corner of a free obstacle."""
     try:
         with open(smv_path, "r") as f:
             content = f.read()
@@ -864,12 +863,14 @@ def free_obstacle_shifts_world(trace_path, smv_path):
         return {}
     g = read_scaling(smv_path)[0]["GEOMETRY"]
     get = _trace_getter(trace_path)
-    shifts = {}
-    for axis, obs, step_units in _FREE_OBSTACLE_RE.findall(content):
-        d = (get(f"rect_obstacles_shift_k{axis}_{obs}") or 0) * int(step_units) / g
-        dx, dy = shifts.get(int(obs), (0.0, 0.0))
-        shifts[int(obs)] = (d, dy) if axis == "x" else (dx, d)
-    return shifts
+    fields = ("tl_x", "tl_y", "br_x", "br_y")
+    offsets = {}
+    for field, obs, base in _FREE_OBSTACLE_RE.findall(content):
+        value = get(f"rect_obstacles_{field}_{obs}")
+        corner = list(offsets.get(int(obs), (0.0, 0.0, 0.0, 0.0)))
+        corner[fields.index(field)] = 0.0 if value is None else value - int(base) / g
+        offsets[int(obs)] = tuple(corner)
+    return offsets
 
 
 def _parse_paren_list(packed):
@@ -1570,7 +1571,7 @@ class MainWindow(QMainWindow):
         self._obstacles_dirty = False
         self.section_item = None
         self._transform = None
-        self._obstacle_shifts = {}
+        self._obstacle_offsets = {}
         self._target_slot = None
         self._target_section = None
         self._ppm = None
@@ -1622,7 +1623,7 @@ class MainWindow(QMainWindow):
         transform = compute_fit_transform(self.trace_path, self.image_w, self.image_h)
         ppm = transform[2] if transform else 50.0
         self._transform = transform
-        self._obstacle_shifts = free_obstacle_shifts_world(self.trace_path, self.smv_path)
+        self._obstacle_offsets = free_obstacle_offsets_world(self.trace_path, self.smv_path)
         self._ppm = ppm
 
         # Activate world-raster snapping (finest grid of the distance-grid variants) for the items.
@@ -1986,11 +1987,11 @@ class MainWindow(QMainWindow):
         return obstacles
 
     def collect_obstacle_bases_world(self):
-        """Drawn obstacles minus the MC's free-obstacle shifts, i.e. the boxes to configure."""
+        """Drawn obstacles minus the MC's free-obstacle shift/grow, i.e. the boxes to configure."""
         bases = []
-        for i, (tl_x, tl_y, br_x, br_y) in enumerate(self.collect_obstacles_world()):
-            dx, dy = self._obstacle_shifts.get(i, (0.0, 0.0))
-            bases.append((tl_x - dx, tl_y - dy, br_x - dx, br_y - dy))
+        for i, corners in enumerate(self.collect_obstacles_world()):
+            offsets = self._obstacle_offsets.get(i, (0.0, 0.0, 0.0, 0.0))
+            bases.append(tuple(c - d for c, d in zip(corners, offsets)))
         return bases
 
     def _create_section_item(self, segments, target_section, ppm):
