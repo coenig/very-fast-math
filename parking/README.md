@@ -58,6 +58,9 @@ Config (`envmodel_config.tpl.json`):
 - `PARK_MOVES`: N (start small, e.g. 2). With N > 0 the normal race also asks for "within N moves".
 - `RECT_OBSTACLES_SHIFT_{MIN,MAX}_{X,Y}s`: per obstacle, how far (m) the MC may translate the box
   given by `RECT_OBSTACLES_*`; all zero = fixed. `RECT_OBSTACLES_SHIFT_STEP` is the grid (m).
+- `RECT_OBSTACLES_GROW_{MIN,MAX}_{W,H}s`: per obstacle, how much (m) the MC may grow (> 0) or
+  shrink (< 0) the box; the bottom-right corner moves, combine with a shift for other anchors.
+  Missing list entries mean "fixed"; boxes never shrink to zero size.
 - `BMC_CNT: 0`: the reachability model is all-frozen, so a single BMC check at bound 0 is a
   complete proof (`REACHABILITY_ONLY` always uses BMC; IC3 was minutes vs. seconds here).
 - Keep `@sections` at most 6; larger packages make every proof very slow (the script refuses them).
