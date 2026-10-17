@@ -170,8 +170,8 @@ def free_obstacles(base_text):
     return free
 
 
-def render_lemma(boxes, free_obs, g):
-    """INIT: some free obstacle overlaps some route box (world-coordinate Fractions)."""
+def render_lemma(boxes, obs_list, g):
+    """INIT: some obstacle of obs_list overlaps some box (world-coordinate Fractions)."""
     def le(coef_var, bound):  # var <= bound with bound = n/d  <=>  d*var <= n
         b = bound * g
         return f"{b.denominator}*{coef_var} <= {b.numerator}" if b.denominator != 1 else f"{coef_var} <= {b.numerator}"
@@ -181,30 +181,52 @@ def render_lemma(boxes, free_obs, g):
         return f"{b.denominator}*{coef_var} >= {b.numerator}" if b.denominator != 1 else f"{coef_var} >= {b.numerator}"
 
     terms = []
-    for o in sorted(free_obs):
+    for o in sorted(obs_list):
         for xmin, xmax, ymin, ymax in boxes:
             terms.append(f"({le(f'rect_obstacles_tl_x_{o}', xmax)} & {ge(f'rect_obstacles_br_x_{o}', xmin)}"
                          f" & {le(f'rect_obstacles_tl_y_{o}', ymax)} & {ge(f'rect_obstacles_br_y_{o}', ymin)})")
     return "INIT " + ("\n   | ".join(terms) if terms else "FALSE") + ";"
 
 
-def patch_model(base_text, goal_moves, fixed_shifts, lemmas, free_obs, g):
-    text = _GOAL_LINE_RE.sub(lambda m: re.sub(r"_within_\d+_moves", f"_within_{goal_moves}_moves", m.group(1)),
-                             base_text, count=1)
+def patch_model(base_text, goal_moves, fixed_shifts, clauses, g, exact=False):
+    """clauses: [(obstacle indices, boxes)], each rendered as one render_lemma INIT.
+
+    exact: reachable within goal_moves but NOT within goal_moves - 1 in the same road graph.
+    """
+    def goal(m):
+        head, expr = m.group(1).split(":=", 1)
+        expr = expr.strip().rstrip(";")
+
+        def within(k):
+            return re.sub(r"_within_\d+_moves", f"_within_{k}_moves", expr)
+        excl = f" & !({within(goal_moves - 1)})" if exact and goal_moves > 1 else ""
+        return f"{head}:= ({within(goal_moves)}){excl};"
+    text = _GOAL_LINE_RE.sub(goal, base_text, count=1)
     if fixed_shifts is not None:
         def fix(m):
             v = fixed_shifts[int(m.group(3))][m.group(2)]
             return f"{m.group(1)}{v} .. {v}{m.group(6)}"
         text = _FREE_DECL_RE.sub(fix, text)
-    block = "\n".join(render_lemma(b, free_obs, g) for b in lemmas)
+    block = "\n".join(render_lemma(boxes, obs, g) for obs, boxes in clauses)
     begin, end = text.index(LEMMA_BEGIN) + len(LEMMA_BEGIN), text.index(LEMMA_END)
     return text[:begin] + "\n" + block + ("\n" if block else "") + text[end:]
 
 
-def write_packages(packages, base, goal_moves, fixed_shifts, lemmas, free_obs):
+def write_packages(packages, base, goal_moves, fixed_shifts, clauses, exact=False):
     for p in packages:
         with open(smv_path(p), "w") as f:
-            f.write(patch_model(base[p], goal_moves, fixed_shifts, lemmas, free_obs, geometry_factor(base[p])))
+            f.write(patch_model(base[p], goal_moves, fixed_shifts, clauses, geometry_factor(base[p]), exact))
+
+
+def target_points(tpl_path):
+    """Source, middle and drain of the (fixed) target section in world coords, or [] if not fixed."""
+    values = mp._config_values(tpl_path)
+    geom = mp._section_geom(values.get, TARGET_SECTION)
+    if geom is None:
+        return []
+    (sx, sy), (dx, dy) = geom
+    return [(Fraction(x).limit_denominator(1000), Fraction(y).limit_denominator(1000))
+            for x, y in ((sx, sy), ((sx + dx) / 2, (sy + dy) / 2), (dx, dy))]
 
 
 def all_proven(packages):
@@ -292,13 +314,17 @@ def main():
                          "this margin (m); 0 = plain blocking only.")
     ap.add_argument("--no-seed", action="store_true",
                     help="Skip checking the configured placement for shorter routes first.")
+    ap.add_argument("--hug", default="1,3",
+                    help="Clearance ladder (m, comma-separated): first require every free box within "
+                         "this distance of the target slot (tight gaps force moves, like parallel "
+                         "parking), relaxing step by step and finally dropping it; '' = off.")
     args = ap.parse_args()
 
     if args.history:
         args.history = os.path.abspath(args.history)
         start_history(args.history)
     tpl_path = os.path.abspath(args.config)
-    cfg, n_moves, obstacles, _ = load_config(tpl_path)
+    cfg, n_moves, obstacles, step = load_config(tpl_path)
     prefix_dir = generated_prefix_dir(cfg)
     history_dir = args.history or os.path.join(os.path.dirname(prefix_dir), "synth_history")
     if not args.history:
@@ -320,16 +346,43 @@ def main():
     free_obs = free_obstacles(base[packages[0]])
     if not free_obs or "_within_" not in base[packages[0]]:
         fail("Generated model lacks free obstacles or move-limited reachability; regenerate.")
+    max_sections = max(int((_SECTIONS_RE.search(base[p]) or [0, 0])[1]) for p in packages)
+    if n_moves > max_sections - 1:
+        fail(f"PARK_MOVES={n_moves} is unreachable with at most {max_sections} sections: every gear "
+             f"change needs its own dead-end section (start and target can't serve), so moves <= "
+             f"SECTIONS - 1. Allow {n_moves + 1} sections or lower PARK_MOVES.")
     target_dirs = mp.target_park_in_dirs(smv_path(packages[0]))
+    hug_points = target_points(tpl_path)
+
+    def huggers(c):
+        """Free boxes whose shift/grow ranges can bring them within c of the target slot."""
+        out = []
+        for o, r in free_obs.items():
+            tl_x, tl_y, br_x, br_y = obstacles[o]
+            lo_x, lo_y = tl_x + step * r["shift_kx"][0], tl_y + step * r["shift_ky"][0]
+            hi_x = br_x + step * (r["shift_kx"][1] + r["grow_kw"][1])
+            hi_y = br_y + step * (r["shift_ky"][1] + r["grow_kh"][1])
+            if any(lo_x <= x + c and hi_x >= x - c and lo_y <= y + c and hi_y >= y - c for x, y in hug_points):
+                out.append(o)
+        return out
+
+    hugs = [Fraction(v).limit_denominator(1000) for v in args.hug.split(",") if v.strip()] if hug_points else []
+    hugs = [c for c in hugs if huggers(c)] + [None]
     print(f"{len(packages)} package(s), free obstacles {sorted(free_obs)}, target: exactly {n_moves} move(s).")
     emit("start", packages=[os.path.basename(p) for p in packages], moves=n_moves,
-         free=sorted(free_obs), max_iters=args.max_iters)
+         free=sorted(free_obs), max_iters=args.max_iters, hug=[float(h) for h in hugs if h is not None])
 
     lemmas, shifts, certified = [], None, False
     directed = args.margin > 0
+    hug_idx = 0
 
-    def active(lemma_list):
-        return [strong if directed else plain for plain, strong in lemma_list]
+    def clauses():
+        out = [(sorted(free_obs), strong if directed else plain) for plain, strong in lemmas]
+        c = hugs[hug_idx]
+        if c is not None:
+            squares = [(x - c, x + c, y - c, y + c) for x, y in hug_points]
+            out += [([o], squares) for o in huggers(c)]
+        return out
 
     def refute(win, it, secs, obstacles_world):
         raw = read_raw_trace(mp.package_trace_path(win))
@@ -343,22 +396,33 @@ def main():
     if n_moves > 1 and not args.no_seed:
         # Start from the configured boxes: the shorter route they allow is the first one to block.
         seed = {o: {p: min(max(0, lo), hi) for p, (lo, hi) in free_obs[o].items()} for o in free_obs}
-        write_packages(packages, base, n_moves - 1, seed, [], free_obs)
+        write_packages(packages, base, n_moves - 1, seed, [])
         win, secs = race(packages, mc_script, f"seed: verify < {n_moves} moves", phase="verify", iter=0)
         if win is not None:
             seed_raw = read_raw_trace(mp.package_trace_path(win))
             refute(win, 0, secs, world_obstacles(seed_raw, geometry_factor(base[win]), len(obstacles)))
 
     for it in range(1, args.max_iters + 1):
-        write_packages(packages, base, n_moves, None, active(lemmas), free_obs)
-        win, secs = race(packages, mc_script, f"iter {it}: synth <= {n_moves} moves", phase="synth", iter=it)
-        if win is None and directed and lemmas:
-            # Covering every route with margin is impossible; plain blocking decides the rest.
-            directed = False
-            print(f"  no placement covers all refuting routes with {args.margin} m margin; plain blocking now")
-            emit("fallback", iter=it, margin=args.margin)
-            write_packages(packages, base, n_moves, None, active(lemmas), free_obs)
+        while True:
+            write_packages(packages, base, n_moves, None, clauses())
             win, secs = race(packages, mc_script, f"iter {it}: synth <= {n_moves} moves", phase="synth", iter=it)
+            if win is not None:
+                break
+            # Preferences are relaxed in order; only the fully relaxed (plain) search proves impossibility.
+            if directed and lemmas:
+                directed = False
+                print(f"  no placement covers all refuting routes with {args.margin} m margin; plain blocking now")
+                emit("fallback", reason="margin", iter=it, margin=args.margin)
+            elif hugs[hug_idx] is not None:
+                hug_idx += 1
+                directed = args.margin > 0
+                nxt = hugs[hug_idx]
+                print(f"  no placement with all free boxes within {float(hugs[hug_idx - 1]):g} m of the target "
+                      f"works; now {'%g m' % float(nxt) if nxt is not None else 'anywhere'}")
+                emit("fallback", reason="hug", iter=it, previous=float(hugs[hug_idx - 1]),
+                     hug=None if nxt is None else float(nxt))
+            else:
+                break
         if win is None:
             print(f"No placement of the free obstacles forces exactly {n_moves} moves (within the model).")
             emit("impossible", iter=it, lemmas=len(lemmas), moves=n_moves, seconds=secs)
@@ -377,7 +441,7 @@ def main():
             certified = True
             break
 
-        write_packages(packages, base, n_moves - 1, shifts, active(lemmas), free_obs)
+        write_packages(packages, base, n_moves - 1, shifts, clauses())
         win, secs = race(packages, mc_script, f"iter {it}: verify < {n_moves} moves", phase="verify", iter=it)
         if win is None:
             certified = True
@@ -390,7 +454,7 @@ def main():
         return 3
 
     # Restore the synth solution (goal N, placement fixed) as the freshest CEX for mc_parker.py.
-    write_packages(packages, base, n_moves, shifts, active(lemmas), free_obs)
+    write_packages(packages, base, n_moves, shifts, clauses())
     for p in packages:
         mp.clear_package_trace(p)
     with open(mp.package_trace_path(synth_win), "w") as f:
