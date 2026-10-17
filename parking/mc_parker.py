@@ -498,19 +498,8 @@ def _fmt_world(value):
     return f"{value:g}"
 
 
-OBSTACLE_PADDING_M = 1.0
-
-
-def _adjust_obstacles_world(obstacles_world, padding_m):
-    """Expand or contract world-coordinate rectangles by padding_m on every side."""
-    return [
-        (tl_x - padding_m, tl_y - padding_m, br_x + padding_m, br_y + padding_m)
-        for tl_x, tl_y, br_x, br_y in obstacles_world
-    ]
-
-
 def read_obstacles_world(trace_path):
-    """Return visible obstacle bounds, removing model padding from trace/config bounds."""
+    """Return obstacles as [(tl_x, tl_y, br_x, br_y), ...] in world coords, by index order."""
     get = _trace_getter(trace_path)
     obstacles = []
     obs = 0
@@ -520,7 +509,7 @@ def read_obstacles_world(trace_path):
             get(f"rect_obstacles_br_x_{obs}"), get(f"rect_obstacles_br_y_{obs}"),
         ))
         obs += 1
-    return _adjust_obstacles_world(obstacles, -OBSTACLE_PADDING_M)
+    return obstacles
 
 
 def obstacles_to_pixel_rects(trace_path, image_width, image_height):
@@ -817,15 +806,15 @@ def trapezoid_duration(dist, accel=EGO_ACCEL_MPS2, vmax=EGO_MAX_SPEED_MPS):
 def patch_smv_obstacles(smv_path, obstacles_world):
     """Overwrite the 'rect_obstacles_{tl,br}_{x,y}_N := <int>;' DEFINEs in EnvModel.smv.
 
-    'obstacles_world' contains visible GUI bounds. Each rectangle is expanded by 1 m on all sides
-    before writing in the model's GEOMETRYSCALING units.
+    'obstacles_world' is a list of (tl_x, tl_y, br_x, br_y) tuples (world coords) by index.
+    Only the numeric literals change, so the model stays otherwise identical. Values are written in
+    the model's GEOMETRYSCALING units.
     """
     geometry_scaling = read_scaling(smv_path)[0]["GEOMETRY"]
     with open(smv_path, "r") as f:
         content = f.read()
 
-    model_obstacles = _adjust_obstacles_world(obstacles_world, OBSTACLE_PADDING_M)
-    for idx, (tl_x, tl_y, br_x, br_y) in enumerate(model_obstacles):
+    for idx, (tl_x, tl_y, br_x, br_y) in enumerate(obstacles_world):
         for field, value in (("tl_x", tl_x), ("tl_y", tl_y), ("br_x", br_x), ("br_y", br_y)):
             pattern = re.compile(r"(rect_obstacles_" + field + "_" + str(idx) + r"\s*:=\s*)-?\d+(\s*;)")
             content, n = pattern.subn(r"\g<1>" + str(round_half_away(value * geometry_scaling)) + r"\g<2>", content)
@@ -962,8 +951,7 @@ def patch_tpl_config(tpl_path, target_slot, section_x, section_y, section_angle,
     """Write the target section's pose and the obstacle rectangles into the tpl.json in place.
 
     Only the affected \"key\": \"...\" values are rewritten; the fixed-section arrays keep every
-    other slot (crucially section 0 at 0/0/0). 'obstacles' contains visible bounds; each is
-    expanded by 1 m on every side before serialization.
+    other slot (crucially section 0 at 0/0/0). 'obstacles' is a list of (tl_x, tl_y, br_x, br_y).
     Pass target_slot=None (with section_* None) to rewrite only the obstacles.
     """
     with open(tpl_path) as f:
@@ -983,12 +971,11 @@ def patch_tpl_config(tpl_path, target_slot, section_x, section_y, section_angle,
             vals[target_slot] = _fmt_world(value)
             content = _replace_tpl_string_value(content, key, _format_paren_list(vals))
 
-    model_obstacles = _adjust_obstacles_world(obstacles, OBSTACLE_PADDING_M)
     packed = {
-        "RECT_OBSTACLES_TL_Xs": [_fmt_world(o[0]) for o in model_obstacles],
-        "RECT_OBSTACLES_TL_Ys": [_fmt_world(o[1]) for o in model_obstacles],
-        "RECT_OBSTACLES_BR_Xs": [_fmt_world(o[2]) for o in model_obstacles],
-        "RECT_OBSTACLES_BR_Ys": [_fmt_world(o[3]) for o in model_obstacles],
+        "RECT_OBSTACLES_TL_Xs": [_fmt_world(o[0]) for o in obstacles],
+        "RECT_OBSTACLES_TL_Ys": [_fmt_world(o[1]) for o in obstacles],
+        "RECT_OBSTACLES_BR_Xs": [_fmt_world(o[2]) for o in obstacles],
+        "RECT_OBSTACLES_BR_Ys": [_fmt_world(o[3]) for o in obstacles],
     }
     for key, vals in packed.items():
         content = _replace_tpl_string_value(content, key, _format_paren_list(vals))
