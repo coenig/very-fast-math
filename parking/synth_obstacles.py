@@ -10,8 +10,8 @@ Every candidate and refutation is snapshotted (trace + EnvModel.smv) into the hi
 
 Free obstacles are the RECT_OBSTACLES_* boxes with a non-zero RECT_OBSTACLES_SHIFT_* range.
 Each iteration
-  1. synthesizes shifts so that the target is reachable within N = PARK_MOVES moves
-     (subject to all lemmas learned so far), then
+  1. synthesizes shifts so that some road graph's shortest route needs exactly N = PARK_MOVES
+     moves (subject to all lemmas learned so far), then
   2. fixes these shifts and checks whether the target is reachable within N - 1 moves.
 If no package finds such a shorter route, the placement provably needs exactly N moves (within
 the model: section count, angle grid, turning radius, straight connector approximation).
@@ -337,7 +337,12 @@ def main():
     packages = discover_packages(prefix_dir)
     if not packages:
         fail(f"No packages under {os.path.dirname(prefix_dir)}; generation failed?")
-    base = {p: read_text(smv_path(p)) for p in packages}
+    # The loop rewrites EnvModel.smv in place; keep the generated original for --no-regen reruns.
+    for p in packages:
+        pristine = smv_path(p) + ".base"
+        if not args.no_regen or not os.path.isfile(pristine):
+            shutil.copy2(smv_path(p), pristine)
+    base = {p: read_text(smv_path(p) + ".base") for p in packages}
     too_big = [os.path.basename(p) for p in packages
                if int((_SECTIONS_RE.search(base[p]) or [0, 0])[1]) > args.max_sections]
     if too_big:
@@ -404,8 +409,8 @@ def main():
 
     for it in range(1, args.max_iters + 1):
         while True:
-            write_packages(packages, base, n_moves, None, clauses())
-            win, secs = race(packages, mc_script, f"iter {it}: synth <= {n_moves} moves", phase="synth", iter=it)
+            write_packages(packages, base, n_moves, None, clauses(), exact=True)
+            win, secs = race(packages, mc_script, f"iter {it}: synth = {n_moves} moves", phase="synth", iter=it)
             if win is not None:
                 break
             # Preferences are relaxed in order; only the fully relaxed (plain) search proves impossibility.
@@ -433,10 +438,14 @@ def main():
         print(f"  candidate from {os.path.basename(win)}: free parameters (steps) {shifts}")
         cand_obstacles = world_obstacles(raw, geometry_factor(base[win]), len(obstacles))
         cand_states = mp.route_states(raw.get, TARGET_SECTION, target_dirs) or []
+        cand_moves = 1 + sum(1 for (a, _), (b, _) in zip(cand_states, cand_states[1:]) if a == b)
+        if cand_moves < n_moves:
+            # Excluded by the exact goal; if it slips through, its own route already disproves it.
+            refute(win, it, secs, cand_obstacles)
+            continue
         emit("candidate", iter=it, snapshot=snapshot(history_dir, f"iter{it:02d}_candidate", win),
              package=os.path.basename(win), obstacles=cand_obstacles, free=sorted(free_obs),
-             moves=1 + sum(1 for (a, _), (b, _) in zip(cand_states, cand_states[1:]) if a == b),
-             seconds=secs)
+             moves=cand_moves, seconds=secs)
         if n_moves == 1:
             certified = True
             break
@@ -454,7 +463,7 @@ def main():
         return 3
 
     # Restore the synth solution (goal N, placement fixed) as the freshest CEX for mc_parker.py.
-    write_packages(packages, base, n_moves, shifts, clauses())
+    write_packages(packages, base, n_moves, shifts, clauses(), exact=True)
     for p in packages:
         mp.clear_package_trace(p)
     with open(mp.package_trace_path(synth_win), "w") as f:
