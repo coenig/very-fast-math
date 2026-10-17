@@ -1462,6 +1462,11 @@ class MainWindow(QMainWindow):
         top = QHBoxLayout()
         top.addLayout(side)
         top.addWidget(self.view, 1)
+        self.synth_banner = QLabel(self)
+        self.synth_banner.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.synth_banner.setWordWrap(True)
+        self.synth_banner.setVisible(False)
+        layout.addWidget(self.synth_banner)
         layout.addLayout(top)
 
         self.progress_bar = QProgressBar(self)
@@ -2368,6 +2373,7 @@ class MainWindow(QMainWindow):
             return  # A race is already in flight.
         self._synth_refuted = []
         self.synth_status.setVisible(False)
+        self._set_synth_banner(None)
 
         obstacles_world = self.collect_obstacles_world()
         # Zero obstacles is a valid scenario (empty lot); only warn when rectangles are on screen
@@ -2585,6 +2591,7 @@ class MainWindow(QMainWindow):
         self._synth_done = False
         self._synth_log = []
         self._synth_refuted = []
+        self._set_synth_banner(None)
         self._synth_log_file = open(os.path.join(SYNTH_HISTORY_DIR, "synth.log"), "w")
         try:
             self._synth_proc = subprocess.Popen(
@@ -2665,27 +2672,41 @@ class MainWindow(QMainWindow):
             self._synth_moves = ev["moves"]
             self._on_regen_success()
             self._synth_say(f"{len(ev['packages'])} package(s) {ev['packages']}; free obstacle(s) "
-                            f"{ev['free']}; goal: exactly {ev['moves']} move(s).")
+                            f"{ev['free']}; goal: exactly {ev['moves']} move(s)."
+                            + (f" Boxes first hug the target slot (within "
+                               f"{', then '.join(f'{h:g}' for h in ev['hug'])} m)." if ev.get("hug") else ""))
         elif kind == "candidate":
             self._show_snapshot(ev["snapshot"])
+            self._set_synth_banner(f"CANDIDATE (iteration {it}): this placement allows a route with "
+                                   f"{ev['moves']} move(s); checking for shorter ones...", "#1565c0")
             self._synth_say(f"Iteration {it}: candidate from {ev['package']} ({ev['seconds']:.0f} s), "
                             f"shown with its {ev['moves']}-move route.")
         elif kind == "refuted":
             self._synth_refuted += [tuple(ev["obstacles"][o]) for o in ev["free"]]
             self._show_snapshot(ev["snapshot"])
+            self._set_synth_banner(f"DISPROOF ({'seed' if it == 0 else f'iteration {it}'}): this "
+                                   f"{ev['moves']}-move route shows the placement needs fewer than "
+                                   f"{self._synth_moves} moves", "#c62828")
             self._synth_say(f"{'Seed' if it == 0 else f'Iteration {it}'}: REFUTED by the shown "
                             f"{ev['moves']}-move route ({ev['package']}, {ev['seconds']:.0f} s). Next "
                             f"placements must block it ({ev['lemmas']} route(s) to block; dashed red = "
                             f"refuted placements).")
         elif kind == "fallback":
-            self._synth_say(f"Iteration {it}: no placement covers all refuting routes with a "
-                            f"{ev['margin']:g} m margin; continuing with plain blocking.")
+            if ev.get("reason") == "hug":
+                where = f"within {ev['hug']:g} m of it" if ev["hug"] is not None else "anywhere"
+                self._synth_say(f"Iteration {it}: no placement with the free boxes hugging the target "
+                                f"slot within {ev['previous']:g} m works; now {where}.")
+            else:
+                self._synth_say(f"Iteration {it}: no placement covers all refuting routes with a "
+                                f"{ev['margin']:g} m margin; continuing with plain blocking.")
         elif kind == "certified":
             self._synth_done = True
             pkg = ev["package"]
             self.trace_path, self.image_path = package_trace_path(pkg), package_image_path(pkg)
             self.smv_path = os.path.join(pkg, "EnvModel.smv")
             self.reload_from_trace()
+            self._set_synth_banner(f"CERTIFIED SOLUTION: this placement needs exactly {ev['moves']} "
+                                   f"move(s)", "#2e7d32")
             self._finish_synth(f"CERTIFIED after {it} iteration(s): this placement forces exactly "
                                f"{ev['moves']} move(s); no package has a shorter route.", success=True)
         elif kind == "impossible":
@@ -2704,6 +2725,14 @@ class MainWindow(QMainWindow):
         elif kind == "error":
             self._synth_done = True
             self._finish_synth(ev["message"])
+
+    def _set_synth_banner(self, text, color=None):
+        """Label the shown synthesis step (None hides it)."""
+        self.synth_banner.setVisible(text is not None)
+        if text is not None:
+            self.synth_banner.setText(text)
+            self.synth_banner.setStyleSheet(f"QLabel {{ background-color: {color}; color: white; "
+                                            f"font-weight: bold; font-size: 14pt; padding: 6px; }}")
 
     def _finish_synth(self, message, success=False):
         self.synth_timer.stop()
