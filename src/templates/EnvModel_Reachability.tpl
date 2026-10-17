@@ -68,7 +68,31 @@ DEFINE
 
    -- Overall target predicate, selected by the required park-in direction(s):
    --   PARK_IN_FORWARD / PARK_IN_BACKWARD (both true = either direction accepted).
+   @{
+   @(
+   -- Move-limited reachability (PARK_MOVES > 0), a move being one drive in a single gear.
+   -- Level [r] = at most [r] gear changes: seeded from level [r]-1 plus the terminal reversals of
+   -- the BFS above, then closed along the forward/backward chains (SECTIONS-1 relaxations each).
+   @{
+      @{
+         moves_[r]_0_of_sec_[sec]_dir_F := @{@(@{@(TRUE)@@(FALSE)@}@.if[@{[sec] == 0}@.eval])@@(moves_@{[r] - 1}@.eval[0]_@{SECTIONS - 1}@.eval[0]_of_sec_[sec]_dir_F@{ | (moves_@{[r] - 1}@.eval[0]_@{SECTIONS - 1}@.eval[0]_of_sec_[sec]_dir_B & is_backward_terminal_[sec])}@.if[@{[sec] != 1}@.eval])@}@*.if[@{[r] == 0}@.eval];
+         moves_[r]_0_of_sec_[sec]_dir_B := @{@(@{@(TRUE)@@(FALSE)@}@.if[@{[sec] == 0}@.eval])@@(moves_@{[r] - 1}@.eval[0]_@{SECTIONS - 1}@.eval[0]_of_sec_[sec]_dir_B@{ | (moves_@{[r] - 1}@.eval[0]_@{SECTIONS - 1}@.eval[0]_of_sec_[sec]_dir_F & is_forward_terminal_[sec])}@.if[@{[sec] != 1}@.eval])@}@*.if[@{[r] == 0}@.eval];
+         @{
+            moves_[r]_@{[k] + 1}@.eval[0]_of_sec_[sec]_dir_F := moves_[r]_[k]_of_sec_[sec]_dir_F@{ @{| (moves_[r]_[k]_of_sec_[m]_dir_F & is_direct_succ_[m]_to_[sec])}@*.if[@{[m] != [sec]}@.eval]}@**.for[[m], 0, @{SECTIONS - 1}@.eval];
+            moves_[r]_@{[k] + 1}@.eval[0]_of_sec_[sec]_dir_B := moves_[r]_[k]_of_sec_[sec]_dir_B@{ @{| (moves_[r]_[k]_of_sec_[m]_dir_B & is_direct_succ_[sec]_to_[m])}@*.if[@{[m] != [sec]}@.eval]}@**.for[[m], 0, @{SECTIONS - 1}@.eval];
+         }@***.for[[k], 0, @{SECTIONS - 2}@.eval]
+      }@****.for[[sec], 0, @{SECTIONS - 1}@.eval]
+      is_target_reachable_forward_within_@{[r] + 1}@.eval[0]_moves  := moves_[r]_@{SECTIONS - 1}@.eval[0]_of_sec_1_dir_F;
+      is_target_reachable_backward_within_@{[r] + 1}@.eval[0]_moves := moves_[r]_@{SECTIONS - 1}@.eval[0]_of_sec_1_dir_B;
+   }@*****.for[[r], 0, @{PARK_MOVES - 1}@.eval]
+
+   -- Caution: the move count below is patched by parking/synth_obstacles.py.
+   is_target_reachable := FALSE@{ | is_target_reachable_forward_within_@{PARK_MOVES}@.eval[0]_moves}@.if[@{PARK_IN_FORWARD}@.eval]@{ | is_target_reachable_backward_within_@{PARK_MOVES}@.eval[0]_moves}@.if[@{PARK_IN_BACKWARD}@.eval];
+   )@
+   @(
    is_target_reachable := FALSE@{ | is_target_reachable_forward}@.if[@{PARK_IN_FORWARD}@.eval]@{ | is_target_reachable_backward}@.if[@{PARK_IN_BACKWARD}@.eval];
+   )@
+   }@******.if[@{PARK_MOVES > 0}@.eval]
 
 --------------------------------------------------------
 -- EO Section-graph reachability
