@@ -289,6 +289,8 @@ public:
    std::string fromBooltoString(const bool b);
 
    std::string arclengthCubicBezierFromStreetTopology(const std::string& lane, const std::string& angle, const std::string& distance, const std::string& num_lanes, const std::string& lane_width);
+   /// Smallest connection distance in [min_dist, max_dist] (in units of 1/units_per_meter m) whose connector Bezier (for the given heading change in deg) never curves tighter than radius (m); max_dist + 1 if none.
+   std::string minDistConnectionForTurningRadius(const std::string& angle, const std::string& radius, const std::string& min_dist, const std::string& max_dist, const std::string& num_lanes, const std::string& lane_width, const std::string& units_per_meter);
    std::string arclengthCubicBezierFromEndPoints(const std::string& lane, const std::string& origin_out_x, const std::string& origin_out_y, const std::string& drain_out_x, const std::string& drain_out_y, const std::string& source_in_x, const std::string& source_in_y, const std::string& drain_in_x, const std::string& drain_in_y, const std::string& num_lanes, const std::string& lane_width);
    std::string forloop(const std::string& body, const std::string& varname, const std::string& loop_vec);
    std::string forloop(const std::string& body, const std::string& varname, const std::string& from_raw, const std::string& to_raw);
@@ -1558,6 +1560,7 @@ private:
       { "space", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return space(); } },
       { "arclengthCubicBezierFromStreetTopology", 4, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return arclengthCubicBezierFromStreetTopology(body, parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3)); } },
       arclengthCubicBezierFromEndPointsMeth,
+      { "minDistConnectionForTurningRadius", 6, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return minDistConnectionForTurningRadius(body, parameters.at(0), parameters.at(1), parameters.at(2), parameters.at(3), parameters.at(4), parameters.at(5)); } },
       { "PIDs", 0, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
          const auto pids = Process().getPIDs(body);
          std::string pids_str{};

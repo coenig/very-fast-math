@@ -5833,6 +5833,9 @@ void vfm::CppParser::generateMainFileForNativeEnvModel(
                else if (tsvar.type_ == ScaleTypeEnum::acceleration) {
                   timescaling_addition = " * " + std::to_string(time_scaling_factor) + " * " + std::to_string(time_scaling_factor) + " / " + std::to_string(distance_scaling_factor);
                }
+               else if (tsvar.type_ == ScaleTypeEnum::geometry) {
+                  timescaling_addition = " / " + std::to_string(scaling_description.getGeometryScalingFactor());
+               }
                else if (tsvar.type_ == ScaleTypeEnum::none) {
                   // Do nothing.
                }
