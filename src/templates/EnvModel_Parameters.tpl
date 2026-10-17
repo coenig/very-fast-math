@@ -66,6 +66,7 @@
 @{REACHABILITY_ONLY}@*******.defaultValue[false] -- If set, replaces the driving-dynamics model with a static section-graph reachability query (source sec 0 -> target sec 1). Keeps vehicle initial states, drops driving transitions, emits reachability DEFINEs + SPEC. When unset, no reachability vars are generated.
 @{PARK_IN_FORWARD}@*******.defaultValue[true]   -- (REACHABILITY_ONLY) Accept reaching the target section entering it FORWARD (nose-in).
 @{PARK_IN_BACKWARD}@*******.defaultValue[true]  -- (REACHABILITY_ONLY) Accept reaching the target section entering it BACKWARD (backed-in). Both true = either direction.
+@{PARK_MOVES}@*******.defaultValue[0]           -- (REACHABILITY_ONLY) If > 0, the target must be reached within this many moves (move = drive in one gear, i.e., gear changes + 1). 0 = unlimited.
 
 -- Parameters for ego and non-ego vehicles (vehicle length is below in LC section)
 @{EGOLESS}@*******.defaultValue[false]
@@ -118,6 +119,13 @@
 @{RECT_OBSTACLES_TL_Ys}@*******.defaultValueString[@{}@]
 @{RECT_OBSTACLES_BR_Xs}@*******.defaultValueString[@{}@]
 @{RECT_OBSTACLES_BR_Ys}@*******.defaultValueString[@{}@]
+-- Free obstacles: per-obstacle translation range (m) of the box above, chosen by the MC on a RECT_OBSTACLES_SHIFT_STEP grid.
+-- Either empty (all obstacles fixed) or one entry per obstacle; min == max (in x and y) keeps an obstacle fixed.
+@{RECT_OBSTACLES_SHIFT_MIN_Xs}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_SHIFT_MAX_Xs}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_SHIFT_MIN_Ys}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_SHIFT_MAX_Ys}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_SHIFT_STEP}@*******.defaultValue[1]
 
 @{FIXED_SECTION_IDs}@*******.ConvenienceVars
 @{FIXED_SECTION_SOURCE_Xs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
@@ -155,6 +163,16 @@
 @{RECT_OBSTACLES_TL_Ys}@*******.ConvenienceVars
 @{RECT_OBSTACLES_BR_Xs}@*******.ConvenienceVars
 @{RECT_OBSTACLES_BR_Ys}@*******.ConvenienceVars
+@{RECT_OBSTACLES_SHIFT_MIN_Xs}@*******.ConvenienceVars
+@{RECT_OBSTACLES_SHIFT_MAX_Xs}@*******.ConvenienceVars
+@{RECT_OBSTACLES_SHIFT_MIN_Ys}@*******.ConvenienceVars
+@{RECT_OBSTACLES_SHIFT_MAX_Ys}@*******.ConvenienceVars
+@{
+   @{
+      @(-- @{@{@{rect_obstacles_shift_min_x_[obs]}@.scriptVar != @{rect_obstacles_shift_max_x_[obs]}@.scriptVar || @{rect_obstacles_shift_min_y_[obs]}@.scriptVar != @{rect_obstacles_shift_max_y_[obs]}@.scriptVar}@.eval[0]}@.setScriptVar[is_obstacle_[obs]_free])@
+      @(-- @{0}@.setScriptVar[is_obstacle_[obs]_free])@
+   }@*.if[@{@{rect_obstacles_shift_min_xs_size}@.scriptVar > [obs]}@.eval]
+}@**.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
 -- EO Obstacles helper variables
 
 @{

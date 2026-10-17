@@ -312,12 +312,30 @@ INIT ego.on_section = 0;
 -- Caution: the below variables should remain as is, since they're directly changed by the mc_parker.
 DEFINE
    @{
+      @{
+      @(
+   -- Free obstacle [obs]: the MC translates the box by (shift_kx, shift_ky) * RECT_OBSTACLES_SHIFT_STEP.
+   FROZENVAR
+      rect_obstacles_shift_kx_[obs] : @{@{rect_obstacles_shift_min_x_[obs]}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0] .. @{@{rect_obstacles_shift_max_x_[obs]}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0];
+      rect_obstacles_shift_ky_[obs] : @{@{rect_obstacles_shift_min_y_[obs]}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0] .. @{@{rect_obstacles_shift_max_y_[obs]}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0];
+   DEFINE
+      @{rect_obstacles_tl_x_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_tl_x_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst + @{RECT_OBSTACLES_SHIFT_STEP}@.geometryWorldToEnvModelConst * rect_obstacles_shift_kx_[obs];
+      @{rect_obstacles_tl_y_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_tl_y_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst + @{RECT_OBSTACLES_SHIFT_STEP}@.geometryWorldToEnvModelConst * rect_obstacles_shift_ky_[obs];
+      @{rect_obstacles_br_x_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_x_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst + @{RECT_OBSTACLES_SHIFT_STEP}@.geometryWorldToEnvModelConst * rect_obstacles_shift_kx_[obs];
+      @{rect_obstacles_br_y_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_y_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst + @{RECT_OBSTACLES_SHIFT_STEP}@.geometryWorldToEnvModelConst * rect_obstacles_shift_ky_[obs];
+      )@
+      @(
       @{rect_obstacles_tl_x_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_tl_x_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
       @{rect_obstacles_tl_y_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_tl_y_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
       @{rect_obstacles_br_x_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_x_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
       @{rect_obstacles_br_y_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_y_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
-   }@**.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
+      )@
+      }@**.if[@{is_obstacle_[obs]_free}@.scriptVar]
+   }@***.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
 -- EO Caution
+
+-- BEGIN OBSTACLE SYNTH LEMMAS (patched by parking/synth_obstacles.py)
+-- END OBSTACLE SYNTH LEMMAS
 
 @{
    @{

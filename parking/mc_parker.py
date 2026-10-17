@@ -9,8 +9,8 @@ import subprocess
 import time
 import ctypes
 import ctypes.util
+import heapq
 from bisect import bisect_right
-from collections import deque
 from contextlib import contextmanager
 from ctypes import create_string_buffer, sizeof
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -181,7 +181,7 @@ def _kill_process_group(proc):
         pass
 
 
-def race_first_solution(poll_interval=1.0):
+def race_first_solution(poll_interval=1.0, packages=None, mc_script=MC_SCRIPT):
     """Model-check all configured variants and stop at the FIRST complete counterexample.
 
     Runs the worker detached from the terminal (stdin=/dev/null, own session) so the nuXmv
@@ -189,7 +189,8 @@ def race_first_solution(poll_interval=1.0):
     variant folders, then kills the whole job group the moment one variant has a fresh
     counterexample. Returns the winning package dir, or None if none solved.
     """
-    packages = discover_mc_packages()
+    if packages is None:
+        packages = discover_mc_packages()
     if not packages:
         print("No 'gp' packages found. Run EnvModel generation first.")
         return None
@@ -200,7 +201,7 @@ def race_first_solution(poll_interval=1.0):
 
     print(f"Racing {len(packages)} config(s); first counterexample wins...")
     proc = subprocess.Popen(
-        [sys.executable, _MC_WORKER, MC_SCRIPT],
+        [sys.executable, _MC_WORKER, mc_script],
         cwd=REPO_ROOT, start_new_session=True,
         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -667,62 +668,83 @@ def target_park_in_dirs(smv_path):
     return dirs or ("F", "B")
 
 
-def ego_route_world(trace_path, target_sec, target_dirs=("F", "B"), samples=48):
-    """Drive legs from the middle of Sec. 0 to the middle of target_sec, as the MC reaches it.
+def route_states(get, target_sec, target_dirs=("F", "B")):
+    """Min-move (section, 'F'|'B') state sequence from Sec. 0 to target_sec, or None.
 
-    Mirrors EnvModel_Reachability.tpl: BFS over (section, F/B) states seeded with (0, F) and
-    (0, B); F follows connections forward, B follows them in reverse, and the gear flips only in
-    a forward/backward-terminal section other than the target. Each gear flip happens with the
-    car centre on the section middle. Returns [(points, cumulative lengths, gear), ...] with the
-    car-centre path in motion order and gear +1/-1, or None if the target is unreachable.
+    Mirrors EnvModel_Reachability.tpl: states seeded with (0, F) and (0, B); F follows
+    connections forward, B follows them in reverse, and the gear flips only in a
+    forward/backward-terminal section other than the target. Minimises gear changes first,
+    then hops, so the route matches the model's move count.
     """
-    get = _trace_getter(trace_path)
-    geoms = {}
-    while _section_geom(get, len(geoms)) is not None:
-        geoms[len(geoms)] = _section_geom(get, len(geoms))
-    if 0 not in geoms or target_sec not in geoms or target_sec == 0:
+    num_sections = 0
+    while get(f"section_{num_sections}.source.x") is not None:
+        num_sections += 1
+    if target_sec >= num_sections or target_sec == 0:
         return None
 
-    succ = {s: set() for s in geoms}
-    pred = {s: set() for s in geoms}
-    for s in geoms:
+    succ = {s: set() for s in range(num_sections)}
+    pred = {s: set() for s in range(num_sections)}
+    for s in range(num_sections):
         c = 0
         while (t := get(f"outgoing_connection_{c}_of_section_{s}")) is not None:
             c += 1
             t = int(t)
-            if t in geoms and t != s:
+            if 0 <= t < num_sections and t != s:
                 succ[s].add(t)
                 pred[t].add(s)
 
     def neighbours(sec, d):
         if d == "F":
-            nxt = [(t, "F") for t in sorted(succ[sec])]
+            nxt = [((t, "F"), 0) for t in sorted(succ[sec])]
             flip = not succ[sec]
         else:
-            nxt = [(m, "B") for m in sorted(pred[sec])]
+            nxt = [((m, "B"), 0) for m in sorted(pred[sec])]
             flip = not pred[sec]
         if flip and sec != target_sec:
-            nxt.append((sec, "B" if d == "F" else "F"))
+            nxt.append(((sec, "B" if d == "F" else "F"), 1))
         return nxt
 
-    prev = {(0, "F"): None, (0, "B"): None}
-    queue = deque(prev)
+    start = [(0, "F"), (0, "B")]
+    cost = {s: (0, 0) for s in start}
+    prev = {s: None for s in start}
+    heap = [((0, 0), s) for s in start]
     goal = None
-    while queue and goal is None:
-        state = queue.popleft()
-        for nxt in neighbours(*state):
-            if nxt not in prev:
+    while heap:
+        c, state = heapq.heappop(heap)
+        if c > cost[state]:
+            continue
+        if state[0] == target_sec and state[1] in target_dirs:
+            goal = state
+            break
+        for nxt, flips in neighbours(*state):
+            nc = (c[0] + flips, c[1] + 1)
+            if nxt not in cost or nc < cost[nxt]:
+                cost[nxt] = nc
                 prev[nxt] = state
-                queue.append(nxt)
-                if nxt[0] == target_sec and nxt[1] in target_dirs:
-                    goal = nxt
-                    break
+                heapq.heappush(heap, (nc, nxt))
     if goal is None:
         return None
     states = [goal]
     while prev[states[-1]] is not None:
         states.append(prev[states[-1]])
     states.reverse()
+    return states
+
+
+def ego_route_world(trace_path, target_sec, target_dirs=("F", "B"), samples=48):
+    """Drive legs from the middle of Sec. 0 to the middle of target_sec, as the MC reaches it.
+
+    Follows route_states (fewest gear changes). Each gear flip happens with the car centre on
+    the section middle. Returns [(points, cumulative lengths, gear), ...] with the car-centre
+    path in motion order and gear +1/-1, or None if the target is unreachable.
+    """
+    get = _trace_getter(trace_path)
+    geoms = {}
+    while _section_geom(get, len(geoms)) is not None:
+        geoms[len(geoms)] = _section_geom(get, len(geoms))
+    states = route_states(get, target_sec, target_dirs)
+    if states is None:
+        return None
 
     def at(sec, u):
         (sx, sy), (dx, dy) = geoms[sec]
@@ -808,7 +830,8 @@ def patch_smv_obstacles(smv_path, obstacles_world):
 
     'obstacles_world' is a list of (tl_x, tl_y, br_x, br_y) tuples (world coords) by index.
     Only the numeric literals change, so the model stays otherwise identical. Values are written in
-    the model's GEOMETRYSCALING units.
+    the model's GEOMETRYSCALING units. For a free obstacle ('<int> + step * shift') the base
+    <int> is replaced, so the MC keeps its shift range around the new box.
     """
     geometry_scaling = read_scaling(smv_path)[0]["GEOMETRY"]
     with open(smv_path, "r") as f:
@@ -816,13 +839,34 @@ def patch_smv_obstacles(smv_path, obstacles_world):
 
     for idx, (tl_x, tl_y, br_x, br_y) in enumerate(obstacles_world):
         for field, value in (("tl_x", tl_x), ("tl_y", tl_y), ("br_x", br_x), ("br_y", br_y)):
-            pattern = re.compile(r"(rect_obstacles_" + field + "_" + str(idx) + r"\s*:=\s*)-?\d+(\s*;)")
+            pattern = re.compile(r"(rect_obstacles_" + field + "_" + str(idx) + r"\s*:=\s*)-?\d+(\s*[;+])")
             content, n = pattern.subn(r"\g<1>" + str(round_half_away(value * geometry_scaling)) + r"\g<2>", content)
             if n == 0:
                 raise RuntimeError(f"Could not find 'rect_obstacles_{field}_{idx}' in {smv_path}.")
 
     with open(smv_path, "w") as f:
         f.write(content)
+
+
+_FREE_OBSTACLE_RE = re.compile(
+    r"rect_obstacles_tl_([xy])_(\d+)\s*:=\s*-?\d+\s*\+\s*(\d+)\s*\*\s*rect_obstacles_shift_k[xy]_\d+")
+
+
+def free_obstacle_shifts_world(trace_path, smv_path):
+    """{obs: (dx, dy)} world offset the MC applied to each free obstacle (0 without a solution)."""
+    try:
+        with open(smv_path, "r") as f:
+            content = f.read()
+    except OSError:
+        return {}
+    g = read_scaling(smv_path)[0]["GEOMETRY"]
+    get = _trace_getter(trace_path)
+    shifts = {}
+    for axis, obs, step_units in _FREE_OBSTACLE_RE.findall(content):
+        d = (get(f"rect_obstacles_shift_k{axis}_{obs}") or 0) * int(step_units) / g
+        dx, dy = shifts.get(int(obs), (0.0, 0.0))
+        shifts[int(obs)] = (d, dy) if axis == "x" else (dx, d)
+    return shifts
 
 
 def _parse_paren_list(packed):
@@ -1501,6 +1545,7 @@ class MainWindow(QMainWindow):
         self._obstacles_dirty = False
         self.section_item = None
         self._transform = None
+        self._obstacle_shifts = {}
         self._target_slot = None
         self._target_section = None
         self._ppm = None
@@ -1552,6 +1597,7 @@ class MainWindow(QMainWindow):
         transform = compute_fit_transform(self.trace_path, self.image_w, self.image_h)
         ppm = transform[2] if transform else 50.0
         self._transform = transform
+        self._obstacle_shifts = free_obstacle_shifts_world(self.trace_path, self.smv_path)
         self._ppm = ppm
 
         # Activate world-raster snapping (finest grid of the distance-grid variants) for the items.
@@ -1913,6 +1959,14 @@ class MainWindow(QMainWindow):
             obstacles.append(tuple(snap_world(v, self._raster_step) for v in (*tl, *br)))
         return obstacles
 
+    def collect_obstacle_bases_world(self):
+        """Drawn obstacles minus the MC's free-obstacle shifts, i.e. the boxes to configure."""
+        bases = []
+        for i, (tl_x, tl_y, br_x, br_y) in enumerate(self.collect_obstacles_world()):
+            dx, dy = self._obstacle_shifts.get(i, (0.0, 0.0))
+            bases.append((tl_x - dx, tl_y - dy, br_x - dx, br_y - dy))
+        return bases
+
     def _create_section_item(self, segments, target_section, ppm):
         """Add the draggable/rotatable target section (fixed length, angle-granularity snapping)."""
         seg = next((s for s in segments if s[4] == target_section), None)
@@ -2060,7 +2114,7 @@ class MainWindow(QMainWindow):
                                [n * 1000 for n in dict.fromkeys(self.grid_panel.values)])
         if self._transform is None:
             raise RuntimeError("No transform available to write the scene into the config.")
-        obstacles = self.collect_obstacles_world()
+        obstacles = self.collect_obstacle_bases_world()
         # Only a moved section is written: the drawn pose may be a variant's rounded heading.
         if (not obstacles_only and self._section_dirty and self.section_item is not None
                 and self._target_slot is not None):
@@ -2303,7 +2357,7 @@ class MainWindow(QMainWindow):
         # Every variant has its own EnvModel.smv; patch the drawn obstacles into each of them.
         try:
             for pkg in packages:
-                patch_smv_obstacles(os.path.join(pkg, "EnvModel.smv"), obstacles_world)
+                patch_smv_obstacles(os.path.join(pkg, "EnvModel.smv"), self.collect_obstacle_bases_world())
         except (RuntimeError, OSError) as e:
             QMessageBox.critical(self, "SMV update failed", str(e))
             return
