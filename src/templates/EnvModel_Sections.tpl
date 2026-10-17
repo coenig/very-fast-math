@@ -312,12 +312,48 @@ INIT ego.on_section = 0;
 -- Caution: the below variables should remain as is, since they're directly changed by the mc_parker.
 DEFINE
    @{
+      @{
+      @(
+   -- Free obstacle [obs]: the MC translates the box by (shift_kx, shift_ky) and grows/shrinks it at the
+   -- bottom-right corner by (grow_kw, grow_kh), all in RECT_OBSTACLES_SHIFT_STEP units.
+   FROZENVAR
+      rect_obstacles_shift_kx_[obs] : @{@{obs_[obs]_shift_min_x}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0] .. @{@{obs_[obs]_shift_max_x}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0];
+      rect_obstacles_shift_ky_[obs] : @{@{obs_[obs]_shift_min_y}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0] .. @{@{obs_[obs]_shift_max_y}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0];
+      rect_obstacles_grow_kw_[obs] : @{@{obs_[obs]_grow_min_w}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0] .. @{@{obs_[obs]_grow_max_w}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0];
+      rect_obstacles_grow_kh_[obs] : @{@{obs_[obs]_grow_min_h}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0] .. @{@{obs_[obs]_grow_max_h}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0];
+   DEFINE
+      @{rect_obstacles_tl_x_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_tl_x_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst + @{RECT_OBSTACLES_SHIFT_STEP}@.geometryWorldToEnvModelConst * rect_obstacles_shift_kx_[obs];
+      @{rect_obstacles_tl_y_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_tl_y_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst + @{RECT_OBSTACLES_SHIFT_STEP}@.geometryWorldToEnvModelConst * rect_obstacles_shift_ky_[obs];
+      @{rect_obstacles_br_x_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_x_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst + @{RECT_OBSTACLES_SHIFT_STEP}@.geometryWorldToEnvModelConst * (rect_obstacles_shift_kx_[obs] + rect_obstacles_grow_kw_[obs]);
+      @{rect_obstacles_br_y_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_y_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst + @{RECT_OBSTACLES_SHIFT_STEP}@.geometryWorldToEnvModelConst * (rect_obstacles_shift_ky_[obs] + rect_obstacles_grow_kh_[obs]);
+   INIT rect_obstacles_br_x_[obs] > rect_obstacles_tl_x_[obs] & rect_obstacles_br_y_[obs] > rect_obstacles_tl_y_[obs];
+   DEFINE
+      )@
+      @(
       @{rect_obstacles_tl_x_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_tl_x_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
       @{rect_obstacles_tl_y_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_tl_y_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
       @{rect_obstacles_br_x_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_x_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
       @{rect_obstacles_br_y_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_y_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
-   }@**.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
+      )@
+      }@**.if[@{is_obstacle_[obs]_free}@.scriptVar]
+   }@***.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
 -- EO Caution
+
+-- BEGIN OBSTACLE SYNTH LEMMAS (patched by parking/synth_obstacles.py)
+-- END OBSTACLE SYNTH LEMMAS
+
+-- Workspace: every section endpoint stays inside WORKSPACE_BOUNDs (straight connectors then do, too).
+@{
+   @(
+   @{
+      INIT section_[sec].source.x >= @{@{workspace_bound_0}@.scriptVar}@.geometryWorldToEnvModelConst & section_[sec].source.x <= @{@{workspace_bound_2}@.scriptVar}@.geometryWorldToEnvModelConst
+         & section_[sec].source.y >= @{@{workspace_bound_1}@.scriptVar}@.geometryWorldToEnvModelConst & section_[sec].source.y <= @{@{workspace_bound_3}@.scriptVar}@.geometryWorldToEnvModelConst;
+      INIT section_[sec].drain.x >= @{@{workspace_bound_0}@.scriptVar}@.geometryWorldToEnvModelConst & section_[sec].drain.x <= @{@{workspace_bound_2}@.scriptVar}@.geometryWorldToEnvModelConst
+         & section_[sec].drain.y >= @{@{workspace_bound_1}@.scriptVar}@.geometryWorldToEnvModelConst & section_[sec].drain.y <= @{@{workspace_bound_3}@.scriptVar}@.geometryWorldToEnvModelConst;
+   }@*.for[[sec], 0, @{SECTIONS - 1}@.eval]
+   )@
+   @()@
+}@**.if[@{@{workspace_bounds_size}@.scriptVar >= 4}@.eval]
 
 @{
    @{

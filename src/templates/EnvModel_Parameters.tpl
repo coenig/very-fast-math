@@ -66,6 +66,7 @@
 @{REACHABILITY_ONLY}@*******.defaultValue[false] -- If set, replaces the driving-dynamics model with a static section-graph reachability query (source sec 0 -> target sec 1). Keeps vehicle initial states, drops driving transitions, emits reachability DEFINEs + SPEC. When unset, no reachability vars are generated.
 @{PARK_IN_FORWARD}@*******.defaultValue[true]   -- (REACHABILITY_ONLY) Accept reaching the target section entering it FORWARD (nose-in).
 @{PARK_IN_BACKWARD}@*******.defaultValue[true]  -- (REACHABILITY_ONLY) Accept reaching the target section entering it BACKWARD (backed-in). Both true = either direction.
+@{PARK_MOVES}@*******.defaultValue[0]           -- (REACHABILITY_ONLY) If > 0, the target must be reached within this many moves (move = drive in one gear, i.e., gear changes + 1). 0 = unlimited.
 
 -- Parameters for ego and non-ego vehicles (vehicle length is below in LC section)
 @{EGOLESS}@*******.defaultValue[false]
@@ -118,6 +119,20 @@
 @{RECT_OBSTACLES_TL_Ys}@*******.defaultValueString[@{}@]
 @{RECT_OBSTACLES_BR_Xs}@*******.defaultValueString[@{}@]
 @{RECT_OBSTACLES_BR_Ys}@*******.defaultValueString[@{}@]
+-- Free obstacles: per-obstacle translation range (m) of the box above, chosen by the MC on a RECT_OBSTACLES_SHIFT_STEP grid.
+-- Either empty (all obstacles fixed) or one entry per obstacle; min == max (in x and y) keeps an obstacle fixed.
+@{RECT_OBSTACLES_SHIFT_MIN_Xs}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_SHIFT_MAX_Xs}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_SHIFT_MIN_Ys}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_SHIFT_MAX_Ys}@*******.defaultValueString[@{}@]
+-- Same for growing/shrinking (m, on the same grid): the bottom-right corner moves by (grow_w, grow_h) relative to the top-left one.
+@{RECT_OBSTACLES_GROW_MIN_Ws}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_GROW_MAX_Ws}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_GROW_MIN_Hs}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_GROW_MAX_Hs}@*******.defaultValueString[@{}@]
+-- Workspace (e.g. the parking lot) as @(min_x)@@(min_y)@@(max_x)@@(max_y)@ in m: all sections must stay inside. Empty = unbounded.
+@{WORKSPACE_BOUNDs}@*******.defaultValueString[@{}@]
+@{RECT_OBSTACLES_SHIFT_STEP}@*******.defaultValue[1]
 
 @{FIXED_SECTION_IDs}@*******.ConvenienceVars
 @{FIXED_SECTION_SOURCE_Xs}@*******.ConvenienceVars2[@{fixed_section_ids}@.scriptVar]
@@ -155,6 +170,27 @@
 @{RECT_OBSTACLES_TL_Ys}@*******.ConvenienceVars
 @{RECT_OBSTACLES_BR_Xs}@*******.ConvenienceVars
 @{RECT_OBSTACLES_BR_Ys}@*******.ConvenienceVars
+@{RECT_OBSTACLES_SHIFT_MIN_Xs}@*******.ConvenienceVars
+@{RECT_OBSTACLES_SHIFT_MAX_Xs}@*******.ConvenienceVars
+@{RECT_OBSTACLES_SHIFT_MIN_Ys}@*******.ConvenienceVars
+@{RECT_OBSTACLES_SHIFT_MAX_Ys}@*******.ConvenienceVars
+@{RECT_OBSTACLES_GROW_MIN_Ws}@*******.ConvenienceVars
+@{RECT_OBSTACLES_GROW_MAX_Ws}@*******.ConvenienceVars
+@{RECT_OBSTACLES_GROW_MIN_Hs}@*******.ConvenienceVars
+@{RECT_OBSTACLES_GROW_MAX_Hs}@*******.ConvenienceVars
+@{WORKSPACE_BOUNDs}@*******.ConvenienceVars
+-- obs_[obs]_[f]: the obstacle's free-range bound, 0 where the list is shorter.
+@{
+   @{
+      @{
+         @(-- @{@{rect_obstacles_[f]_[obs]}@.scriptVar}@.setScriptVar[obs_[obs]_[f]])@
+         @(-- @{0}@.setScriptVar[obs_[obs]_[f]])@
+      }@*.if[@{@{rect_obstacles_[f]s_size}@.scriptVar > [obs]}@.eval]
+   }@**.for[[f], @(shift_min_x)@@(shift_max_x)@@(shift_min_y)@@(shift_max_y)@@(grow_min_w)@@(grow_max_w)@@(grow_min_h)@@(grow_max_h)@]
+}@***.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
+@{
+   -- @{@{@{obs_[obs]_shift_min_x}@.scriptVar != @{obs_[obs]_shift_max_x}@.scriptVar || @{obs_[obs]_shift_min_y}@.scriptVar != @{obs_[obs]_shift_max_y}@.scriptVar || @{obs_[obs]_grow_min_w}@.scriptVar != @{obs_[obs]_grow_max_w}@.scriptVar || @{obs_[obs]_grow_min_h}@.scriptVar != @{obs_[obs]_grow_max_h}@.scriptVar}@.eval[0]}@.setScriptVar[is_obstacle_[obs]_free]
+}@*.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
 -- EO Obstacles helper variables
 
 @{
