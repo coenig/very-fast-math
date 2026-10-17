@@ -3,6 +3,10 @@
 Usage (repo root, venv active):
     python3 parking/synth_obstacles.py [--config src/templates/envmodel_config.tpl.json]
                                        [--max-iters 30] [--max-sections 6] [--apply] [--no-regen]
+                                       [--history DIR]
+
+Every candidate and refutation is snapshotted (trace + EnvModel.smv) into the history dir
+(default <examples>/synth_history), with progress events in its events.jsonl (read by mc_parker).
 
 Free obstacles are the RECT_OBSTACLES_* boxes with a non-zero RECT_OBSTACLES_SHIFT_* range.
 Each iteration
@@ -34,6 +38,37 @@ _GOAL_LINE_RE = re.compile(r"^(\s*is_target_reachable\s*:=.*)$", re.MULTILINE)
 _TRACE_LINE_RE = re.compile(r"^\s*(?:env\.)?([A-Za-z_][\w.]*)\s*=\s*(-?\d+)\s*$")
 _K_RE = re.compile(r"conn_\d+_to_\d+_sub_\d+_ksx\s*:=\s*(\d+)\s*\*")
 _SECTIONS_RE = re.compile(r"Found variable SECTIONS with value (\d+)")
+_events_path = None
+
+
+def emit(kind, **data):
+    if _events_path:
+        with open(_events_path, "a") as f:
+            f.write(json.dumps({"type": kind, **data}) + "\n")
+
+
+def fail(msg):
+    emit("error", message=msg)
+    sys.exit(msg)
+
+
+def start_history(history_dir):
+    global _events_path
+    os.makedirs(history_dir, exist_ok=True)
+    for name in os.listdir(history_dir):
+        if re.fullmatch(r"iter\d+_\w+", name):
+            shutil.rmtree(os.path.join(history_dir, name), ignore_errors=True)
+    _events_path = os.path.join(history_dir, "events.jsonl")
+    open(_events_path, "w").close()
+
+
+def snapshot(history_dir, name, pkg):
+    """Copy a package's trace and model so the GUI can show this step after the packages move on."""
+    d = os.path.join(history_dir, name)
+    os.makedirs(d, exist_ok=True)
+    for f in ("debug_trace_array.txt", "EnvModel.smv"):
+        shutil.copy2(os.path.join(pkg, f), d)
+    return d
 
 
 def load_config(tpl_path):
@@ -63,7 +98,7 @@ def load_config(tpl_path):
         if abs(v / step - round(v / step)) > 1e-9:
             errors.append(f"Shift bound {v} is not a multiple of RECT_OBSTACLES_SHIFT_STEP={step}.")
     if errors:
-        sys.exit("Config error in " + tpl_path + ":\n  " + "\n  ".join(errors))
+        fail("Config error in " + tpl_path + ":\n  " + "\n  ".join(errors))
     if int(cfg.get("BMC_CNT", 0)) > 0:
         print(f"WARNING: BMC_CNT={cfg['BMC_CNT']} > 0. Bound 0 is already complete here; larger bounds only slow down.")
     return cfg, moves, obstacles, step
@@ -177,21 +212,22 @@ def all_proven(packages):
     return True
 
 
-def race(packages, mc_script, label):
+def race(packages, mc_script, label, **phase):
+    emit("phase", label=label, **phase)
     t0 = time.time()
     print(f"[{label}]", end=" ", flush=True)
     win = mp.race_first_solution(packages=packages, mc_script=mc_script)
     print(f"[{label}] {time.time() - t0:.0f}s")
     if win is None and not all_proven(packages):
-        sys.exit(f"[{label}] Aborted: not every package finished (interrupted or MC failure).")
-    return win
+        fail(f"[{label}] Aborted: not every package finished (interrupted or MC failure).")
+    return win, time.time() - t0
 
 
 def route_boxes(raw, smv_text, target_dirs):
     """World-coordinate boxes the model's obstacle check uses along the min-move route."""
     states = mp.route_states(raw.get, TARGET_SECTION, target_dirs)
     if states is None:
-        sys.exit("Counterexample trace holds no route to the target (trace parsing problem?).")
+        fail("Counterexample trace holds no route to the target (trace parsing problem?).")
     g = geometry_factor(smv_text)
     m = _K_RE.search(smv_text)
     k = int(m.group(1)) if m else 0
@@ -231,47 +267,64 @@ def main():
     ap.add_argument("--apply", action="store_true",
                     help="Write the result into RECT_OBSTACLES_*, fix all shifts and regenerate.")
     ap.add_argument("--no-regen", action="store_true", help="Reuse the already generated packages.")
+    ap.add_argument("--history", help="Snapshot/event dir (default: <examples>/synth_history).")
     args = ap.parse_args()
 
+    if args.history:
+        args.history = os.path.abspath(args.history)
+        start_history(args.history)
     tpl_path = os.path.abspath(args.config)
     cfg, n_moves, obstacles, _ = load_config(tpl_path)
     prefix_dir = generated_prefix_dir(cfg)
+    history_dir = args.history or os.path.join(os.path.dirname(prefix_dir), "synth_history")
+    if not args.history:
+        start_history(history_dir)
     mc_script = f"@{{{vfm_script_path(tpl_path)}}}@.runMCJobs[16]"
 
     if not args.no_regen:
+        emit("phase", label="Generating EnvModel packages", phase="regen")
         regenerate(tpl_path, prefix_dir)
     packages = discover_packages(prefix_dir)
     if not packages:
-        sys.exit(f"No packages under {os.path.dirname(prefix_dir)}; generation failed?")
+        fail(f"No packages under {os.path.dirname(prefix_dir)}; generation failed?")
     base = {p: read_text(smv_path(p)) for p in packages}
     too_big = [os.path.basename(p) for p in packages
                if int((_SECTIONS_RE.search(base[p]) or [0, 0])[1]) > args.max_sections]
     if too_big:
-        sys.exit(f"Packages with more than {args.max_sections} sections: {too_big}. "
-                 "Limit the @sections range in the config.")
+        fail(f"Packages with more than {args.max_sections} sections: {too_big}. "
+             "Limit the @sections range in the config.")
     free_obs = free_obstacles(base[packages[0]])
     if not free_obs or "_within_" not in base[packages[0]]:
-        sys.exit("Generated model lacks free obstacles or move-limited reachability; regenerate.")
+        fail("Generated model lacks free obstacles or move-limited reachability; regenerate.")
     target_dirs = mp.target_park_in_dirs(smv_path(packages[0]))
     print(f"{len(packages)} package(s), free obstacles {sorted(free_obs)}, target: exactly {n_moves} move(s).")
+    emit("start", packages=[os.path.basename(p) for p in packages], moves=n_moves,
+         free=sorted(free_obs), max_iters=args.max_iters)
 
     lemmas, shifts, certified = [], None, False
     for it in range(1, args.max_iters + 1):
         write_packages(packages, base, n_moves, None, lemmas, free_obs)
-        win = race(packages, mc_script, f"iter {it}: synth <= {n_moves} moves")
+        win, secs = race(packages, mc_script, f"iter {it}: synth <= {n_moves} moves", phase="synth", iter=it)
         if win is None:
             print(f"No placement of the free obstacles forces exactly {n_moves} moves (within the model).")
+            emit("impossible", iter=it, lemmas=len(lemmas), moves=n_moves, seconds=secs)
             return 2
         raw = read_raw_trace(mp.package_trace_path(win))
         synth_win, synth_trace = win, read_text(mp.package_trace_path(win))
         shifts = {o: {a: raw[f"rect_obstacles_shift_k{a}_{o}"] for a in "xy"} for o in free_obs}
         print(f"  candidate from {os.path.basename(win)}: shift steps {shifts}")
+        cand_obstacles = world_obstacles(raw, geometry_factor(base[win]), len(obstacles))
+        cand_states = mp.route_states(raw.get, TARGET_SECTION, target_dirs) or []
+        emit("candidate", iter=it, snapshot=snapshot(history_dir, f"iter{it:02d}_candidate", win),
+             package=os.path.basename(win), obstacles=cand_obstacles, free=sorted(free_obs),
+             moves=1 + sum(1 for (a, _), (b, _) in zip(cand_states, cand_states[1:]) if a == b),
+             seconds=secs)
         if n_moves == 1:
             certified = True
             break
 
         write_packages(packages, base, n_moves - 1, shifts, lemmas, free_obs)
-        win = race(packages, mc_script, f"iter {it}: verify < {n_moves} moves")
+        win, secs = race(packages, mc_script, f"iter {it}: verify < {n_moves} moves", phase="verify", iter=it)
         if win is None:
             certified = True
             break
@@ -279,9 +332,13 @@ def main():
         boxes, moves, states = route_boxes(raw, read_text(smv_path(win)), target_dirs)
         print(f"  refuted by a {moves}-move route in {os.path.basename(win)}: {states}")
         lemmas.append(boxes)
+        emit("refuted", iter=it, snapshot=snapshot(history_dir, f"iter{it:02d}_refutation", win),
+             package=os.path.basename(win), moves=moves, lemmas=len(lemmas), obstacles=cand_obstacles,
+             free=sorted(free_obs), seconds=secs)
 
     if not certified:
         print(f"Gave up after {args.max_iters} iterations ({len(lemmas)} lemmas).")
+        emit("gave_up", iter=args.max_iters, lemmas=len(lemmas))
         return 3
 
     # Restore the synth solution (goal N, placement fixed) as the freshest CEX for mc_parker.py.
@@ -297,6 +354,7 @@ def main():
     for o, box in enumerate(result):
         print(f"  obstacle {o}{' (free)' if o in free_obs else ''}: "
               f"tl=({box[0]:g}, {box[1]:g}) br=({box[2]:g}, {box[3]:g})")
+    emit("certified", iter=it, package=synth_win, obstacles=result, moves=n_moves, lemmas=len(lemmas))
 
     if args.apply:
         mp.patch_tpl_config(tpl_path, None, None, None, None, result)

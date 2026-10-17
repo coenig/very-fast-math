@@ -1,5 +1,6 @@
 import sys
 import re
+import json
 import math
 import os
 import platform
@@ -63,6 +64,8 @@ def slot_extent(section_length, slot_length):
 EXAMPLES_DIR = os.path.join(REPO_ROOT, "examples")
 _PACKAGE_PREFIX = "gp"
 _MC_WORKER = os.path.join(REPO_ROOT, "parking", "_mc_worker.py")
+_SYNTH_SCRIPT = os.path.join(REPO_ROOT, "parking", "synth_obstacles.py")
+SYNTH_HISTORY_DIR = os.path.join(EXAMPLES_DIR, "synth_history")
 
 
 
@@ -1465,6 +1468,10 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(0)
         self.progress_bar.setVisible(False)
         self.progress_bar.setTextVisible(True)
+        self.synth_status = QLabel(self)
+        self.synth_status.setWordWrap(True)
+        self.synth_status.setVisible(False)
+        layout.addWidget(self.synth_status)
         layout.addWidget(self.progress_bar)
 
         self.poll_timer = QTimer(self)
@@ -1513,6 +1520,12 @@ class MainWindow(QMainWindow):
                                    "obstacle positions to the tpl.json, then regenerate.")
         layout.addWidget(self.envgen_btn)
 
+        self.synth_btn = QPushButton("Synthesize Free Obstacles (force exactly PARK_MOVES moves)")
+        self.synth_btn.setToolTip("Runs parking/synth_obstacles.py and shows every candidate and "
+                                  "the shorter route refuting it while the search goes on.")
+        self.synth_btn.clicked.connect(self.start_synth)
+        layout.addWidget(self.synth_btn)
+
         self.reveal_btn = QPushButton("Reveal Model Folder")
         self.reveal_btn.clicked.connect(self.reveal_model_folder)
         layout.addWidget(self.reveal_btn)
@@ -1530,6 +1543,18 @@ class MainWindow(QMainWindow):
         self.race_timer = QTimer(self)
         self.race_timer.setInterval(400)
         self.race_timer.timeout.connect(self._poll_race)
+
+        # Obstacle synthesis (CEGIS) state: detached CLI process plus its event-file reader.
+        self._synth_proc = None
+        self._synth_log_file = None
+        self._synth_events_pos = 0
+        self._synth_done = False
+        self._synth_log = []
+        self._synth_refuted = []
+        self._synth_moves = None
+        self.synth_timer = QTimer(self)
+        self.synth_timer.setInterval(500)
+        self.synth_timer.timeout.connect(self._poll_synth)
 
         self._ego_item = None
         self._ego_route = None
@@ -1629,6 +1654,7 @@ class MainWindow(QMainWindow):
             # Static ghosts of the ORIGINAL obstacle positions, so the starting layout stays
             # visible once the draggable (red) obstacles are moved during a session.
             self._draw_obstacle_ghosts(rects_data)
+            self._draw_synth_refuted(transform)
             for rect in rects_data:
                 self.add_rectangle(*rect)
             if draggable_target:
@@ -2222,6 +2248,7 @@ class MainWindow(QMainWindow):
         self.gran_panel.setEnabled(enabled)
         self.grid_panel.setEnabled(enabled)
         self.envgen_btn.setEnabled(enabled)
+        self.synth_btn.setEnabled(enabled)
         self.add_obstacle_btn.setEnabled(enabled)
         self.reset_btn.setEnabled(enabled)
         self.play_btn.setEnabled(enabled)
@@ -2338,6 +2365,8 @@ class MainWindow(QMainWindow):
         """
         if self._race_proc is not None:
             return  # A race is already in flight.
+        self._synth_refuted = []
+        self.synth_status.setVisible(False)
 
         obstacles_world = self.collect_obstacles_world()
         # Zero obstacles is a valid scenario (empty lot); only warn when rectangles are on screen
@@ -2526,10 +2555,163 @@ class MainWindow(QMainWindow):
 
     def terminate_race(self):
         """Kill every nuXmv instance of the in-flight MC race (leaves other actions untouched)."""
+        if self._synth_proc is not None:
+            print("\U0001f6d1 Terminating the obstacle synthesis...")
+            self._finish_synth("Terminated by user.")
+            return
         if self._race_proc is None:
             return
         print("\U0001f6d1 Terminating all model-checker instances...")
         self._finish_race(winner=None, error=False, aborted_by_user=True)
+
+    # --- Obstacle synthesis (parking/synth_obstacles.py) ---------------------------------------
+
+    def start_synth(self):
+        """Run the CEGIS obstacle synthesis detached; _poll_synth shows each step as it arrives."""
+        if self._race_proc is not None or self._synth_proc is not None:
+            return
+        # Always sync the drawn obstacles: plain drags don't mark the config dirty (the normal race
+        # patches them into EnvModel.smv instead), but the synthesis regenerates from the tpl.json.
+        try:
+            self._write_config_from_scene(obstacles_only=not self._config_dirty())
+        except (RuntimeError, OSError, ValueError) as e:
+            QMessageBox.critical(self, "Config update failed", str(e))
+            return
+        os.makedirs(SYNTH_HISTORY_DIR, exist_ok=True)
+        events = os.path.join(SYNTH_HISTORY_DIR, "events.jsonl")
+        open(events, "w").close()
+        self._synth_events_pos = 0
+        self._synth_done = False
+        self._synth_log = []
+        self._synth_refuted = []
+        self._synth_log_file = open(os.path.join(SYNTH_HISTORY_DIR, "synth.log"), "w")
+        try:
+            self._synth_proc = subprocess.Popen(
+                [sys.executable, _SYNTH_SCRIPT, "--history", SYNTH_HISTORY_DIR],
+                cwd=REPO_ROOT, start_new_session=True, stdin=subprocess.DEVNULL,
+                stdout=self._synth_log_file, stderr=subprocess.STDOUT)
+        except OSError as e:
+            self._synth_log_file.close()
+            QMessageBox.critical(self, "Launch failed", f"Could not start the synthesis: {e}")
+            return
+        self._set_buttons_enabled(False)
+        self.play_btn.setEnabled(True)
+        self.terminate_btn.setEnabled(True)
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setVisible(True)
+        self.synth_status.setVisible(True)
+        self._synth_say("Starting obstacle synthesis (log: examples/synth_history/synth.log)...")
+        self.synth_timer.start()
+
+    def _synth_say(self, line):
+        print(f"\U0001f9e9 {line}")
+        self._synth_log.append(line)
+        self.synth_status.setText("\n".join(self._synth_log[-6:]))
+
+    def _show_snapshot(self, folder):
+        self.trace_path = os.path.join(folder, "debug_trace_array.txt")
+        self.smv_path = os.path.join(folder, "EnvModel.smv")
+        self.image_path = os.path.join(folder, "preview.png")
+        self.reload_from_trace()
+
+    def _draw_synth_refuted(self, transform):
+        """Dashed outlines of free-obstacle placements already refuted by a shorter route."""
+        if transform is None:
+            return
+        pen = QPen(QColor(200, 0, 0), 2, Qt.PenStyle.DashLine)
+        for tl_x, tl_y, br_x, br_y in self._synth_refuted:
+            x1, y1 = world_to_pixel(tl_x, tl_y, transform, self.image_w, self.image_h)
+            x2, y2 = world_to_pixel(br_x, br_y, transform, self.image_w, self.image_h)
+            item = self.scene.addRect(QRectF(min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1)),
+                                      pen, QBrush(Qt.BrushStyle.NoBrush))
+            item.setZValue(1.5)
+
+    def _poll_synth(self):
+        try:
+            with open(os.path.join(SYNTH_HISTORY_DIR, "events.jsonl"), "r") as f:
+                f.seek(self._synth_events_pos)
+                chunk = f.read()
+        except OSError:
+            chunk = ""
+        complete = chunk[:chunk.rfind("\n") + 1]
+        self._synth_events_pos += len(complete.encode())
+        for line in complete.splitlines():
+            try:
+                self._handle_synth_event(json.loads(line))
+            except (ValueError, KeyError) as e:
+                print(f"Bad synthesis event {line!r}: {e}")
+            if self._synth_proc is None:
+                return
+        if self._synth_proc.poll() is not None and not complete:
+            self._finish_synth(None if self._synth_done else
+                               "The synthesis process ended unexpectedly; see examples/synth_history/synth.log.")
+
+    def _handle_synth_event(self, ev):
+        kind, it = ev["type"], ev.get("iter")
+        if kind == "phase":
+            if ev["phase"] == "regen":
+                self._synth_say("Generating the EnvModel packages...")
+            elif ev["phase"] == "synth":
+                self._synth_say(f"Iteration {it}: searching a placement of the free obstacles that "
+                                f"still allows parking within {self._synth_moves} move(s)...")
+            else:
+                self._synth_say(f"Iteration {it}: checking every package for a route with FEWER "
+                                f"than {self._synth_moves} move(s) around this placement...")
+        elif kind == "start":
+            self._synth_moves = ev["moves"]
+            self._on_regen_success()
+            self._synth_say(f"{len(ev['packages'])} package(s) {ev['packages']}; free obstacle(s) "
+                            f"{ev['free']}; goal: exactly {ev['moves']} move(s).")
+        elif kind == "candidate":
+            self._show_snapshot(ev["snapshot"])
+            self._synth_say(f"Iteration {it}: candidate from {ev['package']} ({ev['seconds']:.0f} s), "
+                            f"shown with its {ev['moves']}-move route.")
+        elif kind == "refuted":
+            self._synth_refuted += [tuple(ev["obstacles"][o]) for o in ev["free"]]
+            self._show_snapshot(ev["snapshot"])
+            self._synth_say(f"Iteration {it}: REFUTED by the shown {ev['moves']}-move route "
+                            f"({ev['package']}, {ev['seconds']:.0f} s). Next placements must block it "
+                            f"({ev['lemmas']} route(s) to block; dashed red = refuted placements).")
+        elif kind == "certified":
+            self._synth_done = True
+            pkg = ev["package"]
+            self.trace_path, self.image_path = package_trace_path(pkg), package_image_path(pkg)
+            self.smv_path = os.path.join(pkg, "EnvModel.smv")
+            self.reload_from_trace()
+            self._finish_synth(f"CERTIFIED after {it} iteration(s): this placement forces exactly "
+                               f"{ev['moves']} move(s); no package has a shorter route.", success=True)
+        elif kind == "impossible":
+            self._synth_done = True
+            if ev["lemmas"] == 0:
+                why = (f"no placement of the free obstacles allows parking within {ev['moves']} "
+                       "move(s) at all (for any configured section count)")
+            else:
+                why = (f"every placement within the shift ranges admits a route with fewer than "
+                       f"{ev['moves']} move(s): {ev['lemmas']} refuting route(s) together cover "
+                       "all placements (dashed red = the refuted ones)")
+            self._finish_synth(f"No solution: {why}.")
+        elif kind == "gave_up":
+            self._synth_done = True
+            self._finish_synth(f"Gave up after {it} iterations ({ev['lemmas']} refuting routes).")
+        elif kind == "error":
+            self._synth_done = True
+            self._finish_synth(ev["message"])
+
+    def _finish_synth(self, message, success=False):
+        self.synth_timer.stop()
+        _kill_process_group(self._synth_proc)
+        self._synth_proc = None
+        if self._synth_log_file is not None:
+            self._synth_log_file.close()
+            self._synth_log_file = None
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setVisible(False)
+        self.terminate_btn.setEnabled(False)
+        self._set_buttons_enabled(True)
+        if message:
+            self._synth_say(message)
+            (QMessageBox.information if success else QMessageBox.warning)(
+                self, "Obstacle synthesis", message)
 
     def closeEvent(self, event):
         """Never leave an orphaned worker (and its nuXmv children) running after the window closes."""
@@ -2537,6 +2719,10 @@ class MainWindow(QMainWindow):
             self.race_timer.stop()
             _kill_process_group(self._race_proc)
             self._race_proc = None
+        if self._synth_proc is not None:
+            self.synth_timer.stop()
+            _kill_process_group(self._synth_proc)
+            self._synth_proc = None
         super().closeEvent(event)
 
 
