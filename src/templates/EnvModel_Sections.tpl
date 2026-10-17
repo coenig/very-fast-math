@@ -361,6 +361,19 @@ DEFINE
 -- BEGIN OBSTACLE SYNTH LEMMAS (patched by parking/synth_obstacles.py)
 -- END OBSTACLE SYNTH LEMMAS
 
+-- Workspace: every section endpoint stays inside WORKSPACE_BOUNDs (straight connectors then do, too).
+@{
+   @(
+   @{
+      INIT section_[sec].source.x >= @{@{workspace_bound_0}@.scriptVar}@.geometryWorldToEnvModelConst & section_[sec].source.x <= @{@{workspace_bound_2}@.scriptVar}@.geometryWorldToEnvModelConst
+         & section_[sec].source.y >= @{@{workspace_bound_1}@.scriptVar}@.geometryWorldToEnvModelConst & section_[sec].source.y <= @{@{workspace_bound_3}@.scriptVar}@.geometryWorldToEnvModelConst;
+      INIT section_[sec].drain.x >= @{@{workspace_bound_0}@.scriptVar}@.geometryWorldToEnvModelConst & section_[sec].drain.x <= @{@{workspace_bound_2}@.scriptVar}@.geometryWorldToEnvModelConst
+         & section_[sec].drain.y >= @{@{workspace_bound_1}@.scriptVar}@.geometryWorldToEnvModelConst & section_[sec].drain.y <= @{@{workspace_bound_3}@.scriptVar}@.geometryWorldToEnvModelConst;
+   }@*.for[[sec], 0, @{SECTIONS - 1}@.eval]
+   )@
+   @()@
+}@**.if[@{@{workspace_bounds_size}@.scriptVar >= 4}@.eval]
+
 @{
    @{
       @{

@@ -342,6 +342,17 @@ def _config_values(tpl_path):
     return values
 
 
+def workspace_bounds(tpl_path):
+    """(min_x, min_y, max_x, max_y) from WORKSPACE_BOUNDs in the tpl.json, or None if unbounded."""
+    try:
+        with open(tpl_path) as f:
+            m = re.search(r'"WORKSPACE_BOUNDs"\s*:\s*"([^"]*)"', f.read())
+        values = [float(v) for v in _parse_paren_list(m.group(1))] if m else []
+    except (OSError, ValueError):
+        return None
+    return tuple(values[:4]) if len(values) >= 4 else None
+
+
 def _trace_getter(trace_path):
     """Return a getter accepting both 'env.'-prefixed (dump) and bare (MC trace) names.
 
@@ -1661,6 +1672,7 @@ class MainWindow(QMainWindow):
             # visible once the draggable (red) obstacles are moved during a session.
             self._draw_obstacle_ghosts(rects_data)
             self._draw_synth_refuted(transform)
+            self._draw_workspace(transform)
             for rect in rects_data:
                 self.add_rectangle(*rect)
             if draggable_target:
@@ -2622,6 +2634,18 @@ class MainWindow(QMainWindow):
         self.image_path = os.path.join(folder, "preview.png")
         self.reload_from_trace()
 
+    def _draw_workspace(self, transform):
+        """Thick dashed outline of WORKSPACE_BOUNDs, the area all road sections must stay in."""
+        bounds = workspace_bounds(TPL_PATH)
+        if bounds is None or transform is None:
+            return
+        x1, y1 = world_to_pixel(bounds[0], bounds[1], transform, self.image_w, self.image_h)
+        x2, y2 = world_to_pixel(bounds[2], bounds[3], transform, self.image_w, self.image_h)
+        item = self.scene.addRect(QRectF(min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1)),
+                                  QPen(QColor(20, 20, 120), 4, Qt.PenStyle.DashDotLine),
+                                  QBrush(Qt.BrushStyle.NoBrush))
+        item.setZValue(1.4)
+
     def _draw_synth_refuted(self, transform):
         """Dashed outlines of free-obstacle placements already refuted by a shorter route."""
         if transform is None:
@@ -2673,7 +2697,7 @@ class MainWindow(QMainWindow):
             self._on_regen_success()
             self._synth_say(f"{len(ev['packages'])} package(s) {ev['packages']}; free obstacle(s) "
                             f"{ev['free']}; goal: exactly {ev['moves']} move(s)."
-                            + (f" Boxes first hug the target slot (within "
+                            + (f" Boxes first hug the target slot ({ev.get('hug_at', 'slot')}; within "
                                f"{', then '.join(f'{h:g}' for h in ev['hug'])} m)." if ev.get("hug") else ""))
         elif kind == "candidate":
             self._show_snapshot(ev["snapshot"])
