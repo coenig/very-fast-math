@@ -107,7 +107,8 @@ Config (`envmodel_config.tpl.json`):
 - Moves <= SECTIONS - 1 (each gear change needs its own dead-end section; start and target can't
   serve), so `PARK_MOVES` = n needs a package with at least n + 1 sections (checked up front).
 
-Each iteration first lets the MC pick shifts that allow an N-move route, then fixes them and asks
+Each iteration first lets the MC pick shifts together with a road graph whose quickest route needs
+exactly N moves (so candidates that already allow fewer are never proposed), then fixes them and asks
 every package for a route with fewer moves. If none exists, the placement is certified (within the
 model); otherwise that shorter route becomes a lemma ("some free box must block it") and the loop
 repeats. `--apply` writes the result into `RECT_OBSTACLES_*`, resets the shifts and regenerates.
