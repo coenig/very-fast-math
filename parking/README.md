@@ -61,6 +61,11 @@ Config (`envmodel_config.tpl.json`):
 - `RECT_OBSTACLES_GROW_{MIN,MAX}_{W,H}s`: per obstacle, how much (m) the MC may grow (> 0) or
   shrink (< 0) the box; the bottom-right corner moves, combine with a shift for other anchors.
   Missing list entries mean "fixed"; boxes never shrink to zero size.
+- `WORKSPACE_BOUNDs`: `@(min_x)@@(min_y)@@(max_x)@@(max_y)@` (m, rounded to the geometry grid), the
+  parking lot all sections must stay in (drawn as a dashed blue frame in the GUI). Strongly
+  recommended: unbounded, any local obstacle layout can be bypassed by a long detour in one move.
+- `SYNTH_HUG_AT`: `slot` (default), `ends` (boxes in front of and behind the parked car, i.e.
+  parallel parking) or `sides` (left and right of it, perpendicular parking); see below.
 - `BMC_CNT: 0`: the reachability model is all-frozen, so a single BMC check at bound 0 is a
   complete proof (`REACHABILITY_ONLY` always uses BMC; IC3 was minutes vs. seconds here).
 - Keep `@sections` at most 6; larger packages make every proof very slow (the script refuses them).
@@ -80,7 +85,8 @@ with `--no-seed`), and candidates first have to cover every refuting route with 
 0.5 m) to spare, so near-identical routes are blocked too. If no placement manages that, it falls
 back to plain blocking, which alone decides "no solution". Like in parallel parking, tight gaps
 force moves, so free boxes that can reach the target slot first have to hug it: within the `--hug`
-ladder distances (default `1,3` m), relaxed step by step and finally dropped. Only the fully
+ladder distances (default `1,3` m), relaxed step by step and finally dropped. With `SYNTH_HUG_AT`
+`ends`/`sides` they are spread over front/back or left/right of the parked car. Only the fully
 relaxed search (no hug, plain blocking) can conclude "no solution".
 
 In the GUI, **"Synthesize Free Obstacles"** runs the same loop (writing pending scene edits to the
