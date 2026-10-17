@@ -33,7 +33,12 @@ import mc_parker as mp  # noqa: E402
 TARGET_SECTION = 1
 LEMMA_BEGIN = "-- BEGIN OBSTACLE SYNTH LEMMAS (patched by parking/synth_obstacles.py)"
 LEMMA_END = "-- END OBSTACLE SYNTH LEMMAS"
-_SHIFT_DECL_RE = re.compile(r"(rect_obstacles_shift_k([xy])_(\d+)\s*:\s*)(-?\d+)\s*\.\.\s*(-?\d+)(\s*;)")
+_FREE_DECL_RE = re.compile(
+    r"(rect_obstacles_(shift_kx|shift_ky|grow_kw|grow_kh)_(\d+)\s*:\s*)(-?\d+)\s*\.\.\s*(-?\d+)(\s*;)")
+FREE_RANGE_KEYS = (("RECT_OBSTACLES_SHIFT_MIN_Xs", "RECT_OBSTACLES_SHIFT_MAX_Xs"),
+                   ("RECT_OBSTACLES_SHIFT_MIN_Ys", "RECT_OBSTACLES_SHIFT_MAX_Ys"),
+                   ("RECT_OBSTACLES_GROW_MIN_Ws", "RECT_OBSTACLES_GROW_MAX_Ws"),
+                   ("RECT_OBSTACLES_GROW_MIN_Hs", "RECT_OBSTACLES_GROW_MAX_Hs"))
 _GOAL_LINE_RE = re.compile(r"^(\s*is_target_reachable\s*:=.*)$", re.MULTILINE)
 _TRACE_LINE_RE = re.compile(r"^\s*(?:env\.)?([A-Za-z_][\w.]*)\s*=\s*(-?\d+)\s*$")
 _K_RE = re.compile(r"conn_\d+_to_\d+_sub_\d+_ksx\s*:=\s*(\d+)\s*\*")
@@ -80,8 +85,7 @@ def load_config(tpl_path):
 
     obstacles = list(zip(floats("RECT_OBSTACLES_TL_Xs"), floats("RECT_OBSTACLES_TL_Ys"),
                          floats("RECT_OBSTACLES_BR_Xs"), floats("RECT_OBSTACLES_BR_Ys")))
-    shifts = [floats(k) for k in ("RECT_OBSTACLES_SHIFT_MIN_Xs", "RECT_OBSTACLES_SHIFT_MAX_Xs",
-                                  "RECT_OBSTACLES_SHIFT_MIN_Ys", "RECT_OBSTACLES_SHIFT_MAX_Ys")]
+    n = len(obstacles)
     step = float(cfg.get("RECT_OBSTACLES_SHIFT_STEP", 1))
     errors = []
     moves = int(cfg.get("PARK_MOVES", 0))
@@ -89,14 +93,17 @@ def load_config(tpl_path):
         errors.append("PARK_MOVES must be >= 1.")
     if not cfg.get("REACHABILITY_ONLY", False):
         errors.append("REACHABILITY_ONLY must be true.")
-    if any(len(s) < len(obstacles) for s in shifts):
-        errors.append(f"All RECT_OBSTACLES_SHIFT_* lists need one entry per obstacle ({len(obstacles)}).")
-    elif not any(lo != hi for s_lo, s_hi in ((shifts[0], shifts[1]), (shifts[2], shifts[3]))
-                 for lo, hi in list(zip(s_lo, s_hi))[:len(obstacles)]):
-        errors.append("No free obstacle: give at least one RECT_OBSTACLES_SHIFT_* range min < max.")
-    for v in (x for s in shifts for x in s):
-        if abs(v / step - round(v / step)) > 1e-9:
-            errors.append(f"Shift bound {v} is not a multiple of RECT_OBSTACLES_SHIFT_STEP={step}.")
+    any_free = False
+    for lo_key, hi_key in FREE_RANGE_KEYS:
+        lo, hi = floats(lo_key), floats(hi_key)
+        for key, vals in ((lo_key, lo), (hi_key, hi)):
+            for v in vals:
+                if abs(v / step - round(v / step)) > 1e-9:
+                    errors.append(f"{key}: {v} is not a multiple of RECT_OBSTACLES_SHIFT_STEP={step}.")
+        lo, hi = (lo + [0.0] * n)[:n], (hi + [0.0] * n)[:n]
+        any_free = any_free or any(a != b for a, b in zip(lo, hi))
+    if not errors and not any_free:
+        errors.append("No free obstacle: give at least one RECT_OBSTACLES_SHIFT_*/GROW_* range min < max.")
     if errors:
         fail("Config error in " + tpl_path + ":\n  " + "\n  ".join(errors))
     if int(cfg.get("BMC_CNT", 0)) > 0:
@@ -156,9 +163,9 @@ def geometry_factor(text):
 
 
 def free_obstacles(base_text):
-    """{obs: {'x': (lo, hi), 'y': (lo, hi)}} from the FROZENVAR shift declarations."""
+    """{obs: {'shift_kx'|'shift_ky'|'grow_kw'|'grow_kh': (lo, hi)}} from the FROZENVAR declarations."""
     free = {}
-    for m in _SHIFT_DECL_RE.finditer(base_text):
+    for m in _FREE_DECL_RE.finditer(base_text):
         free.setdefault(int(m.group(3)), {})[m.group(2)] = (int(m.group(4)), int(m.group(5)))
     return free
 
@@ -188,7 +195,7 @@ def patch_model(base_text, goal_moves, fixed_shifts, lemmas, free_obs, g):
         def fix(m):
             v = fixed_shifts[int(m.group(3))][m.group(2)]
             return f"{m.group(1)}{v} .. {v}{m.group(6)}"
-        text = _SHIFT_DECL_RE.sub(fix, text)
+        text = _FREE_DECL_RE.sub(fix, text)
     block = "\n".join(render_lemma(b, free_obs, g) for b in lemmas)
     begin, end = text.index(LEMMA_BEGIN) + len(LEMMA_BEGIN), text.index(LEMMA_END)
     return text[:begin] + "\n" + block + ("\n" if block else "") + text[end:]
@@ -311,8 +318,8 @@ def main():
             return 2
         raw = read_raw_trace(mp.package_trace_path(win))
         synth_win, synth_trace = win, read_text(mp.package_trace_path(win))
-        shifts = {o: {a: raw[f"rect_obstacles_shift_k{a}_{o}"] for a in "xy"} for o in free_obs}
-        print(f"  candidate from {os.path.basename(win)}: shift steps {shifts}")
+        shifts = {o: {p: raw[f"rect_obstacles_{p}_{o}"] for p in free_obs[o]} for o in free_obs}
+        print(f"  candidate from {os.path.basename(win)}: free parameters (steps) {shifts}")
         cand_obstacles = world_obstacles(raw, geometry_factor(base[win]), len(obstacles))
         cand_states = mp.route_states(raw.get, TARGET_SECTION, target_dirs) or []
         emit("candidate", iter=it, snapshot=snapshot(history_dir, f"iter{it:02d}_candidate", win),
@@ -360,12 +367,12 @@ def main():
         mp.patch_tpl_config(tpl_path, None, None, None, None, result)
         content = read_text(tpl_path)
         zeros = mp._format_paren_list(["0"] * len(result))
-        for key in ("RECT_OBSTACLES_SHIFT_MIN_Xs", "RECT_OBSTACLES_SHIFT_MAX_Xs",
-                    "RECT_OBSTACLES_SHIFT_MIN_Ys", "RECT_OBSTACLES_SHIFT_MAX_Ys"):
-            content = mp._replace_tpl_string_value(content, key, zeros)
+        for key in (k for pair in FREE_RANGE_KEYS for k in pair):
+            if f'"{key}"' in content:
+                content = mp._replace_tpl_string_value(content, key, zeros)
         with open(tpl_path, "w") as f:
             f.write(content)
-        print(f"Applied to {os.path.relpath(tpl_path, mp.REPO_ROOT)} (all shifts reset to 0).")
+        print(f"Applied to {os.path.relpath(tpl_path, mp.REPO_ROOT)} (all shift/grow ranges reset to 0).")
         regenerate(tpl_path, prefix_dir)
         print("Re-run with: python3 parking/mc_parker.py --race")
     else:

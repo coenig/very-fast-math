@@ -333,15 +333,20 @@ DEFINE
    @{
       @{
       @(
-   -- Free obstacle [obs]: the MC translates the box by (shift_kx, shift_ky) * RECT_OBSTACLES_SHIFT_STEP.
+   -- Free obstacle [obs]: the MC translates the box by (shift_kx, shift_ky) and grows/shrinks it at the
+   -- bottom-right corner by (grow_kw, grow_kh), all in RECT_OBSTACLES_SHIFT_STEP units.
    FROZENVAR
-      rect_obstacles_shift_kx_[obs] : @{@{rect_obstacles_shift_min_x_[obs]}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0] .. @{@{rect_obstacles_shift_max_x_[obs]}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0];
-      rect_obstacles_shift_ky_[obs] : @{@{rect_obstacles_shift_min_y_[obs]}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0] .. @{@{rect_obstacles_shift_max_y_[obs]}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0];
+      rect_obstacles_shift_kx_[obs] : @{@{obs_[obs]_shift_min_x}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0] .. @{@{obs_[obs]_shift_max_x}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0];
+      rect_obstacles_shift_ky_[obs] : @{@{obs_[obs]_shift_min_y}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0] .. @{@{obs_[obs]_shift_max_y}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0];
+      rect_obstacles_grow_kw_[obs] : @{@{obs_[obs]_grow_min_w}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0] .. @{@{obs_[obs]_grow_max_w}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0];
+      rect_obstacles_grow_kh_[obs] : @{@{obs_[obs]_grow_min_h}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0] .. @{@{obs_[obs]_grow_max_h}@.scriptVar / RECT_OBSTACLES_SHIFT_STEP}@.eval[0];
    DEFINE
       @{rect_obstacles_tl_x_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_tl_x_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst + @{RECT_OBSTACLES_SHIFT_STEP}@.geometryWorldToEnvModelConst * rect_obstacles_shift_kx_[obs];
       @{rect_obstacles_tl_y_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_tl_y_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst + @{RECT_OBSTACLES_SHIFT_STEP}@.geometryWorldToEnvModelConst * rect_obstacles_shift_ky_[obs];
-      @{rect_obstacles_br_x_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_x_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst + @{RECT_OBSTACLES_SHIFT_STEP}@.geometryWorldToEnvModelConst * rect_obstacles_shift_kx_[obs];
-      @{rect_obstacles_br_y_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_y_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst + @{RECT_OBSTACLES_SHIFT_STEP}@.geometryWorldToEnvModelConst * rect_obstacles_shift_ky_[obs];
+      @{rect_obstacles_br_x_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_x_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst + @{RECT_OBSTACLES_SHIFT_STEP}@.geometryWorldToEnvModelConst * (rect_obstacles_shift_kx_[obs] + rect_obstacles_grow_kw_[obs]);
+      @{rect_obstacles_br_y_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_y_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst + @{RECT_OBSTACLES_SHIFT_STEP}@.geometryWorldToEnvModelConst * (rect_obstacles_shift_ky_[obs] + rect_obstacles_grow_kh_[obs]);
+   INIT rect_obstacles_br_x_[obs] > rect_obstacles_tl_x_[obs] & rect_obstacles_br_y_[obs] > rect_obstacles_tl_y_[obs];
+   DEFINE
       )@
       @(
       @{rect_obstacles_tl_x_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_tl_x_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
