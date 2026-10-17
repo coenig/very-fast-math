@@ -64,6 +64,8 @@ Config (`envmodel_config.tpl.json`):
 - `BMC_CNT: 0`: the reachability model is all-frozen, so a single BMC check at bound 0 is a
   complete proof (`REACHABILITY_ONLY` always uses BMC; IC3 was minutes vs. seconds here).
 - Keep `@sections` at most 6; larger packages make every proof very slow (the script refuses them).
+- Moves <= SECTIONS - 1 (each gear change needs its own dead-end section; start and target can't
+  serve), so `PARK_MOVES` = n needs a package with at least n + 1 sections (checked up front).
 
 Each iteration first lets the MC pick shifts that allow an N-move route, then fixes them and asks
 every package for a route with fewer moves. If none exists, the placement is certified (within the
@@ -75,7 +77,10 @@ drawn where the MC put it; dragging it moves its configured base box (the shift 
 The search is directed: it first checks the configured placement for a shorter route (seed; skip
 with `--no-seed`), and candidates first have to cover every refuting route with `--margin` (default
 0.5 m) to spare, so near-identical routes are blocked too. If no placement manages that, it falls
-back to plain blocking, which alone decides "no solution".
+back to plain blocking, which alone decides "no solution". Like in parallel parking, tight gaps
+force moves, so free boxes that can reach the target slot first have to hug it: within the `--hug`
+ladder distances (default `1,3` m), relaxed step by step and finally dropped. Only the fully
+relaxed search (no hug, plain blocking) can conclude "no solution".
 
 In the GUI, **"Synthesize Free Obstacles"** runs the same loop (writing pending scene edits to the
 config first) and shows every step live: each candidate with its N-move route, then the shorter
