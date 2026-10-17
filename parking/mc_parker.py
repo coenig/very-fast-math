@@ -2660,8 +2660,8 @@ class MainWindow(QMainWindow):
             if ev["phase"] == "regen":
                 self._synth_say("Generating the EnvModel packages...")
             elif ev["phase"] == "synth":
-                self._synth_say(f"Iteration {it}: searching a placement of the free obstacles that "
-                                f"still allows parking within {self._synth_moves} move(s)...")
+                self._synth_say(f"Iteration {it}: searching a placement of the free obstacles with a "
+                                f"road graph whose shortest route needs exactly {self._synth_moves} move(s)...")
             elif it == 0:
                 self._synth_say(f"Seed: checking whether the configured placement allows a route with "
                                 f"FEWER than {self._synth_moves} move(s) (the first route to block)...")
@@ -2712,12 +2712,13 @@ class MainWindow(QMainWindow):
         elif kind == "impossible":
             self._synth_done = True
             if ev["lemmas"] == 0:
-                why = (f"no placement of the free obstacles allows parking within {ev['moves']} "
-                       "move(s) at all (for any configured section count)")
+                why = (f"no placement of the free obstacles has a road graph whose shortest route "
+                       f"needs exactly {ev['moves']} move(s) (they all allow fewer, or none reaches "
+                       "the target within that many; for any configured section count)")
             else:
-                why = (f"every placement within the shift ranges admits a route with fewer than "
-                       f"{ev['moves']} move(s): {ev['lemmas']} refuting route(s) together cover "
-                       "all placements (dashed red = the refuted ones)")
+                why = (f"every placement within the ranges either admits a route with fewer than "
+                       f"{ev['moves']} move(s) ({ev['lemmas']} refuting route(s); dashed red = refuted "
+                       "placements) or cannot reach the target within that many")
             self._finish_synth(f"No solution: {why}.")
         elif kind == "gave_up":
             self._synth_done = True
