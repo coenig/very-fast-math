@@ -43,7 +43,6 @@ FREE_RANGE_KEYS = (("RECT_OBSTACLES_SHIFT_MIN_Xs", "RECT_OBSTACLES_SHIFT_MAX_Xs"
                    ("RECT_OBSTACLES_GROW_MIN_Hs", "RECT_OBSTACLES_GROW_MAX_Hs"))
 _GOAL_LINE_RE = re.compile(r"^(\s*is_target_reachable\s*:=.*)$", re.MULTILINE)
 _TRACE_LINE_RE = re.compile(r"^\s*(?:env\.)?([A-Za-z_][\w.]*)\s*=\s*(-?\d+)\s*$")
-_K_RE = re.compile(r"conn_\d+_to_\d+_sub_\d+_ksx\s*:=\s*(\d+)\s*\*")
 _SECTIONS_RE = re.compile(r"Found variable SECTIONS with value (\d+)")
 _events_path = None
 
@@ -282,8 +281,7 @@ def route_boxes(raw, smv_text, target_dirs, margin):
     if states is None:
         fail("Counterexample trace holds no route to the target (trace parsing problem?).")
     g = geometry_factor(smv_text)
-    m = _K_RE.search(smv_text)
-    k = int(m.group(1)) if m else 0
+    scale = raw.get("connector_curve_scale")
     d = Fraction(margin).limit_denominator(1000)
 
     def pt(sec, end):
@@ -296,17 +294,19 @@ def route_boxes(raw, smv_text, target_dirs, margin):
             boxes.add((Fraction(x) / g, Fraction(x) / g, Fraction(y) / g, Fraction(y) / g))
             points.add((Fraction(x) / g, Fraction(y) / g))
     for (s1, d1), (s2, _) in zip(states, states[1:]):
-        if s1 == s2 or k == 0:
+        if s1 == s2 or scale is None:
             continue
         a, b = (s1, s2) if d1 == "F" else (s2, s1)
-        (dx, dy), (sx, sy) = pt(a, "drain"), pt(b, "source")
-        for seg in range(k):
-            xs = (k * dx + seg * (sx - dx), k * dx + (seg + 1) * (sx - dx))
-            ys = (k * dy + seg * (sy - dy), k * dy + (seg + 1) * (sy - dy))
-            boxes.add(tuple(Fraction(v, k) / g for v in (min(xs), max(xs), min(ys), max(ys))))
-        for j in range(2 * k + 1):  # sub-segment ends and midpoints: inside the plain boxes
-            points.add((Fraction(2 * k * dx + j * (sx - dx), 2 * k) / g,
-                        Fraction(2 * k * dy + j * (sy - dy), 2 * k) / g))
+        j = 0
+        while f"conn_{a}_to_{b}_arc_{j}_q0_x" in raw:
+            q = [(Fraction(raw[f"conn_{a}_to_{b}_arc_{j}_q{i}_x"], scale) / g,
+                  Fraction(raw[f"conn_{a}_to_{b}_arc_{j}_q{i}_y"], scale) / g) for i in range(4)]
+            xs, ys = [p[0] for p in q], [p[1] for p in q]
+            boxes.add((min(xs), max(xs), min(ys), max(ys)))
+            # Sub-arc start, end and middle (de Casteljau) lie on the curve, inside the hull box.
+            points.update((q[0], q[3], ((q[0][0] + 3 * q[1][0] + 3 * q[2][0] + q[3][0]) / 8,
+                                        (q[0][1] + 3 * q[1][1] + 3 * q[2][1] + q[3][1]) / 8)))
+            j += 1
     directed = sorted((x + d, x - d, y + d, y - d) for x, y in points)
     moves = 1 + sum(1 for (a, _), (b, _) in zip(states, states[1:]) if a == b)
     return sorted(boxes), directed, moves, states
@@ -315,6 +315,29 @@ def route_boxes(raw, smv_text, target_dirs, margin):
 def world_obstacles(raw, g, n_obs):
     return [tuple(float(Fraction(raw[f"rect_obstacles_{f}_{o}"]) / g) for f in ("tl_x", "tl_y", "br_x", "br_y"))
             for o in range(n_obs)]
+
+
+def write_recheck_config(tpl_path, recheck_dir, obstacles_world, goal_moves, geometry_scaling):
+    """Copy of the config with the candidate's boxes fixed, a finer geometry grid and goal_moves."""
+    content = read_text(tpl_path)
+    for key, idx in (("RECT_OBSTACLES_TL_Xs", 0), ("RECT_OBSTACLES_TL_Ys", 1),
+                     ("RECT_OBSTACLES_BR_Xs", 2), ("RECT_OBSTACLES_BR_Ys", 3)):
+        content = mp._replace_tpl_string_value(
+            content, key, mp._format_paren_list([mp._fmt_world(o[idx]) for o in obstacles_world]))
+    for key in (k for pair in FREE_RANGE_KEYS for k in pair):
+        if f'"{key}"' in content:
+            content = mp._replace_tpl_string_value(content, key, "")
+    content = re.sub(r'("PARK_MOVES"\s*:\s*)\d+', lambda m: f"{m.group(1)}{goal_moves}", content)
+    content = mp._replace_tpl_string_value(content, "GEOMETRYSCALING", f"#{{{geometry_scaling}}}#")
+    bin_dir = os.path.join(mp.REPO_ROOT, "bin")
+    for key, sub in (("_GENERATED_PATH", "gp"), ("_CACHED_PATH", "tmp")):
+        content = mp._replace_tpl_string_value(content, key, os.path.relpath(os.path.join(recheck_dir, sub), bin_dir))
+    path = os.path.join(recheck_dir, "recheck.tpl.json")
+    with open(path, "w") as f:
+        f.write(content)
+    if re.search(r'"#\d+"\s*:\s*"[^"]*@geomgrid\b', content):
+        mp.patch_tpl_variants(path, "geomgrid", [geometry_scaling])
+    return path
 
 
 def main():
@@ -340,6 +363,9 @@ def main():
                     help="Where boxes hug the target: slot = anywhere around it, ends = in front of and "
                          "behind the car (parallel parking), sides = left and right of it (perpendicular "
                          "parking). Default: SYNTH_HUG_AT from the config, else slot.")
+    ap.add_argument("--recheck-factor", type=int, default=2,
+                    help="Before certifying, recheck the placement on a geometry grid this many times finer "
+                         "(catches shortcuts the coarse grid cannot represent); 0 or 1 = off.")
     args = ap.parse_args()
 
     if args.history:
@@ -418,14 +444,31 @@ def main():
                 out.append(([o], [(x - c, x + c, y - c, y + c) for x, y in pts]))
         return out
 
-    def refute(win, it, secs, obstacles_world):
+    def refute(win, it, secs, obstacles_world, recheck=False):
         raw = read_raw_trace(mp.package_trace_path(win))
         plain, strong, moves, states = route_boxes(raw, read_text(smv_path(win)), target_dirs, args.margin)
-        print(f"  refuted by a {moves}-move route in {os.path.basename(win)}: {states}")
+        print(f"  refuted by a {moves}-move route in {os.path.basename(win)}{' (finer grid)' if recheck else ''}: {states}")
         lemmas.append((plain, strong))
         emit("refuted", iter=it, snapshot=snapshot(history_dir, f"iter{it:02d}_refutation", win),
              package=os.path.basename(win), moves=moves, lemmas=len(lemmas), obstacles=obstacles_world,
-             free=sorted(free_obs), seconds=secs)
+             free=sorted(free_obs), seconds=secs, recheck=recheck)
+
+    recheck_dir = os.path.join(os.path.dirname(prefix_dir), "synth_recheck")
+    fine_scaling = round(float(geometry_factor(base[packages[0]])) * 1000 * args.recheck_factor)
+
+    def recheck(it, obstacles_world):
+        """Shorter route on the finer grid for the fixed placement: (package, seconds) or (None, seconds)."""
+        shutil.rmtree(recheck_dir, ignore_errors=True)
+        os.makedirs(recheck_dir)
+        cfg_path = write_recheck_config(tpl_path, recheck_dir, obstacles_world, n_moves - 1, fine_scaling)
+        emit("phase", label=f"iter {it}: recheck < {n_moves} moves on finer grid", phase="recheck",
+             iter=it, grid=1000 / fine_scaling)
+        regenerate(cfg_path, os.path.join(recheck_dir, "gp"))
+        fine = discover_packages(os.path.join(recheck_dir, "gp"))
+        if not fine:
+            fail("Finer-grid recheck: package generation failed.")
+        return race(fine, f"@{{{vfm_script_path(cfg_path)}}}@.runMCJobs[16]",
+                    f"iter {it}: recheck < {n_moves} moves (grid {1000 / fine_scaling:g} m)")
 
     if n_moves > 1 and not args.no_seed:
         # Start from the configured boxes: the shorter route they allow is the first one to block.
@@ -481,6 +524,11 @@ def main():
 
         write_packages(packages, base, n_moves - 1, shifts, clauses())
         win, secs = race(packages, mc_script, f"iter {it}: verify < {n_moves} moves", phase="verify", iter=it)
+        if win is None and args.recheck_factor > 1:
+            win, secs = recheck(it, cand_obstacles)
+            if win is not None:
+                refute(win, it, secs, cand_obstacles, recheck=True)
+                continue
         if win is None:
             certified = True
             break
@@ -504,7 +552,8 @@ def main():
     for o, box in enumerate(result):
         print(f"  obstacle {o}{' (free)' if o in free_obs else ''}: "
               f"tl=({box[0]:g}, {box[1]:g}) br=({box[2]:g}, {box[3]:g})")
-    emit("certified", iter=it, package=synth_win, obstacles=result, moves=n_moves, lemmas=len(lemmas))
+    emit("certified", iter=it, package=synth_win, obstacles=result, moves=n_moves, lemmas=len(lemmas),
+         recheck_grid=1000 / fine_scaling if args.recheck_factor > 1 and n_moves > 1 else None)
 
     if args.apply:
         mp.patch_tpl_config(tpl_path, None, None, None, None, result)

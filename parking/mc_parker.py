@@ -2686,6 +2686,9 @@ class MainWindow(QMainWindow):
             elif ev["phase"] == "synth":
                 self._synth_say(f"Iteration {it}: searching a placement of the free obstacles with a "
                                 f"road graph whose shortest route needs exactly {self._synth_moves} move(s)...")
+            elif ev["phase"] == "recheck":
+                self._synth_say(f"Iteration {it}: no shorter route on the normal grid; rechecking on a "
+                                f"{ev['grid']:g} m grid (catches shortcuts the coarse grid cannot place)...")
             elif it == 0:
                 self._synth_say(f"Seed: checking whether the configured placement allows a route with "
                                 f"FEWER than {self._synth_moves} move(s) (the first route to block)...")
@@ -2708,10 +2711,11 @@ class MainWindow(QMainWindow):
         elif kind == "refuted":
             self._synth_refuted += [tuple(ev["obstacles"][o]) for o in ev["free"]]
             self._show_snapshot(ev["snapshot"])
-            self._set_synth_banner(f"DISPROOF ({'seed' if it == 0 else f'iteration {it}'}): this "
+            fine = " on the finer grid" if ev.get("recheck") else ""
+            self._set_synth_banner(f"DISPROOF ({'seed' if it == 0 else f'iteration {it}'}{fine}): this "
                                    f"{ev['moves']}-move route shows the placement needs fewer than "
                                    f"{self._synth_moves} moves", "#c62828")
-            self._synth_say(f"{'Seed' if it == 0 else f'Iteration {it}'}: REFUTED by the shown "
+            self._synth_say(f"{'Seed' if it == 0 else f'Iteration {it}'}: REFUTED{fine} by the shown "
                             f"{ev['moves']}-move route ({ev['package']}, {ev['seconds']:.0f} s). Next "
                             f"placements must block it ({ev['lemmas']} route(s) to block; dashed red = "
                             f"refuted placements).")
@@ -2732,7 +2736,9 @@ class MainWindow(QMainWindow):
             self._set_synth_banner(f"CERTIFIED SOLUTION: this placement needs exactly {ev['moves']} "
                                    f"move(s)", "#2e7d32")
             self._finish_synth(f"CERTIFIED after {it} iteration(s): this placement forces exactly "
-                               f"{ev['moves']} move(s); no package has a shorter route.", success=True)
+                               f"{ev['moves']} move(s); no package has a shorter route"
+                               + (f" (also rechecked on a {ev['recheck_grid']:g} m grid)."
+                                  if ev.get("recheck_grid") else "."), success=True)
         elif kind == "impossible":
             self._synth_done = True
             if ev["lemmas"] == 0:

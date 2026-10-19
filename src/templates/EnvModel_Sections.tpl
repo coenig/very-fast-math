@@ -342,7 +342,8 @@ DEFINE
 -- BEGIN OBSTACLE SYNTH LEMMAS (patched by parking/synth_obstacles.py)
 -- END OBSTACLE SYNTH LEMMAS
 
--- Workspace: every section endpoint stays inside WORKSPACE_BOUNDs (straight connectors then do, too).
+-- Workspace: every section endpoint, and every taken connector (via its two inner control points; the
+-- curve lies in the convex hull of p0..p3), stays inside WORKSPACE_BOUNDs.
 @{
    @(
    @{
@@ -351,9 +352,19 @@ DEFINE
       INIT section_[sec].drain.x >= @{@{workspace_bound_0}@.scriptVar}@.geometryWorldToEnvModelConst & section_[sec].drain.x <= @{@{workspace_bound_2}@.scriptVar}@.geometryWorldToEnvModelConst
          & section_[sec].drain.y >= @{@{workspace_bound_1}@.scriptVar}@.geometryWorldToEnvModelConst & section_[sec].drain.y <= @{@{workspace_bound_3}@.scriptVar}@.geometryWorldToEnvModelConst;
    }@*.for[[sec], 0, @{SECTIONS - 1}@.eval]
+   @{
+      @{
+         @{
+            INIT (@{outgoing_connection_[con]_of_section_[sec] = [sec2]}@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS - 1}@.eval, 1, |]) -> (@{
+               conn_[sec]_to_[sec2]_p[i]x >= 300000 * @{@{workspace_bound_0}@.scriptVar}@.geometryWorldToEnvModelConst & conn_[sec]_to_[sec2]_p[i]x <= 300000 * @{@{workspace_bound_2}@.scriptVar}@.geometryWorldToEnvModelConst
+               & conn_[sec]_to_[sec2]_p[i]y >= 300000 * @{@{workspace_bound_1}@.scriptVar}@.geometryWorldToEnvModelConst & conn_[sec]_to_[sec2]_p[i]y <= 300000 * @{@{workspace_bound_3}@.scriptVar}@.geometryWorldToEnvModelConst
+            }@*.for[[i], 1, 2, 1, &]);
+         }@**.if[@{ [sec] != [sec2] && MODEL_INTERSECTION_GEOMETRY }@.eval]
+      }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+   }@****.for[[sec], 0, @{SECTIONS - 1}@.eval]
    )@
    @()@
-}@**.if[@{@{workspace_bounds_size}@.scriptVar >= 4}@.eval]
+}@*****.if[@{@{workspace_bounds_size}@.scriptVar >= 4}@.eval]
 
 @{
    @{
@@ -367,47 +378,92 @@ DEFINE
    }@*.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
 }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
--- The straight connector line of each active connection (from the drain of section [sec] to the
--- source of the connected section [sec2]) may not overlap obstacle [obs]. An exact segment/rectangle
--- crossing test needs a cross product = variable*variable (nonlinear, ruins nuXmv). Instead we split
--- the connector into OBSTACLE_CONNECTOR_SUBDIVISIONS equal straight sub-segments and require each
--- sub-segment's axis-aligned bounding box to be separated from the obstacle (on x or on y). This is
--- LINEAR (variable-vs-constant only), still has NO false negatives (a real crossing overlaps some
--- sub-box), and the smaller sub-boxes hug the straight line so the (false-positive) over-pruning
--- shrinks ~1/K towards the exact test. Only constrained when the connection is actually taken.
-
--- Sub-segment endpoints along each potential connector (drain of [sec] -> source of [sec2]).
--- Scaled by K = OBSTACLE_CONNECTOR_SUBDIVISIONS so the interpolation stays integer/linear:
--- ksx := K*p_[seg].x = K*drain.x + [seg]*(source.x - drain.x), for [seg] in 0..K.
+-- The connector of each active connection is the cubic Bezier the road graph draws: from the drain
+-- p0 of section [sec] to the source p3 of section [sec2], control points p1 = p0 + chord/3 * u_[sec]
+-- and p2 = p3 - chord/3 * u_[sec2] (u = section direction, chord = |p3 - p0|). It may not overlap
+-- obstacle [obs]. We split it at t = j/K (K = OBSTACLE_CONNECTOR_SUBDIVISIONS) into K sub-arcs
+-- (de Casteljau). Each sub-arc lies in the convex hull of its own 4 control points q0..q3, which are
+-- fixed rational combinations of p0..p3, so requiring each sub-arc's control-point box to be
+-- separated from the obstacle (on x or on y) has NO false negatives, and the boxes converge
+-- quadratically to the curve itself as K grows. The only nonlinearity is chord * cos/sin (variable
+-- times lookup table, like the endpoint relation above); chord = dist * |u_[sec] + u_[sec2]| comes
+-- from a lookup table over the angle between both sections.
+-- Units: p*, q* are model coordinates scaled by CURVE_SCALE = 300000 (chord x 1000, cos x 100, / 3),
+-- q* additionally by K^3; connector_curve_scale = K^3 * CURVE_SCALE (read by parking/synth_obstacles.py).
 DEFINE
+   connector_curve_scale := @{OBSTACLE_CONNECTOR_SUBDIVISIONS * OBSTACLE_CONNECTOR_SUBDIVISIONS * OBSTACLE_CONNECTOR_SUBDIVISIONS * 300000}@.eval[0];
 @{
    @{
       @{
          @{
-            conn_[sec]_to_[sec2]_sub_[seg]_ksx := @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * section_[sec].drain.x + [seg] * (section_[sec2].source.x - section_[sec].drain.x);
-            conn_[sec]_to_[sec2]_sub_[seg]_ksy := @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * section_[sec].drain.y + [seg] * (section_[sec2].source.y - section_[sec].drain.y);
-         }@*.for[[seg], 0, @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval]
-      }@**.if[@{ [sec] != [sec2] && MODEL_INTERSECTION_GEOMETRY }@.eval]
-   }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
-}@****.for[[sec], 0, @{SECTIONS - 1}@.eval]
-
-@{
-   @{
-      @{
+         @(
+   DEFINE
+      -- Both sections fixed: exact chord (x 1000), so the control-point offsets are constants.
+      conn_[sec]_to_[sec2]_chord := @{ sqrt((@{sec_[sec]_drain_x_fixed}@.scriptVar - @{fixed_section_source_x_[sec2]}@.scriptVar)**2 + (@{sec_[sec]_drain_y_fixed}@.scriptVar - @{fixed_section_source_y_[sec2]}@.scriptVar)**2) * GEOMETRYSCALING * 1000 }@.eval[0];
+      conn_[sec]_to_[sec2]_o1x := conn_[sec]_to_[sec2]_chord * cos_of_section_[sec]_angle;
+      conn_[sec]_to_[sec2]_o1y := conn_[sec]_to_[sec2]_chord * sin_of_section_[sec]_angle;
+      conn_[sec]_to_[sec2]_o2x := conn_[sec]_to_[sec2]_chord * cos_of_section_[sec2]_angle;
+      conn_[sec]_to_[sec2]_o2y := conn_[sec]_to_[sec2]_chord * sin_of_section_[sec2]_angle;
+         )@
+         @(
+   DEFINE
+      conn_[sec]_to_[sec2]_dangle := (section_[sec2].angle - section_[sec].angle + 360) mod 360;
+   FROZENVAR
+      conn_[sec]_to_[sec2]_chord : integer; -- chord x 1000 (only meaningful while connected)
+   -- A full lookup table over both angles (no chord variable) was ~30x slower in nuXmv.
+   INIT conn_[sec]_to_[sec2]_chord = connection_distance_sec_[sec]_to_sec_[sec2] * case
+         @{
+            conn_[sec]_to_[sec2]_dangle = [d] : @{ abs(cos([d] / 360 * 3.14159265)) * 2000 }@.eval[0];
+         }@*.for[[d], 0, 359, @{ANGLEGRANULARITY}@.eval]
+         TRUE : 0;
+      esac;
+   DEFINE
+      conn_[sec]_to_[sec2]_o1x := conn_[sec]_to_[sec2]_chord * cos_of_section_[sec]_angle;
+      conn_[sec]_to_[sec2]_o1y := conn_[sec]_to_[sec2]_chord * sin_of_section_[sec]_angle;
+      conn_[sec]_to_[sec2]_o2x := conn_[sec]_to_[sec2]_chord * cos_of_section_[sec2]_angle;
+      conn_[sec]_to_[sec2]_o2y := conn_[sec]_to_[sec2]_chord * sin_of_section_[sec2]_angle;
+         )@
+         }@**.if[@{ @{is_section_[sec]_fixed}@.scriptVar && @{is_section_[sec2]_fixed}@.scriptVar }@.eval]
+   DEFINE
+      conn_[sec]_to_[sec2]_p1x := 300000 * section_[sec].drain.x + conn_[sec]_to_[sec2]_o1x;
+      conn_[sec]_to_[sec2]_p1y := 300000 * section_[sec].drain.y + conn_[sec]_to_[sec2]_o1y;
+      conn_[sec]_to_[sec2]_p2x := 300000 * section_[sec2].source.x - conn_[sec]_to_[sec2]_o2x;
+      conn_[sec]_to_[sec2]_p2y := 300000 * section_[sec2].source.y - conn_[sec]_to_[sec2]_o2y;
          @{
             @{
-               INIT outgoing_connection_[con]_of_section_[sec] = [sec2] -> (
-                  @{
-                     ( (conn_[sec]_to_[sec2]_sub_[seg]_ksx < @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_tl_x_[obs] & conn_[sec]_to_[sec2]_sub_@{[seg] + 1}@.eval[0]_ksx < @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_tl_x_[obs])
-                     | (conn_[sec]_to_[sec2]_sub_[seg]_ksx > @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_br_x_[obs] & conn_[sec]_to_[sec2]_sub_@{[seg] + 1}@.eval[0]_ksx > @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_br_x_[obs])
-                     | (conn_[sec]_to_[sec2]_sub_[seg]_ksy < @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_tl_y_[obs] & conn_[sec]_to_[sec2]_sub_@{[seg] + 1}@.eval[0]_ksy < @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_tl_y_[obs])
-                     | (conn_[sec]_to_[sec2]_sub_[seg]_ksy > @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_br_y_[obs] & conn_[sec]_to_[sec2]_sub_@{[seg] + 1}@.eval[0]_ksy > @{OBSTACLE_CONNECTOR_SUBDIVISIONS}@.eval[0] * rect_obstacles_br_y_[obs]) )
-                  }@*.for[[seg], 0, @{OBSTACLE_CONNECTOR_SUBDIVISIONS - 1}@.eval, 1, &]
-               );
-            }@**.if[@{ [sec] != [sec2] && MODEL_INTERSECTION_GEOMETRY }@.eval]
-         }@***.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
-      }@****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
-   }@*****.for[[con], 0, @{MAXOUTGOINGCONNECTIONS - 1}@.eval]
+      -- Sub-arc [j], control points q0..q3 (A = K - j, B = j, A1 = A - 1, B1 = B + 1).
+      conn_[sec]_to_[sec2]_arc_[j]_q0_[c] := @{(OBSTACLE_CONNECTOR_SUBDIVISIONS - [j])**3 * 300000}@.eval[0] * section_[sec].drain.[c] + (@{3 * [j] * (OBSTACLE_CONNECTOR_SUBDIVISIONS - [j])**2}@.eval[0]) * conn_[sec]_to_[sec2]_p1[c] + (@{3 * [j]**2 * (OBSTACLE_CONNECTOR_SUBDIVISIONS - [j])}@.eval[0]) * conn_[sec]_to_[sec2]_p2[c] + @{[j]**3 * 300000}@.eval[0] * section_[sec2].source.[c];
+      conn_[sec]_to_[sec2]_arc_[j]_q1_[c] := (@{((OBSTACLE_CONNECTOR_SUBDIVISIONS - [j])**3 - (OBSTACLE_CONNECTOR_SUBDIVISIONS - [j])**2) * 300000}@.eval[0]) * section_[sec].drain.[c] + (@{3 * [j] * (OBSTACLE_CONNECTOR_SUBDIVISIONS - [j])**2 + (OBSTACLE_CONNECTOR_SUBDIVISIONS - [j])**2 - 2 * (OBSTACLE_CONNECTOR_SUBDIVISIONS - [j]) * [j]}@.eval[0]) * conn_[sec]_to_[sec2]_p1[c] + (@{3 * [j]**2 * (OBSTACLE_CONNECTOR_SUBDIVISIONS - [j]) + 2 * (OBSTACLE_CONNECTOR_SUBDIVISIONS - [j]) * [j] - [j]**2}@.eval[0]) * conn_[sec]_to_[sec2]_p2[c] + (@{([j]**3 + [j]**2) * 300000}@.eval[0]) * section_[sec2].source.[c];
+      conn_[sec]_to_[sec2]_arc_[j]_q2_[c] := (@{((OBSTACLE_CONNECTOR_SUBDIVISIONS - [j] - 1)**3 + (OBSTACLE_CONNECTOR_SUBDIVISIONS - [j] - 1)**2) * 300000}@.eval[0]) * section_[sec].drain.[c] + (@{3 * ([j] + 1) * (OBSTACLE_CONNECTOR_SUBDIVISIONS - [j] - 1)**2 - (OBSTACLE_CONNECTOR_SUBDIVISIONS - [j] - 1)**2 + 2 * (OBSTACLE_CONNECTOR_SUBDIVISIONS - [j] - 1) * ([j] + 1)}@.eval[0]) * conn_[sec]_to_[sec2]_p1[c] + (@{3 * ([j] + 1)**2 * (OBSTACLE_CONNECTOR_SUBDIVISIONS - [j] - 1) - 2 * (OBSTACLE_CONNECTOR_SUBDIVISIONS - [j] - 1) * ([j] + 1) + ([j] + 1)**2}@.eval[0]) * conn_[sec]_to_[sec2]_p2[c] + (@{(([j] + 1)**3 - ([j] + 1)**2) * 300000}@.eval[0]) * section_[sec2].source.[c];
+      conn_[sec]_to_[sec2]_arc_[j]_q3_[c] := @{(OBSTACLE_CONNECTOR_SUBDIVISIONS - [j] - 1)**3 * 300000}@.eval[0] * section_[sec].drain.[c] + (@{3 * ([j] + 1) * (OBSTACLE_CONNECTOR_SUBDIVISIONS - [j] - 1)**2}@.eval[0]) * conn_[sec]_to_[sec2]_p1[c] + (@{3 * ([j] + 1)**2 * (OBSTACLE_CONNECTOR_SUBDIVISIONS - [j] - 1)}@.eval[0]) * conn_[sec]_to_[sec2]_p2[c] + @{([j] + 1)**3 * 300000}@.eval[0] * section_[sec2].source.[c];
+            }@*.for[[c], @(x)@@(y)@]
+         }@**.for[[j], 0, @{OBSTACLE_CONNECTOR_SUBDIVISIONS - 1}@.eval]
+      }@***.if[@{ [sec] != [sec2] && MODEL_INTERSECTION_GEOMETRY }@.eval]
+   }@****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
+}@*****.for[[sec], 0, @{SECTIONS - 1}@.eval]
+
+@{
+   @{
+      @{
+         @{
+            INIT (@{outgoing_connection_[con]_of_section_[sec] = [sec2]}@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS - 1}@.eval, 1, |]) -> (
+               -- Shortcut: the whole curve's control-point box misses the obstacle (implies all sub-arcs do).
+               ( (300000 * section_[sec].drain.x < 300000 * rect_obstacles_tl_x_[obs] & conn_[sec]_to_[sec2]_p1x < 300000 * rect_obstacles_tl_x_[obs] & conn_[sec]_to_[sec2]_p2x < 300000 * rect_obstacles_tl_x_[obs] & section_[sec2].source.x < rect_obstacles_tl_x_[obs])
+               | (300000 * section_[sec].drain.x > 300000 * rect_obstacles_br_x_[obs] & conn_[sec]_to_[sec2]_p1x > 300000 * rect_obstacles_br_x_[obs] & conn_[sec]_to_[sec2]_p2x > 300000 * rect_obstacles_br_x_[obs] & section_[sec2].source.x > rect_obstacles_br_x_[obs])
+               | (300000 * section_[sec].drain.y < 300000 * rect_obstacles_tl_y_[obs] & conn_[sec]_to_[sec2]_p1y < 300000 * rect_obstacles_tl_y_[obs] & conn_[sec]_to_[sec2]_p2y < 300000 * rect_obstacles_tl_y_[obs] & section_[sec2].source.y < rect_obstacles_tl_y_[obs])
+               | (300000 * section_[sec].drain.y > 300000 * rect_obstacles_br_y_[obs] & conn_[sec]_to_[sec2]_p1y > 300000 * rect_obstacles_br_y_[obs] & conn_[sec]_to_[sec2]_p2y > 300000 * rect_obstacles_br_y_[obs] & section_[sec2].source.y > rect_obstacles_br_y_[obs]) )
+               | (
+               @{
+                  ( (@{conn_[sec]_to_[sec2]_arc_[j]_q[i]_x < connector_curve_scale * rect_obstacles_tl_x_[obs]}@*.for[[i], 0, 3, 1, &])
+                  | (@{conn_[sec]_to_[sec2]_arc_[j]_q[i]_x > connector_curve_scale * rect_obstacles_br_x_[obs]}@*.for[[i], 0, 3, 1, &])
+                  | (@{conn_[sec]_to_[sec2]_arc_[j]_q[i]_y < connector_curve_scale * rect_obstacles_tl_y_[obs]}@*.for[[i], 0, 3, 1, &])
+                  | (@{conn_[sec]_to_[sec2]_arc_[j]_q[i]_y > connector_curve_scale * rect_obstacles_br_y_[obs]}@*.for[[i], 0, 3, 1, &]) )
+               }@**.for[[j], 0, @{OBSTACLE_CONNECTOR_SUBDIVISIONS - 1}@.eval, 1, &]
+               )
+            );
+         }@***.if[@{ [sec] != [sec2] && MODEL_INTERSECTION_GEOMETRY }@.eval]
+      }@****.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
+   }@*****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
 }@******.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
 --------------------------------------------------------

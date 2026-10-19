@@ -66,6 +66,9 @@ Config (`envmodel_config.tpl.json`):
   recommended: unbounded, any local obstacle layout can be bypassed by a long detour in one move.
 - `SYNTH_HUG_AT`: `slot` (default), `ends` (boxes in front of and behind the parked car, i.e.
   parallel parking) or `sides` (left and right of it, perpendicular parking); see below.
+- `OBSTACLE_CONNECTOR_SUBDIVISIONS` (default 2): the connector Bezier (exactly as drawn) is split
+  into K sub-arcs whose control-point boxes must miss every obstacle. No collision is ever missed;
+  the spurious rejections shrink ~1/K^2. Higher K costs a lot of solver time (K=4: 2-5x slower).
 - `BMC_CNT: 0`: the reachability model is all-frozen, so a single BMC check at bound 0 is a
   complete proof (`REACHABILITY_ONLY` always uses BMC; IC3 was minutes vs. seconds here).
 - Keep `@sections` at most 6; larger packages make every proof very slow (the script refuses them).
@@ -88,6 +91,12 @@ force moves, so free boxes that can reach the target slot first have to hug it: 
 ladder distances (default `1,3` m), relaxed step by step and finally dropped. With `SYNTH_HUG_AT`
 `ends`/`sides` they are spread over front/back or left/right of the parked car. Only the fully
 relaxed search (no hug, plain blocking) can conclude "no solution".
+
+Before certifying, a placement is rechecked on a finer geometry grid (`--recheck-factor`, default
+2, i.e. 0.5 m for the 1 m grid; 0 = off). The coarse grid only allows some connection lengths
+(e.g. even gaps for straight connections), so obstacles can exploit lattice holes, producing odd
+extra moves such as "forward into a pocket, then reverse past the start". A shorter route found on
+the finer grid refutes the candidate like any other (it shows as "DISPROOF ... on the finer grid").
 
 In the GUI, **"Synthesize Free Obstacles"** runs the same loop (writing pending scene edits to the
 config first) and shows every step live: each candidate with its N-move route, then the shorter
