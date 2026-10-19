@@ -47,3 +47,59 @@ runtime + CEX/blind result as each finishes):
 The package with a complete counterexample (CEX-marked trace **and** a freshly written preview)
 whose preview is newest — i.e. the one that finished first while the others were killed. Stale
 leftovers from earlier runs (older timestamps) and unfinished/killed variants are ignored.
+
+## Free obstacles: force exactly N moves
+A *move* is one drive in a single gear (moves = gear changes + 1). `synth_obstacles.py` lets the
+MC place some obstacles such that parking **needs exactly** `PARK_MOVES` moves:
+```
+python3 parking/synth_obstacles.py            # [--apply] [--max-iters 30] [--max-sections 6]
+```
+Config (`envmodel_config.tpl.json`):
+- `PARK_MOVES`: N (start small, e.g. 2). With N > 0 the normal race also asks for "within N moves".
+- `RECT_OBSTACLES_SHIFT_{MIN,MAX}_{X,Y}s`: per obstacle, how far (m) the MC may translate the box
+  given by `RECT_OBSTACLES_*`; all zero = fixed. `RECT_OBSTACLES_SHIFT_STEP` is the grid (m).
+- `RECT_OBSTACLES_GROW_{MIN,MAX}_{W,H}s`: per obstacle, how much (m) the MC may grow (> 0) or
+  shrink (< 0) the box; the bottom-right corner moves, combine with a shift for other anchors.
+  Missing list entries mean "fixed"; boxes never shrink to zero size.
+- `WORKSPACE_BOUNDs`: `@(min_x)@@(min_y)@@(max_x)@@(max_y)@` (m, rounded to the geometry grid), the
+  parking lot all sections must stay in (drawn as a dashed blue frame in the GUI). Strongly
+  recommended: unbounded, any local obstacle layout can be bypassed by a long detour in one move.
+- `SYNTH_HUG_AT`: `slot` (default), `ends` (boxes in front of and behind the parked car, i.e.
+  parallel parking) or `sides` (left and right of it, perpendicular parking); see below.
+- `OBSTACLE_CONNECTOR_SUBDIVISIONS` (default 2): the connector Bezier (exactly as drawn) is split
+  into K sub-arcs whose control-point boxes must miss every obstacle. No collision is ever missed;
+  the spurious rejections shrink ~1/K^2. Higher K costs a lot of solver time (K=4: 2-5x slower).
+- `BMC_CNT: 0`: the reachability model is all-frozen, so a single BMC check at bound 0 is a
+  complete proof (`REACHABILITY_ONLY` always uses BMC; IC3 was minutes vs. seconds here).
+- Keep `@sections` at most 6; larger packages make every proof very slow (the script refuses them).
+- Moves <= SECTIONS - 1 (each gear change needs its own dead-end section; start and target can't
+  serve), so `PARK_MOVES` = n needs a package with at least n + 1 sections (checked up front).
+
+Each iteration first lets the MC pick shifts together with a road graph whose quickest route needs
+exactly N moves (so candidates that already allow fewer are never proposed), then fixes them and asks
+every package for a route with fewer moves. If none exists, the placement is certified (within the
+model); otherwise that shorter route becomes a lemma ("some free box must block it") and the loop
+repeats. `--apply` writes the result into `RECT_OBSTACLES_*`, resets the shifts and regenerates.
+Without it, `python3 parking/mc_parker.py` opens the certified solution. In the GUI a free box is
+drawn where the MC put it; dragging it moves its configured base box (the shift range stays).
+
+The search is directed: it first checks the configured placement for a shorter route (seed; skip
+with `--no-seed`), and candidates first have to cover every refuting route with `--margin` (default
+0.5 m) to spare, so near-identical routes are blocked too. If no placement manages that, it falls
+back to plain blocking, which alone decides "no solution". Like in parallel parking, tight gaps
+force moves, so free boxes that can reach the target slot first have to hug it: within the `--hug`
+ladder distances (default `1,3` m), relaxed step by step and finally dropped. With `SYNTH_HUG_AT`
+`ends`/`sides` they are spread over front/back or left/right of the parked car. Only the fully
+relaxed search (no hug, plain blocking) can conclude "no solution".
+
+Before certifying, a placement is rechecked on a finer geometry grid (`--recheck-factor`, default
+2, i.e. 0.5 m for the 1 m grid; 0 = off). The coarse grid only allows some connection lengths
+(e.g. even gaps for straight connections), so obstacles can exploit lattice holes, producing odd
+extra moves such as "forward into a pocket, then reverse past the start". A shorter route found on
+the finer grid refutes the candidate like any other (it shows as "DISPROOF ... on the finer grid").
+
+In the GUI, **"Synthesize Free Obstacles"** runs the same loop (writing pending scene edits to the
+config first) and shows every step live: each candidate with its N-move route, then the shorter
+route refuting it (Play animates it). Refuted placements stay as dashed red outlines; the status
+lines above the progress bar explain the current step and why the search ended. Snapshots and the
+full log are in `examples/synth_history/`. "Terminate Model Checker" stops it.

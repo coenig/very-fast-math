@@ -1,5 +1,6 @@
 import sys
 import re
+import json
 import math
 import os
 import platform
@@ -9,8 +10,8 @@ import subprocess
 import time
 import ctypes
 import ctypes.util
+import heapq
 from bisect import bisect_right
-from collections import deque
 from contextlib import contextmanager
 from ctypes import create_string_buffer, sizeof
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
@@ -63,6 +64,8 @@ def slot_extent(section_length, slot_length):
 EXAMPLES_DIR = os.path.join(REPO_ROOT, "examples")
 _PACKAGE_PREFIX = "gp"
 _MC_WORKER = os.path.join(REPO_ROOT, "parking", "_mc_worker.py")
+_SYNTH_SCRIPT = os.path.join(REPO_ROOT, "parking", "synth_obstacles.py")
+SYNTH_HISTORY_DIR = os.path.join(EXAMPLES_DIR, "synth_history")
 
 
 
@@ -181,7 +184,7 @@ def _kill_process_group(proc):
         pass
 
 
-def race_first_solution(poll_interval=1.0):
+def race_first_solution(poll_interval=1.0, packages=None, mc_script=MC_SCRIPT):
     """Model-check all configured variants and stop at the FIRST complete counterexample.
 
     Runs the worker detached from the terminal (stdin=/dev/null, own session) so the nuXmv
@@ -189,7 +192,8 @@ def race_first_solution(poll_interval=1.0):
     variant folders, then kills the whole job group the moment one variant has a fresh
     counterexample. Returns the winning package dir, or None if none solved.
     """
-    packages = discover_mc_packages()
+    if packages is None:
+        packages = discover_mc_packages()
     if not packages:
         print("No 'gp' packages found. Run EnvModel generation first.")
         return None
@@ -200,7 +204,7 @@ def race_first_solution(poll_interval=1.0):
 
     print(f"Racing {len(packages)} config(s); first counterexample wins...")
     proc = subprocess.Popen(
-        [sys.executable, _MC_WORKER, MC_SCRIPT],
+        [sys.executable, _MC_WORKER, mc_script],
         cwd=REPO_ROOT, start_new_session=True,
         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
@@ -336,6 +340,17 @@ def _config_values(tpl_path):
         for field, value in zip(("tl_x", "tl_y", "br_x", "br_y"), corners):
             values[f"rect_obstacles_{field}_{k}"] = value
     return values
+
+
+def workspace_bounds(tpl_path):
+    """(min_x, min_y, max_x, max_y) from WORKSPACE_BOUNDs in the tpl.json, or None if unbounded."""
+    try:
+        with open(tpl_path) as f:
+            m = re.search(r'"WORKSPACE_BOUNDs"\s*:\s*"([^"]*)"', f.read())
+        values = [float(v) for v in _parse_paren_list(m.group(1))] if m else []
+    except (OSError, ValueError):
+        return None
+    return tuple(values[:4]) if len(values) >= 4 else None
 
 
 def _trace_getter(trace_path):
@@ -667,62 +682,83 @@ def target_park_in_dirs(smv_path):
     return dirs or ("F", "B")
 
 
-def ego_route_world(trace_path, target_sec, target_dirs=("F", "B"), samples=48):
-    """Drive legs from the middle of Sec. 0 to the middle of target_sec, as the MC reaches it.
+def route_states(get, target_sec, target_dirs=("F", "B")):
+    """Min-move (section, 'F'|'B') state sequence from Sec. 0 to target_sec, or None.
 
-    Mirrors EnvModel_Reachability.tpl: BFS over (section, F/B) states seeded with (0, F) and
-    (0, B); F follows connections forward, B follows them in reverse, and the gear flips only in
-    a forward/backward-terminal section other than the target. Each gear flip happens with the
-    car centre on the section middle. Returns [(points, cumulative lengths, gear), ...] with the
-    car-centre path in motion order and gear +1/-1, or None if the target is unreachable.
+    Mirrors EnvModel_Reachability.tpl: states seeded with (0, F) and (0, B); F follows
+    connections forward, B follows them in reverse, and the gear flips only in a
+    forward/backward-terminal section other than the target. Minimises gear changes first,
+    then hops, so the route matches the model's move count.
     """
-    get = _trace_getter(trace_path)
-    geoms = {}
-    while _section_geom(get, len(geoms)) is not None:
-        geoms[len(geoms)] = _section_geom(get, len(geoms))
-    if 0 not in geoms or target_sec not in geoms or target_sec == 0:
+    num_sections = 0
+    while get(f"section_{num_sections}.source.x") is not None:
+        num_sections += 1
+    if target_sec >= num_sections or target_sec == 0:
         return None
 
-    succ = {s: set() for s in geoms}
-    pred = {s: set() for s in geoms}
-    for s in geoms:
+    succ = {s: set() for s in range(num_sections)}
+    pred = {s: set() for s in range(num_sections)}
+    for s in range(num_sections):
         c = 0
         while (t := get(f"outgoing_connection_{c}_of_section_{s}")) is not None:
             c += 1
             t = int(t)
-            if t in geoms and t != s:
+            if 0 <= t < num_sections and t != s:
                 succ[s].add(t)
                 pred[t].add(s)
 
     def neighbours(sec, d):
         if d == "F":
-            nxt = [(t, "F") for t in sorted(succ[sec])]
+            nxt = [((t, "F"), 0) for t in sorted(succ[sec])]
             flip = not succ[sec]
         else:
-            nxt = [(m, "B") for m in sorted(pred[sec])]
+            nxt = [((m, "B"), 0) for m in sorted(pred[sec])]
             flip = not pred[sec]
         if flip and sec != target_sec:
-            nxt.append((sec, "B" if d == "F" else "F"))
+            nxt.append(((sec, "B" if d == "F" else "F"), 1))
         return nxt
 
-    prev = {(0, "F"): None, (0, "B"): None}
-    queue = deque(prev)
+    start = [(0, "F"), (0, "B")]
+    cost = {s: (0, 0) for s in start}
+    prev = {s: None for s in start}
+    heap = [((0, 0), s) for s in start]
     goal = None
-    while queue and goal is None:
-        state = queue.popleft()
-        for nxt in neighbours(*state):
-            if nxt not in prev:
+    while heap:
+        c, state = heapq.heappop(heap)
+        if c > cost[state]:
+            continue
+        if state[0] == target_sec and state[1] in target_dirs:
+            goal = state
+            break
+        for nxt, flips in neighbours(*state):
+            nc = (c[0] + flips, c[1] + 1)
+            if nxt not in cost or nc < cost[nxt]:
+                cost[nxt] = nc
                 prev[nxt] = state
-                queue.append(nxt)
-                if nxt[0] == target_sec and nxt[1] in target_dirs:
-                    goal = nxt
-                    break
+                heapq.heappush(heap, (nc, nxt))
     if goal is None:
         return None
     states = [goal]
     while prev[states[-1]] is not None:
         states.append(prev[states[-1]])
     states.reverse()
+    return states
+
+
+def ego_route_world(trace_path, target_sec, target_dirs=("F", "B"), samples=48):
+    """Drive legs from the middle of Sec. 0 to the middle of target_sec, as the MC reaches it.
+
+    Follows route_states (fewest gear changes). Each gear flip happens with the car centre on
+    the section middle. Returns [(points, cumulative lengths, gear), ...] with the car-centre
+    path in motion order and gear +1/-1, or None if the target is unreachable.
+    """
+    get = _trace_getter(trace_path)
+    geoms = {}
+    while _section_geom(get, len(geoms)) is not None:
+        geoms[len(geoms)] = _section_geom(get, len(geoms))
+    states = route_states(get, target_sec, target_dirs)
+    if states is None:
+        return None
 
     def at(sec, u):
         (sx, sy), (dx, dy) = geoms[sec]
@@ -808,7 +844,8 @@ def patch_smv_obstacles(smv_path, obstacles_world):
 
     'obstacles_world' is a list of (tl_x, tl_y, br_x, br_y) tuples (world coords) by index.
     Only the numeric literals change, so the model stays otherwise identical. Values are written in
-    the model's GEOMETRYSCALING units.
+    the model's GEOMETRYSCALING units. For a free obstacle ('<int> + step * shift') the base
+    <int> is replaced, so the MC keeps its shift range around the new box.
     """
     geometry_scaling = read_scaling(smv_path)[0]["GEOMETRY"]
     with open(smv_path, "r") as f:
@@ -816,13 +853,35 @@ def patch_smv_obstacles(smv_path, obstacles_world):
 
     for idx, (tl_x, tl_y, br_x, br_y) in enumerate(obstacles_world):
         for field, value in (("tl_x", tl_x), ("tl_y", tl_y), ("br_x", br_x), ("br_y", br_y)):
-            pattern = re.compile(r"(rect_obstacles_" + field + "_" + str(idx) + r"\s*:=\s*)-?\d+(\s*;)")
+            pattern = re.compile(r"(rect_obstacles_" + field + "_" + str(idx) + r"\s*:=\s*)-?\d+(\s*[;+])")
             content, n = pattern.subn(r"\g<1>" + str(round_half_away(value * geometry_scaling)) + r"\g<2>", content)
             if n == 0:
                 raise RuntimeError(f"Could not find 'rect_obstacles_{field}_{idx}' in {smv_path}.")
 
     with open(smv_path, "w") as f:
         f.write(content)
+
+
+_FREE_OBSTACLE_RE = re.compile(r"rect_obstacles_(tl_x|tl_y|br_x|br_y)_(\d+)\s*:=\s*(-?\d+)\s*\+")
+
+
+def free_obstacle_offsets_world(trace_path, smv_path):
+    """{obs: (d_tl_x, d_tl_y, d_br_x, d_br_y)}: how far the MC moved each corner of a free obstacle."""
+    try:
+        with open(smv_path, "r") as f:
+            content = f.read()
+    except OSError:
+        return {}
+    g = read_scaling(smv_path)[0]["GEOMETRY"]
+    get = _trace_getter(trace_path)
+    fields = ("tl_x", "tl_y", "br_x", "br_y")
+    offsets = {}
+    for field, obs, base in _FREE_OBSTACLE_RE.findall(content):
+        value = get(f"rect_obstacles_{field}_{obs}")
+        corner = list(offsets.get(int(obs), (0.0, 0.0, 0.0, 0.0)))
+        corner[fields.index(field)] = 0.0 if value is None else value - int(base) / g
+        offsets[int(obs)] = tuple(corner)
+    return offsets
 
 
 def _parse_paren_list(packed):
@@ -1414,6 +1473,11 @@ class MainWindow(QMainWindow):
         top = QHBoxLayout()
         top.addLayout(side)
         top.addWidget(self.view, 1)
+        self.synth_banner = QLabel(self)
+        self.synth_banner.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.synth_banner.setWordWrap(True)
+        self.synth_banner.setVisible(False)
+        layout.addWidget(self.synth_banner)
         layout.addLayout(top)
 
         self.progress_bar = QProgressBar(self)
@@ -1421,6 +1485,10 @@ class MainWindow(QMainWindow):
         self.progress_bar.setValue(0)
         self.progress_bar.setVisible(False)
         self.progress_bar.setTextVisible(True)
+        self.synth_status = QLabel(self)
+        self.synth_status.setWordWrap(True)
+        self.synth_status.setVisible(False)
+        layout.addWidget(self.synth_status)
         layout.addWidget(self.progress_bar)
 
         self.poll_timer = QTimer(self)
@@ -1469,6 +1537,12 @@ class MainWindow(QMainWindow):
                                    "obstacle positions to the tpl.json, then regenerate.")
         layout.addWidget(self.envgen_btn)
 
+        self.synth_btn = QPushButton("Synthesize Free Obstacles (force exactly PARK_MOVES moves)")
+        self.synth_btn.setToolTip("Runs parking/synth_obstacles.py and shows every candidate and "
+                                  "the shorter route refuting it while the search goes on.")
+        self.synth_btn.clicked.connect(self.start_synth)
+        layout.addWidget(self.synth_btn)
+
         self.reveal_btn = QPushButton("Reveal Model Folder")
         self.reveal_btn.clicked.connect(self.reveal_model_folder)
         layout.addWidget(self.reveal_btn)
@@ -1487,6 +1561,18 @@ class MainWindow(QMainWindow):
         self.race_timer.setInterval(400)
         self.race_timer.timeout.connect(self._poll_race)
 
+        # Obstacle synthesis (CEGIS) state: detached CLI process plus its event-file reader.
+        self._synth_proc = None
+        self._synth_log_file = None
+        self._synth_events_pos = 0
+        self._synth_done = False
+        self._synth_log = []
+        self._synth_refuted = []
+        self._synth_moves = None
+        self.synth_timer = QTimer(self)
+        self.synth_timer.setInterval(500)
+        self.synth_timer.timeout.connect(self._poll_synth)
+
         self._ego_item = None
         self._ego_route = None
         self._play_t0 = 0.0
@@ -1501,6 +1587,7 @@ class MainWindow(QMainWindow):
         self._obstacles_dirty = False
         self.section_item = None
         self._transform = None
+        self._obstacle_offsets = {}
         self._target_slot = None
         self._target_section = None
         self._ppm = None
@@ -1552,6 +1639,7 @@ class MainWindow(QMainWindow):
         transform = compute_fit_transform(self.trace_path, self.image_w, self.image_h)
         ppm = transform[2] if transform else 50.0
         self._transform = transform
+        self._obstacle_offsets = free_obstacle_offsets_world(self.trace_path, self.smv_path)
         self._ppm = ppm
 
         # Activate world-raster snapping (finest grid of the distance-grid variants) for the items.
@@ -1583,6 +1671,8 @@ class MainWindow(QMainWindow):
             # Static ghosts of the ORIGINAL obstacle positions, so the starting layout stays
             # visible once the draggable (red) obstacles are moved during a session.
             self._draw_obstacle_ghosts(rects_data)
+            self._draw_synth_refuted(transform)
+            self._draw_workspace(transform)
             for rect in rects_data:
                 self.add_rectangle(*rect)
             if draggable_target:
@@ -1913,6 +2003,14 @@ class MainWindow(QMainWindow):
             obstacles.append(tuple(snap_world(v, self._raster_step) for v in (*tl, *br)))
         return obstacles
 
+    def collect_obstacle_bases_world(self):
+        """Drawn obstacles minus the MC's free-obstacle shift/grow, i.e. the boxes to configure."""
+        bases = []
+        for i, corners in enumerate(self.collect_obstacles_world()):
+            offsets = self._obstacle_offsets.get(i, (0.0, 0.0, 0.0, 0.0))
+            bases.append(tuple(c - d for c, d in zip(corners, offsets)))
+        return bases
+
     def _create_section_item(self, segments, target_section, ppm):
         """Add the draggable/rotatable target section (fixed length, angle-granularity snapping)."""
         seg = next((s for s in segments if s[4] == target_section), None)
@@ -2060,7 +2158,7 @@ class MainWindow(QMainWindow):
                                [n * 1000 for n in dict.fromkeys(self.grid_panel.values)])
         if self._transform is None:
             raise RuntimeError("No transform available to write the scene into the config.")
-        obstacles = self.collect_obstacles_world()
+        obstacles = self.collect_obstacle_bases_world()
         # Only a moved section is written: the drawn pose may be a variant's rounded heading.
         if (not obstacles_only and self._section_dirty and self.section_item is not None
                 and self._target_slot is not None):
@@ -2168,6 +2266,7 @@ class MainWindow(QMainWindow):
         self.gran_panel.setEnabled(enabled)
         self.grid_panel.setEnabled(enabled)
         self.envgen_btn.setEnabled(enabled)
+        self.synth_btn.setEnabled(enabled)
         self.add_obstacle_btn.setEnabled(enabled)
         self.reset_btn.setEnabled(enabled)
         self.play_btn.setEnabled(enabled)
@@ -2284,6 +2383,9 @@ class MainWindow(QMainWindow):
         """
         if self._race_proc is not None:
             return  # A race is already in flight.
+        self._synth_refuted = []
+        self.synth_status.setVisible(False)
+        self._set_synth_banner(None)
 
         obstacles_world = self.collect_obstacles_world()
         # Zero obstacles is a valid scenario (empty lot); only warn when rectangles are on screen
@@ -2303,7 +2405,7 @@ class MainWindow(QMainWindow):
         # Every variant has its own EnvModel.smv; patch the drawn obstacles into each of them.
         try:
             for pkg in packages:
-                patch_smv_obstacles(os.path.join(pkg, "EnvModel.smv"), obstacles_world)
+                patch_smv_obstacles(os.path.join(pkg, "EnvModel.smv"), self.collect_obstacle_bases_world())
         except (RuntimeError, OSError) as e:
             QMessageBox.critical(self, "SMV update failed", str(e))
             return
@@ -2472,10 +2574,212 @@ class MainWindow(QMainWindow):
 
     def terminate_race(self):
         """Kill every nuXmv instance of the in-flight MC race (leaves other actions untouched)."""
+        if self._synth_proc is not None:
+            print("\U0001f6d1 Terminating the obstacle synthesis...")
+            self._finish_synth("Terminated by user.")
+            return
         if self._race_proc is None:
             return
         print("\U0001f6d1 Terminating all model-checker instances...")
         self._finish_race(winner=None, error=False, aborted_by_user=True)
+
+    # --- Obstacle synthesis (parking/synth_obstacles.py) ---------------------------------------
+
+    def start_synth(self):
+        """Run the CEGIS obstacle synthesis detached; _poll_synth shows each step as it arrives."""
+        if self._race_proc is not None or self._synth_proc is not None:
+            return
+        # Always sync the drawn obstacles: plain drags don't mark the config dirty (the normal race
+        # patches them into EnvModel.smv instead), but the synthesis regenerates from the tpl.json.
+        try:
+            self._write_config_from_scene(obstacles_only=not self._config_dirty())
+        except (RuntimeError, OSError, ValueError) as e:
+            QMessageBox.critical(self, "Config update failed", str(e))
+            return
+        os.makedirs(SYNTH_HISTORY_DIR, exist_ok=True)
+        events = os.path.join(SYNTH_HISTORY_DIR, "events.jsonl")
+        open(events, "w").close()
+        self._synth_events_pos = 0
+        self._synth_done = False
+        self._synth_log = []
+        self._synth_refuted = []
+        self._set_synth_banner(None)
+        self._synth_log_file = open(os.path.join(SYNTH_HISTORY_DIR, "synth.log"), "w")
+        try:
+            self._synth_proc = subprocess.Popen(
+                [sys.executable, _SYNTH_SCRIPT, "--history", SYNTH_HISTORY_DIR],
+                cwd=REPO_ROOT, start_new_session=True, stdin=subprocess.DEVNULL,
+                stdout=self._synth_log_file, stderr=subprocess.STDOUT)
+        except OSError as e:
+            self._synth_log_file.close()
+            QMessageBox.critical(self, "Launch failed", f"Could not start the synthesis: {e}")
+            return
+        self._set_buttons_enabled(False)
+        self.play_btn.setEnabled(True)
+        self.terminate_btn.setEnabled(True)
+        self.progress_bar.setRange(0, 0)
+        self.progress_bar.setVisible(True)
+        self.synth_status.setVisible(True)
+        self._synth_say("Starting obstacle synthesis (log: examples/synth_history/synth.log)...")
+        self.synth_timer.start()
+
+    def _synth_say(self, line):
+        print(f"\U0001f9e9 {line}")
+        self._synth_log.append(line)
+        self.synth_status.setText("\n".join(self._synth_log[-6:]))
+
+    def _show_snapshot(self, folder):
+        self.trace_path = os.path.join(folder, "debug_trace_array.txt")
+        self.smv_path = os.path.join(folder, "EnvModel.smv")
+        self.image_path = os.path.join(folder, "preview.png")
+        self.reload_from_trace()
+
+    def _draw_workspace(self, transform):
+        """Thick dashed outline of WORKSPACE_BOUNDs, the area all road sections must stay in."""
+        bounds = workspace_bounds(TPL_PATH)
+        if bounds is None or transform is None:
+            return
+        x1, y1 = world_to_pixel(bounds[0], bounds[1], transform, self.image_w, self.image_h)
+        x2, y2 = world_to_pixel(bounds[2], bounds[3], transform, self.image_w, self.image_h)
+        item = self.scene.addRect(QRectF(min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1)),
+                                  QPen(QColor(20, 20, 120), 4, Qt.PenStyle.DashDotLine),
+                                  QBrush(Qt.BrushStyle.NoBrush))
+        item.setZValue(1.4)
+
+    def _draw_synth_refuted(self, transform):
+        """Dashed outlines of free-obstacle placements already refuted by a shorter route."""
+        if transform is None:
+            return
+        pen = QPen(QColor(200, 0, 0), 2, Qt.PenStyle.DashLine)
+        for tl_x, tl_y, br_x, br_y in self._synth_refuted:
+            x1, y1 = world_to_pixel(tl_x, tl_y, transform, self.image_w, self.image_h)
+            x2, y2 = world_to_pixel(br_x, br_y, transform, self.image_w, self.image_h)
+            item = self.scene.addRect(QRectF(min(x1, x2), min(y1, y2), abs(x2 - x1), abs(y2 - y1)),
+                                      pen, QBrush(Qt.BrushStyle.NoBrush))
+            item.setZValue(1.5)
+
+    def _poll_synth(self):
+        try:
+            with open(os.path.join(SYNTH_HISTORY_DIR, "events.jsonl"), "r") as f:
+                f.seek(self._synth_events_pos)
+                chunk = f.read()
+        except OSError:
+            chunk = ""
+        complete = chunk[:chunk.rfind("\n") + 1]
+        self._synth_events_pos += len(complete.encode())
+        for line in complete.splitlines():
+            try:
+                self._handle_synth_event(json.loads(line))
+            except (ValueError, KeyError) as e:
+                print(f"Bad synthesis event {line!r}: {e}")
+            if self._synth_proc is None:
+                return
+        if self._synth_proc.poll() is not None and not complete:
+            self._finish_synth(None if self._synth_done else
+                               "The synthesis process ended unexpectedly; see examples/synth_history/synth.log.")
+
+    def _handle_synth_event(self, ev):
+        kind, it = ev["type"], ev.get("iter")
+        if kind == "phase":
+            if ev["phase"] == "regen":
+                self._synth_say("Generating the EnvModel packages...")
+            elif ev["phase"] == "synth":
+                self._synth_say(f"Iteration {it}: searching a placement of the free obstacles with a "
+                                f"road graph whose shortest route needs exactly {self._synth_moves} move(s)...")
+            elif ev["phase"] == "recheck":
+                self._synth_say(f"Iteration {it}: no shorter route on the normal grid; rechecking on a "
+                                f"{ev['grid']:g} m grid (catches shortcuts the coarse grid cannot place)...")
+            elif it == 0:
+                self._synth_say(f"Seed: checking whether the configured placement allows a route with "
+                                f"FEWER than {self._synth_moves} move(s) (the first route to block)...")
+            else:
+                self._synth_say(f"Iteration {it}: checking every package for a route with FEWER "
+                                f"than {self._synth_moves} move(s) around this placement...")
+        elif kind == "start":
+            self._synth_moves = ev["moves"]
+            self._on_regen_success()
+            self._synth_say(f"{len(ev['packages'])} package(s) {ev['packages']}; free obstacle(s) "
+                            f"{ev['free']}; goal: exactly {ev['moves']} move(s)."
+                            + (f" Boxes first hug the target slot ({ev.get('hug_at', 'slot')}; within "
+                               f"{', then '.join(f'{h:g}' for h in ev['hug'])} m)." if ev.get("hug") else ""))
+        elif kind == "candidate":
+            self._show_snapshot(ev["snapshot"])
+            self._set_synth_banner(f"CANDIDATE (iteration {it}): this placement allows a route with "
+                                   f"{ev['moves']} move(s); checking for shorter ones...", "#1565c0")
+            self._synth_say(f"Iteration {it}: candidate from {ev['package']} ({ev['seconds']:.0f} s), "
+                            f"shown with its {ev['moves']}-move route.")
+        elif kind == "refuted":
+            self._synth_refuted += [tuple(ev["obstacles"][o]) for o in ev["free"]]
+            self._show_snapshot(ev["snapshot"])
+            fine = " on the finer grid" if ev.get("recheck") else ""
+            self._set_synth_banner(f"DISPROOF ({'seed' if it == 0 else f'iteration {it}'}{fine}): this "
+                                   f"{ev['moves']}-move route shows the placement needs fewer than "
+                                   f"{self._synth_moves} moves", "#c62828")
+            self._synth_say(f"{'Seed' if it == 0 else f'Iteration {it}'}: REFUTED{fine} by the shown "
+                            f"{ev['moves']}-move route ({ev['package']}, {ev['seconds']:.0f} s). Next "
+                            f"placements must block it ({ev['lemmas']} route(s) to block; dashed red = "
+                            f"refuted placements).")
+        elif kind == "fallback":
+            if ev.get("reason") == "hug":
+                where = f"within {ev['hug']:g} m of it" if ev["hug"] is not None else "anywhere"
+                self._synth_say(f"Iteration {it}: no placement with the free boxes hugging the target "
+                                f"slot within {ev['previous']:g} m works; now {where}.")
+            else:
+                self._synth_say(f"Iteration {it}: no placement covers all refuting routes with a "
+                                f"{ev['margin']:g} m margin; continuing with plain blocking.")
+        elif kind == "certified":
+            self._synth_done = True
+            pkg = ev["package"]
+            self.trace_path, self.image_path = package_trace_path(pkg), package_image_path(pkg)
+            self.smv_path = os.path.join(pkg, "EnvModel.smv")
+            self.reload_from_trace()
+            self._set_synth_banner(f"CERTIFIED SOLUTION: this placement needs exactly {ev['moves']} "
+                                   f"move(s)", "#2e7d32")
+            self._finish_synth(f"CERTIFIED after {it} iteration(s): this placement forces exactly "
+                               f"{ev['moves']} move(s); no package has a shorter route"
+                               + (f" (also rechecked on a {ev['recheck_grid']:g} m grid)."
+                                  if ev.get("recheck_grid") else "."), success=True)
+        elif kind == "impossible":
+            self._synth_done = True
+            if ev["lemmas"] == 0:
+                why = (f"no placement of the free obstacles has a road graph whose shortest route "
+                       f"needs exactly {ev['moves']} move(s) (they all allow fewer, or none reaches "
+                       "the target within that many; for any configured section count)")
+            else:
+                why = (f"every placement within the ranges either admits a route with fewer than "
+                       f"{ev['moves']} move(s) ({ev['lemmas']} refuting route(s); dashed red = refuted "
+                       "placements) or cannot reach the target within that many")
+            self._finish_synth(f"No solution: {why}.")
+        elif kind == "gave_up":
+            self._synth_done = True
+            self._finish_synth(f"Gave up after {it} iterations ({ev['lemmas']} refuting routes).")
+        elif kind == "error":
+            self._synth_done = True
+            self._finish_synth(ev["message"])
+
+    def _set_synth_banner(self, text, color=None):
+        """Label the shown synthesis step (None hides it)."""
+        self.synth_banner.setVisible(text is not None)
+        if text is not None:
+            self.synth_banner.setText(text)
+            self.synth_banner.setStyleSheet(f"QLabel {{ background-color: {color}; color: white; "
+                                            f"font-weight: bold; font-size: 14pt; padding: 6px; }}")
+
+    def _finish_synth(self, message, success=False):
+        self.synth_timer.stop()
+        _kill_process_group(self._synth_proc)
+        self._synth_proc = None
+        if self._synth_log_file is not None:
+            self._synth_log_file.close()
+            self._synth_log_file = None
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setVisible(False)
+        self.terminate_btn.setEnabled(False)
+        self._set_buttons_enabled(True)
+        if message:
+            self._synth_say(message)
+            (QMessageBox.information if success else QMessageBox.warning)(
+                self, "Obstacle synthesis", message)
 
     def closeEvent(self, event):
         """Never leave an orphaned worker (and its nuXmv children) running after the window closes."""
@@ -2483,6 +2787,10 @@ class MainWindow(QMainWindow):
             self.race_timer.stop()
             _kill_process_group(self._race_proc)
             self._race_proc = None
+        if self._synth_proc is not None:
+            self.synth_timer.stop()
+            _kill_process_group(self._synth_proc)
+            self._synth_proc = None
         super().closeEvent(event)
 
 
