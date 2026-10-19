@@ -344,7 +344,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--config", default=mp.TPL_PATH)
     ap.add_argument("--max-iters", type=int, default=30)
-    ap.add_argument("--max-sections", type=int, default=6,
+    ap.add_argument("--max-sections", type=int, default=100,
                     help="Refuse packages with more sections (their proofs get very slow).")
     ap.add_argument("--apply", action="store_true",
                     help="Write the result into RECT_OBSTACLES_*, fix all shifts and regenerate.")
