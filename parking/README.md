@@ -85,8 +85,14 @@ Focused native regressions can be run without regenerating packages or deleting 
 
 ```bash
 cmake --build build --target runTests --parallel 4
-bin/runTests --gtest_filter='ConnectorGeometryTests.*:TurningRadiusTests.*:GeometryScalingTests.*:SectionTemplateTests.*'
+bin/runTests --gtest_filter='ConnectorGeometryTests.*:TurningRadiusTests.*:GeometryScalingTests.*:SectionTemplateTests.*:VfmacroTests.*:StaticTests.*'
+.venv/bin/python -m unittest discover -s parking -p 'test_*.py' -v
 ```
+
+The Python tests use an offscreen Qt application for obstacle deletion, addition, reset, and
+configuration writes. On Linux they also launch harmless detached processes to check synthesis
+cancellation; no model-checking jobs or example packages are started. Windows process-tree cleanup
+is not covered by these tests.
 
 ## Free obstacles: force exactly N moves
 A *move* is one drive in a single gear (moves = gear changes + 1). `synth_obstacles.py` lets the
@@ -100,15 +106,17 @@ Config (`envmodel_config.tpl.json`):
   given by `RECT_OBSTACLES_*`; all zero = fixed. `RECT_OBSTACLES_SHIFT_STEP` is the grid (m).
 - `RECT_OBSTACLES_GROW_{MIN,MAX}_{W,H}s`: per obstacle, how much (m) the MC may grow (> 0) or
   shrink (< 0) the box; the bottom-right corner moves, combine with a shift for other anchors.
-  Missing list entries mean "fixed"; boxes never shrink to zero size.
+  Missing list entries mean zero. Equal nonzero minimum and maximum values apply a fixed
+  transform; boxes never shrink to zero size.
 - `WORKSPACE_BOUNDs`: `@(min_x)@@(min_y)@@(max_x)@@(max_y)@` (m, rounded to the geometry grid), the
   parking lot all sections must stay in (drawn as a dashed blue frame in the GUI). Strongly
   recommended: unbounded, any local obstacle layout can be bypassed by a long detour in one move.
 - `SYNTH_HUG_AT`: `slot` (default), `ends` (boxes in front of and behind the parked car, i.e.
   parallel parking) or `sides` (left and right of it, perpendicular parking); see below.
-- `OBSTACLE_CONNECTOR_SUBDIVISIONS` (default 2): the connector Bezier (exactly as drawn) is split
-  into K sub-arcs whose control-point boxes must miss every obstacle. No collision is ever missed;
-  the spurious rejections shrink ~1/K^2. Higher K costs a lot of solver time (K=4: 2-5x slower).
+- `OBSTACLE_CONNECTOR_SUBDIVISIONS` (default 2): the quantized model connector is split into K
+  sub-arcs whose control-point boxes must miss every obstacle. These boxes enclose the model
+  curve, not necessarily the reconstructed curve; see the limitation below. Higher K costs a
+  lot of solver time (K=4: 2-5x slower).
 - `BMC_CNT: 0`: the reachability model is all-frozen, so a single BMC check at bound 0 is a
   complete proof (`REACHABILITY_ONLY` always uses BMC; IC3 was minutes vs. seconds here).
 - Keep `@sections` at most 6; larger packages make every proof very slow (the script refuses them).
@@ -122,6 +130,11 @@ model); otherwise that shorter route becomes a lemma ("some free box must block 
 repeats. `--apply` writes the result into `RECT_OBSTACLES_*`, resets the shifts and regenerates.
 Without it, `python3 parking/mc_parker.py` opens the certified solution. In the GUI a free box is
 drawn where the MC put it; dragging it moves its configured base box (the shift range stays).
+Deleting a box keeps the remaining boxes' offsets and shift/grow ranges attached to them;
+new boxes start with zero transform. Reset restores both the geometry and its range metadata.
+
+Workspace constraints are omitted when `MODEL_INTERSECTION_GEOMETRY` is false. With neither
+obstacles nor workspace bounds, connector collision variables and definitions are omitted too.
 
 The search is directed: it first checks the configured placement for a shorter route (seed; skip
 with `--no-seed`), and candidates first have to cover every refuting route with `--margin` (default
@@ -143,3 +156,20 @@ config first) and shows every step live: each candidate with its N-move route, t
 route refuting it (Play animates it). Refuted placements stay as dashed red outlines; the status
 lines above the progress bar explain the current step and why the search ended. Snapshots and the
 full log are in `examples/synth_history/`. "Terminate Model Checker" stops it.
+
+### Known collision-safety limitation
+
+The model rounds section endpoints and directions and approximates connector chord lengths.
+Native and GUI reconstruction instead use floating-point drains/directions and recompute the
+chord. The model's sub-arc boxes do not conservatively bound the difference.
+
+Reproducer: at a 1 m geometry grid, a section starting at `(2, 0)`, heading 30 degrees, length
+1 m can have model drain `(2, 0)`. A connection distance of 50 m reaches target source `(89, 0)`
+at heading 330 degrees. With two subdivisions, the model hulls reach only `y=10.825`, but the
+reconstructed midpoint is approximately `(45.933013, 11.016928)`. Thus an obstacle from
+`(45, 11)` to `(46, 12)` is missed. This case does not require turning-radius constraints.
+
+Increasing subdivisions or passing the finer-grid recheck does not certify reconstructed
+collision safety. A sound fix must bound endpoint and handle errors, including fixed connectors,
+and use the same bounds for obstacle checks, workspace checks, and synthesis route-box lemmas.
+That cross-layer change is deferred; current synthesis certification is model-only.

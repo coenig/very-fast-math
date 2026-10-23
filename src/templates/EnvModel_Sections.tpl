@@ -354,7 +354,7 @@ DEFINE
       @{rect_obstacles_br_x_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_x_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
       @{rect_obstacles_br_y_[obs]}@*.scalingVariable[geometry] := @{@{rect_obstacles_br_y_[obs]}@.scriptVar}@.geometryWorldToEnvModelConst;
       )@
-      }@**.if[@{is_obstacle_[obs]_free}@.scriptVar]
+      }@**.if[@{has_obstacle_[obs]_transform}@.scriptVar]
    }@***.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
 -- EO Caution
 
@@ -383,7 +383,7 @@ DEFINE
    }@****.for[[sec], 0, @{SECTIONS - 1}@.eval]
    )@
    @()@
-}@*****.if[@{@{workspace_bounds_size}@.scriptVar >= 4}@.eval]
+}@*****.if[@{MODEL_INTERSECTION_GEOMETRY && @{workspace_bounds_size}@.scriptVar >= 4}@.eval]
 
 @{
    @{
@@ -397,18 +397,21 @@ DEFINE
    }@*.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
 }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
--- The connector of each active connection is the cubic Bezier the road graph draws: from the drain
+-- The connector of each active connection approximates the cubic Bezier the road graph draws: from the drain
 -- p0 of section [sec] to the source p3 of section [sec2], control points p1 = p0 + chord/3 * u_[sec]
--- and p2 = p3 - chord/3 * u_[sec2] (u = section direction, chord = |p3 - p0|). It may not overlap
+-- and p2 = p3 - chord/3 * u_[sec2] (u = rounded section direction; chord is approximated below). It may not overlap
 -- obstacle [obs]. We split it at t = j/K (K = OBSTACLE_CONNECTOR_SUBDIVISIONS) into K sub-arcs
 -- (de Casteljau). Each sub-arc lies in the convex hull of its own 4 control points q0..q3, which are
 -- fixed rational combinations of p0..p3, so requiring each sub-arc's control-point box to be
--- separated from the obstacle (on x or on y) has NO false negatives, and the boxes converge
--- quadratically to the curve itself as K grows. The only nonlinearity is chord * cos/sin (variable
+-- separated from the obstacle (on x or on y) encloses this MODEL curve only. Reconstruction uses
+-- floating-point drains/directions and recomputes the chord; its curve can escape these boxes.
+-- Increasing K does not bound that discrepancy. The only nonlinearity is chord * cos/sin (variable
 -- times lookup table, like the endpoint relation above); chord = dist * |u_[sec] + u_[sec2]| comes
 -- from a lookup table over the angle between both sections.
 -- Units: p*, q* are model coordinates scaled by CURVE_SCALE = 300000 (chord x 1000, cos x 100, / 3),
 -- q* additionally by K^3; connector_curve_scale = K^3 * CURVE_SCALE (read by parking/synth_obstacles.py).
+@{
+@(
 DEFINE
    connector_curve_scale := @{OBSTACLE_CONNECTOR_SUBDIVISIONS * OBSTACLE_CONNECTOR_SUBDIVISIONS * OBSTACLE_CONNECTOR_SUBDIVISIONS * 300000}@.eval[0];
 @{
@@ -460,6 +463,9 @@ DEFINE
       }@***.if[@{ [sec] != [sec2] && MODEL_INTERSECTION_GEOMETRY }@.eval]
    }@****.for[[sec2], 0, @{SECTIONS - 1}@.eval]
 }@*****.for[[sec], 0, @{SECTIONS - 1}@.eval]
+)@
+@()@
+}@******.if[@{MODEL_INTERSECTION_GEOMETRY && (@{rect_obstacles_tl_xs_size}@.scriptVar > 0 || @{workspace_bounds_size}@.scriptVar >= 4)}@.eval]
 
 @{
    @{
