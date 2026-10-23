@@ -54,7 +54,8 @@ enum class ScaleTypeEnum
    time,
    distance,
    velocity,
-   acceleration
+   acceleration,
+   geometry
 };
 
 const std::map<ScaleTypeEnum, std::string> scale_type_map{
@@ -63,6 +64,7 @@ const std::map<ScaleTypeEnum, std::string> scale_type_map{
    { ScaleTypeEnum::distance, "distance" },
    { ScaleTypeEnum::velocity, "velocity" },
    { ScaleTypeEnum::acceleration, "acceleration" },
+   { ScaleTypeEnum::geometry, "geometry" },
 };
 
 class ScaleType : public fsm::EnumWrapper<ScaleTypeEnum>
@@ -976,6 +978,11 @@ public:
       distance_scaling_factor_ = scaling_factor;
    }
 
+   inline void setGeometryScalingFactor(const float scaling_factor)
+   {
+      geometry_scaling_factor_ = scaling_factor;
+   }
+
    inline void add(const VariableScaleDescription& variable)
    {
       variables_.push_back(variable);
@@ -991,6 +998,11 @@ public:
       return distance_scaling_factor_;
    }
 
+   inline float getGeometryScalingFactor() const
+   {
+      return geometry_scaling_factor_;
+   }
+
    inline std::vector<VariableScaleDescription> getVariables() const
    {
       return variables_;
@@ -1003,6 +1015,7 @@ public:
       if (time_scaling_factor_ >= 0) {
          res += "-- TIMESCALING((((" + std::to_string(time_scaling_factor_) + "))))GNILACSEMIT\n";
          res += "-- DISTANCESCALING((((" + std::to_string(distance_scaling_factor_) + "))))GNILACSECNATSID\n";
+         res += "-- GEOMETRYSCALING((((" + std::to_string(geometry_scaling_factor_) + "))))GNILACSYRTEMOEG\n";
       }
 
       res += BEGIN_TAG_TIMESCALING_DESCRIPTIONS + "\n";
@@ -1031,10 +1044,12 @@ public:
 
       time_scaling_factor_ = 1;
       distance_scaling_factor_ = 1;
+      geometry_scaling_factor_ = 1;
 
       if (!envmodel_str.empty()) {
          std::string time_scaling_str{ StaticHelper::removePartsOutsideOf(envmodel_str, "TIMESCALING((((", "))))GNILACSEMIT") };
          std::string distance_scaling_str{ StaticHelper::removePartsOutsideOf(envmodel_str, "DISTANCESCALING((((", "))))GNILACSECNATSID") };
+         std::string geometry_scaling_str{ StaticHelper::removePartsOutsideOf(envmodel_str, "GEOMETRYSCALING((((", "))))GNILACSYRTEMOEG") };
 
          if (StaticHelper::isParsableAsFloat(time_scaling_str)) {
             time_scaling_factor_ = std::stof(time_scaling_str);
@@ -1042,6 +1057,10 @@ public:
 
          if (StaticHelper::isParsableAsFloat(distance_scaling_str)) {
             distance_scaling_factor_ = std::stof(distance_scaling_str);
+         }
+
+         if (StaticHelper::isParsableAsFloat(geometry_scaling_str)) {
+            geometry_scaling_factor_ = std::stof(geometry_scaling_str);
          }
       }
 
@@ -1089,6 +1108,7 @@ public:
 private:
    float time_scaling_factor_{};
    float distance_scaling_factor_{};
+   float geometry_scaling_factor_{ 1 };
    std::vector<VariableScaleDescription> variables_{};
 };
 

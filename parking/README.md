@@ -47,3 +47,43 @@ runtime + CEX/blind result as each finishes):
 The package with a complete counterexample (CEX-marked trace **and** a freshly written preview)
 whose preview is newest — i.e. the one that finished first while the others were killed. Stale
 leftovers from earlier runs (older timestamps) and unfinished/killed variants are ignored.
+
+## Geometry and turning radius
+
+`GEOMETRYSCALING / 1000` is the number of coordinate units per metre. It is
+independent of `DISTANCESCALING`, which scales section lengths and vehicle motion.
+For example, `GEOMETRYSCALING=2000` gives a 0.5 m coordinate grid. Fractional fixed
+section lengths are scaled before rounding. Connector arclengths retain the legacy
+policy of rounding metres before applying distance scaling, for every lane count.
+
+`MIN_TURNING_RADIUS=0` disables radius calculations and their generated constraints.
+Positive values constrain synthesized connectors. Fully fixed connectors remain
+exempt; their geometry is supplied by the caller rather than synthesized.
+
+The radius calculation uses the model's quantized trigonometry and signed integer
+division, checks every grid heading and lane, and accepts a distance threshold only
+when all allowed larger distances pass. Bounds are computed once per angle and
+shared by section pairs. Unhandled relative angles are forbidden when the constraint
+is active. Radius-only definitions are omitted from fully fixed models.
+
+The check also accounts for the difference between model drains and the floating-point
+drains used to reconstruct roads. Free sections use a coordinate-error bound derived
+from the grid and maximum section length; fixed sections use their actual rounded
+coordinates and lengths. Consequently, a coarse grid or long free sections can reject
+a physically feasible connector. A finer geometry grid, shorter free sections, or a
+larger maximum connection distance can reduce this restriction.
+
+Curvature certification uses the convex-hull bounds of the Bezier derivative control
+points, with subdivision for inconclusive intervals and rejection if the subdivision
+limit is reached. It does not infer safety from point samples. If the endpoint error
+is bounded by `e` metres, the connector's derivative control-point errors are bounded
+by `(e, 5e, e)` and its second-derivative errors by `(12e, 12e)`; these bounds include
+the change in handle length. The calculation uses double precision and a numerical
+margin. Sampled curvature is used only as an independent regression-test check.
+
+Focused native regressions can be run without regenerating packages or deleting caches:
+
+```bash
+cmake --build build --target runTests --parallel 4
+bin/runTests --gtest_filter='ConnectorGeometryTests.*:TurningRadiusTests.*:GeometryScalingTests.*:SectionTemplateTests.*'
+```

@@ -13,12 +13,13 @@ from bisect import bisect_right
 from collections import deque
 from contextlib import contextmanager
 from ctypes import create_string_buffer, sizeof
-from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
                              QPushButton, QGraphicsView, QGraphicsScene, QGraphicsRectItem,
-                             QGraphicsEllipseItem, QGraphicsSimpleTextItem, QMessageBox, QProgressBar)
+                             QGraphicsEllipseItem, QGraphicsSimpleTextItem, QMessageBox, QProgressBar,
+                             QGroupBox, QLabel, QSpinBox, QToolButton, QFileDialog)
 from PyQt6.QtCore import Qt, QRectF, QTimer, QPointF, QObject, QThread, QUrl, pyqtSignal
 from PyQt6.QtGui import (QPixmap, QImage, QBrush, QPen, QColor, QPainterPath, QPolygonF, QFont,
-                         QDesktopServices)
+                         QDesktopServices, QTransform, QPainter)
 
 
 # Repo root = parent of this parking/ folder; anchors all paths independent of the caller's cwd.
@@ -40,14 +41,21 @@ ENVGEN_SCRIPT = "@{../src/templates/envmodel_config.tpl.json}@.generateEnvmodels
 # Ego sprite (639x258 px, rear bumper at x=0, front to +x); dimensions from EGO_* in activation_pose.py.
 EGO_CAR_IMAGE = os.path.join(REPO_ROOT, "parking", "ego_car.png")
 EGO_LENGTH_M = 4.53
-EGO_REAR_OVERHANG_M = 1.01
-EGO_REAR_AXLE_PX = (142.5, 129.0)
-# The sprite is driven by its rear axle (APA); start/end poses put the car CENTRE (MC reference)
-# on the section middles, which lies this far ahead of the rear axle.
-EGO_CENTRE_AHEAD_OF_AXLE_M = EGO_LENGTH_M / 2.0 - EGO_REAR_OVERHANG_M
 EGO_ACCEL_MPS2 = 1.5
 EGO_MAX_SPEED_MPS = 4.0
 EGO_GEAR_CHANGE_PAUSE_S = 0.5
+GIF_FPS = 20
+GIF_MAX_WIDTH_PX = 1000
+GIF_FINAL_HOLD_S = 1.5
+# Drawn parking bays span at least this length, centred on the section middle (= car centre), so a
+# short start section (quick turn-out) still shows a full-size slot.
+PARKING_SLOT_LENGTH_M = 7.0
+
+
+def slot_extent(section_length, slot_length):
+    """(start, end) of a bay centred on a section's middle, measured along it from its source."""
+    span = max(section_length, slot_length)
+    return (section_length - span) / 2.0, (section_length + span) / 2.0
 
 # runMCJobs model-checks every examples/gp* package (except the bare 'gp' prefix folder). With a
 # >1 range on a '#'-variable in the tpl.json, generateEnvmodels emits one such package per value
@@ -226,32 +234,127 @@ def race_first_solution(poll_interval=1.0):
     return win
 
 
-def _read_trace_values(trace_path):
-    """Parse a debug_trace_array.txt dump into a {name: float} map.
+_SCALING_FACTOR_RE = re.compile(r"-- (TIME|DISTANCE|GEOMETRY)SCALING\(\(\(\((-?[\d.]+)\)\)\)\)")
+_SCALED_VAR_RE = re.compile(r"^--\s*([\w.]+),(\w+)\s*$")
+_scaling_cache = {}
 
-    Names keep whatever prefix they have in the file (e.g. 'env.section_0.source.x').
+
+def read_scaling(smv_path):
+    """Return ({'TIME'|'DISTANCE'|'GEOMETRY': factor}, {var: scale type}) from a generated EnvModel.smv.
+
+    Mirrors vfm's ScaleDescription; factors default to 1 and the var map is empty if absent.
+    """
+    factors = {"TIME": 1.0, "DISTANCE": 1.0, "GEOMETRY": 1.0}
+    types = {}
+    try:
+        mtime = os.path.getmtime(smv_path)
+        if _scaling_cache.get(smv_path, (None,))[0] == mtime:
+            return _scaling_cache[smv_path][1]
+        with open(smv_path, "r") as f:
+            content = f.read()
+    except OSError:
+        return factors, types
+    for kind, value in _SCALING_FACTOR_RE.findall(content):
+        factors[kind] = float(value)
+    begin = content.find("-- SCALING DESCRIPTIONS")
+    end = content.find("-- EO SCALING DESCRIPTIONS", begin)
+    if begin >= 0 and end >= 0:
+        for line in content[begin:end].splitlines()[1:]:
+            m = _SCALED_VAR_RE.match(line.strip())
+            if m:
+                types[m.group(1)] = m.group(2)
+    _scaling_cache[smv_path] = (mtime, (factors, types))
+    return factors, types
+
+
+def _model_to_world(value, scale_type, factors):
+    """EnvModel -> world conversion, identical to StaticHelper::applyTimescaling."""
+    t, d, g = factors["TIME"], factors["DISTANCE"], factors["GEOMETRY"]
+    return {
+        "time": lambda v: v / t,
+        "distance": lambda v: v / d,
+        "velocity": lambda v: v * t / d,
+        "acceleration": lambda v: v * t * t / d,
+        "geometry": lambda v: v / g,
+    }.get(scale_type, lambda v: v)(value)
+
+
+def _read_trace_values(trace_path):
+    """Parse a debug_trace_array.txt dump into a {name: float} map in world units.
+
+    Names keep whatever prefix they have in the file (e.g. 'env.section_0.source.x'). Values are
+    scaled back via the scaling header of the sibling EnvModel.smv (if present).
     """
     values = {}
     line_re = re.compile(r'^\s*([A-Za-z_][\w.]*)\s*=\s*(-?\d+(?:\.\d+)?)\s*$')
     if not os.path.isfile(trace_path):
         return values
+    factors, types = read_scaling(os.path.join(os.path.dirname(trace_path), "EnvModel.smv"))
     with open(trace_path, "r") as f:
         for line in f:
             m = line_re.match(line)
             if m:
-                values[m.group(1)] = float(m.group(2))
+                name = m.group(1)
+                scale_type = types.get(name[4:] if name.startswith("env.") else name)
+                values[name] = _model_to_world(float(m.group(2)), scale_type, factors)
+    return values
+
+
+def _config_values(tpl_path):
+    """Trace-like {name: value} map of the fixed sections and obstacles in the tpl.json."""
+    try:
+        with open(tpl_path) as f:
+            content = f.read()
+    except OSError:
+        return {}
+
+    def numbers(key):
+        m = re.search(r'"' + key + r'"\s*:\s*"([^"]*)"', content)
+        out = []
+        for v in _parse_paren_list(m.group(1)) if m else []:
+            try:
+                out.append(float(v))
+            except ValueError:
+                out.append(None)
+        return out
+
+    values = {}
+    for sec, x, y, angle, length in zip(
+            numbers("FIXED_SECTION_IDs"), numbers("FIXED_SECTION_SOURCE_Xs"),
+            numbers("FIXED_SECTION_SOURCE_Ys"), numbers("FIXED_SECTION_ANGLEs"),
+            numbers("FIXED_SECTION_LENGTHs")):
+        if None in (sec, x, y, angle, length):
+            continue
+        sec = int(sec)
+        values[f"section_{sec}.source.x"] = x
+        values[f"section_{sec}.source.y"] = y
+        values[f"section_{sec}.angle"] = angle
+        values[f"section_{sec}_end"] = length
+    for k, corners in enumerate(zip(
+            numbers("RECT_OBSTACLES_TL_Xs"), numbers("RECT_OBSTACLES_TL_Ys"),
+            numbers("RECT_OBSTACLES_BR_Xs"), numbers("RECT_OBSTACLES_BR_Ys"))):
+        for field, value in zip(("tl_x", "tl_y", "br_x", "br_y"), corners):
+            values[f"rect_obstacles_{field}_{k}"] = value
     return values
 
 
 def _trace_getter(trace_path):
-    """Return a getter accepting both 'env.'-prefixed (dump) and bare (MC trace) names."""
+    """Return a getter accepting both 'env.'-prefixed (dump) and bare (MC trace) names.
+
+    Without solution geometry in the trace (missing, wiped by regeneration, or blind), the
+    getter serves the configured fixed sections and obstacles instead (get.from_config).
+    """
     v = _read_trace_values(trace_path)
+    from_config = "section_0.source.x" not in v and "env.section_0.source.x" not in v
+    if from_config:
+        v = _config_values(TPL_PATH)
 
     def get(name):
         if name in v:
             return v[name]
         return v.get("env." + name)
 
+    get.from_config = from_config
     return get
 
 
@@ -267,6 +370,9 @@ def _ego_connected_sections(get):
     num_sections = 0
     while get(f"section_{num_sections}.source.x") is not None:
         num_sections += 1
+    # The config has no connections yet, so show every configured section.
+    if getattr(get, "from_config", False):
+        return set(range(num_sections))
     if num_sections == 0:
         return set()
 
@@ -358,23 +464,38 @@ def pixel_to_world(px, py, transform, image_width, image_height):
 
 
 def _snap_scene_to_world_raster(px, py, transform, image_width, image_height, step=1.0):
-    """Snap a scene/pixel point onto the world raster (integer metres) the tpl.json quantises to."""
+    """Snap a scene/pixel point onto the world raster (step in metres) the model quantises to."""
     wx, wy = pixel_to_world(px, py, transform, image_width, image_height)
     return world_to_pixel(round(wx / step) * step, round(wy / step) * step,
                           transform, image_width, image_height)
 
 
 # Set by MainWindow once the world<->pixel transform for the current scene is known, so the
-# draggable items can snap their pose onto the same 1 m world raster as the target-section angle
+# draggable items can snap their pose onto the model's world raster as the target-section angle
 # snaps to its granularity. None (identity) until a transform is available.
 _scene_raster_snap = None  # callable(scene_x, scene_y) -> (scene_x, scene_y)
 
 
 def snap_scene_point(px, py):
-    """Snap a scene point onto the active 1 m world raster (identity if no transform is set)."""
+    """Snap a scene point onto the active world raster (identity if no transform is set)."""
     if _scene_raster_snap is None:
         return px, py
     return _scene_raster_snap(px, py)
+
+
+def world_raster_step(smv_path):
+    """World raster (m) of the model's GEOMETRYSCALING grid; 1 m without such a header."""
+    return 1.0 / read_scaling(smv_path)[0]["GEOMETRY"]
+
+
+def snap_world(value, step):
+    """Round a world coordinate (m) onto the raster; the inner round() drops float noise."""
+    return round(round(value / step) * step, 6)
+
+
+def _fmt_world(value):
+    """Compact tpl.json number: '3' instead of '3.0', '2.25' stays."""
+    return f"{value:g}"
 
 
 def read_obstacles_world(trace_path):
@@ -486,12 +607,13 @@ def _connection_bezier(src_geom, tgt_geom):
 
 
 def connection_splines_pixel(trace_path, image_width, image_height, samples=24):
-    """Cubic-Bezier connection arcs between sections as pixel polylines [[(x, y), ...], ...].
+    """Cubic-Bezier connection arcs between sections as [(pixel polyline, model_len, drawn_len)].
 
     Mirrors RoadGraph::Way::getNodesXML: each directed connection src->tgt is a cubic Bezier
     from src's drain to tgt's origin, control points offset by dist/3 along each section's
     tangent (dist = |drain_src - origin_tgt|). Only connections internal to the ego component
-    are drawn, matching road_segments_pixel.
+    are drawn, matching road_segments_pixel. model_len is the MC's lane-0 arclength (None if
+    absent from the trace), drawn_len the length of the drawn Bezier (both in metres).
     """
     transform = compute_fit_transform(trace_path, image_width, image_height)
     if transform is None:
@@ -521,11 +643,15 @@ def connection_splines_pixel(trace_path, image_width, image_height, samples=24):
             if bezier is None:
                 continue
 
-            pts = [world_to_pixel(*_cubic_bezier(i / samples, *bezier),
-                                  transform=transform, image_width=image_width,
+            world_pts = [_cubic_bezier(i / samples, *bezier) for i in range(samples + 1)]
+            pts = [world_to_pixel(*p, transform=transform, image_width=image_width,
                                   image_height=image_height)
-                   for i in range(samples + 1)]
-            splines.append(pts)
+                   for p in world_pts]
+            drawn_len = sum(math.dist(a, b) for a, b in zip(world_pts, world_pts[1:]))
+            model_len = get(f"arclength_from_sec_{src}_to_sec_{tgt}_on_lane_0")
+            if model_len is not None and model_len < 0:
+                model_len = None
+            splines.append((pts, model_len, drawn_len))
     return splines
 
 
@@ -548,7 +674,7 @@ def ego_route_world(trace_path, target_sec, target_dirs=("F", "B"), samples=48):
     (0, B); F follows connections forward, B follows them in reverse, and the gear flips only in
     a forward/backward-terminal section other than the target. Each gear flip happens with the
     car centre on the section middle. Returns [(points, cumulative lengths, gear), ...] with the
-    rear-axle path in motion order and gear +1/-1, or None if the target is unreachable.
+    car-centre path in motion order and gear +1/-1, or None if the target is unreachable.
     """
     get = _trace_getter(trace_path)
     geoms = {}
@@ -604,22 +730,18 @@ def ego_route_world(trace_path, target_sec, target_dirs=("F", "B"), samples=48):
         return sx + (dx - sx) * u / length, sy + (dy - sy) * u / length
 
     raw_legs, pts = [], []
-    u_flip = 0.0
     for k, (sec, d) in enumerate(states):
         length = math.dist(*geoms[sec])
-        mid = length / 2.0 - EGO_CENTRE_AHEAD_OF_AXLE_M
+        mid = length / 2.0
         last = k == len(states) - 1
-        if k > 0 and states[k - 1][0] == sec:
-            u_in = u_flip
+        flip_next = not last and states[k + 1][0] == sec
+        if k == 0 or states[k - 1][0] == sec:
+            u_in = mid
         else:
-            u_in = mid if k == 0 else (0.0 if d == "F" else length)
-        u_out = mid if last or states[k + 1][0] == sec else (length if d == "F" else 0.0)
-        # Never back-track within a leg: in a section shorter than the car, the rear axle would
-        # otherwise have to move against the gear to put the car centre on the middle.
-        u_out = max(u_out, u_in) if d == "F" else min(u_out, u_in)
-        u_flip = u_out
+            u_in = 0.0 if d == "F" else length
+        u_out = mid if last or flip_next else (length if d == "F" else 0.0)
         pts += [at(sec, u_in), at(sec, u_out)]
-        if last or states[k + 1][0] == sec:
+        if last or flip_next:
             raw_legs.append((pts, 1 if d == "F" else -1))
             pts = []
             continue
@@ -685,15 +807,17 @@ def patch_smv_obstacles(smv_path, obstacles_world):
     """Overwrite the 'rect_obstacles_{tl,br}_{x,y}_N := <int>;' DEFINEs in EnvModel.smv.
 
     'obstacles_world' is a list of (tl_x, tl_y, br_x, br_y) tuples (world coords) by index.
-    Only the numeric literals change, so the model stays otherwise identical.
+    Only the numeric literals change, so the model stays otherwise identical. Values are written in
+    the model's GEOMETRYSCALING units.
     """
+    geometry_scaling = read_scaling(smv_path)[0]["GEOMETRY"]
     with open(smv_path, "r") as f:
         content = f.read()
 
     for idx, (tl_x, tl_y, br_x, br_y) in enumerate(obstacles_world):
         for field, value in (("tl_x", tl_x), ("tl_y", tl_y), ("br_x", br_x), ("br_y", br_y)):
             pattern = re.compile(r"(rect_obstacles_" + field + "_" + str(idx) + r"\s*:=\s*)-?\d+(\s*;)")
-            content, n = pattern.subn(r"\g<1>" + str(int(round(value))) + r"\g<2>", content)
+            content, n = pattern.subn(r"\g<1>" + str(round_half_away(value * geometry_scaling)) + r"\g<2>", content)
             if n == 0:
                 raise RuntimeError(f"Could not find 'rect_obstacles_{field}_{idx}' in {smv_path}.")
 
@@ -751,6 +875,78 @@ def parse_angle_granularity(tpl_path):
     return 15
 
 
+def _variant_entry_re(var):
+    """The #TEMPLATE entry defining '@var', e.g. "#012": "@anglegran = array(3); ..."."""
+    return re.compile(r'("#\d+"\s*:\s*")([^"]*@' + var + r'\b[^"]*)(")')
+
+
+def parse_tpl_variants(tpl_path, var):
+    """Values of the '@var' template variable (one EnvModel package each), or None if absent."""
+    try:
+        with open(tpl_path) as f:
+            content = f.read()
+    except OSError:
+        return None
+    m = _variant_entry_re(var).search(content)
+    if not m:
+        return None
+    body = m.group(2)
+    r = re.search(r"range\(\s*@" + var + r"\s*,\s*(-?\d+)\s*,\s*(-?\d+)\s*\)", body)
+    if r:
+        values = list(range(int(r.group(1)), int(r.group(2)) + 1))
+    else:
+        values = [int(v) for v in re.findall(r"@" + var + r"\[\d+\]\s*=\s*(-?\d+)\s*;", body)]
+    return values or None
+
+
+def patch_tpl_variants(tpl_path, var, values):
+    """Rewrite the '@var' definition as an explicit nan-terminated array of 'values'."""
+    with open(tpl_path) as f:
+        content = f.read()
+    n = len(values)
+    body = (f"@{var} = array({n + 1}); "
+            + "".join(f"@{var}[{i}] = {v}; " for i, v in enumerate(values))
+            + f"@{var}[{n}] = nan();")
+    content, count = _variant_entry_re(var).subn(lambda m: m.group(1) + body + m.group(3), content,
+                                                 count=1)
+    if count == 0:
+        raise RuntimeError(f"Could not find the '@{var}' definition in {tpl_path}.")
+    with open(tpl_path, "w") as f:
+        f.write(content)
+
+
+def round_half_away(value):
+    """C++ std::round semantics (Python's round() is banker's rounding: 2.5 -> 2)."""
+    return int(math.copysign(math.floor(abs(value) + 0.5), value))
+
+
+def modelled_world_coord(value, units_per_meter):
+    """Coordinate a GEOMETRYSCALING variant stores: value * n rounded like the generator (C++)."""
+    return round_half_away(value * units_per_meter) / units_per_meter
+
+
+def parse_fixed_section_angles(tpl_path):
+    """FIXED_SECTION_ANGLEs (deg) from the tpl.json; non-numeric entries are skipped."""
+    try:
+        with open(tpl_path) as f:
+            content = f.read()
+    except OSError:
+        return []
+    m = re.search(r'"FIXED_SECTION_ANGLEs"\s*:\s*"([^"]*)"', content)
+    angles = []
+    for v in _parse_paren_list(m.group(1)) if m else []:
+        try:
+            angles.append(int(round(float(v))) % 360)
+        except ValueError:
+            pass
+    return angles
+
+
+def modelled_fixed_angle(angle, gran):
+    """Heading an EnvModel gives a fixed section: angle_raw = round(angle / gran), C++ std::round."""
+    return (math.floor(angle / gran + 0.5) * gran) % 360
+
+
 def patch_tpl_config(tpl_path, target_slot, section_x, section_y, section_angle, obstacles):
     """Write the target section's pose and the obstacle rectangles into the tpl.json in place.
 
@@ -772,14 +968,14 @@ def patch_tpl_config(tpl_path, target_slot, section_x, section_y, section_angle,
             vals = _parse_paren_list(m.group(1))
             if target_slot >= len(vals):
                 raise RuntimeError(f"Target slot {target_slot} out of range for '{key}' ({vals}).")
-            vals[target_slot] = str(value)
+            vals[target_slot] = _fmt_world(value)
             content = _replace_tpl_string_value(content, key, _format_paren_list(vals))
 
     packed = {
-        "RECT_OBSTACLES_TL_Xs": [str(o[0]) for o in obstacles],
-        "RECT_OBSTACLES_TL_Ys": [str(o[1]) for o in obstacles],
-        "RECT_OBSTACLES_BR_Xs": [str(o[2]) for o in obstacles],
-        "RECT_OBSTACLES_BR_Ys": [str(o[3]) for o in obstacles],
+        "RECT_OBSTACLES_TL_Xs": [_fmt_world(o[0]) for o in obstacles],
+        "RECT_OBSTACLES_TL_Ys": [_fmt_world(o[1]) for o in obstacles],
+        "RECT_OBSTACLES_BR_Xs": [_fmt_world(o[2]) for o in obstacles],
+        "RECT_OBSTACLES_BR_Ys": [_fmt_world(o[3]) for o in obstacles],
     }
     for key, vals in packed.items():
         content = _replace_tpl_string_value(content, key, _format_paren_list(vals))
@@ -921,6 +1117,7 @@ class ResizeHandle(QGraphicsRectItem):
             new_top = min(local.y(), bottom - 10)
             parent.setRect(new_left, new_top, right - new_left, bottom - new_top)
         parent.update_handles()
+        parent.notify_changed()
         event.accept()
 
     def mouseReleaseEvent(self, event):
@@ -958,8 +1155,9 @@ class DeleteHandle(QGraphicsEllipseItem):
 
 # Custom rectangle item with handles
 class ResizableRectItem(QGraphicsRectItem):
-    def __init__(self, x, y, w, h, on_delete=None):
+    def __init__(self, x, y, w, h, on_delete=None, on_changed=None):
         super().__init__(0, 0, w, h)
+        self._on_changed = on_changed
         self.setPos(x, y)
         self._updating_handles = False
         
@@ -994,6 +1192,10 @@ class ResizableRectItem(QGraphicsRectItem):
         if not editable:
             self.setSelected(False)
 
+    def notify_changed(self):
+        if self._on_changed is not None:
+            self._on_changed()
+
     def update_handles(self, exclude=None):
         self._updating_handles = True
         if self.tl_handle and self.tl_handle != exclude:
@@ -1012,6 +1214,7 @@ class ResizableRectItem(QGraphicsRectItem):
             return QPointF(sx, sy)
         if change == QGraphicsRectItem.GraphicsItemChange.ItemPositionHasChanged:
             self.update_handles()
+            self.notify_changed()
         return super().itemChange(change, value)
 
 
@@ -1029,7 +1232,7 @@ class SectionRotateHandle(QGraphicsRectItem):
         self.update_position()
 
     def update_position(self):
-        self.setPos(self.section.length_px, 0)
+        self.setPos(self.section.slot_end_px, 0)
 
     def mousePressEvent(self, event):
         event.accept()
@@ -1048,10 +1251,12 @@ class SectionRotateHandle(QGraphicsRectItem):
 
 
 class RotatableSectionItem(QGraphicsRectItem):
-    """Fixed-length target section: movable and rotatable (about its source end) but not
-    resizable. Rotation is constrained to multiples of the angle granularity."""
-    def __init__(self, source_px, length_px, angle_deg, half_width_px, angle_granularity, on_changed):
-        super().__init__(0.0, -half_width_px, length_px, 2.0 * half_width_px)
+    """Fixed-length target section, drawn as its parking bay: movable and rotatable (about its
+    source end) but not resizable. Rotation is constrained to multiples of the angle granularity."""
+    def __init__(self, source_px, length_px, angle_deg, half_width_px, angle_granularity, on_changed,
+                 slot_px=0.0):
+        slot_start, self.slot_end_px = slot_extent(length_px, slot_px)
+        super().__init__(slot_start, -half_width_px, self.slot_end_px - slot_start, 2.0 * half_width_px)
         self.length_px = length_px
         self.angle_granularity = angle_granularity
         self._on_changed = on_changed
@@ -1092,6 +1297,86 @@ class RotatableSectionItem(QGraphicsRectItem):
         return super().itemChange(change, value)
 
 
+class VariantPanel(QGroupBox):
+    """Editor for the value list of a tpl.json '#'-variable; each value becomes its own EnvModel
+    package. 'on_edited' fires on every user edit; set_values() replaces the list silently."""
+    def __init__(self, title, spin_range, prefix, suffix, candidates, on_edited):
+        super().__init__(title)
+        self.setFixedWidth(250)
+        self.values = None
+        self._spin_range, self._prefix, self._suffix = spin_range, prefix, suffix
+        self._candidates = candidates
+        self._on_edited = on_edited
+        v = QVBoxLayout(self)
+        self.info = QLabel()
+        self.info.setWordWrap(True)
+        v.addWidget(self.info)
+        self._rows_layout = QVBoxLayout()
+        v.addLayout(self._rows_layout)
+        self._add_btn = QPushButton("Add Variant")
+        self._add_btn.clicked.connect(self._add)
+        v.addWidget(self._add_btn)
+        self.status_labels = []
+
+    def set_values(self, values):
+        self.values = values
+        self._rebuild()
+
+    def set_status(self, index, text, color, tooltip=""):
+        label = self.status_labels[index]
+        label.setText(text)
+        label.setStyleSheet(f"color: {color};")
+        label.setToolTip(tooltip)
+
+    def is_duplicate(self, index):
+        return self.values[index] in self.values[:index]
+
+    def _rebuild(self):
+        while self._rows_layout.count():
+            old = self._rows_layout.takeAt(0).widget()
+            old.setParent(None)
+            old.deleteLater()
+        self.status_labels = []
+        self._add_btn.setEnabled(self.values is not None)
+        for i, value in enumerate(self.values or []):
+            row = QWidget()
+            h = QHBoxLayout(row)
+            h.setContentsMargins(0, 0, 0, 0)
+            spin = QSpinBox()
+            spin.setRange(*self._spin_range)
+            spin.setPrefix(self._prefix)
+            spin.setSuffix(self._suffix)
+            spin.setValue(value)
+            spin.valueChanged.connect(lambda val, i=i: self._set(i, val))
+            status = QLabel()
+            remove = QToolButton()
+            remove.setText("×")
+            remove.setToolTip("Remove this variant")
+            remove.setEnabled(len(self.values) > 1)
+            remove.clicked.connect(lambda _checked=False, i=i: self._remove(i))
+            h.addWidget(spin)
+            h.addWidget(status, 1)
+            h.addWidget(remove)
+            self._rows_layout.addWidget(row)
+            self.status_labels.append(status)
+
+    def _set(self, index, value):
+        self.values[index] = value
+        self._on_edited()
+
+    def _add(self):
+        fallback = min(max(self.values) + 1, self._spin_range[1])
+        self.values.append(next((v for v in self._candidates if v not in self.values), fallback))
+        self._rebuild()
+        self._on_edited()
+
+    def _remove(self, index):
+        if len(self.values) > 1:
+            del self.values[index]
+            self._rebuild()
+            self._on_edited()
+
+
 class MainWindow(QMainWindow):
     def __init__(self, image_path, trace_path, smv_path):
         super().__init__()
@@ -1102,6 +1387,7 @@ class MainWindow(QMainWindow):
         self.rect_items = []
         self.image_w = 0
         self.image_h = 0
+        self._raster_step = 1.0
 
         # Main Widget & Layout
         main_widget = QWidget()
@@ -1116,8 +1402,19 @@ class MainWindow(QMainWindow):
         self.view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.view.setRenderHint(self.view.renderHints().SmoothPixmapTransform)
-        
-        layout.addWidget(self.view)
+
+        self.gran_panel = VariantPanel("Angle granularity variants", (1, 180), "", "°",
+                                       (30, 45, 15, 90, 20, 10, 5), self._on_gran_values_changed)
+        self.grid_panel = VariantPanel("Distance grid variants", (1, 20), "1/", " m",
+                                       (1, 2, 4, 5, 10), self._on_grid_values_changed)
+        side = QVBoxLayout()
+        side.addWidget(self.gran_panel)
+        side.addWidget(self.grid_panel)
+        side.addStretch(1)
+        top = QHBoxLayout()
+        top.addLayout(side)
+        top.addWidget(self.view, 1)
+        layout.addLayout(top)
 
         self.progress_bar = QProgressBar(self)
         self.progress_bar.setRange(0, 100)
@@ -1134,6 +1431,10 @@ class MainWindow(QMainWindow):
         self.play_btn.clicked.connect(self.play_ego)
         layout.addWidget(self.play_btn)
 
+        self.gif_btn = QPushButton("Export Drive as GIF")
+        self.gif_btn.clicked.connect(self.export_gif)
+        layout.addWidget(self.gif_btn)
+
         # Discards unregenerated edits: back to the layout the current packages were built from.
         self.reset_btn = QPushButton("Reset")
         self.reset_btn.clicked.connect(self.reset_scene)
@@ -1147,9 +1448,10 @@ class MainWindow(QMainWindow):
 
         # Model checks every configured variant in parallel and adopts the first counterexample
         # (a single-variant config is just the degenerate one-runner case).
-        self.refresh_btn = QPushButton("Run Model Checker")
-        self.refresh_btn.clicked.connect(self.trigger_external_process)
-        layout.addWidget(self.refresh_btn)
+        # Obsolete: Rather run Env Model generation every time, and auto-trigger MC.
+        # self.refresh_btn = QPushButton("Run Model Checker")
+        # self.refresh_btn.clicked.connect(self.trigger_external_process)
+        # layout.addWidget(self.refresh_btn)
 
         # Stays clickable while the MC race runs; kills every nuXmv instance at once.
         self.terminate_btn = QPushButton("Terminate Model Checker")
@@ -1157,7 +1459,7 @@ class MainWindow(QMainWindow):
         self.terminate_btn.setEnabled(False)
         layout.addWidget(self.terminate_btn)
 
-        self.envgen_btn = QPushButton("Re-run EnvModel Generation")
+        self.envgen_btn = QPushButton("Run Model Checker")
         self.envgen_btn.clicked.connect(lambda: self.run_envmodel_generation())
         # Right-click = forced regeneration: wipe the EnvModel cache and rewrite the tpl.json first.
         self.envgen_btn.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -1202,7 +1504,21 @@ class MainWindow(QMainWindow):
         self._target_slot = None
         self._target_section = None
         self._ppm = None
-        self.angle_granularity = parse_angle_granularity(TPL_PATH)
+        # '@anglegran' variants: edited in the left panel, written to the tpl.json on regeneration.
+        gran_values = parse_tpl_variants(TPL_PATH, "anglegran")
+        self._gran_baseline = list(gran_values) if gran_values else None
+        self._gran_dirty = False
+        self._tpl_fixed_angles = parse_fixed_section_angles(TPL_PATH)
+        # Rotation snap = gcd of all variants, so every variant's grid is reachable.
+        self.angle_granularity = (math.gcd(*gran_values) if gran_values
+                                  else parse_angle_granularity(TPL_PATH))
+        self.gran_panel.set_values(gran_values)
+        # '@geomgrid' variants (GEOMETRYSCALING in mm), shown as n = units per metre (raster 1/n m).
+        grid_mm = parse_tpl_variants(TPL_PATH, "geomgrid")
+        grid_values = [max(1, round(v / 1000)) for v in grid_mm] if grid_mm else None
+        self._grid_baseline = list(grid_values) if grid_values else None
+        self._grid_dirty = False
+        self.grid_panel.set_values(grid_values)
         # Scene items re-baselined/removed once a moved layout is committed by regeneration.
         self._trajectory_items = []
         self._obstacle_ghost_items = []
@@ -1228,6 +1544,8 @@ class MainWindow(QMainWindow):
             self.image_w, self.image_h = 2200, 1650
 
         segments = road_segments_pixel(self.trace_path, self.image_w, self.image_h)
+        if _trace_getter(self.trace_path).from_config:
+            print("No solution trace; drawing the configured sections and obstacles only.")
         splines = connection_splines_pixel(self.trace_path, self.image_w, self.image_h)
         rects_data = obstacles_to_pixel_rects(self.trace_path, self.image_w, self.image_h)
         target_section = target_section_from_smv(self.smv_path)
@@ -1236,11 +1554,12 @@ class MainWindow(QMainWindow):
         self._transform = transform
         self._ppm = ppm
 
-        # Activate 1 m world-raster snapping for the draggable items against this scene's transform.
+        # Activate world-raster snapping (finest grid of the distance-grid variants) for the items.
         global _scene_raster_snap
+        self._raster_step = self._grid_raster_step()
         if transform is not None:
             _scene_raster_snap = (lambda px, py, t=transform, iw=self.image_w, ih=self.image_h:
-                                  _snap_scene_to_world_raster(px, py, t, iw, ih))
+                                  _snap_scene_to_world_raster(px, py, t, iw, ih, self._raster_step))
         else:
             _scene_raster_snap = None
 
@@ -1287,6 +1606,8 @@ class MainWindow(QMainWindow):
                 self.add_rectangle(*rect)
 
         self._capture_baseline()
+        self._refresh_gran_status()
+        self._refresh_grid_status()
         self._apply_visu_mode()
         self.scale_to_fit()
 
@@ -1305,7 +1626,7 @@ class MainWindow(QMainWindow):
         pixmap = QPixmap.fromImage(image)
         car = self.scene.addPixmap(pixmap)
         car.setTransformationMode(Qt.TransformationMode.SmoothTransformation)
-        car.setTransformOriginPoint(*EGO_REAR_AXLE_PX)
+        car.setTransformOriginPoint(pixmap.width() / 2.0, pixmap.height() / 2.0)
         car.setScale(transform[2] * EGO_LENGTH_M / pixmap.width())
         car.setZValue(3.5)
         self._ego_item = car
@@ -1318,32 +1639,99 @@ class MainWindow(QMainWindow):
         if self._ego_item is None or geom is None:
             return
         (sx, sy), (dx, dy) = geom
-        yaw = math.atan2(dy - sy, dx - sx)
-        back = math.dist((sx, sy), (dx, dy)) / 2.0 - EGO_CENTRE_AHEAD_OF_AXLE_M
-        self._set_ego_pose(sx + back * math.cos(yaw), sy + back * math.sin(yaw), yaw)
+        self._set_ego_pose((sx + dx) / 2.0, (sy + dy) / 2.0, math.atan2(dy - sy, dx - sx))
 
-    def _set_ego_pose(self, axle_x, axle_y, yaw):
-        """Place the sprite by its rear axle (world coords) and heading (rad)."""
-        px, py = world_to_pixel(axle_x, axle_y, self._transform, self.image_w, self.image_h)
-        ox, oy = EGO_REAR_AXLE_PX
-        self._ego_item.setPos(px - ox, py - oy)
+    def _set_ego_pose(self, x, y, yaw):
+        """Place the sprite by its centre (world coords, the MC's vehicle reference) and heading (rad)."""
+        px, py = world_to_pixel(x, y, self._transform, self.image_w, self.image_h)
+        origin = self._ego_item.transformOriginPoint()
+        self._ego_item.setPos(px - origin.x(), py - origin.y())
         self._ego_item.setRotation(math.degrees(yaw))
 
-    def play_ego(self):
-        """Drive the ego from the middle of Sec. 0 to the middle of the target section."""
+    def _ego_route_ready(self):
         if self._ego_item is None:
-            return
+            return False
         if self._ego_route is None:
+            if _trace_getter(self.trace_path).from_config:
+                QMessageBox.information(self, "No solution",
+                                        "No solution loaded yet - run the model checker first.")
+                return False
             QMessageBox.information(self, "No route",
                                     f"No connection chain from Sec. 0 to target Sec. "
                                     f"{self._target_section} in the current trace.")
+            return False
+        return True
+
+    def play_ego(self):
+        """Drive the ego from the middle of Sec. 0 to the middle of the target section."""
+        if not self._ego_route_ready():
             return
         self._play_t0 = time.monotonic()
         self._play_step()
         self.play_timer.start()
 
     def _play_step(self):
-        t = time.monotonic() - self._play_t0
+        if self._set_ego_pose_at(time.monotonic() - self._play_t0):
+            self.play_timer.stop()
+
+    def export_gif(self):
+        """Render the Play drive (start -> target) frame by frame into an animated GIF."""
+        if not self._ego_route_ready():
+            return
+        default = os.path.join(os.path.dirname(os.path.abspath(self.trace_path)), "ego_drive.gif")
+        path, _ = QFileDialog.getSaveFileName(self, "Export Drive as GIF", default,
+                                              "GIF images (*.gif)")
+        if not path:
+            return
+        from PIL import Image
+
+        self.play_timer.stop()
+        source = self.scene.sceneRect()
+        scale = min(1.0, GIF_MAX_WIDTH_PX / source.width())
+        w, h = max(1, round(source.width() * scale)), max(1, round(source.height() * scale))
+        # Frames are rendered without editing handles, like the clean screenshot view.
+        prev_visu = self.visu_mode
+        self.visu_mode = True
+        self._apply_visu_mode()
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
+        frames = []
+        try:
+            dt = 1.0 / GIF_FPS
+            t, done = 0.0, False
+            while not done:
+                done = self._set_ego_pose_at(t)
+                image = QImage(w, h, QImage.Format.Format_RGBA8888)
+                image.fill(Qt.GlobalColor.white)
+                painter = QPainter(image)
+                painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+                painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+                self.scene.render(painter, QRectF(0, 0, w, h), source)
+                painter.end()
+                bits = image.constBits()
+                bits.setsize(image.sizeInBytes())
+                frames.append(Image.frombuffer("RGBA", (w, h), bytes(bits), "raw", "RGBA",
+                                               image.bytesPerLine(), 1).convert("RGB"))
+                t += dt
+            # One shared palette avoids per-frame colour flicker of the static background.
+            first = frames[0].quantize(colors=256)
+            paletted = [first] + [f.quantize(palette=first, dither=Image.Dither.NONE)
+                                  for f in frames[1:]]
+            durations = [round(1000 * dt)] * len(paletted)
+            durations[-1] = round(1000 * GIF_FINAL_HOLD_S)
+            paletted[0].save(path, save_all=True, append_images=paletted[1:],
+                             duration=durations, loop=0)
+        except OSError as e:
+            QMessageBox.warning(self, "GIF export failed", str(e))
+            return
+        finally:
+            QApplication.restoreOverrideCursor()
+            self.visu_mode = prev_visu
+            self._apply_visu_mode()
+            self._place_ego_at_start()
+        print(f"Exported {len(frames)} frames to {path}")
+
+    def _set_ego_pose_at(self, t):
+        """Pose the ego at drive time t (s); returns True once it has reached the target."""
         last = len(self._ego_route) - 1
         for i, (points, cum, gear) in enumerate(self._ego_route):
             d, finished = trapezoid_distance(t, cum[-1])
@@ -1356,8 +1744,7 @@ class MainWindow(QMainWindow):
         x, y, yaw = polyline_pose(points, cum, d)
         # In reverse the car faces against its direction of motion.
         self._set_ego_pose(x, y, yaw if gear > 0 else yaw + math.pi)
-        if finished and i == last:
-            self.play_timer.stop()
+        return finished and i == last
 
     def _draw_obstacle_ghosts(self, rects_data):
         """Filled, non-interactive ghosts marking where the obstacles originally were."""
@@ -1380,13 +1767,14 @@ class MainWindow(QMainWindow):
         arc_pen = QPen(QColor(120, 120, 120), 5)
         arc_pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         arc_pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-        for pts in (splines or []):
+        for pts, model_len, drawn_len in (splines or []):
             if len(pts) < 2:
                 continue
             path = QPainterPath(QPointF(pts[0][0], pts[0][1]))
             for x, y in pts[1:]:
                 path.lineTo(x, y)
             self._trajectory_items.append(self.scene.addPath(path, arc_pen))
+            self._draw_arclength_label(pts[len(pts) // 2], model_len, drawn_len)
         for x1, y1, x2, y2, sec, is_ego in segments:
             self._trajectory_items.append(
                 self.scene.addLine(x1, y1, x2, y2, ego_pen if is_ego else road_pen))
@@ -1396,12 +1784,32 @@ class MainWindow(QMainWindow):
             elif target_section is not None and sec == target_section and not draggable_target:
                 self._draw_parking_marking(x1, y1, x2, y2, "TARGET", ppm)
 
+    def _draw_arclength_label(self, mid, model_len, drawn_len):
+        """Arclength badge at an arc's midpoint: the MC's value, else the drawn Bezier's (≈)."""
+        text = f"{model_len:g} m" if model_len is not None else f"≈{drawn_len:.1f} m"
+        label = self.scene.addText("", QFont("Sans", 10, QFont.Weight.Bold))
+        label.setHtml(f'<span style="background-color:#303030; color:white;">&nbsp;{text}&nbsp;</span>')
+        model_tip = (f"Model arclength (lane 0): {model_len:g} m" if model_len is not None
+                     else "Model arclength: not in trace")
+        label.setToolTip(f"{model_tip}\nDrawn Bezier length: {drawn_len:.1f} m")
+        # Constant on-screen size regardless of the fit zoom, centred on the arc midpoint.
+        label.setFlag(label.GraphicsItemFlag.ItemIgnoresTransformations)
+        br = label.boundingRect()
+        label.setTransform(QTransform.fromTranslate(-br.width() / 2.0, -br.height() / 2.0))
+        label.setPos(mid[0], mid[1])
+        label.setZValue(4)
+        self._trajectory_items.append(label)
+
     def _draw_parking_marking(self, x1, y1, x2, y2, label, ppm):
-        """White parking-bay outline hugging a section, with a label (start/target indicator)."""
+        """White parking-bay outline around a section's middle, with a label (start/target indicator)."""
         dx, dy = x2 - x1, y2 - y1
         length = math.hypot(dx, dy) or 1.0
         ux, uy = dx / length, dy / length
         nx, ny = -uy, ux                    # unit normal
+        mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
+        half_len = max(length, PARKING_SLOT_LENGTH_M * ppm) / 2.0
+        x1, y1 = mx - ux * half_len, my - uy * half_len
+        x2, y2 = mx + ux * half_len, my + uy * half_len
         half = ppm * 1.25                    # ~2 m wide bay (1 m half-width), in world proportion
         thickness = max(3.0, ppm * 0.15)    # ~0.15 m painted line, like real markings
         corners = [
@@ -1419,7 +1827,6 @@ class MainWindow(QMainWindow):
         text = self.scene.addText(label, QFont("Sans", 16, QFont.Weight.Bold))
         text.setDefaultTextColor(QColor(255, 255, 255))
         br = text.boundingRect()
-        mx, my = (x1 + x2) / 2.0, (y1 + y2) / 2.0
         text.setPos(mx - br.width() / 2.0, my - br.height() / 2.0)
         text.setZValue(4)
 
@@ -1459,7 +1866,8 @@ class MainWindow(QMainWindow):
         w = abs(x2 - x1)
         h = abs(y2 - y1)
         
-        rect_item = ResizableRectItem(x, y, w, h, on_delete=self._remove_obstacle)
+        rect_item = ResizableRectItem(x, y, w, h, on_delete=self._remove_obstacle,
+                                      on_changed=self._refresh_grid_status)
         self.scene.addItem(rect_item)
         self.rect_items.append(rect_item)
 
@@ -1471,6 +1879,7 @@ class MainWindow(QMainWindow):
         self.add_rectangle(cx - size / 2.0, cy - size / 2.0,
                            cx + size / 2.0, cy + size / 2.0)
         self._mark_obstacles_dirty()
+        self._refresh_grid_status()
 
     def _remove_obstacle(self, item):
         """Delete an obstacle from the scene; needs a regen before the MC can run again."""
@@ -1478,15 +1887,16 @@ class MainWindow(QMainWindow):
             self.rect_items.remove(item)
         self.scene.removeItem(item)
         self._mark_obstacles_dirty()
+        self._refresh_grid_status()
 
     def _mark_obstacles_dirty(self):
         """The obstacle set changed: block the MC re-run until the EnvModels are regenerated."""
         self._obstacles_dirty = True
-        self._block_mc_until_regen(
-            "Obstacles added/removed - regenerate the EnvModels before re-running the MC.")
+        # self._block_mc_until_regen(
+        #     "Obstacles added/removed - regenerate the EnvModels before re-running the MC.")
 
     def collect_obstacles_world(self):
-        """Inverse-transform the current on-screen rectangles back to integer world coords."""
+        """Inverse-transform the current on-screen rectangles back to world coords on the model raster."""
         # Use the transform cached when the scene was drawn: the source trace file may have been
         # deleted/replaced since, but the rectangles on screen still live in that pixel space.
         transform = self._transform
@@ -1500,8 +1910,7 @@ class MainWindow(QMainWindow):
             scene_rect = item.mapRectToScene(item.rect())
             tl = pixel_to_world(scene_rect.left(), scene_rect.top(), transform, self.image_w, self.image_h)
             br = pixel_to_world(scene_rect.right(), scene_rect.bottom(), transform, self.image_w, self.image_h)
-            obstacles.append((int(round(tl[0])), int(round(tl[1])),
-                              int(round(br[0])), int(round(br[1]))))
+            obstacles.append(tuple(snap_world(v, self._raster_step) for v in (*tl, *br)))
         return obstacles
 
     def _create_section_item(self, segments, target_section, ppm):
@@ -1516,15 +1925,16 @@ class MainWindow(QMainWindow):
         self._draw_section_ghost(x1, y1, length_px, angle_deg, half_w)
         self.section_item = RotatableSectionItem(
             QPointF(x1, y1), length_px, angle_deg, half_w,
-            self.angle_granularity, self._on_section_changed)
+            self.angle_granularity, self._on_section_changed, PARKING_SLOT_LENGTH_M * ppm)
         self.scene.addItem(self.section_item)
 
     def _draw_section_ghost(self, x1, y1, length_px, angle_deg, half_w):
-        """Faint outline of the target section's original pose (like the obstacle ghosts)."""
+        """Faint outline of the target bay's original pose (like the obstacle ghosts)."""
         a = math.radians(angle_deg)
         ux, uy = math.cos(a), math.sin(a)
         nx, ny = -uy, ux
-        x2, y2 = x1 + length_px * ux, y1 + length_px * uy
+        start, end = slot_extent(length_px, PARKING_SLOT_LENGTH_M * (self._ppm or 50.0))
+        x1, y1, x2, y2 = x1 + start * ux, y1 + start * uy, x1 + end * ux, y1 + end * uy
         corners = [QPointF(x1 + nx * half_w, y1 + ny * half_w),
                    QPointF(x2 + nx * half_w, y2 + ny * half_w),
                    QPointF(x2 - nx * half_w, y2 - ny * half_w),
@@ -1539,30 +1949,127 @@ class MainWindow(QMainWindow):
         """The target section was moved/rotated: mark the config stale and block the MC re-run."""
         if not self._section_dirty:
             self._section_dirty = True
-            self._block_mc_until_regen(
-                "Target section moved - regenerate the EnvModels before re-running the MC.")
+            # self._block_mc_until_regen(
+            #     "Target section moved - regenerate the EnvModels before re-running the MC.")
+        self._refresh_gran_status()
+        self._refresh_grid_status()
 
-    def _block_mc_until_regen(self, reason):
-        """Grey out the MC re-run and explain that an EnvModel regeneration is required first."""
-        self.refresh_btn.setEnabled(False)
-        self.refresh_btn.setToolTip(reason)
+    def _current_fixed_angles(self):
+        angles = list(self._tpl_fixed_angles)
+        if (self._section_dirty and self.section_item is not None
+                and self._target_slot is not None and self._target_slot < len(angles)):
+            angles[self._target_slot] = int(round(self.section_item.rotation())) % 360
+        return angles
+
+    def _refresh_gran_status(self):
+        """Per variant: can it represent every fixed-section heading exactly, or does it round?"""
+        panel = self.gran_panel
+        if panel.values is None:
+            panel.info.setText("No '@anglegran' variable in the tpl.json; "
+                               f"ANGLEGRANULARITY = {self.angle_granularity}°.")
+            return
+        angles = self._current_fixed_angles()
+        panel.info.setText(
+            "One EnvModel package per value (applied on regeneration).\n"
+            f"Fixed headings: {', '.join(f'{a}°' for a in angles) or '-'}\n"
+            f"Target rotation snaps to {self.angle_granularity}°.")
+        for i, value in enumerate(panel.values):
+            off = [(a, modelled_fixed_angle(a, value)) for a in angles if a % value]
+            if panel.is_duplicate(i):
+                panel.set_status(i, "duplicate", "gray", "Ignored: the same value is listed above.")
+            elif off:
+                panel.set_status(i, "≈ " + ", ".join(f"{a}→{m}°" for a, m in off), "#c06000",
+                                 f"Not a multiple of {value}°: this variant rounds the heading as "
+                                 "shown, while positions keep the exact angle.")
+            else:
+                panel.set_status(i, "✓ exact", "green")
+
+    def _on_gran_values_changed(self):
+        self.angle_granularity = math.gcd(*self.gran_panel.values)
+        if self.section_item is not None:
+            self.section_item.angle_granularity = self.angle_granularity
+        self._gran_dirty = True
+        # self._block_mc_until_regen(
+        #     "Angle granularity variants changed - regenerate the EnvModels before re-running the MC.")
+        self._refresh_gran_status()
+
+    def _grid_raster_step(self):
+        """Snap raster (m): the finest grid containing every variant's grid, else the model's own."""
+        values = self.grid_panel.values
+        return 1.0 / math.lcm(*values) if values else world_raster_step(self.smv_path)
+
+    def _current_world_coords(self):
+        """World coords (m) the models must hold: fixed-section sources and obstacle corners."""
+        coords = {k: v for k, v in _config_values(TPL_PATH).items()
+                  if re.fullmatch(r"section_\d+\.source\.[xy]", k)}
+        if (self._section_dirty and self.section_item is not None
+                and self._transform is not None and self._target_section is not None):
+            src = self.section_item.pos()
+            sx, sy = pixel_to_world(src.x(), src.y(), self._transform, self.image_w, self.image_h)
+            coords[f"section_{self._target_section}.source.x"] = snap_world(sx, self._raster_step)
+            coords[f"section_{self._target_section}.source.y"] = snap_world(sy, self._raster_step)
+        return list(coords.values()) + [c for o in self.collect_obstacles_world() for c in o]
+
+    def _refresh_grid_status(self):
+        """Per variant: can it represent every section source / obstacle corner exactly?"""
+        panel = self.grid_panel
+        if panel.values is None:
+            panel.info.setText("No '@geomgrid' variable in the tpl.json; "
+                               f"positions snap to the model's {_fmt_world(self._raster_step)} m grid.")
+            return
+        coords = self._current_world_coords()
+        panel.info.setText(
+            "GEOMETRYSCALING: one EnvModel package per value (applied on regeneration).\n"
+            f"Positions snap to {_fmt_world(self._raster_step)} m.")
+        for i, n in enumerate(panel.values):
+            off = [(c, modelled_world_coord(c, n)) for c in coords
+                   if abs(modelled_world_coord(c, n) - c) > 1e-9]
+            if panel.is_duplicate(i):
+                panel.set_status(i, "duplicate", "gray", "Ignored: the same value is listed above.")
+            elif off:
+                worst = max(abs(m - c) for c, m in off)
+                panel.set_status(i, f"≈ {len(off)} rounded (≤{_fmt_world(round(worst, 3))} m)",
+                                 "#c06000",
+                                 f"Not on the {_fmt_world(1 / n)} m grid; this variant rounds:\n"
+                                 + ", ".join(f"{_fmt_world(c)}→{_fmt_world(m)}" for c, m in off[:12]))
+            else:
+                panel.set_status(i, "✓ exact", "green")
+
+    def _on_grid_values_changed(self):
+        self._raster_step = self._grid_raster_step()
+        self._grid_dirty = True
+        # self._block_mc_until_regen(
+        #     "Distance grid variants changed - regenerate the EnvModels before re-running the MC.")
+        self._refresh_grid_status()
+
+    # def _block_mc_until_regen(self, reason):
+    #     """Grey out the MC re-run and explain that an EnvModel regeneration is required first."""
+    #     self.refresh_btn.setEnabled(False)
+    #     self.refresh_btn.setToolTip(reason)
 
     def _config_dirty(self):
-        """True while the scene has un-regenerated edits (section pose or obstacle set)."""
-        return self._section_dirty or self._obstacles_dirty
+        """True while there are un-regenerated edits (section pose, obstacle set, granularities)."""
+        return self._section_dirty or self._obstacles_dirty or self._gran_dirty or self._grid_dirty
 
     def _write_config_from_scene(self, obstacles_only=False):
         """Hardcode the target section pose (when adjustable) and obstacles into the tpl.json."""
+        if self._gran_dirty:
+            patch_tpl_variants(TPL_PATH, "anglegran", list(dict.fromkeys(self.gran_panel.values)))
+        if self._grid_dirty:
+            patch_tpl_variants(TPL_PATH, "geomgrid",
+                               [n * 1000 for n in dict.fromkeys(self.grid_panel.values)])
         if self._transform is None:
             raise RuntimeError("No transform available to write the scene into the config.")
         obstacles = self.collect_obstacles_world()
-        if (not obstacles_only and self.section_item is not None
+        # Only a moved section is written: the drawn pose may be a variant's rounded heading.
+        if (not obstacles_only and self._section_dirty and self.section_item is not None
                 and self._target_slot is not None):
             src = self.section_item.pos()
             sx_w, sy_w = pixel_to_world(src.x(), src.y(), self._transform, self.image_w, self.image_h)
             angle = int(round(self.section_item.rotation())) % 360
             patch_tpl_config(TPL_PATH, self._target_slot,
-                             int(round(sx_w)), int(round(sy_w)), angle, obstacles)
+                             snap_world(sx_w, self._raster_step), snap_world(sy_w, self._raster_step),
+                             angle, obstacles)
         else:
             patch_tpl_config(TPL_PATH, None, None, None, None, obstacles)
 
@@ -1571,9 +2078,18 @@ class MainWindow(QMainWindow):
         committed = self._config_dirty()
         self._section_dirty = False
         self._obstacles_dirty = False
+        if self._gran_dirty:
+            self._gran_dirty = False
+            self._gran_baseline = list(self.gran_panel.values)
+        if self._grid_dirty:
+            self._grid_dirty = False
+            self._grid_baseline = list(self.grid_panel.values)
+        self._tpl_fixed_angles = parse_fixed_section_angles(TPL_PATH)
+        self._refresh_gran_status()
+        self._refresh_grid_status()
         if committed:
-            self.refresh_btn.setEnabled(True)
-            self.refresh_btn.setToolTip("")
+            # self.refresh_btn.setEnabled(True)
+            # self.refresh_btn.setToolTip("")
             self._commit_scene()
 
     def _commit_scene(self):
@@ -1632,18 +2148,33 @@ class MainWindow(QMainWindow):
         # Set after restoring: moving the section item re-marks it dirty via notify_changed.
         self._section_dirty = False
         self._obstacles_dirty = False
-        self.refresh_btn.setEnabled(True)
-        self.refresh_btn.setToolTip("")
+        if self._gran_baseline is not None:
+            self.angle_granularity = math.gcd(*self._gran_baseline)
+            if self.section_item is not None:
+                self.section_item.angle_granularity = self.angle_granularity
+            self.gran_panel.set_values(list(self._gran_baseline))
+        self._gran_dirty = False
+        self._refresh_gran_status()
+        if self._grid_baseline is not None:
+            self.grid_panel.set_values(list(self._grid_baseline))
+            self._raster_step = self._grid_raster_step()
+        self._grid_dirty = False
+        self._refresh_grid_status()
+        # self.refresh_btn.setEnabled(True)
+        # self.refresh_btn.setToolTip("")
         self._apply_visu_mode()
 
     def _set_buttons_enabled(self, enabled):
+        self.gran_panel.setEnabled(enabled)
+        self.grid_panel.setEnabled(enabled)
         self.envgen_btn.setEnabled(enabled)
         self.add_obstacle_btn.setEnabled(enabled)
         self.reset_btn.setEnabled(enabled)
         self.play_btn.setEnabled(enabled)
+        self.gif_btn.setEnabled(enabled)
         # The MC re-run stays disabled while section 1 or the obstacle set has un-regenerated
         # edits: the current packages are stale until EnvModel regeneration writes them in.
-        self.refresh_btn.setEnabled(enabled and not self._config_dirty())
+        # self.refresh_btn.setEnabled(enabled and not self._config_dirty())
 
     def reveal_model_folder(self):
         """Open the folder behind the shown maneuver; also print it, as opening fails on remote."""
@@ -1709,6 +2240,7 @@ class MainWindow(QMainWindow):
         self._on_regen_success()
         self.poll_timer.stop()
         self.poll_progress_file()
+        self.trigger_external_process()
 
     def run_envmodel_generation(self, force=False):
         # A moved target section or a changed obstacle set must be written into the config
@@ -1722,9 +2254,10 @@ class MainWindow(QMainWindow):
                 return
         if force:
             shutil.rmtree(os.path.join(EXAMPLES_DIR, "tmp"), ignore_errors=True)
+
         # Wipe existing gp* variant folders first so an old parameter range can't leave obsolete
         # packages around (regeneration recreates the current set; the vfm cache keeps this fast).
-        # remove_mc_packages() # TODO: Might be good to remove only those packages which are not (anymore) re-created. But we should not lose already existing results.
+        remove_mc_packages()
         
         self.thread = QThread()
         self.worker = EnvModelWorker()
@@ -1815,7 +2348,26 @@ class MainWindow(QMainWindow):
             return
 
         self.terminate_btn.setEnabled(True)
+        self._show_race_progress()
         self.race_timer.start()
+
+    def _show_race_progress(self):
+        """Red ('negative') bar: advances by one per variant that dropped out without a CEX."""
+        self.progress_bar.setStyleSheet(
+            "QProgressBar { text-align: center; }"
+            "QProgressBar::chunk { background-color: #c62828; }")
+        self.progress_bar.setRange(0, len(self._race_packages))
+        self._update_race_progress()
+        self.progress_bar.setVisible(True)
+
+    def _update_race_progress(self):
+        dropped, total = len(self._race_reported_dropouts), len(self._race_packages)
+        self.progress_bar.setValue(dropped)
+        self.progress_bar.setFormat(f"{dropped}/{total} variants dropped out (no counterexample)")
+
+    def _hide_race_progress(self):
+        self.progress_bar.setVisible(False)
+        self.progress_bar.setStyleSheet("")
 
     def _race_winner(self):
         """First variant (in folder order) with a fresh counterexample from THIS run.
@@ -1869,12 +2421,14 @@ class MainWindow(QMainWindow):
             if package_has_fresh_counterexample(pkg):
                 continue
             self._race_reported_dropouts.add(pkg)
+            self._update_race_progress()
             print(f"\u26aa {os.path.basename(pkg)} finished with no counterexample (dropped out).")
 
     def _finish_race(self, winner, error, aborted_by_user=False):
         self.race_timer.stop()
         _kill_process_group(self._race_proc)
         self._race_proc = None
+        self._hide_race_progress()
         QApplication.restoreOverrideCursor()
         self.terminate_btn.setEnabled(False)
         self._set_buttons_enabled(True)

@@ -4,6 +4,8 @@
 @{@{#0# * DISTANCESCALING}@**.eval[0]}@***.newMethod[distanceWorldToEnvModelConst, 0]
 @{@{#0# * DISTANCESCALING / TIMESCALING}@**.eval[0]}@***.newMethod[velocityWorldToEnvModelConst, 0]
 @{@{#0# * DISTANCESCALING / TIMESCALING / TIMESCALING}@**.eval[0]}@***.newMethod[accelerationWorldToEnvModelConst, 0]
+@{@{#0# * GEOMETRYSCALING}@**.eval[0]}@***.newMethod[geometryWorldToEnvModelConst, 0]
+@{@(#0#)@@(@{#0# / GEOMETRYSCALING}@.eval)@}@****.if[@{GEOMETRYSCALING == 1}@.eval].newMethod[geometryEnvModelToWorldConst, 0]
 
 @{@{#0#}@*.scalingVariable[time] := @{#1#}@*.timeWorldToEnvModelConst}@**.newMethod[timeWorldToEnvModelDef, 1]
 @{@{#0#}@*.scalingVariable[distance] := @{#1#}@*.distanceWorldToEnvModelConst}@**.newMethod[distanceWorldToEnvModelDef, 1]
@@ -14,6 +16,7 @@
 
 -- TIMESCALING((((~{TIMESCALING}~))))GNILACSEMIT
 -- DISTANCESCALING((((~{DISTANCESCALING}~))))GNILACSECNATSID
+-- GEOMETRYSCALING((((~{GEOMETRYSCALING}~))))GNILACSYRTEMOEG
 -- SCALING DESCRIPTIONS
 @{scalingList}@.printList
 -- EO SCALING DESCRIPTIONS
@@ -24,3 +27,4 @@ distance_scaling := @{DISTANCESCALING}@*****.eval[0];  -- Evaluated before below
 
 -- Translating TIMESCALING unit from milliseconds (old value: @{TIMESCALING}@*****.eval) to seconds (new value: @{@TIMESCALING = TIMESCALING / 1000; TIMESCALING}@*****.eval)
 -- Translating DISTANCESCALING unit from millimeters (old value: @{DISTANCESCALING}@*****.eval) to meters (new value: @{@DISTANCESCALING = DISTANCESCALING / 1000; DISTANCESCALING}@*****.eval)
+-- Translating GEOMETRYSCALING unit from millimeters (old value: @{GEOMETRYSCALING}@*****.eval) to meters (new value: @{@GEOMETRYSCALING = GEOMETRYSCALING / 1000; GEOMETRYSCALING}@*****.eval)
