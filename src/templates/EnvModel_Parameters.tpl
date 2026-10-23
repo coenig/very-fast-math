@@ -189,7 +189,7 @@
    }@**.for[[f], @(shift_min_x)@@(shift_max_x)@@(shift_min_y)@@(shift_max_y)@@(grow_min_w)@@(grow_max_w)@@(grow_min_h)@@(grow_max_h)@]
 }@***.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
 @{
-   -- @{@{@{obs_[obs]_shift_min_x}@.scriptVar != @{obs_[obs]_shift_max_x}@.scriptVar || @{obs_[obs]_shift_min_y}@.scriptVar != @{obs_[obs]_shift_max_y}@.scriptVar || @{obs_[obs]_grow_min_w}@.scriptVar != @{obs_[obs]_grow_max_w}@.scriptVar || @{obs_[obs]_grow_min_h}@.scriptVar != @{obs_[obs]_grow_max_h}@.scriptVar}@.eval[0]}@.setScriptVar[is_obstacle_[obs]_free]
+	-- @{@{@{obs_[obs]_shift_min_x}@.scriptVar || @{obs_[obs]_shift_max_x}@.scriptVar || @{obs_[obs]_shift_min_y}@.scriptVar || @{obs_[obs]_shift_max_y}@.scriptVar || @{obs_[obs]_grow_min_w}@.scriptVar || @{obs_[obs]_grow_max_w}@.scriptVar || @{obs_[obs]_grow_min_h}@.scriptVar || @{obs_[obs]_grow_max_h}@.scriptVar}@.eval[0]}@.setScriptVar[has_obstacle_[obs]_transform]
 }@*.for[[obs], 0, @{@{rect_obstacles_tl_xs_size}@.scriptVar - 1}@.eval]
 -- EO Obstacles helper variables
 

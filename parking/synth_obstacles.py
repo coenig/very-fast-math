@@ -37,10 +37,7 @@ LEMMA_BEGIN = "-- BEGIN OBSTACLE SYNTH LEMMAS (patched by parking/synth_obstacle
 LEMMA_END = "-- END OBSTACLE SYNTH LEMMAS"
 _FREE_DECL_RE = re.compile(
     r"(rect_obstacles_(shift_kx|shift_ky|grow_kw|grow_kh)_(\d+)\s*:\s*)(-?\d+)\s*\.\.\s*(-?\d+)(\s*;)")
-FREE_RANGE_KEYS = (("RECT_OBSTACLES_SHIFT_MIN_Xs", "RECT_OBSTACLES_SHIFT_MAX_Xs"),
-                   ("RECT_OBSTACLES_SHIFT_MIN_Ys", "RECT_OBSTACLES_SHIFT_MAX_Ys"),
-                   ("RECT_OBSTACLES_GROW_MIN_Ws", "RECT_OBSTACLES_GROW_MAX_Ws"),
-                   ("RECT_OBSTACLES_GROW_MIN_Hs", "RECT_OBSTACLES_GROW_MAX_Hs"))
+FREE_RANGE_KEYS = mp.OBSTACLE_RANGE_KEYS
 _GOAL_LINE_RE = re.compile(r"^(\s*is_target_reachable\s*:=.*)$", re.MULTILINE)
 _TRACE_LINE_RE = re.compile(r"^\s*(?:env\.)?([A-Za-z_][\w.]*)\s*=\s*(-?\d+)\s*$")
 _SECTIONS_RE = re.compile(r"Found variable SECTIONS with value (\d+)")

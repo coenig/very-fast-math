@@ -336,6 +336,66 @@ TEST(SectionTemplateTests, DisabledGeometryEmitsNoGeometryOrRadiusConstraints) {
     EXPECT_EQ(model.find("min_dist_for_turning_radius"), std::string::npos);
 }
 
+TEST(SectionTemplateTests, UnusedCollisionGeometryEmitsNoStateOrDefinitions) {
+    const std::string model = expandSectionTemplate("");
+    ASSERT_EQ(model.find("@{"), std::string::npos);
+    EXPECT_EQ(model.find("connector_curve_scale :="), std::string::npos);
+    EXPECT_EQ(model.find("conn_0_to_1_chord"), std::string::npos);
+    EXPECT_EQ(model.find("conn_0_to_1_arc_"), std::string::npos);
+}
+
+TEST(SectionTemplateTests, WorkspaceBoundsRespectTheGeometryFlag) {
+    const std::string workspace = R"(
+@{@(-200)@@(-200)@@(200)@@(200)@}@***********.stringToHeap[WORKSPACE_BOUNDs].nil
+)";
+    const std::string enabled = expandSectionTemplate(workspace);
+    ASSERT_EQ(enabled.find("@{"), std::string::npos);
+    EXPECT_NE(enabled.find("conn_0_to_1_chord : integer;"), std::string::npos);
+    EXPECT_NE(enabled.find("section_0.source.x >= -200"), std::string::npos);
+    const std::string disabled = expandSectionTemplate(workspace + R"(
+@{@MODEL_INTERSECTION_GEOMETRY=false;}@***********.eval.nil
+)");
+    ASSERT_EQ(disabled.find("@{"), std::string::npos);
+    EXPECT_EQ(disabled.find("section_0.source.x"), std::string::npos);
+    EXPECT_EQ(disabled.find("connector_curve_scale :="), std::string::npos);
+}
+
+TEST(SectionTemplateTests, FixedObstacleTransformsPreserveTheirValuesAndBases) {
+    const std::string rectangle = R"(
+@{@(10)@}@***********.stringToHeap[RECT_OBSTACLES_TL_Xs].nil
+@{@(10)@}@***********.stringToHeap[RECT_OBSTACLES_TL_Ys].nil
+@{@(12)@}@***********.stringToHeap[RECT_OBSTACLES_BR_Xs].nil
+@{@(12)@}@***********.stringToHeap[RECT_OBSTACLES_BR_Ys].nil
+)";
+    const std::string plain = expandSectionTemplate(rectangle);
+    ASSERT_EQ(plain.find("@{"), std::string::npos);
+    EXPECT_NE(plain.find("rect_obstacles_tl_x_0 := 10;"), std::string::npos);
+    EXPECT_EQ(plain.find("rect_obstacles_shift_kx_0 :"), std::string::npos);
+    for (const int geometry_factor : {1, 2}) {
+        const std::string model = expandSectionTemplate(rectangle + R"(
+@{@(3)@}@***********.stringToHeap[RECT_OBSTACLES_SHIFT_MIN_Xs].nil
+@{@(3)@}@***********.stringToHeap[RECT_OBSTACLES_SHIFT_MAX_Xs].nil
+@{@(-2)@}@***********.stringToHeap[RECT_OBSTACLES_SHIFT_MIN_Ys].nil
+@{@(-2)@}@***********.stringToHeap[RECT_OBSTACLES_SHIFT_MAX_Ys].nil
+@{@(1)@}@***********.stringToHeap[RECT_OBSTACLES_GROW_MIN_Ws].nil
+@{@(1)@}@***********.stringToHeap[RECT_OBSTACLES_GROW_MAX_Ws].nil
+@{@(2)@}@***********.stringToHeap[RECT_OBSTACLES_GROW_MIN_Hs].nil
+@{@(2)@}@***********.stringToHeap[RECT_OBSTACLES_GROW_MAX_Hs].nil
+)" + "@{@GEOMETRYSCALING=" + std::to_string(geometry_factor * 1000)
+            + "; @RECT_OBSTACLES_SHIFT_STEP=1;}@***********.eval.nil\n");
+        ASSERT_EQ(model.find("@{"), std::string::npos);
+        EXPECT_NE(model.find("rect_obstacles_shift_kx_0 : 3 .. 3;"), std::string::npos);
+        EXPECT_NE(model.find("rect_obstacles_shift_ky_0 : -2 .. -2;"), std::string::npos);
+        EXPECT_NE(model.find("rect_obstacles_grow_kw_0 : 1 .. 1;"), std::string::npos);
+        EXPECT_NE(model.find("rect_obstacles_grow_kh_0 : 2 .. 2;"), std::string::npos);
+        EXPECT_NE(model.find("rect_obstacles_tl_x_0 := " + std::to_string(10 * geometry_factor)
+            + " + " + std::to_string(geometry_factor) + " * rect_obstacles_shift_kx_0;"), std::string::npos);
+        EXPECT_NE(model.find("rect_obstacles_br_y_0 := " + std::to_string(12 * geometry_factor)
+            + " + " + std::to_string(geometry_factor)
+            + " * (rect_obstacles_shift_ky_0 + rect_obstacles_grow_kh_0);"), std::string::npos);
+    }
+}
+
 TEST(SectionTemplateTests, RadiusBoundsAreSharedAndUnknownAnglesAreForbidden) {
     const std::string model = expandSectionTemplate(R"(
 @{@SECTIONS=3; @SECTIONSMAXLENGTH=2; @MIN_TURNING_RADIUS=2;
