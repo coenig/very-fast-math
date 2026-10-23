@@ -3,6 +3,8 @@
 --  ==> Segments
 --------------------------------------------------------
 
+   @{0}@********.setScriptVar[requires_turning_radius_bounds, force].nil
+
    DEFINE
       large_number := 10000;
 
@@ -108,7 +110,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
          }
       }@.eval.nil
 
-		 @{section_[sec]_end}@*.scalingVariable[distance] : @{this_section_min_length}@.eval[0].distanceWorldToEnvModelConst .. @{this_section_max_length}@.distanceWorldToEnvModelConst; -- This is essentially the length of the section.
+        	 @{section_[sec]_end}@*.scalingVariable[distance] : @{this_section_min_length}@.distanceWorldToEnvModelConst .. @{this_section_max_length}@.distanceWorldToEnvModelConst; -- This is essentially the length of the section.
 
       @{
          @{
@@ -248,33 +250,23 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
                      TRUE : -1;
                   esac;
 
-                  @{ Single lane: the connector Bezier scales linearly with dist, so one factor per angle suffices. }@**********.nil
                   @{
                      @{arclength_from_sec_[sec]_to_sec_[sec2]_on_lane_[lane]}@*.scalingVariable[distance] := case
-                        @{
-                           @(
-                              connection_distance_sec_[sec]_to_sec_[sec2] < 0 : -1;
-                              @{
-                                 angle_from_sec_[sec]_to_sec_[sec2] = [angle] : (connection_distance_sec_[sec]_to_sec_[sec2] * @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[[angle], 1000, @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst + @{GEOMETRYSCALING * 500}@.eval[0]) / @{GEOMETRYSCALING * 1000}@.eval[0];
-                              }@*.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
-                           )@
-                           @(
-                              @{@{
-                                    angle_from_sec_[sec]_to_sec_[sec2] = [angle] & connection_distance_sec_[sec]_to_sec_[sec2] = [dist] : @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[[angle], @{[dist] / GEOMETRYSCALING}@.eval, @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst;
-                                 }@*.for[[dist], @{MINDISTCONNECTIONS}@.geometryWorldToEnvModelConst, @{MAXDISTCONNECTIONS}@.geometryWorldToEnvModelConst]
-                              }@**.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
-                           )@
-                        }@***.if[@{NUM_TECHNICAL_LANES == 1}@.eval]
+                        @{@{
+                              angle_from_sec_[sec]_to_sec_[sec2] = [angle] & connection_distance_sec_[sec]_to_sec_[sec2] = [dist] : @{@{[lane]}@.arclengthCubicBezierFromStreetTopology[[angle], @{[dist]}@.geometryEnvModelToWorldConst, @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval[0]]}@.distanceWorldToEnvModelConst;
+                           }@*.for[[dist], @{MINDISTCONNECTIONS}@.geometryWorldToEnvModelConst, @{MAXDISTCONNECTIONS}@.geometryWorldToEnvModelConst]
+                        }@**.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
                         TRUE : -1;
                      esac;
-                  }@****.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
+                  }@***.for[[lane], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
 
                   @{
+                     @{1}@***.setScriptVar[requires_turning_radius_bounds, force].nil
                      @{min_dist_for_turning_radius_from_sec_[sec]_to_sec_[sec2]}@*.scalingVariable[geometry] := case
                         @{
-                           angle_from_sec_[sec]_to_sec_[sec2] = [angle] : @{[angle]}@.minDistConnectionForTurningRadius[@{MIN_TURNING_RADIUS}@.eval, @{MINDISTCONNECTIONS}@.geometryWorldToEnvModelConst, @{MAXDISTCONNECTIONS}@.geometryWorldToEnvModelConst, @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval, @{GEOMETRYSCALING}@.eval];
+                           angle_from_sec_[sec]_to_sec_[sec2] = [angle] : min_dist_for_turning_radius_at_angle_[angle];
                         }@*.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
-                        TRUE : @{MINDISTCONNECTIONS}@.geometryWorldToEnvModelConst;
+                        TRUE : @{@{MAXDISTCONNECTIONS}@.geometryWorldToEnvModelConst + 1}@.eval[0];
                      esac;
 
                      @{
@@ -302,6 +294,33 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
 
    }@*******.for[[sec], 0, @{SECTIONS - 1}@.eval]
    -- EO LOOP [sec] OVER 0..SECTIONS - 1
+
+@{
+   @{
+      @radius_endpoint_error = 0;
+      @{
+         if (@{is_section_[sec]_fixed}@.scriptVar) {
+            @radius_source_x = @{@{fixed_section_source_x_[sec]}@.scriptVar[0]}@.geometryWorldToEnvModelConst / GEOMETRYSCALING;
+            @radius_source_y = @{@{fixed_section_source_y_[sec]}@.scriptVar[0]}@.geometryWorldToEnvModelConst / GEOMETRYSCALING;
+            @radius_drain_x = @{@{sec_[sec]_drain_x_fixed}@.scriptVar[0]}@.geometryWorldToEnvModelConst / GEOMETRYSCALING;
+            @radius_drain_y = @{@{sec_[sec]_drain_y_fixed}@.scriptVar[0]}@.geometryWorldToEnvModelConst / GEOMETRYSCALING;
+            @radius_length = @{@{fixed_section_length_[sec]}@.scriptVar[0]}@.distanceWorldToEnvModelConst / DISTANCESCALING;
+            @radius_heading = @{@{fixed_section_angle_[sec]}@.scriptVar[0] / ANGLEGRANULARITY}@.eval[0] * ANGLEGRANULARITY / 180 * 3.141592653589793;
+            @radius_endpoint_error = max(radius_endpoint_error, sqrt(
+               (radius_drain_x - radius_source_x - radius_length * cos(radius_heading))**2
+               + (radius_drain_y - radius_source_y - radius_length * sin(radius_heading))**2));
+         } else {
+            @radius_length = @{SECTIONSMAXLENGTH}@.distanceWorldToEnvModelConst / DISTANCESCALING;
+            @radius_endpoint_error = max(radius_endpoint_error, sqrt(2) * (1 / GEOMETRYSCALING + 0.0052 * radius_length));
+         };
+      }@*.for[[sec], 0, @{SECTIONS - 1}@.eval]
+      radius_endpoint_error + 0.0001
+   }@.eval.setScriptVar[turning_radius_endpoint_error].nil
+   DEFINE
+   @{
+      @{min_dist_for_turning_radius_at_angle_[angle]}@.scalingVariable[geometry] := @{[angle]}@.minDistConnectionForTurningRadius[@{MIN_TURNING_RADIUS}@.eval, @{MINDISTCONNECTIONS}@.geometryWorldToEnvModelConst, @{MAXDISTCONNECTIONS}@.geometryWorldToEnvModelConst, @{NUM_TECHNICAL_LANES}@.eval[0], @{LANE_WIDTH / 100}@.eval, @{GEOMETRYSCALING}@.eval, @{ANGLEGRANULARITY}@.eval[0], @{turning_radius_endpoint_error}@.scriptVar];
+   }@*.for[[angle], 0, 359, @{ANGLEGRANULARITY}@.eval]
+}@**.if[@{MODEL_INTERSECTION_GEOMETRY && MIN_TURNING_RADIUS > 0 && @{requires_turning_radius_bounds}@.scriptVar}@.eval]
 
 
 VAR    

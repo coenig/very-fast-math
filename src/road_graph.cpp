@@ -605,31 +605,13 @@ void vfm::RoadGraph::transformAllCarsToStraightRoadSections()
          std::shared_ptr<RoadGraph> r_target{ cars_pair.first };
 
          for (const auto& car : cars_pair.second) {
-            Vec2D arc_origin{ r->getDrainPoint() };
-            Vec2D arc_origin_from{ r->getOriginPoint() };
-            Vec2D arc_target{ r_target->getOriginPoint() };
-            Vec2D arc_target_from{ r_target->getDrainPoint() };
-
-            Vec2D lane_correction_dir_origin_prereq{ arc_origin - arc_origin_from };
-            Vec2D lane_correction_dir_target_prereq{ arc_target - arc_target_from };
-            Vec2D lane_correction_dir_origin{ lane_correction_dir_origin_prereq };
-            Vec2D lane_correction_dir_target{ lane_correction_dir_target_prereq };
-
-            lane_correction_dir_origin.ortho();
-            lane_correction_dir_target.ortho();
-
-            float lane_correction_length{ orig_section->my_road_.getLaneWidth() * (MIDDLE_OF_ROAD / 2.0f - car.car_lane_) };
-            lane_correction_dir_origin.setLength(lane_correction_length);
-            lane_correction_dir_target.setLength(-lane_correction_length);
-            arc_origin.add(lane_correction_dir_origin);
-            arc_origin_from.add(lane_correction_dir_origin);
-            arc_target.add(lane_correction_dir_target);
-            arc_target_from.add(lane_correction_dir_target);
-
-            auto nice_points = bezier::getNiceBetweenPoints(arc_origin, arc_origin_from, arc_target, arc_target_from);
-
-            Vec2D between1 = nice_points[0]; // Fields between1_dir [1] and...
-            Vec2D between2 = nice_points[2]; // ...between2_dir [3] not used.
+            const float lane_correction_length{ orig_section->my_road_.getLaneWidth() * (MIDDLE_OF_ROAD / 2.0f - car.car_lane_) };
+            const auto curve = bezier::connectorBezier(r->getDrainPoint(), r->getDrainPoint() - r->getOriginPoint(),
+               r_target->getOriginPoint(), r_target->getDrainPoint() - r_target->getOriginPoint(), lane_correction_length);
+            const Vec2D& arc_origin{ curve[0] };
+            const Vec2D& between1{ curve[1] };
+            const Vec2D& between2{ curve[2] };
+            const Vec2D& arc_target{ curve[3] };
 
             float arc_length{ bezier::arcLength(1, arc_origin, between1, between2, arc_target) };
             float rel{ car.car_rel_pos_ / arc_length };

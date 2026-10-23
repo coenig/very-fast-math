@@ -560,18 +560,10 @@ float deg2Rad(const float deg)
 // Connector Bezier as implied by the EnvModel placement: source_in = drain_out + distance * (dir_out + dir_in). Angle in rad.
 static std::array<Vec2D, 4> streetTopologyBezier(const int lane, const int num_lanes, const float angle, const float distance, const float lane_width)
 {
-   const float l{ (lane - (num_lanes - 1.0f) / 2.0f) * lane_width };
-
-   const Vec2D v{ std::cos(angle - deg2Rad(180)), sin(angle - deg2Rad(180)) };
-   const Vec2D vr{ std::cos(angle + deg2Rad(90)), sin(angle + deg2Rad(90)) };
-   const Vec2D P3{ Vec2D{distance, 0} - v * distance };
-
-   const Vec2D p0{ 0,  l };
-   const Vec2D p3{ P3 + vr * l };
-
-   const float d{ p0.distance(p3) / 3.0f };
-
-   return { p0, Vec2D{ d, l }, p3 + v * d, p3 };
+   const float lane_offset{ (lane - (num_lanes - 1.0f) / 2.0f) * lane_width };
+   const Vec2D target_direction{ std::cos(angle), std::sin(angle) };
+   return bezier::connectorBezier({ 0, 0 }, { 1, 0 },
+      Vec2D{ distance, 0 } + target_direction * distance, target_direction, -lane_offset);
 }
 
 std::string Script::arclengthCubicBezierFromStreetTopology(
@@ -619,7 +611,9 @@ std::string Script::minDistConnectionForTurningRadius(
    const std::string& max_dist_str,
    const std::string& num_lanes_str,
    const std::string& lane_width_str,
-   const std::string& units_per_meter_str)
+   const std::string& units_per_meter_str,
+   const std::string& angle_granularity_str,
+   const std::string& endpoint_error_str)
 {
    if (!StaticHelper::isParsableAsFloat(angle_str)) addError("Angle '" + angle_str + "' is not parsable as float in 'minDistConnectionForTurningRadius'.");
    if (!StaticHelper::isParsableAsFloat(radius_str)) addError("Radius '" + radius_str + "' is not parsable as float in 'minDistConnectionForTurningRadius'.");
@@ -628,6 +622,8 @@ std::string Script::minDistConnectionForTurningRadius(
    if (!StaticHelper::isParsableAsInt(num_lanes_str)) addError("NumLanes '" + num_lanes_str + "' is not parsable as int in 'minDistConnectionForTurningRadius'.");
    if (!StaticHelper::isParsableAsFloat(lane_width_str)) addError("Lane width '" + lane_width_str + "' is not parsable as float in 'minDistConnectionForTurningRadius'.");
    if (!StaticHelper::isParsableAsFloat(units_per_meter_str)) addError("UnitsPerMeter '" + units_per_meter_str + "' is not parsable as float in 'minDistConnectionForTurningRadius'.");
+   if (!StaticHelper::isParsableAsInt(angle_granularity_str)) addError("Angle granularity '" + angle_granularity_str + "' is not parsable as int in 'minDistConnectionForTurningRadius'.");
+   if (!StaticHelper::isParsableAsFloat(endpoint_error_str)) addError("Endpoint error '" + endpoint_error_str + "' is not parsable as float in 'minDistConnectionForTurningRadius'.");
    if (hasErrorOccurred()) return "#ERROR-Check-Log";
 
    const float angle_deg{ std::stof(angle_str) };
@@ -637,21 +633,42 @@ std::string Script::minDistConnectionForTurningRadius(
    const int num_lanes{ std::stoi(num_lanes_str) };
    const float lane_width{ std::stof(lane_width_str) };
    const float units_per_meter{ std::stof(units_per_meter_str) };
+   const int angle_granularity{ std::stoi(angle_granularity_str) };
+   const float endpoint_error{ std::stof(endpoint_error_str) };
 
-   if (radius <= 0 || std::fmod(angle_deg, 360.0f) == 0) return std::to_string(min_dist); // Straight connectors have no curvature.
-
-   for (int dist = min_dist; dist <= max_dist; ++dist) {
-      bool wide_enough{ true };
-
-      for (int lane = 0; lane < num_lanes && wide_enough; ++lane) {
-         const auto [p0, p1, p2, p3] = streetTopologyBezier(lane, num_lanes, deg2Rad(angle_deg), dist / units_per_meter, lane_width);
-         wide_enough = bezier::maxCurvature(p0, p1, p2, p3) * radius <= 1.0f;
-      }
-
-      if (wide_enough) return std::to_string(dist);
+   if (radius <= 0) return std::to_string(min_dist);
+   if (!std::isfinite(angle_deg) || !std::isfinite(radius) || !std::isfinite(lane_width)
+      || !std::isfinite(units_per_meter) || units_per_meter <= 0 || num_lanes < 1
+      || lane_width < 0 || min_dist < 0 || max_dist < min_dist || angle_granularity < 1
+      || angle_granularity > 359 || max_dist == std::numeric_limits<int>::max()
+      || !std::isfinite(endpoint_error) || endpoint_error < 0) {
+      addError("Invalid geometry in 'minDistConnectionForTurningRadius'.");
+      return "#ERROR-Check-Log";
    }
 
-   return std::to_string(max_dist + 1); // Unreachable lower bound, i.e., this angle is forbidden.
+   for (int dist = max_dist; dist >= min_dist; --dist) {
+      for (int heading = 0; heading < 360; heading += angle_granularity) {
+         const float target_heading{ std::fmod(heading + std::fmod(angle_deg, 360.0f) + 360.0f, 360.0f) };
+         const Vec2D source_direction{ std::cos(deg2Rad(heading)), std::sin(deg2Rad(heading)) };
+         const Vec2D target_direction{ std::cos(deg2Rad(target_heading)), std::sin(deg2Rad(target_heading)) };
+         const auto model_direction = [](const float degrees) {
+            const float radians{ degrees / 360 * 2 * 3.1415f };
+            return Vec2D{ std::round(100 * std::cos(radians)), std::round(100 * std::sin(radians)) };
+         };
+         const Vec2D model_sum{ model_direction(heading) + model_direction(target_heading) };
+         const Vec2D target{
+            static_cast<float>(std::trunc(static_cast<double>(dist) * model_sum.x / 100) / units_per_meter),
+            static_cast<float>(std::trunc(static_cast<double>(dist) * model_sum.y / 100) / units_per_meter) };
+
+         for (int lane = 0; lane < num_lanes; ++lane) {
+            const float offset{ (lane - (num_lanes - 1.0f) / 2.0f) * lane_width };
+            const auto curve = bezier::connectorBezier({ 0, 0 }, source_direction, target, target_direction, offset);
+            if (!bezier::hasMinimumRadius(curve, radius, endpoint_error)) return std::to_string(dist + 1);
+         }
+      }
+   }
+
+   return std::to_string(min_dist);
 }
 
 std::string Script::arclengthCubicBezierFromEndPoints(
@@ -695,20 +712,9 @@ std::string Script::arclengthCubicBezierFromEndPoints(
    Vec2D arc_target{ std::stof(source_in_x_str), std::stof(source_in_y_str) };
    Vec2D arc_target_from{ std::stof(drain_in_x_str), std::stof(drain_in_y_str) };
 
-   Vec2D lane_correction_dir_origin{ arc_origin - arc_origin_from };
-   Vec2D lane_correction_dir_target{ arc_target - arc_target_from };
-   lane_correction_dir_origin.ortho();
-   lane_correction_dir_target.ortho();
-   lane_correction_dir_origin.setLength(l);
-   lane_correction_dir_target.setLength(-l);
-   arc_origin.add(lane_correction_dir_origin);
-   arc_origin_from.add(lane_correction_dir_origin);
-   arc_target.add(lane_correction_dir_target);
-   arc_target_from.add(lane_correction_dir_target);
-
-   const auto nice_points = bezier::getNiceBetweenPoints(arc_origin, arc_origin_from, arc_target, arc_target_from);
-
-   return std::to_string((int) std::round(bezier::arcLength(1, arc_origin, nice_points[0], nice_points[2], arc_target)));
+   const auto curve = bezier::connectorBezier(arc_origin, arc_origin - arc_origin_from,
+      arc_target, arc_target_from - arc_target, l);
+   return std::to_string((int) std::round(bezier::arcLength(1, curve[0], curve[1], curve[2], curve[3])));
 }
 
 std::string Script::forloop(const std::string& body, const std::string& varname, const std::string& loop_vec)
