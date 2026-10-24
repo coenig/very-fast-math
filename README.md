@@ -91,18 +91,20 @@ Rebuild the native library after updating, then run:
 
 ```bash
 cmake --build build --target runTests --parallel
-python3 -m morty.morty --live --num_runs 1
+python3 -m morty.morty --live
 ```
 
-By default (`--mc_selection all`), `--live` keeps the configured model-checking algorithms, bounds, priorities, driving dynamics,
+With `UCD_MC_SELECTION: "all"` in the template, `--live` keeps the configured model-checking algorithms, bounds, priorities, driving dynamics,
 pure-pursuit formulas, and optional shortcut checks. It disables visualization, video, plots,
 archives, experiment statistics, diagnostic logging, and the extra `FALSE`-specification debug
-solve. Warnings and errors remain enabled. The ordinary experiment mode is unchanged.
+solve. Warnings and errors remain enabled. The active template instead uses the recommended
+`priority` selection described below, which requires `--live`. Set `UCD_MC_SELECTION` to
+`all` to use ordinary experiment or replay mode.
 
 To watch the simulation while retaining the live planning path, explicitly opt into the viewer:
 
 ```bash
-python3 -m morty.morty --live --force_head --num_runs 1
+python3 -m morty.morty --live --force_head
 ```
 
 `--force_head` requires `--live` and cannot be combined with `--headless`. Plain `--live`
@@ -135,6 +137,33 @@ checks still apply; choose `--press` or `--force` explicitly when reusing experi
 On Linux, GNU `timeout` limits each solver process to the existing 300-second budget without a
 global process-polling watchdog. This is an overhead-reduction mode, not a hard real-time
 guarantee: solving the configured models can still exceed a few hundred milliseconds.
+
+#### Run Configuration
+
+Behavior settings belong in `#TEMPLATE` in [morty/envmodel_config.tpl.json](morty/envmodel_config.tpl.json),
+not in driver command-line arguments. The active five-car task-7 template uses:
+
+| Template Key | Recommended Value | Default When Absent |
+|---|---|---|
+| `UCD_MC_SELECTION` | `"priority"` | `"all"` |
+| `UCD_NUM_RUNS` | `1` | `100` |
+| `UCD_STEPS_PER_RUN` | `300` | `300` |
+| `UCD_HEADING_ADAPTATION` | `-0.5` | `-0.5` |
+| `UCD_ALLOW_BLIND_STEPS` | `0` | `1` |
+| `UCD_ALLOW_CRASHED_STEPS` | `0` | `1` |
+| `UCD_MIN_ITERATIONS` | `0` | `2` |
+
+Keep `UCD_USE_SHORTCUT: true` and the full 16-entry `UCD_CONFIG_PRIOS` list. The failure
+limits stop at the first blind or crashed step; `UCD_MIN_ITERATIONS: 0` retains early
+failures instead of silently trying another seed to replace them. Change `UCD_NUM_RUNS`
+in the template for a longer campaign. Missing new keys preserve historical defaults.
+The former CLI options for these settings, including their short aliases, are rejected.
+Display, live/experiment mode, replay, and output-directory management remain CLI controls.
+
+This recommendation preserves bounding-box preference within each candidate list and all
+fallbacks. It does not eliminate the known initially blind seeds or establish rare-event
+safety. The denser ten-car priority trial also timed out; this recommendation is for the
+current five-car setup, not a general guarantee. See the [safety study](morty/MC_SELECTION_EVALUATION.md).
 
 #### Task 7 Measurements (All Configurations)
 Measured on Linux with nuXmv 2.2.0, using `morty/master_templates/task_7_tpl.json` unchanged
@@ -173,22 +202,32 @@ python3 -m unittest morty.test_live_mode
 ./bin/runTests --gtest_filter='MortyLiveTests.*:MCTraceTests.*:GeometryScalingTests.*'
 ```
 
-#### Adaptive MC Selection
-To minimize sequential solver work, opt into one-configuration-at-a-time planning:
+#### MC Selection Policies
+Set `UCD_MC_SELECTION` in the template, then run:
 
 ```bash
-python3 -m morty.morty --live --mc_selection adaptive --num_runs 1
+python3 -m morty.morty --live
 ```
 
-Add `--force_head` for the same optional viewer. Adaptive selection requires `--live`;
-omitting it retains the original all-configuration policy. It changes which queries run and
-their order, not individual solver algorithms, bounds, model parameters, or vehicle dynamics.
-It can accept a lower-priority configuration without first trying every stricter one; preserving
-trajectory shape or always selecting the highest feasible priority is not its objective.
+Add `--force_head` for the optional viewer. Selection options are:
 
-The selector ranks configurations by observed query cost divided by estimated success
+- `all`: the original all-configuration batches and shortcut-first cascade, selecting the
+  highest-priority usable result in each batch. This is the default when the key is absent.
+- `priority`: one query at a time, with candidate configurations in original priority order.
+  It stops at the first usable result and keeps all fallbacks. This is recommended for the
+  current five-car scenario.
+- `adaptive`: the same one-query orchestration with cost/success-ranked configuration lists.
+  It can accept a lower-priority configuration without first trying every stricter one.
+
+Both selective policies require `--live`. They change which queries run and their order,
+not individual solver algorithms, bounds, model parameters, or vehicle dynamics. `priority`
+preserves configuration order within each list, not the legacy shortcut-first cascade across
+all saved waypoints. Neither policy guarantees the largest feasible box across all targets.
+
+The adaptive selector ranks configurations by observed query cost divided by estimated success
 probability, separately for full goals and shortcuts. Estimates reset each run, with original
-priority breaking ties. When shortcuts look cheaper, it first probes at most two configurations
+priority breaking ties. Both selective policies use the following schedule: when shortcuts
+look cheaper, first probe at most two configurations
 against the nearest saved waypoint. It then tries full-goal configurations, returning on the
 first usable result. If those all fail, it tries every remaining eligible configuration/waypoint
 pair. Shortcut eligibility retains the previous full-plan winner's priority limit.

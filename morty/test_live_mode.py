@@ -1,22 +1,59 @@
 import ast
 import contextlib
 import io
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, mock_open, patch
 
 from . import morty_helper as helper
 
 
 class LiveModeTests(unittest.TestCase):
-    def parse_driver_options(self, *options):
+    def test_json_run_settings_preserve_legacy_defaults(self):
+        self.assertEqual(helper.load_run_settings({}), {
+            'num_runs': 100, 'steps_per_run': 300, 'heading_adaptation': -0.5,
+            'allow_blind_steps': 1, 'allow_crashed_steps': 1, 'min_iterations': 2,
+            'mc_selection': 'all',
+        })
+        settings = helper.load_run_settings({'UCD_MC_SELECTION': 'priority', 'UCD_NUM_RUNS': 1,
+                                             'UCD_ALLOW_BLIND_STEPS': 0, 'UCD_MIN_ITERATIONS': 0})
+        self.assertEqual(settings['mc_selection'], 'priority')
+        self.assertEqual(settings['num_runs'], 1)
+        self.assertEqual(settings['allow_blind_steps'], 0)
+        self.assertEqual(settings['min_iterations'], 0)
+
+    def test_json_run_settings_reject_invalid_values(self):
+        for key, value in [('UCD_MC_SELECTION', 'unknown'), ('UCD_MC_SELECTION', None),
+                           ('UCD_NUM_RUNS', True), ('UCD_STEPS_PER_RUN', -1),
+                           ('UCD_ALLOW_BLIND_STEPS', 1.5), ('UCD_MIN_ITERATIONS', '0'),
+                           ('UCD_HEADING_ADAPTATION', float('nan')),
+                           ('UCD_HEADING_ADAPTATION', float('inf')),
+                           ('UCD_HEADING_ADAPTATION', False)]:
+            with self.subTest(key=key, value=value), self.assertRaisesRegex(ValueError, key):
+                helper.load_run_settings({key: value})
+
+    def test_priority_selector_prefers_larger_boxes_despite_cost_history(self):
+        selector = helper.MCConfigSelector(16, policy='priority')
+        selector.record(0, False, False, 100)
+        selector.record(15, False, True, 0.01)
+        self.assertEqual(list(selector.queries(0, None)), [(index, None) for index in range(16)])
+        queries = list(selector.queries(4, 5))
+        self.assertEqual(set(queries), {(index, None) for index in range(16)}
+                         | {(index, point) for index in range(6) for point in range(4)})
+
+    def parse_driver_options(self, *options, template=None):
         module = ast.parse(Path(__file__).with_name('morty.py').read_text())
         plotting_start = next(index for index, node in enumerate(module.body)
                               if isinstance(node, ast.If) and ast.unparse(node.test) == 'not args.live')
-        namespace = {'__package__': 'morty'}
-        with patch('sys.argv', ['morty', *options]), patch('shutil.which', return_value='/usr/bin/timeout'):
+        namespace = {'__package__': 'morty',
+                     'open': mock_open(read_data=json.dumps({'#TEMPLATE': template or {}}))}
+        with (
+            patch('sys.argv', ['morty', *options]),
+            patch('shutil.which', return_value='/usr/bin/timeout'),
+        ):
             exec(compile(ast.Module(body=module.body[:plotting_start], type_ignores=[]),
                          '<driver options>', 'exec'), namespace)
         return namespace['args']
@@ -30,9 +67,30 @@ class LiveModeTests(unittest.TestCase):
                 self.assertEqual(args.mc_selection, 'all')
 
     def test_adaptive_selection_is_live_only_and_opt_in(self):
-        self.assertEqual(self.parse_driver_options('--live', '--mc_selection', 'adaptive').mc_selection, 'adaptive')
-        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
-            self.parse_driver_options('--mc_selection', 'adaptive')
+        for policy in ['adaptive', 'priority']:
+            template = {'UCD_MC_SELECTION': policy}
+            with self.subTest(policy=policy):
+                self.assertEqual(self.parse_driver_options('--live', template=template).mc_selection, policy)
+                with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                    self.parse_driver_options(template=template)
+
+    def test_behavior_settings_cannot_be_overridden_by_cli(self):
+        for option, value in [('--mc_selection', 'adaptive'), ('--num_runs', '1'),
+                              ('--steps_per_run', '3'), ('--heading_adaptation', '0'),
+                              ('--allow_blind_steps', '0'), ('--allow_crashed_steps', '0'),
+                              ('--min_iterations', '0'), ('-n', '1'), ('-s', '3'),
+                              ('-a', '0'), ('-b', '0'), ('-c', '0')]:
+            with self.subTest(option=option), contextlib.redirect_stderr(io.StringIO()), \
+                 self.assertRaises(SystemExit):
+                self.parse_driver_options('--live', option, value)
+
+    def test_driver_applies_json_run_settings(self):
+        template = {'UCD_NUM_RUNS': 3, 'UCD_STEPS_PER_RUN': 17, 'UCD_HEADING_ADAPTATION': 1.25,
+                    'UCD_ALLOW_BLIND_STEPS': 0, 'UCD_ALLOW_CRASHED_STEPS': 0,
+                    'UCD_MIN_ITERATIONS': 0, 'UCD_MC_SELECTION': 'priority'}
+        args = self.parse_driver_options('--live', template=template)
+        for name, value in helper.load_run_settings(template).items():
+            self.assertEqual(getattr(args, name), value)
 
     def test_status_is_inactive_without_a_visible_viewer(self):
         for viewer in [None, SimpleNamespace(offscreen=True),
@@ -338,7 +396,7 @@ class LiveModeTests(unittest.TestCase):
                 process.communicate.side_effect = [failure, None]
                 args = SimpleNamespace(tag='trial', configs=None, steps=1, timeout=1)
                 with patch.object(evaluation, 'OUTPUT', Path(folder)), \
-                     patch.object(evaluation, 'prepare_trial', side_effect=lambda path, config: path.mkdir()), \
+                     patch.object(evaluation, 'prepare_trial', side_effect=lambda path, config: path.mkdir()) as prepare, \
                      patch.object(evaluation.subprocess, 'Popen', return_value=process), \
                      patch.object(evaluation.os, 'killpg') as terminate, \
                      contextlib.redirect_stdout(io.StringIO()):
@@ -350,6 +408,15 @@ class LiveModeTests(unittest.TestCase):
                         self.assertEqual(result['outcome'], 'timeout')
                     terminate.assert_called_once_with(12345, signal.SIGKILL)
                     self.assertEqual(process.communicate.call_count, 2)
+                    template = prepare.call_args.args[1]['#TEMPLATE']
+                    self.assertEqual(template['UCD_MC_SELECTION'], 'adaptive')
+                    self.assertEqual(template['UCD_EVALUATION_POLICY'], 'adaptive')
+                    self.assertEqual(template['UCD_EVALUATION_SEED'], 0)
+                    self.assertEqual(template['UCD_EVALUATION_TIMEOUT_SECONDS'], 1)
+                    self.assertEqual(template['UCD_EVALUATION_CONFIGS'], '')
+                    self.assertEqual(template['UCD_STEPS_PER_RUN'], 1)
+                    self.assertEqual(template['UCD_MIN_ITERATIONS'], 0)
+                    self.assertEqual(template['UCD_ALLOW_BLIND_STEPS'], 0)
 
     def test_render_setup_preserves_each_execution_mode(self):
         module = ast.parse(Path(__file__).with_name('morty.py').read_text())

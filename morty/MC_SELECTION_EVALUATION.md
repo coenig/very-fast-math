@@ -15,7 +15,10 @@ blind even with all 16 configurations and the unchanged legacy all-config policy
 exact model-level cause has not been established; ordering alone cannot solve those cases.
 
 Production selection code, the active five-car configuration, solver algorithms, bounds,
-and the generated model definitions were not changed for this study.
+and the generated model definitions were not changed when collecting these measurements.
+Following the study, `priority` was added as a production policy and the active template
+was configured to use it, with all 16 configurations, shortcuts, and strict failure accounting.
+See [Run Configuration](../README.md#run-configuration) for the recommended settings and commands.
 
 ## Method
 
@@ -34,7 +37,7 @@ limit is 150 seconds per five-car trial and the largest-only ten-car trial, 300 
 the four-config ten-car trial, and 330 seconds for the full-pool ten-car controls. These
 evaluation limits include startup and do not change an individual solver's settings.
 
-The evaluator sets `min_iterations=0`: early failing seeds are retained. The ordinary
+The evaluator sets `UCD_MIN_ITERATIONS: 0`: early failing seeds are retained. The ordinary
 driver's default exclusion of short unsuccessful runs must not be used to estimate the
 blind-event rate. Timeouts and step limits are reported separately, never as successful
 zero-blind completions. Counts of failed individual queries are distinct from blind cycles.
@@ -64,8 +67,8 @@ trials cover recorded completed cycles, not the interrupted query.
 
 All three stop at the first usable result. `cascade` is a sequential reference for the
 original shortcut-first preference, not the legacy parallel batch implementation. Only
-`adaptive` is an existing production selection option; `priority` and `cascade` are
-evaluation controls.
+`cascade` remains evaluation-only; `adaptive` and `priority` are now production
+`UCD_MC_SELECTION` options, alongside the unchanged legacy `all` policy.
 
 The four-config pool uses priorities `0,5,10,15`: length/width parameter pairs `(9,9)`,
 `(8,8)`, `(7,7)`, `(6,6)`. These are template parameters, not physical dimensions in meters.
@@ -87,7 +90,7 @@ prioritizes width before length, so intermediate priorities are not a scalar siz
 
 For both full-pool policies, seeds 5, 8 and 9 were blind at the first cycle after all
 16 queries failed; all solver exit codes were zero. One-cycle runs with production
-`--mc_selection all` reproduced each failure. These are pre-existing no-plan cases under
+`all` selection (now `UCD_MC_SELECTION: "all"`) reproduced each failure. These are pre-existing no-plan cases under
 the current model/query setup, not evidence of physical impossibility or a proven input
 domain violation. There is no prior saved trajectory at the first cycle.
 
@@ -185,6 +188,15 @@ configuration, cycle metrics, per-query records, solver timing, logs, and an out
 New runs additionally record the raw model input and target for each query. Time-based
 ranking can depend on machine load, so retain actual query sequences, not just seed values.
 Run timing comparisons sequentially.
+
+The evaluator's CLI generates the trial matrix, not driver behavior overrides. Before
+starting each child, it writes the effective policy, run/step limits, failure accounting,
+and shortcut setting into that trial's `morty/envmodel_config.tpl.json`. Evaluation-only
+controls are recorded there as `UCD_EVALUATION_POLICY`, `UCD_EVALUATION_SEED`,
+`UCD_EVALUATION_CONFIGS` (semicolon-separated original indices; empty means all), and
+`UCD_EVALUATION_TIMEOUT_SECONDS`. The child reads these settings from JSON and invokes
+the driver with only `--live --press`. Evaluation-only keys require this evaluator;
+they do not filter configurations or override seeds in an ordinary production run.
 
 Study tags start with `safety_full_5cars`, `safety_largest_5cars`, `safety_smallest_5cars`,
 `safety_four_5cars`, and the corresponding ten-car names. Legacy initial-state checks use
