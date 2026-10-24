@@ -266,3 +266,106 @@ control matrix are preserved; a fresh default run tests all eleven in one matrix
 Detailed query-capture/live packages are under `tmp/ucd_live_task7_eval/selection_eval`.
 Artifacts include exact SMV fixtures and hashes, per-repetition logs, witness replays,
 template configurations, and JSON summaries.
+
+## Persistent BMC Prototype (2026-10-24)
+
+The offline [evaluate_incremental_bmc.py](evaluate_incremental_bmc.py) experiment
+reuses a MathSAT environment and its bounded transition unrolling across recorded
+queries. It is not a driving backend. No active template settings, priority ordering,
+fallback configurations, or production solver invocation were changed.
+
+The prototype exports the actual invariant with `write_vmt_model -n 0` after
+`go_msat`. Exporting without a property selector produced a TRUE property and is not
+a valid goal benchmark. Vehicle dynamics and constraints come from nuXmv VMT rather
+than a second implementation of the motion model. The bundled MathSAT C API is
+accessed through ctypes; no additional solver package is installed.
+
+Native observation INIT values and numeric goal constants become frozen parameters
+in an isolated SMV copy. Per-query assumption guards bind them without retaining
+old observations or targets. Full goals and shortcuts have separate cached model
+structures. The cache key includes the parameterized main model and both included
+SMV files, so changed parked cpp constants, geometry, or configuration invalidate
+reuse. Only the native preparer's growing blank-line gap before the observation
+block is normalized away.
+
+Transition frames are added on demand. Activation guards disable the unused suffix
+of a previously deeper unrolling: a valid short witness must not be rejected merely
+because it cannot extend to the deepest previously checked bound. Each query checks
+depths 0 through 30 in order and returns the first satisfiable depth.
+
+Each cached context lives in a persistent spawned worker. Hard deadlines kill and
+discard the worker; the next query rebuilds it. This avoids a reproduced native
+crash when popping a MathSAT scope after callback-driven solver interruption.
+Timeouts and worker errors are not evidence that no plan exists. Workers are closed
+when the experiment finishes, including error paths.
+
+### Measured Result
+
+One complete recorded five-car seed-0 sequence was replayed sequentially: 20
+highest-priority queries across 19 cycles, with 18 cache hits and two initial cache
+misses. Lower-priority recovery queries from the recording were not benchmarked.
+This is an offline matched-input comparison, not a new closed-loop driving run.
+
+| Solver Path | Total Query Time | Median Query Time |
+|---|---:|---:|
+| Fresh production nuXmv | 6.963 s | 165 ms |
+| New MathSAT worker/context for each query | 17.761 s | 208 ms |
+| Reused MathSAT workers/contexts | 39.733 s | 1636 ms |
+
+Fresh nuXmv timing includes its process, model setup, solving, and trace output.
+Cold-worker timing includes process startup, VMT parsing, unrolling, solving, model
+extraction, communication, and shutdown, but uses an already exported VMT model.
+Reused timing includes export and worker setup on cache misses and communication
+and model extraction on every query. Native observation preparation, cache hashing,
+and the subsequent independent witness checks are outside these solver timings.
+
+| Query | Fresh nuXmv | Reused Worker |
+|---|---:|---:|
+| Initial full goal, depth 17 | 1.004 s | 6.253 s |
+| Cached successful shortcuts, cycles 3-5 | 94-103 ms | 20-27 ms |
+| Failed shortcut, bound 30 | 1.183 s | 6.641 s |
+| Failed full goal at priority 0, bound 30 | 315 ms | 128 ms |
+| Final full goal, depth 0 | 85 ms | 1656 ms |
+
+The complete reused sequence is about 5.7 times slower than fresh nuXmv despite
+the shallow shortcut gains. Solver history and deeper unrollings also coincide
+with severe late-query slowdowns. An additional probe explicitly disabled unused
+goal guards; it did not remove the regression and was not retained. Exact-query
+repeat speedups do not establish gains for changing observations and goals.
+
+### Checks and Reproduction
+
+- All three paths agreed on all 20 outcomes and first SAT depths: 18 SAT, two with
+  no witness through bound 30, and no benchmark timeouts.
+- Every reused SAT witness passed a separate nuXmv replay in its original model.
+  These 18 checks pin vehicle positions, velocities, and lane occupancy, not every
+  auxiliary state variable.
+- Small regressions cover changing observations/goals, SAT -> UNSAT -> SAT,
+  short witnesses after deeper dead ends, omitted unconstrained VMT next symbols,
+  cache invalidation, worker reuse, hard timeout disposal, and clean restart.
+- A real full-goal query was interrupted by killing its worker, then solved again
+  in a fresh worker with the expected first witness at depth 17.
+
+Use an existing production recording with its query log, template, generated
+highest-priority model, scaling file, and a trace containing the static road
+geometry. Replay currently requires compact task 7 with twelve technical lanes.
+The native input converter runs only in an isolated copy. Use a new output folder:
+
+```bash
+export LD_LIBRARY_PATH="$PWD/external/linux64/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+.venv/bin/python -m morty.evaluate_incremental_bmc --self-test
+.venv/bin/python -m morty.evaluate_incremental_bmc \
+  --recording tmp/ucd_live_task7_eval/selection_eval/task7_production_final_priority_seed0 \
+  --output tmp/my_task7_incremental
+```
+
+Add `--limit 3` for the initial full goal and two shortcut smoke checks. The final
+measured run is preserved in `tmp/task7_incremental_bmc_workers_seed0_20261024`,
+including per-query results, native logs, parameterized VMT exports, and witness
+replays. Earlier direct-API and guard-probe folders are exploratory measurements,
+not the final worker-based result above.
+
+**Decision:** retain the current production nuXmv path. This prototype does not
+meet the cycle-time goal and provides no new closed-loop safety evidence. A possible
+next experiment is a shallow shortcut-only cache with mandatory fallback to the
+existing full-bound search; that hybrid is not implemented or enabled here.
