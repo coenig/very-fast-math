@@ -239,6 +239,14 @@ the forward vehicle was about 9.6 cm short of its continuous-position threshold.
 an exact continuous-goal completion claim. Its first planning cycle still took 99.60 s, and
 **the 100 ms target remains unmet**. These finite checks are not a universal safety guarantee.
 
+#### Safety and Configuration-Pool Evaluation
+The subsequent 40-trial study found blind initial states even with all 16 configurations,
+blindness after removing a needed fallback, and crashes in reduced pools despite zero
+blind iterations. These results do not justify removing the fallback range or treating
+priority relaxation as safety-neutral. See
+[morty/MC_SELECTION_EVALUATION.md](morty/MC_SELECTION_EVALUATION.md) for paired-policy results,
+physical-clearance measurements, limitations, and the reproducible evaluator commands.
+
 ## Notes
 The `very fast math -- Model Checking for ADAS` project is [open-source](https://github.com/coenig/very-fast-math). Academic publications:
 - TACAS 2024: [Towards Safe Autonomous Driving: Model Checking a Behavior Planner during Development](https://link.springer.com/chapter/10.1007/978-3-031-57249-4_3)

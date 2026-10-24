@@ -270,6 +270,87 @@ class LiveModeTests(unittest.TestCase):
         selector.record(0, False, False, 10)
         self.assertNotEqual(next(selector.queries(0, None)), (0, None))
 
+    def test_evaluation_policies_preserve_the_requested_candidate_pool(self):
+        from .evaluate_mc_selection import EvaluationSelector
+
+        for policy in ['adaptive', 'priority', 'cascade']:
+            with self.subTest(policy=policy):
+                selector = EvaluationSelector(16, [0, 5, 15], policy, Mock())
+                selector.record(0, False, False, 10)
+                selector.record(5, False, True, 0.1)
+                full = list(selector.queries(0, None))
+                self.assertEqual(full[0], (5 if policy == 'adaptive' else 0, None))
+                queries = list(selector.queries(4, 5))
+                self.assertEqual(len(queries), len(set(queries)))
+                self.assertEqual(set(queries), {(index, None) for index in [0, 5, 15]}
+                                 | {(index, point) for index in [0, 5] for point in range(4)})
+                if policy == 'cascade':
+                    self.assertEqual(queries[-3:], [(0, None), (5, None), (15, None)])
+
+    def test_evaluation_does_not_hide_blind_events_or_timeouts(self):
+        from .evaluate_mc_selection import summarize_trial
+
+        record = {'blind_steps': 0, 'crashed_steps': 0, 'driver_completed': True,
+                  'finished': True, 'success': False, 'solver_seconds': 1.0,
+                  'seconds': 1.2, 'solver_jobs': [{}, {}]}
+        result = summarize_trial([record], 0, False)
+        self.assertEqual(result['outcome'], 'complete')
+        self.assertFalse(result['continuous_goal'])
+        record.update(blind_steps=1, driver_completed=False, finished=False)
+        result = summarize_trial([record], 0, False)
+        self.assertEqual(result['outcome'], 'blind')
+        self.assertEqual(result['blind_events'], 1)
+        self.assertEqual(summarize_trial([record], -9, True)['outcome'], 'timeout')
+        self.assertEqual(summarize_trial([], 0, False)['outcome'], 'step_limit')
+        self.assertEqual(summarize_trial([], 1, False)['outcome'], 'error')
+
+    def test_evaluation_clearance_uses_rotated_physical_footprints(self):
+        import importlib.util
+        import math
+        from highway_env.vehicle.objects import RoadObject
+        from .evaluate_mc_selection import minimum_vehicle_clearance
+
+        if importlib.util.find_spec('shapely') is None:
+            self.skipTest('Optional Shapely evaluation dependency is not installed')
+        vehicles = [RoadObject(None, [0, 0]), RoadObject(None, [8, 0]),
+                    RoadObject(None, [100, 100]), RoadObject(None, [100, 100])]
+        for vehicle in vehicles:
+            vehicle.LENGTH = 5
+            vehicle.WIDTH = 2
+        self.assertAlmostEqual(minimum_vehicle_clearance(vehicles, {0, 1})['distance_m'], 3)
+        vehicles[1].position[0] = 6
+        vehicles[1].heading = math.pi / 2
+        result = minimum_vehicle_clearance(vehicles, {0, 1})
+        self.assertAlmostEqual(result['distance_m'], 2.5)
+        self.assertEqual(result['pair'], [0, 1])
+        vehicles[1].position[0] = 0
+        self.assertEqual(minimum_vehicle_clearance(vehicles, {0, 1})['distance_m'], 0)
+
+    def test_evaluation_cleans_up_interrupted_and_timed_out_trials(self):
+        import signal
+        import subprocess
+        from . import evaluate_mc_selection as evaluation
+
+        for failure in [subprocess.TimeoutExpired('solver', 1), KeyboardInterrupt()]:
+            with self.subTest(failure=type(failure).__name__), TemporaryDirectory() as folder:
+                process = Mock(pid=12345, returncode=-9)
+                process.poll.return_value = None
+                process.communicate.side_effect = [failure, None]
+                args = SimpleNamespace(tag='trial', configs=None, steps=1, timeout=1)
+                with patch.object(evaluation, 'OUTPUT', Path(folder)), \
+                     patch.object(evaluation, 'prepare_trial', side_effect=lambda path, config: path.mkdir()), \
+                     patch.object(evaluation.subprocess, 'Popen', return_value=process), \
+                     patch.object(evaluation.os, 'killpg') as terminate, \
+                     contextlib.redirect_stdout(io.StringIO()):
+                    if isinstance(failure, KeyboardInterrupt):
+                        with self.assertRaises(KeyboardInterrupt):
+                            evaluation.run_trial(args, {}, 'adaptive', 0)
+                    else:
+                        result = evaluation.run_trial(args, {}, 'adaptive', 0)
+                        self.assertEqual(result['outcome'], 'timeout')
+                    terminate.assert_called_once_with(12345, signal.SIGKILL)
+                    self.assertEqual(process.communicate.call_count, 2)
+
     def test_render_setup_preserves_each_execution_mode(self):
         module = ast.parse(Path(__file__).with_name('morty.py').read_text())
         run_loop = next(node for node in module.body if isinstance(node, ast.For)
