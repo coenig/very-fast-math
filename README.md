@@ -99,6 +99,25 @@ pure-pursuit formulas, and optional shortcut checks. It disables visualization, 
 archives, experiment statistics, diagnostic logging, and the extra `FALSE`-specification debug
 solve. Warnings and errors remain enabled. The ordinary experiment mode is unchanged.
 
+To watch the simulation while retaining the live planning path, explicitly opt into the viewer:
+
+```bash
+python3 -m morty.morty --live --force_head --num_runs 1
+```
+
+`--force_head` requires `--live` and cannot be combined with `--headless`. Plain `--live`
+remains fully headless. The viewer shows the road, vehicles, and vehicle IDs, updating once per
+control cycle without a frame-rate delay. Physics stepping is unchanged. Trajectory overlays,
+debug plots, statistics, video, archives, and the extra debug solve remain disabled. The window
+has a status strip: yellow means `MC pipeline running` (full plan or numbered shortcut attempt),
+while gray identifies input preparation, road rendering, result processing, and simulation steps.
+The MC label includes the native input/solver/output pipeline, not just nuXmv CPU time. Status
+changes are painted before blocking calls; the scene itself pauses while planning. Plain headless
+`--live` does not paint or maintain these status updates. Rendering adds overhead, and generating the road
+background once on the first cycle can take tens of seconds; use plain `--live` for timing
+without visualization costs. A working graphical display is required (for example, X11
+forwarding when running remotely).
+
 Live runs retain the native library, launch configured models without artificial delays, reuse
 prepared solver scripts and unchanged planner translations, and extract only the trajectory
 prefix needed for control unless shortcut reuse requires the complete plan. The working

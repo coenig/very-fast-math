@@ -66,6 +66,8 @@ parser.add_argument('--headless', action='store_true',
                     help='Run without opening the simulation UI window. Default: False')
 parser.add_argument('--live', action='store_true',
                     help='Driving-only mode: no visualization, debug artifacts, or experiment statistics.')
+parser.add_argument('--force_head', action='store_true',
+                    help='Show the simulation window with --live, keeping debugging and statistics disabled.')
 parser.add_argument('--min_iterations', default=2, type=int,
                     help='Runs that FAIL before completing this many planning iterations are treated as '
                          'unsolvable seeds: they are excluded (no data/statistics/archives are written) and '
@@ -73,12 +75,17 @@ parser.add_argument('--min_iterations', default=2, type=int,
                          'runs are collected. A quick success still counts as a valid run. Set 0 to disable. Default: 2')
 args = parser.parse_args()
 
+if args.force_head and not args.live:
+    parser.error('--force_head requires --live')
+if args.force_head and args.headless:
+    parser.error('--force_head cannot be combined with --headless')
+
 if args.live:
     if args.dryrun or args.record_video or args.detailed_archive:
         parser.error('--live cannot be combined with --dryrun, --record_video, or --detailed_archive')
     if platform.system() == 'Linux' and shutil.which('timeout') is None:
         parser.error('--live requires the coreutils timeout command on Linux')
-    args.headless = True
+    args.headless = not args.force_head
     args.hide_trajectories = True
     args.hide_pure_pursuit = True
     args.hide_planned_positions = True
@@ -105,8 +112,26 @@ if args.press:
 # file stays focused on the model-checking logic. viz_state holds the shared
 # drawing state (trajectories, pure-pursuit targets, planned positions).
 viz_state = VizState()
-if not args.live:
+if not args.live or args.force_head:
     install_vehicle_graphics_patches(args, viz_state)
+
+def show_sim_status(text, mc_running=False):
+    if not args.headless:
+        viz_state.set_status(env, text, mc_running=mc_running)
+
+
+def run_planning_script(script, result, description):
+    cycle = f"Cycle {global_counter + 1}"
+    phase = "Replaying trace" if args.dryrun else "MC pipeline running"
+    show_sim_status(f"{cycle} | {phase} ({description})", mc_running=not args.dryrun)
+    try:
+        with morty_script_context(live=args.live) as morty_lib:
+            output = morty_lib.expandScript(script.encode('utf-8'), result, sizeof(result))
+    except BaseException:
+        show_sim_status(f"{cycle} | Planning interrupted or failed")
+        raise
+    show_sim_status(f"{cycle} | Processing results")
+    return output
 
 import numpy as np
 
@@ -494,7 +519,7 @@ for run_id, seedo in scheduler:
     # Snapshot the per-config MC results log lengths so an excluded run can be truncated away again.
     mc_results_offsets = {} if args.live else snapshot_mc_results_offsets(ucd_config_prios_str, generated_path_prefix)
 
-    env = gymnasium.make('highway-v0', render_mode=None if args.live else 'rgb_array', config={
+    env = gymnasium.make('highway-v0', render_mode='human' if args.force_head else (None if args.live else 'rgb_array'), config={
         "action": {
             "type": "MultiAgentAction",
             "action_config": {
@@ -523,17 +548,18 @@ for run_id, seedo in scheduler:
         "screen_width": 1500,
         "screen_height": 300,
         "scaling": 3,
+        "real_time_rendering": False,
         "show_trajectories": False
     })
 
     # Monkey-patch WorldSurface/RoadGraphics for morty's multi-car camera and the
     # generated "background" road (drawn under the vehicles). See morty_helper.py.
     # Lazy-load image in the simulation loop; no need before first iteration.
-    bg_image_state = None if args.live else {
+    bg_image_state = None if args.live and not args.force_head else {
         "image": None,
         "converted": False,
     }
-    if not args.live:
+    if not args.live or args.force_head:
         install_world_surface_patches(bg_image_state, num_actual_lanes, fit_background=args.fit_roads)
 
     # Expose the env reference so the patched WorldSurface can access vehicle positions.
@@ -608,6 +634,11 @@ for run_id, seedo in scheduler:
     # (see randomize_until_collision_free for details); positions are mutated in place.
     randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_tech)
 
+    if not args.headless:
+        env.render()
+        viz_state.attach_status(env)
+        show_sim_status("Initializing simulation")
+
     # COP: Reset and seed trajectories after all manual vehicle repositioning.
     viz_state.trajectories.clear()
     viz_state.pp_targets.clear()
@@ -662,6 +693,7 @@ for run_id, seedo in scheduler:
     
     global_counter = -1  # Guards the validity check below if the inner loop never runs (e.g. steps_per_run == 0).
     for global_counter in range(args.steps_per_run):
+        show_sim_status(f"Cycle {global_counter + 1} | Preparing inputs")
         mcinput = ""
         i = 0
         for el in obs: # Use only el[0] because it contains the abs values from the resp. car's perspective.
@@ -744,12 +776,12 @@ for run_id, seedo in scheduler:
                 print(f"Found {len(future_points_str)} future points for {selected_config}.")
             
             for shortcut_index, future_point in enumerate(future_points_str): # Try to dive into closest, then next, etc. future point.
+                show_sim_status(f"Cycle {global_counter + 1} | Preparing shortcut {shortcut_index + 1}")
                 for ucd_config_str in ucd_config_prios_str:
                     write_spec_to_main_smv(ucd_config_str, "INVARSPEC !(TRUE " + future_point + ");")
                     # write_addons_to_main_smv(ucd_config_str, "")
                 
-                with morty_script_context(live=args.live) as morty_lib:
-                    res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
+                res = run_planning_script(MC_SCRIPT, result, f"shortcut {shortcut_index + 1}")
                 res_str = res.decode().strip()
 
                 old_selected_cnt = selected_cnt
@@ -767,12 +799,12 @@ for run_id, seedo in scheduler:
         ## EO FOLLOW EXISTING PATH (shortcut) ##
         
         if not found_shortcut:
+            show_sim_status(f"Cycle {global_counter + 1} | Preparing full plan")
             for ucd_config_str in ucd_config_prios_str: # Back to actual SPEC
                 write_spec_to_main_smv(ucd_config_str, spec_res)
 
             result = create_string_buffer(100000)
-            with morty_script_context(live=args.live) as morty_lib:
-                res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
+            res = run_planning_script(MC_SCRIPT, result, "full plan")
             res_str = res.decode().strip()
         
             blind, selected_cnt, res_str = postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex, verbose=not args.live)
@@ -826,6 +858,7 @@ for run_id, seedo in scheduler:
         # Do Background Image
         DEBUG = False # Refreshes road in every cycle and paints MC cars.
         if bg_image_state is not None and (DEBUG or bg_image_state["image"] is None):
+            show_sim_status(f"Cycle {global_counter + 1} | Rendering road background")
             for config_name in ucd_config_prios_str: # Remove old background images if any.
                 visu_base_path = generated_path_prefix + config_name + "/0/"
                 shutil.rmtree(visu_base_path, ignore_errors=True)
@@ -841,7 +874,8 @@ for run_id, seedo in scheduler:
             with morty_script_context(live=args.live) as morty_lib:
                 res_bg = morty_lib.expandScript(script_bgd_image.encode('utf-8'), result_bg, sizeof(result_bg  ))
             res_bg_str = res_bg.decode().strip() # Unused
-            print(res_bg_str)
+            if not args.live:
+                print(res_bg_str)
                 
             try:
                 import pygame
@@ -859,6 +893,7 @@ for run_id, seedo in scheduler:
         # EO Do Background Image
 
         if not args.live:
+            show_sim_status(f"Cycle {global_counter + 1} | Updating runtime plots")
             plot_mc_runtimes(
                 mc_runtime_histories,
                 f"{generated_path_prefix}/mc_runtime_debug_{run_id}.pdf",
@@ -870,6 +905,7 @@ for run_id, seedo in scheduler:
         # EO Track latest nuXmv runtime per configured priority and update PDF each iteration.
         
         # Find future positions.
+        show_sim_status(f"Cycle {global_counter + 1} | Extracting trajectory")
         MC_SCRIPT = f"""@{{
             @{{./src/templates/}}@.stringToHeap[MY_PATH]
             }}@.nil
@@ -981,6 +1017,7 @@ for run_id, seedo in scheduler:
         # Note: success is checked before blindness, so a step can be blind (no CEX) and still count as
         # success if the success condition is met.
         if (res_str == "FINISHED" and not found_shortcut) or successed:
+            show_sim_status(f"Cycle {global_counter + 1} | Goal reached")
             print("DONE")
             good_ones.append(run_id)
             archive(run_id, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
@@ -1016,6 +1053,7 @@ for run_id, seedo in scheduler:
 
         # Plotting (TODO: refactor to a function to avoid code duplication with the MC runtime plotting above):
         if not args.live:
+            show_sim_status(f"Cycle {global_counter + 1} | Updating trajectory plots")
             plot_cex_lengths(
                 cex_length_history,
                 f"{generated_path_prefix}/cex_length_debug_{run_id}.pdf",
@@ -1032,6 +1070,7 @@ for run_id, seedo in scheduler:
         min_time_between_lcs = d[selected_config]["MIN_TIME_BETWEEN_LANECHANGES"]
         LANE_CHANGE_DURATION = min_time_between_lcs * time_scale # Index in the MC delta trace where the lane change effect appears.
 
+        show_sim_status(f"Cycle {global_counter + 1} | Computing controls")
         action_list = []
         
         # Real-world integration window [s] for one control step: highway-env applies the
@@ -1133,6 +1172,9 @@ for run_id, seedo in scheduler:
         action = tuple(action_list)
 
         # === APPLY MC INSTRUCTIONS ===
+        show_sim_status(f"Cycle {global_counter + 1} | Stepping simulation")
+        if args.force_head:
+            env.unwrapped.enable_auto_render = False
         obs, reward, done, truncated, info = env.step(action)
 
         # === CHECK CRASHES (after applying MC instructions) ===
@@ -1142,8 +1184,10 @@ for run_id, seedo in scheduler:
         if crashed:
             crashed_count += 1
 
-        if not args.headless:
+        if not args.headless and not args.force_head:
             env.render()
+
+        show_sim_status(f"Cycle {global_counter + 1} | MC idle - cycle complete")
 
         # Flush partial video every iteration.
         # if args.record_video and not args.dryrun and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
