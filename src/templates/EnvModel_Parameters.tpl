@@ -7,7 +7,7 @@
     @(-- Undeclared variable #0# found during generation of EnvModel. Setting to default value #1#. @{#1#}@********.stringToHeap[#0#].nil)@
 }@*********.if[@{#0#}@.vfm_variable_declared]}@**********.newMethod[defaultValueString, 1]
 
-@{@{-- Creating convenience variables for #0# (plural 's' required!) with mapping #1#
+@{@{-- Creating convenience variables for #0# (plural suffix s required!) with mapping #1#
 	@{
 		@{#0#}@***.setScriptVar[base_name, force]
 		@{@{#0#}@***.toLowerCase}@***.setScriptVar[name_array, force]
@@ -62,7 +62,7 @@
 @{MAXDISTENDPOINTS}@*******.defaultValue[5]               -- Two end points must be at least this apart (approximated by maxvar method)
 @{MIN_TURNING_RADIUS}@*******.defaultValue[0]             -- In m. Connector Beziers must not curve tighter than this (via a per-angle lower bound on the connection distance). 0 = off.
 @{MODEL_INTERSECTION_GEOMETRY}@*******.defaultValue[true] -- If the length of the junctions is calculated subject to connections etc. (Makes calculation slow, but needed at least for multi-lane road networks.)
-@{OBSTACLE_CONNECTOR_SUBDIVISIONS}@*******.defaultValue[2] -- Connector-vs-obstacle check: number K of sub-arcs the connector Bezier is split into; each sub-arc's control-point box must miss the obstacle. Never misses a collision; over-pruning shrinks ~1/K^2 towards the exact curve, but solving gets much slower (K=4 was ~2-5x slower than K=2).
+@{OBSTACLE_CONNECTOR_SUBDIVISIONS}@*******.defaultValue[2] -- Connector-vs-obstacle check: number K of sub-arcs the connector Bezier is split into; the control-point box of each sub-arc must miss the obstacle. Never misses a collision; over-pruning shrinks ~1/K^2 towards the exact curve, but solving gets much slower (K=4 was ~2-5x slower than K=2).
 @{REACHABILITY_ONLY}@*******.defaultValue[false] -- If set, replaces the driving-dynamics model with a static section-graph reachability query (source sec 0 -> target sec 1). Keeps vehicle initial states, drops driving transitions, emits reachability DEFINEs + SPEC. When unset, no reachability vars are generated.
 @{PARK_IN_FORWARD}@*******.defaultValue[true]   -- (REACHABILITY_ONLY) Accept reaching the target section entering it FORWARD (nose-in).
 @{PARK_IN_BACKWARD}@*******.defaultValue[true]  -- (REACHABILITY_ONLY) Accept reaching the target section entering it BACKWARD (backed-in). Both true = either direction.
@@ -179,7 +179,7 @@
 @{RECT_OBSTACLES_GROW_MIN_Hs}@*******.ConvenienceVars
 @{RECT_OBSTACLES_GROW_MAX_Hs}@*******.ConvenienceVars
 @{WORKSPACE_BOUNDs}@*******.ConvenienceVars
--- obs_[obs]_[f]: the obstacle's free-range bound, 0 where the list is shorter.
+-- obs_[obs]_[f]: the free-range obstacle bound, 0 where the list is shorter.
 @{
    @{
       @{

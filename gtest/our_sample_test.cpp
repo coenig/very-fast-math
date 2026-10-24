@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
+#include <sstream>
 #if defined(__linux__)
 #include <unistd.h>
 #endif
@@ -36,6 +37,15 @@ TEST(IntegrationTests, GeneralTerms) {
 TEST(VfmacroTests, NilYieldsEmptyString) {
     const std::string result = vfm::macro::Script::processScript("@{}@.nil");
     ASSERT_EQ(result, "");
+}
+
+TEST(VfmacroTests, ScriptVariableAnnotationsDoNotAddApostrophes) {
+    EXPECT_EQ(vfm::macro::Script::processScript(
+        "@{42}@*.setScriptVar[test_number]\n@{test_number}@.scriptVar"),
+        "test_number = 42\n42");
+    EXPECT_EQ(vfm::macro::Script::processScript(
+        "@{some text}@*.setScriptVar[test_text]\n@{test_text}@.scriptVar"),
+        "test_text = some text\nsome text");
 }
 
 TEST(GeometryScalingTests, LegacyMetadataDefaultsGeometryToOne) {
@@ -234,6 +244,33 @@ TEST(TurningRadiusTests, BoundsCoverRotationsNegativeCoordinatesAndLargerDistanc
     }
 }
 
+static void expectSmvCommentsWithoutApostrophes(const std::string& source) {
+    std::istringstream lines(source);
+    std::string line;
+    size_t line_number = 0;
+    while (std::getline(lines, line)) {
+        ++line_number;
+        const auto comment_start = line.find("--");
+        if (comment_start != std::string::npos) {
+            EXPECT_EQ(line.find('\'', comment_start), std::string::npos)
+                << "Apostrophe in SMV comment at line " << line_number << ": " << line;
+        }
+    }
+}
+
+TEST(SmvTemplateTests, CommentsContainNoApostrophes) {
+    const auto template_path = fs::absolute(fs::path(__FILE__).parent_path().parent_path() / "src/templates");
+    size_t template_count = 0;
+    for (const auto& entry : fs::directory_iterator(template_path)) {
+        if (entry.is_regular_file() && entry.path().extension() == ".tpl") {
+            ++template_count;
+            SCOPED_TRACE(entry.path().string());
+            expectSmvCommentsWithoutApostrophes(vfm::StaticHelper::readFile(entry.path()));
+        }
+    }
+    EXPECT_GT(template_count, 0);
+}
+
 static std::string expandSectionTemplate(const std::string& settings,
     const fs::path& template_path = fs::absolute(fs::path(__FILE__).parent_path().parent_path() / "src/templates")) {
 
@@ -258,6 +295,13 @@ TEST(SectionTemplateTests, DisabledRadiusEmitsNoRadiusConstraints) {
     ASSERT_NE(model.find("section_0_end : "), std::string::npos);
     ASSERT_EQ(model.find("@{"), std::string::npos);
     EXPECT_EQ(model.find("min_dist_for_turning_radius"), std::string::npos);
+}
+
+TEST(SectionTemplateTests, ExpandedCommentsContainNoApostrophes) {
+    const std::string model = expandSectionTemplate("");
+    ASSERT_NE(model.find("section_0_end : "), std::string::npos);
+    ASSERT_EQ(model.find("@{"), std::string::npos);
+    expectSmvCommentsWithoutApostrophes(model);
 }
 
 TEST(SectionTemplateTests, FractionalFixedLengthIsScaledBeforeRounding) {
