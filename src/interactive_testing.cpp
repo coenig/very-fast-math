@@ -1719,6 +1719,7 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
    };
 
    std::string main_file_additions{};
+   std::map<int, std::pair<int, int>> parked_inputs{};
 
    for (int i = 0; i < cars.size(); i++) {
       auto car = cars[i];
@@ -1880,6 +1881,9 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
       for (int lane = 0; lane < num_technical_lanes; lane++) {
          main_file_additions += "INIT " + std::string(lanes.count(lane) ? "" : "!") + "env.veh___6" + std::to_string(i) + "9___.lane_b" + std::to_string(lane) + ";\n";
       }
+      if (best_on_section == 0) {
+         parked_inputs.emplace(i, std::make_pair(abs_pos, on_lane));
+      }
    }
 
    main_file_additions += "INIT env.ego.abs_pos = " + std::to_string(null_pos) + ";\n";
@@ -1889,6 +1893,25 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
 
    for (const auto& config_name : ucd_config_prios_vec) {
       std::string main_smv{ StaticHelper::readFile(OUTPUT_BASE_PATH + config_name + "/main.smv") };
+      const std::string compact_begin{ "-- TASK7 INPUT CONSTANTS" };
+      const std::string compact_end{ "-- EO TASK7 INPUT CONSTANTS" };
+      const auto compact_offset{ main_smv.find(compact_begin) };
+      if (compact_offset != std::string::npos) {
+         const auto compact_end_offset{ main_smv.find(compact_end, compact_offset) };
+         if (compact_end_offset == std::string::npos) {
+            Failable::getSingleton()->addFatalError("Missing end of task-7 input constants in " + config_name);
+            return;
+         }
+         std::string constants{ compact_begin + "\n" };
+         for (const auto& parked : parked_inputs) {
+            const auto vehicle_id{ std::to_string(parked.first) };
+            if (main_smv.find("\nINVAR env.veh___6" + vehicle_id + "9___.v = 0;") != std::string::npos) {
+               constants += "#define VFM_TASK7_PARKED_POS_" + vehicle_id + " " + std::to_string(parked.second.first) + "\n";
+               constants += "#define VFM_TASK7_PARKED_LANE_" + vehicle_id + " " + std::to_string(parked.second.second) + "\n";
+            }
+         }
+         main_smv.replace(compact_offset, compact_end_offset + compact_end.size() - compact_offset, constants + compact_end);
+      }
       main_smv = StaticHelper::removeMultiLineComments(main_smv, INIT_CONSTRAINTS_BEGIN, INIT_CONSTRAINTS_END);
       main_smv = StaticHelper::replaceAll(main_smv, "--EO-SPEC-STUFF", INIT_CONSTRAINTS_BEGIN + "\n" + main_file_additions + "\n" + INIT_CONSTRAINTS_END + "\n--EO-SPEC-STUFF");
       StaticHelper::writeTextToFile(main_smv, OUTPUT_BASE_PATH + config_name + "/main.smv");

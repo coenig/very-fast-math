@@ -1,3 +1,7 @@
+@{
+-- TASK7 INPUT CONSTANTS
+-- EO TASK7 INPUT CONSTANTS
+}@*.if[@{UCD_TASK7_COMPACT}@.eval]
 #include "@{FILENAME_PLANNER}@.printHeap"
 #include "@{FILENAME_ENVMODEL}@.printHeap"
 

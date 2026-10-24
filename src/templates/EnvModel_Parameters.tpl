@@ -71,6 +71,7 @@
 -- Parameters for ego and non-ego vehicles (vehicle length is below in LC section)
 @{EGOLESS}@*******.defaultValue[false]
 @{UCD}@*******.defaultValue[false]
+@{UCD_TASK7_COMPACT}@*******.defaultValue[false]
 @{NONEGOS}@*******.defaultValue[5]
 @{LEFTLC}@*******.defaultValue[true]
 @{RIGHTLC}@*******.defaultValue[false]
@@ -229,7 +230,6 @@
 @{DOUBLEMERGEPROTECTION}@*******.defaultValue[false] -- Prohibits non-ego LCs when in danger of a double-merge
 @{BRAKEINHIBITION}@*******.defaultValue[false]       -- Prohibits non-egos in the front gaps to brake so hard that ego could not react on it in one step.
 @{HARDBRAKEPREVENTION}@*******.defaultValue[-8]     -- Cuts out traces with very hard decelerations. Set to MINACCELEGO to deactivate.
-@{STANDINGCARSUPTOID}@*******.defaultValue[-1]
 @{FARMERGINGCARS}@*******.defaultValue[false]
 @{ABORTREVOKE}@*******.defaultValue[false]
 @{KEEP_EGO_FROM_GREEN}@*******.defaultValue[true]   -- Makes sure, ego never leaves the lanes.
@@ -244,3 +244,12 @@
 
 
 @{@NUM_TECHNICAL_LANES = NUMLANES + LATERAL_LC_GRANULARITY}@*******.eval.nil
+
+@{
+@{
+#error UCD_TASK7_COMPACT requires concrete ego-less UCD with simple lane changes and positive integer lane and jump counts
+}@*.if[@{!(UCD && EGOLESS
+	&& CONCRETE_MODEL && !EM_LESS && !REACHABILITY_ONLY && !ANGLE_BASED_LC
+	&& SIMPLE_LC && NUM_TECHNICAL_LANES >= 1 && NUM_TECHNICAL_LANES == trunc(NUM_TECHNICAL_LANES)
+	&& MAX_JUMP_OVER_TECHNICAL_LANES >= 1 && MAX_JUMP_OVER_TECHNICAL_LANES == trunc(MAX_JUMP_OVER_TECHNICAL_LANES))}@.eval]
+}@***.if[@{UCD_TASK7_COMPACT}@.eval]

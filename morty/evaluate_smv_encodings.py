@@ -301,6 +301,7 @@ def collect_queries(folder, config_path):
     config = json.loads(config_path.read_text())
     if config['#TEMPLATE']['UCD_EXP_NUM'] != 7:
         raise ValueError('Only task 7 is supported')
+    config['#TEMPLATE']['UCD_TASK7_COMPACT'] = False
     config['#TEMPLATE']['UCD_EVALUATION_CAPTURE_SMV'] = True
     write_json(folder / 'source.tpl.json', config)
     trials = []
@@ -477,6 +478,7 @@ def check_live_runs(folder, config_path):
     encoding = template.get('UCD_EVALUATION_SMV_ENCODING', template.get('UCD_SMV_EXPERIMENT_ENCODING'))
     if encoding not in ENCODINGS:
         raise ValueError('Unknown SMV encoding')
+    template['UCD_TASK7_COMPACT'] = False
     template['UCD_EVALUATION_SMV_ENCODING'] = encoding
     template['UCD_EVALUATION_CAPTURE_SMV'] = False
     write_json(folder / 'experiment.tpl.json', config)

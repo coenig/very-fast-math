@@ -146,6 +146,8 @@ def evaluate_child(args):
     allowed = [int(value) for value in configured_indices.split(';')] if configured_indices else None
     encoding = template.get('UCD_EVALUATION_SMV_ENCODING', 'baseline')
     if encoding != 'baseline':
+        if template.get('UCD_TASK7_COMPACT', False):
+            raise ValueError('Disable UCD_TASK7_COMPACT before applying an experimental SMV rewrite')
         from .evaluate_smv_encodings import transform_model, transformation_key
     namespace = {'__name__': 'morty.selection_evaluation', '__package__': 'morty'}
     original_context = helper.morty_script_context
