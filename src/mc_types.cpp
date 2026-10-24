@@ -80,8 +80,10 @@ std::vector<VarValsFloat> vfm::MCTrace::getAllDeltas(const std::set<std::string>
 
 std::string vfm::MCTrace::getLastValueOfVariableAtStep(const std::string& var, const int step) const
 {
-   for (int i = std::min(step, (int) (trace_.size() - 1)); i >= 0; i--) {
-      if (at(i).second.count(var)) return at(i).second.at(var);
+   for (int index = std::min(step, static_cast<int>(trace_.size()) - 1); index >= 0; --index) {
+      const auto& values{ trace_[index].second };
+      const auto value{ values.find(var) };
+      if (value != values.end()) return value->second;
    }
 
    addError("No value stored for variable '" + var + "' up to step '" + std::to_string(step) + "'.");

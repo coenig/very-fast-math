@@ -3664,6 +3664,7 @@ TermPtr vfm::CppParser::removeUneffectiveLinesSafe(const TermPtr formula)
 
 void vfm::CppParser::writeMortyGUIProgressFile(const int percent, const std::string& stage_name) const
 {
+   if (!Failable::isDiagnosticOutputEnabled()) return;
    if (!TARGET_PATH_FOR_MORTY_GUY_PROGRESS.empty()) {
       std::filesystem::path morty_progress_path{ TARGET_PATH_FOR_MORTY_GUY_PROGRESS };
       morty_progress_path /= "progress.morty";
@@ -6056,6 +6057,7 @@ bool vfm::CppParser::checkConstraintsForConsistency(const std::map<std::string, 
 
 void vfm::CppParser::dumpCurrentState(const std::string& path) 
 {
+   if (!Failable::isDiagnosticOutputEnabled()) return;
    addNote("Dumping current state of CppParser in '" + path + "'.");
    StaticHelper::writeTextToFile(toStringCppParser(), path);
 }
@@ -6146,6 +6148,7 @@ std::ofstream logfile;
 
 void printVfmIntro(const vfm::CppParser& cppp, const std::string& target_path_for_generated_code)
 {
+   if (!vfm::Failable::isDiagnosticOutputEnabled()) return;
    logfile.open(target_path_for_generated_code + ".log");
    cppp.addOrChangeErrorOrOutputStream(logfile, true);
    cppp.addOrChangeErrorOrOutputStream(logfile, false);

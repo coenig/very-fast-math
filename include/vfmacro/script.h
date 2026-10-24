@@ -1397,7 +1397,7 @@ private:
             return res;
          }
 
-         const auto trace = traces[0];
+         const auto& trace = traces[0];
          const auto time_scaling_str = trace.getLastValueOfVariableAtStep("planner.time_scaling", 0);
          const auto dist_scale_str = trace.getLastValueOfVariableAtStep("planner.distance_scaling", 0);
          trace.setOutputLevels(vfm::ErrorLevelEnum::invalid, vfm::ErrorLevelEnum::invalid); // Quiet, since we use the error case as indicator.
@@ -1420,7 +1420,10 @@ private:
          // which must not be interpreted as real geometry. Absent variables therefore default to the
          // neutral 0, making to_global reduce to the identity (long_pos, lat_pos) for the 0/0/0 case while
          // still reading the true geometry when a road network is present.
-         const auto read_section = [&trace](const int sec_id) -> std::tuple<float, float, float, float> {
+         std::map<int, std::tuple<float, float, float, float>> section_geometry{};
+         const auto read_section = [&trace, &section_geometry](const int sec_id) -> std::tuple<float, float, float, float> {
+            const auto cached{ section_geometry.find(sec_id) };
+            if (cached != section_geometry.end()) return cached->second;
             const std::string id{ std::to_string(sec_id) };
 
             const auto read = [&trace](const std::string& var, const float dflt) -> float {
@@ -1433,10 +1436,13 @@ private:
             const float sx{ read("env.section_" + id + ".source.x", 0.0f) };
             const float sy{ read("env.section_" + id + ".source.y", 0.0f) };
             const float end{ read("env.section_" + id + "_end", 0.0f) };
-            return { angle, sx, sy, end };
+            return section_geometry.emplace(sec_id, std::make_tuple(angle, sx, sy, end)).first->second;
          };
 
-         for (int step = 0; step < trace.size(); ++step) {
+         const bool needs_full_trajectory{ !test::isMortyLiveMode() || StaticHelper::isBooleanTrue(
+            mc_workflow.getValueForJSONKeyAsString("UCD_USE_SHORTCUT", paths.at("path_json"), StaticHelper::getFileNameFromPath(body), "#TEMPLATE")) };
+         const int steps_to_extract{ needs_full_trajectory ? static_cast<int>(trace.size()) : (std::min)(6, static_cast<int>(trace.size())) };
+         for (int step = 0; step < steps_to_extract; ++step) {
             for (int i = 0; i < 100; i++) {
                trace.resetAllErrors();
                const auto lane_str = trace.getLastValueOfVariableAtStep("env.veh___6" + std::to_string(i) + "9___.on_normalized_lane", step);

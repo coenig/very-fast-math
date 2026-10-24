@@ -1,11 +1,8 @@
 from ctypes import create_string_buffer, sizeof
 
-import matplotlib
-matplotlib.use('Agg')  # Non-interactive backend — no X11/display required
-
 import gymnasium
+import highway_env
 from gymnasium.wrappers import RecordVideo
-from matplotlib import pyplot as plt
 import os
 import shutil
 import argparse
@@ -14,10 +11,6 @@ import json
 import re
 from pathlib import Path
 import glob
-from .morty_debug_plots import (
-    plot_cex_lengths, plot_cex_lengths_cumulative,
-    plot_mc_runtimes, plot_mc_runtimes_cumulative,
-)
 from .morty_helper import (
     ensure_empty_file, min_max_curr, dpoint_following_angle,
     maxDifferenceArray, inverseSortingArray, _latest_nuxmv_runtime_seconds,
@@ -71,12 +64,32 @@ parser.add_argument('--dryrun', action='store_true',
                     help='Perform a dry run recreating all plots without running the model checker. Default: False')
 parser.add_argument('--headless', action='store_true',
                     help='Run without opening the simulation UI window. Default: False')
+parser.add_argument('--live', action='store_true',
+                    help='Driving-only mode: no visualization, debug artifacts, or experiment statistics.')
 parser.add_argument('--min_iterations', default=2, type=int,
                     help='Runs that FAIL before completing this many planning iterations are treated as '
                          'unsolvable seeds: they are excluded (no data/statistics/archives are written) and '
                          'do not consume a run ID, while the seed pool keeps advancing until num_runs valid '
                          'runs are collected. A quick success still counts as a valid run. Set 0 to disable. Default: 2')
 args = parser.parse_args()
+
+if args.live:
+    if args.dryrun or args.record_video or args.detailed_archive:
+        parser.error('--live cannot be combined with --dryrun, --record_video, or --detailed_archive')
+    if platform.system() == 'Linux' and shutil.which('timeout') is None:
+        parser.error('--live requires the coreutils timeout command on Linux')
+    args.headless = True
+    args.hide_trajectories = True
+    args.hide_pure_pursuit = True
+    args.hide_planned_positions = True
+
+if not args.live:
+    import matplotlib
+    matplotlib.use('Agg')
+    from .morty_debug_plots import (
+        plot_cex_lengths, plot_cex_lengths_cumulative,
+        plot_mc_runtimes, plot_mc_runtimes_cumulative,
+    )
 
 if args.dryrun:
     if args.force or args.detailed_archive:
@@ -92,7 +105,8 @@ if args.press:
 # file stays focused on the model-checking logic. viz_state holds the shared
 # drawing state (trajectories, pure-pursuit targets, planned positions).
 viz_state = VizState()
-install_vehicle_graphics_patches(args, viz_state)
+if not args.live:
+    install_vehicle_graphics_patches(args, viz_state)
 
 import numpy as np
 
@@ -147,7 +161,7 @@ script_envmodels = r"""
 @{./src/templates/}@.stringToHeap[MY_PATH]
 @{../../morty/envmodel_config.tpl.json}@.generateEnvmodels
 """
-with morty_script_context() as morty_lib:
+with morty_script_context(live=args.live) as morty_lib:
     dummy_result = morty_lib.expandScript(script_envmodels.encode('utf-8'), dummy_result, sizeof(dummy_result)).decode()
 # EO Create EnvModels.
     
@@ -390,11 +404,12 @@ def write_addons_to_main_smv(ucd_config_str, addons_str):
         f.truncate()
 
 specification = create_string_buffer(2000)
-with morty_script_context() as morty_lib:
+with morty_script_context(live=args.live) as morty_lib:
     spec_res = morty_lib.expandScript(SPECS[exp_num].encode('utf-8'), specification, sizeof(specification)).decode()
 
 for ucd_config_str in ucd_config_prios_str:
-    ensure_empty_file(f'{generated_path_prefix + ucd_config_str}/morty_mc_results.txt')  # Delete old results from MC side (these are a super set of the above)
+    if not args.live:
+        ensure_empty_file(f'{generated_path_prefix + ucd_config_str}/morty_mc_results.txt')
     write_addons_to_main_smv(ucd_config_str, addons[exp_num])
 
 def clean_and_convert_to_float(data):
@@ -436,11 +451,12 @@ def reconstruct_future_point_coords(future_point_str, nonegos, dist_scale, num_a
         coords.append([long_pos, lat_pos])
     return coords
 
-def postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex):
+def postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex, verbose=True):
     all_results_dict = {}
     for single_res in res_str.split('\n'):
         if single_res:
-            print("\n'" + single_res + "'\n")
+            if verbose:
+                print("\n'" + single_res + "'\n")
             config_name, res_str_new = single_res.split(':') # initiate res_str with ANY of the results, will get updated later if none-blind exists.
             all_results_dict[config_name] = res_str_new
     
@@ -448,10 +464,12 @@ def postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex):
     selected_cnt = None
     for cnt, config_name in enumerate(ucd_config_prios_str):
         if (all_results_dict[config_name] == empty_cex):
-            print(f"CEX #{cnt} is EMPTY.")
+            if verbose:
+                print(f"CEX #{cnt} is EMPTY.")
         else:
             res_str_new = all_results_dict[config_name]
-            print(f"Picked CEX #{cnt} [{config_name}] which is the first non-empty one.")
+            if verbose:
+                print(f"Picked CEX #{cnt} [{config_name}] which is the first non-empty one.")
             blind = "|" + str(cnt)
             selected_cnt = cnt
             break;
@@ -470,13 +488,13 @@ if args.detailed_archive:
 # stored data/statistics/archives): RunScheduler keeps drawing fresh seeds and only advances the
 # run ID for runs that reach the --min_iterations threshold (see commit()/discard_run below), so
 # early, unsolvable failures neither consume a run ID nor leave any artifacts behind.
-scheduler = RunScheduler(generated_path_prefix, MAX_EXPs, args.dryrun)
+scheduler = RunScheduler(generated_path_prefix, MAX_EXPs, args.dryrun, persist=not args.live)
 
 for run_id, seedo in scheduler:
     # Snapshot the per-config MC results log lengths so an excluded run can be truncated away again.
-    mc_results_offsets = snapshot_mc_results_offsets(ucd_config_prios_str, generated_path_prefix)
+    mc_results_offsets = {} if args.live else snapshot_mc_results_offsets(ucd_config_prios_str, generated_path_prefix)
 
-    env = gymnasium.make('highway-v0', render_mode='rgb_array', config={
+    env = gymnasium.make('highway-v0', render_mode=None if args.live else 'rgb_array', config={
         "action": {
             "type": "MultiAgentAction",
             "action_config": {
@@ -511,11 +529,12 @@ for run_id, seedo in scheduler:
     # Monkey-patch WorldSurface/RoadGraphics for morty's multi-car camera and the
     # generated "background" road (drawn under the vehicles). See morty_helper.py.
     # Lazy-load image in the simulation loop; no need before first iteration.
-    bg_image_state = {
+    bg_image_state = None if args.live else {
         "image": None,
         "converted": False,
     }
-    install_world_surface_patches(bg_image_state, num_actual_lanes, fit_background=args.fit_roads)
+    if not args.live:
+        install_world_surface_patches(bg_image_state, num_actual_lanes, fit_background=args.fit_roads)
 
     # Expose the env reference so the patched WorldSurface can access vehicle positions.
     try:
@@ -592,9 +611,10 @@ for run_id, seedo in scheduler:
     # COP: Reset and seed trajectories after all manual vehicle repositioning.
     viz_state.trajectories.clear()
     viz_state.pp_targets.clear()
-    for vehicle in env.unwrapped.controlled_vehicles:
-        viz_state.trajectories[id(vehicle)] = [[float(vehicle.position[0]), float(vehicle.position[1]), None]]
-        viz_state.pp_targets[id(vehicle)] = [float(vehicle.position[0]), float(vehicle.position[1])]
+    if not args.live:
+        for vehicle in env.unwrapped.controlled_vehicles:
+            viz_state.trajectories[id(vehicle)] = [[float(vehicle.position[0]), float(vehicle.position[1]), None]]
+            viz_state.pp_targets[id(vehicle)] = [float(vehicle.position[0]), float(vehicle.position[1])]
 
     if args.record_video:
         env = RecordVideo(env, video_folder=f"{generated_path_prefix}/videos", name_prefix=f"vid_{run_id}",
@@ -637,6 +657,8 @@ for run_id, seedo in scheduler:
     # EO Prepare dry run
 
     selected_config = None
+    watchdog_start = '' if args.live and platform.system() == 'Linux' else '@{nuXmv}@.killAfter[300].Detach.setScriptVar[scriptID, force]'
+    watchdog_stop = '' if not watchdog_start else '@{scriptID}@.scriptVar.StopScript'
     
     global_counter = -1  # Guards the validity check below if the inner loop never runs (e.g. steps_per_run == 0).
     for global_counter in range(args.steps_per_run):
@@ -660,9 +682,9 @@ for run_id, seedo in scheduler:
 
             @{{{mcinput}}}@.prepareInputForMortyUCD[{args.heading_adaptation}, {num_actual_lanes}, {num_technical_lanes}, AUTO]
 
-            @{{nuXmv}}@.killAfter[300].Detach.setScriptVar[scriptID, force]
+            {watchdog_start}
             @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[16]
-            @{{scriptID}}@.scriptVar.StopScript
+            {watchdog_stop}
             
             }}@.nil
             @{{}}@.prepareOutputForMortyUCD[{str(run_id)}, {str(global_counter)}, {0}, {str(crashed)}]
@@ -715,21 +737,23 @@ for run_id, seedo in scheduler:
         shortcut_index = -1
         found_shortcut = False
         if not future_points_str: # ...and whole shortcut search is skipped.
-            print(f"No future points found for {selected_config}.")
+            if not args.live:
+                print(f"No future points found for {selected_config}.")
         else:
-            print(f"Found {len(future_points_str)} future points for {selected_config}.")
+            if not args.live:
+                print(f"Found {len(future_points_str)} future points for {selected_config}.")
             
             for shortcut_index, future_point in enumerate(future_points_str): # Try to dive into closest, then next, etc. future point.
                 for ucd_config_str in ucd_config_prios_str:
                     write_spec_to_main_smv(ucd_config_str, "INVARSPEC !(TRUE " + future_point + ");")
                     # write_addons_to_main_smv(ucd_config_str, "")
                 
-                with morty_script_context() as morty_lib:
+                with morty_script_context(live=args.live) as morty_lib:
                     res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
                 res_str = res.decode().strip()
 
                 old_selected_cnt = selected_cnt
-                blind, selected_cnt, res_str = postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex)
+                blind, selected_cnt, res_str = postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex, verbose=not args.live)
 
                 if res_str != empty_cex and selected_cnt <= last_full_solution_prio: # Found a better or equal shortcut to a future point.
                     found_shortcut = True
@@ -747,11 +771,11 @@ for run_id, seedo in scheduler:
                 write_spec_to_main_smv(ucd_config_str, spec_res)
 
             result = create_string_buffer(100000)
-            with morty_script_context() as morty_lib:
+            with morty_script_context(live=args.live) as morty_lib:
                 res = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result, sizeof(result))
             res_str = res.decode().strip()
         
-            blind, selected_cnt, res_str = postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex)
+            blind, selected_cnt, res_str = postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex, verbose=not args.live)
             last_full_solution_prio = selected_cnt # This line should always turn up BEFORE the variable is used above.
 
         if args.detailed_archive and global_counter == 0:
@@ -763,23 +787,22 @@ for run_id, seedo in scheduler:
         # Update global priority for trajectory coloring
         viz_state.selected_cnt = selected_cnt
         
-        blind_stats += blind
+        if not args.live:
+            blind_stats += blind
 
         # Track latest nuXmv runtime per configured priority and update PDF each iteration.
-        selected_cnt_history.append(selected_cnt)
-        for config_name in ucd_config_prios_str:
-            mc_runtime_histories[config_name].append(_latest_nuxmv_runtime_seconds(config_name, generated_path_prefix))
-
         if selected_cnt is not None and 0 <= selected_cnt < len(ucd_config_prios_str):
             selected_config = ucd_config_prios_str[selected_cnt]
-            selected_runtime = mc_runtime_histories[selected_config][-1]
         else:
-            selected_runtime = np.nan
             selected_config = ucd_config_prios_str[0] # Use any because all are empty.
-        selected_runtime_history.append(selected_runtime)
+        if not args.live:
+            selected_cnt_history.append(selected_cnt)
+            for config_name in ucd_config_prios_str:
+                mc_runtime_histories[config_name].append(_latest_nuxmv_runtime_seconds(config_name, generated_path_prefix))
+            selected_runtime_history.append(mc_runtime_histories[selected_config][-1] if selected_cnt is not None else np.nan)
 
         # Distribute the selected future points to all other configs.
-        for config_name in ucd_config_prios_str:
+        for config_name in (ucd_config_prios_str if use_shortcut or not args.live else []):
             if config_name == selected_config:
                 continue
             else: # Remove "future" files from non-selected configs and copy the selected ones over.
@@ -815,7 +838,7 @@ for run_id, seedo in scheduler:
             @{{{generated_path_prefix + selected_config}}}@.generateTestCasesPlain[{visu_mode}, debug_trace_array, ]
             """
             result_bg = create_string_buffer(100000)
-            with morty_script_context() as morty_lib:
+            with morty_script_context(live=args.live) as morty_lib:
                 res_bg = morty_lib.expandScript(script_bgd_image.encode('utf-8'), result_bg, sizeof(result_bg  ))
             res_bg_str = res_bg.decode().strip() # Unused
             print(res_bg_str)
@@ -835,14 +858,15 @@ for run_id, seedo in scheduler:
 
         # EO Do Background Image
 
-        plot_mc_runtimes(
-            mc_runtime_histories,
-            f"{generated_path_prefix}/mc_runtime_debug_{run_id}.pdf",
-            selected_cnt_history=selected_cnt_history,
-        )
-        all_selected_runtime_histories[run_id] = selected_runtime_history[:]
-        plot_mc_runtimes_cumulative(all_selected_runtime_histories, f"{generated_path_prefix}/mc_runtime_debug_all.pdf")
-        plot_mc_runtimes_cumulative(all_selected_runtime_histories, f"{generated_path_prefix}/mc_runtime_debug_all_log.pdf", log_scale=True)
+        if not args.live:
+            plot_mc_runtimes(
+                mc_runtime_histories,
+                f"{generated_path_prefix}/mc_runtime_debug_{run_id}.pdf",
+                selected_cnt_history=selected_cnt_history,
+            )
+            all_selected_runtime_histories[run_id] = selected_runtime_history[:]
+            plot_mc_runtimes_cumulative(all_selected_runtime_histories, f"{generated_path_prefix}/mc_runtime_debug_all.pdf")
+            plot_mc_runtimes_cumulative(all_selected_runtime_histories, f"{generated_path_prefix}/mc_runtime_debug_all_log.pdf", log_scale=True)
         # EO Track latest nuXmv runtime per configured priority and update PDF each iteration.
         
         # Find future positions.
@@ -853,7 +877,7 @@ for run_id, seedo in scheduler:
             @{{../../morty/envmodel_config.tpl.json}}@.extractVehPosFromNusmvFile[{selected_config}]
         """
         result_pos = create_string_buffer(100000)
-        with morty_script_context() as morty_lib:
+        with morty_script_context(live=args.live) as morty_lib:
             res_pos = morty_lib.expandScript(MC_SCRIPT.encode('utf-8'), result_pos, sizeof(result_pos))
         
         res_pos_str = res_pos.decode().strip()
@@ -924,20 +948,19 @@ for run_id, seedo in scheduler:
                 positions.append(tail_coords)
             # EO COP
             
-        for i, step in enumerate(positions):
-            all_coords = []
+        for i, step in enumerate(positions[:6] if args.live else positions):
             for j, car_step in enumerate(step):
                 abspos = car_step[0]
                 latpos = car_step[1]
                     
                 coord = (abspos, latpos)
-                all_coords.append([abspos, latpos])
                 if not args.hide_planned_positions:
                     viz_state.pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
                 
                 if i <= 5: # second-next point (index 5) used as the pure-pursuit lookahead target for steering.
                     coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
-                    print(f"Step {i}, Car {j}: abspos={abspos}, latpos={latpos}, coord={coord}") # TODO REMOVE
+                    if not args.live:
+                        print(f"Step {i}, Car {j}: abspos={abspos}, latpos={latpos}, coord={coord}")
                 if i == 2: # Immediate next distinct point (one MC step ahead).
                     accel_target_dist[j] = (coord[0] - egos_x[j]) * egos_backward[j]
 
@@ -965,20 +988,22 @@ for run_id, seedo in scheduler:
 
         if res_str == empty_cex:
             print("No CEX found")
-            for i in range(nonegos): # Set blue when blind.
-                if not env.unwrapped.controlled_vehicles[i].crashed:
-                    env.unwrapped.controlled_vehicles[i].color = (100, 100, 255)
+            if not args.live:
+                for i in range(nonegos):
+                    if not env.unwrapped.controlled_vehicles[i].crashed:
+                        env.unwrapped.controlled_vehicles[i].color = (100, 100, 255)
             nocex_count += 1
             if nocex_count > args.allow_blind_steps: # Abort (as failure) once this many blind steps occurred.
                 archive(run_id, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
                 break
             
             # Note: final blind step of a run is not reflected in the cex-length plots.
-            cex_length_history.append(np.nan)
-            cnt_history.append(-1)
-            shortcut_history.append("")
-            cex_point_colors.append('tab:red')
-        else:
+            if not args.live:
+                cex_length_history.append(np.nan)
+                cnt_history.append(-1)
+                shortcut_history.append("")
+                cex_point_colors.append('tab:red')
+        elif not args.live:
             cex_length = len(positions) / time_scale
             cex_length_history.append(cex_length)
             cnt_history.append(selected_cnt)
@@ -990,15 +1015,16 @@ for run_id, seedo in scheduler:
                     env.unwrapped.controlled_vehicles[i].color = (min(cex_length * 15, 255), 200, min(cex_length * 15, 255))
 
         # Plotting (TODO: refactor to a function to avoid code duplication with the MC runtime plotting above):
-        plot_cex_lengths(
-            cex_length_history,
-            f"{generated_path_prefix}/cex_length_debug_{run_id}.pdf",
-            cnt_history=cnt_history,
-            shortcut_history=shortcut_history,
-            point_colors=cex_point_colors,
-        )
-        all_cex_length_histories[run_id] = cex_length_history[:]
-        plot_cex_lengths_cumulative(all_cex_length_histories, f"{generated_path_prefix}/cex_length_debug_all.pdf")
+        if not args.live:
+            plot_cex_lengths(
+                cex_length_history,
+                f"{generated_path_prefix}/cex_length_debug_{run_id}.pdf",
+                cnt_history=cnt_history,
+                shortcut_history=shortcut_history,
+                point_colors=cex_point_colors,
+            )
+            all_cex_length_histories[run_id] = cex_length_history[:]
+            plot_cex_lengths_cumulative(all_cex_length_histories, f"{generated_path_prefix}/cex_length_debug_all.pdf")
         # EO Plotting
 
         # Best so far:
@@ -1046,11 +1072,12 @@ for run_id, seedo in scheduler:
             if abs(latshift_point_mc) < eps:
                 latshift_point_mc = 0
 
-            print(" formula_pp_strategies " + formula_pp_strategies) # TODO REMOVE
-            print(" formula_distance_pp " + formula_distance_pp)     # TODO REMOVE
-            print(" formula_latshift_pp " + formula_latshift_pp)     # TODO REMOVE
-            print(" dist_point_mc " + str(dist_point_mc))            # TODO REMOVE
-            print(" latshift_point_mc " + str(latshift_point_mc))    # TODO REMOVE
+            if not args.live:
+                print(" formula_pp_strategies " + formula_pp_strategies)
+                print(" formula_distance_pp " + formula_distance_pp)
+                print(" formula_latshift_pp " + formula_latshift_pp)
+                print(" dist_point_mc " + str(dist_point_mc))
+                print(" latshift_point_mc " + str(latshift_point_mc))
 
             script_pp_distance = f"""@{{
             @{{{formula_pp_strategies}}}@.eval
@@ -1068,12 +1095,13 @@ for run_id, seedo in scheduler:
             @{{{formula_latshift_pp}}}@.eval
             """
             
-            print("script_pp_distance " + script_pp_distance)  # TODO REMOVE
-            print("script_pp_latshift " + script_pp_latshift)  # TODO REMOVE
+            if not args.live:
+                print("script_pp_distance " + script_pp_distance)
+                print("script_pp_latshift " + script_pp_latshift)
             
             result_pp_distance = create_string_buffer(100)
             result_pp_latshift = create_string_buffer(100)
-            with morty_script_context() as morty_lib:
+            with morty_script_context(live=args.live) as morty_lib:
                 result_pp_distance = morty_lib.expandScript(script_pp_distance.encode('utf-8'), result_pp_distance, sizeof(result_pp_distance)).decode().strip()
                 result_pp_latshift = morty_lib.expandScript(script_pp_latshift.encode('utf-8'), result_pp_latshift, sizeof(result_pp_latshift)).decode().strip()
             # EO Formula for speed-dependent distance in pure-pursuit.
@@ -1081,9 +1109,10 @@ for run_id, seedo in scheduler:
             pp_distance = float(result_pp_distance)
             pp_latshift = float(result_pp_latshift)
             
-            print(f"Pure pursuit target for car {i}: distance = {pp_distance}, latshift = {pp_latshift}")  # TODO REMOVE
+            if not args.live:
+                print(f"Pure pursuit target for car {i}: distance = {pp_distance}, latshift = {pp_latshift}")
                                     
-            if i < len(env.unwrapped.controlled_vehicles):
+            if not args.live and i < len(env.unwrapped.controlled_vehicles):
                 vehicle = env.unwrapped.controlled_vehicles[i]
                 
                 pp_target_x = float(vehicle.position[0] + egos_backward[i] * pp_distance)
@@ -1142,15 +1171,18 @@ for run_id, seedo in scheduler:
     if not run_reached_threshold(success, global_counter, args.min_iterations, args.dryrun):
         print(f"Run with seed {seedo} failed within the first {args.min_iterations} iteration(s) "
               f"(reached iteration {global_counter}); excluding it and keeping run ID {run_id}.")
-        discard_run(run_id, generated_path_prefix, ucd_config_prios_str, mc_results_offsets,
-                    all_cex_length_histories, all_selected_runtime_histories)
+        if not args.live:
+            discard_run(run_id, generated_path_prefix, ucd_config_prios_str, mc_results_offsets,
+                        all_cex_length_histories, all_selected_runtime_histories)
         if args.record_video:
             env.stop_recording()
+        env.close()
         continue  # seedo has already advanced; run_id stays so the next seed reuses it.
 
-    with open(f"{generated_path_prefix}/results.txt", "a") as f:
-        outcome = "succeeded" if success else "failed"
-        f.write("{" + min_max_curr(len(good_ones), run_id + 1, MAX_EXPs) + "} " + f"{run_id} (seed {seedo})" + " " + outcome + " [" + str(nocex_count) + " blind; " + blind_stats + "|]\n")
+    if not args.live:
+        with open(f"{generated_path_prefix}/results.txt", "a") as f:
+            outcome = "succeeded" if success else "failed"
+            f.write("{" + min_max_curr(len(good_ones), run_id + 1, MAX_EXPs) + "} " + f"{run_id} (seed {seedo})" + " " + outcome + " [" + str(nocex_count) + " blind; " + blind_stats + "|]\n")
 
     if args.record_video:
         env.stop_recording()
@@ -1171,6 +1203,7 @@ for run_id, seedo in scheduler:
         shutil.make_archive(folder_path + ".zip", 'zip', folder_path)
         shutil.rmtree(folder_path)
 
+    env.close()
     scheduler.commit()  # Valid run: persist its seed (for later --dryrun) and advance the run ID.
 
 print(good_ones)

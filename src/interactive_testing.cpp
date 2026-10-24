@@ -454,7 +454,16 @@ std::string vfm::test::doParsingRun(
       if (!StaticHelper::existsFileSafe(dir_target)) Failable::getSingleton(gui_name)->addError("Directory does not exist: '" + dir_target + "'.");
 
       try {
-         std::filesystem::copy(dir_source, dir_target, std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
+         if (isMortyLiveMode()) {
+            for (const auto& entry : std::filesystem::directory_iterator(dir_source)) {
+               const auto name{ entry.path().filename() };
+               if (entry.path().extension() == ".log" || name == "templates_archive" || name == "git_patch.txt") continue;
+               std::filesystem::copy(entry.path(), std::filesystem::path(dir_target) / name,
+                  std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
+            }
+         } else {
+            std::filesystem::copy(dir_source, dir_target, std::filesystem::copy_options::recursive | std::filesystem::copy_options::overwrite_existing);
+         }
       }
       catch (const std::exception& e) {
          Failable::getSingleton()->addWarning("Could not copy from '" + dir_source + "' to '" + dir_target + "'.");
@@ -837,10 +846,11 @@ int vfm::test::artifactRun(int argc, char* argv[])
       // are invoked unchanged.
       std::string nuxmv_invocation{ nuxmv_fulldir };
 #if defined(__linux__)
+      if (isMortyLiveMode()) nuxmv_invocation = "timeout --foreground --signal=TERM --kill-after=1s 300s " + nuxmv_invocation;
       const std::filesystem::path nuxmv_lib_dir{ nuxmv_exec.parent_path() / "lib" };
       if (std::filesystem::is_directory(nuxmv_lib_dir)) {
          const std::string lib_dir_str{ nuxmv_lib_dir.generic_string() };
-         nuxmv_invocation = "LD_LIBRARY_PATH=\"" + lib_dir_str + "${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\" " + nuxmv_fulldir;
+         nuxmv_invocation = "LD_LIBRARY_PATH=\"" + lib_dir_str + "${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\" " + nuxmv_invocation;
       }
 #endif
 
@@ -850,7 +860,22 @@ int vfm::test::artifactRun(int argc, char* argv[])
       inputs.addNote("RUNNING KRATOS with command '" + command_kratos + "'.");
       int success_code_kratos{};
       int success_code_nuxmv{};
-      StaticHelper::execWithSuccessCode(command_kratos, success_code_kratos, std::make_shared<std::string>(generated_dir + "/mc_runtimes.txt"));
+      const std::filesystem::path planner_source{ generated_dir + "planner.cpp_combined.k2" };
+      const std::filesystem::path planner_smv{ generated_dir + "planner.cpp_combined.k2.smv" };
+      const bool reuse_planner{ isMortyLiveMode()
+         && std::filesystem::exists(planner_source) && std::filesystem::exists(planner_smv)
+         && std::filesystem::last_write_time(planner_smv) >= std::filesystem::last_write_time(planner_source)
+         && std::filesystem::last_write_time(planner_smv) >= std::filesystem::last_write_time(kratos_exec) };
+      const auto runtime_log{ isMortyLiveMode() ? nullptr : std::make_shared<std::string>(generated_dir + "/mc_runtimes.txt") };
+      if (!reuse_planner) {
+         StaticHelper::execWithSuccessCode(command_kratos, success_code_kratos, runtime_log);
+         if (isMortyLiveMode() && success_code_kratos != EXIT_SUCCESS) {
+            StaticHelper::removeFileSafe(planner_smv);
+            StaticHelper::writeTextToFile("", generated_dir + inputs.getCmdOption(CMD_CEX_FILE));
+            inputs.addError("Live planner translation failed in '" + generated_dir + "'.");
+            return EXIT_FAILURE;
+         }
+      }
 
 #ifdef _WIN32
       inputs.addNote("SETTING CPP PATH TO '" + cpp_fulldir + "'");
@@ -858,24 +883,31 @@ int vfm::test::artifactRun(int argc, char* argv[])
 #endif
 
       inputs.addNote("RUNNING NUXMV with command '" + command_nuxmv + "'.");
-      std::string result{ StaticHelper::execWithSuccessCode(command_nuxmv, success_code_nuxmv, std::make_shared<std::string>(generated_dir + "/mc_runtimes.txt")) };
+      std::string result{ StaticHelper::execWithSuccessCode(command_nuxmv, success_code_nuxmv, runtime_log) };
+      if (isMortyLiveMode() && (success_code_kratos != EXIT_SUCCESS || success_code_nuxmv != EXIT_SUCCESS)) {
+         StaticHelper::writeTextToFile("", generated_dir + inputs.getCmdOption(CMD_CEX_FILE));
+         inputs.addError("Live model-checking job failed or timed out in '" + generated_dir + "'.");
+         return EXIT_FAILURE;
+      }
       StaticHelper::writeTextToFile(result, generated_dir + inputs.getCmdOption(CMD_CEX_FILE));
 
       // Fake call with FALSE SPEC
-      inputs.addNote("Running FALSE SPEC for debugging.");
-      const std::string main_dir{ generated_dir + "/main.smv" };
-      const std::string original_main{ StaticHelper::readFile(main_dir) };
-      StaticHelper::processFile(main_dir, [](std::string& content) { return StaticHelper::replaceAll(content, std::string("SPEC "), std::string("SPEC FALSE & ")); });
-      inputs.addNote("RUNNING NUXMV with command '" + command_nuxmv + "'.");
-      std::string result_fake{ StaticHelper::execWithSuccessCode(command_nuxmv, success_code_nuxmv, nullptr) };
-      StaticHelper::writeTextToFile(result_fake, generated_dir + "debug_trace_array_FALSE.txt");
-      StaticHelper::processFile(main_dir, [](std::string& content) { return StaticHelper::replaceAll(content, std::string("SPEC FALSE & "), std::string("SPEC ")); });
-      if (original_main != StaticHelper::readFile(main_dir)) {
-         inputs.addError("Main template file was not properly restored after FALSE SPEC test.");
+      if (!isMortyLiveMode()) {
+         inputs.addNote("Running FALSE SPEC for debugging.");
+         const std::string main_dir{ generated_dir + "/main.smv" };
+         const std::string original_main{ StaticHelper::readFile(main_dir) };
+         StaticHelper::processFile(main_dir, [](std::string& content) { return StaticHelper::replaceAll(content, std::string("SPEC "), std::string("SPEC FALSE & ")); });
+         inputs.addNote("RUNNING NUXMV with command '" + command_nuxmv + "'.");
+         std::string result_fake{ StaticHelper::execWithSuccessCode(command_nuxmv, success_code_nuxmv, nullptr) };
+         StaticHelper::writeTextToFile(result_fake, generated_dir + "debug_trace_array_FALSE.txt");
+         StaticHelper::processFile(main_dir, [](std::string& content) { return StaticHelper::replaceAll(content, std::string("SPEC FALSE & "), std::string("SPEC ")); });
+         if (original_main != StaticHelper::readFile(main_dir)) {
+            inputs.addError("Main template file was not properly restored after FALSE SPEC test.");
+         }
       }
       // EO Fake call with FALSE SPEC
 
-      success == success && (success_code_kratos == EXIT_SUCCESS) && (success_code_nuxmv == EXIT_SUCCESS);
+      success = success && (success_code_kratos == EXIT_SUCCESS) && (success_code_nuxmv == EXIT_SUCCESS);
    }
 
    if (success && inputs.getCmdMultiOption(CMD_MODE).count(MODE_CEX)) // *** Explainability toolchain ***
@@ -1572,8 +1604,9 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 
 void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const float head_const, const int num_lanes, const int num_technical_lanes, const std::string& trace_path)
 {
-   const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json").string() };
-   const std::string ucd_config_prios_str{ mc::McWorkflow().getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
+   const mc::McWorkflow workflow{};
+   const std::string OUTPUT_BASE_PATH{ workflow.getGeneratedDir("./morty/", "envmodel_config.tpl.json").string() };
+   const std::string ucd_config_prios_str{ workflow.getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
    const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
 
    auto cars = StaticHelper::split(input_str, ";");
@@ -1626,8 +1659,10 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
             trace.setOutputLevels(vfm::ErrorLevelEnum::invalid, vfm::ErrorLevelEnum::invalid); // Quiet; we use errors as "not present".
 
             const auto trace_directory{ std::filesystem::absolute(resolved_trace_path).parent_path() };
-            ScaleDescription::createTimescalingFile(trace_directory.string());
             const auto scaling_file{ trace_directory / TIMESCALING_FILENAME };
+            if (!isMortyLiveMode() || !std::filesystem::exists(scaling_file)) {
+               ScaleDescription::createTimescalingFile(trace_directory.string());
+            }
             if (std::filesystem::exists(scaling_file)) {
                const ScaleDescription scaling{ StaticHelper::readFile(scaling_file.string()) };
                if (scaling.getGeometryScalingFactor() != 1 || scaling.getDistanceScalingFactor() != 1) {
@@ -1836,7 +1871,7 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
          }
       }
 
-      std::cout << "car " << i << " -> "
+      if (!isMortyLiveMode()) std::cout << "car " << i << " -> "
                 << (found_seclet ? (best_on_section >= 0 ? "section " + std::to_string(best_on_section)
                                                          : "arc " + std::to_string(best_from) + "->" + std::to_string(best_to))
                                  : std::string("section 0 (fallback)"))
@@ -1920,7 +1955,7 @@ void renameFilesUCDShortcut(const std::string& basePath, int cnt_special, int sh
             fs::path duplicate_path = getPath(cnt);
             if (fs::exists(duplicate_path)) {
                 fs::remove(duplicate_path);
-                std::cout << "Removed leftover duplicate: " << duplicate_path.string() << std::endl;
+                if (!vfm::test::isMortyLiveMode()) std::cout << "Removed leftover duplicate: " << duplicate_path.string() << std::endl;
             }
         }
     }
@@ -1950,9 +1985,12 @@ std::string oneSingleBlop(const MCTrace& trace, const std::set<std::string>& var
 std::string vfm::test::prepareOutputForMortyUCD(
    const long long seed, const int iteration, const long long runtime, const bool crash)
 {
-   const std::string ucd_config_prios_str{ mc::McWorkflow().getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
+   const mc::McWorkflow workflow{};
+   const std::string ucd_config_prios_str{ workflow.getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
    const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
-   const std::string OUTPUT_BASE_PATH{ mc::McWorkflow().getGeneratedDir("./morty/", "envmodel_config.tpl.json").string() };
+   const std::string OUTPUT_BASE_PATH{ workflow.getGeneratedDir("./morty/", "envmodel_config.tpl.json").string() };
+   const bool store_future_points{ !isMortyLiveMode() || StaticHelper::isBooleanTrue(
+      workflow.getValueForJSONKeyAsString("UCD_USE_SHORTCUT", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE")) };
 
    const auto points_equal = [](const std::string& p1, const std::string& p2) -> bool {
       auto split1 = StaticHelper::split(p1, "\n");
@@ -1978,12 +2016,12 @@ std::string vfm::test::prepareOutputForMortyUCD(
 
       res += "\n" + config_name + ":";
 
-      const int num_cars{ std::stoi(mc::McWorkflow().getValueForJSONKeyAsString("NONEGOS", "./morty/", "envmodel_config.json", config_name)) };
+      const int num_cars{ std::stoi(workflow.getValueForJSONKeyAsString("NONEGOS", "./morty/", "envmodel_config.json", config_name)) };
       auto traces{ StaticHelper::extractMCTracesFromNusmvFile(OUTPUT_BASE_PATH + config_name + "/debug_trace_array.txt") };
       MCTrace trace = traces.empty() ? MCTrace{} : traces.at(0);
 
       // Store future trajectories
-      if (!trace.empty()) {
+      if (store_future_points && !trace.empty()) {
          std::set<std::string> variables_fut{};
          for (int i = 0; i < num_cars; i++) { // Add all the other variables_fut needed for traj. points.
             // variables_fut.insert("veh___6" + std::to_string(i) + "9___.a");
@@ -2002,8 +2040,10 @@ std::string vfm::test::prepareOutputForMortyUCD(
             const std::string former_point{ StaticHelper::readFile(OUTPUT_BASE_PATH + config_name + "/future_point_" + std::to_string(former_step) + ".txt") };
             
             if (points_equal(former_point, last_point)) {
-               std::cout << "former_step " << former_step << " last_step " << last_step << std::endl;
-               std::cout << "working in " << OUTPUT_BASE_PATH + config_name << std::endl;
+               if (!isMortyLiveMode()) {
+                  std::cout << "former_step " << former_step << " last_step " << last_step << std::endl;
+                  std::cout << "working in " << OUTPUT_BASE_PATH + config_name << std::endl;
+               }
                // std::cin.get();
                renameFilesUCDShortcut(OUTPUT_BASE_PATH + config_name, former_step, last_step - former_step);
                found_connector = true;
@@ -2015,8 +2055,10 @@ std::string vfm::test::prepareOutputForMortyUCD(
 
          if (!found_connector) { // If there's no connector, only the new files count.
             former_step = 0;
-            std::cout << "removing all former steps in " << OUTPUT_BASE_PATH + config_name << "." << std::endl;
-            std::cout << "last_point" << last_point << std::endl;
+            if (!isMortyLiveMode()) {
+               std::cout << "removing all former steps in " << OUTPUT_BASE_PATH + config_name << "." << std::endl;
+               std::cout << "last_point" << last_point << std::endl;
+            }
             // std::cin.get();
 
             while (StaticHelper::existsFileSafe(OUTPUT_BASE_PATH + config_name + "/future_point_" + std::to_string(former_step) + ".txt")) {
@@ -2037,6 +2079,12 @@ std::string vfm::test::prepareOutputForMortyUCD(
          }
       }
       // EO Store future trajectories
+
+      if (isMortyLiveMode()) {
+         if (trace.size() == 2) res += "FINISHED";
+         else for (int car_index = 0; car_index < num_cars; ++car_index) res += trace.empty() ? "|;" : "0|;";
+         continue;
+      }
 
       // Apply time/distance scaling so that deltas are in real-world units.
       const std::string scaling_file{ OUTPUT_BASE_PATH + config_name + "/" + TIMESCALING_FILENAME };
@@ -2088,6 +2136,21 @@ std::string vfm::test::prepareOutputForMortyUCD(
    }
 
    return res;
+}
+
+namespace {
+std::atomic<bool> morty_live_mode{ false };
+}
+
+bool vfm::test::isMortyLiveMode()
+{
+   return morty_live_mode.load(std::memory_order_relaxed);
+}
+
+extern "C" VFM_API void setMortyLiveMode(const bool enabled)
+{
+   morty_live_mode.store(enabled, std::memory_order_relaxed);
+   vfm::Failable::setDiagnosticOutputEnabled(!enabled);
 }
 
 extern "C"

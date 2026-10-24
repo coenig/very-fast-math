@@ -74,7 +74,7 @@ void vfm::mc::McWorkflow::generateEnvmodels(
    StaticHelper::createDirectoriesSafe(path_generated.string());
 
    for (const auto& envmodeldef : envmodeldefs) {
-      StaticHelper::writeTextToFile(std::to_string(cnt) + "#" + std::to_string(max) + "#" + envmodeldef.first, path_generated.string() + "/progress.morty");
+      if (!test::isMortyLiveMode()) StaticHelper::writeTextToFile(std::to_string(cnt) + "#" + std::to_string(max) + "#" + envmodeldef.first, path_generated.string() + "/progress.morty");
       addNote("Generating EnvModel " + std::to_string(cnt++) + "/" + std::to_string(max) + ".");
 
       if (envmodeldef.first != JSON_TEMPLATE_DENOTER) {
@@ -91,7 +91,7 @@ void vfm::mc::McWorkflow::generateEnvmodels(
       }
    }
 
-   StaticHelper::removeFileSafe(path_generated.string() + "/progress.morty");
+   if (!test::isMortyLiveMode()) StaticHelper::removeFileSafe(path_generated.string() + "/progress.morty");
 }
 
 std::vector<std::string> vfm::mc::McWorkflow::runMCJobs(
@@ -132,23 +132,32 @@ std::vector<std::string> McWorkflow::runMCJobs(
    std::vector<std::string> possibles{};
    std::string prefix{ path_generated_config_level.filename().string() };
 
-   for (const auto& entry : std::filesystem::directory_iterator(path_generated_parent)) {
-      std::string possible{ entry.path().filename().string() };
-      if (std::filesystem::is_directory(entry) && possible != prefix && StaticHelper::stringStartsWith(possible, prefix)) {
-         possibles.push_back(entry.path().string());
+   if (test::isMortyLiveMode()) {
+      const auto priorities{ StaticHelper::split(getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", path_json, json_tpl_filename, JSON_TEMPLATE_DENOTER), ";") };
+      for (const auto& config_name : priorities) {
+         if (!config_name.empty()) possibles.push_back(path_generated_config_level.string() + config_name);
+      }
+   } else {
+      for (const auto& entry : std::filesystem::directory_iterator(path_generated_parent)) {
+         std::string possible{ entry.path().filename().string() };
+         if (std::filesystem::is_directory(entry) && possible != prefix && StaticHelper::stringStartsWith(possible, prefix)) {
+            possibles.push_back(entry.path().string());
+         }
       }
    }
 
    { // Scope which makes us wait for finishing the jobs before entering the next line.
-      ThreadPool pool(num_threads);
+      ThreadPool pool(test::isMortyLiveMode() ? (std::max)(1, (std::min)(num_threads, static_cast<int>(possibles.size()))) : num_threads);
 
       for (const auto& folder : possibles) {
-         std::this_thread::sleep_for(std::chrono::seconds(1));
+         if (!test::isMortyLiveMode()) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+         }
 
          const std::string config_name{ std::filesystem::path(folder).filename().string() };
 
          if (job_selector(config_name)) {
-            pool.enqueue([this, &folder, &path_generated_parent, &prefix, &path_template, &path_json, &json_tpl_filename, &previous_write_time, formula_evaluation_mutex, delete_old_output] {
+            pool.enqueue([this, folder, &path_generated_parent, &prefix, &path_template, &path_json, &json_tpl_filename, &previous_write_time, formula_evaluation_mutex, delete_old_output] {
                runMCJob(folder, folder.substr(path_generated_parent.string().size() + prefix.size() + 1), path_template, path_json, json_tpl_filename, previous_write_time, formula_evaluation_mutex, delete_old_output);
             });
          }
@@ -195,7 +204,7 @@ void McWorkflow::runMCJob(
    const auto cex_file_name{ getCEXFileName(path_json, json_tpl_filename) };
    bool generate_preview{ false };
    
-   {
+   if (!test::isMortyLiveMode() || !std::filesystem::exists(path_generated_config_level / "script.cmd")) {
       std::lock_guard<std::mutex> lock{ main_file_mutex_ };
 
       addNote("Running model checker and creating preview for folder '" + path_generated_config_level.string() + "' (config: '" + config_name + "').");
