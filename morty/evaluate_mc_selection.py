@@ -144,9 +144,14 @@ def evaluate_child(args):
     evaluation_policy = template['UCD_EVALUATION_POLICY']
     configured_indices = template['UCD_EVALUATION_CONFIGS']
     allowed = [int(value) for value in configured_indices.split(';')] if configured_indices else None
+    encoding = template.get('UCD_EVALUATION_SMV_ENCODING', 'baseline')
+    if encoding != 'baseline':
+        from .evaluate_smv_encodings import transform_model, transformation_key
     namespace = {'__name__': 'morty.selection_evaluation', '__package__': 'morty'}
     original_context = helper.morty_script_context
     original_scheduler = helper.RunScheduler.__init__
+    original_models = {}
+    model_cache = {}
     stages = defaultdict(float)
     records = []
     queries = []
@@ -163,6 +168,8 @@ def evaluate_child(args):
                      model_input=namespace['mcinput'],
                      target=('INVARSPEC !(TRUE ' + namespace['future_points_str'][event['point_index']] + ');'
                              if event['shortcut'] else namespace['spec_res']))
+        if template.get('UCD_EVALUATION_CAPTURE_SMV', False):
+            event['main_smv'] = (folder / ('generated' + event['config']) / 'main.smv').read_text()
         queries.append(event)
         with (folder / 'queries.jsonl').open('a') as stream:
             stream.write(json.dumps(event) + '\n')
@@ -181,6 +188,20 @@ def evaluate_child(args):
             self.library = library
 
         def expandScript(self, script, result, size):
+            selected_query = re.search(rb'\.runMCJob\[([^\]]+)\]', script)
+            if encoding != 'baseline' and selected_query:
+                transform_started = time.perf_counter()
+                package = folder / ('generated' + selected_query[1].decode())
+                model = package / 'EnvModel.smv'
+                if model not in original_models:
+                    original_models[model] = model.read_text()
+                main = (package / 'main.smv').read_text()
+                cache_key = (model, transformation_key(main))
+                if cache_key not in model_cache:
+                    rewritten, _ = transform_model(original_models[model], main, encoding)
+                    model_cache[cache_key] = rewritten
+                model.write_text(model_cache[cache_key])
+                stages['smv_transform'] += time.perf_counter() - transform_started
             if b'generateEnvmodels' in script:
                 stage = 'generation'
             elif b'prepareInputForMortyUCD' in script or b'.runMCJob' in script:

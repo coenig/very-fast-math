@@ -278,6 +278,16 @@ the forward vehicle was about 9.6 cm short of its continuous-position threshold.
 an exact continuous-goal completion claim. Its first planning cycle still took 99.60 s, and
 **the 100 ms target remains unmet**. These finite checks are not a universal safety guarantee.
 
+#### Task 7 SMV Encoding Experiments
+All four proposed model-level optimizations were tested on exact five-car task-7
+queries, including arithmetic/lookup and combined-encoding controls. The strongest
+prototype reduced the sum of six matched-query median nuXmv times from 25.80 s to
+3.83 s. All 234 timed solves agreed on bounded feasibility, and 66 bidirectional
+witness checks passed. Two optimized closed-loop seeds completed without blindness
+or crashes, but followed different trajectories; this is not a safety certification.
+The production templates and active configuration remain unchanged. Results, caveats,
+and reproduction commands are in [morty/SMV_ENCODING_EVALUATION.md](morty/SMV_ENCODING_EVALUATION.md).
+
 #### Safety and Configuration-Pool Evaluation
 The subsequent 40-trial study found blind initial states even with all 16 configurations,
 blindness after removing a needed fallback, and crashes in reduced pools despite zero
