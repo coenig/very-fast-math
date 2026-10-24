@@ -27,6 +27,12 @@ class LiveModeTests(unittest.TestCase):
                 args = self.parse_driver_options(*options)
                 self.assertTrue(args.headless)
                 self.assertFalse(args.force_head)
+                self.assertEqual(args.mc_selection, 'all')
+
+    def test_adaptive_selection_is_live_only_and_opt_in(self):
+        self.assertEqual(self.parse_driver_options('--live', '--mc_selection', 'adaptive').mc_selection, 'adaptive')
+        with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            self.parse_driver_options('--mc_selection', 'adaptive')
 
     def test_status_is_inactive_without_a_visible_viewer(self):
         for viewer in [None, SimpleNamespace(offscreen=True),
@@ -130,6 +136,139 @@ class LiveModeTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, 'solver failed'):
             namespace['run_planning_script']('script', create_string_buffer(100), 'full plan')
         status.assert_called_with('Cycle 1 | Planning interrupted or failed')
+
+    def test_selected_query_clears_stale_traces_but_preserves_plans(self):
+        from ctypes import create_string_buffer, sizeof
+
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        function = next(node for node in module.body if isinstance(node, ast.FunctionDef)
+                        and node.name == 'run_planning_script')
+        with TemporaryDirectory() as folder:
+            prefix = str(Path(folder) / 'generated')
+            configs = ['_primary', '_fallback']
+            for config in configs:
+                package = Path(prefix + config)
+                package.mkdir()
+                (package / 'debug_trace_array.txt').write_text('stale counterexample')
+                (package / 'future_point_2.txt').write_text('stored plan')
+
+            def native_call(script, result, size):
+                self.assertEqual(script, b'@{config.json}@.runMCJob[_fallback]')
+                for config in configs:
+                    self.assertEqual((Path(prefix + config) / 'debug_trace_array.txt').read_text(), '')
+                    self.assertEqual((Path(prefix + config) / 'future_point_2.txt').read_text(), 'stored plan')
+                return b'fresh result'
+
+            library = SimpleNamespace(expandScript=Mock(side_effect=native_call))
+            namespace = {'args': SimpleNamespace(live=True, dryrun=False), 'global_counter': 0,
+                         'show_sim_status': Mock(), 'sizeof': sizeof, 'Path': Path,
+                         'morty_script_context': lambda **kwargs: contextlib.nullcontext(library),
+                         'ucd_config_prios_str': configs, 'generated_path_prefix': prefix}
+            exec(compile(ast.Module(body=[function], type_ignores=[]), '<selected query>', 'exec'), namespace)
+            result = namespace['run_planning_script']('@{config.json}@.runMCJobs[16]',
+                                                     create_string_buffer(100), 'full plan', '_fallback')
+            self.assertEqual(result, b'fresh result')
+            library.expandScript.assert_called_once()
+            with self.assertRaisesRegex(ValueError, 'Invalid selective'):
+                namespace['run_planning_script']('@{config.json}@.runMCJobs[16]',
+                                                 create_string_buffer(100), 'full plan', '_unknown')
+            with self.assertRaisesRegex(ValueError, 'Invalid selective'):
+                namespace['run_planning_script']('@{}@.prepareInputForMortyUCD[0,2,12,AUTO]@{config.json}@.runMCJobs[16]',
+                                                 create_string_buffer(100), 'full plan', '_fallback')
+
+    def test_adaptive_input_uses_previous_selected_geometry(self):
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        cycle = next(node for node in ast.walk(module) if isinstance(node, ast.For)
+                     and isinstance(node.target, ast.Name) and node.target.id == 'global_counter')
+        assignments = [node for node in cycle.body if isinstance(node, ast.Assign)
+                       and any(isinstance(target, ast.Name) and target.id in ('input_trace', 'MC_INPUT_SCRIPT')
+                               for target in node.targets)]
+        code = compile(ast.Module(body=assignments, type_ignores=[]), '<input geometry>', 'exec')
+        for selector in [None, helper.MCConfigSelector(2)]:
+            for selected in [None, '_fallback']:
+                with self.subTest(adaptive=selector is not None, selected=selected):
+                    namespace = {'config_selector': selector, 'selected_config': selected,
+                                 'generated_path_prefix': './generated', 'mcinput': 'observations',
+                                 'args': SimpleNamespace(heading_adaptation=2.5),
+                                 'num_actual_lanes': 2, 'num_technical_lanes': 12}
+                    exec(code, namespace)
+                    expected = './generated_fallback/debug_trace_array.txt' if selector is not None and selected else 'AUTO'
+                    self.assertEqual(namespace['input_trace'], expected)
+                    self.assertIn(f'.prepareInputForMortyUCD[2.5, 2, 12, {expected}]', namespace['MC_INPUT_SCRIPT'])
+
+    def test_adaptive_planning_prepares_before_queries_and_recovers_rare_config(self):
+        from ctypes import create_string_buffer, sizeof
+
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        function = next(node for node in module.body if isinstance(node, ast.FunctionDef)
+                        and node.name == 'run_adaptive_planning')
+        for winner in ['last_full', 'last_shortcut', 'none', 'stale']:
+            with self.subTest(winner=winner):
+                library = SimpleNamespace(expandScript=Mock(return_value=b''))
+                queries = []
+                targets = {}
+                configs = ['first', 'middle', 'last']
+
+                def query(script, result, description, config_name):
+                    library.expandScript.assert_called_once()
+                    self.assertEqual(library.expandScript.call_args.args[0], b'prepare geometry first')
+                    queries.append((config_name, targets[config_name]))
+                    success = config_name == 'last' and (
+                        (winner == 'last_full' and targets[config_name] == 'original goal')
+                        or (winner == 'last_shortcut' and targets[config_name] == 'INVARSPEC !(TRUE far point);'))
+                    return b'fresh' if success or winner == 'stale' else b'empty'
+
+                def select(output, priorities, empty, verbose):
+                    return ('|2', 2, 'fresh') if output == 'fresh' else ('|X', None, 'empty')
+
+                namespace = {'create_string_buffer': create_string_buffer, 'sizeof': sizeof,
+                             'morty_script_context': lambda **kwargs: contextlib.nullcontext(library),
+                             'config_selector': helper.MCConfigSelector(3), 'ucd_config_prios_str': configs,
+                             'spec_res': 'original goal', 'run_planning_script': query,
+                             'write_spec_to_main_smv': lambda name, target: targets.__setitem__(name, target),
+                             'postprocess_selected_config': select, 'perf_counter': lambda: 1.0}
+                exec(compile(ast.Module(body=[function], type_ignores=[]), '<adaptive planning>', 'exec'), namespace)
+                if winner == 'stale':
+                    with self.assertRaisesRegex(RuntimeError, 'stale result'):
+                        namespace['run_adaptive_planning']('prepare geometry first', 'solve', [], 'empty', None)
+                    self.assertEqual(len(queries), 1)
+                    continue
+                result = namespace['run_adaptive_planning']('prepare geometry first', 'solve',
+                                                           ['near point', 'far point'], 'empty', 2)
+                if winner == 'none':
+                    self.assertEqual(result, ('|X', None, 'empty', None))
+                    self.assertEqual(len(queries), 9)
+                else:
+                    self.assertEqual(result, ('|2', 2, 'fresh', 1 if winner == 'last_shortcut' else None))
+                self.assertEqual(len(queries), len(set(queries)))
+
+    def test_adaptive_selector_keeps_every_full_goal_fallback(self):
+        selector = helper.MCConfigSelector(16)
+        queries = list(selector.queries(0, None))
+        self.assertEqual(queries, [(index, None) for index in range(16)])
+        selector.record(12, False, True, 0.1)
+        queries = list(selector.queries(0, None))
+        self.assertEqual(queries[0], (12, None))
+        self.assertEqual(set(queries), {(index, None) for index in range(16)})
+
+    def test_adaptive_selector_exhausts_shortcuts_before_reporting_blind(self):
+        selector = helper.MCConfigSelector(16)
+        queries = list(selector.queries(15, 5))
+        self.assertEqual(len(queries), len(set(queries)))
+        self.assertEqual(set(queries), {(index, None) for index in range(16)}
+                         | {(index, point) for index in range(6) for point in range(15)})
+        first_full = next(index for index, query in enumerate(queries) if query[1] is None)
+        self.assertLessEqual(first_full, 2)
+        self.assertLess(queries.index((15, None)), queries.index((5, 14)))
+
+    def test_adaptive_selector_avoids_slow_repeated_shortcuts(self):
+        selector = helper.MCConfigSelector(3)
+        selector.record(0, False, True, 0.1)
+        for index in range(3):
+            selector.record(index, True, False, 5)
+        self.assertEqual(next(selector.queries(15, 2)), (0, None))
+        selector.record(0, False, False, 10)
+        self.assertNotEqual(next(selector.queries(0, None)), (0, None))
 
     def test_render_setup_preserves_each_execution_mode(self):
         module = ast.parse(Path(__file__).with_name('morty.py').read_text())

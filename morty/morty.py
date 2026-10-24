@@ -11,12 +11,13 @@ import json
 import re
 from pathlib import Path
 import glob
+from time import perf_counter
 from .morty_helper import (
     ensure_empty_file, min_max_curr, dpoint_following_angle,
     maxDifferenceArray, inverseSortingArray, _latest_nuxmv_runtime_seconds,
     _hash_file, _snapshot_configs, _save_configs_to_archive, archive, morty_script_context,
     VizState, install_vehicle_graphics_patches, install_world_surface_patches,
-    RunScheduler, snapshot_mc_results_offsets, run_reached_threshold, discard_run,
+    RunScheduler, MCConfigSelector, snapshot_mc_results_offsets, run_reached_threshold, discard_run,
     randomize_until_collision_free,
 )
 import platform
@@ -68,6 +69,8 @@ parser.add_argument('--live', action='store_true',
                     help='Driving-only mode: no visualization, debug artifacts, or experiment statistics.')
 parser.add_argument('--force_head', action='store_true',
                     help='Show the simulation window with --live, keeping debugging and statistics disabled.')
+parser.add_argument('--mc_selection', choices=['all', 'adaptive'], default='all',
+                    help='MC job selection: all priorities, or adaptive single-config queries with exhaustive fallback (requires --live).')
 parser.add_argument('--min_iterations', default=2, type=int,
                     help='Runs that FAIL before completing this many planning iterations are treated as '
                          'unsolvable seeds: they are excluded (no data/statistics/archives are written) and '
@@ -79,6 +82,8 @@ if args.force_head and not args.live:
     parser.error('--force_head requires --live')
 if args.force_head and args.headless:
     parser.error('--force_head cannot be combined with --headless')
+if args.mc_selection == 'adaptive' and not args.live:
+    parser.error('--mc_selection adaptive requires --live')
 
 if args.live:
     if args.dryrun or args.record_video or args.detailed_archive:
@@ -120,7 +125,16 @@ def show_sim_status(text, mc_running=False):
         viz_state.set_status(env, text, mc_running=mc_running)
 
 
-def run_planning_script(script, result, description):
+def run_planning_script(script, result, description, config_name=None):
+    if config_name is not None:
+        if not args.live or args.dryrun:
+            raise ValueError('Selective model checking requires a live run')
+        if (config_name not in ucd_config_prios_str or script.count('.runMCJobs[16]') != 1
+            or '.prepareInputForMortyUCD' in script):
+            raise ValueError('Invalid selective model-checking request')
+        for name in ucd_config_prios_str:
+            Path(generated_path_prefix + name + '/debug_trace_array.txt').write_text('')
+        script = script.replace('.runMCJobs[16]', f'.runMCJob[{config_name}]', 1)
     cycle = f"Cycle {global_counter + 1}"
     phase = "Replaying trace" if args.dryrun else "MC pipeline running"
     show_sim_status(f"{cycle} | {phase} ({description})", mc_running=not args.dryrun)
@@ -132,6 +146,31 @@ def run_planning_script(script, result, description):
         raise
     show_sim_status(f"{cycle} | Processing results")
     return output
+
+
+def run_adaptive_planning(input_script, solver_script, future_points, empty_cex, priority_floor):
+    input_result = create_string_buffer(2000)
+    with morty_script_context(live=True) as morty_lib:
+        morty_lib.expandScript(input_script.encode('utf-8'), input_result, sizeof(input_result))
+    result = create_string_buffer(100000)
+    for config_index, point_index in config_selector.queries(len(future_points), priority_floor):
+        config_name = ucd_config_prios_str[config_index]
+        shortcut = point_index is not None
+        target = "INVARSPEC !(TRUE " + future_points[point_index] + ");" if shortcut else spec_res
+        write_spec_to_main_smv(config_name, target)
+        description = f"shortcut {point_index + 1}" if shortcut else "full plan"
+        started = perf_counter()
+        output = run_planning_script(solver_script, result,
+                                     f"{description}, config {config_index + 1}/{len(ucd_config_prios_str)}", config_name)
+        blind, chosen, response = postprocess_selected_config(
+            output.decode().strip(), ucd_config_prios_str, empty_cex, verbose=False)
+        success = response != empty_cex
+        if success and chosen != config_index:
+            raise RuntimeError('A skipped MC configuration supplied a stale result')
+        config_selector.record(config_index, shortcut, success, perf_counter() - started)
+        if success:
+            return blind, chosen, response, point_index
+    return '|X', None, empty_cex, None
 
 import numpy as np
 
@@ -688,6 +727,8 @@ for run_id, seedo in scheduler:
     # EO Prepare dry run
 
     selected_config = None
+    last_full_solution_prio = None
+    config_selector = MCConfigSelector(len(ucd_config_prios_str)) if args.mc_selection == 'adaptive' else None
     watchdog_start = '' if args.live and platform.system() == 'Linux' else '@{nuXmv}@.killAfter[300].Detach.setScriptVar[scriptID, force]'
     watchdog_stop = '' if not watchdog_start else '@{scriptID}@.scriptVar.StopScript'
     
@@ -709,10 +750,15 @@ for run_id, seedo in scheduler:
             mcinput += ";"
             i = i + 1
 
-        MC_SCRIPT = f"""@{{
+        input_trace = generated_path_prefix + selected_config + '/debug_trace_array.txt' if config_selector is not None and selected_config is not None else 'AUTO'
+        MC_INPUT_SCRIPT = f"""@{{
             @{{./src/templates/}}@.stringToHeap[MY_PATH]
 
-            @{{{mcinput}}}@.prepareInputForMortyUCD[{args.heading_adaptation}, {num_actual_lanes}, {num_technical_lanes}, AUTO]
+            @{{{mcinput}}}@.prepareInputForMortyUCD[{args.heading_adaptation}, {num_actual_lanes}, {num_technical_lanes}, {input_trace}]
+            }}@.nil
+        """
+        MC_SOLVER_SCRIPT = f"""@{{
+            @{{./src/templates/}}@.stringToHeap[MY_PATH]
 
             {watchdog_start}
             @{{../../morty/envmodel_config.tpl.json}}@.runMCJobs[16]
@@ -721,6 +767,7 @@ for run_id, seedo in scheduler:
             }}@.nil
             @{{}}@.prepareOutputForMortyUCD[{str(run_id)}, {str(global_counter)}, {0}, {str(crashed)}]
         """
+        MC_SCRIPT = MC_INPUT_SCRIPT + MC_SOLVER_SCRIPT
         # EO The script to run the MC on C++ side.
 
         # Prepare dry run        
@@ -768,7 +815,15 @@ for run_id, seedo in scheduler:
  
         shortcut_index = -1
         found_shortcut = False
-        if not future_points_str: # ...and whole shortcut search is skipped.
+        if config_selector is not None:
+            blind, selected_cnt, res_str, point_index = run_adaptive_planning(
+                MC_INPUT_SCRIPT, MC_SOLVER_SCRIPT, future_points_str, empty_cex, last_full_solution_prio)
+            found_shortcut = point_index is not None
+            if found_shortcut:
+                shortcut_index = point_index
+            else:
+                last_full_solution_prio = selected_cnt
+        elif not future_points_str: # ...and whole shortcut search is skipped.
             if not args.live:
                 print(f"No future points found for {selected_config}.")
         else:
@@ -798,7 +853,7 @@ for run_id, seedo in scheduler:
         # input("Press Enter to continue...")
         ## EO FOLLOW EXISTING PATH (shortcut) ##
         
-        if not found_shortcut:
+        if config_selector is None and not found_shortcut:
             show_sim_status(f"Cycle {global_counter + 1} | Preparing full plan")
             for ucd_config_str in ucd_config_prios_str: # Back to actual SPEC
                 write_spec_to_main_smv(ucd_config_str, spec_res)
