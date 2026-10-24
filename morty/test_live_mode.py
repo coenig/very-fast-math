@@ -12,6 +12,52 @@ from . import morty_helper as helper
 
 
 class LiveModeTests(unittest.TestCase):
+    def test_smv_parked_specialization_requires_stationary_lane_hold(self):
+        from .evaluate_smv_encodings import freeze_parked
+
+        main = 'INVAR env.veh___609___.v = 0;\nINIT env.veh___609___.abs_pos = 42;\n'
+        with self.assertRaisesRegex(ValueError, 'stationary lane-hold'):
+            freeze_parked('', main, 1)
+        source = 'original boundary-sensitive model'
+        self.assertEqual(freeze_parked(source, main.replace('= 42;', '= -1;'), 1), (source, []))
+
+    def test_smv_transformation_cache_tracks_parked_inputs_only(self):
+        from .evaluate_smv_encodings import transformation_key
+
+        main = ('INVAR env.veh___629___.v = 0;\n'
+                'INIT env.veh___629___.abs_pos = 42;\n'
+                'INIT env.veh___629___.lane_b2;\n'
+                'INIT env.veh___609___.abs_pos = 10;\n')
+        self.assertEqual(transformation_key(main), transformation_key(main.replace('= 10;', '= 11;')))
+        self.assertNotEqual(transformation_key(main), transformation_key(main.replace('= 42;', '= 43;')))
+        self.assertNotEqual(transformation_key(main), transformation_key(main.replace('.lane_b2;', '.lane_b3;')))
+        self.assertNotEqual(transformation_key(main), transformation_key(main.replace('.v = 0;', '.v = 1;')))
+
+    def test_smv_declaration_rewrite_preserves_case_labels(self):
+        from .evaluate_smv_encodings import remove_declaration
+
+        source = 'VAR lane : boolean;\nDEFINE position := case\n lane : 1;\n TRUE : 0;\nesac;\n'
+        rewritten = remove_declaration(source, 'lane')
+        self.assertNotIn('lane : boolean;', rewritten)
+        self.assertIn('lane : 1;', rewritten)
+
+    def test_smv_trace_projection_recovers_lane_bits(self):
+        from .evaluate_smv_encodings import pin_trace, read_trace
+
+        main = 'INIT env.veh___609___.abs_pos = 10;\nINIT env.veh___609___.v = 0;\n'
+        output = ('-> State: 1.1 <-\n env.veh___609___.lane_coordinate = 9\n'
+                  '-> State: 1.2 <-\n env.veh___609___.lane_coordinate = 10\n'
+                  ' env.veh___609___.abs_pos = 12\n')
+        states = read_trace(output, main)
+        self.assertTrue(states[0]['env.veh___609___.lane_b4'])
+        self.assertTrue(states[0]['env.veh___609___.lane_b5'])
+        self.assertFalse(states[1]['env.veh___609___.lane_b4'])
+        self.assertTrue(states[1]['env.veh___609___.lane_b5'])
+        pinned = pin_trace(main, states)
+        self.assertIn('env.cnt != 1', pinned)
+        self.assertIn('env.veh___609___.abs_pos = 12', pinned)
+        self.assertNotIn('lane_coordinate', pinned)
+
     def test_json_run_settings_preserve_legacy_defaults(self):
         self.assertEqual(helper.load_run_settings({}), {
             'num_runs': 100, 'steps_per_run': 300, 'heading_adaptation': -0.5,
