@@ -13,6 +13,16 @@
 
 vfm::Failable::Failable(const std::string& failable_name) : failable_name_(failable_name) {}
 
+void vfm::Failable::setDiagnosticOutputEnabled(const bool enabled)
+{
+   diagnostic_output_enabled_.store(enabled, std::memory_order_relaxed);
+}
+
+bool vfm::Failable::isDiagnosticOutputEnabled()
+{
+   return diagnostic_output_enabled_.load(std::memory_order_relaxed);
+}
+
 std::string vfm::Failable::getColorFor(ErrorLevelEnum level)
 {
    if (level == ErrorLevelEnum::debug) {
@@ -163,7 +173,7 @@ void vfm::Failable::addError(const std::wstring& error_message, const ErrorLevel
 void vfm::Failable::addError(const std::string& error_message, const ErrorLevelEnum level, const std::string& delimiter, const bool include_preamble) const
 {
 #ifndef CUT_OUT_ALL_DEBUG_OUTPUT_FOR_RELEASE
-   if (level == ErrorLevelEnum::invalid) {
+   if (level == ErrorLevelEnum::invalid || (level < ErrorLevelEnum::warning && !isDiagnosticOutputEnabled())) {
       return;
    }
 

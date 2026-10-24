@@ -13,7 +13,6 @@ import ctypes
 import ctypes.util
 from contextlib import contextmanager
 from ctypes import CDLL
-from .morty_debug_plots import plot_cex_lengths_cumulative, plot_mc_runtimes_cumulative
 
 
 def ensure_empty_file(path: str) -> None:
@@ -256,10 +255,11 @@ class RunScheduler:
             # otherwise just continue; the next seed reuses the same run_id
     """
 
-    def __init__(self, generated_path_prefix: str, max_exps: int, dryrun: bool):
+    def __init__(self, generated_path_prefix: str, max_exps: int, dryrun: bool, persist: bool = True):
         self.generated_path_prefix = generated_path_prefix
         self.max_exps = max_exps
         self.dryrun = bool(dryrun)
+        self.persist = persist
         self.run_id = 0
         self.seed = -1
         self.run_seed_map: Dict[int, int] = {}
@@ -268,7 +268,8 @@ class RunScheduler:
             self.dryrun_pairs = load_run_seed_pairs(generated_path_prefix) or [(i, i) for i in range(max_exps)]
         else:
             self.dryrun_pairs = None
-            dump_run_seed_map(self.run_seed_map, generated_path_prefix)  # Reset the mapping for a fresh session.
+            if self.persist:
+                dump_run_seed_map(self.run_seed_map, generated_path_prefix)
         self.dryrun_index = 0
 
     def __iter__(self):
@@ -291,8 +292,9 @@ class RunScheduler:
 
         No-op for dry runs, which iterate a fixed (run_id, seed) list."""
         if not self.dryrun:
-            self.run_seed_map[self.run_id] = self.seed
-            dump_run_seed_map(self.run_seed_map, self.generated_path_prefix)
+            if self.persist:
+                self.run_seed_map[self.run_id] = self.seed
+                dump_run_seed_map(self.run_seed_map, self.generated_path_prefix)
             self.run_id += 1
 
 
@@ -317,6 +319,8 @@ def discard_run(run_id: int, generated_path_prefix: str, ucd_config_prios_str: L
                 all_selected_runtime_histories: dict) -> None:
     """Undo everything an excluded (early-failing) run produced: drop its in-memory statistics,
     regenerate the cumulative plots without it, and delete its on-disk artifacts."""
+    from .morty_debug_plots import plot_cex_lengths_cumulative, plot_mc_runtimes_cumulative
+
     all_cex_length_histories.pop(run_id, None)
     all_selected_runtime_histories.pop(run_id, None)
     plot_cex_lengths_cumulative(all_cex_length_histories, f"{generated_path_prefix}/cex_length_debug_all.pdf")
@@ -349,8 +353,13 @@ def clean_library_context(lib_path):
         else:
             print("Warning: Library object not found for cleanup.")
                
+_live_morty_lib = None
+
+
 @contextmanager
-def morty_script_context():
+def morty_script_context(live=False):
+    global _live_morty_lib
+
     # Assum Linux until...
     dll_name = 'libvfm.so'
     dll_dir = './lib'
@@ -363,6 +372,21 @@ def morty_script_context():
         if dll_dir not in os.environ.get('PATH', ''):
             os.environ['PATH'] = dll_dir + os.pathsep + os.environ.get('PATH', '')
    
+    if live:
+        if _live_morty_lib is None:
+            morty_lib = ctypes.CDLL(dll_dir + '/' + dll_name)
+            try:
+                morty_lib.setMortyLiveMode.argtypes = [ctypes.c_bool]
+                morty_lib.setMortyLiveMode.restype = None
+            except AttributeError as error:
+                raise RuntimeError('--live requires rebuilding the native VFM library') from error
+            morty_lib.expandScript.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t]
+            morty_lib.expandScript.restype = ctypes.c_char_p
+            morty_lib.setMortyLiveMode(True)
+            _live_morty_lib = morty_lib
+        yield _live_morty_lib
+        return
+
     with clean_library_context(dll_dir + '/' + dll_name) as morty_lib:
         morty_lib.expandScript.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t]
         morty_lib.expandScript.restype = ctypes.c_char_p

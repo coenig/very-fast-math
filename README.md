@@ -86,6 +86,74 @@ python3 -m morty.morty --headless --record_video
 ```
 The task to solve is defined in `morty/envmodel_config.tpl.json`. Use the `morty/master_templates` for a first trial.
 
+### Driving-only mode
+Rebuild the native library after updating, then run:
+
+```bash
+cmake --build build --target runTests --parallel
+python3 -m morty.morty --live --num_runs 1
+```
+
+`--live` keeps the configured model-checking algorithms, bounds, priorities, driving dynamics,
+pure-pursuit formulas, and optional shortcut checks. It disables visualization, video, plots,
+archives, experiment statistics, diagnostic logging, and the extra `FALSE`-specification debug
+solve. Warnings and errors remain enabled. The ordinary experiment mode is unchanged.
+
+Live runs retain the native library, launch configured models without artificial delays, reuse
+prepared solver scripts and unchanged planner translations, and extract only the trajectory
+prefix needed for control unless shortcut reuse requires the complete plan. The working
+`debug_trace_array.txt` files are still needed to pass solver results to the controller; they
+are overwritten, not archived. Future-point files are only produced when shortcuts are enabled.
+Trace-variable lookups also avoid copying entire state dictionaries in both execution modes.
+Parser dumps and GUI progress output are disabled, and cached debug files are not copied into
+live working packages. Template metadata needed to validate the model cache is retained there.
+
+Model generation and the initial planner translation are startup costs, not steady-state cycle
+costs. Restart after changing the configuration or solver templates. Existing output-directory
+checks still apply; choose `--press` or `--force` explicitly when reusing experiment paths.
+`--live` rejects `--dryrun`, `--record_video`, and `--detailed_archive`.
+
+On Linux, GNU `timeout` limits each solver process to the existing 300-second budget without a
+global process-polling watchdog. This is an overhead-reduction mode, not a hard real-time
+guarantee: solving the configured models can still exceed a few hundred milliseconds.
+
+#### Task 7 Measurements
+Measured on Linux with nuXmv 2.2.0, using `morty/master_templates/task_7_tpl.json` unchanged
+apart from isolated output/cache paths: ten vehicles, two lanes, sixteen prioritized models,
+BMC bound 30, shortcuts enabled, seed 0. Model generation is excluded from cycle times.
+The experiment baseline was headless, without video or detailed archives; both modes included
+the shared trace-lookup optimization.
+
+| Planning cycle | Experiment mode | Live mode |
+|---|---:|---:|
+| First full-plan cycle | 99.13 s | 51.32 s |
+| Next shortcut cycle | 27.57 s | 4.73 s |
+| Following shortcut cycle | 27.07 s | 4.81 s |
+
+All three matched cycles produced identical selected priorities, shortcut decisions, actions,
+and vehicle positions, with no crashes or blind steps. Shortcut cycles were about 5.7x faster.
+Removing state-dictionary copies reduced coordinate extraction from 4.49 s to about 21 ms on
+the first cycle, and from about 250 ms to 7-12 ms on shortcut cycles.
+
+A separate three-repetition measurement of the same task's prepared shortcut query took
+4.48-4.55 s for the sixteen-model solver batch, 96-105 ms for result processing, and about
+6 ms for coordinate extraction. All prepared models remained byte-identical during that check.
+
+An extended live run completed 22 cycles with no crashes or blind steps before the evaluation's
+360-second wall-clock limit. Median completed-cycle time was 4.81 s. Cycles 17 and 18 took
+57.59 s and 113.50 s because the existing shortcut policy issued seven and ten planning
+attempts. The two moving vehicles passed each other, but had not cleared the full obstacle
+corridor. This is not a completed-task or multi-seed safety validation, and **the 100 ms target
+is not met**. Solver latency and repeated shortcut attempts remain the dominant limitations;
+no model-checking heuristics were changed.
+
+Focused regression checks:
+
+```bash
+python3 -m unittest morty.test_live_mode
+./bin/runTests --gtest_filter='MortyLiveTests.*:MCTraceTests.*:GeometryScalingTests.*'
+```
+
 ## Notes
 The `very fast math -- Model Checking for ADAS` project is [open-source](https://github.com/coenig/very-fast-math). Academic publications:
 - TACAS 2024: [Towards Safe Autonomous Driving: Model Checking a Behavior Planner during Development](https://link.springer.com/chapter/10.1007/978-3-031-57249-4_3)
