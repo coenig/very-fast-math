@@ -444,6 +444,51 @@ class VizState:
         self.pp_targets = {}      # vehicle id -> [x, y] pure-pursuit target
         self.selected_cnt = None  # currently active CEX priority (for coloring)
         self.pos_to_draw = []     # list of [coord, color] planned MC positions
+        self.status = ""
+        self.mc_running = False
+        self._status_font = None
+
+    def attach_status(self, env):
+        viewer = env.unwrapped.viewer
+        if viewer is None or viewer.offscreen or not viewer.enabled:
+            return
+        self._status_font = None
+        original_display = viewer.display
+
+        def display_with_status():
+            original_display()
+            self._draw_status(viewer)
+
+        viewer.display = display_with_status
+
+    def set_status(self, env, text, mc_running=False):
+        viewer = env.unwrapped.viewer
+        if viewer is None or viewer.offscreen or not viewer.enabled:
+            return
+        self.status = text
+        self.mc_running = mc_running
+        self._draw_status(viewer)
+
+    def _draw_status(self, viewer):
+        if not self.status:
+            return
+        import pygame
+
+        if self._status_font is None:
+            self._status_font = pygame.font.Font(None, 22)
+        strip = pygame.Rect(0, 0, viewer.screen.get_width(), 30)
+        background = (255, 221, 92) if self.mc_running else (229, 235, 239)
+        pygame.draw.rect(viewer.screen, background, strip)
+        text = self.status
+        available_width = max(0, strip.width - 16)
+        if self._status_font.size(text)[0] > available_width:
+            while text and self._status_font.size(text + "...")[0] > available_width:
+                text = text[:-1]
+            text = text + "..." if text else ""
+        label = self._status_font.render(text, True, (25, 30, 35))
+        viewer.screen.blit(label, (8, (strip.height - label.get_height()) // 2))
+        pygame.display.update(strip)
+        pygame.event.pump()
 
 
 def get_scene_bounding_box(env, car_ids):
@@ -678,16 +723,15 @@ def install_vehicle_graphics_patches(args, viz_state):
 
             # Persist trajectory in world coordinates and draw it in the current camera view.
             vehicle_id = id(vehicle)
-            if vehicle_id not in viz_state.trajectories:
-                viz_state.trajectories[vehicle_id] = []
-
-            trajectory = viz_state.trajectories[vehicle_id]
+            trajectory = []
+            if not args.hide_trajectories:
+                trajectory = viz_state.trajectories.setdefault(vehicle_id, [])
             current_position = [float(vehicle.position[0]), float(vehicle.position[1])]
             stationary = abs(getattr(vehicle, 'speed', 0.0)) < 0.1
 
-            if not trajectory:
+            if not args.hide_trajectories and not trajectory:
                 trajectory.append([*current_position, viz_state.selected_cnt])
-            elif not stationary:
+            elif not args.hide_trajectories and not stationary:
                 last_position = trajectory[-1]
                 dx = current_position[0] - last_position[0]
                 dy = current_position[1] - last_position[1]
