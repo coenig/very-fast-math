@@ -328,7 +328,7 @@ VAR
 
 INIT ego.on_section = 0;
 
--- Caution: the below variables should remain as is, since they're directly changed by the mc_parker.
+-- Caution: the below variables should remain as is, since they are directly changed by the mc_parker.
 DEFINE
    @{
       @{
@@ -402,7 +402,7 @@ DEFINE
 -- and p2 = p3 - chord/3 * u_[sec2] (u = rounded section direction; chord is approximated below). It may not overlap
 -- obstacle [obs]. We split it at t = j/K (K = OBSTACLE_CONNECTOR_SUBDIVISIONS) into K sub-arcs
 -- (de Casteljau). Each sub-arc lies in the convex hull of its own 4 control points q0..q3, which are
--- fixed rational combinations of p0..p3, so requiring each sub-arc's control-point box to be
+-- fixed rational combinations of p0..p3, so requiring the control-point box of each sub-arc to be
 -- separated from the obstacle (on x or on y) encloses this MODEL curve only. Reconstruction uses
 -- floating-point drains/directions and recomputes the chord; its curve can escape these boxes.
 -- Increasing K does not bound that discrepancy. The only nonlinearity is chord * cos/sin (variable
@@ -472,7 +472,7 @@ DEFINE
       @{
          @{
             INIT (@{outgoing_connection_[con]_of_section_[sec] = [sec2]}@*.for[[con], 0, @{MAXOUTGOINGCONNECTIONS - 1}@.eval, 1, |]) -> (
-               -- Shortcut: the whole curve's control-point box misses the obstacle (implies all sub-arcs do).
+               -- Shortcut: the control-point box of the whole curve misses the obstacle (implies all sub-arcs do).
                ( (300000 * section_[sec].drain.x < 300000 * rect_obstacles_tl_x_[obs] & conn_[sec]_to_[sec2]_p1x < 300000 * rect_obstacles_tl_x_[obs] & conn_[sec]_to_[sec2]_p2x < 300000 * rect_obstacles_tl_x_[obs] & section_[sec2].source.x < rect_obstacles_tl_x_[obs])
                | (300000 * section_[sec].drain.x > 300000 * rect_obstacles_br_x_[obs] & conn_[sec]_to_[sec2]_p1x > 300000 * rect_obstacles_br_x_[obs] & conn_[sec]_to_[sec2]_p2x > 300000 * rect_obstacles_br_x_[obs] & section_[sec2].source.x > rect_obstacles_br_x_[obs])
                | (300000 * section_[sec].drain.y < 300000 * rect_obstacles_tl_y_[obs] & conn_[sec]_to_[sec2]_p1y < 300000 * rect_obstacles_tl_y_[obs] & conn_[sec]_to_[sec2]_p2y < 300000 * rect_obstacles_tl_y_[obs] & section_[sec2].source.y < rect_obstacles_tl_y_[obs])

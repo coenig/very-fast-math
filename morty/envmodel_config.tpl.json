@@ -92,7 +92,7 @@
       "MINSTARTSPEEDNONEGO_UCD": 20,
       "MAXSTARTSPEEDNONEGO_UCD": 30,
       "UCD_CONFIG_PRIOS": "_config_vehlen=7_vehwidth=8;_config_vehlen=6_vehwidth=8;_config_vehlen=5_vehwidth=8;_config_vehlen=7_vehwidth=7;_config_vehlen=6_vehwidth=7;_config_vehlen=5_vehwidth=7;_config_vehlen=7_vehwidth=6;_config_vehlen=6_vehwidth=6;_config_vehlen=5_vehwidth=6;",
-      "UCD_EXP_NUM": 3,
+      "UCD_EXP_NUM": 7,
       "UCD_PP_STRATEGIES": "@MCIMMEDIATE = 1;",
       "UCD_PP_STRATEGIES_FALLBACK": "@MCIMMEDIATE = 0;",
       "UCD_FORMULA_PP_DISTANCE": "MCIMMEDIATE * next_immediate_x",
