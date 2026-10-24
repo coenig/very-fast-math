@@ -94,7 +94,7 @@ cmake --build build --target runTests --parallel
 python3 -m morty.morty --live --num_runs 1
 ```
 
-`--live` keeps the configured model-checking algorithms, bounds, priorities, driving dynamics,
+By default (`--mc_selection all`), `--live` keeps the configured model-checking algorithms, bounds, priorities, driving dynamics,
 pure-pursuit formulas, and optional shortcut checks. It disables visualization, video, plots,
 archives, experiment statistics, diagnostic logging, and the extra `FALSE`-specification debug
 solve. Warnings and errors remain enabled. The ordinary experiment mode is unchanged.
@@ -136,7 +136,7 @@ On Linux, GNU `timeout` limits each solver process to the existing 300-second bu
 global process-polling watchdog. This is an overhead-reduction mode, not a hard real-time
 guarantee: solving the configured models can still exceed a few hundred milliseconds.
 
-#### Task 7 Measurements
+#### Task 7 Measurements (All Configurations)
 Measured on Linux with nuXmv 2.2.0, using `morty/master_templates/task_7_tpl.json` unchanged
 apart from isolated output/cache paths: ten vehicles, two lanes, sixteen prioritized models,
 BMC bound 30, shortcuts enabled, seed 0. Model generation is excluded from cycle times.
@@ -172,6 +172,72 @@ Focused regression checks:
 python3 -m unittest morty.test_live_mode
 ./bin/runTests --gtest_filter='MortyLiveTests.*:MCTraceTests.*:GeometryScalingTests.*'
 ```
+
+#### Adaptive MC Selection
+To minimize sequential solver work, opt into one-configuration-at-a-time planning:
+
+```bash
+python3 -m morty.morty --live --mc_selection adaptive --num_runs 1
+```
+
+Add `--force_head` for the same optional viewer. Adaptive selection requires `--live`;
+omitting it retains the original all-configuration policy. It changes which queries run and
+their order, not individual solver algorithms, bounds, model parameters, or vehicle dynamics.
+It can accept a lower-priority configuration without first trying every stricter one; preserving
+trajectory shape or always selecting the highest feasible priority is not its objective.
+
+The selector ranks configurations by observed query cost divided by estimated success
+probability, separately for full goals and shortcuts. Estimates reset each run, with original
+priority breaking ties. When shortcuts look cheaper, it first probes at most two configurations
+against the nearest saved waypoint. It then tries full-goal configurations, returning on the
+first usable result. If those all fail, it tries every remaining eligible configuration/waypoint
+pair. Shortcut eligibility retains the previous full-plan winner's priority limit.
+
+No generated package is removed or permanently blacklisted. Every configured full goal and
+every eligible saved waypoint remains available before declaring an iteration blind; there is
+no total query-count cutoff. Input geometry is prepared from the previous selected trace before
+clearing working counterexamples. Skipped configurations cannot supply stale winners, and saved
+future plans are retained for shortcut stitching. Exhaustive fallback preserves the candidate
+set, but cannot guarantee a solution to an unsatisfiable or timed-out query or future states
+reached along a different trajectory.
+
+Separate Linux/nuXmv 2.2.0 measurements used a five-vehicle task-7 setup with two lanes, sixteen
+size configurations and BMC bound 30. Both policies were run serially. With shortcuts disabled,
+seed 0 completed in 19 planning cycles under both policies, with exactly identical actions and
+vehicle positions and zero blind/crashed steps:
+
+| Policy | Solver jobs | Summed solver time | Summed cycle time |
+|---|---:|---:|---:|
+| All configurations | 304 | 286.24 s | 293.40 s |
+| Adaptive | 19 | 21.72 s | 24.87 s |
+
+That is 92.4% less sequential solver time. Model generation and cached startup are excluded.
+All sixteen EnvModels, solver commands, scaling files and planner sources were byte-identical
+between these runs. The selected translated planner was also identical.
+
+Adaptive completion checks across three seeds, each with shortcuts both enabled and disabled:
+
+| Seed | Shortcuts | Planning cycles | Solver jobs | Summed solver time |
+|---|---|---:|---:|---:|
+| 0 | Off | 19 | 19 | 21.72 s |
+| 0 | On | 19 | 20 | 24.11 s |
+| 1 | Off | 18 | 18 | 28.18 s |
+| 1 | On | 19 | 25 | 32.21 s |
+| 2 | Off | 20 | 20 | 20.61 s |
+| 2 | On | 20 | 21 | 22.49 s |
+
+All six runs reached both model completion and the Python success condition with zero blind
+steps and crashes. Seed 1 with shortcuts exercised a change from priority 0 to priority 1.
+The shortcut-enabled all-config seed-0 baseline completed only two cycles within a 300-second
+evaluation limit, using 128 jobs and 292.66 s of solver time. That is a partial baseline, not
+an identical-trajectory or completed-run comparison.
+
+The original ten-vehicle master, seed 0, reached the model's `FINISHED` state in 32 cycles,
+using 51 jobs and 219.02 s of solver time, with zero blind steps and crashes. The driver ended
+normally under its existing completion rule, but the Python success condition remained false:
+the forward vehicle was about 9.6 cm short of its continuous-position threshold. This is not
+an exact continuous-goal completion claim. Its first planning cycle still took 99.60 s, and
+**the 100 ms target remains unmet**. These finite checks are not a universal safety guarantee.
 
 ## Notes
 The `very fast math -- Model Checking for ADAS` project is [open-source](https://github.com/coenig/very-fast-math). Academic publications:

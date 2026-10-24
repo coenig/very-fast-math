@@ -25,6 +25,57 @@ def ensure_empty_file(path: str) -> None:
     with p.open('w'):
         pass
 
+
+class MCConfigSelector:
+    def __init__(self, config_count):
+        if config_count < 1:
+            raise ValueError('At least one MC configuration is required')
+        self.config_count = config_count
+        self.estimates = {}
+
+    def record(self, config_index, shortcut, success, seconds):
+        key = (shortcut, config_index)
+        elapsed = max(float(seconds), 0.001)
+        if key in self.estimates:
+            old_elapsed, old_success = self.estimates[key]
+            self.estimates[key] = ((old_elapsed + elapsed) / 2,
+                                   (old_success + float(success)) / 2)
+        else:
+            self.estimates[key] = (elapsed, 0.75 if success else 0.25)
+
+    def expected_cost(self, config_index, shortcut):
+        estimate = self.estimates.get((shortcut, config_index))
+        if estimate is None and shortcut:
+            full_estimate = self.estimates.get((False, config_index))
+            if full_estimate is not None:
+                estimate = (full_estimate[0] / 10, full_estimate[1])
+        if estimate is None:
+            costs = [elapsed for (kind, _), (elapsed, success) in self.estimates.items()
+                     if kind == shortcut and success >= 0.5]
+            estimate = (min(costs) if costs else (0.1 if shortcut else 1.0), 0.5)
+        return estimate[0] / max(estimate[1], 0.05)
+
+    def ordered_configs(self, shortcut, indices):
+        return sorted(indices, key=lambda index: (self.expected_cost(index, shortcut), index))
+
+    def queries(self, shortcut_count, max_shortcut_priority):
+        full_configs = self.ordered_configs(False, range(self.config_count))
+        eligible = range(min(self.config_count, max_shortcut_priority + 1)) if max_shortcut_priority is not None else []
+        shortcut_configs = self.ordered_configs(True, eligible)
+        attempted_shortcuts = set()
+        if (shortcut_count and shortcut_configs
+                and self.expected_cost(shortcut_configs[0], True) <= self.expected_cost(full_configs[0], False)):
+            for config_index in shortcut_configs[:2]:
+                attempted_shortcuts.add((config_index, 0))
+                yield config_index, 0
+        for config_index in full_configs:
+            yield config_index, None
+        for shortcut_index in range(shortcut_count):
+            for config_index in self.ordered_configs(True, eligible):
+                if (config_index, shortcut_index) not in attempted_shortcuts:
+                    yield config_index, shortcut_index
+
+
 def min_max_curr(successful_so_far, done_so_far, max_to_expect):
     percent = 100 * successful_so_far / done_so_far
     min_good = 100 * successful_so_far / max_to_expect
