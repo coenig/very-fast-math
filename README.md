@@ -278,15 +278,22 @@ the forward vehicle was about 9.6 cm short of its continuous-position threshold.
 an exact continuous-goal completion claim. Its first planning cycle still took 99.60 s, and
 **the 100 ms target remains unmet**. These finite checks are not a universal safety guarantee.
 
-#### Task 7 SMV Encoding Experiments
-All four proposed model-level optimizations were tested on exact five-car task-7
-queries, including arithmetic/lookup and combined-encoding controls. The strongest
-prototype reduced the sum of six matched-query median nuXmv times from 25.80 s to
-3.83 s. All 234 timed solves agreed on bounded feasibility, and 66 bidirectional
-witness checks passed. Two optimized closed-loop seeds completed without blindness
-or crashes, but followed different trajectories; this is not a safety certification.
-The production templates and active configuration remain unchanged. Results, caveats,
-and reproduction commands are in [morty/SMV_ENCODING_EVALUATION.md](morty/SMV_ENCODING_EVALUATION.md).
+#### Task 7 Compact Encoding
+The active five-car configuration enables `#TEMPLATE.UCD_TASK7_COMPACT`: integer lane
+coordinates, linear lane-jump constraints, projected acceleration, and conservative
+parked-state specialization, generated directly by the native pipeline. All 16
+bounding-box priorities, shortcuts, and solver bounds are retained. Set the option
+to `false` and restart for the original encoding; it defaults to off in other
+templates. Classical non-UCD generation remains unchanged.
+
+After the original 234-query encoding study, 36 production/legacy solves agreed on
+bounded feasibility and six bidirectional witness replays passed. The sum of six
+matched-query median nuXmv times fell from 25.85 s to 3.86 s, about 6.7x. Production
+seeds 0, 1, and 2 finished without blind steps or crashes; seed 1 reached only the
+model completion condition, not the continuous Python goal. Median cycles were
+0.36-0.50 s: this does not meet the 100 ms target or certify rare-event safety.
+Build/run instructions, supported settings, measurements, and reproduction commands
+are in [morty/SMV_ENCODING_EVALUATION.md](morty/SMV_ENCODING_EVALUATION.md).
 
 #### Safety and Configuration-Pool Evaluation
 The subsequent 40-trial study found blind initial states even with all 16 configurations,

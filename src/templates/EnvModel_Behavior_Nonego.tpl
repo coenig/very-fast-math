@@ -4,13 +4,32 @@
 --
 --------------------------------------------------------
 
+@{
+@{
+#error UCD_TASK7_COMPACT requires distinct scaled jump velocities
+}@.if[@{@{MIN_JUMP_FROM_VELOCITY}@.velocityWorldToEnvModelConst == @{MAX_JUMP_UNTIL_VELOCITY}@.velocityWorldToEnvModelConst}@.eval]
+}@**.if[@{UCD_TASK7_COMPACT}@.eval]
 
    @{
 VAR
       ego.a : integer;  -- Mock EGO interface...
-   }@******.if[@{EGOLESS}@.eval]
+   }@******.if[@{EGOLESS && !UCD_TASK7_COMPACT}@.eval]
 
-	@{
+   @{
+@{
+@{
+@(
+#if defined(VFM_TASK7_PARKED_POS_[i]) && VFM_TASK7_PARKED_POS_[i] >= 0 && VFM_TASK7_PARKED_POS_[i] <= @{fixed_section_length_0}@.scriptVar.distanceWorldToEnvModelConst
+#define VFM_TASK7_PARKED_[i] 1
+#else
+#define VFM_TASK7_PARKED_[i] 0
+#endif
+)@
+@(
+#define VFM_TASK7_PARKED_[i] 0
+)@
+}@**.if[@{UCD_TASK7_COMPACT && SECTIONS == 1 && @{fixed_section_length_0}@.isScriptVarDeclared && @{UCD_MIN_VELOCITY_TO_ALLOW_LC}@.velocityWorldToEnvModelConst > 0}@.eval]
+}@******.if[@{UCD_TASK7_COMPACT}@.eval]
 VAR
 @{
 @(
@@ -27,15 +46,45 @@ VAR
 )@
 }@******.if[@{SIMPLE_LC}@.eval]
 
-    @{veh___6[i]9___.abs_pos}@*.scalingVariable[distance] : integer; -- absolute position on current seclet
-    @{veh___6[i]9___.prev_abs_pos}@*.scalingVariable[distance] : integer;
+@{
+#if VFM_TASK7_PARKED_[i]
+DEFINE
+   veh___6[i]9___.abs_pos := VFM_TASK7_PARKED_POS_[i];
+   veh___6[i]9___.prev_abs_pos := case cnt = 0 : 0; TRUE : VFM_TASK7_PARKED_POS_[i]; esac;
+   veh___6[i]9___.v := 0;
+   veh___6[i]9___.lane_coordinate := VFM_TASK7_PARKED_LANE_[i];
+VAR
+#else
+}@******.if[@{UCD_TASK7_COMPACT}@.eval]
+   @{veh___6[i]9___.abs_pos}@*.scalingVariable[distance] : integer; -- absolute position on current seclet
+   @{veh___6[i]9___.prev_abs_pos}@*.scalingVariable[distance] : integer;
+@{#endif}@******.if[@{UCD_TASK7_COMPACT}@.eval]
     @{veh___6[i]9___.prev_rel_pos}@*.scalingVariable[distance] : integer;
+@{#if !VFM_TASK7_PARKED_[i]}@******.if[@{UCD_TASK7_COMPACT}@.eval]
+@{
     @{veh___6[i]9___.a}@*.scalingVariable[acceleration] : integer;    -- accel in m/s^2, (assume positive accel up to 6m/s^2, which is already a highly tuned sports car)
+}@******.if[@{!UCD_TASK7_COMPACT}@.eval]
     @{veh___6[i]9___.v}@*.scalingVariable[velocity] : integer;
+@{
+   veh___6[i]9___.lane_coordinate : integer;
+}@******.if[@{UCD_TASK7_COMPACT}@.eval]
+@{#endif}@******.if[@{UCD_TASK7_COMPACT}@.eval]
 
+@{
+@(
+   INVAR veh___6[i]9___.lane_coordinate >= 0 & veh___6[i]9___.lane_coordinate <= @{2 * (NUM_TECHNICAL_LANES - 1)}@.eval[0];
+   DEFINE
+   @{
+   veh___6[i]9___.lane_b[j] := veh___6[i]9___.lane_coordinate >= @{2 * [j] - 1}@.eval[0] & veh___6[i]9___.lane_coordinate <= @{2 * [j] + 1}@.eval[0];
+   }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
+   VAR
+   )@
+   @(
     @{
     veh___6[i]9___.lane_b[j] : boolean;
     }@.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
+   )@
+   }@******.if[@{UCD_TASK7_COMPACT}@.eval]
 
     -- TODO: Assigning sections to cars MIGHT be more efficient the other way around,
     -- i.e., having logic for the three integer variables and calculating the bools from that.
@@ -129,11 +178,23 @@ DEFINE
 
 	@{
     -- >>> Car [i] <<<
+@{
+@(
+   @{
+   veh___6[i]9___.lane_[k] := veh___6[i]9___.lane_coordinate = @{2 * [k]}@.eval[0];
+   }@*.for[[k], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]
+   @{
+   veh___6[i]9___.lane_[k]_@{[k] + 1}@.eval[0] := veh___6[i]9___.lane_coordinate = @{2 * [k] + 1}@.eval[0];
+   }@*.for[[k], 0, @{NUM_TECHNICAL_LANES - 2}@.eval]
+)@
+@(
     veh___6[i]9___.lane_0 := veh___6[i]9___.lane_b0 @{& !veh___6[i]9___.lane_b[j]}@.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
     @{
     veh___6[i]9___.lane_@{[k]-1}@.eval[0]_[k] := @{@{!}@.if[@{[j] != [k] - 1 && [j] != [k]}@.eval]veh___6[i]9___.lane_b[j] }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
     veh___6[i]9___.lane_[k] := @{@{!}@.if[@{[k] != [j]}@.eval]veh___6[i]9___.lane_b[j] }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
     }@***.for[[k], 1, @{NUM_TECHNICAL_LANES - 1}@.eval]
+)@
+}@******.if[@{UCD_TASK7_COMPACT}@.eval]
 
     @{
     @{0}@**.setScriptVar[normalized_lane_counter, force].nil
@@ -166,15 +227,38 @@ DEFINE
    }@.removeBlankLines
 
 
-    veh___6[i]9___.on_normalized_lane := case
+@{
+@(
+   veh___6[i]9___.on_normalized_lane := veh___6[i]9___.lane_coordinate;
+)@
+@(
+   veh___6[i]9___.on_normalized_lane := case
         @{on_normalized_lane_logic}@**.scriptVar
         TRUE: 0;
     esac;
+)@
+}@******.if[@{UCD_TASK7_COMPACT}@.eval]
 
     veh___6[i]9___.lane_min := veh___6[i]9___.lane_0;
     veh___6[i]9___.lane_max := veh___6[i]9___.lane_@{NUM_TECHNICAL_LANES - 1}@.eval[0];
     veh___6[i]9___.lane_single := @{veh___6[i]9___.lane_[j] }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, |];
     veh___6[i]9___.lane_crossing := FALSE @{| veh___6[i]9___.lane_@{[j]-1}@.eval[0]_[j]}@*.for[[j], 1, @{NUM_TECHNICAL_LANES - 1}@.eval];
+@{
+@(
+    veh___6[i]9___.lane_unchanged := veh___6[i]9___.lane_coordinate = next(veh___6[i]9___.lane_coordinate);
+    veh___6[i]9___.lane_delta := next(veh___6[i]9___.lane_coordinate) - veh___6[i]9___.lane_coordinate;
+    veh___6[i]9___.lane_distance := abs(veh___6[i]9___.lane_delta);
+    veh___6[i]9___.lane_jump_allowed := veh___6[i]9___.lane_distance <= m_j &
+       ((vel_min_j > vel_max_j & (next(veh___6[i]9___.v) - vel_min_j) * (m_j - 1) < (m_j - veh___6[i]9___.lane_distance + 1) * (vel_min_j - vel_max_j))
+        | (vel_min_j < vel_max_j & (next(veh___6[i]9___.v) - vel_min_j) * (m_j - 1) > (m_j - veh___6[i]9___.lane_distance + 1) * (vel_min_j - vel_max_j)));
+    veh___6[i]9___.lane_move_down :=
+       veh___6[i]9___.lane_jump_allowed & (veh___6[i]9___.lane_delta < 0
+       | (veh___6[i]9___.lane_coordinate = 0 & veh___6[i]9___.lane_delta = 0));
+    veh___6[i]9___.lane_move_up :=
+       veh___6[i]9___.lane_jump_allowed & (veh___6[i]9___.lane_delta > 0
+       | (veh___6[i]9___.lane_coordinate = @{2 * (NUM_TECHNICAL_LANES - 1)}@.eval[0] & veh___6[i]9___.lane_delta = 0));
+   )@
+   @(
     veh___6[i]9___.lane_unchanged := @{veh___6[i]9___.lane_b[j] = next(veh___6[i]9___.lane_b[j])}@.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval, 1, &];
 
 
@@ -190,6 +274,8 @@ DEFINE
                       }@**.for[[j], 0, @{normalized_lane_counter}@.scriptVar, 1, &];
 
 
+)@
+}@******.if[@{UCD_TASK7_COMPACT}@.eval]
    @{################# NOTE THAT THIS PART IS CHANGED AS COMPARED TO TACAS VERSION (might be inefficient) ###################}@.nil
    @{################# FORMERLY: veh___6[i]9___.laterally_overlapping_with_veh_[j] := ((veh___6[i]9___.lane_b1 & veh___6[j]9___.lane_b1) | (veh___6[i]9___.lane_b2 & veh___6[j]9___.lane_b2) | (veh___6[i]9___.lane_b3 & veh___6[j]9___.lane_b3)); ###################}@.nil
    @{################# We now change this part again for the "smoother lane changes" feature (2026-03-13) ###################}@.nil
@@ -228,7 +314,9 @@ INVAR
     veh___6[i]9___.lane_single | veh___6[i]9___.lane_crossing;
 
 INVAR
+@{
     (a_min <= veh___6[i]9___.a & veh___6[i]9___.a <= a_max) &
+}@******.if[@{!UCD_TASK7_COMPACT}@.eval]
     (-max_vel <= veh___6[i]9___.v & veh___6[i]9___.v <= max_vel);
 
 -- MAX/MIN velocities per lane.
@@ -294,7 +382,14 @@ ASSIGN
 }@******.if[@{SIMPLE_LC}@.eval]
 
     init(veh___6[i]9___.prev_rel_pos) := 0;
+@{
+#if VFM_TASK7_PARKED_[i]
+   INIT veh___6[i]9___.prev_abs_pos = 0;
+   ASSIGN
+#else
+}@******.if[@{UCD_TASK7_COMPACT}@.eval]
     init(veh___6[i]9___.prev_abs_pos) := 0;
+@{#endif}@******.if[@{UCD_TASK7_COMPACT}@.eval]
     -- init(veh___6[i]9___.v) := @{MAXSPEEDNONEGO / 2}@.velocityWorldToEnvModelConst;
     @{-- init(veh___6[i]9___.a) := 0;}@******.if[@{!(EGOLESS)}@.eval]
 
@@ -375,7 +470,13 @@ ASSIGN
 
     -- update position (directly feed-through new velocity)
     next(veh___6[i]9___.prev_rel_pos) := veh___6[i]9___.rel_pos;
+@{
+#if VFM_TASK7_PARKED_[i]
+   TRANS next(veh___6[i]9___.prev_abs_pos) = veh___6[i]9___.abs_pos;
+#else
+}@******.if[@{UCD_TASK7_COMPACT}@.eval]
     next(veh___6[i]9___.prev_abs_pos) := veh___6[i]9___.abs_pos;
+@{#endif}@******.if[@{UCD_TASK7_COMPACT}@.eval]
 
 DEFINE
     veh___6[i]9___.current_seclet_length := case
@@ -450,15 +551,31 @@ INVAR veh___6[i]9___.has_arrived_at_previous_seclet_in_last_cycle ->
    ;
 }@.if[@{NONEGOS > 1}@.eval]
 
+@{
+#if VFM_TASK7_PARKED_[i]
+TRANS next(veh___6[i]9___.abs_pos) = case
+#else
+}@******.if[@{UCD_TASK7_COMPACT}@.eval]
 ASSIGN
-    next(veh___6[i]9___.abs_pos) := case
+   next(veh___6[i]9___.abs_pos) := case
+@{#endif}@******.if[@{UCD_TASK7_COMPACT}@.eval]
           veh___6[i]9___.will_arrive_at_next_seclet_in_next_cycle : veh___6[i]9___.next_abs_pos - veh___6[i]9___.current_seclet_length;
           veh___6[i]9___.will_arrive_at_previous_seclet_in_next_cycle : veh___6[i]9___.next_abs_pos + veh___6[i]9___.next_seclet_length;
           TRUE : veh___6[i]9___.next_abs_pos;
     esac;
 
     -- update velocity (directly feed-through newly chosen accel)
-    next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, -max_vel), max_vel);
+@{
+@(
+   INVAR a_min <= a_max;
+   TRANS next(veh___6[i]9___.v) >= @{@(veh___6[i]9___.v + a_min)@@(min(veh___6[i]9___.v + a_min, max_vel))@}@*.if[@{MINACCELNONEGO <= 0}@.eval]
+      & next(veh___6[i]9___.v) <= @{@(veh___6[i]9___.v + a_max)@@(max(veh___6[i]9___.v + a_max, -max_vel))@}@*.if[@{MAXACCELNONEGO >= 0}@.eval];
+   ASSIGN
+)@
+@(
+   next(veh___6[i]9___.v) := min(max(veh___6[i]9___.v + veh___6[i]9___.a, -max_vel), max_vel);
+)@
+}@******.if[@{UCD_TASK7_COMPACT}@.eval]
 
     -- ############ IDEA ###########
     -- Set future road either to 1/0 if it is clear we will end or not end up there, or to {0, 1} whenever there IS a connection,
@@ -515,7 +632,7 @@ ASSIGN
           @{TRANS next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) = 1 -> veh___6[i]9___.lane_single;}@.if[@{[sec] != [sec2]}@.eval]
        }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
     }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
-}@****.for[[i], @{STANDINGCARSUPTOID + 1}@.eval, @{NONEGOS - 1}@.eval]
+}@****.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 @{
 
