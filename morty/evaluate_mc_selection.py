@@ -140,6 +140,10 @@ def evaluate_child(args):
     from . import morty_helper as helper
 
     folder = args.folder
+    template = json.loads((folder / 'morty/envmodel_config.tpl.json').read_text())['#TEMPLATE']
+    evaluation_policy = template['UCD_EVALUATION_POLICY']
+    configured_indices = template['UCD_EVALUATION_CONFIGS']
+    allowed = [int(value) for value in configured_indices.split(';')] if configured_indices else None
     namespace = {'__name__': 'morty.selection_evaluation', '__package__': 'morty'}
     original_context = helper.morty_script_context
     original_scheduler = helper.RunScheduler.__init__
@@ -163,12 +167,12 @@ def evaluate_child(args):
         with (folder / 'queries.jsonl').open('a') as stream:
             stream.write(json.dumps(event) + '\n')
 
-    helper.MCConfigSelector = lambda count: EvaluationSelector(
-        count, args.configs if args.configs is not None else range(count), args.policies[0], observe_query)
+    helper.MCConfigSelector = lambda count, policy: EvaluationSelector(
+        count, allowed if allowed is not None else range(count), evaluation_policy, observe_query)
 
     def seed_scheduler(scheduler, *parameters, **keywords):
         original_scheduler(scheduler, *parameters, **keywords)
-        scheduler.seed = args.seeds[0] - 1
+        scheduler.seed = template['UCD_EVALUATION_SEED'] - 1
 
     helper.RunScheduler.__init__ = seed_scheduler
 
@@ -283,26 +287,29 @@ def evaluate_child(args):
     namespace.update(__begin_cycle=begin_cycle, __end_cycle=end_cycle)
     module = InstrumentCycles().visit(ast.parse((REPO / 'morty/morty.py').read_text()))
     ast.fix_missing_locations(module)
-    sys.argv = ['morty', '--num_runs', '1', '--steps_per_run', str(args.steps),
-                '--min_iterations', '0', '--allow_blind_steps', '0', '--allow_crashed_steps', '0',
-                '--press', '--live', '--mc_selection', 'adaptive']
+    sys.argv = ['morty', '--press', '--live']
     os.chdir(folder)
     exec(compile(module, str(REPO / 'morty/morty.py'), 'exec'), namespace)
 
 
 def run_trial(args, config, policy, seed):
     folder = OUTPUT / f'{args.tag}_{policy}_seed{seed}'
-    prepare_trial(folder, config)
+    template = dict(config.get('#TEMPLATE', {}))
+    template.update(UCD_MC_SELECTION='priority' if policy == 'priority' else 'adaptive',
+                    UCD_NUM_RUNS=1, UCD_STEPS_PER_RUN=args.steps,
+                    UCD_MIN_ITERATIONS=0, UCD_ALLOW_BLIND_STEPS=0, UCD_ALLOW_CRASHED_STEPS=0,
+                    UCD_EVALUATION_POLICY=policy, UCD_EVALUATION_SEED=seed,
+                    UCD_EVALUATION_TIMEOUT_SECONDS=args.timeout,
+                    UCD_EVALUATION_CONFIGS=';'.join(map(str, args.configs)) if args.configs is not None else '')
+    prepare_trial(folder, {**config, '#TEMPLATE': template})
     command = [sys.executable, '-m', 'morty.evaluate_mc_selection', '--child', '--folder', str(folder),
-               '--tag', args.tag, '--policies', policy, '--seeds', str(seed), '--steps', str(args.steps)]
-    if args.configs is not None:
-        command.extend(['--configs', *map(str, args.configs)])
+               '--tag', args.tag]
     print(f'START {policy} seed={seed} folder={folder}', flush=True)
     with (folder / 'run.log').open('w') as log:
         process = subprocess.Popen(command, cwd=REPO, stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
         timed_out = False
         try:
-            process.communicate(timeout=args.timeout)
+            process.communicate(timeout=template['UCD_EVALUATION_TIMEOUT_SECONDS'])
         except subprocess.TimeoutExpired:
             timed_out = True
         finally:

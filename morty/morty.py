@@ -17,32 +17,16 @@ from .morty_helper import (
     maxDifferenceArray, inverseSortingArray, _latest_nuxmv_runtime_seconds,
     _hash_file, _snapshot_configs, _save_configs_to_archive, archive, morty_script_context,
     VizState, install_vehicle_graphics_patches, install_world_surface_patches,
-    RunScheduler, MCConfigSelector, snapshot_mc_results_offsets, run_reached_threshold, discard_run,
+    RunScheduler, MCConfigSelector, load_run_settings, snapshot_mc_results_offsets, run_reached_threshold, discard_run,
     randomize_until_collision_free,
 )
 import platform
 
 
-DEFAULT_NUM_RUNS = 100
-DEFAULT_NUM_STEPS_PER_RUN = 300
-DEFAULT_HEADING_ADAPTATION = -0.5
-DEFAULT_ALLOW_BLIND_STEPS = 1
-DEFAULT_ALLOW_CRASHED_STEPS = 1
-
 parser = argparse.ArgumentParser(
                     prog='morty',
                     description='Model Checking based planning',
                     epilog='Bye!')
-parser.add_argument('-n', '--num_runs', default=DEFAULT_NUM_RUNS, type=int,
-                    help=f'Number of runs to perform per experiment. Default: {DEFAULT_NUM_RUNS}')
-parser.add_argument('-s', '--steps_per_run', default=DEFAULT_NUM_STEPS_PER_RUN, type=int,
-                    help=f'Maximum number of steps until the SPEC must be fulfilled. Default: {DEFAULT_NUM_STEPS_PER_RUN}')
-parser.add_argument('-a', '--heading_adaptation', default=DEFAULT_HEADING_ADAPTATION, type=float,
-                    help=f'How much the heading of the cars is used to adapt their lateral position (see MC code for details). Default: {DEFAULT_HEADING_ADAPTATION}')
-parser.add_argument('-b', '--allow_blind_steps', default=DEFAULT_ALLOW_BLIND_STEPS, type=int,
-                    help=f'Number of blind steps (no CEX) after which the run is aborted and considered failed. Default: {DEFAULT_ALLOW_BLIND_STEPS}')
-parser.add_argument('-c', '--allow_crashed_steps', default=DEFAULT_ALLOW_CRASHED_STEPS, type=int,
-                    help='How many steps with crashes are allowed before the run is aborted. Default: {DEFAULT_ALLOW_CRASHED_STEPS}')
 parser.add_argument('--record_video', action='store_true',
                     help='Record a video of the run. Default: False')
 parser.add_argument('--hide_trajectories', action='store_true',
@@ -69,21 +53,21 @@ parser.add_argument('--live', action='store_true',
                     help='Driving-only mode: no visualization, debug artifacts, or experiment statistics.')
 parser.add_argument('--force_head', action='store_true',
                     help='Show the simulation window with --live, keeping debugging and statistics disabled.')
-parser.add_argument('--mc_selection', choices=['all', 'adaptive'], default='all',
-                    help='MC job selection: all priorities, or adaptive single-config queries with exhaustive fallback (requires --live).')
-parser.add_argument('--min_iterations', default=2, type=int,
-                    help='Runs that FAIL before completing this many planning iterations are treated as '
-                         'unsolvable seeds: they are excluded (no data/statistics/archives are written) and '
-                         'do not consume a run ID, while the seed pool keeps advancing until num_runs valid '
-                         'runs are collected. A quick success still counts as a valid run. Set 0 to disable. Default: 2')
 args = parser.parse_args()
+
+try:
+    with open('morty/envmodel_config.tpl.json') as config_file:
+        d = json.load(config_file)
+    vars(args).update(load_run_settings(d['#TEMPLATE']))
+except (OSError, ValueError, KeyError, TypeError) as error:
+    parser.error(f'Invalid morty/envmodel_config.tpl.json: {error}')
 
 if args.force_head and not args.live:
     parser.error('--force_head requires --live')
 if args.force_head and args.headless:
     parser.error('--force_head cannot be combined with --headless')
-if args.mc_selection == 'adaptive' and not args.live:
-    parser.error('--mc_selection adaptive requires --live')
+if args.mc_selection != 'all' and not args.live:
+    parser.error(f'UCD_MC_SELECTION={args.mc_selection} requires --live')
 
 if args.live:
     if args.dryrun or args.record_video or args.detailed_archive:
@@ -176,10 +160,8 @@ import numpy as np
 
 
 # Load parameters from JSON.
-with open('morty/envmodel_config.tpl.json') as f:
-    d = json.load(f)
-    ucd_config_prios_str = [s for s in d["#TEMPLATE"]["UCD_CONFIG_PRIOS"].split(';') if s] # only non-empty strings
-    generated_path_prefix = d["#TEMPLATE"]["_GENERATED_PATH"]
+ucd_config_prios_str = [s for s in d["#TEMPLATE"]["UCD_CONFIG_PRIOS"].split(';') if s] # only non-empty strings
+generated_path_prefix = d["#TEMPLATE"]["_GENERATED_PATH"]
 
 # Delete old results from Python side and check folder consistence with --dryrun
 any = False
@@ -550,7 +532,7 @@ if args.detailed_archive:
 
 # Seeds (which determine car initialization) are decoupled from run IDs (which identify the
 # stored data/statistics/archives): RunScheduler keeps drawing fresh seeds and only advances the
-# run ID for runs that reach the --min_iterations threshold (see commit()/discard_run below), so
+# run ID for runs that reach the UCD_MIN_ITERATIONS threshold (see commit()/discard_run below), so
 # early, unsolvable failures neither consume a run ID nor leave any artifacts behind.
 scheduler = RunScheduler(generated_path_prefix, MAX_EXPs, args.dryrun, persist=not args.live)
 
@@ -728,7 +710,7 @@ for run_id, seedo in scheduler:
 
     selected_config = None
     last_full_solution_prio = None
-    config_selector = MCConfigSelector(len(ucd_config_prios_str)) if args.mc_selection == 'adaptive' else None
+    config_selector = MCConfigSelector(len(ucd_config_prios_str), policy=args.mc_selection) if args.mc_selection != 'all' else None
     watchdog_start = '' if args.live and platform.system() == 'Linux' else '@{nuXmv}@.killAfter[300].Detach.setScriptVar[scriptID, force]'
     watchdog_stop = '' if not watchdog_start else '@{scriptID}@.scriptVar.StopScript'
     
@@ -1264,7 +1246,7 @@ for run_id, seedo in scheduler:
         
     # Decide whether this run counts. A run is excluded (its data/statistics/archives are
     # discarded and it does NOT consume a run ID) only if it FAILED before completing
-    # --min_iterations planning iterations, i.e. it looks like an unsolvable seed. Dry runs
+    # UCD_MIN_ITERATIONS planning iterations, i.e. it looks like an unsolvable seed. Dry runs
     # always replay archived runs verbatim, and a quick success always counts.
     success = run_id in good_ones
     if not run_reached_threshold(success, global_counter, args.min_iterations, args.dryrun):

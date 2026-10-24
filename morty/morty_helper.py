@@ -26,11 +26,39 @@ def ensure_empty_file(path: str) -> None:
         pass
 
 
+def load_run_settings(template):
+    defaults = {
+        'num_runs': ('UCD_NUM_RUNS', 100),
+        'steps_per_run': ('UCD_STEPS_PER_RUN', 300),
+        'heading_adaptation': ('UCD_HEADING_ADAPTATION', -0.5),
+        'allow_blind_steps': ('UCD_ALLOW_BLIND_STEPS', 1),
+        'allow_crashed_steps': ('UCD_ALLOW_CRASHED_STEPS', 1),
+        'min_iterations': ('UCD_MIN_ITERATIONS', 2),
+        'mc_selection': ('UCD_MC_SELECTION', 'all'),
+    }
+    settings = {}
+    for name, (key, default) in defaults.items():
+        value = template.get(key, default)
+        if name == 'mc_selection':
+            if value not in ('all', 'priority', 'adaptive'):
+                raise ValueError(f'{key} must be all, priority, or adaptive')
+        elif name == 'heading_adaptation':
+            if type(value) not in (int, float) or not math.isfinite(value):
+                raise ValueError(f'{key} must be a finite number')
+        elif type(value) is not int or value < 0:
+            raise ValueError(f'{key} must be a nonnegative integer')
+        settings[name] = value
+    return settings
+
+
 class MCConfigSelector:
-    def __init__(self, config_count):
+    def __init__(self, config_count, policy='adaptive'):
         if config_count < 1:
             raise ValueError('At least one MC configuration is required')
+        if policy not in ('adaptive', 'priority'):
+            raise ValueError('MC selection policy must be adaptive or priority')
         self.config_count = config_count
+        self.policy = policy
         self.estimates = {}
 
     def record(self, config_index, shortcut, success, seconds):
@@ -56,6 +84,8 @@ class MCConfigSelector:
         return estimate[0] / max(estimate[1], 0.05)
 
     def ordered_configs(self, shortcut, indices):
+        if self.policy == 'priority':
+            return sorted(indices)
         return sorted(indices, key=lambda index: (self.expected_cost(index, shortcut), index))
 
     def queries(self, shortcut_count, max_shortcut_priority):
