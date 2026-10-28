@@ -67,7 +67,7 @@ if args.force_head and not args.live:
 if args.force_head and args.headless:
     parser.error('--force_head cannot be combined with --headless')
 if args.mc_selection != 'all' and not args.live:
-    parser.error(f'UCD_MC_SELECTION={args.mc_selection} requires --live')
+    parser.error(f'UCD_MC_SELECTION={args.mc_selection} requires --live. Use "all" to achieve the equivalent behavior in regular mode.')
 
 if args.live:
     if args.dryrun or args.record_video or args.detailed_archive:
