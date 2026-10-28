@@ -5,6 +5,7 @@
 @{@{#0# * DISTANCESCALING / TIMESCALING}@**.eval[0]}@***.newMethod[velocityWorldToEnvModelConst, 0]
 @{@{#0# * DISTANCESCALING / TIMESCALING / TIMESCALING}@**.eval[0]}@***.newMethod[accelerationWorldToEnvModelConst, 0]
 @{@{#0# * GEOMETRYSCALING}@**.eval[0]}@***.newMethod[geometryWorldToEnvModelConst, 0]
+@{@(#0#)@@(@{#0# / GEOMETRYSCALING}@.eval)@}@****.if[@{GEOMETRYSCALING == 1}@.eval].newMethod[geometryEnvModelToWorldConst, 0]
 
 @{@{#0#}@*.scalingVariable[time] := @{#1#}@*.timeWorldToEnvModelConst}@**.newMethod[timeWorldToEnvModelDef, 1]
 @{@{#0#}@*.scalingVariable[distance] := @{#1#}@*.distanceWorldToEnvModelConst}@**.newMethod[distanceWorldToEnvModelDef, 1]

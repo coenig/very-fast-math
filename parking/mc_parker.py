@@ -7,6 +7,7 @@ import platform
 import shutil
 import signal
 import subprocess
+import threading
 import time
 import ctypes
 import ctypes.util
@@ -51,6 +52,10 @@ GIF_FINAL_HOLD_S = 1.5
 # Drawn parking bays span at least this length, centred on the section middle (= car centre), so a
 # short start section (quick turn-out) still shows a full-size slot.
 PARKING_SLOT_LENGTH_M = 7.0
+OBSTACLE_RANGE_KEYS = (("RECT_OBSTACLES_SHIFT_MIN_Xs", "RECT_OBSTACLES_SHIFT_MAX_Xs"),
+                       ("RECT_OBSTACLES_SHIFT_MIN_Ys", "RECT_OBSTACLES_SHIFT_MAX_Ys"),
+                       ("RECT_OBSTACLES_GROW_MIN_Ws", "RECT_OBSTACLES_GROW_MAX_Ws"),
+                       ("RECT_OBSTACLES_GROW_MIN_Hs", "RECT_OBSTACLES_GROW_MAX_Hs"))
 
 
 def slot_extent(section_length, slot_length):
@@ -155,7 +160,7 @@ def select_startup_package():
     return base
 
 
-def _kill_process_group(proc):
+def _kill_process_group(proc, graceful=False):
     """Kill the worker and its nuXmv children (its own process group / job tree), then reap it.
 
     Always targets the whole group, even if the worker itself has already exited: nuXmv
@@ -174,6 +179,12 @@ def _kill_process_group(proc):
                 pgid = os.getpgid(proc.pid)
             except (ProcessLookupError, OSError):
                 pgid = proc.pid
+            if graceful:
+                os.killpg(pgid, signal.SIGTERM)
+                try:
+                    proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    pass
             os.killpg(pgid, signal.SIGKILL)
     except (ProcessLookupError, OSError):
         pass
@@ -203,10 +214,15 @@ def race_first_solution(poll_interval=1.0, packages=None, mc_script=MC_SCRIPT):
         clear_package_trace(p)
 
     print(f"Racing {len(packages)} config(s); first counterexample wins...")
-    proc = subprocess.Popen(
-        [sys.executable, _MC_WORKER, mc_script],
-        cwd=REPO_ROOT, start_new_session=True,
-        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    cancelled = False
+
+    def cancel(signum, frame):
+        nonlocal cancelled
+        cancelled = True
+
+    previous_handler = None
+    if threading.current_thread() is threading.main_thread():
+        previous_handler = signal.signal(signal.SIGTERM, cancel)
 
     def winner():
         # A win requires a FRESH counterexample (trace newer than the just-built main.smv);
@@ -216,9 +232,15 @@ def race_first_solution(poll_interval=1.0, packages=None, mc_script=MC_SCRIPT):
                 return p
         return None
 
-    win = None
+    win, proc = None, None
     try:
+        proc = subprocess.Popen(
+            [sys.executable, _MC_WORKER, mc_script],
+            cwd=REPO_ROOT, start_new_session=True,
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         while True:
+            if cancelled:
+                raise SystemExit(128 + signal.SIGTERM)
             win = winner()
             if win:
                 break
@@ -230,6 +252,8 @@ def race_first_solution(poll_interval=1.0, packages=None, mc_script=MC_SCRIPT):
         print("\nInterrupted; stopping all configs...")
     finally:
         _kill_process_group(proc)
+        if previous_handler is not None:
+            signal.signal(signal.SIGTERM, previous_handler)
 
     if win:
         print(f"Winner: {os.path.basename(win)} (remaining configs killed).")
@@ -1006,7 +1030,8 @@ def modelled_fixed_angle(angle, gran):
     return (math.floor(angle / gran + 0.5) * gran) % 360
 
 
-def patch_tpl_config(tpl_path, target_slot, section_x, section_y, section_angle, obstacles):
+def patch_tpl_config(tpl_path, target_slot, section_x, section_y, section_angle, obstacles,
+                     obstacle_ranges=None):
     """Write the target section's pose and the obstacle rectangles into the tpl.json in place.
 
     Only the affected \"key\": \"...\" values are rewritten; the fixed-section arrays keep every
@@ -1036,6 +1061,13 @@ def patch_tpl_config(tpl_path, target_slot, section_x, section_y, section_angle,
         "RECT_OBSTACLES_BR_Xs": [_fmt_world(o[2]) for o in obstacles],
         "RECT_OBSTACLES_BR_Ys": [_fmt_world(o[3]) for o in obstacles],
     }
+    if obstacle_ranges is not None:
+        if len(obstacle_ranges) != len(obstacles):
+            raise ValueError("Obstacle metadata does not match the rectangle count.")
+        configuration = json.loads(content)["#TEMPLATE"]
+        for key in (key for pair in OBSTACLE_RANGE_KEYS for key in pair):
+            if key in configuration:
+                packed[key] = [ranges.get(key, "0") for ranges in obstacle_ranges]
     for key, vals in packed.items():
         content = _replace_tpl_string_value(content, key, _format_paren_list(vals))
 
@@ -1639,7 +1671,11 @@ class MainWindow(QMainWindow):
         transform = compute_fit_transform(self.trace_path, self.image_w, self.image_h)
         ppm = transform[2] if transform else 50.0
         self._transform = transform
-        self._obstacle_offsets = free_obstacle_offsets_world(self.trace_path, self.smv_path)
+        obstacle_offsets = free_obstacle_offsets_world(self.trace_path, self.smv_path)
+        with open(TPL_PATH) as config_file:
+            configuration = json.load(config_file)["#TEMPLATE"]
+        obstacle_ranges = {key: _parse_paren_list(configuration[key])
+                           for pair in OBSTACLE_RANGE_KEYS for key in pair if key in configuration}
         self._ppm = ppm
 
         # Activate world-raster snapping (finest grid of the distance-grid variants) for the items.
@@ -1673,8 +1709,10 @@ class MainWindow(QMainWindow):
             self._draw_obstacle_ghosts(rects_data)
             self._draw_synth_refuted(transform)
             self._draw_workspace(transform)
-            for rect in rects_data:
-                self.add_rectangle(*rect)
+            for index, rect in enumerate(rects_data):
+                self.add_rectangle(*rect, obstacle_offset=obstacle_offsets.get(index, (0.0,) * 4),
+                                   obstacle_ranges={key: values[index] for key, values in obstacle_ranges.items()
+                                                    if index < len(values)})
             if draggable_target:
                 self._create_section_item(segments, target_section, ppm)
             # Frame roads AND obstacles (the fit is road-only, so obstacles may sit outside the
@@ -1692,8 +1730,10 @@ class MainWindow(QMainWindow):
                 print(f"Warning: no road geometry in '{self.trace_path}' and no preview image.")
                 self.scene.setSceneRect(0, 0, self.image_w, self.image_h)
             self._draw_obstacle_ghosts(rects_data)
-            for rect in rects_data:
-                self.add_rectangle(*rect)
+            for index, rect in enumerate(rects_data):
+                self.add_rectangle(*rect, obstacle_offset=obstacle_offsets.get(index, (0.0,) * 4),
+                                   obstacle_ranges={key: values[index] for key, values in obstacle_ranges.items()
+                                                    if index < len(values)})
 
         self._capture_baseline()
         self._refresh_gran_status()
@@ -1947,7 +1987,7 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
         self.scale_to_fit()
 
-    def add_rectangle(self, x1, y1, x2, y2):
+    def add_rectangle(self, x1, y1, x2, y2, obstacle_offset=(0.0,) * 4, obstacle_ranges=None):
         # Snap both corners onto the 1 m world raster so new/loaded obstacles start aligned.
         x1, y1 = snap_scene_point(x1, y1)
         x2, y2 = snap_scene_point(x2, y2)
@@ -1958,6 +1998,8 @@ class MainWindow(QMainWindow):
         
         rect_item = ResizableRectItem(x, y, w, h, on_delete=self._remove_obstacle,
                                       on_changed=self._refresh_grid_status)
+        rect_item.obstacle_offset = obstacle_offset
+        rect_item.obstacle_ranges = dict(obstacle_ranges or {})
         self.scene.addItem(rect_item)
         self.rect_items.append(rect_item)
 
@@ -2005,11 +2047,8 @@ class MainWindow(QMainWindow):
 
     def collect_obstacle_bases_world(self):
         """Drawn obstacles minus the MC's free-obstacle shift/grow, i.e. the boxes to configure."""
-        bases = []
-        for i, corners in enumerate(self.collect_obstacles_world()):
-            offsets = self._obstacle_offsets.get(i, (0.0, 0.0, 0.0, 0.0))
-            bases.append(tuple(c - d for c, d in zip(corners, offsets)))
-        return bases
+        return [tuple(coordinate - offset for coordinate, offset in zip(corners, item.obstacle_offset))
+                for item, corners in zip(self.rect_items, self.collect_obstacles_world())]
 
     def _create_section_item(self, segments, target_section, ppm):
         """Add the draggable/rotatable target section (fixed length, angle-granularity snapping)."""
@@ -2159,6 +2198,7 @@ class MainWindow(QMainWindow):
         if self._transform is None:
             raise RuntimeError("No transform available to write the scene into the config.")
         obstacles = self.collect_obstacle_bases_world()
+        obstacle_ranges = [item.obstacle_ranges for item in self.rect_items]
         # Only a moved section is written: the drawn pose may be a variant's rounded heading.
         if (not obstacles_only and self._section_dirty and self.section_item is not None
                 and self._target_slot is not None):
@@ -2167,9 +2207,9 @@ class MainWindow(QMainWindow):
             angle = int(round(self.section_item.rotation())) % 360
             patch_tpl_config(TPL_PATH, self._target_slot,
                              snap_world(sx_w, self._raster_step), snap_world(sy_w, self._raster_step),
-                             angle, obstacles)
+                             angle, obstacles, obstacle_ranges)
         else:
-            patch_tpl_config(TPL_PATH, None, None, None, None, obstacles)
+            patch_tpl_config(TPL_PATH, None, None, None, None, obstacles, obstacle_ranges)
 
     def _on_regen_success(self):
         """After a successful regeneration the drawn layout matches the config again."""
@@ -2222,7 +2262,8 @@ class MainWindow(QMainWindow):
         rects = []
         for item in self.rect_items:
             r = item.mapRectToScene(item.rect())
-            rects.append((r.left(), r.top(), r.right(), r.bottom()))
+            rects.append((r.left(), r.top(), r.right(), r.bottom(),
+                          item.obstacle_offset, item.obstacle_ranges))
         section = None
         if self.section_item is not None:
             section = (QPointF(self.section_item.pos()), self.section_item.rotation())
@@ -2765,13 +2806,16 @@ class MainWindow(QMainWindow):
             self.synth_banner.setStyleSheet(f"QLabel {{ background-color: {color}; color: white; "
                                             f"font-weight: bold; font-size: 14pt; padding: 6px; }}")
 
-    def _finish_synth(self, message, success=False):
+    def _stop_synth(self):
         self.synth_timer.stop()
-        _kill_process_group(self._synth_proc)
+        _kill_process_group(self._synth_proc, graceful=True)
         self._synth_proc = None
         if self._synth_log_file is not None:
             self._synth_log_file.close()
             self._synth_log_file = None
+
+    def _finish_synth(self, message, success=False):
+        self._stop_synth()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setVisible(False)
         self.terminate_btn.setEnabled(False)
@@ -2788,9 +2832,7 @@ class MainWindow(QMainWindow):
             _kill_process_group(self._race_proc)
             self._race_proc = None
         if self._synth_proc is not None:
-            self.synth_timer.stop()
-            _kill_process_group(self._synth_proc)
-            self._synth_proc = None
+            self._stop_synth()
         super().closeEvent(event)
 
 

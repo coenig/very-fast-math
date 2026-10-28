@@ -1625,6 +1625,23 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
             MCTrace trace{ traces[0] };
             trace.setOutputLevels(vfm::ErrorLevelEnum::invalid, vfm::ErrorLevelEnum::invalid); // Quiet; we use errors as "not present".
 
+            const auto trace_directory{ std::filesystem::absolute(resolved_trace_path).parent_path() };
+            ScaleDescription::createTimescalingFile(trace_directory.string());
+            const auto scaling_file{ trace_directory / TIMESCALING_FILENAME };
+            if (std::filesystem::exists(scaling_file)) {
+               const ScaleDescription scaling{ StaticHelper::readFile(scaling_file.string()) };
+               if (scaling.getGeometryScalingFactor() != 1 || scaling.getDistanceScalingFactor() != 1) {
+                  trace.getTrace().resize(1);
+                  auto& values{ trace.getTrace().front().second };
+                  for (auto assignment = values.begin(); assignment != values.end();) {
+                     if (StaticHelper::stringStartsWith(assignment->first, "env.section_")
+                        || StaticHelper::stringStartsWith(assignment->first, "env.outgoing_connection_")) ++assignment;
+                     else assignment = values.erase(assignment);
+                  }
+                  StaticHelper::applyTimescaling(trace, scaling);
+               }
+            }
+
             for (int s = 0; s < 1000; ++s) {
                const std::string id{ std::to_string(s) };
                trace.resetAllErrors();

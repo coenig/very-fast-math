@@ -9,10 +9,116 @@
 #include "geometry/polygon_2d.h"
 #include "geometry/vector_2d.h"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <limits>
 
 namespace vfm::bezier {
+
+static std::array<Vec2D, 4> connectorBezier(
+   const Vec2D& source, const Vec2D& source_direction,
+   const Vec2D& target, const Vec2D& target_direction, const float lane_offset = 0)
+{
+   Vec2D source_normal{ source_direction };
+   Vec2D target_normal{ target_direction };
+   source_normal.ortho();
+   target_normal.ortho();
+   source_normal.setLength(lane_offset);
+   target_normal.setLength(lane_offset);
+   const Vec2D start{ source + source_normal };
+   const Vec2D end{ target + target_normal };
+   const float handle_length{ start.distance(end) / 3 };
+   Vec2D source_handle{ source_direction };
+   Vec2D target_handle{ target_direction };
+   source_handle.setLength(handle_length);
+   target_handle.setLength(handle_length);
+   return { start, start + source_handle, end - target_handle, end };
+}
+
+namespace detail {
+
+static bool curvatureBoundHolds(const std::array<Vec2Dd, 3>& velocity,
+   const std::array<Vec2Dd, 2>& acceleration, const std::array<double, 3>& velocity_error,
+   const std::array<double, 2>& acceleration_error, const double radius, const int subdivisions_left)
+{
+   const auto cross = [](const Vec2Dd& first, const Vec2Dd& second) {
+      return first.x * second.y - first.y * second.x;
+   };
+   const std::array<double, 4> numerator{
+      cross(velocity[0], acceleration[0]),
+      (2 * cross(velocity[1], acceleration[0]) + cross(velocity[0], acceleration[1])) / 3,
+      (cross(velocity[2], acceleration[0]) + 2 * cross(velocity[1], acceleration[1])) / 3,
+      cross(velocity[2], acceleration[1]) };
+   const auto cross_error = [&](const size_t velocity_index, const size_t acceleration_index) {
+      const auto& speed{ velocity[velocity_index] };
+      const auto& change{ acceleration[acceleration_index] };
+      return std::hypot(speed.x, speed.y) * acceleration_error[acceleration_index]
+         + std::hypot(change.x, change.y) * velocity_error[velocity_index]
+         + velocity_error[velocity_index] * acceleration_error[acceleration_index];
+   };
+   const std::array<double, 4> numerator_error{ cross_error(0, 0),
+      (2 * cross_error(1, 0) + cross_error(0, 1)) / 3,
+      (cross_error(2, 0) + 2 * cross_error(1, 1)) / 3, cross_error(2, 1) };
+   const double min_x{ std::max({ 0.0,
+      std::min({ velocity[0].x - velocity_error[0], velocity[1].x - velocity_error[1], velocity[2].x - velocity_error[2] }),
+      -std::max({ velocity[0].x + velocity_error[0], velocity[1].x + velocity_error[1], velocity[2].x + velocity_error[2] }) }) };
+   const double min_y{ std::max({ 0.0,
+      std::min({ velocity[0].y - velocity_error[0], velocity[1].y - velocity_error[1], velocity[2].y - velocity_error[2] }),
+      -std::max({ velocity[0].y + velocity_error[0], velocity[1].y + velocity_error[1], velocity[2].y + velocity_error[2] }) }) };
+   const double speed_squared_lower{ min_x * min_x + min_y * min_y };
+   double numerator_upper{};
+   double velocity_upper{};
+   double acceleration_upper{};
+   for (size_t index = 0; index < numerator.size(); ++index)
+      numerator_upper = std::max(numerator_upper, std::abs(numerator[index]) + numerator_error[index]);
+   for (const auto& value : velocity) velocity_upper = std::max(velocity_upper, std::hypot(value.x, value.y));
+   for (const auto& value : acceleration) acceleration_upper = std::max(acceleration_upper, std::hypot(value.x, value.y));
+   const double roundoff{ 64 * std::numeric_limits<double>::epsilon() };
+   const double speed_lower{ std::max(0.0, std::sqrt(speed_squared_lower) - roundoff * velocity_upper) };
+   if (speed_lower > 0 && (numerator_upper + roundoff * velocity_upper * acceleration_upper) * radius
+      <= speed_lower * speed_lower * speed_lower) return true;
+
+   const Vec2Dd velocity_left{ (velocity[0] + velocity[1]) / 2 };
+   const Vec2Dd velocity_right{ (velocity[1] + velocity[2]) / 2 };
+   const Vec2Dd velocity_middle{ (velocity_left + velocity_right) / 2 };
+   const Vec2Dd acceleration_middle{ (acceleration[0] + acceleration[1]) / 2 };
+   for (const auto& sample : { std::pair{ velocity[0], acceleration[0] },
+      std::pair{ velocity_middle, acceleration_middle }, std::pair{ velocity[2], acceleration[1] } }) {
+      const double speed{ std::hypot(sample.first.x, sample.first.y) };
+      if (!(speed > 0) || std::abs(cross(sample.first, sample.second)) * radius > speed * speed * speed) return false;
+   }
+   if (subdivisions_left == 0) return false;
+      const double velocity_error_left{ (velocity_error[0] + velocity_error[1]) / 2 };
+      const double velocity_error_right{ (velocity_error[1] + velocity_error[2]) / 2 };
+      const double velocity_error_middle{ (velocity_error_left + velocity_error_right) / 2 };
+      const double acceleration_error_middle{ (acceleration_error[0] + acceleration_error[1]) / 2 };
+   return curvatureBoundHolds({ velocity[0], velocity_left, velocity_middle },
+            { acceleration[0], acceleration_middle },
+            { velocity_error[0], velocity_error_left, velocity_error_middle },
+            { acceleration_error[0], acceleration_error_middle }, radius, subdivisions_left - 1)
+      && curvatureBoundHolds({ velocity_middle, velocity_right, velocity[2] },
+            { acceleration_middle, acceleration[1] },
+            { velocity_error_middle, velocity_error_right, velocity_error[2] },
+            { acceleration_error_middle, acceleration_error[1] }, radius, subdivisions_left - 1);
+}
+
+}
+
+static bool hasMinimumRadius(const std::array<Vec2D, 4>& curve, const double radius, const double endpoint_error = 0)
+{
+   if (radius <= 0) return true;
+   if (!std::isfinite(radius) || !std::isfinite(endpoint_error) || endpoint_error < 0) return false;
+   std::array<Vec2Dd, 3> velocity;
+   for (size_t index = 0; index < velocity.size(); ++index) {
+      velocity[index] = { 3 * (static_cast<double>(curve[index + 1].x) - curve[index].x),
+         3 * (static_cast<double>(curve[index + 1].y) - curve[index].y) };
+      if (!std::isfinite(velocity[index].x) || !std::isfinite(velocity[index].y)) return false;
+   }
+   return detail::curvatureBoundHolds(velocity,
+      { (velocity[1] - velocity[0]) * 2, (velocity[2] - velocity[1]) * 2 },
+      { endpoint_error, 5 * endpoint_error, endpoint_error },
+      { 12 * endpoint_error, 12 * endpoint_error }, radius, 18);
+}
 
 // Function to calculate the point on a cubic Bezier curve
 static Vec2D cubicBezier(float t, const Vec2D& p0, const Vec2D& p1, const Vec2D& p2, const Vec2D& p3) {
