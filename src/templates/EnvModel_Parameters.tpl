@@ -204,19 +204,11 @@
 
 -- ## EO Limiting degrees of freedom at COMPILE TIME for better performance ##
 
--- Lanechange parameters
-@{ANGLE_BASED_LC}@*******.defaultValue[false]          -- Do the angle-based LC as opposed to the "classic" lane-based one.
-@{@{LC_ANGLE_GRANULARITY_DEG}@*******.defaultValue[1]  -- Only if ANGLE_BASED_LC -- TODO: Do we need this? For now only full degrees as int.}@*******************.nil
-@{MAX_LAT_ACCEL}@*******.defaultValue[1]               -- Only if ANGLE_BASED_LC
-@{MIN_LC_DURATION_SEC}@*******.defaultValue[3]         -- Only if ANGLE_BASED_LC
-@{MAX_LC_DURATION_SEC}@*******.defaultValue[8]         -- Only if ANGLE_BASED_LC
--- TODO: The above angle-based lanechange is a work in progress and does nothing productive so far.
-
-@{SIMPLE_LC}@*******.defaultValue[false]               -- Only if !ANGLE_BASED_LC: Allow non-egos to switch a "half-lane" if time_since_last_lc has passed (true); otherwise full version by Christian H.
+@{SIMPLE_LC}@*******.defaultValue[false]               -- Allow non-egos to switch a "half-lane" if time_since_last_lc has passed (true); otherwise full version by Christian H.
 
 -- Below: Extend the simple LC by allowing more fine-granular steps between the lanes.
 -- We do not keep this in synch with the full Christian implementation for now. I.e., use the default parameters to activate this.
-@{LATERAL_LC_GRANULARITY}@*******.defaultValue[0]        -- 0 is how it was before, n > 0 increases technical number of lanes by n. Independent of ANGLE_BASED_LC -- Deliberately separating this from scaling (could discuss in future)
+@{LATERAL_LC_GRANULARITY}@*******.defaultValue[0]        -- 0 is how it was before, n > 0 increases technical number of lanes by n. Deliberately separating this from scaling (could discuss in future)
 @{LANE_WIDTH}@*******.defaultValue[375]                  -- In cm. Default value 400 from highway-env (highway_env/road/lane.py).          Note that we have 375 in vfm...   (include/geometry/images.h)
 @{VEHICLE_WIDTH}@*******.defaultValue[185]               -- In cm. Default value 200 from highway-env (highway_env/vehicle/kinematics.py). Note that we have 185.2 in vfm... (include/geometry/images.h)
 @{VEHICLE_LENGTH}@*******.defaultValue[5]                -- In m(!). Default value 5.0 from highway-env (highway_env/vehicle/kinematics.py). Note that we have 4.923 in vfm... (include/geometry/images.h)
@@ -248,7 +240,7 @@
 @{
 #error UCD_TASK7_COMPACT requires concrete ego-less UCD with simple lane changes and positive integer lane and jump counts
 }@*.if[@{!(UCD && EGOLESS
-	&& CONCRETE_MODEL && !REACHABILITY_ONLY && !ANGLE_BASED_LC
+	&& CONCRETE_MODEL && !REACHABILITY_ONLY
 	&& SIMPLE_LC && NUM_TECHNICAL_LANES >= 1 && NUM_TECHNICAL_LANES == trunc(NUM_TECHNICAL_LANES)
 	&& MAX_JUMP_OVER_TECHNICAL_LANES >= 1 && MAX_JUMP_OVER_TECHNICAL_LANES == trunc(MAX_JUMP_OVER_TECHNICAL_LANES))}@.eval]
 }@***.if[@{UCD_TASK7_COMPACT}@.eval]
