@@ -11,7 +11,4 @@ EnvModel_Header.tpl
 EnvModel_Parameters.tpl
 EnvModel_Scaling.tpl
 EnvModel_Sections.tpl
-EnvModel_Abstract.tpl
-EnvModel_Abstract_Common_Sections.tpl
-EnvModel_Abstract_Macros.tpl
 main.tpl

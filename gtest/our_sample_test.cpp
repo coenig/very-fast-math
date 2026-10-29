@@ -367,7 +367,7 @@ static std::string expandSectionTemplate(const std::string& settings,
     return vfm::macro::Script::processScript(
         "@{" + template_path.string() + "}@***********.stringToHeap[MY_PATH].nil\n" + R"(
 @{@SECTIONS=2; @SEGMENTS=1; @NUMLANES=1; @REACHABILITY_ONLY=true;
-  @MODEL_INTERSECTION_GEOMETRY=true; @CONCRETE_MODEL=true;
+  @MODEL_INTERSECTION_GEOMETRY=true;
   @ANGLEGRANULARITY=90; @MAXOUTGOINGCONNECTIONS=1;
   @MINDISTCONNECTIONS=1; @MAXDISTCONNECTIONS=2;
   @MAXDISTENDPOINTS=0; @MIN_TURNING_RADIUS=0;}@***********.eval.nil
@@ -602,7 +602,6 @@ const std::string tpljson{R"(
       "SECTIONSMINLENGTH": 10000,
       "SEGMENTS": 1,
       "SEGMENTSMINLENGTH": 10,
-      "CONCRETE_MODEL": true,
       "MODEL_INTERSECTION_GEOMETRY": true,
       "SPEC": "#{ env.cnt == 0 }#",
       "ShowLOG": true,

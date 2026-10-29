@@ -227,7 +227,6 @@
 
 -- Special purpose parameters.
 @{FEASIBILITY}@*******.defaultValue[true] -- Includes defines needed for the ACA4.1 Fesibility study.
-@{CONCRETE_MODEL}@*******.defaultValue[true] -- Uses the --concrete-- model, as opposed to (deprecated) abstract model be Alberto.
 @{MAXSECPARTS}@*******.defaultValue[3] -- TODO: Number of segments a section is split into for the abstract model. Should be replaced by scaling (if possible).
 
 -- EO Do not change.
@@ -238,9 +237,9 @@
 
 @{
 @{
-#error UCD_TASK7_COMPACT requires concrete ego-less UCD with simple lane changes and positive integer lane and jump counts
+#error UCD_TASK7_COMPACT requires ego-less UCD with simple lane changes and positive integer lane and jump counts
 }@*.if[@{!(UCD && EGOLESS
-	&& CONCRETE_MODEL && !REACHABILITY_ONLY
+	&& !REACHABILITY_ONLY
 	&& SIMPLE_LC && NUM_TECHNICAL_LANES >= 1 && NUM_TECHNICAL_LANES == trunc(NUM_TECHNICAL_LANES)
 	&& MAX_JUMP_OVER_TECHNICAL_LANES >= 1 && MAX_JUMP_OVER_TECHNICAL_LANES == trunc(MAX_JUMP_OVER_TECHNICAL_LANES))}@.eval]
 }@***.if[@{UCD_TASK7_COMPACT}@.eval]

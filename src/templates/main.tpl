@@ -18,15 +18,7 @@ VAR
 }@*.if[@{!REACHABILITY_ONLY}@.eval]
 
 @{
-@{               
-@(
  env.veh___6TEMPORARRAY19___.v : integer;
-)@
-@(
-cnt : -1..1;
- env.veh___6TEMPORARRAY19___.v : -1..1;
-)@
-}@.if[@{CONCRETE_MODEL}@.eval]
 }@*.if[@{!REACHABILITY_ONLY}@.eval]
 
 @{
@@ -72,12 +64,6 @@ TRANS env.ego.abCond_full = planner."abCond.cond26_all_conditions_fulfilled_raw"
 
 @{main_addons.tpl}@********.include.if[@{!UCD && !REACHABILITY_ONLY}@.eval]
 --EO-ADDONS
-
-@{
--- Macros for Alberto-generated abstract model.
-@{EnvModel_Abstract_Macros.tpl}@*******.include
--- EO Macros for Alberto-generated abstract model.
-}@********.if[@{!CONCRETE_MODEL}@.eval]
 
 @{
 @{

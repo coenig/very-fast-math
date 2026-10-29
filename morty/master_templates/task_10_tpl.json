@@ -99,7 +99,6 @@
       "SECTIONSMINLENGTH": "#{80}#",
       "SEGMENTS": 1,
       "SEGMENTSMINLENGTH": 10,
-      "CONCRETE_MODEL": true,
       "MODEL_INTERSECTION_GEOMETRY": 1,
       "SPEC": "#{ MORTY_PLACEHOLDER_SPEC }#",
       "SPEC1": "#{ (F(env.cnt == 1)) }#",

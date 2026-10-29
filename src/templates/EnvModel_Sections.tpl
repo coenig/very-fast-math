@@ -95,7 +95,7 @@ INIT section_[sec]_segment_[num]_max_lane >= section_[sec]_segment_[num]_min_lan
          }@.if[@{UCD}@.eval]
 -- EO Special treatment for UCD, but only to achieve exact same results as in "driving by disproof." TODO: Just undo!
 
-            @{section_[sec]_segment_[seg]_pos_begin}@*.scalingVariable[distance] : @{@(integer)@@(0 .. 1)@}@.if[@{CONCRETE_MODEL}@.eval];
+            @{section_[sec]_segment_[seg]_pos_begin}@*.scalingVariable[distance] : integer;
          }@**.for[[seg], 0, @{SEGMENTS - 1}@.eval]
 		
       @{
