@@ -95,7 +95,7 @@
       "MAXSTARTSPEEDNONEGO_UCD": 15,
       "UCD_CONFIG_PRIOS": "_config_vehlen=9_vehwidth=9;_config_vehlen=8_vehwidth=9;_config_vehlen=7_vehwidth=9;_config_vehlen=6_vehwidth=9;_config_vehlen=9_vehwidth=8;_config_vehlen=8_vehwidth=8;_config_vehlen=7_vehwidth=8;_config_vehlen=6_vehwidth=8;_config_vehlen=9_vehwidth=7;_config_vehlen=8_vehwidth=7;_config_vehlen=7_vehwidth=7;_config_vehlen=6_vehwidth=7;_config_vehlen=9_vehwidth=6;_config_vehlen=8_vehwidth=6;_config_vehlen=7_vehwidth=6;_config_vehlen=6_vehwidth=6;",
       "UCD_EXP_NUM": 7,
-      "UCD_MC_SELECTION": "all",
+      "UCD_MC_SELECTION": "priority",
       "UCD_NUM_RUNS": 1,
       "UCD_STEPS_PER_RUN": 300,
       "UCD_HEADING_ADAPTATION": -0.5,
