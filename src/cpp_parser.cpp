@@ -6093,7 +6093,7 @@ bool vfm::CppParser::performCodeGenerationAndMCCodeCreation(
    std::string path_to_envmodel_file_dummy{}; // Used for second run where no env model is generated.
 
 
-   if (has_envmodel_ && !data_->getSingleVal("EM_LESS")) {
+   if (has_envmodel_) {
       DO_ENVMODEL(success_env_model, path_to_envmodel_file, template_options);
    }
    else {
@@ -6127,12 +6127,6 @@ bool vfm::CppParser::performCodeGenerationAndMCCodeCreation(
    if (!options_.isGatekeeper()) {
       addNote("Creating result files.");
       createResultFiles(target_path_for_generated_code, mc_specs_, path_to_file_list_file_env_model, path_to_envmodel_file);
-   }
-
-   if (has_envmodel_ && data_->getSingleVal("EM_LESS")) {
-      writeMortyGUIProgressFile(93, "em-less generation");
-      addNotePlain("*** EM-less EnvModel Generation ***");
-      generateEnvModel(path_to_file_list_file_env_model, target_path_for_env_model, std::string(path_to_template_json), template_options);
    }
 
    writeMortyGUIProgressFile(100, "finalizing");

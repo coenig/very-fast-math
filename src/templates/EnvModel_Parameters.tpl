@@ -44,7 +44,6 @@
 -- Preprocessor evaluation: @{VFM_PREPROCESSOR}@*******.printHeap = @{VFM_PREPROCESSOR}@*******.printHeap.eval
 
 -- Global options
-@{EM_LESS}@*******.defaultValue[false]
 @{SCENGEN_MODE}@*******.defaultValue[false]
 
 -- Parametrization of road topology features
@@ -249,7 +248,7 @@
 @{
 #error UCD_TASK7_COMPACT requires concrete ego-less UCD with simple lane changes and positive integer lane and jump counts
 }@*.if[@{!(UCD && EGOLESS
-	&& CONCRETE_MODEL && !EM_LESS && !REACHABILITY_ONLY && !ANGLE_BASED_LC
+	&& CONCRETE_MODEL && !REACHABILITY_ONLY && !ANGLE_BASED_LC
 	&& SIMPLE_LC && NUM_TECHNICAL_LANES >= 1 && NUM_TECHNICAL_LANES == trunc(NUM_TECHNICAL_LANES)
 	&& MAX_JUMP_OVER_TECHNICAL_LANES >= 1 && MAX_JUMP_OVER_TECHNICAL_LANES == trunc(MAX_JUMP_OVER_TECHNICAL_LANES))}@.eval]
 }@***.if[@{UCD_TASK7_COMPACT}@.eval]

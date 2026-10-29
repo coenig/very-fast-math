@@ -30,32 +30,6 @@ cnt : -1..1;
 }@*.if[@{!REACHABILITY_ONLY}@.eval]
 
 @{
-@(
-
-
-TRANS next(env.input.m_gpFunktionsstatusGetriggerterFsw.m_value) = planner."gpFunktionsstatusGetriggerterFsw.m_value";
--- TRANS next(env.input.m_gpFunktionsstatusGetriggerterFsw.m_valueLastCycle) = planner."gpFunktionsstatusGetriggerterFsw.m_valueLastCycle";
-
-INVARSPEC
-     env.input.m_gpFunktionsstatusGetriggerterFsw.m_value = Value____NichtVerfuegbar | env.input.m_gpFunktionsstatusGetriggerterFsw.m_value = Value____Verfuegbar;
-
--- INVARSPEC 
---    ((env.input.m_gpFunktionsstatusGetriggerterFsw.m_value != Value____AktivRegeltLinks)
---      & (env.input.m_gpFunktionsstatusGetriggerterFsw.m_value != Value____AktivWunschErkanntLinks)
---      & (env.input.m_gpFunktionsstatusGetriggerterFsw.m_value != Value____AktivWartetLinks)) -> 
---      (planner."gpFunktionsstatusGetriggerterFsw.m_value" != Value____AktivRegeltLinks);
-
--- INVARSPEC
---     (planner."gpFunktionsstatusGetriggerterFsw.m_value")
---     ->
---      (
---       (env.input.m_gpFunktionsstatusGetriggerterFsw.m_value = Value____AktivRegeltLinks) |
---       (env.input.m_gpFunktionsstatusGetriggerterFsw.m_value = Value____AktivWunschErkanntLinks) |
---       (env.input.m_gpFunktionsstatusGetriggerterFsw.m_value = Value____AktivWartetLinks)
---      );
-)@
-@(
-@{
    lane_changed : boolean;
    lane_change_aborted : boolean;
 
@@ -115,5 +89,3 @@ TRANS env.ego.abCond_full = planner."abCond.cond26_all_conditions_fulfilled_raw"
 }@.replaceAllCounting[$$$$$]
 
 --EO-SPEC-STUFF
-)@
-}@*.if[@{EM_LESS}@.eval]
