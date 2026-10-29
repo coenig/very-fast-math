@@ -16,6 +16,7 @@
 #include <vector>
 #include <string>
 #include <thread>
+#include <atomic>
 
 
 namespace vfm {
@@ -117,6 +118,7 @@ bool isCacheUpToDateWithTemplates(const std::filesystem::path& cached_path, cons
 
 void prepareInputForMortyUCD(const std::string& input_str, const float head_const, const int num_lanes, const int num_technical_lanes, const std::string& trace_path = "");
 std::string prepareOutputForMortyUCD(const long long seed, const int iteration, const long long runtime, const bool crash);
+bool isMortyLiveMode();
 
 #ifndef VFM_API
 #ifdef _WIN32
@@ -131,5 +133,6 @@ std::string prepareOutputForMortyUCD(const long long seed, const int iteration, 
 #endif
 
 extern "C" VFM_API char* expandScript(const char* input, char* result, size_t resultMaxLength);
+extern "C" VFM_API void setMortyLiveMode(bool enabled);
 } // test
 } // vfm

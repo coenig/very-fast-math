@@ -13,7 +13,6 @@ import ctypes
 import ctypes.util
 from contextlib import contextmanager
 from ctypes import CDLL
-from .morty_debug_plots import plot_cex_lengths_cumulative, plot_mc_runtimes_cumulative
 
 
 def ensure_empty_file(path: str) -> None:
@@ -25,6 +24,87 @@ def ensure_empty_file(path: str) -> None:
     p.parent.mkdir(parents=True, exist_ok=True)
     with p.open('w'):
         pass
+
+
+def load_run_settings(template):
+    defaults = {
+        'num_runs': ('UCD_NUM_RUNS', 100),
+        'steps_per_run': ('UCD_STEPS_PER_RUN', 300),
+        'heading_adaptation': ('UCD_HEADING_ADAPTATION', -0.5),
+        'allow_blind_steps': ('UCD_ALLOW_BLIND_STEPS', 1),
+        'allow_crashed_steps': ('UCD_ALLOW_CRASHED_STEPS', 1),
+        'min_iterations': ('UCD_MIN_ITERATIONS', 2),
+        'mc_selection': ('UCD_MC_SELECTION', 'all'),
+    }
+    settings = {}
+    for name, (key, default) in defaults.items():
+        value = template.get(key, default)
+        if name == 'mc_selection':
+            if value not in ('all', 'priority', 'adaptive'):
+                raise ValueError(f'{key} must be all, priority, or adaptive')
+        elif name == 'heading_adaptation':
+            if type(value) not in (int, float) or not math.isfinite(value):
+                raise ValueError(f'{key} must be a finite number')
+        elif type(value) is not int or value < 0:
+            raise ValueError(f'{key} must be a nonnegative integer')
+        settings[name] = value
+    return settings
+
+
+class MCConfigSelector:
+    def __init__(self, config_count, policy='adaptive'):
+        if config_count < 1:
+            raise ValueError('At least one MC configuration is required')
+        if policy not in ('adaptive', 'priority'):
+            raise ValueError('MC selection policy must be adaptive or priority')
+        self.config_count = config_count
+        self.policy = policy
+        self.estimates = {}
+
+    def record(self, config_index, shortcut, success, seconds):
+        key = (shortcut, config_index)
+        elapsed = max(float(seconds), 0.001)
+        if key in self.estimates:
+            old_elapsed, old_success = self.estimates[key]
+            self.estimates[key] = ((old_elapsed + elapsed) / 2,
+                                   (old_success + float(success)) / 2)
+        else:
+            self.estimates[key] = (elapsed, 0.75 if success else 0.25)
+
+    def expected_cost(self, config_index, shortcut):
+        estimate = self.estimates.get((shortcut, config_index))
+        if estimate is None and shortcut:
+            full_estimate = self.estimates.get((False, config_index))
+            if full_estimate is not None:
+                estimate = (full_estimate[0] / 10, full_estimate[1])
+        if estimate is None:
+            costs = [elapsed for (kind, _), (elapsed, success) in self.estimates.items()
+                     if kind == shortcut and success >= 0.5]
+            estimate = (min(costs) if costs else (0.1 if shortcut else 1.0), 0.5)
+        return estimate[0] / max(estimate[1], 0.05)
+
+    def ordered_configs(self, shortcut, indices):
+        if self.policy == 'priority':
+            return sorted(indices)
+        return sorted(indices, key=lambda index: (self.expected_cost(index, shortcut), index))
+
+    def queries(self, shortcut_count, max_shortcut_priority):
+        full_configs = self.ordered_configs(False, range(self.config_count))
+        eligible = range(min(self.config_count, max_shortcut_priority + 1)) if max_shortcut_priority is not None else []
+        shortcut_configs = self.ordered_configs(True, eligible)
+        attempted_shortcuts = set()
+        if (shortcut_count and shortcut_configs
+                and self.expected_cost(shortcut_configs[0], True) <= self.expected_cost(full_configs[0], False)):
+            for config_index in shortcut_configs[:2]:
+                attempted_shortcuts.add((config_index, 0))
+                yield config_index, 0
+        for config_index in full_configs:
+            yield config_index, None
+        for shortcut_index in range(shortcut_count):
+            for config_index in self.ordered_configs(True, eligible):
+                if (config_index, shortcut_index) not in attempted_shortcuts:
+                    yield config_index, shortcut_index
+
 
 def min_max_curr(successful_so_far, done_so_far, max_to_expect):
     percent = 100 * successful_so_far / done_so_far
@@ -256,10 +336,11 @@ class RunScheduler:
             # otherwise just continue; the next seed reuses the same run_id
     """
 
-    def __init__(self, generated_path_prefix: str, max_exps: int, dryrun: bool):
+    def __init__(self, generated_path_prefix: str, max_exps: int, dryrun: bool, persist: bool = True):
         self.generated_path_prefix = generated_path_prefix
         self.max_exps = max_exps
         self.dryrun = bool(dryrun)
+        self.persist = persist
         self.run_id = 0
         self.seed = -1
         self.run_seed_map: Dict[int, int] = {}
@@ -268,7 +349,8 @@ class RunScheduler:
             self.dryrun_pairs = load_run_seed_pairs(generated_path_prefix) or [(i, i) for i in range(max_exps)]
         else:
             self.dryrun_pairs = None
-            dump_run_seed_map(self.run_seed_map, generated_path_prefix)  # Reset the mapping for a fresh session.
+            if self.persist:
+                dump_run_seed_map(self.run_seed_map, generated_path_prefix)
         self.dryrun_index = 0
 
     def __iter__(self):
@@ -291,8 +373,9 @@ class RunScheduler:
 
         No-op for dry runs, which iterate a fixed (run_id, seed) list."""
         if not self.dryrun:
-            self.run_seed_map[self.run_id] = self.seed
-            dump_run_seed_map(self.run_seed_map, self.generated_path_prefix)
+            if self.persist:
+                self.run_seed_map[self.run_id] = self.seed
+                dump_run_seed_map(self.run_seed_map, self.generated_path_prefix)
             self.run_id += 1
 
 
@@ -317,6 +400,8 @@ def discard_run(run_id: int, generated_path_prefix: str, ucd_config_prios_str: L
                 all_selected_runtime_histories: dict) -> None:
     """Undo everything an excluded (early-failing) run produced: drop its in-memory statistics,
     regenerate the cumulative plots without it, and delete its on-disk artifacts."""
+    from .morty_debug_plots import plot_cex_lengths_cumulative, plot_mc_runtimes_cumulative
+
     all_cex_length_histories.pop(run_id, None)
     all_selected_runtime_histories.pop(run_id, None)
     plot_cex_lengths_cumulative(all_cex_length_histories, f"{generated_path_prefix}/cex_length_debug_all.pdf")
@@ -349,8 +434,13 @@ def clean_library_context(lib_path):
         else:
             print("Warning: Library object not found for cleanup.")
                
+_live_morty_lib = None
+
+
 @contextmanager
-def morty_script_context():
+def morty_script_context(live=False):
+    global _live_morty_lib
+
     # Assum Linux until...
     dll_name = 'libvfm.so'
     dll_dir = './lib'
@@ -363,6 +453,21 @@ def morty_script_context():
         if dll_dir not in os.environ.get('PATH', ''):
             os.environ['PATH'] = dll_dir + os.pathsep + os.environ.get('PATH', '')
    
+    if live:
+        if _live_morty_lib is None:
+            morty_lib = ctypes.CDLL(dll_dir + '/' + dll_name)
+            try:
+                morty_lib.setMortyLiveMode.argtypes = [ctypes.c_bool]
+                morty_lib.setMortyLiveMode.restype = None
+            except AttributeError as error:
+                raise RuntimeError('--live requires rebuilding the native VFM library') from error
+            morty_lib.expandScript.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t]
+            morty_lib.expandScript.restype = ctypes.c_char_p
+            morty_lib.setMortyLiveMode(True)
+            _live_morty_lib = morty_lib
+        yield _live_morty_lib
+        return
+
     with clean_library_context(dll_dir + '/' + dll_name) as morty_lib:
         morty_lib.expandScript.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t]
         morty_lib.expandScript.restype = ctypes.c_char_p
@@ -420,6 +525,51 @@ class VizState:
         self.pp_targets = {}      # vehicle id -> [x, y] pure-pursuit target
         self.selected_cnt = None  # currently active CEX priority (for coloring)
         self.pos_to_draw = []     # list of [coord, color] planned MC positions
+        self.status = ""
+        self.mc_running = False
+        self._status_font = None
+
+    def attach_status(self, env):
+        viewer = env.unwrapped.viewer
+        if viewer is None or viewer.offscreen or not viewer.enabled:
+            return
+        self._status_font = None
+        original_display = viewer.display
+
+        def display_with_status():
+            original_display()
+            self._draw_status(viewer)
+
+        viewer.display = display_with_status
+
+    def set_status(self, env, text, mc_running=False):
+        viewer = env.unwrapped.viewer
+        if viewer is None or viewer.offscreen or not viewer.enabled:
+            return
+        self.status = text
+        self.mc_running = mc_running
+        self._draw_status(viewer)
+
+    def _draw_status(self, viewer):
+        if not self.status:
+            return
+        import pygame
+
+        if self._status_font is None:
+            self._status_font = pygame.font.Font(None, 22)
+        strip = pygame.Rect(0, 0, viewer.screen.get_width(), 30)
+        background = (255, 221, 92) if self.mc_running else (229, 235, 239)
+        pygame.draw.rect(viewer.screen, background, strip)
+        text = self.status
+        available_width = max(0, strip.width - 16)
+        if self._status_font.size(text)[0] > available_width:
+            while text and self._status_font.size(text + "...")[0] > available_width:
+                text = text[:-1]
+            text = text + "..." if text else ""
+        label = self._status_font.render(text, True, (25, 30, 35))
+        viewer.screen.blit(label, (8, (strip.height - label.get_height()) // 2))
+        pygame.display.update(strip)
+        pygame.event.pump()
 
 
 def get_scene_bounding_box(env, car_ids):
@@ -654,16 +804,15 @@ def install_vehicle_graphics_patches(args, viz_state):
 
             # Persist trajectory in world coordinates and draw it in the current camera view.
             vehicle_id = id(vehicle)
-            if vehicle_id not in viz_state.trajectories:
-                viz_state.trajectories[vehicle_id] = []
-
-            trajectory = viz_state.trajectories[vehicle_id]
+            trajectory = []
+            if not args.hide_trajectories:
+                trajectory = viz_state.trajectories.setdefault(vehicle_id, [])
             current_position = [float(vehicle.position[0]), float(vehicle.position[1])]
             stationary = abs(getattr(vehicle, 'speed', 0.0)) < 0.1
 
-            if not trajectory:
+            if not args.hide_trajectories and not trajectory:
                 trajectory.append([*current_position, viz_state.selected_cnt])
-            elif not stationary:
+            elif not args.hide_trajectories and not stationary:
                 last_position = trajectory[-1]
                 dx = current_position[0] - last_position[0]
                 dy = current_position[1] - last_position[1]

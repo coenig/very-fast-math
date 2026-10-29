@@ -7,6 +7,10 @@
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
+#include <sstream>
+#if defined(__linux__)
+#include <unistd.h>
+#endif
 
 namespace fs = std::filesystem;
 
@@ -33,6 +37,15 @@ TEST(IntegrationTests, GeneralTerms) {
 TEST(VfmacroTests, NilYieldsEmptyString) {
     const std::string result = vfm::macro::Script::processScript("@{}@.nil");
     ASSERT_EQ(result, "");
+}
+
+TEST(VfmacroTests, ScriptVariableAnnotationsDoNotAddApostrophes) {
+    EXPECT_EQ(vfm::macro::Script::processScript(
+        "@{42}@*.setScriptVar[test_number]\n@{test_number}@.scriptVar"),
+        "test_number = 42\n42");
+    EXPECT_EQ(vfm::macro::Script::processScript(
+        "@{some text}@*.setScriptVar[test_text]\n@{test_text}@.scriptVar"),
+        "test_text = some text\nsome text");
 }
 
 TEST(GeometryScalingTests, LegacyMetadataDefaultsGeometryToOne) {
@@ -231,6 +244,33 @@ TEST(TurningRadiusTests, BoundsCoverRotationsNegativeCoordinatesAndLargerDistanc
     }
 }
 
+static void expectSmvCommentsWithoutApostrophes(const std::string& source) {
+    std::istringstream lines(source);
+    std::string line;
+    size_t line_number = 0;
+    while (std::getline(lines, line)) {
+        ++line_number;
+        const auto comment_start = line.find("--");
+        if (comment_start != std::string::npos) {
+            EXPECT_EQ(line.find('\'', comment_start), std::string::npos)
+                << "Apostrophe in SMV comment at line " << line_number << ": " << line;
+        }
+    }
+}
+
+TEST(SmvTemplateTests, CommentsContainNoApostrophes) {
+    const auto template_path = fs::absolute(fs::path(__FILE__).parent_path().parent_path() / "src/templates");
+    size_t template_count = 0;
+    for (const auto& entry : fs::directory_iterator(template_path)) {
+        if (entry.is_regular_file() && entry.path().extension() == ".tpl") {
+            ++template_count;
+            SCOPED_TRACE(entry.path().string());
+            expectSmvCommentsWithoutApostrophes(vfm::StaticHelper::readFile(entry.path()));
+        }
+    }
+    EXPECT_GT(template_count, 0);
+}
+
 static std::string expandSectionTemplate(const std::string& settings,
     const fs::path& template_path = fs::absolute(fs::path(__FILE__).parent_path().parent_path() / "src/templates")) {
 
@@ -255,6 +295,13 @@ TEST(SectionTemplateTests, DisabledRadiusEmitsNoRadiusConstraints) {
     ASSERT_NE(model.find("section_0_end : "), std::string::npos);
     ASSERT_EQ(model.find("@{"), std::string::npos);
     EXPECT_EQ(model.find("min_dist_for_turning_radius"), std::string::npos);
+}
+
+TEST(SectionTemplateTests, ExpandedCommentsContainNoApostrophes) {
+    const std::string model = expandSectionTemplate("");
+    ASSERT_NE(model.find("section_0_end : "), std::string::npos);
+    ASSERT_EQ(model.find("@{"), std::string::npos);
+    expectSmvCommentsWithoutApostrophes(model);
 }
 
 TEST(SectionTemplateTests, FractionalFixedLengthIsScaledBeforeRounding) {
@@ -511,6 +558,214 @@ TEST(nuXmvTests, basicRun) {
     EXPECT_TRUE(fs::exists(resultfile1)) << "File does not exist: " << resultfile1;
     EXPECT_TRUE(fs::exists(resultfile2)) << "File does not exist: " << resultfile2;
 }
+
+TEST(MCTraceTests, LooksUpLatestValuesWithoutChangingTheTrace) {
+    vfm::MCTrace trace;
+    trace.setOutputLevels(vfm::ErrorLevelEnum::invalid, vfm::ErrorLevelEnum::invalid);
+    trace.addTraceStep({"1.1", {{"position", "10"}, {"constant", "7"}}});
+    trace.addTraceStep({"1.2", {{"speed", "2"}}});
+    trace.addTraceStep({"1.3", {{"position", "12"}}});
+    const auto original = trace.getConstTrace();
+    EXPECT_EQ(trace.getLastValueOfVariableAtStep("position", 0), "10");
+    EXPECT_EQ(trace.getLastValueOfVariableAtStep("position", 1), "10");
+    EXPECT_EQ(trace.getLastValueOfVariableAtStep("position", 2), "12");
+    EXPECT_EQ(trace.getLastValueOfVariableAtStep("constant", 20), "7");
+    EXPECT_EQ(trace.getLastValueOfVariableAtStep("speed", 0), "-1");
+    EXPECT_EQ(trace.getLastValueOfVariableAtStep("position", -1), "-1");
+    EXPECT_EQ(trace.getConstTrace(), original);
+    vfm::MCTrace empty;
+    empty.setOutputLevels(vfm::ErrorLevelEnum::invalid, vfm::ErrorLevelEnum::invalid);
+    EXPECT_EQ(empty.getLastValueOfVariableAtStep("missing", 0), "-1");
+}
+
+class MortyLiveTests : public ::testing::Test {
+protected:
+    fs::path original_directory;
+    fs::path directory;
+    nlohmann::json config;
+
+    void SetUp() override {
+        original_directory = fs::current_path();
+        directory = fs::temp_directory_path() / ("vfm-morty-live-" + std::to_string(
+            std::chrono::steady_clock::now().time_since_epoch().count()));
+        fs::create_directories(directory / "morty");
+        fs::create_directories(directory / "generated_config_primary");
+        fs::create_directories(directory / "generated_config_fallback");
+        fs::create_directories(directory / "external/linux64");
+        fs::current_path(directory);
+        vfm::test::setMortyLiveMode(true);
+        config = {
+            {"#TEMPLATE", {
+                {"UCD_CONFIG_PRIOS", "_config_primary;_config_fallback;"},
+                {"UCD_USE_SHORTCUT", false},
+                {"_GENERATED_PATH", "./generated"},
+                {"_CACHED_PATH", "./cache"},
+                {"_EXTERNAL_PATH", "./external"},
+                {"_ENVMODEL_PATH", "."},
+                {"_CEX_FILE_NAME", "debug_trace_array.txt"}}},
+            {"_config_primary", {{"NONEGOS", 1}}},
+            {"_config_fallback", {{"NONEGOS", 1}}}
+        };
+        writeConfig();
+        for (const auto& config_name : {"generated_config_primary", "generated_config_fallback"}) {
+            const fs::path folder{ config_name };
+            vfm::StaticHelper::writeTextToFile("MODULE main\nINVARSPEC FALSE;\n", folder / "main.smv");
+            vfm::StaticHelper::writeTextToFile("quit\n", folder / "script.cmd");
+            vfm::StaticHelper::writeTextToFile("planner source\n", folder / "planner.cpp_combined.k2");
+            vfm::StaticHelper::writeTextToFile("", folder / "debug_trace_array.txt");
+            vfm::ScaleDescription scaling;
+            scaling.setTimeScalingFactor(2);
+            scaling.setDistanceScalingFactor(4);
+            vfm::StaticHelper::writeTextToFile(scaling.serialize(), folder / "scaling_info.txt");
+        }
+    }
+
+    void TearDown() override {
+        vfm::test::setMortyLiveMode(false);
+        fs::current_path(original_directory);
+        fs::remove_all(directory);
+    }
+
+    void writeConfig() {
+        vfm::StaticHelper::writeTextToFile(config.dump(), "morty/envmodel_config.tpl.json");
+        vfm::StaticHelper::writeTextToFile(config.dump(), "morty/envmodel_config.json");
+    }
+
+    std::string trace(const int states) {
+        std::string result = "Trace Description: test\nTrace Type: Counterexample\n";
+        for (int step = 0; step < states; ++step) {
+            result += " -> State: 1." + std::to_string(step + 1) + " <-\n";
+            if (step == 0) result +=
+                " planner.time_scaling = 2000\n planner.distance_scaling = 4000\n"
+                " env.lane_width = 400\n env.num_lanes = 2\n env.num_technical_lanes = 4\n"
+                " env.section_0.angle = 0\n env.section_0.source.x = 0\n env.section_0.source.y = 0\n"
+                " env.section_0_end = 100\n env.veh___609___.v = 20\n"
+                " env.veh___609___.on_normalized_lane = 0\n env.veh___609___.on_straight_section = 0\n"
+                " env.veh___609___.traversion_from = -1\n env.veh___609___.traversion_to = -1\n";
+            result += " env.veh___609___.abs_pos = " + std::to_string(step * 4) + "\n";
+        }
+        return result;
+    }
+
+    std::string positions() {
+        return vfm::macro::Script::processScript("@{" + directory.generic_string()
+            + "/}@.stringToHeap[MY_PATH].nil@{morty/envmodel_config.tpl.json}@.extractVehPosFromNusmvFile[_config_primary]");
+    }
+
+    void installFakeSolvers(const bool fail = false) {
+        vfm::StaticHelper::writeTextToFile(
+            "#!/bin/sh\nprintf 'kratos\\n' >> kratos_calls.txt\n"
+            "for argument in \"$@\"; do\n case \"$argument\" in\n"
+            " -output_file=*) output=${argument#-output_file=};;\n esac\ndone\n"
+            "printf 'MODULE planner\\n' > \"$output\"\n", "external/linux64/kratos");
+        vfm::StaticHelper::writeTextToFile("#!/bin/sh\nprintf 'nuXmv\\n' >> solver_calls.txt\n"
+            "ps -o pgid= -p $$ >> solver_process_groups.txt\n"
+            "cat trace_fixture.txt\nexit " + std::to_string(fail ? 7 : 0) + "\n", "external/linux64/nuXmv");
+        vfm::StaticHelper::writeTextToFile(trace(4), "trace_fixture.txt");
+    }
+
+    void solve() {
+        vfm::test::convenienceArtifactRunHardcoded(vfm::test::MCExecutionType::mc,
+            "./generated_config_primary", "unused", ".", "unused", "./cache", "./external");
+    }
+};
+
+TEST_F(MortyLiveTests, KeepsErrorsWithoutRecordingDiagnostics) {
+    vfm::Failable logger("live-test");
+    logger.setOutputLevels(vfm::ErrorLevelEnum::invalid, vfm::ErrorLevelEnum::invalid);
+    logger.addDebug("debug");
+    logger.addNote("note");
+    logger.addWarning("warning");
+    logger.addError("error");
+    EXPECT_EQ(logger.hasErrorOccurred(vfm::ErrorLevelEnum::debug), 0);
+    EXPECT_EQ(logger.hasErrorOccurred(vfm::ErrorLevelEnum::note), 0);
+    EXPECT_EQ(logger.hasErrorOccurred(vfm::ErrorLevelEnum::warning), 1);
+    EXPECT_EQ(logger.hasErrorOccurred(vfm::ErrorLevelEnum::error), 1);
+}
+
+TEST_F(MortyLiveTests, ReturnsStatusWithoutUnusedArtifacts) {
+    vfm::StaticHelper::writeTextToFile(trace(4), "generated_config_primary/debug_trace_array.txt");
+    EXPECT_EQ(vfm::test::prepareOutputForMortyUCD(0, 0, 0, false),
+        "\n_config_primary:0|;\n_config_fallback:|;");
+    EXPECT_FALSE(fs::exists("generated_config_primary/future_point_0.txt"));
+    EXPECT_FALSE(fs::exists("generated_config_primary/morty_mc_results.txt"));
+
+    vfm::StaticHelper::writeTextToFile(trace(1), "generated_config_primary/debug_trace_array.txt");
+    EXPECT_EQ(vfm::test::prepareOutputForMortyUCD(0, 0, 0, false),
+        "\n_config_primary:FINISHED\n_config_fallback:|;");
+}
+
+TEST_F(MortyLiveTests, PreservesShortcutFilesWhenEnabled) {
+    config["#TEMPLATE"]["UCD_USE_SHORTCUT"] = true;
+    writeConfig();
+    vfm::StaticHelper::writeTextToFile(trace(4), "generated_config_primary/debug_trace_array.txt");
+    vfm::test::prepareOutputForMortyUCD(0, 0, 0, false);
+    EXPECT_TRUE(fs::exists("generated_config_primary/future_point_0.txt"));
+    EXPECT_TRUE(fs::exists("generated_config_primary/future_point_3.txt"));
+    EXPECT_FALSE(fs::exists("generated_config_primary/morty_mc_results.txt"));
+}
+
+TEST_F(MortyLiveTests, KeepsTheSameDrivingPoints) {
+    vfm::StaticHelper::writeTextToFile(trace(5), "generated_config_primary/debug_trace_array.txt");
+    const auto live_positions = positions();
+    config["#TEMPLATE"]["UCD_USE_SHORTCUT"] = true;
+    writeConfig();
+    const auto complete_positions = positions();
+    EXPECT_FALSE(live_positions.empty());
+    EXPECT_EQ(std::count(live_positions.begin(), live_positions.end(), '\n'), 6);
+    EXPECT_EQ(std::count(complete_positions.begin(), complete_positions.end(), '\n'), 10);
+    EXPECT_EQ(complete_positions.substr(0, live_positions.size()), live_positions);
+}
+
+#if defined(__linux__)
+TEST_F(MortyLiveTests, ReusesTranslationAndRunsNoFalseSpec) {
+    installFakeSolvers();
+    solve();
+    solve();
+    EXPECT_EQ(vfm::StaticHelper::readFile("kratos_calls.txt"), "kratos\n");
+    EXPECT_EQ(vfm::StaticHelper::readFile("solver_calls.txt"), "nuXmv\nnuXmv\n");
+    EXPECT_EQ(std::stoi(vfm::StaticHelper::readFile("solver_process_groups.txt")), ::getpgrp());
+    EXPECT_FALSE(fs::exists("generated_config_primary/debug_trace_array_FALSE.txt"));
+    EXPECT_FALSE(fs::exists("generated_config_primary/mc_runtimes.txt"));
+    EXPECT_EQ(vfm::StaticHelper::readFile("generated_config_primary/main.smv"), "MODULE main\nINVARSPEC FALSE;\n");
+
+    fs::last_write_time("generated_config_primary/planner.cpp_combined.k2.smv",
+        fs::last_write_time("generated_config_primary/planner.cpp_combined.k2") - std::chrono::seconds(1));
+    solve();
+    EXPECT_EQ(vfm::StaticHelper::readFile("kratos_calls.txt"), "kratos\nkratos\n");
+}
+
+TEST_F(MortyLiveTests, FailedSolverCannotSupplyATrajectory) {
+    installFakeSolvers(true);
+    solve();
+    EXPECT_TRUE(vfm::StaticHelper::readFile("generated_config_primary/debug_trace_array.txt").empty());
+    EXPECT_EQ(vfm::test::prepareOutputForMortyUCD(0, 0, 0, false),
+        "\n_config_primary:|;\n_config_fallback:|;");
+}
+
+TEST_F(MortyLiveTests, FailedTranslationIsNotReused) {
+    installFakeSolvers();
+    vfm::StaticHelper::writeTextToFile("exit 7\n", "external/linux64/kratos", true);
+    solve();
+    EXPECT_FALSE(fs::exists("generated_config_primary/planner.cpp_combined.k2.smv"));
+    EXPECT_FALSE(fs::exists("solver_calls.txt"));
+    EXPECT_TRUE(vfm::StaticHelper::readFile("generated_config_primary/debug_trace_array.txt").empty());
+}
+
+TEST_F(MortyLiveTests, DispatchesOnlyPrioritizedJobsWithoutPacing) {
+    installFakeSolvers();
+    fs::create_directories("generated_config_unused");
+    vfm::mc::McWorkflow workflow;
+    const auto started = std::chrono::steady_clock::now();
+    const auto jobs = workflow.runMCJobs("./generated", [](const std::string&) { return true; },
+        ".", "./morty", "envmodel_config.tpl.json", 16, false);
+    const auto elapsed = std::chrono::steady_clock::now() - started;
+    EXPECT_EQ(jobs.size(), 2);
+    EXPECT_LT(elapsed, std::chrono::seconds(2));
+    EXPECT_EQ(vfm::StaticHelper::readFile("solver_calls.txt"), "nuXmv\nnuXmv\n");
+    EXPECT_FALSE(fs::exists("generated_config_unused/debug_trace_array.txt"));
+}
+#endif
 
 TEST(StaticTests, StaticHelper) { 
 

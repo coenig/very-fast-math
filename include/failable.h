@@ -14,6 +14,7 @@
 #include <functional>
 #include <chrono>
 #include <mutex>
+#include <atomic>
 
 
 namespace vfm {
@@ -55,6 +56,8 @@ public:
    void resetAllErrors(const bool include_children = true) const;
    void printAndThrowErrorsIfAny(const bool print_errors = true, const bool throw_error = true, const ErrorLevelEnum from = ErrorLevelEnum::error, const bool include_children = true) const;
    void setOutputLevels(const ErrorLevelEnum toStdOutFrom = ErrorLevelEnum::note, const ErrorLevelEnum toStdErrFrom = ErrorLevelEnum::error, const bool include_children = true) const;
+   static void setDiagnosticOutputEnabled(bool enabled);
+   static bool isDiagnosticOutputEnabled();
 
    ErrorLevelEnum getStdOutLevel() const;
    ErrorLevelEnum getStdErrLevel() const;
@@ -109,6 +112,7 @@ protected:
       const std::string& force_failable_name = "") const;
 
 private:
+   inline static std::atomic<bool> diagnostic_output_enabled_{ true };
    static std::string getColorFor(ErrorLevelEnum level);
    
    void throwError(const std::string& message, const ErrorLevelEnum level) const;

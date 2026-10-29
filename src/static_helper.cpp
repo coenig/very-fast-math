@@ -3595,9 +3595,10 @@ std::string vfm::StaticHelper::execWithSuccessCode(
    int& exit_code,
    std::shared_ptr<std::string> path_to_store_meta_info) {
 
-   Failable::getSingleton("System")->addNote("Executing system command: '" + cmd + "'.");
+   const bool diagnostic_output{ Failable::isDiagnosticOutputEnabled() };
+   if (diagnostic_output) Failable::getSingleton("System")->addNote("Executing system command: '" + cmd + "'.");
 
-   std::array<char, 16> buffer{};
+   std::array<char, 8192> buffer{};
    std::string result{};
    
    std::chrono::steady_clock::time_point time_elapsed;
@@ -3616,7 +3617,7 @@ std::string vfm::StaticHelper::execWithSuccessCode(
 
    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
       result += buffer.data();
-      std::cout << buffer.data() << std::flush;
+      if (diagnostic_output) std::cout << buffer.data() << std::flush;
    }
 
 #if defined(__linux__)
@@ -3630,7 +3631,7 @@ std::string vfm::StaticHelper::execWithSuccessCode(
       StaticHelper::writeTextToFile(timeStamp() + ": " + printTimeFormatted(time_all) + " time elapsed for execution of system command '" + cmd + "'.\n", *path_to_store_meta_info, true);
    }
 
-   Failable::getSingleton("System")->addDebug("System command execution ended with result '" + result + "'.");
+   if (diagnostic_output) Failable::getSingleton("System")->addDebug("System command execution ended with result '" + result + "'.");
 
    return result;
 }

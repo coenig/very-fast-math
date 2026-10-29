@@ -17,7 +17,7 @@
 
 DEFINE
    -- Direct successor relation: is section [sec2] a direct successor of section [sec]?
-   -- (i.e. driving FORWARD out of [sec]'s drain leads into [sec2]'s source).
+   -- (i.e. driving FORWARD out of the drain of [sec] leads into the source of [sec2]).
    @{
       @{
          @{
@@ -33,7 +33,7 @@ DEFINE
    }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
 
    -- Backward-terminal: no INCOMING connection at all (a backward dead-end pocket). The mirror of
-   -- forward-terminal: the ego arrives in reverse (using one of the section's own outgoing
+   -- forward-terminal: the ego arrives in reverse (using one of the outgoing
    -- connections as a backward-incoming route), dead-ends at the source, and flips gear (B -> F).
    @{
       is_backward_terminal_[sec] := TRUE@{ @{& !is_direct_succ_[m]_to_[sec]}@*.if[@{[m] != [sec]}@.eval]}@**.for[[m], 0, @{SECTIONS - 1}@.eval];
