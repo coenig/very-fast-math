@@ -271,13 +271,103 @@ TEST(SmvTemplateTests, CommentsContainNoApostrophes) {
     EXPECT_GT(template_count, 0);
 }
 
+static std::string expandCompactUcdTemplate(const std::string& settings = "") {
+    const auto template_path = fs::absolute(fs::path(__FILE__).parent_path().parent_path() / "src/templates");
+    return vfm::macro::Script::processScript(
+        "@{" + template_path.string() + "}@***********.stringToHeap[MY_PATH].nil\n" + R"(
+@{@UCD=true; @EGOLESS=true; @UCD_TASK7_COMPACT=true; @SIMPLE_LC=true;
+  @SECTIONS=1; @SEGMENTS=1; @NONEGOS=5; @NUMLANES=2; @LATERAL_LC_GRANULARITY=10;
+  @MODEL_INTERSECTION_GEOMETRY=false; @TIMESCALING=2000; @DISTANCESCALING=4000;
+  @MINACCELNONEGO=-3; @MAXACCELNONEGO=3; @MAX_JUMP_OVER_TECHNICAL_LANES=7;
+  @MAX_JUMP_UNTIL_VELOCITY=3; @MIN_JUMP_FROM_VELOCITY=12;
+  @MIN_TIME_BETWEEN_LANECHANGES=0; @UCD_MIN_VELOCITY_TO_ALLOW_LC=1;}@***********.eval.nil
+)" + settings + "\n@{EnvModel.tpl}@********.include\n");
+}
+
+TEST(SmvTemplateTests, CompactUcdKeepsTheLegacyModeAvailable) {
+    const auto compact = expandCompactUcdTemplate();
+    const auto legacy = expandCompactUcdTemplate("@{@UCD_TASK7_COMPACT=false;}@***********.eval.nil");
+    EXPECT_EQ(compact.find("@{"), std::string::npos);
+    EXPECT_EQ(compact.find("#error"), std::string::npos);
+    EXPECT_NE(compact.find("lane_coordinate : integer;"), std::string::npos);
+    EXPECT_EQ(compact.find("INVAR ego.a = veh___609___.a;"), std::string::npos);
+    EXPECT_EQ(legacy.find("lane_coordinate : integer;"), std::string::npos);
+    EXPECT_EQ(legacy.find("VFM_TASK7_PARKED"), std::string::npos);
+    EXPECT_NE(legacy.find("veh___609___.a : integer;"), std::string::npos);
+    EXPECT_NE(legacy.find("INVAR ego.a = veh___609___.a;"), std::string::npos);
+}
+
+TEST(SmvTemplateTests, CompactUcdAcceptsDifferentCountsScalingAndLimits) {
+    const auto model = expandCompactUcdTemplate(R"(
+@{@NONEGOS=10; @NUMLANES=3; @LATERAL_LC_GRANULARITY=1;
+  @TIMESCALING=1000; @DISTANCESCALING=2000; @MINACCELNONEGO=-5; @MAXACCELNONEGO=2;
+  @MAX_JUMP_OVER_TECHNICAL_LANES=3; @MAXSPEEDNONEGO=20;
+  @MIN_TIME_BETWEEN_LANECHANGES=2;}@***********.eval.nil
+@{@(40)@}@***********.stringToHeap[FIXED_SECTION_LENGTHs].nil
+)");
+    EXPECT_EQ(model.find("@{"), std::string::npos);
+    EXPECT_EQ(model.find("#error"), std::string::npos);
+    EXPECT_NE(model.find("veh___699___.lane_coordinate : integer;"), std::string::npos);
+    EXPECT_NE(model.find("veh___699___.lane_coordinate <= 6;"), std::string::npos);
+    EXPECT_NE(model.find("VFM_TASK7_PARKED_POS_9 <= 80"), std::string::npos);
+    EXPECT_NE(model.find("veh___699___.lane_b3 := veh___699___.lane_coordinate >= 5 & veh___699___.lane_coordinate <= 7;"), std::string::npos);
+}
+
+TEST(SmvTemplateTests, CompactOptionOffPreservesNonUcdEgoAndAcceleration) {
+        const auto model = expandCompactUcdTemplate(R"(
+@{@UCD=false; @UCD_TASK7_COMPACT=false; @EGOLESS=false; @SIMPLE_LC=false;
+    @NUMLANES=3; @LATERAL_LC_GRANULARITY=0; @NONEGOS=2;}@***********.eval.nil
+)");
+        EXPECT_EQ(model.find("@{"), std::string::npos);
+        EXPECT_EQ(model.find("#error UCD_TASK7_COMPACT"), std::string::npos);
+        EXPECT_EQ(model.find("VFM_TASK7_PARKED"), std::string::npos);
+        EXPECT_EQ(model.find("lane_coordinate : integer;"), std::string::npos);
+        EXPECT_NE(model.find("veh___609___.a : integer;"), std::string::npos);
+        EXPECT_NE(model.find("veh___619___.a : integer;"), std::string::npos);
+        EXPECT_NE(model.find("ego.a := veh___609___.a;"), std::string::npos);
+        EXPECT_NE(model.find("next(ego.v) := min(max(ego.v + ego.a, -ego.max_vel), ego.max_vel);"), std::string::npos);
+        EXPECT_NE(model.find("veh___619___.do_lane_change : boolean;"), std::string::npos);
+}
+
+TEST(SmvTemplateTests, CompactUcdOnlyRejectsUnsupportedDynamics) {
+    const auto unsupported = expandCompactUcdTemplate("@{@EGOLESS=false;}@***********.eval.nil");
+    const auto zero_divisor = expandCompactUcdTemplate("@{@MIN_JUMP_FROM_VELOCITY=3;}@***********.eval.nil");
+    EXPECT_NE(unsupported.find("#error UCD_TASK7_COMPACT"), std::string::npos);
+    EXPECT_NE(zero_divisor.find("#error UCD_TASK7_COMPACT"), std::string::npos);
+}
+
+TEST(SmvTemplateTests, CompactUcdFallsBackWithoutStationaryLaneHold) {
+    const auto model = expandCompactUcdTemplate("@{@UCD_MIN_VELOCITY_TO_ALLOW_LC=0;}@***********.eval.nil");
+    EXPECT_EQ(model.find("#error"), std::string::npos);
+    EXPECT_EQ(model.find("#if defined(VFM_TASK7_PARKED_POS_"), std::string::npos);
+    EXPECT_NE(model.find("#define VFM_TASK7_PARKED_2 0"), std::string::npos);
+}
+
+TEST(SmvTemplateTests, AllVehiclesHavePositionUpdates) {
+    for (const bool compact : {false, true}) {
+        SCOPED_TRACE(compact ? "compact" : "legacy");
+        const auto model = expandCompactUcdTemplate(compact ? "" : "@{@UCD_TASK7_COMPACT=false;}@***********.eval.nil");
+        EXPECT_EQ(model.find("@{"), std::string::npos);
+        EXPECT_EQ(model.find("#error"), std::string::npos);
+        for (int vehicle_id = 0; vehicle_id < 5; ++vehicle_id) {
+            const auto vehicle = "veh___6" + std::to_string(vehicle_id) + "9___";
+            SCOPED_TRACE(vehicle);
+            EXPECT_NE(model.find("next(" + vehicle + ".prev_abs_pos) := " + vehicle + ".abs_pos;"), std::string::npos);
+            EXPECT_NE(model.find("next(" + vehicle + ".abs_pos) := case"), std::string::npos);
+            if (compact) {
+                EXPECT_NE(model.find("#if defined(VFM_TASK7_PARKED_POS_" + std::to_string(vehicle_id) + ")"), std::string::npos);
+            }
+        }
+    }
+}
+
 static std::string expandSectionTemplate(const std::string& settings,
     const fs::path& template_path = fs::absolute(fs::path(__FILE__).parent_path().parent_path() / "src/templates")) {
 
     return vfm::macro::Script::processScript(
         "@{" + template_path.string() + "}@***********.stringToHeap[MY_PATH].nil\n" + R"(
 @{@SECTIONS=2; @SEGMENTS=1; @NUMLANES=1; @REACHABILITY_ONLY=true;
-  @MODEL_INTERSECTION_GEOMETRY=true; @CONCRETE_MODEL=true;
+  @MODEL_INTERSECTION_GEOMETRY=true;
   @ANGLEGRANULARITY=90; @MAXOUTGOINGCONNECTIONS=1;
   @MINDISTCONNECTIONS=1; @MAXDISTCONNECTIONS=2;
   @MAXDISTENDPOINTS=0; @MIN_TURNING_RADIUS=0;}@***********.eval.nil
@@ -512,7 +602,6 @@ const std::string tpljson{R"(
       "SECTIONSMINLENGTH": 10000,
       "SEGMENTS": 1,
       "SEGMENTSMINLENGTH": 10,
-      "CONCRETE_MODEL": true,
       "MODEL_INTERSECTION_GEOMETRY": true,
       "SPEC": "#{ env.cnt == 0 }#",
       "ShowLOG": true,
@@ -715,6 +804,31 @@ TEST_F(MortyLiveTests, KeepsTheSameDrivingPoints) {
     EXPECT_EQ(std::count(live_positions.begin(), live_positions.end(), '\n'), 6);
     EXPECT_EQ(std::count(complete_positions.begin(), complete_positions.end(), '\n'), 10);
     EXPECT_EQ(complete_positions.substr(0, live_positions.size()), live_positions);
+}
+
+TEST_F(MortyLiveTests, CompactInputConstantsTrackObservationsAndStationaryConstraints) {
+    const std::string main = "-- TASK7 INPUT CONSTANTS\n-- EO TASK7 INPUT CONSTANTS\n"
+        "MODULE main\nINVAR env.veh___629___.v = 0;\n--EO-SPEC-STUFF\n";
+    vfm::StaticHelper::writeTextToFile(main, "generated_config_primary/main.smv");
+    vfm::StaticHelper::writeTextToFile("MODULE main\n--EO-SPEC-STUFF\n", "generated_config_fallback/main.smv");
+    vfm::test::prepareInputForMortyUCD("0,10,0,5,0;1,20,4,-5,0;2,42,2,0,0;", -0.5f, 2, 12, "AUTO");
+    auto updated = vfm::StaticHelper::readFile("generated_config_primary/main.smv");
+    EXPECT_NE(updated.find("#define VFM_TASK7_PARKED_POS_2 168\n"), std::string::npos);
+    EXPECT_NE(updated.find("#define VFM_TASK7_PARKED_LANE_2 11\n"), std::string::npos);
+    EXPECT_EQ(updated.find("#define VFM_TASK7_PARKED_POS_0"), std::string::npos);
+    EXPECT_NE(updated.find("INIT env.veh___629___.abs_pos = 168;"), std::string::npos);
+    EXPECT_EQ(vfm::StaticHelper::readFile("generated_config_fallback/main.smv").find("VFM_TASK7"), std::string::npos);
+
+    vfm::test::prepareInputForMortyUCD("0,10,0,5,0;1,20,4,-5,0;2,-1,4,0,0;", -0.5f, 2, 12, "AUTO");
+    updated = vfm::StaticHelper::readFile("generated_config_primary/main.smv");
+    EXPECT_NE(updated.find("#define VFM_TASK7_PARKED_POS_2 -4\n"), std::string::npos);
+    EXPECT_NE(updated.find("INIT env.veh___629___.abs_pos = -4;"), std::string::npos);
+    EXPECT_EQ(updated.find("VFM_TASK7_PARKED_POS_2"), updated.rfind("VFM_TASK7_PARKED_POS_2"));
+
+    vfm::StaticHelper::writeTextToFile(vfm::StaticHelper::replaceAll(updated,
+        "INVAR env.veh___629___.v = 0;", "INVAR env.veh___629___.v >= 0;"), "generated_config_primary/main.smv");
+    vfm::test::prepareInputForMortyUCD("0,10,0,5,0;1,20,4,-5,0;2,43,4,0,0;", -0.5f, 2, 12, "AUTO");
+    EXPECT_EQ(vfm::StaticHelper::readFile("generated_config_primary/main.smv").find("VFM_TASK7_PARKED_POS_2"), std::string::npos);
 }
 
 #if defined(__linux__)

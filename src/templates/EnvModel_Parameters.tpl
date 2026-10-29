@@ -44,7 +44,6 @@
 -- Preprocessor evaluation: @{VFM_PREPROCESSOR}@*******.printHeap = @{VFM_PREPROCESSOR}@*******.printHeap.eval
 
 -- Global options
-@{EM_LESS}@*******.defaultValue[false]
 @{SCENGEN_MODE}@*******.defaultValue[false]
 
 -- Parametrization of road topology features
@@ -71,6 +70,7 @@
 -- Parameters for ego and non-ego vehicles (vehicle length is below in LC section)
 @{EGOLESS}@*******.defaultValue[false]
 @{UCD}@*******.defaultValue[false]
+@{UCD_TASK7_COMPACT}@*******.defaultValue[false]
 @{NONEGOS}@*******.defaultValue[5]
 @{LEFTLC}@*******.defaultValue[true]
 @{RIGHTLC}@*******.defaultValue[false]
@@ -204,19 +204,11 @@
 
 -- ## EO Limiting degrees of freedom at COMPILE TIME for better performance ##
 
--- Lanechange parameters
-@{ANGLE_BASED_LC}@*******.defaultValue[false]          -- Do the angle-based LC as opposed to the "classic" lane-based one.
-@{@{LC_ANGLE_GRANULARITY_DEG}@*******.defaultValue[1]  -- Only if ANGLE_BASED_LC -- TODO: Do we need this? For now only full degrees as int.}@*******************.nil
-@{MAX_LAT_ACCEL}@*******.defaultValue[1]               -- Only if ANGLE_BASED_LC
-@{MIN_LC_DURATION_SEC}@*******.defaultValue[3]         -- Only if ANGLE_BASED_LC
-@{MAX_LC_DURATION_SEC}@*******.defaultValue[8]         -- Only if ANGLE_BASED_LC
--- TODO: The above angle-based lanechange is a work in progress and does nothing productive so far.
-
-@{SIMPLE_LC}@*******.defaultValue[false]               -- Only if !ANGLE_BASED_LC: Allow non-egos to switch a "half-lane" if time_since_last_lc has passed (true); otherwise full version by Christian H.
+@{SIMPLE_LC}@*******.defaultValue[false]               -- Allow non-egos to switch a "half-lane" if time_since_last_lc has passed (true); otherwise full version by Christian H.
 
 -- Below: Extend the simple LC by allowing more fine-granular steps between the lanes.
 -- We do not keep this in synch with the full Christian implementation for now. I.e., use the default parameters to activate this.
-@{LATERAL_LC_GRANULARITY}@*******.defaultValue[0]        -- 0 is how it was before, n > 0 increases technical number of lanes by n. Independent of ANGLE_BASED_LC -- Deliberately separating this from scaling (could discuss in future)
+@{LATERAL_LC_GRANULARITY}@*******.defaultValue[0]        -- 0 is how it was before, n > 0 increases technical number of lanes by n. Deliberately separating this from scaling (could discuss in future)
 @{LANE_WIDTH}@*******.defaultValue[375]                  -- In cm. Default value 400 from highway-env (highway_env/road/lane.py).          Note that we have 375 in vfm...   (include/geometry/images.h)
 @{VEHICLE_WIDTH}@*******.defaultValue[185]               -- In cm. Default value 200 from highway-env (highway_env/vehicle/kinematics.py). Note that we have 185.2 in vfm... (include/geometry/images.h)
 @{VEHICLE_LENGTH}@*******.defaultValue[5]                -- In m(!). Default value 5.0 from highway-env (highway_env/vehicle/kinematics.py). Note that we have 4.923 in vfm... (include/geometry/images.h)
@@ -229,14 +221,12 @@
 @{DOUBLEMERGEPROTECTION}@*******.defaultValue[false] -- Prohibits non-ego LCs when in danger of a double-merge
 @{BRAKEINHIBITION}@*******.defaultValue[false]       -- Prohibits non-egos in the front gaps to brake so hard that ego could not react on it in one step.
 @{HARDBRAKEPREVENTION}@*******.defaultValue[-8]     -- Cuts out traces with very hard decelerations. Set to MINACCELEGO to deactivate.
-@{STANDINGCARSUPTOID}@*******.defaultValue[-1]
 @{FARMERGINGCARS}@*******.defaultValue[false]
 @{ABORTREVOKE}@*******.defaultValue[false]
 @{KEEP_EGO_FROM_GREEN}@*******.defaultValue[true]   -- Makes sure, ego never leaves the lanes.
 
 -- Special purpose parameters.
 @{FEASIBILITY}@*******.defaultValue[true] -- Includes defines needed for the ACA4.1 Fesibility study.
-@{CONCRETE_MODEL}@*******.defaultValue[true] -- Uses the --concrete-- model, as opposed to (deprecated) abstract model be Alberto.
 @{MAXSECPARTS}@*******.defaultValue[3] -- TODO: Number of segments a section is split into for the abstract model. Should be replaced by scaling (if possible).
 
 -- EO Do not change.
@@ -244,3 +234,12 @@
 
 
 @{@NUM_TECHNICAL_LANES = NUMLANES + LATERAL_LC_GRANULARITY}@*******.eval.nil
+
+@{
+@{
+#error UCD_TASK7_COMPACT requires ego-less UCD with simple lane changes and positive integer lane and jump counts
+}@*.if[@{!(UCD && EGOLESS
+	&& !REACHABILITY_ONLY
+	&& SIMPLE_LC && NUM_TECHNICAL_LANES >= 1 && NUM_TECHNICAL_LANES == trunc(NUM_TECHNICAL_LANES)
+	&& MAX_JUMP_OVER_TECHNICAL_LANES >= 1 && MAX_JUMP_OVER_TECHNICAL_LANES == trunc(MAX_JUMP_OVER_TECHNICAL_LANES))}@.eval]
+}@***.if[@{UCD_TASK7_COMPACT}@.eval]

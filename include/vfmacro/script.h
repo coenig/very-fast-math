@@ -1213,6 +1213,20 @@ private:
       }
    };
 
+   ScriptMethodDescription createRoadGraphFunc { "createRoadGraph", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return createRoadGraph(body, parameters[0]); } };
+   ScriptMethodDescription storeRoadGraphFunc { "storeRoadGraph", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return storeRoadGraph(body, parameters[0]); } };
+   ScriptMethodDescription connectRoadGraphToFunc { "connectRoadGraphTo", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return connectRoadGraphTo(body, parameters[0]); } };
+   ScriptMethodDescription storeMapFromSequenceFunc { "storeMapFromSequence", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
+         if (getScriptData().map_data_.count(parameters[0])) {
+            return "#Error-map-exists";
+         } else {
+            std::map<std::string, std::string> dummy{};
+            getScriptData().map_data_[parameters[0]] = (body == "@{}@") ? dummy : processMap(body);
+         }
+         
+         return "";
+      } };
+
    std::set<ScriptMethodDescription> METHODS{
       prepareOutputForMortyUCDMethod,
       prepareInputForMortyUCDMethod,
@@ -1735,23 +1749,14 @@ private:
          
          return "";
       } },
-      { "storeMapFromSequence", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { 
-         if (getScriptData().map_data_.count(parameters[0])) {
-            return "#Error-map-exists";
-         } else {
-            std::map<std::string, std::string> dummy{};
-            getScriptData().map_data_[parameters[0]] = (body == "@{}@") ? dummy : processMap(body);
-         }
-         
-         return "";
-      } },
+      storeMapFromSequenceFunc,
       keyListFromMap,
       isMapMeth,
       speci0,
       errorPrint,
-      { "createRoadGraph", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return createRoadGraph(body, parameters[0]); } },
-      { "storeRoadGraph", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return storeRoadGraph(body, parameters[0]); } },
-      { "connectRoadGraphTo", 1, [this](const std::string& body, const std::vector<std::string>& parameters) -> std::string { return connectRoadGraphTo(body, parameters[0]); } },
+      createRoadGraphFunc,
+      storeRoadGraphFunc,
+      connectRoadGraphToFunc
    };
 };
 

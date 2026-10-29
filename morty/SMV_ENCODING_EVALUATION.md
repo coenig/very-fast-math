@@ -9,11 +9,75 @@ division-free lane-jump constraints, acceleration projection, and specialization
 provably stationary vehicles. It reduced the sum of six matched-query median times
 from 25.80 s to 3.83 s, a 6.74x improvement on this small fixture set.
 
-This is an evaluation-only implementation in [evaluate_smv_encodings.py](evaluate_smv_encodings.py).
-The production SMV templates, driver, active configuration, bounding-box priorities,
-and solver algorithms/bounds have not been changed. A production implementation
-should live in the generator, behind an explicit template setting, after broader
-task-7 equivalence and closed-loop validation.
+The combined encoding is now implemented in the production generator and enabled
+by `#TEMPLATE.UCD_TASK7_COMPACT` in [envmodel_config.tpl.json](envmodel_config.tpl.json).
+Bounding-box priorities, all 16 fallbacks, shortcuts, physics, and solver algorithms
+and bounds remain unchanged. The original rewrite experiment is retained in
+[evaluate_smv_encodings.py](evaluate_smv_encodings.py) for comparisons.
+
+## Production Baseline
+
+Run normally after rebuilding the native library:
+
+```bash
+cmake --build build --target runTests --parallel 8
+.venv/bin/python -m morty.morty --live --force_head
+```
+
+Omit `--force_head` for headless operation. Set `UCD_TASK7_COMPACT` to `false` and
+restart to restore the original encoding. The setting defaults to `false` when
+absent; other master templates and classical non-UCD mode remain unchanged.
+
+Despite its task-7 name, the option does not require five vehicles, two lanes, a
+particular experiment number, section length, scaling, or speed/acceleration limits.
+Lane bounds, linear jump constraints, and velocity transitions use the configured
+values. It requires concrete ego-less UCD with simple lane changes, positive integer
+technical-lane and jump counts, and distinct scaled jump-velocity thresholds. The
+acceleration variables are projected out: specifications that observe acceleration
+must use the legacy mode. Performance outside the measured profile is not established.
+
+Parked-state elimination is conservative and optional within compact mode. It needs
+an explicit stationary-velocity invariant, a fixed single section, an in-section
+initial position, and a positive scaled stationary lane-hold threshold. Otherwise
+that vehicle retains dynamic state. Negative initial positions are not frozen. The initial
+previous position, collision exemption at counter zero, and transition obligations
+are preserved.
+
+Configuration choices use native vfmacro conditionals. Only per-query parked
+constants use the existing `-pre cpp` stage: the native input writer supplies them
+before the model includes, avoiding Python model rewrites or per-cycle template
+regeneration. When compact mode is off, vfmacro emits none of these new preprocessor
+directives. Classical non-UCD output was compared with the pre-change templates and
+matched apart from comments and whitespace.
+
+Production validation passed 33 focused native tests, 38 Python regressions, and 11
+native transition-relation checks covering varied lane/jump and acceleration settings.
+All 36 matched sequential solves agreed on bounded feasibility and SAT depths; six
+bidirectional projected-witness replays passed. The sum of the six query medians was
+25.849 s for legacy and 3.861 s for production, about 6.70x faster. The known blind
+fixtures remain without a witness through bound 30.
+
+Complete production-path trials used the real native input writer, no experimental
+rewrite, all 16 priorities, shortcuts, and strict first-failure accounting:
+
+| Seed | Cycles | MC Jobs | nuXmv Time | Cycle Time | Minimum Sampled Clearance | Completion |
+|---|---:|---:|---:|---:|---:|---|
+| 0 | 19 | 24 | 8.00 s | 12.55 s | 1.134 m | Model and continuous goal |
+| 1 | 19 | 20 | 7.15 s | 11.41 s | 1.620 m | Model only |
+| 2 | 20 | 21 | 5.47 s | 9.59 s | 1.353 m | Model and continuous goal |
+
+All three had zero blind steps and crashes. Seed 1 stopped about 12.5 cm before the
+continuous forward-position threshold under the existing model-completion rule.
+Seed 0 used priority 4 once; no fallback configurations were removed. Median cycle
+times were 0.377 / 0.497 / 0.363 s, so the 100 ms target remains unmet. These runs
+follow different trajectories from the prototype and are not a rare-event safety
+certification or evidence of improved clearance. Startup is excluded from the table;
+cycle timing includes the evaluator instrumentation.
+
+Production artifacts are in `tmp/task7_production_20261024` and the
+`task7_production_final_priority_seed{0,1,2}` directories under
+`tmp/ucd_live_task7_eval/selection_eval`. The remaining sections describe the original
+prototype experiment.
 
 ## Scope and Method
 
@@ -157,7 +221,7 @@ The first working prototype rewrote every package before every query, adding eno
 Python overhead to give 32.05 s / 27.82 s cycle totals. Caching by configuration and
 parked INIT/INVAR inputs preserved those trajectories and reduced the totals above.
 Measured rewrite overhead after caching was 0.64 s / 3.00 s across the respective
-entire runs. A generator implementation should avoid this runtime rewrite overhead.
+entire runs. The production generator described above avoids this runtime rewrite.
 
 This does not fix the known blind initial states, certify rare-event safety, establish
 a clearance improvement, or validate the denser ten-car task-7 setup. Held-out task-7
@@ -188,7 +252,11 @@ Live checks use `UCD_EVALUATION_SMV_ENCODING`, populated from the selected fixtu
 `UCD_SMV_EXPERIMENT_ENCODING`. These settings require the evaluator; the production
 driver does not apply the transformations. `UCD_EVALUATION_CAPTURE_SMV` enables exact
 main-SMV capture during query collection. Individual trial seeds and stopping limits
-are persisted by the existing evaluator.
+are persisted by the existing evaluator. Prototype collection and live checks explicitly
+disable `UCD_TASK7_COMPACT`; stacking an experimental rewrite on the production
+encoding is rejected. To evaluate the production mode itself, use
+`python -m morty.evaluate_mc_selection` with the active template and no experimental
+rewrite setting.
 
 The recorded study artifacts are under `tmp/task7_smv_encodings_20261024` and its
 `_combinations`, `_live_v2`, `_live_cached`, and `_live_baseline` siblings. Initial
@@ -198,3 +266,106 @@ control matrix are preserved; a fresh default run tests all eleven in one matrix
 Detailed query-capture/live packages are under `tmp/ucd_live_task7_eval/selection_eval`.
 Artifacts include exact SMV fixtures and hashes, per-repetition logs, witness replays,
 template configurations, and JSON summaries.
+
+## Persistent BMC Prototype (2026-10-24)
+
+The offline [evaluate_incremental_bmc.py](evaluate_incremental_bmc.py) experiment
+reuses a MathSAT environment and its bounded transition unrolling across recorded
+queries. It is not a driving backend. No active template settings, priority ordering,
+fallback configurations, or production solver invocation were changed.
+
+The prototype exports the actual invariant with `write_vmt_model -n 0` after
+`go_msat`. Exporting without a property selector produced a TRUE property and is not
+a valid goal benchmark. Vehicle dynamics and constraints come from nuXmv VMT rather
+than a second implementation of the motion model. The bundled MathSAT C API is
+accessed through ctypes; no additional solver package is installed.
+
+Native observation INIT values and numeric goal constants become frozen parameters
+in an isolated SMV copy. Per-query assumption guards bind them without retaining
+old observations or targets. Full goals and shortcuts have separate cached model
+structures. The cache key includes the parameterized main model and both included
+SMV files, so changed parked cpp constants, geometry, or configuration invalidate
+reuse. Only the native preparer's growing blank-line gap before the observation
+block is normalized away.
+
+Transition frames are added on demand. Activation guards disable the unused suffix
+of a previously deeper unrolling: a valid short witness must not be rejected merely
+because it cannot extend to the deepest previously checked bound. Each query checks
+depths 0 through 30 in order and returns the first satisfiable depth.
+
+Each cached context lives in a persistent spawned worker. Hard deadlines kill and
+discard the worker; the next query rebuilds it. This avoids a reproduced native
+crash when popping a MathSAT scope after callback-driven solver interruption.
+Timeouts and worker errors are not evidence that no plan exists. Workers are closed
+when the experiment finishes, including error paths.
+
+### Measured Result
+
+One complete recorded five-car seed-0 sequence was replayed sequentially: 20
+highest-priority queries across 19 cycles, with 18 cache hits and two initial cache
+misses. Lower-priority recovery queries from the recording were not benchmarked.
+This is an offline matched-input comparison, not a new closed-loop driving run.
+
+| Solver Path | Total Query Time | Median Query Time |
+|---|---:|---:|
+| Fresh production nuXmv | 6.963 s | 165 ms |
+| New MathSAT worker/context for each query | 17.761 s | 208 ms |
+| Reused MathSAT workers/contexts | 39.733 s | 1636 ms |
+
+Fresh nuXmv timing includes its process, model setup, solving, and trace output.
+Cold-worker timing includes process startup, VMT parsing, unrolling, solving, model
+extraction, communication, and shutdown, but uses an already exported VMT model.
+Reused timing includes export and worker setup on cache misses and communication
+and model extraction on every query. Native observation preparation, cache hashing,
+and the subsequent independent witness checks are outside these solver timings.
+
+| Query | Fresh nuXmv | Reused Worker |
+|---|---:|---:|
+| Initial full goal, depth 17 | 1.004 s | 6.253 s |
+| Cached successful shortcuts, cycles 3-5 | 94-103 ms | 20-27 ms |
+| Failed shortcut, bound 30 | 1.183 s | 6.641 s |
+| Failed full goal at priority 0, bound 30 | 315 ms | 128 ms |
+| Final full goal, depth 0 | 85 ms | 1656 ms |
+
+The complete reused sequence is about 5.7 times slower than fresh nuXmv despite
+the shallow shortcut gains. Solver history and deeper unrollings also coincide
+with severe late-query slowdowns. An additional probe explicitly disabled unused
+goal guards; it did not remove the regression and was not retained. Exact-query
+repeat speedups do not establish gains for changing observations and goals.
+
+### Checks and Reproduction
+
+- All three paths agreed on all 20 outcomes and first SAT depths: 18 SAT, two with
+  no witness through bound 30, and no benchmark timeouts.
+- Every reused SAT witness passed a separate nuXmv replay in its original model.
+  These 18 checks pin vehicle positions, velocities, and lane occupancy, not every
+  auxiliary state variable.
+- Small regressions cover changing observations/goals, SAT -> UNSAT -> SAT,
+  short witnesses after deeper dead ends, omitted unconstrained VMT next symbols,
+  cache invalidation, worker reuse, hard timeout disposal, and clean restart.
+- A real full-goal query was interrupted by killing its worker, then solved again
+  in a fresh worker with the expected first witness at depth 17.
+
+Use an existing production recording with its query log, template, generated
+highest-priority model, scaling file, and a trace containing the static road
+geometry. Replay currently requires compact task 7 with twelve technical lanes.
+The native input converter runs only in an isolated copy. Use a new output folder:
+
+```bash
+export LD_LIBRARY_PATH="$PWD/external/linux64/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+.venv/bin/python -m morty.evaluate_incremental_bmc --self-test
+.venv/bin/python -m morty.evaluate_incremental_bmc \
+  --recording tmp/ucd_live_task7_eval/selection_eval/task7_production_final_priority_seed0 \
+  --output tmp/my_task7_incremental
+```
+
+Add `--limit 3` for the initial full goal and two shortcut smoke checks. The final
+measured run is preserved in `tmp/task7_incremental_bmc_workers_seed0_20261024`,
+including per-query results, native logs, parameterized VMT exports, and witness
+replays. Earlier direct-API and guard-probe folders are exploratory measurements,
+not the final worker-based result above.
+
+**Decision:** retain the current production nuXmv path. This prototype does not
+meet the cycle-time goal and provides no new closed-loop safety evidence. A possible
+next experiment is a shallow shortcut-only cache with mandatory fallback to the
+existing full-bound search; that hybrid is not implemented or enabled here.

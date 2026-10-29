@@ -1,9 +1,6 @@
 @{EnvModel_Header.tpl}@********.include
 @{EnvModel_Scaling.tpl}@********.include
-@{EnvModel_Parameters.tpl}@********.Include -- Needs to be loaded before parameters (like CONCRETE_MODEL) are evaluated below.
-
-@{
-@(
+@{EnvModel_Parameters.tpl}@********.Include -- Needs to be loaded before parameters are evaluated below.
 @{EnvModel_Geometry.tpl}@********.include
 
 MODULE EnvModel
@@ -36,12 +33,6 @@ INIT !ego.abCond_full;
 
 
 @{
-@( -- EM-less build
-   @{PLANNER_VARIABLES}@.printHeap
-)@
-@( -- EM-full build
-
-@{
 VAR
    cnt : integer;
    num_lanes : integer;
@@ -61,13 +52,4 @@ INVAR num_technical_lanes = @{NUM_TECHNICAL_LANES}@.eval[0];
 @{EnvModel_Behavior_Nonego.tpl}@********.include
 @{EnvModel_Behavior_Ego.tpl}@********.include
 @{EnvModel_Feasibility.tpl}@*******.include
-@{EnvModel_AngleBasedLC.tpl}@*******.include
 }@*********.if[@{!REACHABILITY_ONLY}@.eval]
-
-)@
-}@**.if[@{EM_LESS}@.eval]
-)@
-@(
-   @{EnvModel_Abstract.tpl}@.include
-)@
-}@***.if[@{CONCRETE_MODEL}@.eval]

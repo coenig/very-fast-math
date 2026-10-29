@@ -1,3 +1,7 @@
+@{
+-- TASK7 INPUT CONSTANTS
+-- EO TASK7 INPUT CONSTANTS
+}@*.if[@{UCD_TASK7_COMPACT}@.eval]
 #include "@{FILENAME_PLANNER}@.printHeap"
 #include "@{FILENAME_ENVMODEL}@.printHeap"
 
@@ -14,43 +18,9 @@ VAR
 }@*.if[@{!REACHABILITY_ONLY}@.eval]
 
 @{
-@{               
-@(
  env.veh___6TEMPORARRAY19___.v : integer;
-)@
-@(
-cnt : -1..1;
- env.veh___6TEMPORARRAY19___.v : -1..1;
-)@
-}@.if[@{CONCRETE_MODEL}@.eval]
 }@*.if[@{!REACHABILITY_ONLY}@.eval]
 
-@{
-@(
-
-
-TRANS next(env.input.m_gpFunktionsstatusGetriggerterFsw.m_value) = planner."gpFunktionsstatusGetriggerterFsw.m_value";
--- TRANS next(env.input.m_gpFunktionsstatusGetriggerterFsw.m_valueLastCycle) = planner."gpFunktionsstatusGetriggerterFsw.m_valueLastCycle";
-
-INVARSPEC
-     env.input.m_gpFunktionsstatusGetriggerterFsw.m_value = Value____NichtVerfuegbar | env.input.m_gpFunktionsstatusGetriggerterFsw.m_value = Value____Verfuegbar;
-
--- INVARSPEC 
---    ((env.input.m_gpFunktionsstatusGetriggerterFsw.m_value != Value____AktivRegeltLinks)
---      & (env.input.m_gpFunktionsstatusGetriggerterFsw.m_value != Value____AktivWunschErkanntLinks)
---      & (env.input.m_gpFunktionsstatusGetriggerterFsw.m_value != Value____AktivWartetLinks)) -> 
---      (planner."gpFunktionsstatusGetriggerterFsw.m_value" != Value____AktivRegeltLinks);
-
--- INVARSPEC
---     (planner."gpFunktionsstatusGetriggerterFsw.m_value")
---     ->
---      (
---       (env.input.m_gpFunktionsstatusGetriggerterFsw.m_value = Value____AktivRegeltLinks) |
---       (env.input.m_gpFunktionsstatusGetriggerterFsw.m_value = Value____AktivWunschErkanntLinks) |
---       (env.input.m_gpFunktionsstatusGetriggerterFsw.m_value = Value____AktivWartetLinks)
---      );
-)@
-@(
 @{
    lane_changed : boolean;
    lane_change_aborted : boolean;
@@ -96,12 +66,6 @@ TRANS env.ego.abCond_full = planner."abCond.cond26_all_conditions_fulfilled_raw"
 --EO-ADDONS
 
 @{
--- Macros for Alberto-generated abstract model.
-@{EnvModel_Abstract_Macros.tpl}@*******.include
--- EO Macros for Alberto-generated abstract model.
-}@********.if[@{!CONCRETE_MODEL}@.eval]
-
-@{
 @{
 @{SPEC}@.printHeap
 @{
@@ -111,5 +75,3 @@ TRANS env.ego.abCond_full = planner."abCond.cond26_all_conditions_fulfilled_raw"
 }@.replaceAllCounting[$$$$$]
 
 --EO-SPEC-STUFF
-)@
-}@*.if[@{EM_LESS}@.eval]

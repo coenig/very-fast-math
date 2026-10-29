@@ -652,18 +652,6 @@ TRANS (next(ego.right_of_veh_[i]_lane) & next(veh___6[i]9___.rel_pos) >= -veh_le
 }@.for[[i], 1, @{NONEGOS - 1}@.eval]
 }@******.if[@{DOUBLEMERGEPROTECTION && !SIMPLE_LC}@.eval]
 
---------------------------------------------------------
--- Standing cars
---------------------------------------------------------
-@{
-TRANS next(veh___6[i]9___.prev_rel_pos) = veh___6[i]9___.rel_pos;
-TRANS next(veh___6[i]9___.abs_pos) = veh___6[i]9___.abs_pos;
-INVAR veh___6[i]9___.v = 0;
-@{
-TRANS next(veh___6[i]9___.lane_b@{[j]}@.eval[0]) = veh___6[i]9___.lane_b@{[j]}@.eval[0];
-}@*.for[[j], 0, ~{{NUM_TECHNICAL_LANES - 1}}~]
-}@**.for[[i], 1, @{STANDINGCARSUPTOID}@.eval]
-
 @{@{
    next(ego_lane_b[j]) := ego_lane_b[j];
 }@*.for[[j], 0, @{NUM_TECHNICAL_LANES - 1}@.eval]}@******.if[@{KEEPEGOFIXEDTOLANE}@.eval]
@@ -684,7 +672,9 @@ INVAR ego_lane_b[j] = veh___609___.lane_b[j];
 }@******.if[@{!(EGOLESS)}@.eval]
 
 INVAR ego.v = veh___609___.v;
+@{
 INVAR ego.a = veh___609___.a;
+}@******.if[@{!UCD_TASK7_COMPACT}@.eval]
 INVAR ego.abs_pos = veh___609___.abs_pos;
 DEFINE ego.on_straight_section := veh___609___.on_straight_section;
 DEFINE ego.traversion_from := veh___609___.traversion_from;

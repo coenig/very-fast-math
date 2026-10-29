@@ -640,7 +640,7 @@ std::string Script::minDistConnectionForTurningRadius(
    if (!std::isfinite(angle_deg) || !std::isfinite(radius) || !std::isfinite(lane_width)
       || !std::isfinite(units_per_meter) || units_per_meter <= 0 || num_lanes < 1
       || lane_width < 0 || min_dist < 0 || max_dist < min_dist || angle_granularity < 1
-      || angle_granularity > 359 || max_dist == std::numeric_limits<int>::max()
+      || angle_granularity > 359 || max_dist == (std::numeric_limits<int>::max)()
       || !std::isfinite(endpoint_error) || endpoint_error < 0) {
       addError("Invalid geometry in 'minDistConnectionForTurningRadius'.");
       return "#ERROR-Check-Log";

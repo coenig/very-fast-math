@@ -59,22 +59,22 @@ static bool curvatureBoundHolds(const std::array<Vec2Dd, 3>& velocity,
    const std::array<double, 4> numerator_error{ cross_error(0, 0),
       (2 * cross_error(1, 0) + cross_error(0, 1)) / 3,
       (cross_error(2, 0) + 2 * cross_error(1, 1)) / 3, cross_error(2, 1) };
-   const double min_x{ std::max({ 0.0,
-      std::min({ velocity[0].x - velocity_error[0], velocity[1].x - velocity_error[1], velocity[2].x - velocity_error[2] }),
-      -std::max({ velocity[0].x + velocity_error[0], velocity[1].x + velocity_error[1], velocity[2].x + velocity_error[2] }) }) };
-   const double min_y{ std::max({ 0.0,
-      std::min({ velocity[0].y - velocity_error[0], velocity[1].y - velocity_error[1], velocity[2].y - velocity_error[2] }),
-      -std::max({ velocity[0].y + velocity_error[0], velocity[1].y + velocity_error[1], velocity[2].y + velocity_error[2] }) }) };
+   const double min_x{ (std::max)({ 0.0,
+      (std::min)({ velocity[0].x - velocity_error[0], velocity[1].x - velocity_error[1], velocity[2].x - velocity_error[2] }),
+      -(std::max)({ velocity[0].x + velocity_error[0], velocity[1].x + velocity_error[1], velocity[2].x + velocity_error[2] }) }) };
+   const double min_y{ (std::max)({ 0.0,
+      (std::min)({ velocity[0].y - velocity_error[0], velocity[1].y - velocity_error[1], velocity[2].y - velocity_error[2] }),
+      -(std::max)({ velocity[0].y + velocity_error[0], velocity[1].y + velocity_error[1], velocity[2].y + velocity_error[2] }) }) };
    const double speed_squared_lower{ min_x * min_x + min_y * min_y };
    double numerator_upper{};
    double velocity_upper{};
    double acceleration_upper{};
    for (size_t index = 0; index < numerator.size(); ++index)
-      numerator_upper = std::max(numerator_upper, std::abs(numerator[index]) + numerator_error[index]);
-   for (const auto& value : velocity) velocity_upper = std::max(velocity_upper, std::hypot(value.x, value.y));
-   for (const auto& value : acceleration) acceleration_upper = std::max(acceleration_upper, std::hypot(value.x, value.y));
+      numerator_upper = (std::max)(numerator_upper, std::abs(numerator[index]) + numerator_error[index]);
+   for (const auto& value : velocity) velocity_upper = (std::max)(velocity_upper, std::hypot(value.x, value.y));
+   for (const auto& value : acceleration) acceleration_upper = (std::max)(acceleration_upper, std::hypot(value.x, value.y));
    const double roundoff{ 64 * std::numeric_limits<double>::epsilon() };
-   const double speed_lower{ std::max(0.0, std::sqrt(speed_squared_lower) - roundoff * velocity_upper) };
+   const double speed_lower{ (std::max)(0.0, std::sqrt(speed_squared_lower) - roundoff * velocity_upper) };
    if (speed_lower > 0 && (numerator_upper + roundoff * velocity_upper * acceleration_upper) * radius
       <= speed_lower * speed_lower * speed_lower) return true;
 
@@ -139,7 +139,7 @@ static float maxCurvature(const Vec2D& p0, const Vec2D& p1, const Vec2D& p2, con
       const Vec2D d2 = (p2 - p1 * 2 + p0) * (6 * (1 - t)) + (p3 - p2 * 2 + p1) * (6 * t);
       const float speed = d1.length();
       if (speed < 1e-6f) return std::numeric_limits<float>::infinity();
-      k_max = std::max(k_max, std::abs(d1.x * d2.y - d1.y * d2.x) / (speed * speed * speed));
+      k_max = (std::max)(k_max, std::abs(d1.x * d2.y - d1.y * d2.x) / (speed * speed * speed));
    }
    return k_max;
 }
