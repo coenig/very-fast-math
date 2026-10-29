@@ -18,7 +18,8 @@ fi
 DEBUGOPTSCMAKE=""
 DEBUGOPTSMAKE=""
 RUN_TESTS=false
-COVERAGE_OPT=""
+COVERAGE_OPT="-DENABLE_COVERAGE=OFF"
+TESTING_OPT="-DTESTING_ENABLED=OFF"
 
 for var in "$@"
 do
@@ -36,6 +37,7 @@ do
 
   if [[ $var = "-t" ]]; then
     RUN_TESTS=true
+    TESTING_OPT="-DTESTING_ENABLED=ON"
     # Coverage instrumentation disables optimization; only enable it for the test build.
     COVERAGE_OPT="-DENABLE_COVERAGE=ON"
   fi
@@ -90,11 +92,11 @@ if [[ -z "$CMAKE_GENERATOR" && -z "$VCINSTALLDIR" ]]; then
 fi
 
 if [ -z "$DEBUGOPTSCMAKE" ]; then
-  $CMAKE_BIN $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release $COVERAGE_OPT ..
+  $CMAKE_BIN $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release $TESTING_OPT $COVERAGE_OPT ..
   $CMAKE_BIN --build . --config Release --parallel 16
 else
    printf "Redirecting cmake and make outputs to files due to debug mode."
-  $CMAKE_BIN $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release $COVERAGE_OPT .. > cmake.log 2> cmake.err
+  $CMAKE_BIN $DEBUGOPTSCMAKE -DFLTK_BUILD_GL=OFF -DCMAKE_BUILD_TYPE=Release $TESTING_OPT $COVERAGE_OPT .. > cmake.log 2> cmake.err
   $CMAKE_BIN --build . --config Release --parallel 16 > make.log 2> make.err
 fi
 

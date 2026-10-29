@@ -24,9 +24,8 @@ message(STATUS "                       ")
 # Ensure -fPIC is used for all targets, particularly fltk. TODO: This prohibit compiler optimizations and should go away.
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-set(TESTING_ENABLED
-    true
-)
+option(TESTING_ENABLED "Build unit tests (requires GoogleTest on Unix)" OFF)
+option(FLTK_BUILD_GL "Build FLTK's optional OpenGL library" OFF)
 
 if(MSVC)
     set(CMAKE_CXX_STANDARD

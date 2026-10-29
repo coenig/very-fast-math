@@ -37,13 +37,17 @@ Then, run `vfm(.exe)` from the `bin` folder.
 | Visual Studio | 2019+ | Windows | 
 | Git Bash / MSYS2 | — | Windows | 
 
-### Troubleshoot
-There are no additional dependencies, except `gtest` if you want to run the tests, and `opengl` if you want to compile fltk agains it. These dependencies are technically optional, but in the recent versions they are required for the build script to work. Should you receive errors, do:
-```
+### Optional Dependencies
+GoogleTest and OpenGL are not required for the default build.
+
+To build and run the tests on Linux, install GoogleTest and run `./build.bash -t`. This also enables coverage reporting, which requires `lcov` (including `genhtml`):
+```bash
 sudo apt-get update
-sudo apt-get install libgtest-dev
-sudo apt-get install libglew-dev
+sudo apt-get install libgtest-dev lcov
+./build.bash -t
 ```
+
+For direct CMake builds, enable tests with `-DTESTING_ENABLED=ON`. FLTK's OpenGL support is also optional and disabled by default; enable it with `-DFLTK_BUILD_GL=ON` if needed.
 
 ## M²oRTy (Ultra-Cooperative Driving)
 Safe trajectories by dis-proof of their non-existence.
