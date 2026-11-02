@@ -90,6 +90,9 @@ python3 -m morty.morty --headless --record_video
 ```
 The task to solve is defined in `morty/envmodel_config.tpl.json`. Use the `morty/master_templates` for a first trial.
 
+## Script server
+`bin/vfm_script_server` expands vfm scripts for other applications (currently XWizard) via stdin/stdout. Methods vfm does not know, or which the client overrides, are requested from the client (see `include/vfmacro/script_host.h`); native methods accessing files, processes or the system are not available. The protocol is described in `src/script_server.cpp`.
+
 ## Notes
 The `very fast math -- Model Checking for ADAS` project is [open-source](https://github.com/coenig/very-fast-math). Academic publications:
 - TACAS 2024: [Towards Safe Autonomous Driving: Model Checking a Behavior Planner during Development](https://link.springer.com/chapter/10.1007/978-3-031-57249-4_3)

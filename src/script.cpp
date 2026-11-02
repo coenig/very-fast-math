@@ -6,6 +6,7 @@
 /// @file
 
 #include "vfmacro/script.h"
+#include "vfmacro/script_host.h"
 #include "geometry/bezier_functions.h"
 #include "parser.h"
 #include "simplification/simplification.h"
@@ -26,6 +27,18 @@ int vfm::macro::first_free_script_id{ 0 };
 std::map<int, std::shared_ptr<Script>> vfm::macro::running_scripts{};
 std::map<int, std::shared_ptr<RoadGraph>> vfm::macro::Script::road_graphs_{};
 std::map<std::string, std::shared_ptr<StraightRoadSection>> vfm::macro::Script::straight_road_sections_{};
+
+static std::shared_ptr<ScriptHost> script_host{};
+
+void vfm::macro::setScriptHost(const std::shared_ptr<ScriptHost> host)
+{
+   script_host = host;
+}
+
+std::shared_ptr<ScriptHost> vfm::macro::getScriptHost()
+{
+   return script_host;
+}
 
 std::string removeInscrTagsIfAny(const std::string& proc)
 {
@@ -916,8 +929,22 @@ std::string Script::makroPattern(const int i, const std::string& pattern)
 
 std::string Script::applyMethodString(const std::string& body, const std::string& method_name, const std::vector<std::string>& parameters)
 {
+   const auto host{ getScriptHost() };
+
+   if (host && host->overridden_methods.count(method_name)) {
+      if (const auto result{ host->call_method(body, method_name, parameters) }) {
+         return *result;
+      }
+   }
+
    for (const auto& method_description : METHODS) {
       if (method_description.method_name_ == method_name && parameters.size() == method_description.par_num_) {
+         if (host && !host->allowed_native_methods.empty() && !host->allowed_native_methods.count(method_name)) {
+            const std::string error_str{ "Method '" + method_name + "' is not available here." };
+            addError(error_str);
+            return "#INVALID(" + error_str + ")";
+         }
+
          return method_description.function_(body, parameters);
       }
    }
@@ -934,6 +961,12 @@ std::string Script::applyMethodString(const std::string& body, const std::string
 
    if (getScriptData().inscriptMethodDefinitions.count(method_name) && getScriptData().inscriptMethodParNums.at(method_name) == parameters.size()) {
       return executeCommand(body, method_name, parameters);
+   }
+
+   if (host) {
+      if (const auto result{ host->call_method(body, method_name, parameters) }) {
+         return *result;
+      }
    }
 
    int cnt{ 0 };
