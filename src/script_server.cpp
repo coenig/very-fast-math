@@ -13,17 +13,21 @@
 ///
 /// The server starts with READY [version]. Requests of the client:
 ///   CONFIG [overridden method]...                  -> ACK
-///   EXPAND script [variable name, variable value]...  -> DONE expanded script [error]... | FAILED message
+///   EXPAND script [variable name, variable value]...  -> DONE | FAILED message
 ///   QUIT
+/// DONE carries the expanded script, the number of errors, the errors, and then the script variables after the
+/// expansion as pairs of name and value.
 /// While expanding, the server asks the client for the methods it does not know (or which are overridden):
 ///   CALL body method [parameter]...                -> RESULT value | UNKNOWN | FAIL message
-/// While answering a CALL, the client may send a nested EXPAND request.
+/// While answering a CALL, the client may send a nested EXPAND request. It shares the script variables of the
+/// enclosing expansion; the variables it presets are restored afterwards.
 
 #include "vfmacro/script.h"
 #include "vfmacro/script_host.h"
 #include "failable.h"
 #include <cstdio>
 #include <cstdlib>
+#include <map>
 #include <optional>
 #include <set>
 #include <string>
@@ -41,7 +45,7 @@ using namespace vfm::macro;
 
 namespace {
 
-const std::string SERVER_VERSION{ "vfm script server 1" };
+const std::string SERVER_VERSION{ "vfm script server 2" };
 
 /// Native methods without access to files, processes, the network or global state.
 const std::set<std::string> SAFE_NATIVE_METHODS{
@@ -72,6 +76,7 @@ FILE* protocol_in{ nullptr };
 FILE* protocol_out{ nullptr };
 std::shared_ptr<ScriptHost> host{};
 std::vector<std::vector<std::string>> host_errors{}; // One entry per running (possibly nested) EXPAND request.
+std::vector<std::shared_ptr<DataPack>> data_packs{}; // The data of the running (possibly nested) EXPAND requests.
 
 bool readLine(std::string& line)
 {
@@ -159,33 +164,67 @@ void expand(const Message& request)
       return;
    }
 
+   const bool nested{ !data_packs.empty() };
+   const auto data{ nested ? data_packs.back() : std::make_shared<DataPack>() };
+   auto& variables{ data->getScriptData().list_data_ };
+   std::map<std::string, std::optional<std::vector<std::string>>> preset_before{}; // Restored after a nested request.
+
+   for (size_t i = 1; i + 1 < request.fields.size(); i += 2) {
+      const std::string& name{ request.fields[i] };
+
+      if (nested && !preset_before.count(name)) {
+         preset_before[name] = variables.count(name) ? std::optional<std::vector<std::string>>{ variables.at(name) } : std::nullopt;
+      }
+
+      variables[name] = { request.fields[i + 1] };
+   }
+
+   data_packs.push_back(data);
    host_errors.emplace_back();
+   bool finished{ false };
+
+   const auto finish{ [&]() {
+      if (finished) return;
+      finished = true;
+
+      for (const auto& [name, value] : preset_before) {
+         if (value) variables[name] = *value;
+         else variables.erase(name);
+      }
+
+      data_packs.pop_back();
+      host_errors.pop_back();
+   } };
 
    try {
-      const auto data{ std::make_shared<DataPack>() };
-
-      for (size_t i = 1; i + 1 < request.fields.size(); i += 2) {
-         data->getScriptData().list_data_[request.fields[i]] = { request.fields[i + 1] };
-      }
-
       const auto script{ std::make_shared<Script>(data, nullptr) };
-      std::vector<std::string> fields{ script->applyDeclarationsAndPreprocessors(request.fields[0], false) };
+      const std::string expanded{ script->applyDeclarationsAndPreprocessors(request.fields[0], false) };
       const auto errors{ script->getErrors(true) };
+      std::vector<std::string> error_messages{};
 
       for (const auto& error : errors.at(ErrorLevelEnum::error)) {
-         fields.push_back(error.second);
+         error_messages.push_back(error.second);
       }
 
-      fields.insert(fields.end(), host_errors.back().begin(), host_errors.back().end());
-      host_errors.pop_back();
+      error_messages.insert(error_messages.end(), host_errors.back().begin(), host_errors.back().end());
+      finish();
+
+      std::vector<std::string> fields{ expanded, std::to_string(error_messages.size()) };
+      fields.insert(fields.end(), error_messages.begin(), error_messages.end());
+
+      for (const auto& [name, values] : variables) {
+         fields.push_back(name);
+         fields.push_back(values.empty() ? std::string{} : values.front());
+      }
+
       writeMessage("DONE", fields);
    }
    catch (const std::exception& e) {
-      host_errors.pop_back();
+      finish();
       writeMessage("FAILED", { std::string{ "Script expansion failed: " } + e.what() });
    }
    catch (...) {
-      host_errors.pop_back();
+      finish();
       writeMessage("FAILED", { "Script expansion failed." });
    }
 }
