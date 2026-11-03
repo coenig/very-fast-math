@@ -27,6 +27,7 @@
 ///                          needs more fails (FAILED).
 ///   --max-result-bytes N   The maximum total size of the fields of a DONE or CALL message. A larger result fails the
 ///                          expansion (FAILED); a larger method call is not sent, the method fails instead.
+/// The server does not write core dumps: a script exhausting the stack crashes it, and the client starts a new one.
 
 #include "vfmacro/script.h"
 #include "vfmacro/script_host.h"
@@ -366,6 +367,11 @@ int main(int argc, char* argv[])
       std::fprintf(stderr, "Could not limit the memory to %zu MB.\n", max_memory_mb);
       return EXIT_FAILURE;
    }
+
+#ifndef _WIN32
+   const rlimit no_core_dumps{ 0, 0 };
+   setrlimit(RLIMIT_CORE, &no_core_dumps);
+#endif
 
    writeMessage("READY", { SERVER_VERSION });
 
