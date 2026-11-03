@@ -91,7 +91,7 @@ python3 -m morty.morty --headless --record_video
 The task to solve is defined in `morty/envmodel_config.tpl.json`. Use the `morty/master_templates` for a first trial.
 
 ## Script server
-`bin/vfm_script_server` expands vfm scripts for other applications (currently XWizard) via stdin/stdout. Methods vfm does not know, or which the client overrides, are requested from the client (see `include/vfmacro/script_host.h`); native methods accessing files, processes or the system are not available. The protocol is described in `src/script_server.cpp`.
+`bin/vfm_script_server` expands vfm scripts for other applications (currently XWizard) via stdin/stdout. Methods vfm does not know, or which the client overrides, are requested from the client (see `include/vfmacro/script_host.h`); only native methods without effects outside of the expansion are available (`SAFE_NATIVE_METHODS`), e.g., not those accessing files, processes or the system. The options `--max-memory-mb N` and `--max-result-bytes N` limit the memory of the server and the size of its results and method calls; an expansion exceeding them fails. The protocol is described in `src/script_server.cpp`.
 
 ## Notes
 The `very fast math -- Model Checking for ADAS` project is [open-source](https://github.com/coenig/very-fast-math). Academic publications:

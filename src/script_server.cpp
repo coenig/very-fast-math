@@ -21,13 +21,22 @@
 ///   CALL body method [parameter]...                -> RESULT value | UNKNOWN | FAIL message
 /// While answering a CALL, the client may send a nested EXPAND request. It shares the script variables of the
 /// enclosing expansion; the variables it presets are restored afterwards.
+///
+/// Options (unlimited if not given):
+///   --max-memory-mb N      The memory the server may use in addition to its size at start-up. An expansion that
+///                          needs more fails (FAILED).
+///   --max-result-bytes N   The maximum total size of the fields of a DONE or CALL message. A larger result fails the
+///                          expansion (FAILED); a larger method call is not sent, the method fails instead.
 
 #include "vfmacro/script.h"
 #include "vfmacro/script_host.h"
 #include "failable.h"
+#include <algorithm>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <map>
+#include <new>
 #include <optional>
 #include <set>
 #include <string>
@@ -36,7 +45,13 @@
 #ifdef _WIN32
 #include <fcntl.h>
 #include <io.h>
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#include <psapi.h>
 #else
+#include <fstream>
+#include <sys/resource.h>
 #include <unistd.h>
 #endif
 
@@ -45,11 +60,11 @@ using namespace vfm::macro;
 
 namespace {
 
-const std::string SERVER_VERSION{ "vfm script server 2" };
+const std::string SERVER_VERSION{ "vfm script server 3" };
 
-/// Native methods without access to files, processes, the network or global state.
+/// Native methods without effects outside of the expansion: no files, processes, network or process-wide data.
 const std::set<std::string> SAFE_NATIVE_METHODS{
-   "for", "forExcept", "if", "at", "contains", "size", "seqlength", "empty", "filter", "substr", "split", "newMethod",
+   "for", "forExcept", "if", "at", "contains", "size", "empty", "filter", "substr", "split", "newMethod",
    "strsize", "strempty", "strNempty", "firstLetterCapital", "toUpperCamelCase", "toUpperCase", "toLowerCase",
    "removeLastFileExtension", "getLastFileExtension", "substrComplement", "startsWithUppercase", "stringStartsWith",
    "stringEndsWith", "stringContains", "shortenToMaxSize", "shortenInTheMiddle", "zeroPaddedNumStr", "removeWhiteSpace",
@@ -65,6 +80,7 @@ const std::set<std::string> SAFE_NATIVE_METHODS{
    "add", "sub", "mult", "div", "pow", "mod", "eq", "neq", "sm", "smeq", "gr", "greq",
    "AddI", "SubI", "MultI", "DivI", "PowI", "ModI", "EqI", "NeqI", "SmI", "SmeqI", "GrI", "GreqI",
    "arclengthCubicBezierFromEndPoints", "arclengthCubicBezierFromStreetTopology", "minDistConnectionForTurningRadius",
+   "rick", "morty", "timestamp", "METHODs",
 };
 
 struct Message {
@@ -77,6 +93,21 @@ FILE* protocol_out{ nullptr };
 std::shared_ptr<ScriptHost> host{};
 std::vector<std::vector<std::string>> host_errors{}; // One entry per running (possibly nested) EXPAND request.
 std::vector<std::shared_ptr<DataPack>> data_packs{}; // The data of the running (possibly nested) EXPAND requests.
+size_t max_memory_mb{ 0 }; // 0: unlimited.
+size_t max_result_bytes{ SIZE_MAX };
+
+std::string tooLarge(const std::string& what, size_t size)
+{
+   return what + " (" + std::to_string(size) + " bytes) exceeds the limit of " + std::to_string(max_result_bytes) + " bytes.";
+}
+
+/// Records the failure of a method of the client for the running expansion.
+/// @return vfm's result of a failed method.
+std::string methodFailed(const std::string& error)
+{
+   if (!host_errors.empty()) host_errors.back().push_back(error);
+   return "#INVALID(" + error + ")";
+}
 
 bool readLine(std::string& line)
 {
@@ -132,6 +163,16 @@ std::optional<std::string> callClient(const std::string& body, const std::string
 {
    std::vector<std::string> fields{ body, method_name };
    fields.insert(fields.end(), parameters.begin(), parameters.end());
+   size_t size{ 0 };
+
+   for (const auto& field : fields) {
+      size += field.size();
+   }
+
+   if (size > max_result_bytes) {
+      return methodFailed("Method '" + method_name + "' was not called: " + tooLarge("its input", size));
+   }
+
    writeMessage("CALL", fields);
 
    for (;;) {
@@ -143,9 +184,7 @@ std::optional<std::string> callClient(const std::string& body, const std::string
       if (answer->type == "UNKNOWN") return std::nullopt;
 
       if (answer->type == "FAIL") {
-         const std::string error{ "Method '" + method_name + "' failed: " + (answer->fields.empty() ? std::string{} : answer->fields[0]) };
-         if (!host_errors.empty()) host_errors.back().push_back(error);
-         return "#INVALID(" + error + ")";
+         return methodFailed("Method '" + method_name + "' failed: " + (answer->fields.empty() ? std::string{} : answer->fields[0]));
       }
 
       if (answer->type == "EXPAND") {
@@ -208,6 +247,20 @@ void expand(const Message& request)
 
       error_messages.insert(error_messages.end(), host_errors.back().begin(), host_errors.back().end());
       finish();
+      size_t size{ expanded.size() };
+
+      for (const auto& error : error_messages) {
+         size += error.size();
+      }
+
+      for (const auto& [name, values] : variables) {
+         size += name.size() + (values.empty() ? 0 : values.front().size());
+      }
+
+      if (size > max_result_bytes) {
+         writeMessage("FAILED", { tooLarge("The result of the expansion", size) });
+         return;
+      }
 
       std::vector<std::string> fields{ expanded, std::to_string(error_messages.size()) };
       fields.insert(fields.end(), error_messages.begin(), error_messages.end());
@@ -219,6 +272,12 @@ void expand(const Message& request)
 
       writeMessage("DONE", fields);
    }
+   catch (const std::bad_alloc&) {
+      finish();
+      writeMessage("FAILED", { max_memory_mb
+         ? "Script expansion failed: it needs more than the memory limit of " + std::to_string(max_memory_mb) + " MB."
+         : "Script expansion failed: out of memory." });
+   }
    catch (const std::exception& e) {
       finish();
       writeMessage("FAILED", { std::string{ "Script expansion failed: " } + e.what() });
@@ -229,10 +288,57 @@ void expand(const Message& request)
    }
 }
 
+/// Limits the memory of the process to its current size plus the given number of bytes.
+bool limitMemory(size_t additional_bytes)
+{
+#ifdef _WIN32
+   PROCESS_MEMORY_COUNTERS counters{};
+
+   if (!GetProcessMemoryInfo(GetCurrentProcess(), &counters, sizeof(counters))) return false;
+
+   const HANDLE job{ CreateJobObjectW(nullptr, nullptr) }; // Kept open: the limit holds as long as the process runs.
+   JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
+   limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_PROCESS_MEMORY;
+   limits.ProcessMemoryLimit = counters.PagefileUsage + additional_bytes;
+
+   return job
+      && SetInformationJobObject(job, JobObjectExtendedLimitInformation, &limits, sizeof(limits))
+      && AssignProcessToJobObject(job, GetCurrentProcess());
+#else
+   // The address space includes the shared libraries, which are mapped already.
+   std::ifstream statm{ "/proc/self/statm" };
+   size_t pages{ 0 };
+   statm >> pages;
+   rlimit limit{};
+
+   if (getrlimit(RLIMIT_AS, &limit) != 0) return false;
+
+   const rlim_t wanted{ static_cast<rlim_t>(pages * static_cast<size_t>(sysconf(_SC_PAGESIZE)) + additional_bytes) };
+   limit.rlim_cur = limit.rlim_max == RLIM_INFINITY ? wanted : std::min(wanted, limit.rlim_max);
+   return setrlimit(RLIMIT_AS, &limit) == 0;
+#endif
+}
+
 } // namespace
 
-int main()
+int main(int argc, char* argv[])
 {
+   for (int i = 1; i < argc; i += 2) {
+      const std::string option{ argv[i] };
+      const unsigned long long value{ i + 1 < argc ? std::strtoull(argv[i + 1], nullptr, 10) : 0 };
+
+      if (option == "--max-memory-mb" && value > 0) {
+         max_memory_mb = static_cast<size_t>(value);
+      }
+      else if (option == "--max-result-bytes" && value > 0) {
+         max_result_bytes = static_cast<size_t>(value);
+      }
+      else {
+         std::fprintf(stderr, "Usage: vfm_script_server [--max-memory-mb N] [--max-result-bytes N]\n");
+         return EXIT_FAILURE;
+      }
+   }
+
    // The original stdout is the protocol channel; any other output to stdout (e.g., notes) goes to stderr.
 #ifdef _WIN32
    _setmode(_fileno(stdin), _O_BINARY);
@@ -255,6 +361,11 @@ int main()
    host->call_method = callClient;
    host->allowed_native_methods = SAFE_NATIVE_METHODS;
    setScriptHost(host);
+
+   if (max_memory_mb && !limitMemory(max_memory_mb * 1024 * 1024)) {
+      std::fprintf(stderr, "Could not limit the memory to %zu MB.\n", max_memory_mb);
+      return EXIT_FAILURE;
+   }
 
    writeMessage("READY", { SERVER_VERSION });
 
