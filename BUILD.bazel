@@ -340,6 +340,7 @@ cc_library(
         "include/term_while_limited.h",
         "include/testing/test_functions.h",
         "include/vfmacro/script.h",
+        "include/vfmacro/script_host.h",
         "include/testing/interactive_testing.h",
         "include/t4.h",
     ],
@@ -360,6 +361,17 @@ cc_binary(
     name = "vfm_execute",
     srcs = [
         "src/main.cpp",
+    ],
+    linkstatic = True,
+    deps = [
+        "//:vfm",
+    ],
+)
+
+cc_binary(
+    name = "vfm_script_server",
+    srcs = [
+        "src/script_server.cpp",
     ],
     linkstatic = True,
     deps = [

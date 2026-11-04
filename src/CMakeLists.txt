@@ -217,9 +217,21 @@ target_link_libraries(
    VFM_MAIN_LIB
 )
 
+# Expands scripts for client applications (e.g., XWizard) via stdin/stdout, see script_server.cpp.
+add_executable(
+   vfm_script_server
+   script_server.cpp
+)
+
+target_link_libraries(
+   vfm_script_server
+   VFM_MAIN_LIB
+)
+
 if(MSVC)
    target_link_options(VFM_MAIN_LIB PRIVATE "/STACK:100000000") # Use to increase stack size on win
    target_link_options(vfm PRIVATE "/STACK:100000000")          # Use to increase stack size on win
+   target_link_options(vfm_script_server PRIVATE "/STACK:100000000")
 endif()
 
 if(UNIX)

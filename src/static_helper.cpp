@@ -3056,9 +3056,15 @@ std::string vfm::StaticHelper::floatToStringNoTrailingZeros(float value) {
 
 std::string vfm::StaticHelper::zeroPaddedNumStr(const long num, const int str_length)
 {
-   std::stringstream ss;
-   ss << std::setw(str_length) << std::setfill('0') << num;
-   return ss.str();
+   // Like std::setw(str_length) << std::setfill('0') << num, but padded on the heap: libstdc++ pads numbers on the
+   // stack, which overflows for large lengths.
+   std::string str{ std::to_string(num) };
+
+   if (str_length > static_cast<int>(str.size())) {
+      str.insert(0, static_cast<size_t>(str_length) - str.size(), '0');
+   }
+
+   return str;
 }
 
 vfm::SwitchBlock vfm::StaticHelper::extractCasesFromFlatSwitchBlock(const std::vector<std::string>& switch_block_tokens)
