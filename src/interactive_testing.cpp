@@ -16,9 +16,120 @@
 #include <filesystem>
 #include <cstdlib>
 #include <filesystem>
+#include <map>
+#include <mutex>
+#include <optional>
 
 using namespace vfm;
 using namespace test;
+
+namespace {
+// Constructing a McWorkflow (with its formula parser) takes ~35 ms; live mode reuses one per input/output step.
+const mc::McWorkflow& sharedLiveWorkflow()
+{
+   static const mc::McWorkflow workflow{};
+   return workflow;
+}
+
+// Serializes live planner translations so that sibling packages never copy a half-written translation.
+std::mutex live_planner_mutex{};
+
+// Live mode: all packages share the same planner source, so copy an up-to-date sibling translation instead of
+// running kratos again (several seconds per package, which otherwise hit the first query of every config).
+bool reuseSiblingPlannerTranslation(
+   const std::filesystem::path& planner_source, const std::filesystem::path& planner_smv, const std::filesystem::path& kratos_exec)
+{
+   std::error_code ec{};
+   const std::string source_text{ StaticHelper::readFile(planner_source.string()) };
+   const auto package{ std::filesystem::absolute(planner_source).parent_path() };
+
+   for (const auto& entry : std::filesystem::directory_iterator(package.parent_path(), ec)) {
+      if (!entry.is_directory() || std::filesystem::equivalent(entry.path(), package, ec)) continue;
+      const auto other_source{ entry.path() / planner_source.filename() };
+      const auto other_smv{ entry.path() / planner_smv.filename() };
+      if (!std::filesystem::exists(other_source) || !std::filesystem::exists(other_smv)
+         || std::filesystem::last_write_time(other_smv) < std::filesystem::last_write_time(other_source)
+         || std::filesystem::last_write_time(other_smv) < std::filesystem::last_write_time(kratos_exec)
+         || StaticHelper::readFile(other_source.string()) != source_text) continue;
+
+      std::filesystem::copy_file(other_smv, planner_smv, std::filesystem::copy_options::overwrite_existing, ec);
+      if (ec) continue;
+      std::filesystem::last_write_time(planner_smv, std::filesystem::file_time_type::clock::now(), ec);
+      return true;
+   }
+
+   return false;
+}
+
+// Live mode: run the C preprocessor only when the directive header of main.smv or an included file changes,
+// and hand nuXmv the cached output plus the directive-free remainder (avoids "-pre cpp" on every query).
+// Returns the path of the model to check, or an empty string to fall back to "-pre cpp".
+std::string livePreprocessedModel(const std::string& generated_dir, const std::string& cpp_command)
+{
+   static std::mutex mutex{};
+   static std::map<std::string, std::pair<std::string, std::string>> cache{}; // dir -> (key, preprocessed header)
+
+   const std::string main_smv{ StaticHelper::readFile(generated_dir + "main.smv") };
+   std::string includes{};
+   std::vector<std::string> macros{};
+   size_t header_end{ 0 };
+
+   for (size_t pos = 0; pos < main_smv.size();) {
+      const size_t eol{ (std::min)(main_smv.find('\n', pos), main_smv.size()) };
+      const std::string line{ main_smv.substr(pos, eol - pos) };
+      const auto first{ line.find_first_not_of(" \t\r") };
+
+      if (first != std::string::npos && line[first] == '#') {
+         header_end = eol;
+         const auto tokens{ StaticHelper::split(StaticHelper::trimAndReturn(line.substr(first + 1)), " ") };
+         const std::string directive{ tokens.empty() ? "" : tokens[0] };
+         const auto open{ line.find('"') };
+         const auto close{ open == std::string::npos ? open : line.find('"', open + 1) };
+
+         if (directive == "include") {
+            if (close == std::string::npos) return "";
+            const std::string included{ generated_dir + line.substr(open + 1, close - open - 1) };
+            if (!std::filesystem::exists(included)) return "";
+            includes += StaticHelper::readFile(included) + '\0';
+         }
+         else if (directive == "define" && tokens.size() > 1) {
+            macros.push_back(tokens[1]);
+         }
+      }
+
+      pos = eol + 1;
+   }
+
+   if (header_end == 0) return "";
+
+   const std::string header{ main_smv.substr(0, header_end) };
+   const std::string body{ main_smv.substr(header_end) };
+
+   for (const auto& macro : macros) {
+      if (body.find(macro) != std::string::npos) return ""; // Body relies on macro expansion.
+   }
+
+   const std::string key{ header + '\0' + includes };
+   std::lock_guard<std::mutex> lock{ mutex };
+   auto& entry{ cache[generated_dir] };
+
+   if (entry.first != key) {
+      const std::string header_path{ generated_dir + "main_live_header.smv" };
+      StaticHelper::writeTextToFile(header + "\n", header_path);
+      int exit_code{};
+      const std::string preprocessed{ StaticHelper::execWithSuccessCode(cpp_command + " \"" + header_path + "\"", exit_code, nullptr) };
+      if (exit_code != EXIT_SUCCESS || preprocessed.empty()) {
+         entry = {};
+         return "";
+      }
+      entry = { key, preprocessed };
+   }
+
+   const std::string live_path{ generated_dir + "main_live.smv" };
+   StaticHelper::writeTextToFile(entry.second + body, live_path);
+   return live_path;
+}
+}
 
 
 
@@ -868,12 +979,29 @@ int vfm::test::artifactRun(int argc, char* argv[])
          && std::filesystem::last_write_time(planner_smv) >= std::filesystem::last_write_time(kratos_exec) };
       const auto runtime_log{ isMortyLiveMode() ? nullptr : std::make_shared<std::string>(generated_dir + "/mc_runtimes.txt") };
       if (!reuse_planner) {
-         StaticHelper::execWithSuccessCode(command_kratos, success_code_kratos, runtime_log);
+         std::unique_lock<std::mutex> planner_lock{ live_planner_mutex, std::defer_lock };
+         if (isMortyLiveMode()) planner_lock.lock();
+         if (!isMortyLiveMode() || !reuseSiblingPlannerTranslation(planner_source, planner_smv, kratos_exec)) {
+            StaticHelper::execWithSuccessCode(command_kratos, success_code_kratos, runtime_log);
+         }
          if (isMortyLiveMode() && success_code_kratos != EXIT_SUCCESS) {
             StaticHelper::removeFileSafe(planner_smv);
             StaticHelper::writeTextToFile("", generated_dir + inputs.getCmdOption(CMD_CEX_FILE));
             inputs.addError("Live planner translation failed in '" + generated_dir + "'.");
             return EXIT_FAILURE;
+         }
+      }
+
+      if (isMortyLiveMode()) {
+#ifdef _WIN32
+         const std::string cpp_command{ cpp_fulldir };
+#else
+         const char* cpp_env{ std::getenv("CPP") };
+         const std::string cpp_command{ cpp_env && *cpp_env ? cpp_env : "cpp" };
+#endif
+         const std::string live_model{ livePreprocessedModel(generated_dir, cpp_command) };
+         if (!live_model.empty()) {
+            command_nuxmv = nuxmv_invocation + " -int -source " + generated_dir + "script.cmd " + live_model;
          }
       }
 
@@ -883,7 +1011,9 @@ int vfm::test::artifactRun(int argc, char* argv[])
 #endif
 
       inputs.addNote("RUNNING NUXMV with command '" + command_nuxmv + "'.");
-      std::string result{ StaticHelper::execWithSuccessCode(command_nuxmv, success_code_nuxmv, runtime_log) };
+      std::string result{ isMortyLiveMode()
+         ? StaticHelper::execWithoutShell(command_nuxmv, success_code_nuxmv, 300)
+         : StaticHelper::execWithSuccessCode(command_nuxmv, success_code_nuxmv, runtime_log) };
       if (isMortyLiveMode() && (success_code_kratos != EXIT_SUCCESS || success_code_nuxmv != EXIT_SUCCESS)) {
          StaticHelper::writeTextToFile("", generated_dir + inputs.getCmdOption(CMD_CEX_FILE));
          inputs.addError("Live model-checking job failed or timed out in '" + generated_dir + "'.");
@@ -1604,7 +1734,8 @@ std::shared_ptr<RoadGraph> vfm::test::paintExampleRoadGraphRoundabout(const bool
 
 void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const float head_const, const int num_lanes, const int num_technical_lanes, const std::string& trace_path)
 {
-   const mc::McWorkflow workflow{};
+   std::optional<mc::McWorkflow> local_workflow{};
+   const mc::McWorkflow& workflow{ isMortyLiveMode() ? sharedLiveWorkflow() : local_workflow.emplace() };
    const std::string OUTPUT_BASE_PATH{ workflow.getGeneratedDir("./morty/", "envmodel_config.tpl.json").string() };
    const std::string ucd_config_prios_str{ workflow.getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
    const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
@@ -1619,10 +1750,19 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
       if (cn.empty()) continue;
       const std::string sf{ OUTPUT_BASE_PATH + cn + "/" + TIMESCALING_FILENAME };
       if (std::filesystem::exists(sf)) {
-         ScaleDescription sd{ StaticHelper::readFile(sf) };
-         dist_scale = sd.getDistanceScalingFactor();
-         float time_scale = sd.getTimeScalingFactor();
-         vel_scale = (time_scale > 0) ? dist_scale / time_scale : 1.0f;
+         static std::mutex scale_mutex{};
+         static std::map<std::string, std::pair<float, float>> scale_cache{}; // Parsing the description takes ~30 ms.
+         const std::string description{ StaticHelper::readFile(sf) };
+         std::lock_guard<std::mutex> lock{ scale_mutex };
+         auto cached{ scale_cache.find(description) };
+         if (cached == scale_cache.end()) {
+            ScaleDescription sd{ description };
+            const float time_scale{ sd.getTimeScalingFactor() };
+            const float distance_scale{ sd.getDistanceScalingFactor() };
+            cached = scale_cache.insert({ description, { distance_scale, (time_scale > 0) ? distance_scale / time_scale : 1.0f } }).first;
+         }
+         dist_scale = cached->second.first;
+         vel_scale = cached->second.second;
          break;
       } else {
          Failable::getSingleton()->addError("Scaling factor file " + sf + " does not exist. Using default scaling factors of 1.0.");
@@ -2008,7 +2148,8 @@ std::string oneSingleBlop(const MCTrace& trace, const std::set<std::string>& var
 std::string vfm::test::prepareOutputForMortyUCD(
    const long long seed, const int iteration, const long long runtime, const bool crash)
 {
-   const mc::McWorkflow workflow{};
+   std::optional<mc::McWorkflow> local_workflow{};
+   const mc::McWorkflow& workflow{ isMortyLiveMode() ? sharedLiveWorkflow() : local_workflow.emplace() };
    const std::string ucd_config_prios_str{ workflow.getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
    const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
    const std::string OUTPUT_BASE_PATH{ workflow.getGeneratedDir("./morty/", "envmodel_config.tpl.json").string() };

@@ -9,6 +9,9 @@
 #include "testing/interactive_testing.h"
 #include "vfmacro/script.h"
 #include <thread>
+#include <map>
+#include <mutex>
+#include <tuple>
 
 using namespace vfm;
 using namespace mc;
@@ -402,6 +405,22 @@ void McWorkflow::deleteMCOutputFromFolder(
 
 nlohmann::json McWorkflow::getJSON(const std::string& path) const
 {
+   // Live mode looks up config values several times per query; reparse only when the file changed.
+   static std::mutex cache_mutex{};
+   static std::map<std::string, std::tuple<std::filesystem::file_time_type, std::uintmax_t, nlohmann::json>> cache{};
+   std::error_code ec{};
+   const auto write_time{ std::filesystem::last_write_time(path, ec) };
+   const auto size{ ec ? 0 : std::filesystem::file_size(path, ec) };
+   const bool cachable{ test::isMortyLiveMode() && !ec };
+
+   if (cachable) {
+      std::lock_guard<std::mutex> lock{ cache_mutex };
+      const auto cached{ cache.find(path) };
+      if (cached != cache.end() && std::get<0>(cached->second) == write_time && std::get<1>(cached->second) == size) {
+         return std::get<2>(cached->second);
+      }
+   }
+
    std::string json_text{ StaticHelper::readFile(path) };
    nlohmann::json json{};
 
@@ -410,6 +429,12 @@ nlohmann::json McWorkflow::getJSON(const std::string& path) const
    }
    catch (const nlohmann::json::parse_error& e) {
       addError("Json file not loaded from '" + path + "'.");
+      return json;
+   }
+
+   if (cachable) {
+      std::lock_guard<std::mutex> lock{ cache_mutex };
+      cache[path] = { write_time, size, json };
    }
 
    return json;

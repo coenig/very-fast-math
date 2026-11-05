@@ -64,6 +64,19 @@ not in driver command-line arguments. The active five-car task-7 template uses:
 | `UCD_ALLOW_BLIND_STEPS` | `0` | `1` |
 | `UCD_ALLOW_CRASHED_STEPS` | `0` | `1` |
 | `UCD_MIN_ITERATIONS` | `0` | `2` |
+| `UCD_SHORTCUT_BMC_SLACK` | `2` | absent: shortcuts use `BMC_CNT` |
+| `UCD_SHORTCUT_PROBE_POINTS` | `3` | `0` (legacy cost-gated probe) |
+| `UCD_PERSISTENT_SOLVER` | `true` | `false` |
+
+The last three keys require `priority` or `adaptive` selection. `UCD_SHORTCUT_BMC_SLACK` bounds a
+shortcut to waypoint `p` (which lies `p + 1` steps ahead) to `p + 1 + slack` BMC steps instead of
+`BMC_CNT`, so a missed shortcut fails in ~one step instead of a full-depth search.
+`UCD_SHORTCUT_PROBE_POINTS` first probes the next waypoints of the current plan (best eligible
+and current plan configuration) before any full replanning. `UCD_PERSISTENT_SOLVER` keeps one
+interactive nuXmv process per configuration (model parsed and encoded once); the per-cycle
+observations are passed as frozen-variable constraints inside the checked property, see
+[persistent_solver.py](persistent_solver.py). Unsupported model layouts fall back to the
+per-query process.
 
 Keep `UCD_USE_SHORTCUT: true` and the full 16-entry `UCD_CONFIG_PRIOS` list. The failure
 limits stop at the first blind or crashed step; `UCD_MIN_ITERATIONS: 0` retains early

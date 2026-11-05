@@ -3912,3 +3912,61 @@ void vfm::StaticHelper::openWithOS(const std::string& path_raw, const Failable* 
    std::system(command.c_str());
 #endif
 }
+
+#ifdef _WIN32
+#include <thread>
+#endif
+
+std::string vfm::StaticHelper::execWithoutShell(const std::string& cmd, int& exit_code, const int timeout_seconds)
+{
+#ifdef _WIN32
+   SECURITY_ATTRIBUTES security{ sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE };
+   HANDLE read_pipe{};
+   HANDLE write_pipe{};
+
+   if (!CreatePipe(&read_pipe, &write_pipe, &security, 0)) return execWithSuccessCode(cmd, exit_code, nullptr);
+   SetHandleInformation(read_pipe, HANDLE_FLAG_INHERIT, 0);
+
+   STARTUPINFOA startup{};
+   startup.cb = sizeof(startup);
+   startup.dwFlags = STARTF_USESTDHANDLES;
+   startup.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+   startup.hStdOutput = write_pipe;
+   startup.hStdError = GetStdHandle(STD_ERROR_HANDLE);
+   PROCESS_INFORMATION process{};
+   std::string command_line{ cmd };
+
+   if (!CreateProcessA(nullptr, command_line.data(), nullptr, nullptr, TRUE, 0, nullptr, nullptr, &startup, &process)) {
+      CloseHandle(read_pipe);
+      CloseHandle(write_pipe);
+      return execWithSuccessCode(cmd, exit_code, nullptr);
+   }
+
+   CloseHandle(write_pipe);
+   std::string result{};
+   std::thread reader{ [&result, read_pipe]() {
+      std::array<char, 8192> buffer{};
+      DWORD num_read{};
+      while (ReadFile(read_pipe, buffer.data(), static_cast<DWORD>(buffer.size()), &num_read, nullptr) && num_read > 0) {
+         result.append(buffer.data(), num_read);
+      }
+   } };
+
+   if (WaitForSingleObject(process.hProcess, static_cast<DWORD>(timeout_seconds) * 1000) == WAIT_TIMEOUT) {
+      TerminateProcess(process.hProcess, EXIT_FAILURE);
+      WaitForSingleObject(process.hProcess, INFINITE);
+   }
+
+   reader.join();
+   DWORD code{};
+   GetExitCodeProcess(process.hProcess, &code);
+   exit_code = static_cast<int>(code);
+   CloseHandle(read_pipe);
+   CloseHandle(process.hProcess);
+   CloseHandle(process.hThread);
+
+   return replaceAll(result, "\r\n", "\n"); // Same text-mode output as _popen.
+#else
+   return execWithSuccessCode(cmd, exit_code, nullptr);
+#endif
+}
