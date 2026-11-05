@@ -110,6 +110,7 @@ class LiveModeTests(unittest.TestCase):
                 args = self.parse_driver_options(*options)
                 self.assertTrue(args.headless)
                 self.assertFalse(args.force_head)
+                self.assertFalse(args.force_snapshots)
                 self.assertEqual(args.mc_selection, 'all')
 
     def test_adaptive_selection_is_live_only_and_opt_in(self):
@@ -477,6 +478,9 @@ class LiveModeTests(unittest.TestCase):
                              and child.func.id in ('install_vehicle_graphics_patches', 'install_world_surface_patches')
                              for child in ast.walk(node)))]
         for options, render_mode in [(('--live',), None), (('--live', '--force_head'), 'human'),
+                                     (('--live', '--force_snapshots'), 'rgb_array'),
+                                     (('--live', '--force_snapshots', '--headless'), 'rgb_array'),
+                                     (('--live', '--force_snapshots', '--force_head'), 'human'),
                                      ((), 'rgb_array'), (('--headless',), 'rgb_array')]:
             with self.subTest(options=options):
                 namespace = {
@@ -491,6 +495,8 @@ class LiveModeTests(unittest.TestCase):
                 kwargs = namespace['gymnasium'].make.call_args.kwargs
                 self.assertEqual(kwargs['render_mode'], render_mode)
                 self.assertFalse(kwargs['config']['real_time_rendering'])
+                self.assertEqual(kwargs['config']['offscreen_rendering'],
+                                 namespace['args'].force_snapshots and namespace['args'].headless)
                 self.assertEqual(namespace['bg_image_state'] is not None, render_mode is not None)
                 for installer in ['install_vehicle_graphics_patches', 'install_world_surface_patches']:
                     self.assertEqual(namespace[installer].call_count, int(render_mode is not None))
@@ -555,15 +561,118 @@ class LiveModeTests(unittest.TestCase):
                 visible.close()
                 plain.close()
 
+    def test_live_snapshots_write_one_nonblank_pdf_per_step_without_changing_physics(self):
+        import gymnasium
+        import highway_env
+        import numpy as np
+
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        cycle = next(node for node in ast.walk(module) if isinstance(node, ast.For)
+                     and isinstance(node.target, ast.Name) and node.target.id == 'global_counter')
+        step_index = next(index for index, node in enumerate(cycle.body)
+                          if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
+                          and ast.unparse(node.value.func) == 'env.step')
+        step_code = compile(ast.Module(body=cycle.body[step_index - 1:step_index + 2], type_ignores=[]),
+                            '<snapshot step>', 'exec')
+        config = {
+            'controlled_vehicles': 2, 'vehicles_count': 0, 'lanes_count': 2,
+            'simulation_frequency': 60, 'policy_frequency': 2,
+            'screen_width': 400, 'screen_height': 160, 'real_time_rendering': False,
+            'action': {'type': 'MultiAgentAction', 'action_config': {'type': 'ContinuousAction'}},
+        }
+        for force_head in [False, True]:
+            with self.subTest(force_head=force_head), TemporaryDirectory() as folder, \
+                 patch.dict('os.environ', {'SDL_VIDEODRIVER': 'dummy'}):
+                plain = gymnasium.make('highway-v0', render_mode=None, config=config)
+                capture = gymnasium.make('highway-v0', render_mode='human' if force_head else 'rgb_array',
+                                         config={**config, 'offscreen_rendering': not force_head})
+                try:
+                    plain.reset(seed=0)
+                    capture.reset(seed=0)
+                    if force_head:
+                        capture.unwrapped.viewer.enabled = True
+                    namespace = {
+                        'args': self.parse_driver_options('--live', '--force_snapshots',
+                                                          *(['--force_head'] if force_head else [])),
+                        'env': capture, 'action': ([0.1, 0.0], [-0.1, 0.0]),
+                        'save_simulation_snapshot': helper.save_simulation_snapshot,
+                    }
+                    for step in range(3):
+                        snapshot_path = Path(folder) / 'snapshots' / f'cycle_{step + 1:06d}.pdf'
+                        namespace['snapshot_path'] = snapshot_path
+                        viewer = capture.unwrapped.viewer
+                        drawing = (patch.object(viewer, 'display', wraps=viewer.display)
+                                   if viewer is not None else contextlib.nullcontext())
+                        with drawing as draw:
+                            exec(step_code, namespace)
+                            if draw is not None:
+                                draw.assert_called_once()
+                        plain.step(namespace['action'])
+                        pdf = snapshot_path.read_bytes()
+                        self.assertTrue(pdf.startswith(b'%PDF-'))
+                        self.assertIn(b'/Count 1', pdf)
+                        self.assertIn(b'/Width 400', pdf)
+                        self.assertIn(b'/Height 160', pdf)
+                        self.assertGreater(np.ptp(capture.unwrapped.viewer.get_image()), 0)
+                        for shown, hidden in zip(capture.unwrapped.controlled_vehicles,
+                                                 plain.unwrapped.controlled_vehicles):
+                            np.testing.assert_array_equal(shown.position, hidden.position)
+                            self.assertEqual(shown.speed, hidden.speed)
+                            self.assertEqual(shown.heading, hidden.heading)
+                    self.assertEqual(len(list(Path(folder).rglob('*.pdf'))), 3)
+                    self.assertEqual(capture.unwrapped.viewer.offscreen, not force_head)
+                finally:
+                    capture.close()
+                    plain.close()
+
+    def test_terminal_live_cycles_save_a_snapshot_without_stepping(self):
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        cycle = next(node for node in ast.walk(module) if isinstance(node, ast.For)
+                     and isinstance(node.target, ast.Name) and node.target.id == 'global_counter')
+        terminal_blocks = [node for node in cycle.body if isinstance(node, ast.If)
+                           and ast.unparse(node.test) in (
+                               "res_str == 'FINISHED' and (not found_shortcut) or successed",
+                               'res_str == empty_cex')]
+        self.assertEqual(len(terminal_blocks), 2)
+        for block in terminal_blocks:
+            loop = ast.For(target=ast.Name(id='unused', ctx=ast.Store()),
+                           iter=ast.Tuple(elts=[ast.Constant(value=0)], ctx=ast.Load()),
+                           body=[block], orelse=[])
+            code = compile(ast.fix_missing_locations(ast.Module(body=[loop], type_ignores=[])),
+                           '<terminal snapshot>', 'exec')
+            for enabled in [False, True]:
+                with self.subTest(condition=ast.unparse(block.test), enabled=enabled):
+                    snapshot = Mock()
+                    env = object()
+                    path = Path('unused.pdf')
+                    namespace = {
+                        'args': SimpleNamespace(live=True, force_snapshots=enabled,
+                                                allow_blind_steps=0, detailed_archive=False),
+                        'res_str': 'FINISHED' if block is terminal_blocks[0] else '|;',
+                        'found_shortcut': False, 'successed': False, 'empty_cex': '|;',
+                        'nocex_count': 0, 'good_ones': [], 'env': env, 'snapshot_path': path,
+                        'run_id': 0, 'global_counter': 1, 'generated_path_prefix': '',
+                        'ucd_config_prios_str': [], 'snapshot_hashes': {}, 'selected_config': None,
+                        'show_sim_status': Mock(), 'archive': Mock(), 'print': Mock(),
+                        'save_simulation_snapshot': snapshot,
+                    }
+                    exec(code, namespace)
+                    if enabled:
+                        snapshot.assert_called_once_with(env, path)
+                    else:
+                        snapshot.assert_not_called()
+
     def test_force_head_rejects_conflicting_modes(self):
-        for options in [('--force_head',), ('--live', '--force_head', '--headless')]:
+        for options in [('--force_head',), ('--live', '--force_head', '--headless'),
+                        ('--force_snapshots',)]:
             with self.subTest(options=options), contextlib.redirect_stderr(io.StringIO()):
                 with self.assertRaises(SystemExit) as failure:
                     self.parse_driver_options(*options)
                 self.assertEqual(failure.exception.code, 2)
 
     def test_both_live_modes_reject_debug_recording_and_replay(self):
-        for viewer_options in [(), ('--force_head',)]:
+        for viewer_options in [(), ('--force_head',), ('--force_snapshots',),
+                               ('--force_head', '--force_snapshots')]:
             for debug_option in ['--record_video', '--detailed_archive', '--dryrun']:
                 with self.subTest(viewer_options=viewer_options, debug_option=debug_option):
                     with contextlib.redirect_stderr(io.StringIO()):

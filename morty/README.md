@@ -32,6 +32,24 @@ background once on the first cycle can take tens of seconds; use plain `--live` 
 without visualization costs. A working graphical display is required (for example, X11
 forwarding when running remotely).
 
+To save one PDF of the current simulation state per planning/control cycle, independently
+of the viewer, use:
+
+```bash
+python3 -m morty.morty --live --force_snapshots
+python3 -m morty.morty --live --force_snapshots --force_head
+```
+
+`--force_snapshots` requires `--live` and works with `--headless`. Files are saved under
+`<generated_path>/snapshots/run_<run_id>_seed_<seed>/cycle_000001.pdf`, numbered from one.
+Each PDF contains a single 1500-by-300-pixel simulation image, not vector artwork. Normal
+cycles capture the state after stepping; cycles that terminate at the goal or because no
+plan is available capture the final unstepped state instead. Seed-specific folders preserve
+snapshots from runs excluded by the minimum-iteration threshold. No video, plots, statistics,
+or archives are enabled. Without `--force_head`, rendering is offscreen and opens no window;
+with it, the snapshot reuses the already rendered step. This adds one PDF write per cycle
+and the same one-time road-background generation cost as the viewer.
+
 Live runs retain the native library, launch configured models without artificial delays, reuse
 prepared solver scripts and unchanged planner translations, and extract only the trajectory
 prefix needed for control unless shortcut reuse requires the complete plan. The working

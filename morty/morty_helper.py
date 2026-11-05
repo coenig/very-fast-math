@@ -15,6 +15,25 @@ from contextlib import contextmanager
 from ctypes import CDLL
 
 
+def save_simulation_snapshot(env, path, render=True):
+    from PIL import Image
+
+    image = None
+    if render:
+        if env.unwrapped.viewer is None and env.unwrapped.config['offscreen_rendering']:
+            from highway_env.envs.common.graphics import EnvViewer
+
+            env.unwrapped.viewer = EnvViewer(env.unwrapped)
+        if env.unwrapped.viewer is not None and env.unwrapped.viewer.offscreen:
+            env.unwrapped.viewer.enabled = True
+        image = env.render()
+    if image is None:
+        image = env.unwrapped.viewer.get_image()
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    Image.fromarray(image).save(path, 'PDF', resolution=150.0)
+
+
 def ensure_empty_file(path: str) -> None:
     p = Path(path)
 
