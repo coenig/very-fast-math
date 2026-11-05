@@ -19,6 +19,7 @@ from .morty_helper import (
     VizState, install_vehicle_graphics_patches, install_world_surface_patches,
     RunScheduler, MCConfigSelector, load_run_settings, snapshot_mc_results_offsets, run_reached_threshold, discard_run,
     randomize_until_collision_free,
+    save_simulation_snapshot,
 )
 import platform
 
@@ -53,6 +54,8 @@ parser.add_argument('--live', action='store_true',
                     help='Driving-only mode: no visualization, debug artifacts, or experiment statistics.')
 parser.add_argument('--force_head', action='store_true',
                     help='Show the simulation window with --live, keeping debugging and statistics disabled.')
+parser.add_argument('--force_snapshots', action='store_true',
+                    help='Save one simulation-state PDF per cycle with --live, with or without a window.')
 args = parser.parse_args()
 
 try:
@@ -66,6 +69,8 @@ if args.force_head and not args.live:
     parser.error('--force_head requires --live')
 if args.force_head and args.headless:
     parser.error('--force_head cannot be combined with --headless')
+if args.force_snapshots and not args.live:
+    parser.error('--force_snapshots requires --live')
 if args.mc_selection != 'all' and not args.live:
     parser.error(f'UCD_MC_SELECTION={args.mc_selection} requires --live. Use "all" to achieve the equivalent behavior in regular mode.')
 
@@ -101,7 +106,7 @@ if args.press:
 # file stays focused on the model-checking logic. viz_state holds the shared
 # drawing state (trajectories, pure-pursuit targets, planned positions).
 viz_state = VizState()
-if not args.live or args.force_head:
+if not args.live or args.force_head or args.force_snapshots:
     install_vehicle_graphics_patches(args, viz_state)
 
 def show_sim_status(text, mc_running=False):
@@ -540,7 +545,7 @@ for run_id, seedo in scheduler:
     # Snapshot the per-config MC results log lengths so an excluded run can be truncated away again.
     mc_results_offsets = {} if args.live else snapshot_mc_results_offsets(ucd_config_prios_str, generated_path_prefix)
 
-    env = gymnasium.make('highway-v0', render_mode='human' if args.force_head else (None if args.live else 'rgb_array'), config={
+    env = gymnasium.make('highway-v0', render_mode='human' if args.force_head else (None if args.live and not args.force_snapshots else 'rgb_array'), config={
         "action": {
             "type": "MultiAgentAction",
             "action_config": {
@@ -570,17 +575,18 @@ for run_id, seedo in scheduler:
         "screen_height": 300,
         "scaling": 3,
         "real_time_rendering": False,
+        "offscreen_rendering": args.force_snapshots and args.headless,
         "show_trajectories": False
     })
 
     # Monkey-patch WorldSurface/RoadGraphics for morty's multi-car camera and the
     # generated "background" road (drawn under the vehicles). See morty_helper.py.
     # Lazy-load image in the simulation loop; no need before first iteration.
-    bg_image_state = None if args.live and not args.force_head else {
+    bg_image_state = None if args.live and not (args.force_head or args.force_snapshots) else {
         "image": None,
         "converted": False,
     }
-    if not args.live or args.force_head:
+    if not args.live or args.force_head or args.force_snapshots:
         install_world_surface_patches(bg_image_state, num_actual_lanes, fit_background=args.fit_roads)
 
     # Expose the env reference so the patched WorldSurface can access vehicle positions.
@@ -716,6 +722,8 @@ for run_id, seedo in scheduler:
     
     global_counter = -1  # Guards the validity check below if the inner loop never runs (e.g. steps_per_run == 0).
     for global_counter in range(args.steps_per_run):
+        if args.force_snapshots:
+            snapshot_path = Path(generated_path_prefix) / 'snapshots' / f'run_{run_id}_seed_{seedo}' / f'cycle_{global_counter + 1:06d}.pdf'
         show_sim_status(f"Cycle {global_counter + 1} | Preparing inputs")
         mcinput = ""
         i = 0
@@ -1055,6 +1063,8 @@ for run_id, seedo in scheduler:
         # success if the success condition is met.
         if (res_str == "FINISHED" and not found_shortcut) or successed:
             show_sim_status(f"Cycle {global_counter + 1} | Goal reached")
+            if args.force_snapshots:
+                save_simulation_snapshot(env, snapshot_path)
             print("DONE")
             good_ones.append(run_id)
             archive(run_id, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
@@ -1068,6 +1078,8 @@ for run_id, seedo in scheduler:
                         env.unwrapped.controlled_vehicles[i].color = (100, 100, 255)
             nocex_count += 1
             if nocex_count > args.allow_blind_steps: # Abort (as failure) once this many blind steps occurred.
+                if args.force_snapshots:
+                    save_simulation_snapshot(env, snapshot_path)
                 archive(run_id, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
                 break
             
@@ -1210,9 +1222,11 @@ for run_id, seedo in scheduler:
 
         # === APPLY MC INSTRUCTIONS ===
         show_sim_status(f"Cycle {global_counter + 1} | Stepping simulation")
-        if args.force_head:
+        if args.force_head or args.force_snapshots:
             env.unwrapped.enable_auto_render = False
         obs, reward, done, truncated, info = env.step(action)
+        if args.force_snapshots:
+            save_simulation_snapshot(env, snapshot_path, render=not args.force_head)
 
         # === CHECK CRASHES (after applying MC instructions) ===
         crashed = False
