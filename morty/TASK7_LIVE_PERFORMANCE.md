@@ -161,21 +161,100 @@ c18   671ms  F0+89/d1
 
 Query times here include clearing traces, the persistent check, and native output processing (~50 ms).
 
+## Rounding Observed Positions (`UCD_ROUND_INPUTS`)
+
+All inspected shortcut misses failed by exactly one position unit (0.25 m), e.g. a target
+`abs_pos = 218` from `174` with a maximum next velocity of `43`. `prepareInputForMortyUCD` truncated
+position and velocity with `(int)`, biasing a forward car backwards.
+
+Rounding velocities as well made seeds 0 and 1 blind in their second cycle: a parked car with a
+residual speed of ~0.6 model units was observed as `v = 1`, contradicting its `INVAR v = 0`, so every
+query failed at depth 0. Truncation silently maps such speeds to 0. Only positions are rounded now.
+
+A/B on seeds 0-3 (all other settings as above; trajectories differ between runs):
+
+| Seed | Truncate: shortcut hits / tries, cycles | Round positions: shortcut hits / tries, cycles |
+|---|---|---|
+| 0 | 13 / 28, 19 cycles, goal reached | 14 / 27, 21 cycles, goal reached |
+| 1 | 13 / 31, 19 cycles, goal reached | 13 / 30, 22 cycles, goal reached |
+| 2 | 13 / 29, 18 cycles, goal reached | 15 / 22, 19 cycles, goal reached |
+| 3 | 3 / 37, 14 cycles, stopped without reaching the goal | 15 / 31, 22 cycles, goal reached |
+| Sum of query time | 29.7 s | 24.7 s |
+
+The gain is modest on seeds 0-2 and large on seed 3. Four seeds are too few for a firm conclusion,
+and the truncated seed-3 stop was not investigated. The setting applies to all UCD tasks that
+enable it; it defaults to off.
+
+## Five vs. Ten Cars (Seeds 0-9)
+
+Setup: all settings above enabled (including `UCD_ROUND_INPUTS`), `NONEGOS` 5 (2 moving, 3 parked)
+vs. 10 (2 moving, 8 parked), seeds 0-9 each, runs executed one at a time. Query times are measured
+in the loop and include ~50-100 ms of non-solver work per query (trace clearing, output processing).
+
+| | 5 cars | 10 cars |
+|---|---:|---:|
+| Runs reaching the goal | 7 / 10 | 7 / 10 |
+| Blind at the first cycle (seeds 5, 8, 9, all 16 configs fail) | 3 | 3 |
+| Planning cycles (all runs) | 150 | 205 |
+| Cycles served by a shortcut | 105 (70%) | 142 (69%) |
+| Plan-config probe hits at waypoint 0 / 1 / 2 | 100/133, 3/30, 1/25 | 117/183, 12/61, 7/46 |
+| Probe hits with another (larger-box) config | 1/4 | 6/250 |
+| Median shortcut query | 106 ms | 142 ms |
+| Median successful / failed full query | 276 / 452 ms | 855 / 694 ms |
+| MC time per cycle: median / p75 / p90 | 113 / 285 / 832 ms | 284 / 1462 / 5190 ms |
+| Cycles with MC time <= 200 ms | 71% | 10% |
+
+Query time by kind, summed over all runs:
+
+| Kind | 5 cars | 10 cars |
+|---|---:|---:|
+| Successful full queries | 24.1 s | 104.8 s |
+| Failed full queries (larger configs before the winner) | 0.5 s | 118.1 s |
+| Failed full queries in blind first cycles | 21.9 s | 37.9 s |
+| Shortcut probes, plan config (hit + miss) | 20.1 s | 55.9 s |
+| Shortcut probes, other config (hit + miss) | 0.6 s | 34.4 s |
+
+Observations:
+
+- **The shortcut hit rate does not collapse with more cars** (70% vs. 69% of cycles). Parked cars
+  are model constants and never block a shortcut; only the two moving cars' terms can fail.
+- **Why probes miss.** Each plan-config miss at waypoint 0 was re-checked with one car's target
+  terms removed at a time. The blocking car was always a moving car, mostly its position. Allowing
+  a position tolerance for the moving cars would have turned these misses into hits:
+
+  | Tolerance (model units, 1 = 0.25 m) | 5 cars (33 misses) | 10 cars (66 misses) |
+  |---|---:|---:|
+  | +-1 | 14 | 29 |
+  | +-2 | 25 (76%) | 46 (70%) |
+  | +-4 | 30 (91%) | 50 (76%) |
+  | > 16 or not position-only | 3 | 16 |
+
+- **With 10 cars, the plan usually comes from a smaller box** (priority 1-3), because the largest
+  boxes do not fit between the parked cars. Then every cycle first probes the largest eligible box,
+  which almost never hits (6 of 250), and every replan first fails the larger boxes. Those failures
+  cost more than the successful plans (118 s vs. 105 s).
+- **10-car replans near the bound are expensive.** Seed 7 needs depth 24-27 plans; failing larger
+  boxes take 8-10 s each and the winning plan 5-7 s, giving 16-20 s replan cycles.
+- A first run of seed 7 took 497 s with 60-120 s queries while an offline analysis ran in parallel;
+  an isolated rerun took 119 s and replaces it in the tables. Timings are load-sensitive.
+
 ## Not Implemented (Ranked)
 
-1. **Round instead of truncate the MC inputs.** All inspected shortcut misses failed by exactly one
-   position unit (0.25 m), e.g. a target `abs_pos = 218` from `174` with a maximum next velocity of
-   `43`. `prepareInputForMortyUCD` uses `(int)` for position and velocity, biasing a forward car
-   backwards. Rounding should raise the shortcut hit rate, but changes trajectories for all UCD tasks.
-2. **Reduce per-cycle file traffic** (see Windows Defender above).
+1. **Shortcut position tolerance for moving cars.** +-2 units (0.5 m) would have recovered 70-76% of
+   the remaining misses. It also needs a tolerant connector match in `prepareOutputForMortyUCD`,
+   otherwise the stored plan is reset after a shortcut; the old plan's tail then starts up to 0.5 m
+   away from the actual state (it is re-verified in the next cycle).
+2. **Stop re-probing and re-trying boxes that just failed.** For 10 cars, shortcut probes with a
+   larger box than the plan's (34 s, 2.4% hits) and repeated failing full queries for larger boxes
+   (118 s) dominate. Probing the plan config first, and retrying larger boxes only occasionally or
+   after the scene changes, keeps the priority preference without paying for it every cycle.
 3. **Monotone configuration search.** If a box size has a plan, every smaller size has one too. Trying
    the largest configuration, then the smallest, detects a blind cycle in 2 queries instead of 16;
    skipping configurations that dominate a failed one keeps the final choice equal to the priority
    order. If monotonicity were ever violated, only optimality (not safety) would be affected, since
    every accepted plan is a verified witness for its own configuration. All observed cascades were
    consistent with monotonicity (e.g. widths 9 failing for all lengths, then `(9,8)` succeeding).
-4. **Shortcut tolerance.** Allowing a small position tolerance in shortcut targets would also need a
-   tolerant connector match in `prepareOutputForMortyUCD`, otherwise the stored plan is reset.
+4. **Reduce per-cycle file traffic** (see Windows Defender above).
 
 ## SMV-Level Experiments
 
@@ -207,5 +286,8 @@ python tmp/t7bench/bench_fixtures.py tmp/t7bench/<out> nocpp 3        # standalo
 python tmp/t7bench/bench_fixtures.py tmp/t7bench/<out> k3 3           # same, shortcuts bounded to depth 3
 python tmp/t7bench/shortcut_points.py tmp/t7bench/<out> 2 5           # hit rate of waypoints 0-4
 cd tmp/t7bench && python persistent_proto.py <fixture dirs ...>       # persistent-session prototype
+bash tmp/t7bench/batch.sh 10 cmp 0 1 2 3 4 5 6 7 8 9                 # NONEGOS=10 runs (template restored after)
+python tmp/t7bench/analyze.py tmp/t7bench/cmp_n5_seed tmp/t7bench/cmp_n10_seed
+python tmp/t7bench/miss_reasons.py tmp/t7bench/cmp_n10_seed0 ...      # blocking car and tolerance per miss
 python -m unittest morty.test_live_mode
 ```

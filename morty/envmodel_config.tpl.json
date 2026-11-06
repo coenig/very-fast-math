@@ -111,6 +111,7 @@
       "UCD_SHORTCUT_BMC_SLACK": 2,
       "UCD_SHORTCUT_PROBE_POINTS": 3,
       "UCD_PERSISTENT_SOLVER": true,
+      "UCD_ROUND_INPUTS": true,
       "SECTIONSMAXLENGTH": "#{10000}#",
       "SECTIONSMINLENGTH": "#{10000}#",
       "SEGMENTS": "#{segments}#",
