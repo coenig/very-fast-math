@@ -30,6 +30,10 @@ def abstract_plot(graph,output,gif=True):
         def update(frame):
             for i,dot in enumerate(dots):
                 x,y=positions[graph["milestones"][frame][i]]
+                if graph.get('approaches'):
+                    from .junctions import DELTA
+                    dy,dx=DELTA[graph['approaches'][frame][i]]
+                    x,y=x+0.18*dx,y-0.18*dy
                 dot.set_data([x],[y])
             ax.set_title(f"Abstract step {frame}; goals: {graph['goals']}")
             return dots

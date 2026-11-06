@@ -8,6 +8,13 @@ def validate_trace(graph,geometry,trace):
     sections=geometry["sections"]
     connections={(c["from"],c["to"]):c for c in geometry["connections"]}
     stable=graph.get('semantics')=='stable_concurrent'
+    shared=bool(graph.get('junction_extension'))
+    native=False
+    if shared:
+        from .junctions import conflicts, route, section_for, validate_witness, native_collisions, holding_cars
+        validate_witness(graph,geometry)
+        native=native_collisions(graph)
+        conflicting=set() if native else {frozenset(pair) for pair in conflicts(geometry)}
     if stable:
         from .stable import anchors
         choices=anchors(graph)
@@ -45,12 +52,29 @@ def validate_trace(graph,geometry,trace):
             if not 0<=pos<=length(seclet):
                 raise ValueError(f"tick {index}, car {car}: position outside seclet")
             if index==0 or phase!=int(frames[index-1]["refinement_phase"]):
+                if graph.get('section_only_milestones', False) and seclet[0]!='s':
+                    raise ValueError(f"tick {index}: milestone inside a connection")
                 if not observed(seclet,pos,vel,graph["milestones"][phase][car],acc):
                     raise ValueError(f"tick {index}: incorrect milestone observation")
+                if shared:
+                    expected=section_for(geometry,graph['milestones'][phase][car],graph['approaches'][phase][car])
+                    if seclet!=('s',expected['id']):
+                        raise ValueError(f'tick {index}: incorrect milestone approach')
             u=graph["milestones"][phase][car]
             v=graph["milestones"][min(phase+1,len(graph["milestones"])-1)][car]
             travelling=(seclet[0]=="s" and u!=v and set(sections[seclet[1]]["edge"])=={u,v})
             permitted=travelling or observed(seclet,pos,vel,u,acc) or observed(seclet,pos,vel,v,acc)
+            if shared:
+                arrival=graph['approaches'][min(phase+1,len(graph['milestones'])-1)][car]
+                permitted=seclet in route(geometry,u,graph['approaches'][phase][car],v,arrival)
+                if graph.get('stationary_holds'):
+                    if index == 0 and (vel != 0 or acc != 0):
+                        raise ValueError(f'tick 0, car {car}: initial state is not at rest')
+                    if car in holding_cars(graph,phase):
+                        anchor=section_for(geometry,u,graph['approaches'][phase][car])
+                        endpoint=anchor['length'] if anchor['edge'][1]==u else 0
+                        if (seclet,pos,vel,acc) != (('s',anchor['id']),endpoint,0,0):
+                            raise ValueError(f'tick {index}, car {car}: abstract hold must remain at rest at its attachment')
             if stable:
                 if u==v:
                     permitted=observed(seclet,pos,vel,u,acc)
@@ -77,7 +101,7 @@ def validate_trace(graph,geometry,trace):
                     kind=next(n["kind"] for n in geometry["nodes"] if n["id"]==node)
                     if kind=="N" and distance<=vehicle_length:
                         occupied.add(("junction",node))
-            resources.append(occupied)
+            resources.append({seclet} if shared else occupied)
             if index==0:
                 continue
             old,op,ov,oa=decode(frames[index-1],car)
@@ -109,11 +133,32 @@ def validate_trace(graph,geometry,trace):
                 raise ValueError(f"tick {index}, car {car}: inconsistent displacement/speed")
         for car in range(cars):
             for other in range(car):
-                if resources[car] & resources[other]:
+                if native:
+                    x,xp,_,_=decode(frame,car)
+                    y,yp,_,_=decode(frame,other)
+                    if x==y and abs(xp-yp)<=int(frame.get('env.veh_length',5)):
+                        raise ValueError(f'tick {index}: native same-seclet separation violated')
+                    if index:
+                        ox,op,_,_=decode(frames[index-1],car)
+                        oy,oq,_,_=decode(frames[index-1],other)
+                        if ox==oy==x==y and (op<oq)!=(xp<yp):
+                            raise ValueError(f'tick {index}: native same-seclet order reversed')
+                    continue
+                def intersects(a,b):
+                    return (any(frozenset((x,y)) in conflicting for x in a for y in b)
+                            if shared else bool(a & b))
+                if intersects(resources[car], resources[other]):
                     raise ValueError(f"tick {index}: conflicting occupancy")
-                if index and (resources[car] | previous_resources[car]) & (resources[other] | previous_resources[other]):
+                if index and intersects(resources[car] | previous_resources[car], resources[other] | previous_resources[other]):
                     raise ValueError(f"tick {index}: conflicting swept occupancy")
         previous_resources=resources
     if int(frames[-1]["refinement_phase"]) != len(graph["milestones"])-1:
         raise ValueError("trace did not complete refinement")
-    return {"valid":True,"states":len(frames),"cars":cars,"milestones":len(graph["milestones"])}
+    report={"valid":True,"states":len(frames),"cars":cars,"milestones":len(graph["milestones"])}
+    if shared:
+        report['stationary_holds']=bool(graph.get('stationary_holds'))
+    if native:
+        report.update(collision_policy='native same-seclet separation/order',
+                      cross_element_and_between_tick_geometry_checked=False,
+                      greedy_dynamic_completeness_claimed=False)
+    return report

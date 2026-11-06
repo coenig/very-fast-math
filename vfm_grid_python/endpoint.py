@@ -81,7 +81,55 @@ def movement(geometry, cars):
             unchanged = both([f"next({p}.{field}) = {p}.{field}" for p in (v,w)
                               for field in ("on_straight_section", "traversion_from", "traversion_to")])
             lines += [f"TRANS ({same} & {unchanged}) -> (({v}.abs_pos < {w}.abs_pos) <-> (next({v}.abs_pos) < next({w}.abs_pos)));"]
+    lines.append(boundary_separation(geometry, cars))
     return "\n".join(lines) + "\n"
+
+
+def boundary_separation(geometry, cars):
+    """Environment-level clearance across section/connector attachments.
+
+    Swept bounds conservatively combine each car's minimum distance during a
+    tick. This permits queues but can reject tightly timed safe handoffs.
+    It is a 1D incident-road rule, not collision detection between crossing curves.
+    """
+    lines=['-- Boundary clearance: part of ENDPOINT_TRANSITIONS, not the monitor.']
+    for s in geometry['sections']:
+        for end in (False, True):
+            incident=[]
+            for c in geometry['connections']:
+                for side in ('from','to'):
+                    if c[side]!=s['id']: continue
+                    flag=c[side+'_end']
+                    guard=('TRUE' if flag==end else 'FALSE') if isinstance(flag,bool) else (f'({flag})' if end else f'!({flag})')
+                    incident.append((c,side,guard))
+            if not incident: continue
+            lengths=[r['length'] for r in geometry['sections']+geometry['connections']]
+            if all(isinstance(length,int) for length in lengths):
+                sentinel=max(lengths)+1
+            else:
+                longest=str(lengths[0])
+                for length in lengths[1:]: longest=f'max({longest},{length})'
+                sentinel=f'({longest}+1)'
+            for i in range(cars):
+                v=f'veh___6{i}9___'
+                name=f'boundary_s{s["id"]}_{int(end)}_car{i}'
+                dist=f'{s["length"]} - {v}.abs_pos' if end else f'{v}.abs_pos'
+                lines += [f'DEFINE {name} := case',f'{v}.on_straight_section = {s["id"]} : {dist};']
+                for c,side,guard in incident:
+                    dist=f'{v}.abs_pos' if side=='from' else f'{c["length"]} - {v}.abs_pos'
+                    lines += [f'{guard} & {v}.traversion_from = {c["from"]} & {v}.traversion_to = {c["to"]} : {dist};']
+                lines += [f'TRUE : {sentinel} + veh_length; esac;']
+                changed=either([f'next({v}.{field}) != {v}.{field}' for field in ('on_straight_section','traversion_from','traversion_to')])
+                # A transfer between two roads incident here passes through 0.
+                swept=f'(case {changed} & {name} < {sentinel} & next({name}) < {sentinel} : 0; TRUE : min({name},next({name})); esac)'
+                for j in range(i):
+                    other=f'boundary_s{s["id"]}_{int(end)}_car{j}'
+                    w=f'veh___6{j}9___'
+                    changed_j=either([f'next({w}.{field}) != {w}.{field}' for field in ('on_straight_section','traversion_from','traversion_to')])
+                    swept_j=f'(case {changed_j} & {other} < {sentinel} & next({other}) < {sentinel} : 0; TRUE : min({other},next({other})); esac)'
+                    lines += [f'INVAR {name} + {other} > veh_length;',
+                              f'TRANS {swept} + {swept_j} > veh_length;']
+    return '\n'.join(lines)+'\n'
 
 
 def collision_constraints(geometry, cars):
@@ -92,6 +140,9 @@ and one car in a junction envelope (all of its curves plus vehicle-length
 approach margins). Swept reservations prevent opposite cars crossing a border
 in a single discrete step. It can reject some otherwise feasible close convoys.
 """
+    from .junctions import enabled, collisions
+    if enabled(geometry):
+        return collisions(geometry, cars)
     lines = []
     possible_resources = []
     for car in range(cars):

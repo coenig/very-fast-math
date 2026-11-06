@@ -3,6 +3,7 @@ import argparse
 import csv
 from collections import defaultdict
 import html
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -45,6 +46,8 @@ def summarize(data, metric):
     for identity in sorted({key[0] for key in groups}):
         name,family,r,c,cars,repeats=identity
         row=dict(scenario=name,family=family,rows=r,columns=c,cars=cars,repetitions=repeats)
+        counts={t.get('stage_count') for method in METHODS for t in groups[identity,method] if t.get('stage_count') is not None}
+        row['stage_count']=', '.join(map(str,sorted(counts))) or 'unknown'
         for method in METHODS:
             trials=groups[identity,method]
             successful=[trial[metric]*1000 for trial in trials
@@ -60,7 +63,17 @@ def summarize(data, metric):
 
 def write_report(data, output, plot=True):
     output=Path(output); output.mkdir(parents=True,exist_ok=True)
-    raw_fields=["instance","method","semantics","contract_version","rows","columns","cars","repetitions","seed","parallel",
+    environments=defaultdict(list)
+    for row in data: environments[row.get('execution_environment','local-unspecified')].append(row)
+    if len(environments)>1:
+        links=[]
+        for environment,rows in sorted(environments.items()):
+            name='environment_'+hashlib.sha256(environment.encode()).hexdigest()[:12]
+            write_report(rows,output/name,plot)
+            links.append(f'<li><a href="{name}/index.html">{html.escape(environment)}</a> ({len(rows)} attempts)</li>')
+        (output/'index.html').write_text('<h1>Benchmark environments</h1><p>Timings from different environments are not pooled.</p><ul>'+''.join(links)+'</ul>')
+        return
+    raw_fields=["execution_environment","instance","method","semantics","contract_version","rows","columns","cars","repetitions","stage_count","property_size_chars","scaling_indices","sweep_family","pruning","abstract_bound","concrete_bound","seed","parallel",
                 "status","validated","wall_seconds","time_to_validated_xml_seconds",
                 "abstract_witness_seconds","model_checking_seconds","abstract_model_checking_seconds",
                 "concrete_model_checking_seconds","generation_seconds","setup_seconds","validation_seconds",
@@ -81,10 +94,10 @@ def write_report(data, output, plot=True):
         table += ["<th>"+html.escape(m)+"</th>" for m in METHODS]
         table.append("</tr>")
         for row in rows:
-            table.append(f"<tr><th>{html.escape(row['scenario'])}<br>{row['rows']}×{row['columns']} / {row['cars']} / {row['repetitions']}</th>")
+            table.append(f"<tr><th>{html.escape(row['scenario'])}<br>{row['rows']}×{row['columns']} / {row['cars']} / {row['repetitions']} rounds / {row['stage_count']} stages</th>")
             for method in METHODS:
                 value=row[method+"_ms"]
-                text="-" if value is None else f"{value:,.1f}"
+                text=("-<br><small>"+html.escape(row[method+'_statuses'])+"</small>") if value is None else f"{value:,.1f}"
                 count=row[method+"_attempts"]
                 if count>1: text+=f" ({row[method+'_successes']}/{count})"
                 shade=1 if value is None else 1-.35*math.log1p(value)/maximum
@@ -105,12 +118,12 @@ Parallel jobs compete for resources; consult runs.csv before comparing experimen
         import matplotlib
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
-        fig,ax=plt.subplots(figsize=(max(8,len(data)*.2),5))
+        fig,ax=plt.subplots(figsize=(min(24,max(8,len(data)*.2)),5))
         colors=dict(zip(METHODS,("#276fbf","#e08e00","#268545","#9b51b6")))
         for method in METHODS:
             points=[(index,row) for index,row in enumerate(data) if row["method"]==method]
             successes=[(index,row) for index,row in points if row.get("validated") and row["status"]=="witness"]
-            failures=[(index,row) for index,row in points if not(row.get("validated") and row["status"]=="witness")]
+            failures=[(index,row) for index,row in points if row.get('wall_seconds') is not None and not row['status'].startswith('pruned_') and not(row.get("validated") and row["status"]=="witness")]
             ax.scatter([p[0] for p in successes],[p[1]["time_to_validated_xml_seconds"] for p in successes],
                        color=colors[method],label=method)
             ax.scatter([p[0] for p in failures],[p[1]["wall_seconds"] for p in failures],
@@ -130,6 +143,30 @@ Parallel jobs compete for resources; consult runs.csv before comparing experimen
                 axis.set(title=family,xlabel=label,ylabel='Total MC seconds')
                 axis.set_yscale('symlog',linthresh=1)
             axes[0,0].legend(); fig.tight_layout(); fig.savefig(output/f'scaling_{parameter}.png',dpi=120); plt.close(fig)
+        # Controlled slices: do not mix other grid/fleet/round coordinates.
+        slices=defaultdict(list)
+        for row in data:
+            if not row.get('scaling_indices'): continue
+            for parameter, fixed in (('grid',('cars','repetitions')),
+                                     ('cars',('rows','columns','repetitions')),
+                                     ('rounds',('rows','columns','cars'))):
+                key=(row['family'],parameter,tuple((k,row[k]) for k in fixed))
+                slices[key].append(row)
+        slice_dir=output/'slices'; slice_dir.mkdir(exist_ok=True)
+        manifest=[]
+        for number,((family,parameter,fixed),points) in enumerate(sorted(slices.items())):
+            def x(row):
+                return row['rows']*row['columns'] if parameter=='grid' else row['cars'] if parameter=='cars' else row.get('stage_count',row['repetitions'])
+            if len({x(p) for p in points})<2: continue
+            fig,axis=plt.subplots(figsize=(8,4))
+            for method in METHODS:
+                good=[p for p in points if p['method']==method and p.get('validated') and p['status']=='witness']
+                axis.scatter([x(p) for p in good],[p['model_checking_seconds'] for p in good],label=method,color=colors[method])
+            axis.set(title=f'{family}: {dict(fixed)}',xlabel={'grid':'Grid cells','cars':'Cars','rounds':'Actual stages'}[parameter],ylabel='Total MC seconds')
+            axis.set_yscale('symlog',linthresh=1); axis.legend(); fig.tight_layout()
+            filename=f'{number:05d}_{parameter}.png'; fig.savefig(slice_dir/filename,dpi=120); plt.close(fig)
+            manifest.append(dict(family=family,axis=parameter,fixed=dict(fixed),plot=filename))
+        (slice_dir/'index.json').write_text(json.dumps(manifest,indent=2))
 
 
 def main():

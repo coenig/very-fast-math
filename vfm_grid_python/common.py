@@ -78,9 +78,13 @@ def execute(command, cwd, log, timeout):
             "returncode": returncode, "seconds": time.monotonic() - started}
 
 
-def check(model, bound=100, timeout=1800, temporal=False):
+def check(model, bound=100, timeout=1800, temporal=False, *, backend="smt"):
     if bound < 0 or timeout <= 0:
         raise ValueError("bound must be non-negative and timeout must be positive")
+    if backend not in ("smt", "sat"):
+        raise ValueError("backend must be smt or sat")
+    if backend == "sat" and temporal:
+        raise ValueError("SAT backend is currently supported for finite invariant models only")
     model = Path(model).resolve()
     xml = model.parent / "trace.xml"
     txt = model.parent / "debug_trace_array.txt"
@@ -89,12 +93,16 @@ def check(model, bound=100, timeout=1800, temporal=False):
         raise FileExistsError(f"trace outputs already exist in {model.parent}; use a new directory")
     command = (f"msat_check_ltlspec_sbmc_inc -k {bound} -n 0" if temporal else
                f"msat_check_invar_bmc -a falsification -k {bound} -n 0")
+    setup_command = "go_msat"
+    if backend == "sat":
+        setup_command = "go_bmc"
+        command = f"check_invar_bmc_inc -a falsification -k {bound} -n 0"
     script = model.parent / "check.cmd"
-    script.write_text(f'go_msat\n{command}\nshow_traces -p 6 -o trace.xml 1\n'
+    script.write_text(f'{setup_command}\n{command}\nshow_traces -p 6 -o trace.xml 1\n'
                       'show_traces -o debug_trace_array.txt 1\nquit\n')
     from .benchmark_timing import JOURNAL, interactive_check
     if os.environ.get(JOURNAL):
-        result = interactive_check(model, command, timeout)
+        result = interactive_check(model, command, timeout, setup_command=setup_command)
     else:
         result = execute(["nuXmv", "-quiet", "-pre", "cpp", "-source", str(script),
                           model.name], model.parent, model.parent / "checking.log", timeout)
@@ -106,7 +114,7 @@ def check(model, bound=100, timeout=1800, temporal=False):
         result["status"] = "witness"
     elif result["status"] != "timeout":
         result["status"] = ("no_witness_within_bound" if
-                            "no counterexample found with bound" in log.lower() else "error")
+                            re.search(r"no (?:proof or )?counterexample found with bound", log, re.I) else "error")
     result["bound"] = bound
     dump(model.parent / "check_result.json", result)
     print(f"{model.parent.name}: {result['status']} ({result['seconds']:.2f}s)", flush=True)
@@ -120,6 +128,10 @@ def grid_edges(rows, columns):
 
 
 def config_args(parser):
+    parser.add_argument('--junction-extension', action='store_true',
+                        help='allow shared nodes with independent approach-aware corridors')
+    parser.add_argument('--junction-policy', choices=('independent_corridors','endpoint','endpoint_turns'),
+                        help='enable shared nodes; endpoint uses native collisions; endpoint_turns also permits local endpoint changes')
     parser.add_argument('--semantics',choices=('legacy','stable_concurrent'))
     parser.add_argument("--config", type=Path, help="JSON configuration (optional)")
     parser.add_argument("--rows", type=int)
@@ -135,6 +147,10 @@ def config_args(parser):
 def load_config(args):
     config = json.loads(args.config.read_text()) if args.config else {}
     if getattr(args,'semantics',None): config['semantics']=args.semantics
+    if getattr(args,'junction_extension',False): config['junction_extension']=True
+    if getattr(args,'junction_policy',None):
+        config['junction_extension']=config.get('junction_extension') or True
+        config['junction_policy']=args.junction_policy
     for key in ("rows", "columns", "cars", "parkings"):
         if getattr(args, key) is not None:
             config[key] = getattr(args, key)

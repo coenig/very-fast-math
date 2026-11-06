@@ -19,9 +19,10 @@ from .local_model import (GeometryIndex, OCCUPANCY, flatten, flat_body, global_s
 
 
 def handoff_stop_cars(left, right, following, next_milestone=None):
-    """No artificial rest boundaries; parking observation still requires v=0.
+    """Legacy policy: no artificial rest boundaries; parking requires v=0.
 
     Length-dependent limits and the two-goal window constrain continuation.
+    Attachment-aware runs separately require rest for prescribed abstract holds.
     Kept as the policy hook for callers inspecting the handoff requirements.
     """
     return []
@@ -52,15 +53,21 @@ def step_constraints(left, right, geometry,following=None,collisions=True):
 def write_step(text, variables, geometry, mapping, left, right, previous, directory,
                rejected=(),require_transition=True,following=None,stop_cars=(),
                scenario_phase=None, initial_scenario_phase=None, contract_graph=None,
-               lookahead=None):
+               lookahead=None, junction=None, certificate_braking=None):
     from .stable import observation, support
     if lookahead is not None and contract_graph:
         raise ValueError('lookahead is only supported for legacy semantics')
-    observe=(lambda g,c,n,stopped=False: observation(g,c,n,contract_graph)) if contract_graph else location_expression
+    observe=(lambda g,c,n,stopped=False: observation(g,c,n,contract_graph)) if contract_graph else (
+        lambda g,c,n,stopped=False: location_expression(g,c,n,stopped,section_only=True))
+    if junction is not None:
+        from .junctions import observe as junction_observe, support as junction_support, resting_at
+    strict_holds = junction is not None and junction.get('stationary_holds', False)
     initial={}
     model=flat_body(text,resumed=previous is not None)
     if previous is None:
-        model+='\n'.join('INIT '+observe(geometry,c,n,stopped=True)+';'
+        model+='\n'.join('INIT '+(resting_at(geometry,c,n,junction['left'][c]) if strict_holds else
+                                  junction_observe(geometry,c,n,junction['left'][c],stopped=True)
+                                  if junction is not None else observe(geometry,c,n,stopped=True))+';'
                           for c,n in enumerate(left))+'\n'
         counter=0
         if initial_scenario_phase is not None:
@@ -69,7 +76,17 @@ def write_step(text, variables, geometry, mapping, left, right, previous, direct
         initial=handoff(previous,variables,mapping)
         model+='\n'.join(f'INIT {k} = {v};' for k,v in initial.items())+'\n'
         counter=int(previous['env.cnt'])
-    if contract_graph:
+    if junction is not None:
+        stages=[(left,right,junction['left'],junction['right'])]
+        if lookahead is not None:
+            stages.append((right,lookahead['target'],junction['right'],lookahead['approaches']))
+        for phase,(source,destination,ports,arrivals) in enumerate(stages):
+            guard=('TRUE' if lookahead is None else
+                   'lookahead_phase = 0' if phase == 0 else 'lookahead_phase >= 1')
+            for car,(u,v) in enumerate(zip(source,destination)):
+                model+=f'INVAR ({guard}) -> {junction_support(geometry,car,u,ports[car],v,arrivals[car],stationary_holds=strict_holds)};\n'
+        model+=collision_constraints(geometry,len(left))
+    elif contract_graph:
         model+='\n'.join('INVAR '+support(geometry,c,u,v,contract_graph)+';' for c,(u,v) in enumerate(zip(left,right)))+'\n'
         model+=collision_constraints(geometry,len(left))
     elif lookahead is not None:
@@ -89,31 +106,46 @@ def write_step(text, variables, geometry, mapping, left, right, previous, direct
         assignment=handoff(terminal,variables,mapping)
         model+='INVAR !'+both([f'{name} = {value}' for name,value in assignment.items()])+';\n'
     dump(directory/'initial_state.json',initial)
-    target=both([observe(geometry,c,n) for c,n in enumerate(right)])
+    target=both([(junction_observe(geometry,c,n,junction['right'][c]) if junction is not None
+                  else observe(geometry,c,n)) for c,n in enumerate(right)])
     if contract_graph and scenario_phase is not None:
         model+=f'TRANS next({target}) -> next(scenario_phase) = {scenario_phase};\n'
     target=both([target]+[f'env.veh___6{c}9___.v = 0 & env.veh___6{c}9___.a = 0' for c in stop_cars])
     if scenario_phase is not None:
         target=both([target, f'scenario_phase = {scenario_phase}'])
+    if certificate_braking is not None and lookahead is None:
+        # No next route exists at the last milestone: accept a resting terminal
+        # state instead of certifying a discarded continuation beyond the goal.
+        from .braking_certificate import rest
+        target=both([target, rest(len(right))])
     dump(directory/'target.json',{'source':left,'target':right,'predicate':target,'after_tick':counter,
                                 'stopped_cars':list(stop_cars)})
     # The existing concrete clock enforces a real transition, even for repeats.
     progress=f' & env.cnt > {counter}' if require_transition else ''
     reach=f'INVARSPEC !({target}{progress});\n'
     if lookahead is not None:
-        final=both([observe(geometry,c,n) for c,n in enumerate(lookahead['target'])]+
+        final=both([(junction_observe(geometry,c,n,lookahead['approaches'][c]) if junction is not None
+                     else observe(geometry,c,n)) for c,n in enumerate(lookahead['target'])]+
                    [f'env.veh___6{c}9___.v = 0 & env.veh___6{c}9___.a = 0'
                     for c in lookahead['stop_cars']])
         if lookahead.get('scenario_phase') is not None:
             final=both([final,f"scenario_phase = {lookahead['scenario_phase']}"])
-        model+=('VAR lookahead_phase : 0..2;\nASSIGN init(lookahead_phase) := 0;\n'
+        certified = certificate_braking is not None
+        accepted_phase = 3 if certified else 2
+        braking_phase = ''
+        if certified:
+            from .braking_certificate import rest, encoding
+            model += encoding(len(right), certificate_braking)
+            braking_phase = f'lookahead_phase = 1 & next({rest(len(right))}) : 2;\n'
+        model+=(f'VAR lookahead_phase : 0..{accepted_phase};\nASSIGN init(lookahead_phase) := 0;\n'
                 'next(lookahead_phase) := case\n'
                 f'lookahead_phase = 0 & next({target}) : 1;\n'
-                f'lookahead_phase = 1 & next({final}) : 2;\n'
+                + braking_phase +
+                f'lookahead_phase = {accepted_phase - 1} & next({final}) : {accepted_phase};\n'
                 'TRUE : lookahead_phase; esac;\n')
-        reach='INVARSPEC lookahead_phase != 2;\n'
+        reach=f'INVARSPEC lookahead_phase != {accepted_phase};\n'
         dump(directory/'lookahead.json',dict(lookahead, handoff_predicate=target,
-                                           final_predicate=final))
+                                           final_predicate=final, certificate_braking=certificate_braking))
     (directory/'segment.smv').write_text(model+reach)
     sanity=directory/'initial_check'
     sanity.mkdir()
@@ -130,8 +162,17 @@ or on the query boundary. This matches the segment and global model guards.
 """
     milestones=graph['milestones']; kinds={n['id']:n['kind'] for n in geometry['nodes']}
     connectors={(c['from'],c['to']):c['node'] for c in geometry['connections']}
-    def observed(frame,car,node):
+    def observed(frame,car,node,milestone):
         p=f'env.veh___6{car}9___.'; s=int(frame[p+'on_straight_section'])
+        if graph.get('junction_extension'):
+            from .junctions import section_for, holding_cars
+            section=section_for(geometry,node,graph['approaches'][milestone][car])
+            pos=section['length'] if section['edge'][1]==node else 0
+            if graph.get('stationary_holds') and car in holding_cars(graph,milestone):
+                if int(frame[p+'v']) != 0 or int(frame[p+'a']) != 0:
+                    return False
+            return (s==section['id'] and int(frame[p+'abs_pos'])==pos and
+                    (kinds[node]!='P' or int(frame[p+'v'])==0))
         if graph.get('semantics')=='stable_concurrent':
             from .stable import anchors
             neighbour=anchors(graph)[node]
@@ -139,6 +180,8 @@ or on the query boundary. This matches the segment and global model guards.
             pos=section['length'] if section['edge'][1]==node else 0
             return s==section['id'] and int(frame[p+'abs_pos'])==pos and int(frame[p+'v'])==0 and int(frame[p+'a'])==0
         if s<0:
+            if graph.get('section_only_milestones', False):
+                return False
             return kinds[node]=='N' and connectors.get((int(frame[p+'traversion_from']),int(frame[p+'traversion_to'])))==node
         section=geometry['sections'][s]; pos=int(frame[p+'abs_pos'])
         at=(section['edge'][0]==node and pos==0) or (section['edge'][1]==node and pos==section['length'])
@@ -148,7 +191,7 @@ or on the query boundary. This matches the segment and global model guards.
         stage_matches = (graph.get('scenario_phases') is None or
                          (phase+1<len(milestones) and
                           int(frame['scenario_phase']) == graph['scenario_phases'][phase+1]))
-        if tick and phase+1<len(milestones) and stage_matches and all(observed(frame,c,n) for c,n in enumerate(milestones[phase+1])):
+        if tick and phase+1<len(milestones) and stage_matches and all(observed(frame,c,n,phase+1) for c,n in enumerate(milestones[phase+1])):
             phase+=1
         frame['refinement_phase']=str(phase)
 
@@ -288,6 +331,10 @@ def global_inventory(graph,geometry,config,output,template_config,timeout,model=
 
 
 def validate_graph(graph):
+    from .junctions import enabled as shared_enabled, validate_witness
+    if shared_enabled(graph):
+        validate_witness(graph)
+        return
     milestones=graph['milestones']
     if not milestones or not milestones[0]: raise ValueError('empty abstract witness')
     cars=len(milestones[0]); edges={frozenset(e) for e in graph['edges']}
@@ -321,7 +368,7 @@ def replay(full_model,frames,geometry,output,timeout):
 def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length=7,
         radius=6,template_config=ROOT/'main_template.json',gif=True,generate_only=False,
         replay_model=None,validation_model=None,backtracks=0,model_cache=None,lookahead=True,
-        max_speed=None,braking_margin=0,braking_check_only=False):
+        max_speed=None,braking_margin=0,braking_check_only=False,braking_certificate=False):
     if generate_only: raise ValueError('sequential-local requires checking to determine subsequent initial states')
     if bound<1 or timeout<=0: raise ValueError('bound must be >=1 and timeout >0')
     if backtracks<0: raise ValueError('backtracks must be nonnegative')
@@ -330,12 +377,21 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
     output.mkdir(parents=True,exist_ok=True)
     started=time.perf_counter()
     graph=json.loads((abstract_run/'selected_graph.json').read_text())
+    # Persist the boundary policy for global replay, validation and finalization.
+    # Archived runs without this flag retain their original observation semantics.
+    graph['section_only_milestones']=True
     config=json.loads((abstract_run/'config.json').read_text())
+    from .junctions import enabled as shared_enabled, section_for, enable_stationary_holds, holding_cars
+    shared=shared_enabled(graph)
+    if shared:
+        enable_stationary_holds(graph)
     from .braking import with_speed, preflight
     config=with_speed(config,max_speed)
     config['braking_margin']=braking_margin
     validate_graph(graph)
     stable=config.get('semantics')=='stable_concurrent'
+    if braking_certificate and (not lookahead or stable):
+        raise ValueError('braking certificate requires lookahead and non-stable semantics')
     if stable:
         from .stable import profile,validate_witness
         if graph.get('semantics')!='stable_concurrent': raise ValueError('abstract witness has no stable contract')
@@ -355,7 +411,10 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
     dump(output/'selected_graph.json',graph)
     dump(output/'config.json',{**config,'abstract_run':str(abstract_run),'bound':bound,'timeout':timeout,
                              'strategy':'sequential-local','vfm':config.get('vfm',{}),
+                             'section_only_milestones':True,
+                             'stationary_holds':bool(shared),
                              'lookahead':bool(lookahead and not stable),
+                             'braking_certificate':braking_certificate,
                              'backtracks':backtracks,'model_cache':str(model_cache) if model_cache else None})
     report=preflight(geometry,config,template_config,output,braking_margin)
     if not report['passed'] or braking_check_only:
@@ -365,8 +424,13 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
         dump(output/'result.json',summary)
         return summary
     index=GeometryIndex(geometry)
+    certificate_braking=report['braking_mps2'] if braking_certificate else None
+    if braking_certificate:
+        print('Joint braking certificates enabled; braking suffixes are checked but not committed.',flush=True)
     summary={'status':'running','strategy':'sequential-local','segments':[],
+             'stationary_holds':bool(shared),
              'lookahead':bool(lookahead and not stable),
+             'braking_certificate':braking_certificate,
              'geometry_seconds':geometry_seconds,
              'generation_seconds':0.0,'flatten_seconds':0.0,'initial_check_seconds':0.0,
              'checking_seconds':0.0,'validation_seconds':0.0,'rendering_seconds':0.0,
@@ -392,6 +456,8 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
             stop_cars=handoff_stop_cars(
                 left,right,following,
                 milestones[i+2] if i+2<len(milestones) else None)
+            if shared:
+                stop_cars=holding_cars(graph,min(i+1,len(milestones)-1))
             preview=None
             incoming=[next((m[c] for m in reversed(milestones[:i]) if m[c]!=u),u)
                       for c,u in enumerate(left)]
@@ -403,16 +469,25 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
                     stop_cars=handoff_stop_cars(right,future,onward,
                         milestones[i+3] if i+3<len(milestones) else None),
                     scenario_phase=graph['scenario_phases'][i+2] if config.get('scenario_stages') else None)
+                if shared:
+                    preview['approaches']=graph['approaches'][i+2]
+                    preview['stop_cars']=holding_cars(graph,i+2)
             attempt=attempts.get(i,0); attempts[i]=attempt+1
             suffix=f'_attempt_{attempt:02d}' if attempt else ''
             step=output/f'segment_{i:04d}{suffix}'; step.mkdir()
             record={'index':i,'attempt':attempt,'directory':str(step),'status':'running'}
             summary['segments'].append(record)
             dump(output/'result.json',summary)
+            retained=retained_support.get(i)
+            if shared:
+                retained=[set(s) for s in retained] if retained is not None else [set() for _ in left]
+                for stage in range(i,min(i+3,len(milestones))):
+                    for car,node in enumerate(milestones[stage]):
+                        retained[car].add(section_for(geometry,node,graph['approaches'][stage][car])['id'])
             local,mapping=index.select(left,right,previous,following=None if stable else following,
                                        incoming=incoming if lookahead and not stable else None,
                                        continuation=(preview['target'],preview['following']) if preview else None,
-                                       retained_sections=retained_support.get(i))
+                                       retained_sections=retained)
             dump(step/'retained_sections.json',retained_support.get(i,[]))
             dump(step/'geometry.json',local); dump(step/'mapping.json',mapping)
             record.update(sections=len(local['sections']),connectors=len(local['connections']))
@@ -457,7 +532,11 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
                                                if config.get('scenario_stages') else None),
                                initial_scenario_phase=(graph['scenario_phases'][0]
                                                        if config.get('scenario_stages') else None),
-                               contract_graph=graph if stable else None,lookahead=preview)
+                               contract_graph=graph if stable else None,lookahead=preview,
+                               junction=({'left':graph['approaches'][i],
+                                          'stationary_holds':True,
+                                          'right':graph['approaches'][min(i+1,len(milestones)-1)]}
+                                         if shared else None), certificate_braking=certificate_braking)
             initial_result=check(step/'initial_check/initial.smv',0,timeout)
             summary['initial_check_seconds']+=initial_result['seconds']
             record['initial_check']=initial_result
@@ -494,10 +573,15 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
                 summary['status']=result['status']; break
             local_frames=states(step/'trace.xml')
             if preview is not None:
-                if local_frames[-1].get('lookahead_phase')!='2':
+                if local_frames[-1].get('lookahead_phase')!=('3' if braking_certificate else '2'):
                     raise ValueError('lookahead witness did not reach its second goal')
                 cut=next(j for j,s in enumerate(local_frames) if s.get('lookahead_phase')=='1')
                 record.update(lookahead_states=len(local_frames),handoff_index=cut)
+                if braking_certificate:
+                    from .braking_certificate import validate as validate_certificate
+                    certificate=validate_certificate(local_frames,len(left),certificate_braking)
+                    record['braking_certificate']=certificate
+                    dump(step/'braking_certificate.json',certificate)
                 retained_support[i+1]=continuation_sections(local_frames[cut:],mapping,len(left))
                 dump(step/'continuation_sections.json',retained_support[i+1])
                 # Keep the exact witnessed boundary; the proven continuation is
@@ -539,7 +623,11 @@ def run(abstract_run,output,bound=200,timeout=1800,road_length=20,parking_length
         if summary['segments']: summary['segments'][-1].update(status='error',error=str(exc))
     if frames:
         complete=summary['status']=='witness'
-        partial_graph={**graph,'milestones':milestones[:int(frames[-1]['refinement_phase'])+1]}
+        prefix_length=int(frames[-1]['refinement_phase'])+1
+        partial_graph={**graph,'milestones':milestones[:prefix_length]}
+        for history in ('approaches','scenario_phases'):
+            if history in graph:
+                partial_graph[history]=graph[history][:prefix_length]
         annotate_monitor(frames,graph if complete else partial_graph,geometry)
         xml=export_trace(frames,geometry,output,False)
         summary['time_to_prefix_seconds']=time.perf_counter()-started
@@ -596,13 +684,16 @@ def main():
     p.add_argument('--model-cache',type=Path,
                    help='reuse completed local models from a previous run/models directory using the same VFM build/templates')
     p.add_argument('--no-lookahead',action='store_true',help='disable the default two-goal window for legacy refinement')
+    p.add_argument('--braking-certificate',action='store_true',
+                   help='certify joint braking on the next permitted routes before committing each handoff; final goal must be at rest')
     arguments(p)
     a=p.parse_args()
     result=run(a.abstract_run,a.output_dir,a.concrete_bound,a.timeout,a.road_length,a.parking_length,
                a.junction_radius,a.template_config,not a.no_gif,replay_model=a.replay_model,
                validation_model=a.validation_model,backtracks=a.backtracks,model_cache=a.model_cache,
                lookahead=not a.no_lookahead,max_speed=a.max_speed,
-               braking_margin=a.braking_margin,braking_check_only=a.braking_check_only)
+               braking_margin=a.braking_margin,braking_check_only=a.braking_check_only,
+               braking_certificate=a.braking_certificate)
     return 0 if result['status'] in ('witness','braking_checked') else 2
 
 

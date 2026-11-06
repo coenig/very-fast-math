@@ -72,7 +72,7 @@ def totals(path, stopped_at=None, phase=None):
     return result
 
 
-def interactive_check(model, command, timeout):
+def interactive_check(model, command, timeout, *, setup_command="go_msat"):
     """Time actual interactive solver commands, not the whole nuXmv process."""
     started = time.monotonic()
     deadline = started + remaining(timeout)
@@ -119,7 +119,7 @@ def interactive_check(model, command, timeout):
                 durations[category + "_seconds"] = time.monotonic() - begin
 
         try:
-            phase("setup", ["go_msat"], initial=True)
+            phase("setup", [setup_command], initial=True)
             phase("model_checking", [command])
             phase("trace_export", ["show_traces -p 6 -o trace.xml 1",
                                     "show_traces -o debug_trace_array.txt 1"])

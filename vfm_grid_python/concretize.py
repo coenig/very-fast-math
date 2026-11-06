@@ -14,9 +14,14 @@ from .endpoint import movement, collision_constraints
 
 
 def monitor(graph, geometry):
+    from .junctions import enabled as shared_enabled, monitor as shared_monitor
+    if shared_enabled(graph):
+        return shared_monitor(graph, geometry)
     from .stable import enabled, observation, support
     stable=enabled(graph)
-    observe=(lambda g,c,n,stopped=False: observation(g,c,n,graph)) if stable else location_expression
+    observe=(lambda g,c,n,stopped=False: observation(g,c,n,graph)) if stable else (
+        lambda g,c,n,stopped=False: location_expression(g,c,n,stopped,
+            section_only=graph.get('section_only_milestones', False)))
     milestones = graph["milestones"]
     cars = len(milestones[0])
     if not milestones or any(len(m) != cars for m in milestones):
@@ -105,6 +110,11 @@ def _worker(output):
     from .braking import effective_parameters, speed_constraints
     parameters = effective_parameters(job['template_config'], overrides,
         job.get('semantics') == 'stable_concurrent' or graph.get('semantics') == 'stable_concurrent')
+    from .junctions import enabled as shared_enabled, check_vehicle_profile
+    if shared_enabled(geometry):
+        template = json.loads(Path(job['template_config']).read_text())['_config']
+        check_vehicle_profile(geometry, parameters,
+                              overrides.get('VEHICLE_WIDTH', template.get('VEHICLE_WIDTH', 185)))
     limits, braking_report = speed_constraints(geometry, cars, parameters,
         job.get('braking_margin', 0), symbolic=job.get('symbolic_endpoint', False))
     config['ENDPOINT_TRANSITIONS'] += '\n' + limits
@@ -168,6 +178,9 @@ def run(abstract_run, output, bound=200, timeout=1800, road_length=20, parking_l
         max_speed=None, braking_margin=0, braking_check_only=False):
     abstract_run, output = Path(abstract_run).resolve(), Path(output).resolve()
     graph = json.loads((abstract_run / "selected_graph.json").read_text())
+    if graph.get('junction_extension'):
+        from .junctions import enable_stationary_holds
+        enable_stationary_holds(graph)
     abstract_config = json.loads((abstract_run / "config.json").read_text())
     from .braking import with_speed, preflight
     abstract_config = with_speed(abstract_config, max_speed)

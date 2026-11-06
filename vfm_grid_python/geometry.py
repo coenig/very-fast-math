@@ -92,13 +92,22 @@ def build(graph, road_length=20, parking_length=7, radius=6):
         s["angle"]=(s["angle"]-rotation)%360
     for c in connections:
         c["curve"]=[transform(p) for p in c["curve"]]
-    return {"schema": "vfm_grid_python.endpoint.v1", "road_length": road_length,
+    result = {"schema": "vfm_grid_python.endpoint.v1", "road_length": road_length,
             "parking_length": parking_length, "junction_radius": radius,
             "nodes": list(nodes.values()), "centers": centers,
             "sections": sections, "connections": connections}
+    from .junctions import enabled, attach
+    if enabled(graph):
+        attach(result, graph)
+    return result
 
 
-def location_expression(geometry, car, node, stopped=False):
+def location_expression(geometry, car, node, stopped=False, *, section_only=False):
+    """Observe a node at its endpoints, optionally also inside its connectors.
+
+    Section-only observations are for milestone boundaries, not route support.
+    Arbitrary interiors would identify both ends of the same abstract edge.
+    """
     from .common import either
     prefix = f"env.veh___6{car}9___"
     parts = []
@@ -108,7 +117,7 @@ def location_expression(geometry, car, node, stopped=False):
             position = s["length"] if node == s["edge"][1] else 0
             parts.append(f"{prefix}.on_straight_section = {s['id']} & {prefix}.abs_pos = {position}")
     for c in geometry["connections"]:
-        if c["node"] == node:
+        if not section_only and c["node"] == node:
             parts.append(f"{prefix}.traversion_from = {c['from']} & {prefix}.traversion_to = {c['to']}")
     result = either(parts)
     if stopped or kind == "P":

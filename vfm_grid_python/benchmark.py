@@ -1,4 +1,4 @@
-"""Checkpointed three-way endpoint-grid benchmarks; rendering is excluded."""
+"""Checkpointed four-way endpoint-grid benchmarks; rendering is excluded."""
 from __future__ import annotations
 
 import argparse
@@ -25,6 +25,9 @@ SCHEMA = "endpoint-benchmark.v1"
 
 def catalog(path):
     raw = tomllib.loads(Path(path).read_text())
+    if 'adaptive' in raw:
+        from .adaptive_benchmark import expand
+        return expand(raw)[0]
     result, identifiers = [], set()
     for entry in raw.get("scenario", []):
         variants = [dict(entry, variant_id="base")]
@@ -176,6 +179,8 @@ def run_job(job):
                   validation_seconds=timing.get('validation',0.),preprocessing_seconds=timing.get('preprocessing',0.),
                   time_to_validated_xml_seconds=(result.get('validated_at_monotonic',stop)-start)
                                                if result.get("validated") else None)
+    for name in ('stage_count','property_size_chars','scaling_indices','sweep_family','abstract_bound','concrete_bound'):
+        if name in job['case']: result[name]=job['case'][name]
     # A returned partial prefix is never a successful benchmark witness.
     if result["status"] == "witness" and not result.get("validated"):
         result["status"] = "unvalidated_witness"
@@ -199,13 +204,17 @@ def main():
     parser.add_argument("--output-dir",type=Path,required=True)
     parser.add_argument("--method",choices=METHODS,nargs="+",default=list(AVAILABLE))
     parser.add_argument("--only",nargs="+")
-    parser.add_argument("--timeout",type=float,default=1800)
+    parser.add_argument("--timeout",type=float,default=None)
     parser.add_argument("--parallel",type=int,default=1)
     parser.add_argument("--seed",type=int,default=0)
     parser.add_argument("--resume",action="store_true")
     parser.add_argument('--semantics',choices=('legacy','stable_concurrent'),help='override catalog semantics for a new campaign')
     parser.add_argument("--list",action="store_true",help="validate and list cases without running")
     args=parser.parse_args()
+    raw_catalog=tomllib.loads(args.catalog.read_text())
+    adaptive='adaptive' in raw_catalog
+    if args.timeout is None:
+        args.timeout=raw_catalog.get('timeout',3600 if adaptive else 1800)
     if args.timeout<=0 or args.parallel<1:
         parser.error("timeout and parallel must be positive")
     cases=catalog(args.catalog)
@@ -218,7 +227,8 @@ def main():
     if args.list:
         for case in cases:
             c=case["config"]
-            print(f"{case['id']}: {c['rows']}x{c['columns']}, {c['cars']} cars, {case['repetitions']} repetitions")
+            print(f"{case['id']}: {c['rows']}x{c['columns']}, {c['cars']} cars, {case['repetitions']} rounds, {len(c['scenario_stages'])} stages")
+        print(f'{len(cases)} cases; up to {len(cases)*len(args.method)} jobs before pruning; {args.timeout:g}s per job')
         return 0
     output=args.output_dir.resolve()
     if output.exists() and not args.resume:
@@ -239,14 +249,27 @@ def main():
         if not manifest_path.exists() or json.loads(manifest_path.read_text())!=manifest:
             parser.error("resume manifest differs (cases, settings, revision, or build)")
     else: dump(manifest_path,manifest)
-    todo=[]
+    if adaptive:
+        from .adaptive_benchmark import expand
+        dump(output/'excluded.json',expand(raw_catalog)[1])
+    todo=[]; completed=[]
     for job in jobs:
         directory=Path(job["directory"])
-        if (directory/"result.json").exists(): continue
+        if (directory/"result.json").exists():
+            completed.append(json.loads((directory/'result.json').read_text()))
+            continue
         if directory.exists():
             parser.error(f"unfinished attempt exists: {directory}; preserve it and use a new output directory")
         directory.parent.mkdir(parents=True,exist_ok=True)
         todo.append(job)
+    def save(result):
+        with (output/'results.jsonl').open('a') as stream:
+            stream.write(json.dumps(result)+'\n')
+        print(f"{result['instance']}/{result['method']}: {result['status']} ({result['wall_seconds']:.2f}s)",flush=True)
+    if adaptive:
+        from .adaptive_benchmark import schedule
+        schedule(todo,completed,args.parallel,run_job,save)
+        return 0
     with ThreadPoolExecutor(max_workers=args.parallel) as pool:
         for future in as_completed([pool.submit(run_job,job) for job in todo]):
             result=future.result()

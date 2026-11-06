@@ -8,13 +8,21 @@ from .common import both, either, grid_edges, dump, states, check, config_args, 
 
 
 def validate(config):
+    from .junctions import enabled as shared_enabled, profile, DIRECTIONS
+    shared = shared_enabled(config)
+    if 'junction_policy' in config and not shared:
+        raise ValueError('junction_policy requires junction_extension')
+    if shared:
+        profile(config)
+    if config.get('junction_policy') == 'endpoint_turns' and config.get('desired_ltl'):
+        raise ValueError('endpoint_turns currently supports scenario_stages or all_parked, not raw desired_ltl')
     for key in ("rows", "columns", "cars"):
         if type(config[key]) is not int or config[key] < 1:
             raise ValueError(f"{key} must be a positive integer")
     count = config["rows"] * config["columns"]
     if type(config.get("distinct_goals", True)) is not bool:
         raise ValueError("distinct_goals must be boolean")
-    if config["cars"] >= count:
+    if not shared and config["cars"] >= count:
         raise ValueError("at least one empty node is required")
     if "parkings" in config and (type(config["parkings"]) is not int or
             not (config["cars"] if config.get("distinct_goals", True) else 1) <= config["parkings"] < count):
@@ -22,9 +30,13 @@ def validate(config):
     for key in ("starts", "goals"):
         values = config.get(key)
         if values is not None and (len(values) != config["cars"] or
-                ((key == "starts" or config.get("distinct_goals", True)) and len(set(values)) != len(values)) or
+                (((key == "starts" and not shared) or (key == "goals" and config.get("distinct_goals", True))) and len(set(values)) != len(values)) or
                 any(type(v) is not int or not 0 <= v < count for v in values)):
             raise ValueError(f"{key} must give distinct valid node IDs, one per car")
+    if 'start_approaches' in config and (not shared or
+            len(config['start_approaches']) != config['cars'] or
+            any(p not in DIRECTIONS for p in config['start_approaches'])):
+        raise ValueError('start_approaches requires junction_extension and one cardinal approach per car')
     for node, kind in config.get("labels", {}).items():
         if not 0 <= int(node) < count or kind not in ("N", "P"):
             raise ValueError("labels map valid node IDs to N or P")
@@ -42,6 +54,8 @@ def validate(config):
 def render(config):
     validate(config)
     from .stable import enabled, abstract_guards
+    from .junctions import enabled as shared_enabled
+    shared = shared_enabled(config)
     n, cars = config["rows"] * config["columns"], config["cars"]
     edges = grid_edges(config["rows"], config["columns"])
     lines = ["MODULE main", "FROZENVAR"]
@@ -105,13 +119,19 @@ def render(config):
             moves += [f"edge_{u}_{v} & loc_{i} = {a} & next(loc_{i}) = {b}" for a, b in ((u,v),(v,u))]
         lines += ["TRANS " + either(moves) + ";"]
         for j in range(i):
-            lines += [f"INVAR loc_{i} != loc_{j};",
-                      f"TRANS !(next(loc_{i}) = loc_{j} & next(loc_{j}) = loc_{i});"]
+            if shared:
+                lines += [f"TRANS !(loc_{i} != loc_{j} & next(loc_{i}) = loc_{j} & next(loc_{j}) = loc_{i});"]
+            else:
+                lines += [f"INVAR loc_{i} != loc_{j};",
+                          f"TRANS !(next(loc_{i}) = loc_{j} & next(loc_{j}) = loc_{i});"]
             if config.get("distinct_goals", True):
                 lines += [f"INIT goal_{i} != goal_{j};"]
     lines += ["INIT " + expr + ";" for expr in config.get("initial_constraints", [])]
     lines += ["INVAR " + expr + ";" for expr in config.get("constraints", [])]
     if enabled(config): lines += [abstract_guards(config)]
+    if shared:
+        from .junctions import abstract_guards as junction_guards
+        lines += [junction_guards(config)]
     if config.get("scenario_stages"):
         if config.get("desired_ltl"):
             raise ValueError("choose either scenario_stages or desired_ltl")
@@ -149,6 +169,13 @@ def run(config, output, bound=100, timeout=1800, gif=True, visualize=True):
              "starts": [int(first[f"start_{i}"]) for i in range(config["cars"])],
              "roles": {name: int(first[f"role_{name}"]) for name in config.get("roles", {})},
              "milestones": [[int(s[f"loc_{i}"]) for i in range(config["cars"])] for s in trace]}
+    from .junctions import enabled as shared_enabled, profile, policy, validate_witness
+    if shared_enabled(config):
+        graph['junction_extension'] = profile(config)
+        graph['junction_policy'] = policy(config)
+        graph['section_only_milestones'] = True
+        graph['approaches'] = [[s[f'approach_{i}'] for i in range(config['cars'])] for s in trace]
+        dump(output/'junction_validation.json', validate_witness(graph))
     dump(output / "selected_graph.json", graph)
     if config.get('semantics') == 'stable_concurrent':
         from .stable import profile, anchors

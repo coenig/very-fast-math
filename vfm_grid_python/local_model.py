@@ -187,6 +187,10 @@ class GeometryIndex:
                     'nodes':[self.nodes[n] for n in nodes],
                     'centers':{n:transform(self.geometry['centers'][n]) for n in nodes},
                     'sections':sections,'connections':connections}
+        if 'junction_extension' in self.geometry:
+            geometry['junction_extension'] = deepcopy(self.geometry['junction_extension'])
+            if 'junction_policy' in self.geometry:
+                geometry['junction_policy'] = self.geometry['junction_policy']
         if following is not None:
             geometry['car_sections'] = [sorted(to_local[s] for s in support) for support in car_sections]
         mapping={'local_to_global':ids,'global_to_local':to_local,

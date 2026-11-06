@@ -55,7 +55,35 @@ def predicate(term, config, geometry=None, graph=None):
     if config.get('semantics') == 'stable_concurrent':
         from .stable import observation
         return observation(geometry,car,node,graph)
-    return location_expression(geometry, car, node)
+    return location_expression(geometry, car, node,
+                               section_only=config.get('junction_policy') == 'endpoint_turns')
+
+
+def motion_hold(term, config, negated=False, release='FALSE'):
+    """Conservative structural guard for pending conditions during a move.
+
+    A positive At atom needs a genuine hold. A negative At atom is stable if
+    the source is elsewhere and the destination is elsewhere or consumes the
+    awaited event (strong-until does not require its hold at that event).
+    Boolean structure is handled in negation normal form. For disjunctions we require one branch
+    to remain true throughout: this is deliberately conservative, not a claim
+    of complete temporal abstraction. Concrete checking still enforces the
+    original observer at every tick, including synchronized event arrivals.
+    """
+    # Reuse predicate validation, including car and symbolic-target checks.
+    predicate(term, config)
+    if type(term) is bool:
+        return 'TRUE' if term != negated else 'FALSE'
+    op, value = next(iter(term.items()))
+    if op == 'not':
+        return motion_hold(value, config, not negated, release)
+    if op in ('all', 'any'):
+        conjunction = (op == 'all') != negated
+        return (both if conjunction else either)([motion_hold(t, config, negated, release) for t in value])
+    car, target = value
+    if negated:
+        return f'(loc_{car} != {target} & (next(loc_{car}) != {target} | ({release})))'
+    return f'(loc_{car} = {target} & move_{car} = hold)'
 
 
 def observer(config, geometry=None, graph=None, boundary='TRUE'):
@@ -75,10 +103,15 @@ def observer(config, geometry=None, graph=None, boundary='TRUE'):
                     f"scenario_phase = {index} & ({hold}) & ({boundary}) & next(scenario_phase) = {index+1} & next({event})"]
     lines += ["TRANS " + either(options) + ";",
               f"DEFINE scenario_accepted := scenario_phase = {len(stages)};"]
+    if geometry is None and config.get('junction_policy') == 'endpoint_turns':
+        lines += [f'TRANS scenario_phase = {index} -> '
+                  f'{motion_hold(stage.get("hold", True), config, release=f"next(scenario_phase) = {index+1}")};'
+                  for index, stage in enumerate(stages)]
     return "\n".join(lines) + "\n"
 
 
 FAMILIES = (
+    "nearby_parking",
     "parking", "ordered_arrivals", "shared_gate", "two_shared_gates", "shared_bay",
     "foreign_yield", "fleet_yield", "row_reversal", "row_to_column", "row_to_column_reversed",
     "column_to_row", "parking_rotation",
@@ -90,6 +123,12 @@ def scenario(family, rows, columns, cars, repetitions=1, parkings=None, parking_
     """Construct symbolic scenarios; no cells or edges are fixed by a family."""
     if family not in FAMILIES:
         raise ValueError(f"unknown family: {family}")
+    if family == 'nearby_parking':
+        if (rows,columns,cars,repetitions) != (2,3,4,1):
+            raise ValueError('nearby_parking is the fixed 2x3, four-car, one-round sanity case')
+        import json
+        from .common import ROOT
+        return json.loads((ROOT/'parking_benchmark_scenarios/three_spots_nearby_2x3.json').read_text())
     if type(repetitions) is not int or repetitions < 1:
         raise ValueError("repetitions must be a positive integer")
     if family not in ("parking", "ordered_arrivals") and cars < 2:
