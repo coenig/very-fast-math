@@ -1,0 +1,42 @@
+property_source = "fleet_congestion"
+abstract_bound = 300
+concrete_bound = 1000
+timeout = 1200
+queue_solver = "sat"
+queue_transfer_encoding = "joint"
+queue_capacity_encoding = "arithmetic"
+
+[[family]]
+id = "arrival_rush"
+description = "Two unordered queues on arms of a common junction, then distinct parking goals."
+[[family]]
+id = "priority_passage"
+description = "Two queues, temporary foreign-bay occupation during another car's passage across a unique crossing, then park."
+[[family]]
+id = "bay_turnover"
+description = "Two queues, half the fleet temporarily occupies the other's bays while the latter queues, then all reach their own bays."
+
+[[scale]]
+id = "g4x4_c6"
+grid = [4, 4]
+cars = 6
+[[scale]]
+id = "g4x4_c7"
+grid = [4, 4]
+cars = 7
+[[scale]]
+id = "g4x4_c8"
+grid = [4, 4]
+cars = 8
+[[scale]]
+id = "g5x5_c6"
+grid = [5, 5]
+cars = 6
+[[scale]]
+id = "g5x5_c7"
+grid = [5, 5]
+cars = 7
+[[scale]]
+id = "g5x5_c8"
+grid = [5, 5]
+cars = 8

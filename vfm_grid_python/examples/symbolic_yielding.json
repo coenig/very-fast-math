@@ -1,8 +1,0 @@
-{
-  "rows": 2,
-  "columns": 3,
-  "cars": 2,
-  "parkings": 3,
-  "desired_ltl": "adjacent_0_1 & F (foreign_parked_0 & beside_start_0 & X ((foreign_parked_0 & beside_start_0) U (foreign_parked_0 & beside_start_0 & loc_1 = start_0 & X ((foreign_parked_0 & beside_start_0) U (foreign_parked_0 & beside_start_0 & loc_1 != start_0 & loc_1 != start_1 & X F all_parked)))))",
-  "vfm": {"LANES_MIN_SPEEDS": "@(-5)@", "LANES_MAX_SPEEDS": "@(5)@", "MAXSPEEDNONEGO": 5}
-}

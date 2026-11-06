@@ -1,0 +1,8 @@
+{
+  "rows": 2, "columns": 3, "cars": 2, "parkings": 2,
+  "distinct_starts": false,
+  "scenario_stages": [
+    {"event": {"queue": {"cars": [0, 1], "kind": "section", "ordered": false}}},
+    {"event": {"all": [{"at": [0, "goal_0"]}, {"at": [1, "goal_1"]}]}}
+  ]
+}

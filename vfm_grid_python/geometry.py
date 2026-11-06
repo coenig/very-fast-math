@@ -96,9 +96,6 @@ def build(graph, road_length=20, parking_length=7, radius=6):
             "parking_length": parking_length, "junction_radius": radius,
             "nodes": list(nodes.values()), "centers": centers,
             "sections": sections, "connections": connections}
-    from .junctions import enabled, attach
-    if enabled(graph):
-        attach(result, graph)
     return result
 
 

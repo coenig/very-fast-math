@@ -1,0 +1,4 @@
+{
+  "rows": 2, "columns": 2, "cars": 1, "parkings": 1,
+  "scenario_stages": [{"event": {"at": [0, "goal_0"]}}]
+}

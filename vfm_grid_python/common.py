@@ -106,7 +106,8 @@ def check(model, bound=100, timeout=1800, temporal=False, *, backend="smt"):
     else:
         result = execute(["nuXmv", "-quiet", "-pre", "cpp", "-source", str(script),
                           model.name], model.parent, model.parent / "checking.log", timeout)
-    log = (model.parent / "checking.log").read_text()
+    log_path = model.parent / "checking.log"
+    log = log_path.read_text() if log_path.exists() else ''
     invalid = re.search(r'"[^"\n]+" undefined|undefined symbol|syntax error|type error|invalid preprocessing directive|Division by non word expression',log,re.I)
     if invalid:
         result["status"] = "error"
@@ -125,35 +126,3 @@ def grid_edges(rows, columns):
     return [(u, v) for u in range(rows * columns)
             for v in (u + 1, u + columns)
             if v < rows * columns and (v == u + columns or u // columns == v // columns)]
-
-
-def config_args(parser):
-    parser.add_argument('--junction-extension', action='store_true',
-                        help='allow shared nodes with independent approach-aware corridors')
-    parser.add_argument('--junction-policy', choices=('independent_corridors','endpoint','endpoint_turns'),
-                        help='enable shared nodes; endpoint uses native collisions; endpoint_turns also permits local endpoint changes')
-    parser.add_argument('--semantics',choices=('legacy','stable_concurrent'))
-    parser.add_argument("--config", type=Path, help="JSON configuration (optional)")
-    parser.add_argument("--rows", type=int)
-    parser.add_argument("--columns", type=int)
-    parser.add_argument("--cars", type=int)
-    parser.add_argument("--parkings", type=int, help="exact number of symbolic parking nodes")
-    parser.add_argument("--bound", type=int, default=100)
-    parser.add_argument("--timeout", type=float, default=1800)
-    parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--no-gif", action="store_true")
-
-
-def load_config(args):
-    config = json.loads(args.config.read_text()) if args.config else {}
-    if getattr(args,'semantics',None): config['semantics']=args.semantics
-    if getattr(args,'junction_extension',False): config['junction_extension']=True
-    if getattr(args,'junction_policy',None):
-        config['junction_extension']=config.get('junction_extension') or True
-        config['junction_policy']=args.junction_policy
-    for key in ("rows", "columns", "cars", "parkings"):
-        if getattr(args, key) is not None:
-            config[key] = getattr(args, key)
-    for key, default in (("rows", 2), ("columns", 3), ("cars", 2)):
-        config.setdefault(key, default)
-    return config

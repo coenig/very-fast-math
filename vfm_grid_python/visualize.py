@@ -11,36 +11,6 @@ from .geometry import point
 from .common import states
 
 
-def abstract_plot(graph,output,gif=True):
-    fig,ax=plt.subplots(figsize=(8,5))
-    positions={n["id"]:(n["column"],-n["row"]) for n in graph["nodes"]}
-    for u,v in graph["edges"]:
-        ax.plot(*zip(positions[u],positions[v]),color="black",zorder=0)
-    for n in graph["nodes"]:
-        x,y=positions[n["id"]]
-        ax.scatter([x],[y],marker="s" if n["kind"]=="P" else "o",c="lightgreen" if n["kind"]=="P" else "lightgray",s=160)
-        roles = [name for name, node in graph.get("roles", {}).items() if node == n["id"]]
-        label = f"{n['kind']}{n['id']}" + (" [" + ", ".join(roles) + "]" if roles else "")
-        ax.annotate(label,(x,y),xytext=(6,8),textcoords="offset points",fontsize=8)
-    ax.set_aspect("equal"); ax.axis("off")
-    fig.savefig(Path(output)/"topology.png",dpi=150,bbox_inches="tight")
-    if gif:
-        dots=[ax.plot([],[],"o",label=f"car {i}")[0] for i in range(len(graph["milestones"][0]))]
-        ax.legend()
-        def update(frame):
-            for i,dot in enumerate(dots):
-                x,y=positions[graph["milestones"][frame][i]]
-                if graph.get('approaches'):
-                    from .junctions import DELTA
-                    dy,dx=DELTA[graph['approaches'][frame][i]]
-                    x,y=x+0.18*dx,y-0.18*dy
-                dot.set_data([x],[y])
-            ax.set_title(f"Abstract step {frame}; goals: {graph['goals']}")
-            return dots
-        FuncAnimation(fig,update,frames=len(graph["milestones"]),interval=500).save(Path(output)/"abstract.gif",writer=PillowWriter(fps=2))
-    plt.close(fig)
-
-
 def car_point(state,car,geometry):
     prefix=f"env.veh___6{car}9___"
     sec=int(state[f"{prefix}.on_straight_section"])
@@ -106,7 +76,8 @@ def main():
             if not trace.exists(): trace=None
         concrete_plot(json.loads(geometry.read_text()),args.run,trace)
     else:
-        abstract_plot(json.loads((args.run/"selected_graph.json").read_text()),args.run)
+        from .queue_visualize import draw
+        draw(args.run)
 
 
 if __name__=="__main__":

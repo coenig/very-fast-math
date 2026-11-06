@@ -1,7 +1,0 @@
-{
-  "rows": 3,
-  "columns": 5,
-  "cars": 2,
-  "parkings": 3,
-  "vfm": {"LANES_MIN_SPEEDS": "@(-5)@", "LANES_MAX_SPEEDS": "@(5)@"}
-}

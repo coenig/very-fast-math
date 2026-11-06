@@ -9,7 +9,7 @@ import argparse
 import json
 from pathlib import Path
 
-from .common import states
+from vfm_grid_python.common import states
 
 
 def draw(directory, gif=True):
