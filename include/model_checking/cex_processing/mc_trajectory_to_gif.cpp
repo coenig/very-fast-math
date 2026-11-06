@@ -455,6 +455,10 @@ void LiveSimGenerator::generate(
       if ((visu_type & LiveSimType::constant_image_output) && !(visu_type & LiveSimType::incremental_image_output)) {
          std::this_thread::sleep_for(std::chrono::milliseconds(250));
       }
+   
+      if (visu_type & LiveSimType::plain_road_no_cars) {
+         break; // Only first frame if plain road with no cars, since all will be idendical.
+      }
    }
 
    StaticHelper::removeFileSafe(morty_progress_path);
