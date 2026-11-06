@@ -2161,8 +2161,25 @@ std::string vfm::test::prepareOutputForMortyUCD(
    const std::string OUTPUT_BASE_PATH{ workflow.getGeneratedDir("./morty/", "envmodel_config.tpl.json").string() };
    const bool store_future_points{ !isMortyLiveMode() || StaticHelper::isBooleanTrue(
       workflow.getValueForJSONKeyAsString("UCD_USE_SHORTCUT", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE")) };
+   const nlohmann::json template_json{ workflow.getJSON("./morty/envmodel_config.tpl.json") };
+   const int position_tolerance{ template_json.contains("#TEMPLATE") && template_json["#TEMPLATE"].contains("UCD_SHORTCUT_POSITION_TOLERANCE")
+      && template_json["#TEMPLATE"]["UCD_SHORTCUT_POSITION_TOLERANCE"].is_number_integer()
+      ? (std::max)(0, template_json["#TEMPLATE"]["UCD_SHORTCUT_POSITION_TOLERANCE"].get<int>()) : 0 };
 
-   const auto points_equal = [](const std::string& p1, const std::string& p2) -> bool {
+   // Shortcut targets may miss the stored point by up to position_tolerance; such a point must still connect.
+   const auto lines_match = [position_tolerance](const std::string& l1, const std::string& l2) -> bool {
+      static const std::string POS{ ".abs_pos=" };
+      const auto p1{ l1.find(POS) };
+      const auto p2{ l2.find(POS) };
+      if (position_tolerance == 0 || p1 == std::string::npos || p2 == std::string::npos || l1.substr(0, p1) != l2.substr(0, p2)) return l1 == l2;
+      int v1{};
+      int v2{};
+      const auto r1{ std::from_chars(l1.data() + p1 + POS.size(), l1.data() + l1.size(), v1) };
+      const auto r2{ std::from_chars(l2.data() + p2 + POS.size(), l2.data() + l2.size(), v2) };
+      return r1.ec == std::errc{} && r2.ec == std::errc{} && std::abs(v1 - v2) <= position_tolerance;
+   };
+
+   const auto points_equal = [&lines_match](const std::string& p1, const std::string& p2) -> bool {
       auto split1 = StaticHelper::split(p1, "\n");
       auto split2 = StaticHelper::split(p2, "\n");
 
@@ -2173,7 +2190,7 @@ std::string vfm::test::prepareOutputForMortyUCD(
          // Match ".v " (dot-v-space) which uniquely identifies velocity lines
          // ("...___.v - (34)"); a plain ".v" would also match ".veh" and thus ignore ALL lines.
          if (!StaticHelper::stringContains(split1[i], ".v ")
-            && split1[i] != split2[i]) return false;
+            && !lines_match(split1[i], split2[i])) return false;
       }
 
       return true;

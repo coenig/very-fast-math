@@ -65,7 +65,7 @@ class LiveModeTests(unittest.TestCase):
             'num_runs': 100, 'steps_per_run': 300, 'heading_adaptation': -0.5,
             'allow_blind_steps': 1, 'allow_crashed_steps': 1, 'min_iterations': 2,
             'mc_selection': 'all', 'shortcut_bmc_slack': None, 'shortcut_probe_points': 0,
-            'persistent_solver': False,
+            'persistent_solver': False, 'shortcut_position_tolerance': 0,
         })
         settings = helper.load_run_settings({'UCD_MC_SELECTION': 'priority', 'UCD_NUM_RUNS': 1,
                                              'UCD_ALLOW_BLIND_STEPS': 0, 'UCD_MIN_ITERATIONS': 0})
@@ -335,7 +335,8 @@ class LiveModeTests(unittest.TestCase):
                              'spec_res': 'original goal', 'run_planning_script': query,
                              'write_spec_to_main_smv': lambda name, target: targets.__setitem__(name, target),
                              'postprocess_selected_config': select, 'perf_counter': lambda: 1.0,
-                             'args': SimpleNamespace(shortcut_bmc_slack=None), 'persistent_pool': None}
+                             'args': SimpleNamespace(shortcut_bmc_slack=None, shortcut_position_tolerance=0),
+                             'persistent_pool': None, 'relax_shortcut_target': helper.relax_shortcut_target}
                 exec(compile(ast.Module(body=[function], type_ignores=[]), '<adaptive planning>', 'exec'), namespace)
                 if winner == 'stale':
                     with self.assertRaisesRegex(RuntimeError, 'stale result'):
@@ -362,6 +363,15 @@ class LiveModeTests(unittest.TestCase):
                          | {(index, point) for index in range(5) for point in range(5)})
         self.assertEqual(list(selector.queries(2, 0, plan_priority=0))[:2], [(0, 0), (0, 1)])
         self.assertEqual(list(selector.queries(0, None, plan_priority=None)), [(index, None) for index in range(16)])
+
+    def test_shortcut_position_tolerance_relaxes_only_positions(self):
+        point = '& env.veh___609___.abs_pos=175\n& abs(env.veh___609___.v - (40)) <= 4\n& env.veh___6109___.abs_pos=-3\n'
+        self.assertEqual(helper.relax_shortcut_target(point, 0), point)
+        self.assertEqual(helper.relax_shortcut_target(point, 2),
+                         '& abs(env.veh___609___.abs_pos - (175)) <= 2\n& abs(env.veh___609___.v - (40)) <= 4\n'
+                         '& abs(env.veh___6109___.abs_pos - (-3)) <= 2\n')
+        with self.assertRaisesRegex(ValueError, 'UCD_SHORTCUT_POSITION_TOLERANCE'):
+            helper.load_run_settings({'UCD_SHORTCUT_POSITION_TOLERANCE': -1})
 
     def test_shortcut_bmc_bound_counts_steps_to_waypoint(self):
         self.assertEqual(helper.shortcut_bmc_bound(0, 2, 30), 3)

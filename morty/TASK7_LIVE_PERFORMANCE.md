@@ -238,12 +238,44 @@ Observations:
 - A first run of seed 7 took 497 s with 60-120 s queries while an offline analysis ran in parallel;
   an isolated rerun took 119 s and replaces it in the tables. Timings are load-sensitive.
 
+## Cascade Size and Shortcut Tolerance (10 Cars, Seeds 0-9)
+
+`UCD_SHORTCUT_POSITION_TOLERANCE` (model units, default 0) relaxes `abs_pos = X` in shortcut targets
+to `abs(abs_pos - X) <= tol`; `prepareOutputForMortyUCD` uses the same tolerance when reconnecting the
+stored plan. Compared: the 4x4 cascade (`vehlen`/`vehwidth` 6-9) and a 3x3 cascade without size 9
+(6-8), each with tolerance 0, 2 (0.5 m) and 4 (1 m). Rounding and all other settings as above.
+
+| Cascade, tolerance | Goal | Crash | Blind during the run | Blind at start | Plan-config hits at waypoint 0 | Median MC time per cycle |
+|---|---:|---:|---:|---:|---:|---:|
+| 4x4, 0 | 7 | 0 | 0 | 3 | 117/183 (64%) | 284 ms |
+| 4x4, 2 | 6 | 1 | 0 | 3 | 123/166 (74%) | 299 ms |
+| 4x4, 4 | 3 | 2 | 2 | 3 | 109/152 (72%) | 460 ms |
+| 3x3, 0 | 4 | 1 | 2 | 3 | 98/145 (68%) | 523 ms |
+| 3x3, 2 | 5 | 2 | 0 | 3 | 125/160 (78%) | 280 ms |
+| 3x3, 4 | 6 | 1 | 0 | 3 | 133/171 (78%) | 200 ms |
+
+Seeds 5, 8 and 9 are blind at the first cycle in every variant. MC times vary up to 2x with machine
+load between batches (the same first query took 10 s in one batch and 25 s in another).
+
+- **Removing size 9 loses robustness, not plans.** By monotonicity, every 4x4 plan is also a 3x3 plan.
+  But tighter plans led into dead ends after simulator deviations: with tolerance 0 the 3x3 cascade
+  reached the goal in 4 runs instead of 7. Seed 2 went blind at cycle 12: from that state every path
+  of the smallest box dies within 5 steps. Seed 6 crashed and seed 7 went blind near the goal.
+- **Extending the cascade downwards did not help.** Appending `vehlen` 5 (5 m, exactly the simulated
+  car length; `vehwidth` 6-8) to the 3x3 cascade left all five failing seeds (2, 5, 7, 8, 9) blind at
+  the same cycles. Smaller widths would be narrower than the simulated cars (width 5 = 1.8 m vs. 2 m).
+- **Tolerance raises the hit rate by about 10 points, but crashes appear.** 4x4: 0 / 1 / 2 crashes for
+  tolerance 0 / 2 / 4. The recorded crashes are the backward-driving car side-swiping a parked car
+  that stands between lanes (center distance ~2.1 m), and once the two moving cars colliding (4x4,
+  tolerance 4). Following the old plan's tail from a shifted position moves lateral manoeuvres along
+  the road; the tail is only re-verified one step at a time. Ten seeds per variant are too few for
+  firm rates, but the direction argues against a default tolerance > 0.
+
 ## Not Implemented (Ranked)
 
-1. **Shortcut position tolerance for moving cars.** +-2 units (0.5 m) would have recovered 70-76% of
-   the remaining misses. It also needs a tolerant connector match in `prepareOutputForMortyUCD`,
-   otherwise the stored plan is reset after a shortcut; the old plan's tail then starts up to 0.5 m
-   away from the actual state (it is re-verified in the next cycle).
+1. **Shortcut position tolerance: implemented, not recommended** (see above). Keep
+   `UCD_SHORTCUT_POSITION_TOLERANCE` at 0 unless the crash risk is analysed further (e.g. verify the
+   whole remaining tail, not just the next waypoint, before accepting a tolerant shortcut).
 2. **Stop re-probing and re-trying boxes that just failed.** For 10 cars, shortcut probes with a
    larger box than the plan's (34 s, 2.4% hits) and repeated failing full queries for larger boxes
    (118 s) dominate. Probing the plan config first, and retrying larger boxes only occasionally or

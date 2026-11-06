@@ -57,6 +57,7 @@ def load_run_settings(template):
         'shortcut_bmc_slack': ('UCD_SHORTCUT_BMC_SLACK', None),
         'shortcut_probe_points': ('UCD_SHORTCUT_PROBE_POINTS', 0),
         'persistent_solver': ('UCD_PERSISTENT_SOLVER', False),
+        'shortcut_position_tolerance': ('UCD_SHORTCUT_POSITION_TOLERANCE', 0),
     }
     settings = {}
     for name, (key, default) in defaults.items():
@@ -76,6 +77,13 @@ def load_run_settings(template):
             raise ValueError(f'{key} must be a nonnegative integer')
         settings[name] = value
     return settings
+
+
+def relax_shortcut_target(point, tolerance):
+    if not tolerance:
+        return point
+    return re.sub(r'(env\.veh___\d+___\.abs_pos)\s*=\s*(-?\d+)',
+                  lambda match: f'abs({match.group(1)} - ({match.group(2)})) <= {tolerance}', point)
 
 
 def shortcut_bmc_bound(point_index, slack, full_bound):

@@ -18,7 +18,7 @@ from .morty_helper import (
     _hash_file, _snapshot_configs, _save_configs_to_archive, archive, morty_script_context,
     VizState, install_vehicle_graphics_patches, install_world_surface_patches,
     RunScheduler, MCConfigSelector, load_run_settings, snapshot_mc_results_offsets, run_reached_threshold, discard_run,
-    randomize_until_collision_free, shortcut_bmc_bound,
+    randomize_until_collision_free, shortcut_bmc_bound, relax_shortcut_target,
     save_simulation_snapshot,
 )
 from .persistent_solver import PersistentSolverPool
@@ -75,9 +75,9 @@ if args.force_snapshots and not args.live:
 if args.mc_selection != 'all' and not args.live:
     parser.error(f'UCD_MC_SELECTION={args.mc_selection} requires --live. Use "all" to achieve the equivalent behavior in regular mode.')
 if args.mc_selection == 'all' and (args.shortcut_bmc_slack is not None or args.shortcut_probe_points
-                                   or args.persistent_solver):
-    parser.error('UCD_SHORTCUT_BMC_SLACK, UCD_SHORTCUT_PROBE_POINTS and UCD_PERSISTENT_SOLVER '
-                 'require UCD_MC_SELECTION priority or adaptive')
+                                   or args.persistent_solver or args.shortcut_position_tolerance):
+    parser.error('UCD_SHORTCUT_BMC_SLACK, UCD_SHORTCUT_PROBE_POINTS, UCD_PERSISTENT_SOLVER and '
+                 'UCD_SHORTCUT_POSITION_TOLERANCE require UCD_MC_SELECTION priority or adaptive')
 
 persistent_pool = None
 if args.persistent_solver:
@@ -185,7 +185,8 @@ def run_adaptive_planning(input_script, solver_script, future_points, empty_cex,
     for config_index, point_index in config_selector.queries(len(future_points), priority_floor, plan_priority):
         config_name = ucd_config_prios_str[config_index]
         shortcut = point_index is not None
-        target = "INVARSPEC !(TRUE " + future_points[point_index] + ");" if shortcut else spec_res
+        target = ("INVARSPEC !(TRUE " + relax_shortcut_target(future_points[point_index], args.shortcut_position_tolerance) + ");"
+                  if shortcut else spec_res)
         write_spec_to_main_smv(config_name, target)
         if args.shortcut_bmc_slack is not None:
             write_bmc_bound(config_name, shortcut_bmc_bound(point_index, args.shortcut_bmc_slack, bmc_cnt)

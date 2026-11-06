@@ -86,8 +86,9 @@ not in driver command-line arguments. The active five-car task-7 template uses:
 | `UCD_SHORTCUT_PROBE_POINTS` | `3` | `0` (legacy cost-gated probe) |
 | `UCD_PERSISTENT_SOLVER` | `true` | `false` |
 | `UCD_ROUND_INPUTS` | `true` | `false` (truncate observed positions) |
+| `UCD_SHORTCUT_POSITION_TOLERANCE` | `0` | `0` (exact waypoint positions) |
 
-The three keys before `UCD_ROUND_INPUTS` require `priority` or `adaptive` selection. `UCD_SHORTCUT_BMC_SLACK` bounds a
+The three keys before `UCD_ROUND_INPUTS`, and `UCD_SHORTCUT_POSITION_TOLERANCE`, require `priority` or `adaptive` selection. `UCD_SHORTCUT_BMC_SLACK` bounds a
 shortcut to waypoint `p` (which lies `p + 1` steps ahead) to `p + 1 + slack` BMC steps instead of
 `BMC_CNT`, so a missed shortcut fails in ~one step instead of a full-depth search.
 `UCD_SHORTCUT_PROBE_POINTS` first probes the next waypoints of the current plan (best eligible
@@ -97,7 +98,10 @@ observations are passed as frozen-variable constraints inside the checked proper
 [persistent_solver.py](persistent_solver.py). Unsupported model layouts fall back to the
 per-query process. `UCD_ROUND_INPUTS` rounds the observed longitudinal positions to model units
 instead of truncating them; velocities stay truncated (rounding would turn small residual speeds
-of parked cars into 1 and contradict their `v = 0` invariant).
+of parked cars into 1 and contradict their `v = 0` invariant). `UCD_SHORTCUT_POSITION_TOLERANCE`
+accepts shortcut waypoints within that many model units of the stored position; it raised the hit
+rate but coincided with more crashes in 10-car trials, so keep it at 0 (see
+[TASK7_LIVE_PERFORMANCE.md](TASK7_LIVE_PERFORMANCE.md)).
 
 Keep `UCD_USE_SHORTCUT: true` and the full 16-entry `UCD_CONFIG_PRIOS` list. The failure
 limits stop at the first blind or crashed step; `UCD_MIN_ITERATIONS: 0` retains early
