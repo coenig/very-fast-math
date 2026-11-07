@@ -62,21 +62,23 @@ class LiveModeTests(unittest.TestCase):
 
     def test_json_run_settings_preserve_legacy_defaults(self):
         self.assertEqual(helper.load_run_settings({}), {
-            'num_runs': 100, 'steps_per_run': 300, 'heading_adaptation': -0.5,
+            'start_seed': 0, 'steps_per_run': 300, 'heading_adaptation': -0.5,
             'allow_blind_steps': 1, 'allow_crashed_steps': 1, 'min_iterations': 2,
             'mc_selection': 'all', 'shortcut_bmc_slack': None, 'shortcut_probe_points': 0,
             'persistent_solver': False,
         })
-        settings = helper.load_run_settings({'UCD_MC_SELECTION': 'priority', 'UCD_NUM_RUNS': 1,
+        settings = helper.load_run_settings({'UCD_MC_SELECTION': 'priority', 'UCD_START_SEED': 7,
                                              'UCD_ALLOW_BLIND_STEPS': 0, 'UCD_MIN_ITERATIONS': 0})
         self.assertEqual(settings['mc_selection'], 'priority')
-        self.assertEqual(settings['num_runs'], 1)
+        self.assertEqual(settings['start_seed'], 7)
         self.assertEqual(settings['allow_blind_steps'], 0)
         self.assertEqual(settings['min_iterations'], 0)
 
     def test_json_run_settings_reject_invalid_values(self):
         for key, value in [('UCD_MC_SELECTION', 'unknown'), ('UCD_MC_SELECTION', None),
-                           ('UCD_NUM_RUNS', True), ('UCD_STEPS_PER_RUN', -1),
+                           ('UCD_START_SEED', True), ('UCD_START_SEED', -1),
+                           ('UCD_START_SEED', 1.5), ('UCD_START_SEED', '7'),
+                           ('UCD_STEPS_PER_RUN', -1),
                            ('UCD_ALLOW_BLIND_STEPS', 1.5), ('UCD_MIN_ITERATIONS', '0'),
                            ('UCD_HEADING_ADAPTATION', float('nan')),
                            ('UCD_HEADING_ADAPTATION', float('inf')),
@@ -125,22 +127,80 @@ class LiveModeTests(unittest.TestCase):
                     self.parse_driver_options(template=template)
 
     def test_behavior_settings_cannot_be_overridden_by_cli(self):
-        for option, value in [('--mc_selection', 'adaptive'), ('--num_runs', '1'),
+        for option, value in [('--mc_selection', 'adaptive'), ('--start_seed', '7'),
                               ('--steps_per_run', '3'), ('--heading_adaptation', '0'),
                               ('--allow_blind_steps', '0'), ('--allow_crashed_steps', '0'),
-                              ('--min_iterations', '0'), ('-n', '1'), ('-s', '3'),
+                              ('--min_iterations', '0'), ('-s', '3'),
                               ('-a', '0'), ('-b', '0'), ('-c', '0')]:
             with self.subTest(option=option), contextlib.redirect_stderr(io.StringIO()), \
                  self.assertRaises(SystemExit):
                 self.parse_driver_options('--live', option, value)
 
     def test_driver_applies_json_run_settings(self):
-        template = {'UCD_NUM_RUNS': 3, 'UCD_STEPS_PER_RUN': 17, 'UCD_HEADING_ADAPTATION': 1.25,
+        template = {'UCD_START_SEED': 7, 'UCD_STEPS_PER_RUN': 17, 'UCD_HEADING_ADAPTATION': 1.25,
                     'UCD_ALLOW_BLIND_STEPS': 0, 'UCD_ALLOW_CRASHED_STEPS': 0,
                     'UCD_MIN_ITERATIONS': 0, 'UCD_MC_SELECTION': 'priority'}
         args = self.parse_driver_options('--live', template=template)
         for name, value in helper.load_run_settings(template).items():
             self.assertEqual(getattr(args, name), value)
+
+    def test_run_count_is_cli_only(self):
+        template = {'UCD_NUM_RUNS': 3, 'UCD_START_SEED': 7}
+        self.assertEqual(self.parse_driver_options('--live', template=template).num_runs, 100)
+        for option in ['--num_runs', '-n']:
+            with self.subTest(option=option):
+                args = self.parse_driver_options('--live', option, '2', template=template)
+                self.assertEqual(args.num_runs, 2)
+                self.assertEqual(args.start_seed, 7)
+        self.assertEqual(self.parse_driver_options('--live', '-n', '0').num_runs, 0)
+        for value in ['-1', '1.5', 'invalid']:
+            with self.subTest(value=value), contextlib.redirect_stderr(io.StringIO()), \
+                 self.assertRaises(SystemExit):
+                self.parse_driver_options('--live', '--num_runs', value)
+
+    def test_scheduler_start_seed_preserves_run_ids_and_skips(self):
+        scheduler = helper.RunScheduler('', 2, False, persist=False, start_seed=7)
+        self.assertEqual(next(scheduler), (0, 7))
+        self.assertEqual(next(scheduler), (0, 8))
+        scheduler.commit()
+        self.assertEqual(next(scheduler), (1, 9))
+        scheduler.commit()
+        with self.assertRaises(StopIteration):
+            next(scheduler)
+        self.assertEqual(next(helper.RunScheduler('', 1, False, persist=False)), (0, 0))
+
+    def test_scheduler_replay_prefers_recorded_seeds(self):
+        with TemporaryDirectory() as folder:
+            scheduler = helper.RunScheduler(folder, 1, False, start_seed=7)
+            self.assertEqual(next(scheduler), (0, 7))
+            scheduler.commit()
+            replay = helper.RunScheduler(folder, 1, True, start_seed=20)
+            self.assertEqual(list(replay), [(0, 7)])
+        with patch.object(helper, 'load_run_seed_pairs', return_value=[]):
+            replay = helper.RunScheduler('', 2, True, start_seed=7)
+            self.assertEqual(list(replay), [(0, 7), (1, 8)])
+
+    def test_mc_cycle_timing_sums_queries_and_excludes_gaps(self):
+        state = helper.VizState()
+        self.assertIsNone(state.last_mc_ms)
+        state.begin_mc_cycle()
+        with patch.object(helper, 'perf_counter', side_effect=[1.0, 1.025, 5.0, 5.075]):
+            with state.measure_mc_query():
+                pass
+            with state.measure_mc_query():
+                pass
+        state.finish_mc_cycle()
+        self.assertAlmostEqual(state.last_mc_ms, 100.0)
+        state.begin_mc_cycle()
+        self.assertAlmostEqual(state.last_mc_ms, 100.0)
+        with patch.object(helper, 'perf_counter', side_effect=[10.0, 10.04]):
+            with state.measure_mc_query():
+                pass
+        state.finish_mc_cycle()
+        self.assertAlmostEqual(state.last_mc_ms, 40.0)
+        state.begin_mc_cycle()
+        state.finish_mc_cycle()
+        self.assertEqual(state.last_mc_ms, 0.0)
 
     def test_status_is_inactive_without_a_visible_viewer(self):
         for viewer in [None, SimpleNamespace(offscreen=True),
@@ -176,6 +236,16 @@ class LiveModeTests(unittest.TestCase):
                     state.set_status(env, 'Cycle 1 | Rendering road')
                     self.assertFalse(state.mc_running)
                     self.assertEqual(tuple(screen.get_at((0, 0)))[:3], (229, 235, 239))
+                    state.last_mc_ms = 123.4
+                    state.set_status(env, 'Cycle 1 | Rendering road background with a very long description')
+                    timing = state._status_font.render('Last cycle MC: 123.4 ms', True, (25, 30, 35))
+                    expected = pygame.Surface(timing.get_size())
+                    expected.fill((229, 235, 239))
+                    expected.blit(timing, (0, 0))
+                    area = pygame.Rect(screen.get_width() - timing.get_width() - 8,
+                                       (30 - timing.get_height()) // 2, *timing.get_size())
+                    self.assertEqual(pygame.image.tobytes(screen.subsurface(area), 'RGB'),
+                                     pygame.image.tobytes(expected, 'RGB'))
             finally:
                 pygame.quit()
 
@@ -200,7 +270,8 @@ class LiveModeTests(unittest.TestCase):
                                               (True, False, 'full plan'),
                                               (False, True, 'full plan')]:
             with self.subTest(dryrun=dryrun, headless=headless, description=description):
-                state = SimpleNamespace(set_status=Mock())
+                state = helper.VizState()
+                state.set_status = Mock()
                 env = object()
                 phase = 'Replaying trace' if dryrun else 'MC pipeline running'
 
@@ -219,8 +290,10 @@ class LiveModeTests(unittest.TestCase):
                              'viz_state': state, 'env': env, 'global_counter': 4,
                              'morty_script_context': context, 'sizeof': sizeof}
                 exec(compile(ast.Module(body=functions, type_ignores=[]), '<planning status>', 'exec'), namespace)
-                result = namespace['run_planning_script']('original script', create_string_buffer(100), description)
+                with patch.object(helper, 'perf_counter', side_effect=[1.0, 1.025]):
+                    result = namespace['run_planning_script']('original script', create_string_buffer(100), description)
                 self.assertEqual(result, b'original output')
+                self.assertAlmostEqual(state.mc_cycle_seconds, 0.0 if dryrun else 0.025)
                 context.assert_called_once_with(live=True)
                 library.expandScript.assert_called_once()
                 if headless:
@@ -239,11 +312,52 @@ class LiveModeTests(unittest.TestCase):
         status = Mock()
         namespace = {'args': SimpleNamespace(live=True, dryrun=False), 'global_counter': 0,
                      'show_sim_status': status, 'sizeof': sizeof,
+                     'viz_state': helper.VizState(),
                      'morty_script_context': lambda **kwargs: contextlib.nullcontext(library)}
         exec(compile(ast.Module(body=[function], type_ignores=[]), '<planning failure>', 'exec'), namespace)
         with self.assertRaisesRegex(RuntimeError, 'solver failed'):
             namespace['run_planning_script']('script', create_string_buffer(100), 'full plan')
         status.assert_called_with('Cycle 1 | Planning interrupted or failed')
+
+    def test_persistent_mc_timing_excludes_output_and_does_not_double_count_fallback(self):
+        from ctypes import create_string_buffer, sizeof
+
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        functions = [node for node in module.body if isinstance(node, ast.FunctionDef)
+                     and node.name in ('run_planning_script', 'run_persistent_query')]
+        for trace in ['persistent trace', None]:
+            with self.subTest(trace=trace), TemporaryDirectory() as folder:
+                prefix = str(Path(folder) / 'generated')
+                package = Path(prefix + '_primary')
+                package.mkdir()
+                (package / 'script.cmd').write_text('msat_check_invar_bmc -k 30\n')
+                state = helper.VizState()
+                state.begin_mc_cycle()
+
+                def native_call(script, result, size):
+                    self.assertAlmostEqual(state.mc_cycle_seconds, 0.05 if trace is not None else 0.01)
+                    self.assertEqual(script, b'output' if trace is not None else
+                                     b'@{config.json}@.runMCJob[_primary]')
+                    return b'query result'
+
+                library = SimpleNamespace(expandScript=Mock(side_effect=native_call))
+                pool = SimpleNamespace(check=Mock(return_value=trace))
+                namespace = {'args': SimpleNamespace(live=True, dryrun=False), 'global_counter': 0,
+                             'show_sim_status': Mock(), 'sizeof': sizeof, 'Path': Path,
+                             'viz_state': state, 'persistent_pool': pool,
+                             'morty_script_context': lambda **kwargs: contextlib.nullcontext(library),
+                             'ucd_config_prios_str': ['_primary'], 'generated_path_prefix': prefix}
+                exec(compile(ast.Module(body=functions, type_ignores=[]), '<persistent timing>', 'exec'), namespace)
+                times = [1.0, 1.05] if trace is not None else [1.0, 1.01, 10.0, 10.03]
+                with patch.object(helper, 'perf_counter', side_effect=times) as clock:
+                    output = namespace['run_persistent_query'](
+                        '@{config.json}@.runMCJobs[16]', 'output', create_string_buffer(100),
+                        'full plan', '_primary')
+                self.assertEqual(output, b'query result')
+                pool.check.assert_called_once_with(str(package), 'msat_check_invar_bmc -k 30')
+                self.assertEqual(clock.call_count, len(times))
+                state.finish_mc_cycle()
+                self.assertAlmostEqual(state.last_mc_ms, 50.0 if trace is not None else 40.0)
 
     def test_selected_query_clears_stale_traces_but_preserves_plans(self):
         from ctypes import create_string_buffer, sizeof
@@ -270,6 +384,7 @@ class LiveModeTests(unittest.TestCase):
             library = SimpleNamespace(expandScript=Mock(side_effect=native_call))
             namespace = {'args': SimpleNamespace(live=True, dryrun=False), 'global_counter': 0,
                          'show_sim_status': Mock(), 'sizeof': sizeof, 'Path': Path,
+                         'viz_state': helper.VizState(),
                          'morty_script_context': lambda **kwargs: contextlib.nullcontext(library),
                          'ucd_config_prios_str': configs, 'generated_path_prefix': prefix}
             exec(compile(ast.Module(body=[function], type_ignores=[]), '<selected query>', 'exec'), namespace)
@@ -675,7 +790,9 @@ class LiveModeTests(unittest.TestCase):
                                                           *(['--force_head'] if force_head else [])),
                         'env': capture, 'action': ([0.1, 0.0], [-0.1, 0.0]),
                         'save_simulation_snapshot': helper.save_simulation_snapshot,
+                        'viz_state': helper.VizState(),
                     }
+                    namespace['viz_state'].last_mc_ms = 123.4
                     for step in range(3):
                         snapshot_path = Path(folder) / 'snapshots' / f'cycle_{step + 1:06d}.pdf'
                         namespace['snapshot_path'] = snapshot_path
@@ -692,7 +809,21 @@ class LiveModeTests(unittest.TestCase):
                         self.assertIn(b'/Count 1', pdf)
                         self.assertIn(b'/Width 400', pdf)
                         self.assertIn(b'/Height 160', pdf)
-                        self.assertGreater(np.ptp(capture.unwrapped.viewer.get_image()), 0)
+                        image = capture.unwrapped.viewer.get_image()
+                        self.assertGreater(np.ptp(image), 0)
+                        np.testing.assert_array_equal(image[0, 0], [229, 235, 239])
+                        import pygame
+
+                        state = namespace['viz_state']
+                        timing = state._status_font.render('Last cycle MC: 123.4 ms', True, (25, 30, 35))
+                        expected = pygame.Surface(timing.get_size())
+                        expected.fill((229, 235, 239))
+                        expected.blit(timing, (0, 0))
+                        left = image.shape[1] - timing.get_width() - 8
+                        top = (30 - timing.get_height()) // 2
+                        np.testing.assert_array_equal(
+                            image[top:top + timing.get_height(), left:left + timing.get_width()],
+                            np.moveaxis(pygame.surfarray.array3d(expected), 0, 1))
                         for shown, hidden in zip(capture.unwrapped.controlled_vehicles,
                                                  plain.unwrapped.controlled_vehicles):
                             np.testing.assert_array_equal(shown.position, hidden.position)
@@ -734,10 +865,11 @@ class LiveModeTests(unittest.TestCase):
                         'ucd_config_prios_str': [], 'snapshot_hashes': {}, 'selected_config': None,
                         'show_sim_status': Mock(), 'archive': Mock(), 'print': Mock(),
                         'save_simulation_snapshot': snapshot,
+                        'viz_state': helper.VizState(),
                     }
                     exec(code, namespace)
                     if enabled:
-                        snapshot.assert_called_once_with(env, path)
+                        snapshot.assert_called_once_with(env, path, viz_state=namespace['viz_state'])
                     else:
                         snapshot.assert_not_called()
 

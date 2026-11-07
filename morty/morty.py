@@ -57,7 +57,12 @@ parser.add_argument('--force_head', action='store_true',
                     help='Show the simulation window with --live, keeping debugging and statistics disabled.')
 parser.add_argument('--force_snapshots', action='store_true',
                     help='Save one simulation-state PDF per cycle with --live, with or without a window.')
+parser.add_argument('--num_runs', '-n', type=int, default=100,
+                    help='Number of runs to retain. Default: 100')
 args = parser.parse_args()
+
+if args.num_runs < 0:
+    parser.error('--num_runs must be a nonnegative integer')
 
 try:
     with open('morty/envmodel_config.tpl.json') as config_file:
@@ -139,8 +144,9 @@ def run_planning_script(script, result, description, config_name=None):
     phase = "Replaying trace" if args.dryrun else "MC pipeline running"
     show_sim_status(f"{cycle} | {phase} ({description})", mc_running=not args.dryrun)
     try:
-        with morty_script_context(live=args.live) as morty_lib:
-            output = morty_lib.expandScript(script.encode('utf-8'), result, sizeof(result))
+        with viz_state.measure_mc_query(enabled=not args.dryrun):
+            with morty_script_context(live=args.live) as morty_lib:
+                output = morty_lib.expandScript(script.encode('utf-8'), result, sizeof(result))
     except BaseException:
         show_sim_status(f"{cycle} | Planning interrupted or failed")
         raise
@@ -161,16 +167,18 @@ def run_persistent_query(solver_script, output_script, result, description, conf
     bmc_command = next((line.strip() for line in Path(package + '/script.cmd').read_text().splitlines()
                         if 'msat_check_invar_bmc' in line), None)
     show_sim_status(f"Cycle {global_counter + 1} | MC pipeline running ({description})", mc_running=True)
-    for name in ucd_config_prios_str:
-        Path(generated_path_prefix + name + '/debug_trace_array.txt').write_text('')
-    try:
-        trace = persistent_pool.check(package, bmc_command) if bmc_command else None
-    except (TimeoutError, RuntimeError) as error:
-        print(f"Warning: persistent nuXmv query failed for {config_name}: {error}")
-        trace = ''
+    with viz_state.measure_mc_query():
+        for name in ucd_config_prios_str:
+            Path(generated_path_prefix + name + '/debug_trace_array.txt').write_text('')
+        try:
+            trace = persistent_pool.check(package, bmc_command) if bmc_command else None
+        except (TimeoutError, RuntimeError) as error:
+            print(f"Warning: persistent nuXmv query failed for {config_name}: {error}")
+            trace = ''
+        if trace is not None:
+            Path(package + '/debug_trace_array.txt').write_text(trace)
     if trace is None: # Unsupported model layout.
         return run_planning_script(solver_script, result, description, config_name)
-    Path(package + '/debug_trace_array.txt').write_text(trace)
     show_sim_status(f"Cycle {global_counter + 1} | Processing results")
     with morty_script_context(live=True) as morty_lib:
         return morty_lib.expandScript(output_script.encode('utf-8'), result, sizeof(result))
@@ -586,7 +594,8 @@ if args.detailed_archive:
 # stored data/statistics/archives): RunScheduler keeps drawing fresh seeds and only advances the
 # run ID for runs that reach the UCD_MIN_ITERATIONS threshold (see commit()/discard_run below), so
 # early, unsolvable failures neither consume a run ID nor leave any artifacts behind.
-scheduler = RunScheduler(generated_path_prefix, MAX_EXPs, args.dryrun, persist=not args.live)
+scheduler = RunScheduler(generated_path_prefix, MAX_EXPs, args.dryrun, persist=not args.live,
+                         start_seed=args.start_seed)
 
 for run_id, seedo in scheduler:
     # Snapshot the per-config MC results log lengths so an excluded run can be truncated away again.
@@ -708,6 +717,8 @@ for run_id, seedo in scheduler:
     # (see randomize_until_collision_free for details); positions are mutated in place.
     randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_tech)
 
+    viz_state.last_mc_ms = None
+    viz_state.begin_mc_cycle()
     if not args.headless:
         env.render()
         viz_state.attach_status(env)
@@ -772,6 +783,7 @@ for run_id, seedo in scheduler:
     
     global_counter = -1  # Guards the validity check below if the inner loop never runs (e.g. steps_per_run == 0).
     for global_counter in range(args.steps_per_run):
+        viz_state.begin_mc_cycle()
         if args.force_snapshots:
             snapshot_path = Path(generated_path_prefix) / 'snapshots' / f'run_{run_id}_seed_{seedo}' / f'cycle_{global_counter + 1:06d}.pdf'
         show_sim_status(f"Cycle {global_counter + 1} | Preparing inputs")
@@ -906,6 +918,10 @@ for run_id, seedo in scheduler:
         
             blind, selected_cnt, res_str = postprocess_selected_config(res_str, ucd_config_prios_str, empty_cex, verbose=not args.live)
             last_full_solution_prio = selected_cnt # This line should always turn up BEFORE the variable is used above.
+
+        if not args.dryrun:
+            viz_state.finish_mc_cycle()
+        show_sim_status(f"Cycle {global_counter + 1} | Processing results")
 
         if args.detailed_archive and global_counter == 0:
             # Processed snapshot: only re-hash files that existed in the baseline
@@ -1116,7 +1132,7 @@ for run_id, seedo in scheduler:
         if (res_str == "FINISHED" and not found_shortcut) or successed:
             show_sim_status(f"Cycle {global_counter + 1} | Goal reached")
             if args.force_snapshots:
-                save_simulation_snapshot(env, snapshot_path)
+                save_simulation_snapshot(env, snapshot_path, viz_state=viz_state)
             print("DONE")
             good_ones.append(run_id)
             archive(run_id, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
@@ -1131,7 +1147,7 @@ for run_id, seedo in scheduler:
             nocex_count += 1
             if nocex_count > args.allow_blind_steps: # Abort (as failure) once this many blind steps occurred.
                 if args.force_snapshots:
-                    save_simulation_snapshot(env, snapshot_path)
+                    save_simulation_snapshot(env, snapshot_path, viz_state=viz_state)
                 archive(run_id, global_counter, args.detailed_archive, generated_path_prefix, ucd_config_prios_str, snapshot_hashes, selected_config)
                 break
             
@@ -1278,7 +1294,7 @@ for run_id, seedo in scheduler:
             env.unwrapped.enable_auto_render = False
         obs, reward, done, truncated, info = env.step(action)
         if args.force_snapshots:
-            save_simulation_snapshot(env, snapshot_path, render=not args.force_head)
+            save_simulation_snapshot(env, snapshot_path, render=not args.force_head, viz_state=viz_state)
 
         # === CHECK CRASHES (after applying MC instructions) ===
         crashed = False

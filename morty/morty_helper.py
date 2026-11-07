@@ -13,9 +13,10 @@ import ctypes
 import ctypes.util
 from contextlib import contextmanager
 from ctypes import CDLL
+from time import perf_counter
 
 
-def save_simulation_snapshot(env, path, render=True):
+def save_simulation_snapshot(env, path, render=True, viz_state=None):
     from PIL import Image
 
     image = None
@@ -29,6 +30,11 @@ def save_simulation_snapshot(env, path, render=True):
         image = env.render()
     if image is None:
         image = env.unwrapped.viewer.get_image()
+    if viz_state is not None:
+        viewer = env.unwrapped.viewer
+        surface = viewer.screen if viewer.config['render_agent'] and not viewer.offscreen else viewer.sim_surface
+        viz_state._draw_status(viewer, refresh=False, surface=surface)
+        image = viewer.get_image()
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(image).save(path, 'PDF', resolution=150.0)
@@ -47,7 +53,7 @@ def ensure_empty_file(path: str) -> None:
 
 def load_run_settings(template):
     defaults = {
-        'num_runs': ('UCD_NUM_RUNS', 100),
+        'start_seed': ('UCD_START_SEED', 0),
         'steps_per_run': ('UCD_STEPS_PER_RUN', 300),
         'heading_adaptation': ('UCD_HEADING_ADAPTATION', -0.5),
         'allow_blind_steps': ('UCD_ALLOW_BLIND_STEPS', 1),
@@ -186,6 +192,7 @@ def randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_t
         # shift cars a little with gauss distribution (scale is deviation in meters for 2/3).
         for i, vehicle in enumerate(vehs):
             vehicle.position[0] = base_positions[i][0] + rng.normal(loc=0.0, scale=pos_scale)
+            vehicle.position[0] = max(0.0, vehicle.position[0]) # Clamp to non-negative longitudinal position
             vehicle.position[1] = base_positions[i][1] + rng.normal(loc=0.0, scale=lat_scale)
             # Clamp lateral position to valid road boundaries.
             vehicle.position[1] = max(min(vehicle.position[1], y_max_tech), y_min_tech)
@@ -378,17 +385,18 @@ class RunScheduler:
             # otherwise just continue; the next seed reuses the same run_id
     """
 
-    def __init__(self, generated_path_prefix: str, max_exps: int, dryrun: bool, persist: bool = True):
+    def __init__(self, generated_path_prefix: str, max_exps: int, dryrun: bool, persist: bool = True,
+                 start_seed: int = 0):
         self.generated_path_prefix = generated_path_prefix
         self.max_exps = max_exps
         self.dryrun = bool(dryrun)
         self.persist = persist
         self.run_id = 0
-        self.seed = -1
+        self.seed = start_seed - 1
         self.run_seed_map: Dict[int, int] = {}
         if self.dryrun:
             # Backward compatibility with archives created before the seed/run_id split.
-            self.dryrun_pairs = load_run_seed_pairs(generated_path_prefix) or [(i, i) for i in range(max_exps)]
+            self.dryrun_pairs = load_run_seed_pairs(generated_path_prefix) or [(i, start_seed + i) for i in range(max_exps)]
         else:
             self.dryrun_pairs = None
             if self.persist:
@@ -570,6 +578,25 @@ class VizState:
         self.status = ""
         self.mc_running = False
         self._status_font = None
+        self.mc_cycle_seconds = 0.0
+        self.last_mc_ms = None
+
+    def begin_mc_cycle(self):
+        self.mc_cycle_seconds = 0.0
+
+    @contextmanager
+    def measure_mc_query(self, enabled=True):
+        if not enabled:
+            yield
+            return
+        started = perf_counter()
+        try:
+            yield
+        finally:
+            self.mc_cycle_seconds += perf_counter() - started
+
+    def finish_mc_cycle(self):
+        self.last_mc_ms = self.mc_cycle_seconds * 1000
 
     def attach_status(self, env):
         viewer = env.unwrapped.viewer
@@ -592,26 +619,36 @@ class VizState:
         self.mc_running = mc_running
         self._draw_status(viewer)
 
-    def _draw_status(self, viewer):
-        if not self.status:
+    def _draw_status(self, viewer, refresh=True, surface=None):
+        if not self.status and self.last_mc_ms is None:
             return
         import pygame
 
+        if not pygame.font.get_init():
+            pygame.font.init()
         if self._status_font is None:
             self._status_font = pygame.font.Font(None, 22)
-        strip = pygame.Rect(0, 0, viewer.screen.get_width(), 30)
+        if surface is None:
+            surface = viewer.screen
+        strip = pygame.Rect(0, 0, surface.get_width(), 30)
         background = (255, 221, 92) if self.mc_running else (229, 235, 239)
-        pygame.draw.rect(viewer.screen, background, strip)
+        pygame.draw.rect(surface, background, strip)
         text = self.status
         available_width = max(0, strip.width - 16)
+        if self.last_mc_ms is not None:
+            timing = self._status_font.render(f"Last cycle MC time: {self.last_mc_ms:.1f} ms", True, (25, 30, 35))
+            surface.blit(timing, (strip.width - timing.get_width() - 8,
+                                 (strip.height - timing.get_height()) // 2))
+            available_width = max(0, available_width - timing.get_width() - 16)
         if self._status_font.size(text)[0] > available_width:
             while text and self._status_font.size(text + "...")[0] > available_width:
                 text = text[:-1]
             text = text + "..." if text else ""
         label = self._status_font.render(text, True, (25, 30, 35))
-        viewer.screen.blit(label, (8, (strip.height - label.get_height()) // 2))
-        pygame.display.update(strip)
-        pygame.event.pump()
+        surface.blit(label, (8, (strip.height - label.get_height()) // 2))
+        if refresh:
+            pygame.display.update(strip)
+            pygame.event.pump()
 
 
 def get_scene_bounding_box(env, car_ids):
