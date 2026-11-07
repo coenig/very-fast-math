@@ -238,7 +238,7 @@ class LiveModeTests(unittest.TestCase):
                     self.assertEqual(tuple(screen.get_at((0, 0)))[:3], (229, 235, 239))
                     state.last_mc_ms = 123.4
                     state.set_status(env, 'Cycle 1 | Rendering road background with a very long description')
-                    timing = state._status_font.render('Last cycle MC: 123.4 ms', True, (25, 30, 35))
+                    timing = state._status_font.render('Last cycle MC time: 123.4 ms', True, (25, 30, 35))
                     expected = pygame.Surface(timing.get_size())
                     expected.fill((229, 235, 239))
                     expected.blit(timing, (0, 0))
@@ -246,6 +246,36 @@ class LiveModeTests(unittest.TestCase):
                                        (30 - timing.get_height()) // 2, *timing.get_size())
                     self.assertEqual(pygame.image.tobytes(screen.subsurface(area), 'RGB'),
                                      pygame.image.tobytes(expected, 'RGB'))
+            finally:
+                pygame.quit()
+
+    def test_status_recreates_invalid_font_after_viewer_or_font_restart(self):
+        import pygame
+
+        with patch.dict('os.environ', {'SDL_VIDEODRIVER': 'dummy'}):
+            pygame.init()
+            try:
+                state = helper.VizState()
+                state.last_mc_ms = 123.4
+                viewer = SimpleNamespace(screen=pygame.Surface((400, 160)))
+                state._draw_status(viewer, refresh=False)
+                font = state._status_font
+                state._draw_status(viewer, refresh=False)
+                self.assertIs(state._status_font, font)
+
+                for new_viewer in [False, True]:
+                    with self.subTest(new_viewer=new_viewer):
+                        invalid_font = Mock()
+                        invalid_font.render.side_effect = pygame.error('Invalid Font')
+                        state._status_font = invalid_font
+                        pygame.font.quit()
+                        if new_viewer:
+                            pygame.font.init()
+                            viewer = SimpleNamespace(screen=pygame.Surface((400, 160)))
+                        state._draw_status(viewer, refresh=False)
+                        invalid_font.render.assert_not_called()
+                        self.assertIsNot(state._status_font, invalid_font)
+                        self.assertIs(state._status_viewer, viewer)
             finally:
                 pygame.quit()
 
@@ -815,7 +845,7 @@ class LiveModeTests(unittest.TestCase):
                         import pygame
 
                         state = namespace['viz_state']
-                        timing = state._status_font.render('Last cycle MC: 123.4 ms', True, (25, 30, 35))
+                        timing = state._status_font.render('Last cycle MC time: 123.4 ms', True, (25, 30, 35))
                         expected = pygame.Surface(timing.get_size())
                         expected.fill((229, 235, 239))
                         expected.blit(timing, (0, 0))

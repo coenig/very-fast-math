@@ -578,6 +578,7 @@ class VizState:
         self.status = ""
         self.mc_running = False
         self._status_font = None
+        self._status_viewer = None
         self.mc_cycle_seconds = 0.0
         self.last_mc_ms = None
 
@@ -626,8 +627,10 @@ class VizState:
 
         if not pygame.font.get_init():
             pygame.font.init()
-        if self._status_font is None:
+            self._status_font = None
+        if self._status_font is None or self._status_viewer is not viewer:
             self._status_font = pygame.font.Font(None, 22)
+            self._status_viewer = viewer
         if surface is None:
             surface = viewer.screen
         strip = pygame.Rect(0, 0, surface.get_width(), 30)
