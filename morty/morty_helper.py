@@ -192,6 +192,7 @@ def randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_t
         # shift cars a little with gauss distribution (scale is deviation in meters for 2/3).
         for i, vehicle in enumerate(vehs):
             vehicle.position[0] = base_positions[i][0] + rng.normal(loc=0.0, scale=pos_scale)
+            vehicle.position[0] = max(0.0, vehicle.position[0]) # Clamp to non-negative longitudinal position
             vehicle.position[1] = base_positions[i][1] + rng.normal(loc=0.0, scale=lat_scale)
             # Clamp lateral position to valid road boundaries.
             vehicle.position[1] = max(min(vehicle.position[1], y_max_tech), y_min_tech)
