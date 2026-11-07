@@ -18,9 +18,10 @@ from .morty_helper import (
     _hash_file, _snapshot_configs, _save_configs_to_archive, archive, morty_script_context,
     VizState, install_vehicle_graphics_patches, install_world_surface_patches,
     RunScheduler, MCConfigSelector, load_run_settings, snapshot_mc_results_offsets, run_reached_threshold, discard_run,
-    randomize_until_collision_free,
+    randomize_until_collision_free, shortcut_bmc_bound,
     save_simulation_snapshot,
 )
+from .persistent_solver import PersistentSolverPool
 import platform
 
 
@@ -73,6 +74,16 @@ if args.force_snapshots and not args.live:
     parser.error('--force_snapshots requires --live')
 if args.mc_selection != 'all' and not args.live:
     parser.error(f'UCD_MC_SELECTION={args.mc_selection} requires --live. Use "all" to achieve the equivalent behavior in regular mode.')
+if args.mc_selection == 'all' and (args.shortcut_bmc_slack is not None or args.shortcut_probe_points
+                                   or args.persistent_solver):
+    parser.error('UCD_SHORTCUT_BMC_SLACK, UCD_SHORTCUT_PROBE_POINTS and UCD_PERSISTENT_SOLVER '
+                 'require UCD_MC_SELECTION priority or adaptive')
+
+persistent_pool = None
+if args.persistent_solver:
+    import atexit
+    persistent_pool = PersistentSolverPool(d['#TEMPLATE'].get('_EXTERNAL_PATH', './external'))
+    atexit.register(persistent_pool.close)
 
 if args.live:
     if args.dryrun or args.record_video or args.detailed_archive:
@@ -137,20 +148,55 @@ def run_planning_script(script, result, description, config_name=None):
     return output
 
 
-def run_adaptive_planning(input_script, solver_script, future_points, empty_cex, priority_floor):
+def write_bmc_bound(config_name, bound):
+    path = Path(generated_path_prefix + config_name + '/script.cmd')
+    text = path.read_text()
+    updated = re.sub(r'(msat_check_invar_bmc[^\n]*-k )\d+', lambda match: match.group(1) + str(bound), text)
+    if updated != text:
+        path.write_text(updated)
+
+
+def run_persistent_query(solver_script, output_script, result, description, config_name):
+    package = generated_path_prefix + config_name
+    bmc_command = next((line.strip() for line in Path(package + '/script.cmd').read_text().splitlines()
+                        if 'msat_check_invar_bmc' in line), None)
+    show_sim_status(f"Cycle {global_counter + 1} | MC pipeline running ({description})", mc_running=True)
+    for name in ucd_config_prios_str:
+        Path(generated_path_prefix + name + '/debug_trace_array.txt').write_text('')
+    try:
+        trace = persistent_pool.check(package, bmc_command) if bmc_command else None
+    except (TimeoutError, RuntimeError) as error:
+        print(f"Warning: persistent nuXmv query failed for {config_name}: {error}")
+        trace = ''
+    if trace is None: # Unsupported model layout.
+        return run_planning_script(solver_script, result, description, config_name)
+    Path(package + '/debug_trace_array.txt').write_text(trace)
+    show_sim_status(f"Cycle {global_counter + 1} | Processing results")
+    with morty_script_context(live=True) as morty_lib:
+        return morty_lib.expandScript(output_script.encode('utf-8'), result, sizeof(result))
+
+
+def run_adaptive_planning(input_script, solver_script, future_points, empty_cex, priority_floor, plan_priority=None,
+                          output_script=None):
     input_result = create_string_buffer(2000)
     with morty_script_context(live=True) as morty_lib:
         morty_lib.expandScript(input_script.encode('utf-8'), input_result, sizeof(input_result))
     result = create_string_buffer(100000)
-    for config_index, point_index in config_selector.queries(len(future_points), priority_floor):
+    for config_index, point_index in config_selector.queries(len(future_points), priority_floor, plan_priority):
         config_name = ucd_config_prios_str[config_index]
         shortcut = point_index is not None
         target = "INVARSPEC !(TRUE " + future_points[point_index] + ");" if shortcut else spec_res
         write_spec_to_main_smv(config_name, target)
+        if args.shortcut_bmc_slack is not None:
+            write_bmc_bound(config_name, shortcut_bmc_bound(point_index, args.shortcut_bmc_slack, bmc_cnt)
+                            if shortcut else bmc_cnt)
         description = f"shortcut {point_index + 1}" if shortcut else "full plan"
         started = perf_counter()
-        output = run_planning_script(solver_script, result,
-                                     f"{description}, config {config_index + 1}/{len(ucd_config_prios_str)}", config_name)
+        description = f"{description}, config {config_index + 1}/{len(ucd_config_prios_str)}"
+        if persistent_pool is not None:
+            output = run_persistent_query(solver_script, output_script, result, description, config_name)
+        else:
+            output = run_planning_script(solver_script, result, description, config_name)
         blind, chosen, response = postprocess_selected_config(
             output.decode().strip(), ucd_config_prios_str, empty_cex, verbose=False)
         success = response != empty_cex
@@ -231,6 +277,7 @@ with open('morty/envmodel_config.json') as f:
     use_shortcut = d[ucd_config_prios_str[0]]["UCD_USE_SHORTCUT"]
     dist_scale = d[ucd_config_prios_str[0]]["DISTANCESCALING"] / 1000
     time_scale = d[ucd_config_prios_str[0]]["TIMESCALING"] / 1000
+    bmc_cnt = d[ucd_config_prios_str[0]]["BMC_CNT"]
     # distance_formula_pp = d[ucd_config_prios_str[0]]["UCD_FORMULA_PP_DISTANCE"]             # HERE we DO make a difference, see below!
     vel_scale = dist_scale / time_scale  # velocity = distance / time
 
@@ -716,8 +763,11 @@ for run_id, seedo in scheduler:
 
     selected_config = None
     last_full_solution_prio = None
-    config_selector = MCConfigSelector(len(ucd_config_prios_str), policy=args.mc_selection) if args.mc_selection != 'all' else None
-    watchdog_start = '' if args.live and platform.system() == 'Linux' else '@{nuXmv}@.killAfter[300].Detach.setScriptVar[scriptID, force]'
+    config_selector = (MCConfigSelector(len(ucd_config_prios_str), policy=args.mc_selection,
+                                        shortcut_probe_points=args.shortcut_probe_points)
+                       if args.mc_selection != 'all' else None)
+    # Live mode skips the Windows watchdog: its WMI process scan and 3 s sleep add ~4 s to every query.
+    watchdog_start = '' if args.live else '@{nuXmv}@.killAfter[300].Detach.setScriptVar[scriptID, force]'
     watchdog_stop = '' if not watchdog_start else '@{scriptID}@.scriptVar.StopScript'
     
     global_counter = -1  # Guards the validity check below if the inner loop never runs (e.g. steps_per_run == 0).
@@ -758,6 +808,7 @@ for run_id, seedo in scheduler:
             @{{}}@.prepareOutputForMortyUCD[{str(run_id)}, {str(global_counter)}, {0}, {str(crashed)}]
         """
         MC_SCRIPT = MC_INPUT_SCRIPT + MC_SOLVER_SCRIPT
+        MC_OUTPUT_SCRIPT = f"@{{}}@.prepareOutputForMortyUCD[{str(run_id)}, {str(global_counter)}, {0}, {str(crashed)}]"
         # EO The script to run the MC on C++ side.
 
         # Prepare dry run        
@@ -807,7 +858,8 @@ for run_id, seedo in scheduler:
         found_shortcut = False
         if config_selector is not None:
             blind, selected_cnt, res_str, point_index = run_adaptive_planning(
-                MC_INPUT_SCRIPT, MC_SOLVER_SCRIPT, future_points_str, empty_cex, last_full_solution_prio)
+                MC_INPUT_SCRIPT, MC_SOLVER_SCRIPT, future_points_str, empty_cex, last_full_solution_prio,
+                selected_cnt if selected_config is not None else None, MC_OUTPUT_SCRIPT)
             found_shortcut = point_index is not None
             if found_shortcut:
                 shortcut_index = point_index

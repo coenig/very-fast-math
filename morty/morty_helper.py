@@ -54,11 +54,19 @@ def load_run_settings(template):
         'allow_crashed_steps': ('UCD_ALLOW_CRASHED_STEPS', 1),
         'min_iterations': ('UCD_MIN_ITERATIONS', 2),
         'mc_selection': ('UCD_MC_SELECTION', 'all'),
+        'shortcut_bmc_slack': ('UCD_SHORTCUT_BMC_SLACK', None),
+        'shortcut_probe_points': ('UCD_SHORTCUT_PROBE_POINTS', 0),
+        'persistent_solver': ('UCD_PERSISTENT_SOLVER', False),
     }
     settings = {}
     for name, (key, default) in defaults.items():
         value = template.get(key, default)
-        if name == 'mc_selection':
+        if value is None and default is None:
+            pass
+        elif name == 'persistent_solver':
+            if type(value) is not bool:
+                raise ValueError(f'{key} must be true or false')
+        elif name == 'mc_selection':
             if value not in ('all', 'priority', 'adaptive'):
                 raise ValueError(f'{key} must be all, priority, or adaptive')
         elif name == 'heading_adaptation':
@@ -70,14 +78,20 @@ def load_run_settings(template):
     return settings
 
 
+def shortcut_bmc_bound(point_index, slack, full_bound):
+    # Waypoint `point_index` of the previous plan lies point_index + 1 steps ahead.
+    return min(full_bound, point_index + 1 + slack)
+
+
 class MCConfigSelector:
-    def __init__(self, config_count, policy='adaptive'):
+    def __init__(self, config_count, policy='adaptive', shortcut_probe_points=0):
         if config_count < 1:
             raise ValueError('At least one MC configuration is required')
         if policy not in ('adaptive', 'priority'):
             raise ValueError('MC selection policy must be adaptive or priority')
         self.config_count = config_count
         self.policy = policy
+        self.shortcut_probe_points = shortcut_probe_points
         self.estimates = {}
 
     def record(self, config_index, shortcut, success, seconds):
@@ -107,12 +121,21 @@ class MCConfigSelector:
             return sorted(indices)
         return sorted(indices, key=lambda index: (self.expected_cost(index, shortcut), index))
 
-    def queries(self, shortcut_count, max_shortcut_priority):
+    def queries(self, shortcut_count, max_shortcut_priority, plan_priority=None):
         full_configs = self.ordered_configs(False, range(self.config_count))
         eligible = range(min(self.config_count, max_shortcut_priority + 1)) if max_shortcut_priority is not None else []
         shortcut_configs = self.ordered_configs(True, eligible)
         attempted_shortcuts = set()
-        if (shortcut_count and shortcut_configs
+        if self.shortcut_probe_points and shortcut_count and shortcut_configs:
+            # Cheap bounded probes: follow the current plan's next waypoints before replanning.
+            probe_configs = shortcut_configs[:1]
+            if plan_priority in eligible and plan_priority not in probe_configs:
+                probe_configs.append(plan_priority)
+            for point_index in range(min(self.shortcut_probe_points, shortcut_count)):
+                for config_index in probe_configs:
+                    attempted_shortcuts.add((config_index, point_index))
+                    yield config_index, point_index
+        elif (shortcut_count and shortcut_configs
                 and self.expected_cost(shortcut_configs[0], True) <= self.expected_cost(full_configs[0], False)):
             for config_index in shortcut_configs[:2]:
                 attempted_shortcuts.add((config_index, 0))

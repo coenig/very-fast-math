@@ -2,6 +2,8 @@ import ast
 import contextlib
 import io
 import json
+import os
+import subprocess
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -62,7 +64,8 @@ class LiveModeTests(unittest.TestCase):
         self.assertEqual(helper.load_run_settings({}), {
             'num_runs': 100, 'steps_per_run': 300, 'heading_adaptation': -0.5,
             'allow_blind_steps': 1, 'allow_crashed_steps': 1, 'min_iterations': 2,
-            'mc_selection': 'all',
+            'mc_selection': 'all', 'shortcut_bmc_slack': None, 'shortcut_probe_points': 0,
+            'persistent_solver': False,
         })
         settings = helper.load_run_settings({'UCD_MC_SELECTION': 'priority', 'UCD_NUM_RUNS': 1,
                                              'UCD_ALLOW_BLIND_STEPS': 0, 'UCD_MIN_ITERATIONS': 0})
@@ -331,7 +334,8 @@ class LiveModeTests(unittest.TestCase):
                              'config_selector': helper.MCConfigSelector(3), 'ucd_config_prios_str': configs,
                              'spec_res': 'original goal', 'run_planning_script': query,
                              'write_spec_to_main_smv': lambda name, target: targets.__setitem__(name, target),
-                             'postprocess_selected_config': select, 'perf_counter': lambda: 1.0}
+                             'postprocess_selected_config': select, 'perf_counter': lambda: 1.0,
+                             'args': SimpleNamespace(shortcut_bmc_slack=None), 'persistent_pool': None}
                 exec(compile(ast.Module(body=[function], type_ignores=[]), '<adaptive planning>', 'exec'), namespace)
                 if winner == 'stale':
                     with self.assertRaisesRegex(RuntimeError, 'stale result'):
@@ -346,6 +350,81 @@ class LiveModeTests(unittest.TestCase):
                 else:
                     self.assertEqual(result, ('|2', 2, 'fresh', 1 if winner == 'last_shortcut' else None))
                 self.assertEqual(len(queries), len(set(queries)))
+
+    def test_shortcut_probes_follow_plan_waypoints_before_replanning(self):
+        selector = helper.MCConfigSelector(16, policy='priority', shortcut_probe_points=3)
+        selector.record(0, True, False, 100)
+        queries = list(selector.queries(5, 4, plan_priority=4))
+        self.assertEqual(queries[:6], [(0, 0), (4, 0), (0, 1), (4, 1), (0, 2), (4, 2)])
+        self.assertEqual(queries[6:22], [(index, None) for index in range(16)])
+        self.assertEqual(len(queries), len(set(queries)))
+        self.assertEqual(set(queries), {(index, None) for index in range(16)}
+                         | {(index, point) for index in range(5) for point in range(5)})
+        self.assertEqual(list(selector.queries(2, 0, plan_priority=0))[:2], [(0, 0), (0, 1)])
+        self.assertEqual(list(selector.queries(0, None, plan_priority=None)), [(index, None) for index in range(16)])
+
+    def test_shortcut_bmc_bound_counts_steps_to_waypoint(self):
+        self.assertEqual(helper.shortcut_bmc_bound(0, 2, 30), 3)
+        self.assertEqual(helper.shortcut_bmc_bound(4, 2, 30), 7)
+        self.assertEqual(helper.shortcut_bmc_bound(40, 2, 30), 30)
+        settings = helper.load_run_settings({'UCD_SHORTCUT_BMC_SLACK': 2, 'UCD_SHORTCUT_PROBE_POINTS': 3})
+        self.assertEqual((settings['shortcut_bmc_slack'], settings['shortcut_probe_points']), (2, 3))
+        for key, value in [('UCD_SHORTCUT_BMC_SLACK', -1), ('UCD_SHORTCUT_PROBE_POINTS', None),
+                           ('UCD_PERSISTENT_SOLVER', 1)]:
+            with self.subTest(key=key), self.assertRaisesRegex(ValueError, key):
+                helper.load_run_settings({key: value})
+
+    def test_persistent_solver_moves_observations_into_property(self):
+        from . import persistent_solver as ps
+
+        main = ('-- TASK7 INPUT CONSTANTS\n#define LIMIT 7\n-- EO TASK7 INPUT CONSTANTS\n#include "model.smv"\n\n'
+                'MODULE main\nVAR\n  env : M;\n'
+                'INVARSPEC !(env.x >= 5\n & env.flag);\n'
+                '-- INIT CONSTRAINTS\nINIT env.x = -2;\nINIT !env.flag;\n\n-- EO INIT CONSTRAINTS\n--EO-SPEC-STUFF\n')
+        header, body, observations, goal = ps.split_live_model(main)
+        self.assertTrue(header.endswith('#include "model.smv"'))
+        self.assertNotIn('INVARSPEC', body)
+        self.assertNotIn('INIT env', body)
+        self.assertEqual(observations, [('env.x', False, '-2'), ('env.flag', True, None)])
+        self.assertEqual(goal, 'env.x >= 5 & env.flag')
+        self.assertEqual(ps.observation_property(observations, goal),
+                         '!(__obs_0 = -2 & !__obs_1 & (env.x >= 5 & env.flag))')
+        model = ps.static_model('PRE', body, observations)
+        self.assertIn('__obs_0 : integer;', model)
+        self.assertIn('__obs_1 : boolean;', model)
+        self.assertIn('INIT __obs_1 = env.flag;', model)
+        self.assertIsNone(ps.split_live_model(main.replace('env.x >= 5', 'env.x >= LIMIT')))
+        self.assertIsNone(ps.split_live_model(main.replace('INIT env.x = -2;', 'INIT env.x > -2;')))
+
+    @unittest.skipUnless(Path('external/win32/nuXmv.exe' if os.name == 'nt' else 'external/linux64/nuXmv').exists(),
+                         'nuXmv not available')
+    def test_persistent_solver_matches_fresh_nuxmv(self):
+        from . import persistent_solver as ps
+
+        with TemporaryDirectory() as folder:
+            package = Path(folder)
+            (package / 'model.smv').write_text(
+                'MODULE M\nVAR\n  x : integer;\n  flag : boolean;\n'
+                'TRANS next(x) >= x - LIMIT & next(x) <= x + LIMIT;\nTRANS next(flag) = (x > 3);\n')
+            pool = ps.PersistentSolverPool('external')
+            (package / 'script.cmd').write_text('go_msat\nmsat_check_invar_bmc -i -a falsification -k 6\nquit\n')
+            environment = dict(os.environ, CPP=pool.cpp[0]) if os.name == 'nt' else None
+            try:
+                for start, flag in [(-2, '!'), (4, ''), (-30, ''), (-30, '!'), (3, '')]:
+                    (package / 'main.smv').write_text(
+                        f'#define LIMIT 3\n#include "model.smv"\nMODULE main\nVAR\n  env : M;\n'
+                        f'INVARSPEC !(env.x >= 5 & env.flag);\n'
+                        f'-- INIT CONSTRAINTS\nINIT env.x = {start};\nINIT {flag}env.flag;\n-- EO INIT CONSTRAINTS\n')
+                    fresh = subprocess.run(pool.command + ['-pre', 'cpp', '-source', 'script.cmd', 'main.smv'],
+                                           cwd=package, capture_output=True, text=True, env=environment).stdout
+                    with self.subTest(start=start, flag=flag):
+                        output = pool.check(package, 'msat_check_invar_bmc -i -a falsification -k 6')
+                        self.assertEqual('is false' in output, 'is false' in fresh)
+                        self.assertEqual(output.count('-> State: '), fresh.count('-> State: '))
+                        self.assertNotIn('__obs', output.split('Trace Type')[-1] if 'is false' in output else '')
+                self.assertEqual(len(pool.sessions), 1)
+            finally:
+                pool.close()
 
     def test_adaptive_selector_keeps_every_full_goal_fallback(self):
         selector = helper.MCConfigSelector(16)
