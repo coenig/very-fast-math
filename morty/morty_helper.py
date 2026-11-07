@@ -13,9 +13,10 @@ import ctypes
 import ctypes.util
 from contextlib import contextmanager
 from ctypes import CDLL
+from time import perf_counter
 
 
-def save_simulation_snapshot(env, path, render=True):
+def save_simulation_snapshot(env, path, render=True, viz_state=None):
     from PIL import Image
 
     image = None
@@ -29,6 +30,11 @@ def save_simulation_snapshot(env, path, render=True):
         image = env.render()
     if image is None:
         image = env.unwrapped.viewer.get_image()
+    if viz_state is not None:
+        viewer = env.unwrapped.viewer
+        surface = viewer.screen if viewer.config['render_agent'] and not viewer.offscreen else viewer.sim_surface
+        viz_state._draw_status(viewer, refresh=False, surface=surface)
+        image = viewer.get_image()
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     Image.fromarray(image).save(path, 'PDF', resolution=150.0)
@@ -571,6 +577,25 @@ class VizState:
         self.status = ""
         self.mc_running = False
         self._status_font = None
+        self.mc_cycle_seconds = 0.0
+        self.last_mc_ms = None
+
+    def begin_mc_cycle(self):
+        self.mc_cycle_seconds = 0.0
+
+    @contextmanager
+    def measure_mc_query(self, enabled=True):
+        if not enabled:
+            yield
+            return
+        started = perf_counter()
+        try:
+            yield
+        finally:
+            self.mc_cycle_seconds += perf_counter() - started
+
+    def finish_mc_cycle(self):
+        self.last_mc_ms = self.mc_cycle_seconds * 1000
 
     def attach_status(self, env):
         viewer = env.unwrapped.viewer
@@ -593,26 +618,36 @@ class VizState:
         self.mc_running = mc_running
         self._draw_status(viewer)
 
-    def _draw_status(self, viewer):
-        if not self.status:
+    def _draw_status(self, viewer, refresh=True, surface=None):
+        if not self.status and self.last_mc_ms is None:
             return
         import pygame
 
+        if not pygame.font.get_init():
+            pygame.font.init()
         if self._status_font is None:
             self._status_font = pygame.font.Font(None, 22)
-        strip = pygame.Rect(0, 0, viewer.screen.get_width(), 30)
+        if surface is None:
+            surface = viewer.screen
+        strip = pygame.Rect(0, 0, surface.get_width(), 30)
         background = (255, 221, 92) if self.mc_running else (229, 235, 239)
-        pygame.draw.rect(viewer.screen, background, strip)
+        pygame.draw.rect(surface, background, strip)
         text = self.status
         available_width = max(0, strip.width - 16)
+        if self.last_mc_ms is not None:
+            timing = self._status_font.render(f"Last cycle MC: {self.last_mc_ms:.1f} ms", True, (25, 30, 35))
+            surface.blit(timing, (strip.width - timing.get_width() - 8,
+                                 (strip.height - timing.get_height()) // 2))
+            available_width = max(0, available_width - timing.get_width() - 16)
         if self._status_font.size(text)[0] > available_width:
             while text and self._status_font.size(text + "...")[0] > available_width:
                 text = text[:-1]
             text = text + "..." if text else ""
         label = self._status_font.render(text, True, (25, 30, 35))
-        viewer.screen.blit(label, (8, (strip.height - label.get_height()) // 2))
-        pygame.display.update(strip)
-        pygame.event.pump()
+        surface.blit(label, (8, (strip.height - label.get_height()) // 2))
+        if refresh:
+            pygame.display.update(strip)
+            pygame.event.pump()
 
 
 def get_scene_bounding_box(env, car_ids):

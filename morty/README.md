@@ -25,7 +25,12 @@ control cycle without a frame-rate delay. Physics stepping is unchanged. Traject
 debug plots, statistics, video, archives, and the extra debug solve remain disabled. The window
 has a status strip: yellow means `MC pipeline running` (full plan or numbered shortcut attempt),
 while gray identifies input preparation, road rendering, result processing, and simulation steps.
-The MC label includes the native input/solver/output pipeline, not just nuXmv CPU time. Status
+The MC label includes the native input/solver/output pipeline, not just nuXmv CPU time.
+The strip also shows `Last cycle MC: ... ms`: the summed wall time of all yellow MC
+calls in the most recently planned cycle, including unsuccessful shortcut/fallback
+attempts. Grey phases, status painting, simulation stepping and image generation
+are excluded. Persistent-solver queries use their yellow interval; the subsequent
+grey output-processing call is excluded. This is not solver CPU time or total cycle time. Status
 changes are painted before blocking calls; the scene itself pauses while planning. Plain headless
 `--live` does not paint or maintain these status updates. Rendering adds overhead, and generating the road
 background once on the first cycle can take tens of seconds; use plain `--live` for timing
@@ -48,7 +53,9 @@ plan is available capture the final unstepped state instead. Seed-specific folde
 snapshots from runs excluded by the minimum-iteration threshold. No video, plots, statistics,
 or archives are enabled. Without `--force_head`, rendering is offscreen and opens no window;
 with it, the snapshot reuses the already rendered step. This adds one PDF write per cycle
-and the same one-time road-background generation cost as the viewer.
+and the same one-time road-background generation cost as the viewer. Both offscreen
+and visible snapshots include the same `Last cycle MC: ... ms` annotation for the
+captured cycle, including terminal cycles that do not step the simulation.
 
 Live runs retain the native library, launch configured models without artificial delays, reuse
 prepared solver scripts and unchanged planner translations, and extract only the trajectory
