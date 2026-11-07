@@ -47,7 +47,7 @@ def ensure_empty_file(path: str) -> None:
 
 def load_run_settings(template):
     defaults = {
-        'num_runs': ('UCD_NUM_RUNS', 100),
+        'start_seed': ('UCD_START_SEED', 0),
         'steps_per_run': ('UCD_STEPS_PER_RUN', 300),
         'heading_adaptation': ('UCD_HEADING_ADAPTATION', -0.5),
         'allow_blind_steps': ('UCD_ALLOW_BLIND_STEPS', 1),
@@ -378,17 +378,18 @@ class RunScheduler:
             # otherwise just continue; the next seed reuses the same run_id
     """
 
-    def __init__(self, generated_path_prefix: str, max_exps: int, dryrun: bool, persist: bool = True):
+    def __init__(self, generated_path_prefix: str, max_exps: int, dryrun: bool, persist: bool = True,
+                 start_seed: int = 0):
         self.generated_path_prefix = generated_path_prefix
         self.max_exps = max_exps
         self.dryrun = bool(dryrun)
         self.persist = persist
         self.run_id = 0
-        self.seed = -1
+        self.seed = start_seed - 1
         self.run_seed_map: Dict[int, int] = {}
         if self.dryrun:
             # Backward compatibility with archives created before the seed/run_id split.
-            self.dryrun_pairs = load_run_seed_pairs(generated_path_prefix) or [(i, i) for i in range(max_exps)]
+            self.dryrun_pairs = load_run_seed_pairs(generated_path_prefix) or [(i, start_seed + i) for i in range(max_exps)]
         else:
             self.dryrun_pairs = None
             if self.persist:

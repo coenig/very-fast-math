@@ -71,12 +71,13 @@ guarantee: solving the configured models can still exceed a few hundred millisec
 #### Run Configuration
 
 Behavior settings belong in `#TEMPLATE` in [morty/envmodel_config.tpl.json](morty/envmodel_config.tpl.json),
-not in driver command-line arguments. The active five-car task-7 template uses:
+including the starting seed. The number of runs is instead controlled by `--num_runs`
+(or `-n`), which defaults to `100`. The active five-car task-7 template uses:
 
 | Template Key | Recommended Value | Default When Absent |
 |---|---|---|
 | `UCD_MC_SELECTION` | `"priority"` | `"all"` |
-| `UCD_NUM_RUNS` | `1` | `100` |
+| `UCD_START_SEED` | `0` | `0` |
 | `UCD_STEPS_PER_RUN` | `300` | `300` |
 | `UCD_HEADING_ADAPTATION` | `-0.5` | `-0.5` |
 | `UCD_ALLOW_BLIND_STEPS` | `0` | `1` |
@@ -101,10 +102,22 @@ of parked cars into 1 and contradict their `v = 0` invariant).
 
 Keep `UCD_USE_SHORTCUT: true` and the full 16-entry `UCD_CONFIG_PRIOS` list. The failure
 limits stop at the first blind or crashed step; `UCD_MIN_ITERATIONS: 0` retains early
-failures instead of silently trying another seed to replace them. Change `UCD_NUM_RUNS`
-in the template for a longer campaign. Missing new keys preserve historical defaults.
-The former CLI options for these settings, including their short aliases, are rejected.
-Display, live/experiment mode, replay, and output-directory management remain CLI controls.
+failures instead of silently trying another seed to replace them. Set `UCD_START_SEED`
+to the first nonnegative seed to try; subsequent attempts increment it while run IDs
+still start at zero. Recorded seeds take precedence during `--dryrun`; older archives
+without a seed map use the configured starting seed plus the run ID.
+
+For a single run starting at the template's seed:
+
+```bash
+python3 -m morty.morty --live --num_runs 1
+```
+
+Use `--num_runs 100` for a longer campaign. The count must be a nonnegative integer;
+zero requests no runs. `UCD_NUM_RUNS` is no longer read from the template.
+Missing template keys preserve historical defaults. CLI options for the other
+template settings remain rejected. Display, live/experiment mode, replay, and
+output-directory management remain CLI controls.
 
 This recommendation preserves bounding-box preference within each candidate list and all
 fallbacks. It does not eliminate the known initially blind seeds or establish rare-event

@@ -62,21 +62,23 @@ class LiveModeTests(unittest.TestCase):
 
     def test_json_run_settings_preserve_legacy_defaults(self):
         self.assertEqual(helper.load_run_settings({}), {
-            'num_runs': 100, 'steps_per_run': 300, 'heading_adaptation': -0.5,
+            'start_seed': 0, 'steps_per_run': 300, 'heading_adaptation': -0.5,
             'allow_blind_steps': 1, 'allow_crashed_steps': 1, 'min_iterations': 2,
             'mc_selection': 'all', 'shortcut_bmc_slack': None, 'shortcut_probe_points': 0,
             'persistent_solver': False,
         })
-        settings = helper.load_run_settings({'UCD_MC_SELECTION': 'priority', 'UCD_NUM_RUNS': 1,
+        settings = helper.load_run_settings({'UCD_MC_SELECTION': 'priority', 'UCD_START_SEED': 7,
                                              'UCD_ALLOW_BLIND_STEPS': 0, 'UCD_MIN_ITERATIONS': 0})
         self.assertEqual(settings['mc_selection'], 'priority')
-        self.assertEqual(settings['num_runs'], 1)
+        self.assertEqual(settings['start_seed'], 7)
         self.assertEqual(settings['allow_blind_steps'], 0)
         self.assertEqual(settings['min_iterations'], 0)
 
     def test_json_run_settings_reject_invalid_values(self):
         for key, value in [('UCD_MC_SELECTION', 'unknown'), ('UCD_MC_SELECTION', None),
-                           ('UCD_NUM_RUNS', True), ('UCD_STEPS_PER_RUN', -1),
+                           ('UCD_START_SEED', True), ('UCD_START_SEED', -1),
+                           ('UCD_START_SEED', 1.5), ('UCD_START_SEED', '7'),
+                           ('UCD_STEPS_PER_RUN', -1),
                            ('UCD_ALLOW_BLIND_STEPS', 1.5), ('UCD_MIN_ITERATIONS', '0'),
                            ('UCD_HEADING_ADAPTATION', float('nan')),
                            ('UCD_HEADING_ADAPTATION', float('inf')),
@@ -125,22 +127,58 @@ class LiveModeTests(unittest.TestCase):
                     self.parse_driver_options(template=template)
 
     def test_behavior_settings_cannot_be_overridden_by_cli(self):
-        for option, value in [('--mc_selection', 'adaptive'), ('--num_runs', '1'),
+        for option, value in [('--mc_selection', 'adaptive'), ('--start_seed', '7'),
                               ('--steps_per_run', '3'), ('--heading_adaptation', '0'),
                               ('--allow_blind_steps', '0'), ('--allow_crashed_steps', '0'),
-                              ('--min_iterations', '0'), ('-n', '1'), ('-s', '3'),
+                              ('--min_iterations', '0'), ('-s', '3'),
                               ('-a', '0'), ('-b', '0'), ('-c', '0')]:
             with self.subTest(option=option), contextlib.redirect_stderr(io.StringIO()), \
                  self.assertRaises(SystemExit):
                 self.parse_driver_options('--live', option, value)
 
     def test_driver_applies_json_run_settings(self):
-        template = {'UCD_NUM_RUNS': 3, 'UCD_STEPS_PER_RUN': 17, 'UCD_HEADING_ADAPTATION': 1.25,
+        template = {'UCD_START_SEED': 7, 'UCD_STEPS_PER_RUN': 17, 'UCD_HEADING_ADAPTATION': 1.25,
                     'UCD_ALLOW_BLIND_STEPS': 0, 'UCD_ALLOW_CRASHED_STEPS': 0,
                     'UCD_MIN_ITERATIONS': 0, 'UCD_MC_SELECTION': 'priority'}
         args = self.parse_driver_options('--live', template=template)
         for name, value in helper.load_run_settings(template).items():
             self.assertEqual(getattr(args, name), value)
+
+    def test_run_count_is_cli_only(self):
+        template = {'UCD_NUM_RUNS': 3, 'UCD_START_SEED': 7}
+        self.assertEqual(self.parse_driver_options('--live', template=template).num_runs, 100)
+        for option in ['--num_runs', '-n']:
+            with self.subTest(option=option):
+                args = self.parse_driver_options('--live', option, '2', template=template)
+                self.assertEqual(args.num_runs, 2)
+                self.assertEqual(args.start_seed, 7)
+        self.assertEqual(self.parse_driver_options('--live', '-n', '0').num_runs, 0)
+        for value in ['-1', '1.5', 'invalid']:
+            with self.subTest(value=value), contextlib.redirect_stderr(io.StringIO()), \
+                 self.assertRaises(SystemExit):
+                self.parse_driver_options('--live', '--num_runs', value)
+
+    def test_scheduler_start_seed_preserves_run_ids_and_skips(self):
+        scheduler = helper.RunScheduler('', 2, False, persist=False, start_seed=7)
+        self.assertEqual(next(scheduler), (0, 7))
+        self.assertEqual(next(scheduler), (0, 8))
+        scheduler.commit()
+        self.assertEqual(next(scheduler), (1, 9))
+        scheduler.commit()
+        with self.assertRaises(StopIteration):
+            next(scheduler)
+        self.assertEqual(next(helper.RunScheduler('', 1, False, persist=False)), (0, 0))
+
+    def test_scheduler_replay_prefers_recorded_seeds(self):
+        with TemporaryDirectory() as folder:
+            scheduler = helper.RunScheduler(folder, 1, False, start_seed=7)
+            self.assertEqual(next(scheduler), (0, 7))
+            scheduler.commit()
+            replay = helper.RunScheduler(folder, 1, True, start_seed=20)
+            self.assertEqual(list(replay), [(0, 7)])
+        with patch.object(helper, 'load_run_seed_pairs', return_value=[]):
+            replay = helper.RunScheduler('', 2, True, start_seed=7)
+            self.assertEqual(list(replay), [(0, 7), (1, 8)])
 
     def test_status_is_inactive_without_a_visible_viewer(self):
         for viewer in [None, SimpleNamespace(offscreen=True),

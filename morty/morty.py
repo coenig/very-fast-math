@@ -57,7 +57,12 @@ parser.add_argument('--force_head', action='store_true',
                     help='Show the simulation window with --live, keeping debugging and statistics disabled.')
 parser.add_argument('--force_snapshots', action='store_true',
                     help='Save one simulation-state PDF per cycle with --live, with or without a window.')
+parser.add_argument('--num_runs', '-n', type=int, default=100,
+                    help='Number of runs to retain. Default: 100')
 args = parser.parse_args()
+
+if args.num_runs < 0:
+    parser.error('--num_runs must be a nonnegative integer')
 
 try:
     with open('morty/envmodel_config.tpl.json') as config_file:
@@ -586,7 +591,8 @@ if args.detailed_archive:
 # stored data/statistics/archives): RunScheduler keeps drawing fresh seeds and only advances the
 # run ID for runs that reach the UCD_MIN_ITERATIONS threshold (see commit()/discard_run below), so
 # early, unsolvable failures neither consume a run ID nor leave any artifacts behind.
-scheduler = RunScheduler(generated_path_prefix, MAX_EXPs, args.dryrun, persist=not args.live)
+scheduler = RunScheduler(generated_path_prefix, MAX_EXPs, args.dryrun, persist=not args.live,
+                         start_seed=args.start_seed)
 
 for run_id, seedo in scheduler:
     # Snapshot the per-config MC results log lengths so an excluded run can be truncated away again.
