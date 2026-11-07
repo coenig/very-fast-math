@@ -635,7 +635,7 @@ class VizState:
         text = self.status
         available_width = max(0, strip.width - 16)
         if self.last_mc_ms is not None:
-            timing = self._status_font.render(f"Last cycle MC: {self.last_mc_ms:.1f} ms", True, (25, 30, 35))
+            timing = self._status_font.render(f"Last cycle MC time: {self.last_mc_ms:.1f} ms", True, (25, 30, 35))
             surface.blit(timing, (strip.width - timing.get_width() - 8,
                                  (strip.height - timing.get_height()) // 2))
             available_width = max(0, available_width - timing.get_width() - 16)
