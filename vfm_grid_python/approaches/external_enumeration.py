@@ -79,7 +79,17 @@ def connected_parkings(graph):
     return parking<=seen
 
 
-def run(config,output,bound=250,timeout=120,seed=0,max_topologies=100):
+def run(config,output,bound=250,timeout=120,seed=0,max_topologies=100,
+        enumerator='blind',projection='topology',solver='z3'):
+    """Check candidate topologies until the first witness.
+
+    ``enumerator='blind'`` is the property-blind affine order. ``'sat'``
+    enumerates solutions of the static constraints (gamma) with PySMT; in that
+    case ``projection='placement'`` also fixes starts/goals/roles per query.
+    SAT solver calls are timed as ``enumeration``.
+    """
+    if enumerator not in ('blind','sat'):raise ValueError('enumerator must be blind or sat')
+    if enumerator=='blind' and projection!='topology':raise ValueError('placement projection needs the sat enumerator')
     root=Path(output).resolve()
     root.mkdir(parents=True,exist_ok=False)
     dump(root/'config.json',config)
@@ -87,16 +97,27 @@ def run(config,output,bound=250,timeout=120,seed=0,max_topologies=100):
     started=time.monotonic()
     os.environ[JOURNAL],os.environ[PHASE],os.environ[DEADLINE]=str(root/'timing.jsonl'),'concrete',str(started+timeout)
     result=dict(status='topology_limit',topologies_checked=0,topologies_skipped=0,
-                component_prefilter=False,seed=seed,timeout=timeout)
+                component_prefilter=False,seed=seed,timeout=timeout,enumerator=enumerator)
+    if enumerator=='sat':
+        from vfm_grid_python.scenarios.topologies import sat_layouts
+        result.update(projection=projection,solver=solver)
+        candidates=sat_layouts(config,seed,projection,solver,timer=lambda:interval('enumeration'),
+                               report=root/'enumeration/static_constraints.json')
+    else:
+        candidates=timed_layouts(bounded_layouts(config['rows'],config['columns'],config['parkings'],seed,started+timeout))
     try:
-        for index,graph in enumerate(timed_layouts(bounded_layouts(config['rows'],config['columns'],config['parkings'],seed,started+timeout))):
+        for index,graph in enumerate(candidates):
             if index>=max_topologies:
                 result['status']='topology_limit';break
             if time.monotonic()-started>=timeout:
                 result['status']='timeout';break
             result['topologies_considered']=index+1
             result['oracle_assignments_examined']=graph.get('oracle_assignments_examined')
-            attempt=fixed(config,graph,root/f'topology_{index:04d}',bound,timeout)
+            case=config
+            if 'eta' in graph:
+                from vfm_grid_python.scenarios.topologies import placement_constraints
+                case=dict(config,initial_constraints=config.get('initial_constraints',[])+placement_constraints(graph['eta']))
+            attempt=fixed(case,graph,root/f'topology_{index:04d}',bound,timeout)
             with (root/'topologies.jsonl').open('a') as stream:
                 stream.write(json.dumps(dict(index=index,graph=graph,result=attempt))+'\n')
             result.update(status=attempt['status'],topologies_checked=result['topologies_checked']+1,
@@ -105,7 +126,8 @@ def run(config,output,bound=250,timeout=120,seed=0,max_topologies=100):
                 result.update(attempt);break
             if attempt['status']!='no_witness_within_bound':break
         else:
-            result['status']='all_layouts_exhausted_within_bound'
+            result['status']=('gamma_unsatisfiable' if enumerator=='sat' and not result['topologies_checked']
+                              else 'all_layouts_exhausted_within_bound')
     except TimeoutError as exc:
         result.update(status='timeout',error=str(exc))
     except Exception as exc:
@@ -130,8 +152,12 @@ def main():
     p.add_argument('--timeout',type=float,default=120)
     p.add_argument('--seed',type=int,default=0)
     p.add_argument('--max-topologies',type=int,default=100)
+    p.add_argument('--enumerator',choices=('blind','sat'),default='blind')
+    p.add_argument('--projection',choices=('topology','placement'),default='topology')
+    p.add_argument('--solver',choices=('z3','msat'),default='z3')
     args=p.parse_args()
-    print(json.dumps(run(json.loads(args.config.read_text()),args.output_dir,args.bound,args.timeout,args.seed,args.max_topologies),indent=2))
+    print(json.dumps(run(json.loads(args.config.read_text()),args.output_dir,args.bound,args.timeout,args.seed,
+                         args.max_topologies,args.enumerator,args.projection,args.solver),indent=2))
 
 
 if __name__=='__main__':main()

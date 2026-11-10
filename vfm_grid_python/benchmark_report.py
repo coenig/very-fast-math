@@ -17,10 +17,10 @@ def write_report(root, rows):
         c=r.get('concrete',{}).get('timings_seconds',r.get('timings_seconds',{})).get('model_checking')
         lines.append(f"| {r['instance']} | {r['approach']} | {r['status']} | {value(a)} | {value(c)} | {value(r.get('enumeration_seconds'))} | {value(r.get('wall_seconds'))} |")
     (root/'REPORT.md').write_text('\n'.join(lines)+'\n')
-    methods=['external_enumeration','direct_model_checking','abstraction_based']
+    methods=['external_enumeration','direct_model_checking','abstraction_based','external_enumeration_sat']
     table=['# Search times (seconds)','', 'Only validated witnesses have numeric cells; other cells show status.','',
-           '| Instance | External enumeration + checking | Direct checking | Abstract + concrete checking |',
-           '|---|---:|---:|---:|']
+           '| Instance | External enumeration + checking | Direct checking | Abstract + concrete checking | gamma-SAT enumeration + checking |',
+           '|---|---:|---:|---:|---:|']
     for name in dict.fromkeys(r['instance'] for r in rows):
         group={r['approach']:r for r in rows if r['instance']==name}
         cells=[]

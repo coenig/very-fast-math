@@ -16,7 +16,8 @@ from .benchmark_timing import JOURNAL, PHASE, DEADLINE, totals
 
 METHODS = {'external_enumeration':'enumerated_concrete',
            'direct_model_checking':'direct_symbolic',
-           'abstraction_based':'abstract_monitor'}
+           'abstraction_based':'abstract_monitor',
+           'external_enumeration_sat':'enumerated_sat'}
 SEMANTICS = 'ordered-queues.v1'
 COMPILER = 'shared-queue-concrete.v1'
 
@@ -34,6 +35,14 @@ def worker(job):
         if approach=='external_enumeration':
             result=external_enumeration.run(c,output,job['concrete_bound'],job['timeout'],
                                            job['seed'],job['max_topologies'])
+        elif approach=='external_enumeration_sat':
+            result=external_enumeration.run(c,output,job['concrete_bound'],job['timeout'],
+                                           job['seed'],job['max_topologies'],'sat',
+                                           job.get('enumeration_projection','topology'),
+                                           job.get('enumeration_solver','z3'))
+            # gamma-SAT calls count as model checking time for this approach.
+            result['model_checking_seconds']=(result['timings_seconds'].get('model_checking',0)+
+                                              result['timings_seconds'].get('enumeration',0))
         elif approach=='direct_model_checking':
             result=direct_model_checking.run(c,output,job['concrete_bound'],job['timeout'])
             result['timings_seconds']=totals(journal,time.monotonic())
@@ -124,6 +133,9 @@ def main():
     p.add_argument('--parallel',type=int,default=1)
     p.add_argument('--seed',type=int,default=0)
     p.add_argument('--max-topologies',type=int,default=1000000)
+    p.add_argument('--enumeration-projection',choices=('topology','placement'),
+                   help='external_enumeration_sat: enumerate topologies (default) or topologies with placements')
+    p.add_argument('--enumeration-solver',choices=('z3','msat'),help='external_enumeration_sat backend (default z3)')
     p.add_argument('--no-gif',action='store_true')
     p.add_argument('--preview',action='store_true')
     p.add_argument('--report-only',action='store_true')
@@ -148,7 +160,9 @@ def main():
     options=dict(timeout=args.timeout if args.timeout is not None else settings.get('timeout',300),
                  abstract_bound=args.abstract_bound if args.abstract_bound is not None else settings.get('abstract_bound',60),
                  concrete_bound=args.concrete_bound if args.concrete_bound is not None else settings.get('concrete_bound',200),
-                 seed=args.seed,max_topologies=args.max_topologies)
+                 seed=args.seed,max_topologies=args.max_topologies,
+                 enumeration_projection=args.enumeration_projection or settings.get('enumeration_projection','topology'),
+                 enumeration_solver=args.enumeration_solver or settings.get('enumeration_solver','z3'))
     if options['timeout']<=0 or min(options['abstract_bound'],options['concrete_bound'])<0 or args.parallel<1 or args.max_topologies<1:
         p.error('positive timeout/parallelism/topology limit and nonnegative bounds required')
     jobs=[]
