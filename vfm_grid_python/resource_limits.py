@@ -1,8 +1,6 @@
-"""Local worker limits; the campaign coordinator stays outside the limit.
-
-RLIMIT_AS is an inherited hard *per-process virtual-address-space* limit.
-A parent watchdog additionally samples summed RSS for the entire worker tree.
-This is deliberately not advertised as an atomic cgroup memory limit.
+"""
+Control how much amount of RAM we can use for a specific scenario.
+Useful when running locally.
 """
 from __future__ import annotations
 
