@@ -1,4 +1,4 @@
-"""Queue search followed by whole-trace concrete monitor refinement."""
+"""Paper-cell refinement and the separately supported legacy queue monitor."""
 import os
 import time
 from pathlib import Path
@@ -7,6 +7,9 @@ from vfm_grid_python.common import dump
 
 
 def run(config, output, abstract_bound=60, concrete_bound=200, timeout=300, refinement='monitor'):
+    if config.get('profile') == 'paper':
+        from .pipeline import run as paper_run
+        return paper_run(config, output, refinement, abstract_bound, concrete_bound, timeout)
     if refinement != 'monitor':
         from .sequential import run as unavailable
         return unavailable()

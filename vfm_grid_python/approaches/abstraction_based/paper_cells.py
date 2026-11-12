@@ -1,10 +1,9 @@
-"""Paper-style neighbour cells on the shared symbolic road inventory.
+"""Paper neighbour cells, symbolic topology and concrete milestone predicates.
 
-This implements the paper's cell transition system, not its entire theorem:
-experiments keep the common event/hold observer and integer VFM dynamics.
-Concrete milestones use cell regions, with endpoint observations restored on
-sections. They do NOT force all cars to stop at every milestone. In particular,
-two-goal sequentialization is still experimental, not guaranteed backtrack-free.
+Milestones retain the road, cell, rank and property progress, with endpoint
+observations restored on sections. They do not prescribe velocities: stopped
+lookahead adds its terminal condition separately. Assumption reports distinguish
+the integer VFM implementation from the full real-valued theorem.
 """
 from dataclasses import dataclass
 from fractions import Fraction
@@ -45,12 +44,6 @@ class CellDomain:
         hi = (self.length if cell == self.count - 1 else
               ((cell + 1) * self.length + self.count - 1) // self.count - 1)
         return lo, hi
-
-    def canonical(self, cell):
-        if not 0 <= cell < self.count:
-            raise ValueError('cell outside road')
-        return Fraction(cell * self.length, self.count - 1)
-
 
 def dimensions(config):
     """Resolve car length from the same defaults/overrides as VFM."""

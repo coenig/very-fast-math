@@ -1,0 +1,13 @@
+# One car crosses a small symbolic topology and finishes parked.
+profile = "paper"
+paper_cell_encoding = "relational"
+rows = 2
+columns = 2
+cars = 1
+parkings = 1
+placements = [
+  { row = ["start_0", "=", 0] },
+  { col = ["start_0", "=", 0] },
+  { row = ["goal_0", "=", 1] },
+  { col = ["goal_0", "=", 1] },
+]

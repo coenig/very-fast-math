@@ -1,4 +1,58 @@
-# Queue-based parking scenario synthesis
+# Parking scenario synthesis
+
+## Paper implementation
+
+Use `profile = "paper"` for joint-valued roles, paper-cell abstraction and
+either whole-trace monitoring or two-goal sequentialization. The core entry
+point does not require the benchmark or cluster tools:
+
+```bash
+python -m vfm_grid_python.approaches.abstraction_based.pipeline \
+  vfm_grid_python/examples/paper_parking.toml \
+  --output-dir /tmp/paper-monitor --mode monitor \
+  --abstract-bound 40 --concrete-bound 80 --timeout 120 --memory-gib 4
+
+python -m vfm_grid_python.approaches.abstraction_based.pipeline \
+  vfm_grid_python/examples/paper_parking.toml \
+  --output-dir /tmp/paper-sequential --mode sequential \
+  --abstract-bound 40 --concrete-bound 80 --timeout 120 --memory-gib 4
+```
+
+Sequentialization always uses stopped lookahead: the second goal must be
+reached with zero velocities, while the committed first goal may contain
+moving cars. Positions remain free within their milestone regions, including
+connections. Every persistent concrete variable is carried into the next query,
+and the joined witness is validated. This cleanup does not change those queries
+or the dynamics; the integer backend's assumption reports remain explicit.
+
+The implementation is split into:
+
+- `approaches/abstraction_based/paper_cells.py`: cells, transitions and milestones.
+- `approaches/abstraction_based/cell_encoding.py`: equivalent compact encodings.
+- `approaches/abstraction_based/pipeline.py`: abstract search and concrete monitor.
+- `approaches/abstraction_based/sequential_refinement.py`: two-goal queries and handoffs.
+- `approaches/abstraction_based/stopped_lookahead.py`: stopped terminal predicates.
+- `scenarios/paper.py`: joint-role properties and their event/hold observer.
+
+The older interval, endpoint-only, full-suffix certification and fixed-position
+lookahead experiments are not part of this pipeline. Their `interval_*` module
+names and experimental command-line switches have been removed. Benchmark
+approach names remain `paper_monitor` and `paper_sequential`.
+
+Paper cells include necessary static clearance checks for the regions used
+by concrete milestones: distinct cells on adjoining roads must still have
+enough room for the vehicle length, and same-road regions must admit the
+configured separation. A bounded auxiliary `cell_point_i` per car witnesses
+one jointly feasible placement at each abstract tick; pairwise tests alone
+cannot establish this. These points have no dynamics and are not imposed on
+the concrete trace, which may choose any valid positions inside the cells.
+These checks do not reserve whole roads or force stopped milestones; they
+also do not guarantee a full dynamic refinement.
+Set `paper_cell_clearance = false` only to reproduce the older encoding,
+which could return statically impossible milestones. The opt-in
+`paper_cell_encoding = "relational"` uses the compact cell-count encoding.
+
+## Legacy queue profile
 
 This package supports **three approaches with the same scenario language and
 shared concrete compiler**. Run commands from the repository root.
