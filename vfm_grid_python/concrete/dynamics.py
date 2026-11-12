@@ -2,10 +2,18 @@
 
 Each connector has one coordinate from its canonical `from` endpoint to its
 `to` endpoint. Velocity is signed in the current seclet's coordinate frame.
-Acceleration is applied before frame conversion. Crossing at most one seclet
-boundary per tick is enforced by the next-state position bounds.
+Position advances using the current velocity. The incoming acceleration stored
+in next(a) is chosen afresh to determine the next velocity, before frame
+conversion. Current a is history, not a preselected outgoing control; retaining
+it at a sequential handoff therefore does not constrain the next action.
+Crossing at most one seclet boundary per tick is enforced by next-position bounds.
+Sections own their endpoints; connections contain only their open interiors.
+A car reaching a connection boundary therefore enters the adjoining section
+at its endpoint, while leaving a section still requires passing its endpoint.
 """
 from vfm_grid_python.common import both, either
+
+MOTION_SEMANTICS = 'endpoint-current-velocity-incoming-acceleration.v3'
 
 
 def movement(geometry, cars):
@@ -30,7 +38,10 @@ def movement(geometry, cars):
         car_connectors = [c for c in connections if c['from'] in allowed and c['to'] in allowed]
         speed = f"{v}.endpoint_step_v"
         raw = f"{v}.next_abs_pos"
-        lines += [f"DEFINE {speed} := min(max({v}.v + {v}.a, -max_vel), max_vel);"]
+        # a in the target state records the acceleration applied in the source
+        # road's coordinate frame. It is not reused as the next tick's control.
+        # Target-state speed bounds restrict this fresh choice without clipping.
+        lines += [f"DEFINE {speed} := {v}.v + next({v}.a);"]
         options = []
 
         def at(section=None, connector=None, nxt=False):
@@ -55,8 +66,8 @@ def movement(geometry, cars):
             al, bl = sections[a]["length"], sections[b]["length"]
             active = c.get('active','TRUE')
             on = both([at(connector=c),active])
-            valid.append(f"{on} & {v}.abs_pos >= 0 & {v}.abs_pos <= {length}")
-            move(f"{on} & {raw} >= 0 & {raw} <= {length}", at(connector=c,nxt=True), raw, speed)
+            valid.append(f"{on} & {v}.abs_pos > 0 & {v}.abs_pos < {length}")
+            move(f"{on} & {raw} > 0 & {raw} < {length}", at(connector=c,nxt=True), raw, speed)
             # Frozen symbolic endpoint orientation uses the very same cases as
             # fixed/local geometry. Guards specialize away when labels are fixed.
             for end in (True,False):
@@ -66,14 +77,14 @@ def movement(geometry, cars):
                 a_on=both([at(a),active,ag]); b_on=both([at(b),active,bg])
                 if end:
                     move(f"{a_on} & {raw} > {al}", at(connector=c,nxt=True), f"{raw} - {al}", speed)
-                    move(f"{on} & {ag} & {raw} < 0", at(a,nxt=True), f"{al} + {raw}", speed)
+                    move(f"{on} & {ag} & {raw} <= 0", at(a,nxt=True), f"{al} + {raw}", speed)
                     move(f"{b_on} & {raw} > {bl}", at(connector=c,nxt=True), f"{length} - ({raw} - {bl})", f"-({speed})")
-                    move(f"{on} & {bg} & {raw} > {length}", at(b,nxt=True), f"{bl} - ({raw} - {length})", f"-({speed})")
+                    move(f"{on} & {bg} & {raw} >= {length}", at(b,nxt=True), f"{bl} - ({raw} - {length})", f"-({speed})")
                 else:
                     move(f"{a_on} & {raw} < 0", at(connector=c,nxt=True), f"-({raw})", f"-({speed})")
-                    move(f"{on} & {ag} & {raw} < 0", at(a,nxt=True), f"-({raw})", f"-({speed})")
+                    move(f"{on} & {ag} & {raw} <= 0", at(a,nxt=True), f"-({raw})", f"-({speed})")
                     move(f"{b_on} & {raw} < 0", at(connector=c,nxt=True), f"{length} + {raw}", speed)
-                    move(f"{on} & {bg} & {raw} > {length}", at(b,nxt=True), f"{raw} - {length}", speed)
+                    move(f"{on} & {bg} & {raw} >= {length}", at(b,nxt=True), f"{raw} - {length}", speed)
         lines += ["INVAR " + either(valid) + ";", "TRANS " + either(options) + ";"]
         for other in range(car):
             w = f"veh___6{other}9___"

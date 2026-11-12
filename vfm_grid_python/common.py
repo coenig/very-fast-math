@@ -74,17 +74,27 @@ def execute(command, cwd, log, timeout):
             event(kind="end", id=identifier)
             raise
     event(kind="end", id=identifier)
+    from .resource_limits import log_memory_error
+    if returncode != 0 and log_memory_error(log):
+        return {"status": "memory_limit", "returncode": returncode,
+                "seconds": time.monotonic()-started, "memory_error_log": str(log)}
     return {"status": "finished" if returncode == 0 else "error",
             "returncode": returncode, "seconds": time.monotonic() - started}
 
 
-def check(model, bound=100, timeout=1800, temporal=False, *, backend="smt"):
+def check(model, bound=100, timeout=1800, temporal=False, *, backend="smt",
+          sat_fixed_invariant=None):
     if bound < 0 or timeout <= 0:
         raise ValueError("bound must be non-negative and timeout must be positive")
     if backend not in ("smt", "sat"):
         raise ValueError("backend must be smt or sat")
     if backend == "sat" and temporal:
         raise ValueError("SAT backend is currently supported for finite invariant models only")
+    if sat_fixed_invariant is not None:
+        if backend != 'sat' or temporal:
+            raise ValueError('fixed-bound safety search requires SAT and a non-temporal input')
+        if not sat_fixed_invariant or any(c in sat_fixed_invariant for c in '\n\r";'):
+            raise ValueError('unsafe or empty invariant expression')
     model = Path(model).resolve()
     xml = model.parent / "trace.xml"
     txt = model.parent / "debug_trace_array.txt"
@@ -97,6 +107,12 @@ def check(model, bound=100, timeout=1800, temporal=False, *, backend="smt"):
     if backend == "sat":
         setup_command = "go_bmc"
         command = f"check_invar_bmc_inc -a falsification -k {bound} -n 0"
+        if sat_fixed_invariant is not None:
+            # One finite safety problem, not a lasso or shortest-witness search.
+            # A shorter witness must extend to this bound; the paper pipeline
+            # has absorbing acceptance and permits stuttering after acceptance.
+            command = (f'check_ltlspec_bmc_onepb -p "G ({sat_fixed_invariant})" '
+                       f'-k {bound} -l X')
     script = model.parent / "check.cmd"
     script.write_text(f'{setup_command}\n{command}\nshow_traces -p 6 -o trace.xml 1\n'
                       'show_traces -o debug_trace_array.txt 1\nquit\n')
@@ -108,8 +124,11 @@ def check(model, bound=100, timeout=1800, temporal=False, *, backend="smt"):
                           model.name], model.parent, model.parent / "checking.log", timeout)
     log_path = model.parent / "checking.log"
     log = log_path.read_text() if log_path.exists() else ''
+    from .resource_limits import memory_error
     invalid = re.search(r'"[^"\n]+" undefined|undefined symbol|syntax error|type error|invalid preprocessing directive|Division by non word expression',log,re.I)
-    if invalid:
+    if memory_error(log):
+        result["status"] = "memory_limit"
+    elif invalid:
         result["status"] = "error"
     elif result["status"] != "timeout" and xml.exists() and xml.stat().st_size and states(xml):
         result["status"] = "witness"

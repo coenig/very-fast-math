@@ -19,9 +19,17 @@ def constraints(config, graph, geometry, symbolic=False):
         lines += [f'DEFINE edge_{u}_{v} := {f"env.edge_{u}_{v}" if symbolic else "TRUE" if (u,v) in edges else "FALSE"};']
     for node in graph['nodes']:
         u=node['id']
+        degree = (' + '.join(f'(case edge_{a}_{b} : 1; TRUE : 0; esac)'
+                             for a,b in grid_edges(config['rows'],config['columns']) if u in (a,b)) or '0'
+                  if symbolic else str(sum(u in edge for edge in edges)))
         lines += [f'DEFINE parking_{u} := {f"env.parking_{u}" if symbolic else "TRUE" if node["kind"]=="P" else "FALSE"};',
-                  f'DEFINE degree_{u} := { ' + '.join(f'(case edge_{a}_{b} : 1; TRUE : 0; esac)' for a,b in grid_edges(config['rows'],config['columns']) if u in (a,b)) or '0'};']
-    lines += ['DEFINE parking_count := '+ ' + '.join(f'(case parking_{u} : 1; TRUE : 0; esac)' for u in range(n))+';']
+                  f'DEFINE degree_{u} := {degree};']
+    # Fixed topology is already known in Python. Keeping a sum of 25 constant
+    # case expressions can still trigger exponential case lifting in SMT
+    # preprocessing, before the constants are simplified.
+    parking_count = (' + '.join(f'(case parking_{u} : 1; TRUE : 0; esac)' for u in range(n))
+                     if symbolic else str(sum(node['kind']=='P' for node in graph['nodes'])))
+    lines += [f'DEFINE parking_count := {parking_count};']
     lines += [f'INVAR parking_{u} -> degree_{u} = 1;' for u in range(n)]
     lines += [f'INVAR edge_{u}_{v} -> !(parking_{u} & parking_{v});' for u,v in grid_edges(config['rows'],config['columns'])]
     if 'parkings' in config: lines += [f'INIT parking_count = {config["parkings"]};']
@@ -29,6 +37,18 @@ def constraints(config, graph, geometry, symbolic=False):
         chosen={tuple(sorted(e)) for e in config['edges']}
         lines += [f'INIT edge_{u}_{v} = {"TRUE" if (u,v) in chosen else "FALSE"};' for u,v in grid_edges(config['rows'],config['columns'])]
     lines += [f'INIT parking_{u} = {"TRUE" if kind=="P" else "FALSE"};' for u,kind in config.get('labels',{}).items()]
+    if config.get('profile') == 'paper':
+        from vfm_grid_python.scenarios import paper
+        lines += paper.static(config) + paper.safety_observations(config,geometry,symbolic)
+        for i in range(cars):
+            lines += ['INIT '+paper.atom({'at':[i,f'start_{i}']},config)+';',
+                      f'INIT env.veh___6{i}9___.v = 0 & env.veh___6{i}9___.a = 0;',
+                      f'INVAR road_{i} >= 0;']
+        for expression in config.get('initial_constraints',[]):
+            lines.append('INIT '+expression+';')
+        lines += fleet_safety(config)
+        lines += [paper.observer(config),'DEFINE refinement_phase := 0;', 'INVARSPEC !scenario_accepted;']
+        return '\n'.join(lines)+'\n'
     lines += ['FROZENVAR']
     lines += [f' {p}_{i} : 0..{n-1};' for p in ('start','goal') for i in range(cars)]
     lines += [f' role_{name} : 0..{n-1};' for name in config.get('roles',{})]
@@ -62,7 +82,8 @@ def constraints(config, graph, geometry, symbolic=False):
     lines += [queue_observer(config),'DEFINE refinement_phase := 0;', 'INVARSPEC !scenario_accepted;']
     return '\n'.join(lines)+'\n'
 
-def run(config,layout,output,bound,timeout,template=ROOT/'main_template.json'):
+def run(config,layout,output,bound,timeout,template=ROOT/'main_template.json',
+        *, refinement=None, generate_only=False):
     symbolic = layout is None
     if symbolic:
         layout = skeleton(config)
@@ -72,8 +93,12 @@ def run(config,layout,output,bound,timeout,template=ROOT/'main_template.json'):
                roles={name:0 for name in config.get('roles',{})},milestones=[[0]*config['cars']])
     geometry=build(graph,config.get('section_length',20),config.get('parking_length',7),config.get('junction_radius',6))
     text=constraints(config,graph,geometry,symbolic)
+    if refinement is not None:
+        text = text.replace('DEFINE refinement_phase := 0;', '')
+        text = text.replace('INVARSPEC !scenario_accepted;', '')
+        text += '\n' + refinement(config, graph, geometry)
     from .braking import with_speed, effective_parameters
-    config=with_speed(config,5)
+    config=with_speed(config,config.get('vfm', {}).get('MAXSPEEDNONEGO', 5))
     if config.get('queue_clearance',6)<=effective_parameters(template,config['vfm'])['VEHICLE_LENGTH']:
         raise ValueError('queue clearance must exceed concrete car length')
     dump(output/'geometry.json',geometry)
@@ -89,6 +114,10 @@ def run(config,layout,output,bound,timeout,template=ROOT/'main_template.json'):
     model=base.with_name('main_queue_direct.smv')
     model.write_text(main)
     dump(output/'model.json',dict(model=str(model)))
+    if generate_only:
+        result = dict(status='generated', model=str(model))
+        dump(output/'result.json', result)
+        return result
     result=check(model,bound,timeout)
     if result['status']=='witness':
         from .traces import global_inventory,export_trace
@@ -99,6 +128,14 @@ def run(config,layout,output,bound,timeout,template=ROOT/'main_template.json'):
         graph.update(starts=[int(first[f'start_{i}']) for i in range(config['cars'])],
                      goals=[int(first[f'goal_{i}']) for i in range(config['cars'])],
                      roles={name:int(first[f'role_{name}']) for name in config.get('roles',{})})
+        if config.get('profile') == 'paper':
+            from vfm_grid_python.scenarios.roads import inventory
+            from vfm_grid_python.scenarios.paper import names
+            _, joints = inventory(config)
+            graph['joint_assignments'] = {z:int(first[z]) for z in names(config)}
+            graph.update(starts=[joints[j]['node'] for j in graph['starts']],
+                         goals=[joints[j]['node'] for j in graph['goals']],
+                         roles={n:joints[j]['node'] for n,j in graph['roles'].items()})
         if symbolic:
             graph['nodes'] = [dict(n,kind='P' if first[f'env.parking_{n["id"]}']=='TRUE' else 'N') for n in graph['nodes']]
             graph['edges'] = [s['edge'] for s in geometry['sections'] if first[edge_name(s,'env.')]=='TRUE']

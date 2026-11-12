@@ -79,13 +79,19 @@ def transfer_constraint(roads, car, encoding='explicit'):
     return 'TRANS '+either(transfers)+';'
 
 
-def render(config):
+def render(config, *, motion_profile='queue'):
     """Compile the existing event/hold AST, with At true only at section ends.
 
     Topology, roles, starts and goals remain symbolic unless explicitly fixed.
     Raw constraints referring to loc_i see -1 while the car is in an interior
     or on a connection. This experiment accepts the positive event/hold subset.
+    paper_cells requests only shared topology/property scaffolding; its caller
+    supplies the car cell state, derived rank/tip and movement constraints.
     """
+    if motion_profile not in ('queue', 'paper_cells'):
+        raise ValueError('unknown abstract motion profile')
+    paper_profile = config.get('profile') == 'paper'
+    from vfm_grid_python.scenarios import paper
     for key in ('rows', 'columns', 'cars'):
         if type(config.get(key)) is not int or config[key] < 1:
             raise ValueError(f'{key} must be a positive integer')
@@ -94,8 +100,9 @@ def render(config):
     if config.get('desired_ltl') or config.get('junction_extension') or config.get('semantics'):
         raise ValueError('queue experiment accepts event/hold scenarios, not other motion profiles or raw LTL')
     for stage in config.get('scenario_stages', []):
-        queue_predicate(stage['event'], config)
-        queue_predicate(stage.get('hold', True), config)
+        predicate = (lambda t,c: paper.atom(t,c,True)) if paper_profile else queue_predicate
+        predicate(stage['event'], config)
+        predicate(stage.get('hold', True), config)
     roads, joints = inventory(config)
     n, cars = config['rows'] * config['columns'], config['cars']
     edges = grid_edges(config['rows'], config['columns'])
@@ -111,13 +118,15 @@ def render(config):
     lines = ['MODULE main', 'FROZENVAR']
     lines += [f' edge_{u}_{v} : boolean;' for u, v in edges]
     lines += [f' parking_{u} : boolean;' for u in range(n)]
-    for prefix in ('start', 'goal'):
+    for prefix in (() if paper_profile else ('start', 'goal')):
         lines += [f' {prefix}_{i} : 0..{n-1};' for i in range(cars)]
-    lines += [f' role_{name} : 0..{n-1};' for name in config.get('roles', {})]
+    if not paper_profile:
+        lines += [f' role_{name} : 0..{n-1};' for name in config.get('roles', {})]
     lines += ['VAR']
     for i in range(cars):
-        lines += [f' road_{i} : 0..{len(roads)-1};',
-                  f' rank_{i} : 0..{cars-1};', f' tip_{i} : {{left, interior, right}};']
+        lines += [f' road_{i} : 0..{len(roads)-1};']
+        if motion_profile == 'queue':
+            lines += [f' rank_{i} : 0..{cars-1};', f' tip_{i} : {{left, interior, right}};']
     lines += ['DEFINE']
     count = lambda terms: ' + '.join(f'(case {x} : 1; TRUE : 0; esac)' for x in terms) or '0'
     lines += [' parking_count := ' + count([f'parking_{u}' for u in range(n)]) + ';']
@@ -148,7 +157,7 @@ def render(config):
         c = config['columns']
         lines += [f' distance_to_goal_{i} := abs(start_{i} / {c} - goal_{i} / {c}) + abs(start_{i} mod {c} - goal_{i} mod {c});']
     lines += [' all_parked := ' + both([f'loc_{i} = goal_{i}' for i in range(cars)]) + ';']
-    for name in config.get('roles', {}):
+    for name in (() if paper_profile else config.get('roles', {})):
         lines += [f' role_{name}_degree := case ' + ' '.join(f'role_{name} = {u} : degree_{u};' for u in range(n)) + ' TRUE : 0; esac;']
     for u in range(n):
         lines += [f'INVAR parking_{u} -> degree_{u} = 1;']
@@ -167,9 +176,9 @@ def render(config):
         if kind == 'any':
             return 'TRUE'
         return either([f"{target} = {u} & {'!' if kind == 'N' else ''}parking_{u}" for u in range(n)])
-    for name, kind in config.get('roles', {}).items():
+    for name, kind in ([] if paper_profile else config.get('roles', {}).items()):
         lines += [f'INIT {label("role_"+name, kind)};']
-    for i in range(cars):
+    for i in ([] if paper_profile else range(cars)):
         lines += [f'INIT loc_{i} = start_{i};', f'INIT {label(f"goal_{i}", "P")};',
                   f'INIT {label(f"start_{i}", config.get("start_types", ["N"]*cars)[i])};']
         for key, prefix in (('starts','start'), ('goals','goal')):
@@ -180,8 +189,17 @@ def render(config):
                 lines += [f'INIT start_{i} != start_{j};']
             if config.get('distinct_goals', True):
                 lines += [f'INIT goal_{i} != goal_{j};']
+    if paper_profile:
+        lines += paper.static(config) + paper.junction_observations(config)
+        lines += ['INIT '+paper.atom({'at':[i,f'start_{i}']},config,True)+';' for i in range(cars)]
     for road in roads:
         r = road['id']
+        if motion_profile == 'paper_cells':
+            # The cell compiler supplies capacity, rank/tip observations and
+            # motion. Do not inherit the stronger queue packing restrictions.
+            for i in range(cars):
+                lines += [f'INVAR road_{i} = {r} -> active_{r};']
+            continue
         # Existence of integer ordered positions with these endpoint flags.
         # If an extreme is interior, reserve one integer unit at that end.
         if capacity_encoding == 'arithmetic':
@@ -207,6 +225,8 @@ def render(config):
                       f'INVAR road_{i} = {r} & tip_{i} = left -> rank_{i} = 0;',
                       f'INVAR road_{i} = {r} & tip_{i} = right -> rank_{i} = count_{r} - 1;']
     for i in range(cars):
+        if motion_profile == 'paper_cells':
+            continue
         lines += [transfer_constraint(roads,i,config.get('queue_transfer_encoding','explicit'))]
         for j in range(i):
             lines += [f'INVAR road_{i} = road_{j} -> rank_{i} != rank_{j};',
@@ -217,7 +237,8 @@ def render(config):
     lines += ['INIT ' + x + ';' for x in config.get('initial_constraints', [])]
     lines += ['INVAR ' + x + ';' for x in config.get('constraints', [])]
     if config.get('scenario_stages'):
-        lines += [queue_observer(config), 'INVARSPEC !scenario_accepted;']
+        lines += [paper.observer(config,True) if paper_profile else queue_observer(config),
+                  'INVARSPEC !scenario_accepted;']
     else:
         lines += ['INVARSPEC !all_parked;']
     return '\n'.join(lines) + '\n'

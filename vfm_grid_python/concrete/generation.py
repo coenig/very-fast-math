@@ -4,7 +4,7 @@ import re
 import sys
 from pathlib import Path
 from vfm_grid_python.common import dump
-from .dynamics import movement
+from .dynamics import MOTION_SEMANTICS, movement
 
 def _worker(output):
     # Native VFM writes directly to stdout; this entire worker runs with redirected FDs.
@@ -56,6 +56,7 @@ def _worker(output):
     parameters = effective_parameters(job["template_config"], overrides)
     limits, braking_report = speed_constraints(geometry, cars, parameters,
         job.get('braking_margin', 0), symbolic=job.get('symbolic_endpoint', False))
+    braking_report['motion_semantics'] = MOTION_SEMANTICS
     config['ENDPOINT_TRANSITIONS'] += '\n' + limits
     dump(output / 'braking_check.json', braking_report)
     dump(output / "vfm_parameters.json", config)
@@ -67,6 +68,12 @@ def _worker(output):
         raise RuntimeError("VFM reported a template error; inspect generation.log")
     if "endpoint_step_v" not in text:
         raise RuntimeError("VFM did not expand the endpoint template")
+    for car in range(cars):
+        name = f'veh___6{car}9___'
+        if not re.search(re.escape(name) + r'\.next_abs_pos\s*:=\s*' +
+                         re.escape(name) + r'\.abs_pos\s*\+\s*' +
+                         re.escape(name) + r'\.v\s*;', text):
+            raise RuntimeError('endpoint motion requires the current-velocity VFM template')
     for s in sections:
         text = _replace_singleton_domain(text, f"section_{s['id']}_end", s["length"])
     lengths = {(c["from"],c["to"]):c["length"] for c in geometry["connections"]}

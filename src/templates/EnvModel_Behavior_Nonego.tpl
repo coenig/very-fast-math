@@ -223,7 +223,8 @@ INIT
 DEFINE
    veh___6[i]9___.rel_pos := veh___6[i]9___.abs_pos - ego.abs_pos; -- relative position to ego in m (valid only if ego is on same section), rel_pos < 0 means the rear bumber of the other vehicle is behind the rear bumper of the ego
    @{veh___6[i]9___.next_abs_pos := veh___6[i]9___.abs_pos + next(veh___6[i]9___.v);}@.if[@{!ENDPOINT_CONNECTIONS}@.eval]
-   @{veh___6[i]9___.next_abs_pos := veh___6[i]9___.abs_pos + min(max(veh___6[i]9___.v + veh___6[i]9___.a, -max_vel), max_vel);}@.if[@{ENDPOINT_CONNECTIONS}@.eval]
+   @{-- Endpoint motion uses current velocity; ENDPOINT_TRANSITIONS chooses next velocity and records its acceleration in next(a).
+   veh___6[i]9___.next_abs_pos := veh___6[i]9___.abs_pos + veh___6[i]9___.v;}@.if[@{ENDPOINT_CONNECTIONS}@.eval]
 
 INVAR
     veh___6[i]9___.lane_single | veh___6[i]9___.lane_crossing;
