@@ -5,6 +5,19 @@
 --------------------------------------------------------
 
 @{
+#error UCD_JUNCTION requires UCD and EGOLESS
+}@.if[@{UCD_JUNCTION && (!UCD || !EGOLESS)}@.eval]
+@{
+#error UCD_JUNCTION requires four sections and 45- or 90-degree granularity
+}@.if[@{UCD_JUNCTION && (SECTIONS != 4 || (ANGLEGRANULARITY != 45 && ANGLEGRANULARITY != 90))}@.eval]
+@{
+#error UCD_JUNCTION requires at least two non-ego vehicles
+}@.if[@{UCD_JUNCTION && NONEGOS < 2}@.eval]
+@{
+#error UCD_JUNCTION requires geometry-agnostic zero-length connectors
+}@.if[@{UCD_JUNCTION && (MODEL_INTERSECTION_GEOMETRY || MINDISTCONNECTIONS != 0 || MAXDISTCONNECTIONS != 0)}@.eval]
+
+@{
 @{
 #error UCD_TASK7_COMPACT requires distinct scaled jump velocities
 }@.if[@{@{MIN_JUMP_FROM_VELOCITY}@.velocityWorldToEnvModelConst == @{MAX_JUMP_UNTIL_VELOCITY}@.velocityWorldToEnvModelConst}@.eval]
@@ -308,7 +321,55 @@ INIT
 
 DEFINE
    veh___6[i]9___.rel_pos := veh___6[i]9___.abs_pos - ego.abs_pos; -- relative position to ego in m (valid only if ego is on same section), rel_pos < 0 means the rear bumber of the other vehicle is behind the rear bumper of the ego
-   veh___6[i]9___.next_abs_pos := veh___6[i]9___.abs_pos + next(veh___6[i]9___.v);
+   veh___6[i]9___.next_abs_pos := veh___6[i]9___.abs_pos
+@{      + (veh___6[i]9___.v + next(veh___6[i]9___.v)) / 2;}@.if[@{UCD_JUNCTION}@.eval]
+@{      + next(veh___6[i]9___.v);}@.if[@{!UCD_JUNCTION}@.eval]
+
+@{
+veh___6[i]9___.junction_horizontal_route :=
+   veh___6[i]9___.is_on_sec_0 = 1 | veh___6[i]9___.is_on_sec_1 = 1
+   | veh___6[i]9___.is_traversing_from_sec_0_to_sec_1 = 1;
+veh___6[i]9___.junction_vertical_route :=
+   veh___6[i]9___.is_on_sec_2 = 1 | veh___6[i]9___.is_on_sec_3 = 1
+   | veh___6[i]9___.is_traversing_from_sec_2_to_sec_3 = 1;
+veh___6[i]9___.junction_station := case
+   veh___6[i]9___.is_on_sec_0 = 1 : veh___6[i]9___.abs_pos - section_0_end;
+   veh___6[i]9___.is_on_sec_2 = 1 : veh___6[i]9___.abs_pos - section_2_end;
+   TRUE : veh___6[i]9___.abs_pos;
+esac;
+veh___6[i]9___.junction_horizontal_occupied :=
+   veh___6[i]9___.is_traversing_from_sec_0_to_sec_1 = 1
+   | (veh___6[i]9___.junction_horizontal_route & veh___6[i]9___.junction_station <= junction_conflict_reach
+      & veh___6[i]9___.junction_station + veh_length >= 0 - junction_conflict_reach);
+veh___6[i]9___.junction_vertical_occupied :=
+   veh___6[i]9___.is_traversing_from_sec_2_to_sec_3 = 1
+   | (veh___6[i]9___.junction_vertical_route & veh___6[i]9___.junction_station <= junction_conflict_reach
+      & veh___6[i]9___.junction_station + veh_length >= 0 - junction_conflict_reach);
+veh___6[i]9___.junction_horizontal_swept :=
+   veh___6[i]9___.is_traversing_from_sec_0_to_sec_1 = 1
+   | (veh___6[i]9___.is_on_sec_0 = 1 & (
+        (veh___6[i]9___.abs_pos <= section_0_end + junction_conflict_reach
+         & veh___6[i]9___.next_abs_pos + veh_length >= section_0_end - junction_conflict_reach)
+        | (veh___6[i]9___.next_abs_pos <= section_0_end + junction_conflict_reach
+           & veh___6[i]9___.abs_pos + veh_length >= section_0_end - junction_conflict_reach)))
+   | (veh___6[i]9___.is_on_sec_1 = 1 & (
+        (veh___6[i]9___.abs_pos <= junction_conflict_reach
+         & veh___6[i]9___.next_abs_pos + veh_length >= 0 - junction_conflict_reach)
+        | (veh___6[i]9___.next_abs_pos <= junction_conflict_reach
+           & veh___6[i]9___.abs_pos + veh_length >= 0 - junction_conflict_reach)));
+veh___6[i]9___.junction_vertical_swept :=
+   veh___6[i]9___.is_traversing_from_sec_2_to_sec_3 = 1
+   | (veh___6[i]9___.is_on_sec_2 = 1 & (
+        (veh___6[i]9___.abs_pos <= section_2_end + junction_conflict_reach
+         & veh___6[i]9___.next_abs_pos + veh_length >= section_2_end - junction_conflict_reach)
+        | (veh___6[i]9___.next_abs_pos <= section_2_end + junction_conflict_reach
+           & veh___6[i]9___.abs_pos + veh_length >= section_2_end - junction_conflict_reach)))
+   | (veh___6[i]9___.is_on_sec_3 = 1 & (
+        (veh___6[i]9___.abs_pos <= junction_conflict_reach
+         & veh___6[i]9___.next_abs_pos + veh_length >= 0 - junction_conflict_reach)
+        | (veh___6[i]9___.next_abs_pos <= junction_conflict_reach
+           & veh___6[i]9___.abs_pos + veh_length >= 0 - junction_conflict_reach)));
+}@.if[@{UCD_JUNCTION}@.eval]
 
 INVAR
     veh___6[i]9___.lane_single | veh___6[i]9___.lane_crossing;
@@ -358,8 +419,54 @@ INVAR -- Non-Ego cars may not "jump" over each other.
     veh_[i]_and_veh_[j]_on_same_seclet -> (
        !(veh___6[i]9___.laterally_overlapping_with_veh_[j] & (veh___6[j]9___.prev_abs_pos < veh___6[i]9___.prev_abs_pos) & (veh___6[j]9___.abs_pos >= veh___6[i]9___.abs_pos)) &
        !(veh___6[i]9___.laterally_overlapping_with_veh_[j] & (veh___6[i]9___.prev_abs_pos < veh___6[j]9___.prev_abs_pos) & (veh___6[i]9___.abs_pos >= veh___6[j]9___.abs_pos)));
-	
+
+@{
+INVAR !(veh___6[i]9___.junction_horizontal_occupied & veh___6[j]9___.junction_vertical_occupied);
+INVAR !(veh___6[i]9___.junction_vertical_occupied & veh___6[j]9___.junction_horizontal_occupied);
+TRANS !(veh___6[i]9___.junction_horizontal_route & veh___6[j]9___.junction_vertical_route
+        & veh___6[i]9___.junction_horizontal_swept & veh___6[j]9___.junction_vertical_swept);
+TRANS !(veh___6[i]9___.junction_vertical_route & veh___6[j]9___.junction_horizontal_route
+        & veh___6[i]9___.junction_vertical_swept & veh___6[j]9___.junction_horizontal_swept);
+}@.if[@{UCD_JUNCTION}@.eval]
+
+@{
+INVAR ((veh___6[i]9___.junction_horizontal_route & veh___6[j]9___.junction_horizontal_route)
+       | (veh___6[i]9___.junction_vertical_route & veh___6[j]9___.junction_vertical_route)) &
+   veh___6[i]9___.lateral_distance_to_veh_[j] <= @{VEHICLE_WIDTH + 100 * VEHICLE_LENGTH}@.eval[0] + distance_between_normalized_lanes_cm ->
+   (veh___6[i]9___.junction_station + junction_longitudinal_clearance < veh___6[j]9___.junction_station
+    | veh___6[j]9___.junction_station + junction_longitudinal_clearance < veh___6[i]9___.junction_station);
+
+TRANS ((veh___6[i]9___.junction_horizontal_route & veh___6[j]9___.junction_horizontal_route)
+       | (veh___6[i]9___.junction_vertical_route & veh___6[j]9___.junction_vertical_route)) &
+   (!veh_[i]_and_veh_[j]_on_same_seclet | !next(veh_[i]_and_veh_[j]_on_same_seclet)) &
+   (veh___6[i]9___.lateral_distance_to_veh_[j] <= @{VEHICLE_WIDTH + 100 * VEHICLE_LENGTH}@.eval[0] + distance_between_normalized_lanes_cm
+    | next(veh___6[i]9___.lateral_distance_to_veh_[j]) <= @{VEHICLE_WIDTH + 100 * VEHICLE_LENGTH}@.eval[0] + distance_between_normalized_lanes_cm
+    | (veh___6[i]9___.on_normalized_lane < veh___6[j]9___.on_normalized_lane
+       & next(veh___6[i]9___.on_normalized_lane) > next(veh___6[j]9___.on_normalized_lane))
+    | (veh___6[j]9___.on_normalized_lane < veh___6[i]9___.on_normalized_lane
+       & next(veh___6[j]9___.on_normalized_lane) > next(veh___6[i]9___.on_normalized_lane))) ->
+   ((veh___6[i]9___.junction_station + junction_longitudinal_clearance < veh___6[j]9___.junction_station
+     & next(veh___6[i]9___.junction_station) + junction_longitudinal_clearance < next(veh___6[j]9___.junction_station))
+    | (veh___6[j]9___.junction_station + junction_longitudinal_clearance < veh___6[i]9___.junction_station
+       & next(veh___6[j]9___.junction_station) + junction_longitudinal_clearance < next(veh___6[i]9___.junction_station)));
+}@.if[@{UCD_JUNCTION}@.eval]
+
 }@.for[[j], 0, @{[i]}@.sub[1]]}@**.for[[i], 0, @{NONEGOS - 1}@.eval]
+
+@{
+@{
+INVAR
+   (veh___6[i]9___.is_on_sec_0 = 1 | veh___6[i]9___.is_on_sec_1 = 1
+    | veh___6[i]9___.is_traversing_from_sec_0_to_sec_1 = 1)
+   & veh___6[i]9___.v >= 0;
+}@.if[@{UCD_JUNCTION && [i] % 2 == 0}@.eval]
+@{
+INVAR
+   (veh___6[i]9___.is_on_sec_2 = 1 | veh___6[i]9___.is_on_sec_3 = 1
+    | veh___6[i]9___.is_traversing_from_sec_2_to_sec_3 = 1)
+   & veh___6[i]9___.v >= 0;
+}@.if[@{UCD_JUNCTION && [i] % 2 != 0}@.eval]
+}@*.for[[i], 0, @{NONEGOS - 1}@.eval]
 
 
 
@@ -685,8 +792,10 @@ INVAR veh___6[i]9___.v <= 0;
 }@.for[[i], @{BACKWARD_DRIVING_CAR_IDS}@.printHeap]
 
 @{
+@{
 INVAR veh___6[i]9___.v >= 0;
 }@.for[[i], @{FORWARD_DRIVING_CAR_IDS}@.printHeap]
+}@.if[@{!UCD_JUNCTION}@.eval]
 
 
 --------------------------------------------------------

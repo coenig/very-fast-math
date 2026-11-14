@@ -37,6 +37,10 @@ DEFINE
     @{a_max}@*.accelerationWorldToEnvModelDef[MAXACCELNONEGO];
     @{min_dist_long}@*.distanceWorldToEnvModelDef[-1];                            -- the minimum distance kept by other vehicle to preceding ego, we use -1 meaning one meter behind
     @{veh_length}@*.distanceWorldToEnvModelDef[VEHICLE_LENGTH];             -- we assume a vehicle length of 5m for distance calculation to the front per default
+@{
+    junction_conflict_reach := @{(NUMLANES * LANE_WIDTH + VEHICLE_WIDTH) / 100}@.distanceWorldToEnvModelConst + veh_length + 2;
+    junction_longitudinal_clearance := veh_length + @{VEHICLE_WIDTH / 100}@.distanceWorldToEnvModelConst + 2;
+}@.if[@{UCD_JUNCTION}@.eval]
     @{max_vel}@*.velocityWorldToEnvModelDef[MAXSPEEDNONEGO];
 
     @{ego.max_vel}@*.velocityWorldToEnvModelDef[MAXSPEEDEGO]; -- Leave this even in ego-less mode.

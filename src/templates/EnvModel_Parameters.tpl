@@ -70,6 +70,7 @@
 -- Parameters for ego and non-ego vehicles (vehicle length is below in LC section)
 @{EGOLESS}@*******.defaultValue[false]
 @{UCD}@*******.defaultValue[false]
+@{UCD_JUNCTION}@*******.defaultValue[false]
 @{UCD_TASK7_COMPACT}@*******.defaultValue[false]
 @{NONEGOS}@*******.defaultValue[5]
 @{LEFTLC}@*******.defaultValue[true]
@@ -199,8 +200,8 @@
 
 @{
 	@(@{Section 0 needs to be fixed at 0/0/0, but is currently not fixed at all in FIXED_SECTION_IDs.}@.errorPrint)@
-	@(@{@{Section 0 needs to be fixed at 0/0/0, but is currently fixed to some other position.}@****.errorPrint}@*****.if[@{ @{fixed_section_source_x_0}@.scriptVar || @{fixed_section_source_y_0}@.scriptVar || @{fixed_section_angle_0}@.scriptVar }@.eval])@
-}@*****.if[@{ !@{is_section_0_fixed}@.scriptVar }@.eval]
+	@(@{@{Section 0 needs to be fixed at 0/0/0, but is currently fixed to some other position.}@****.errorPrint}@*****.if[@{ !UCD_JUNCTION && (@{fixed_section_source_x_0}@.scriptVar || @{fixed_section_source_y_0}@.scriptVar || @{fixed_section_angle_0}@.scriptVar) }@.eval])@
+}@*****.if[@{ !UCD_JUNCTION && !@{is_section_0_fixed}@.scriptVar }@.eval]
 
 -- ## EO Limiting degrees of freedom at COMPILE TIME for better performance ##
 

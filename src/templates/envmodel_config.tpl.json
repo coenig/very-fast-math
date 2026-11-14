@@ -55,6 +55,7 @@
       "DISTANCESCALING": "#{1000}#",
       "GEOMETRYSCALING": "#{geomgrid}#",
       "EGOLESS": false,
+      "UCD_JUNCTION": false,
       "FEASIBILITY": false,
       "VFM_PREPROCESSOR": "@sec_zero_length=20;@angles1=70;@angles2=250;@slot_distance=9;@road_sec_length=2",
       "FIXED_SECTION_ANGLEs": "@(0)@@(330)@",

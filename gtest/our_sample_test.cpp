@@ -361,6 +361,105 @@ TEST(SmvTemplateTests, AllVehiclesHavePositionUpdates) {
     }
 }
 
+TEST(SmvTemplateTests, JunctionModeAddsSweptCrossingSafetyAndParityRoutes) {
+    const auto model = expandCompactUcdTemplate(R"(
+@{@UCD_JUNCTION=true; @SECTIONS=4; @NONEGOS=4; @NUMLANES=2;
+  @MINDISTCONNECTIONS=0; @MAXDISTCONNECTIONS=0;
+  @MAXOUTGOINGCONNECTIONS=1; @ANGLEGRANULARITY=90;}@***********.eval.nil
+@{@(0)@@(1)@@(2)@@(3)@}@***********.stringToHeap[FIXED_SECTION_IDs].nil
+@{@(-100)@@(0)@@(0)@@(0)@}@***********.stringToHeap[FIXED_SECTION_SOURCE_Xs].nil
+@{@(-2)@@(-2)@@(98)@@(-2)@}@***********.stringToHeap[FIXED_SECTION_SOURCE_Ys].nil
+@{@(0)@@(0)@@(270)@@(270)@}@***********.stringToHeap[FIXED_SECTION_ANGLEs].nil
+@{@(100)@@(100)@@(100)@@(100)@}@***********.stringToHeap[FIXED_SECTION_LENGTHs].nil
+@{@(@(0)@@(@(1)@)@)@@(@(1)@@(@(-1)@)@)@}
+  @(@(2)@@(@(3)@)@)@@(@(3)@@(@(-1)@)@)@}@***********.stringToHeap[FIXED_SECTION_CONNECTORS].nil
+)");
+    EXPECT_EQ(model.find("@{"), std::string::npos);
+    EXPECT_EQ(model.find("#error"), std::string::npos);
+    EXPECT_NE(model.find("junction_conflict_reach :="), std::string::npos);
+    EXPECT_NE(model.find("junction_horizontal_swept :="), std::string::npos);
+    EXPECT_NE(model.find("junction_vertical_swept :="), std::string::npos);
+    EXPECT_NE(model.find("INVAR !(veh___619___.junction_vertical_occupied & veh___609___.junction_horizontal_occupied);"), std::string::npos);
+    EXPECT_NE(model.find("TRANS !(veh___619___.junction_vertical_route & veh___609___.junction_horizontal_route"), std::string::npos);
+    EXPECT_NE(model.find("veh___609___.next_abs_pos + veh_length >= section_0_end - junction_conflict_reach"), std::string::npos);
+    EXPECT_NE(model.find("veh___619___.junction_vertical_route & veh___609___.junction_horizontal_route"), std::string::npos);
+    EXPECT_NE(model.find("veh___609___.is_on_sec_0 = 1 | veh___609___.is_on_sec_1 = 1"), std::string::npos);
+    EXPECT_NE(model.find("veh___619___.is_on_sec_2 = 1 | veh___619___.is_on_sec_3 = 1"), std::string::npos);
+    EXPECT_NE(model.find("veh___629___.is_on_sec_0 = 1 | veh___629___.is_on_sec_1 = 1"), std::string::npos);
+    EXPECT_NE(model.find("veh___639___.is_on_sec_2 = 1 | veh___639___.is_on_sec_3 = 1"), std::string::npos);
+    EXPECT_NE(model.find("veh___609___.is_traversing_from_sec_0_to_sec_1 = 1"), std::string::npos);
+    EXPECT_NE(model.find("arclength_from_sec_0_to_sec_1_on_lane_0 : 0 .. 0"), std::string::npos);
+    EXPECT_NE(model.find("arclength_from_sec_2_to_sec_3_on_lane_0 : 0 .. 0"), std::string::npos);
+    EXPECT_NE(model.find("veh___629___.junction_station + junction_longitudinal_clearance < veh___609___.junction_station"), std::string::npos);
+    EXPECT_NE(model.find("veh___639___.junction_station + junction_longitudinal_clearance < veh___619___.junction_station"), std::string::npos);
+    EXPECT_NE(model.find("next(veh___629___.junction_station) + junction_longitudinal_clearance < next(veh___609___.junction_station)"), std::string::npos);
+    EXPECT_NE(model.find("next(veh___639___.junction_station) + junction_longitudinal_clearance < next(veh___619___.junction_station)"), std::string::npos);
+    EXPECT_NE(model.find("next(veh___629___.lateral_distance_to_veh_0)"), std::string::npos);
+    EXPECT_NE(model.find("next(veh___629___.on_normalized_lane) > next(veh___609___.on_normalized_lane)"), std::string::npos);
+    EXPECT_NE(model.find("+ (veh___609___.v + next(veh___609___.v)) / 2;"), std::string::npos);
+    const auto non_junction = expandCompactUcdTemplate();
+    EXPECT_EQ(non_junction.find("junction_horizontal_swept"), std::string::npos);
+    EXPECT_NE(non_junction.find("+ next(veh___609___.v);"), std::string::npos);
+}
+
+TEST(SmvTemplateTests, JunctionModeRejectsUnsupportedSectionCountAndAngleGranularity) {
+    const auto wrong_sections = expandCompactUcdTemplate(R"(
+@{@UCD_JUNCTION=true; @SECTIONS=3; @ANGLEGRANULARITY=90;}@***********.eval.nil
+)");
+    const auto wrong_granularity = expandCompactUcdTemplate(R"(
+@{@UCD_JUNCTION=true; @SECTIONS=4; @ANGLEGRANULARITY=72;}@***********.eval.nil
+)");
+    const auto nonzero_connector = expandCompactUcdTemplate(R"(
+@{@UCD_JUNCTION=true; @SECTIONS=4; @ANGLEGRANULARITY=90;
+  @MODEL_INTERSECTION_GEOMETRY=false; @MINDISTCONNECTIONS=0; @MAXDISTCONNECTIONS=1;}@***********.eval.nil
+)");
+    EXPECT_NE(wrong_sections.find("#error UCD_JUNCTION"), std::string::npos);
+    EXPECT_NE(wrong_granularity.find("#error UCD_JUNCTION"), std::string::npos);
+    EXPECT_NE(nonzero_connector.find("#error UCD_JUNCTION requires geometry-agnostic zero-length connectors"), std::string::npos);
+}
+
+TEST(SmvTemplateTests, JunctionConflictEnvelopeScalesWithLaneCount) {
+    const auto two_lanes = expandCompactUcdTemplate(R"(
+@{@UCD_JUNCTION=true; @SECTIONS=4; @NONEGOS=2; @NUMLANES=2; @ANGLEGRANULARITY=90; @MINDISTCONNECTIONS=0; @MAXDISTCONNECTIONS=0;}@***********.eval.nil
+)");
+    const auto three_lanes = expandCompactUcdTemplate(R"(
+@{@UCD_JUNCTION=true; @SECTIONS=4; @NONEGOS=2; @NUMLANES=3; @ANGLEGRANULARITY=90; @MINDISTCONNECTIONS=0; @MAXDISTCONNECTIONS=0;}@***********.eval.nil
+)");
+    EXPECT_EQ(two_lanes.find("#error"), std::string::npos);
+    EXPECT_EQ(three_lanes.find("#error"), std::string::npos);
+    const auto get_reach = [](const std::string& model) {
+        const auto declaration = model.find("junction_conflict_reach :=");
+        if (declaration == std::string::npos) return -1;
+        const auto value_start = model.find_first_of("0123456789", declaration);
+        if (value_start == std::string::npos) return -1;
+        return std::stoi(model.substr(value_start));
+    };
+    const auto two_lane_reach = get_reach(two_lanes);
+    const auto three_lane_reach = get_reach(three_lanes);
+    EXPECT_GT(two_lane_reach, 0);
+    EXPECT_GT(three_lane_reach, two_lane_reach);
+}
+
+TEST(MortyJunctionConfigTests, GoalSpecRoutesEvenAndOddCarsToTheirOwnExit) {
+    const auto path = fs::absolute(fs::path(__FILE__).parent_path().parent_path()
+        / "morty/master_templates/junction_tpl.json");
+    const auto config = nlohmann::json::parse(vfm::StaticHelper::readFile(path));
+    const auto& junction = config.at("#TEMPLATE");
+    ASSERT_TRUE(junction.at("UCD_JUNCTION").get<bool>());
+
+    const auto spec = junction.at("SPEC").get<std::string>();
+    const auto threshold = std::to_string(40 * junction.at("DISTANCESCALING").get<int>() / 1000);
+    for (const auto& [vehicle, destination] : {
+        std::pair{"609", "1"}, {"619", "3"}, {"629", "1"}, {"639", "3"}
+    }) {
+        const auto expected = "env.veh___" + std::string(vehicle) + "___.is_on_sec_"
+            + destination + " = 1 & env.veh___" + vehicle + "___.abs_pos > " + threshold;
+        EXPECT_NE(spec.find(expected), std::string::npos) << expected;
+    }
+    EXPECT_EQ(spec.find("env.veh___609___.is_on_sec_3"), std::string::npos);
+    EXPECT_EQ(spec.find("env.veh___619___.is_on_sec_1"), std::string::npos);
+}
+
 static std::string expandSectionTemplate(const std::string& settings,
     const fs::path& template_path = fs::absolute(fs::path(__FILE__).parent_path().parent_path() / "src/templates")) {
 
