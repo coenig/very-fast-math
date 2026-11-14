@@ -131,6 +131,75 @@ fallbacks. It does not eliminate the known initially blind seeds or establish ra
 safety. The denser ten-car priority trial also timed out; this recommendation is for the
 current five-car setup, not a general guarantee. See the [safety study](morty/MC_SELECTION_EVALUATION.md).
 
+#### Four-arm straight-through junction (model)
+
+The opt-in SMV mode is `UCD_JUNCTION`; it defaults to `false` so existing road
+models retain their current collision rules. The model-side scenario template is
+[master_templates/junction_tpl.json](master_templates/junction_tpl.json); see
+also the [junction simulation guide](JUNCTION_SIMULATION.md). The profile uses
+four fixed 100 m sections meeting at `(0, 0)`: section 0 is the west
+approach (eastbound), section 1 the east exit, section 2 the north approach
+(southbound), and section 3 the south exit. Only `0 -> 1` and `2 -> 3` are connected. Even vehicle IDs use the horizontal
+route, odd IDs the vertical route, and reverse motion is excluded. The profile
+SPEC requires every even vehicle to reach section 1 and every odd vehicle to
+reach section 3, then progress more than 40 m along its exit arm. The profile
+fixes `DISTANCESCALING` at 4000 (four model distance units per metre), so the
+threshold is 160 model units. `TIMESCALING=2000` means two steps per second,
+or 0.5 seconds per step; velocity is scaled by 4/2 = 2.
+The profile enables `UCD_ROUND_INPUTS` to round observed longitudinal
+positions to the nearest model unit rather than truncate them. At this scale
+the rounding error can be up to 0.125 m; it does not eliminate simulator/model
+tracking error or guarantee feasibility or safety. This profile is for
+simulation, not physical-plant operation: the model does not bound observation,
+lateral-mapping or tracking errors, and has no independent plant safety
+supervisor.
+Junction position updates use the integer mean of current and next velocity
+for each step, matching constant-acceleration motion up to quantization;
+non-junction motion remains unchanged.
+
+The perpendicular conflict rule checks current occupancy and the full interval
+from each vehicle's current to next longitudinal position on both
+approach and exit sections, and treats each route connector as occupied. This
+conservatively prevents both perpendicular vehicles from sweeping through the
+junction envelope in the same model step, including a step that would otherwise
+jump across the envelope. Its envelope includes lane offsets and a conservative
+length-plus-width bound for yawed vehicle footprints; it may reject safe motions where the actual lane-specific
+footprints would not intersect. Existing same-seclet collision avoidance remains
+unchanged. Junction checks add two model distance units to the crossing
+envelope and to length-plus-width same-route longitudinal separation, covering
+position and scaled-geometry rounding.
+On an approach, the modeled conflict occupancy starts one `veh_length`
+before the conflict reach. Spawn stopping-distance calculations must account
+for both; for the two-lane 6/6 profile at this scale their sum is 24.75 m.
+For same-route vehicles, an additional lane-overlap rule compares their common
+route stations, including at the initial state, and uses the same conservative
+length-plus-width footprint plus one half-lane spacing for lateral bin rounding.
+It prevents an ordering swap across a section boundary, including when their
+lateral paths cross. This requires mapping without heading-based lateral shifts
+or off-road clamping. The margins do not cover unbounded tracking or other
+observation errors.
+
+The supported configuration is UCD + ego-less, exactly four fixed, straight,
+axis-aligned sections with the IDs and zero-length connectors above,
+`MODEL_INTERSECTION_GEOMETRY=false`, `MINDISTCONNECTIONS=0`, and
+`MAXDISTCONNECTIONS=0`, and an angle
+granularity that represents 270 degrees. Turning traffic is unsupported. Use
+equal lane widths on all four
+arms. For `LANE_WIDTH` in centimeters and `NUMLANES` lanes, shift every
+section source's y coordinate by `-LANE_WIDTH * (NUMLANES - 1) / 200` meters;
+section 2 additionally starts 100 m north of that shifted origin. The junction
+template is configured for two lanes; the collision formula is parameterized by
+`NUMLANES`, so other lane counts are supported when their fixed geometry uses
+the corresponding offset above. Different geometry, lane widths, turning traffic,
+ego vehicles, fewer than two vehicles, more/fewer than four
+sections, or a route identity other than even/odd IDs is unsupported; model
+guards reject ego/UCD mismatches, unsupported section counts and angle
+granularities, and fewer than two vehicles. These constraints describe this
+model abstraction, not a general traffic-safety guarantee.
+
+Run `python -m unittest -v morty.test_junction_smv` for the generated-model
+nuXmv checks; they require built `bin/vfm`, nuXmv and GCC and skip if absent.
+
 #### Task 7 Measurements (All Configurations)
 Measured on Linux with nuXmv 2.2.0, using `morty/master_templates/task_7_tpl.json` unchanged
 apart from isolated output/cache paths: ten vehicles, two lanes, sixteen prioritized models,

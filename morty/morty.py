@@ -22,6 +22,11 @@ from .morty_helper import (
     save_simulation_snapshot,
 )
 from .persistent_solver import PersistentSolverPool
+from .junction import (
+    JUNCTION_GOAL_DISTANCE, initialize_junction_vehicles, junction_goal_reached, junction_goal_spec,
+    install_junction_clearance_tracking, junction_plan_is_usable,
+    relative_heading, route_for_vehicle, route_to_world, vector_to_route, world_to_route,
+)
 import platform
 
 
@@ -68,6 +73,9 @@ try:
     with open('morty/envmodel_config.tpl.json') as config_file:
         d = json.load(config_file)
     vars(args).update(load_run_settings(d['#TEMPLATE']))
+    junction_mode = d['#TEMPLATE'].get("UCD_JUNCTION", False)
+    if not isinstance(junction_mode, bool):
+        raise ValueError("UCD_JUNCTION must be a boolean")
 except (OSError, ValueError, KeyError, TypeError) as error:
     parser.error(f'Invalid morty/envmodel_config.tpl.json: {error}')
 
@@ -282,6 +290,7 @@ with open('morty/envmodel_config.json') as f:
     max_start_speed = min(d[ucd_config_prios_str[0]]["MAXSTARTSPEEDNONEGO_UCD"], max_speed)
     min_start_speed = min(d[ucd_config_prios_str[0]]["MINSTARTSPEEDNONEGO_UCD"], max_start_speed)
     exp_num = d[ucd_config_prios_str[0]]["UCD_EXP_NUM"]
+    lane_width_model = d[ucd_config_prios_str[0]]["LANE_WIDTH"] / 100
     use_shortcut = d[ucd_config_prios_str[0]]["UCD_USE_SHORTCUT"]
     dist_scale = d[ucd_config_prios_str[0]]["DISTANCESCALING"] / 1000
     time_scale = d[ucd_config_prios_str[0]]["TIMESCALING"] / 1000
@@ -297,6 +306,33 @@ with open('morty/envmodel_config.json') as f:
         backward_driving_car_ids = [int(x) for x in backward_driving_car_ids_str.split(")@@(")]
     else:
         backward_driving_car_ids = []
+
+    if junction_mode:
+        model_config = d[ucd_config_prios_str[0]]
+        if not model_config["UCD"] or not model_config["EGOLESS"]:
+            parser.error("UCD_JUNCTION requires UCD=true and EGOLESS=true")
+        if nonegos < 2:
+            parser.error("UCD_JUNCTION requires at least two non-ego vehicles")
+        if exp_num != 10:
+            parser.error("UCD_JUNCTION requires UCD_EXP_NUM=10")
+        if backward_driving_car_ids:
+            parser.error("UCD_JUNCTION does not support backward-driving vehicles")
+        if use_shortcut:
+            parser.error("UCD_JUNCTION does not support UCD_USE_SHORTCUT")
+        if lane_width_model != 4:
+            parser.error("UCD_JUNCTION requires 4 m lanes to match the native geometry")
+        if num_actual_lanes < 1:
+            parser.error("UCD_JUNCTION requires at least one lane per direction")
+        selected_model_configs = [d[name] for name in ucd_config_prios_str]
+        for key in ("DISTANCESCALING", "LANE_WIDTH", "NUMLANES", "NONEGOS"):
+            if not all(config[key] == model_config[key] for config in selected_model_configs):
+                parser.error(f"UCD_JUNCTION requires consistent {key} across prioritized configs")
+        model_vehicle_length_m = max(
+            config["VEHICLE_LENGTH"] for config in selected_model_configs
+        )
+        model_vehicle_width_cm = max(
+            config["VEHICLE_WIDTH"] for config in selected_model_configs
+        )
 # EO Load parameters from JSON.
 
 # Note: Backward-driving cars are modeled on Highway-env side as forward-driving, backward-facing,
@@ -430,6 +466,13 @@ addons[10] += f"""
 """
 for i in range(0, nonegos):
     addons[10] += f"INVAR env.cnt > 3 -> !env.veh___6{i}9___.lane_b0;\n"
+
+if junction_mode:
+    SPECS[10] = junction_goal_spec(nonegos, JUNCTION_GOAL_DISTANCE, dist_scale)
+    SUCC_CONDS[10] = lambda: junction_goal_reached(
+        env.unwrapped.controlled_vehicles, num_actual_lanes, LANE_WIDTH_HE
+    )
+    addons[10] = ADDONS_BEGIN_DENOTER + "-- UCD experiment10 junction --\n" + ADDONS_END_DENOTER
 
 
 
@@ -686,36 +729,55 @@ for run_id, seedo in scheduler:
     pos_x_anchor = 0
     base_positions = []  # Deterministic per-car base positions the gaussian jitter is added to.
 
-    for i, vehicle in enumerate(env.unwrapped.controlled_vehicles):
-        if i == 0:
-            pos_x_anchor = vehicle.position[0]
-        
-        vehicle.position[0] = vehicle.position[0] - pos_x_anchor
-        vehicle.color = (255, 255, 255)
-        vehicle.heading = np.pi * (1 - egos_backward[cnt]) / 2 # 0 for forward, pi for backward.
-        vehicle.speed = np.random.uniform(min_start_speed, max_start_speed)
-        if exp_num == 7: # nudging
-            if cnt == 0:
-                vehicle.position[0] = 0
-            if cnt == 1:
-                vehicle.position[0] = 320 * (nonegos - 1) / nonegos
-            if cnt > 1:
-                vehicle.position[0] = (cnt - 1) * 320 / nonegos
-                vehicle.speed = 0
-        if exp_num == 8:
-            if cnt == 0:
-                vehicle.position[0] = 0
-                vehicle.position[1] = 0 # start at rightmost lane center (y=4m)
+    if junction_mode:
+        initialize_junction_vehicles(
+            env,
+            num_actual_lanes,
+            seedo,
+            min_start_speed,
+            max_start_speed,
+            LANE_WIDTH_HE,
+            model_vehicle_length_m,
+            model_vehicle_width_cm,
+            dist_scale,
+        )
+        junction_clearance_tracker = install_junction_clearance_tracking(
+            env.unwrapped.controlled_vehicles
+        )
+        for vehicle in env.unwrapped.controlled_vehicles:
+            vehicle.color = (255, 255, 255)
+    else:
+        junction_clearance_tracker = None
+        for i, vehicle in enumerate(env.unwrapped.controlled_vehicles):
+            if i == 0:
+                pos_x_anchor = vehicle.position[0]
 
-        # Remember the deterministic base position; the gaussian jitter and collision retries
-        # below are applied relative to it so each redraw is independent of a rejected one.
-        base_positions.append([float(vehicle.position[0]), float(vehicle.position[1])])
+            vehicle.position[0] = vehicle.position[0] - pos_x_anchor
+            vehicle.color = (255, 255, 255)
+            vehicle.heading = np.pi * (1 - egos_backward[cnt]) / 2 # 0 for forward, pi for backward.
+            vehicle.speed = np.random.uniform(min_start_speed, max_start_speed)
+            if exp_num == 7: # nudging
+                if cnt == 0:
+                    vehicle.position[0] = 0
+                if cnt == 1:
+                    vehicle.position[0] = 320 * (nonegos - 1) / nonegos
+                if cnt > 1:
+                    vehicle.position[0] = (cnt - 1) * 320 / nonegos
+                    vehicle.speed = 0
+            if exp_num == 8:
+                if cnt == 0:
+                    vehicle.position[0] = 0
+                    vehicle.position[1] = 0 # start at rightmost lane center (y=4m)
 
-        cnt = cnt + 1
+            # Remember the deterministic base position; the gaussian jitter and collision retries
+            # below are applied relative to it so each redraw is independent of a rejected one.
+            base_positions.append([float(vehicle.position[0]), float(vehicle.position[1])])
 
-    # Jitter the cars around their deterministic base positions until they no longer collide
-    # (see randomize_until_collision_free for details); positions are mutated in place.
-    randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_tech)
+            cnt = cnt + 1
+
+        # Jitter the cars around their deterministic base positions until they no longer collide
+        # (see randomize_until_collision_free for details); positions are mutated in place.
+        randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_tech)
 
     viz_state.last_mc_ms = None
     viz_state.begin_mc_cycle()
@@ -782,6 +844,7 @@ for run_id, seedo in scheduler:
     watchdog_stop = '' if not watchdog_start else '@{scriptID}@.scriptVar.StopScript'
     
     global_counter = -1  # Guards the validity check below if the inner loop never runs (e.g. steps_per_run == 0).
+    junction_actual_steps = 0
     for global_counter in range(args.steps_per_run):
         viz_state.begin_mc_cycle()
         if args.force_snapshots:
@@ -790,10 +853,16 @@ for run_id, seedo in scheduler:
         mcinput = ""
         i = 0
         for el in obs: # Use only el[0] because it contains the abs values from the resp. car's perspective.
-            egos_x[i] = el[0][1]
-            egos_y[i] = el[0][2]
-            egos_v[i] = el[0][3] * egos_backward[i]
-            egos_headings[i] = el[0][5] - np.pi * (1 - egos_backward[i]) / 2
+            if junction_mode:
+                route = route_for_vehicle(i)
+                egos_x[i], egos_y[i] = world_to_route(el[0][1:3], route)
+                egos_v[i] = vector_to_route(el[0][3:5], route)[0] * egos_backward[i]
+                egos_headings[i] = relative_heading(el[0][5], route)
+            else:
+                egos_x[i] = el[0][1]
+                egos_y[i] = el[0][2]
+                egos_v[i] = el[0][3] * egos_backward[i]
+                egos_headings[i] = el[0][5] - np.pi * (1 - egos_backward[i]) / 2
             for num, val in enumerate(el[0]): # Generate input for model checker.
                 if egos_backward[i] == -1 and num == 5:
                     mcinput += str(-val) + ","
@@ -922,6 +991,10 @@ for run_id, seedo in scheduler:
         if not args.dryrun:
             viz_state.finish_mc_cycle()
         show_sim_status(f"Cycle {global_counter + 1} | Processing results")
+
+        if junction_mode and not junction_plan_is_usable(selected_cnt, res_str, empty_cex):
+            print("Junction planner returned no feasible plan; stopping without stepping the simulator.")
+            break
 
         if args.detailed_archive and global_counter == 0:
             # Processed snapshot: only re-hash files that existed in the baseline
@@ -1107,11 +1180,28 @@ for run_id, seedo in scheduler:
                     viz_state.pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
                 
                 if i <= 5: # second-next point (index 5) used as the pure-pursuit lookahead target for steering.
-                    coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
+                    if junction_mode:
+                        route = route_for_vehicle(j)
+                        target_station, target_lateral = world_to_route(coord, route)
+                        coords_for_pp[j] = (
+                            (target_station - egos_x[j]) * egos_backward[j],
+                            target_lateral,
+                        )
+                    else:
+                        target_station = coord[0]
+                        coords_for_pp[j] = (
+                            (coord[0] - egos_x[j]) * egos_backward[j],
+                            coord[1],
+                        )
                     if not args.live:
                         print(f"Step {i}, Car {j}: abspos={abspos}, latpos={latpos}, coord={coord}")
                 if i == 2: # Immediate next distinct point (one MC step ahead).
-                    accel_target_dist[j] = (coord[0] - egos_x[j]) * egos_backward[j]
+                    if junction_mode:
+                        route = route_for_vehicle(j)
+                        target_station, _ = world_to_route(coord, route)
+                        accel_target_dist[j] = (target_station - egos_x[j]) * egos_backward[j]
+                    else:
+                        accel_target_dist[j] = (coord[0] - egos_x[j]) * egos_backward[j]
 
         # EO Find future positions.
 
@@ -1270,9 +1360,16 @@ for run_id, seedo in scheduler:
                                     
             if not args.live and i < len(env.unwrapped.controlled_vehicles):
                 vehicle = env.unwrapped.controlled_vehicles[i]
-                
-                pp_target_x = float(vehicle.position[0] + egos_backward[i] * pp_distance)
-                pp_target_y = pp_latshift
+                if junction_mode:
+                    pp_target = route_to_world(
+                        egos_x[i] + egos_backward[i] * pp_distance,
+                        pp_latshift,
+                        route_for_vehicle(i),
+                    )
+                    pp_target_x, pp_target_y = map(float, pp_target)
+                else:
+                    pp_target_x = float(vehicle.position[0] + egos_backward[i] * pp_distance)
+                    pp_target_y = pp_latshift
                 viz_state.pp_targets[id(vehicle)] = [pp_target_x, pp_target_y]
 
             # Pure-pursuit curvature law: delta = atan(2 L sin(alpha) / L_d). A close target
@@ -1293,6 +1390,8 @@ for run_id, seedo in scheduler:
         if args.force_head or args.force_snapshots:
             env.unwrapped.enable_auto_render = False
         obs, reward, done, truncated, info = env.step(action)
+        if junction_mode:
+            junction_actual_steps += 1
         if args.force_snapshots:
             save_simulation_snapshot(env, snapshot_path, render=not args.force_head, viz_state=viz_state)
 
@@ -1325,6 +1424,24 @@ for run_id, seedo in scheduler:
 
         if crashed_count > args.allow_crashed_steps: # Allow these many crashes per run.
             break
+
+    if junction_mode:
+        minimum_clearance = junction_clearance_tracker.minimum_clearance
+        clearance_text = (
+            f"{minimum_clearance:.3f} m"
+            if np.isfinite(minimum_clearance)
+            else "unavailable"
+        )
+        print(
+            "Junction live summary: "
+            f"goal={junction_goal_reached(env.unwrapped.controlled_vehicles, num_actual_lanes, LANE_WIDTH_HE)}; "
+            f"steps={junction_actual_steps}; crashed_steps={crashed_count}; "
+            f"crashed_vehicles={sum(vehicle.crashed for vehicle in env.unwrapped.controlled_vehicles)}; "
+            f"minimum_clearance={clearance_text}; "
+            f"pairwise_samples={junction_clearance_tracker.pairwise_samples}; "
+            f"minimum_pair={junction_clearance_tracker.minimum_pair}; "
+            "clearance sampled before collision resolution at highway-env pair checks (60 Hz)."
+        )
         
     # Decide whether this run counts. A run is excluded (its data/statistics/archives are
     # discarded and it does NOT consume a run ID) only if it FAILED before completing

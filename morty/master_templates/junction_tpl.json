@@ -94,7 +94,7 @@
     "SCENGEN_UNIVERSAL_PROPERTIES": "0-0",
     "SECTIONS": "#{sections}#",
     "MAXSPEEDNONEGO": 70,
-    "MINSTARTSPEEDNONEGO_UCD": 10,
+    "MINSTARTSPEEDNONEGO_UCD": 5,
     "MAXSTARTSPEEDNONEGO_UCD": 15,
     "UCD_CONFIG_PRIOS": "_config_vehlen=9_vehwidth=9;_config_vehlen=8_vehwidth=9;_config_vehlen=7_vehwidth=9;_config_vehlen=6_vehwidth=9;_config_vehlen=9_vehwidth=8;_config_vehlen=8_vehwidth=8;_config_vehlen=7_vehwidth=8;_config_vehlen=6_vehwidth=8;_config_vehlen=9_vehwidth=7;_config_vehlen=8_vehwidth=7;_config_vehlen=7_vehwidth=7;_config_vehlen=6_vehwidth=7;_config_vehlen=9_vehwidth=6;_config_vehlen=8_vehwidth=6;_config_vehlen=7_vehwidth=6;_config_vehlen=6_vehwidth=6;",
     "UCD_EXP_NUM": 10,
