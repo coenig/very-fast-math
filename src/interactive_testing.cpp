@@ -11,6 +11,7 @@
 #include "vfmacro/script.h"
 
 #include <charconv>
+#include <cmath>
 #include <stdio.h>
 #include <string>
 #include <filesystem>
@@ -1740,6 +1741,10 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
    const std::string ucd_config_prios_str{ workflow.getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
    const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
    const nlohmann::json template_json{ workflow.getJSON("./morty/envmodel_config.tpl.json") };
+   const bool ucd_junction{ template_json.contains("#TEMPLATE")
+      && template_json["#TEMPLATE"].contains("UCD_JUNCTION")
+      && template_json["#TEMPLATE"]["UCD_JUNCTION"].is_boolean()
+      && template_json["#TEMPLATE"]["UCD_JUNCTION"].get<bool>() };
    const bool round_inputs{ template_json.contains("#TEMPLATE") && template_json["#TEMPLATE"].contains("UCD_ROUND_INPUTS")
       && template_json["#TEMPLATE"]["UCD_ROUND_INPUTS"].is_boolean() && template_json["#TEMPLATE"]["UCD_ROUND_INPUTS"].get<bool>() };
    // Truncation biases positions toward zero, so forward cars lag their plan by one unit. Velocities stay
@@ -1781,6 +1786,10 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
    static constexpr float LANE_WIDTH = 4.0f;
    const float road_width = num_lanes * LANE_WIDTH;
    const float lat_center = LANE_WIDTH * (num_lanes - 1) / 2.0f; // Lateral center of the road (rotation center).
+   const auto angle_difference = [](const float a, const float b) {
+      constexpr float FULL_TURN{ 360.0f };
+      return std::abs(std::remainder(a - b, FULL_TURN));
+   };
 
    // Load the (static) section/arc geometry from a debug trace, exactly as extractVehPosFromNusmvFile
    // does for the reverse (painting) direction. Any trace of this scenario contains the geometry.
@@ -1852,6 +1861,59 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
       }
    }
 
+   if (ucd_junction) {
+      // The first planning input has no model trace to read. Keep this fallback identical to the
+      // fixed 100 m model geometry: all section centerlines meet at (0, 0), with car IDs
+      // alternating between west->east (0/1) and north->south (2/3).
+      if (sections.empty()) {
+         sections = {
+            { 0,   0.0f, -100.0f, -lat_center,        100.0f },
+            { 1,   0.0f,    0.0f, -lat_center,        100.0f },
+            { 2, 270.0f,    0.0f, 100.0f - lat_center, 100.0f },
+            { 3, 270.0f,    0.0f, -lat_center,        100.0f },
+         };
+      }
+
+      if (sections.size() != 4) {
+         Failable::getSingleton()->addFatalError("UCD_JUNCTION supports exactly four fixed sections.");
+         return;
+      }
+
+      if (connectors.empty()) {
+         connectors = { { 0, 1 }, { 2, 3 } };
+      }
+
+      for (int id = 0; id < 4; ++id) {
+         const auto sec = std::find_if(sections.begin(), sections.end(),
+            [id](const SectionGeom& candidate) { return candidate.id == id; });
+         if (sec == sections.end()) {
+            Failable::getSingleton()->addFatalError("UCD_JUNCTION requires fixed sections 0-3.");
+            return;
+         }
+
+         const float expected_angle{ id < 2 ? 0.0f : 270.0f };
+         const float expected_sx{ id == 0 ? -100.0f : 0.0f };
+         const float expected_sy{ id == 2 ? 100.0f - lat_center : -lat_center };
+         if (angle_difference(sec->angle_deg, expected_angle) > 0.01f
+            || std::abs(sec->sx - expected_sx) > 0.01f
+            || std::abs(sec->sy - expected_sy) > 0.01f
+            || std::abs(sec->end - 100.0f) > 0.01f) {
+            Failable::getSingleton()->addFatalError(
+               "UCD_JUNCTION fixed geometry must use 100 m arms meeting at (0, 0), "
+               "with each source_y equal to its centerline start y minus lat_center.");
+            return;
+         }
+      }
+
+      std::set<std::pair<int, int>> actual_connections(connectors.begin(), connectors.end());
+      const std::set<std::pair<int, int>> expected_connections{ { 0, 1 }, { 2, 3 } };
+      if (actual_connections != expected_connections) {
+         Failable::getSingleton()->addFatalError(
+            "UCD_JUNCTION supports only the straight connections 0->1 and 2->3.");
+         return;
+      }
+   }
+
    // Maps a section-local (long_pos, lat_pos) to global coordinates like the HE painter
    // (rotation about the section's lateral center). Identical to extractVehPosFromNusmvFile::to_global.
    const auto to_global = [lat_center](const float long_pos, const float lat_pos, const float angle_deg,
@@ -1872,16 +1934,35 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
       if (car.empty()) continue;
 
       auto data = StaticHelper::split(car, ",");
+      if (data.size() < (ucd_junction ? 6u : 5u)) {
+         Failable::getSingleton()->addFatalError(
+            ucd_junction
+               ? "UCD_JUNCTION input requires presence,x,y,vx,vy,heading for each car."
+               : "Morty UCD input requires presence,x,y,vx,vy for each car.");
+         return;
+      }
     
       float x{ std::numeric_limits<float>::quiet_NaN() }; // Default to NaN for invalid data...
       float y{ std::numeric_limits<float>::quiet_NaN() }; // ...but out-of-bounds values will be clamped to float limits.
       float vx{ std::numeric_limits<float>::quiet_NaN() };
       float vy{ std::numeric_limits<float>::quiet_NaN() };
+      float heading{ std::numeric_limits<float>::quiet_NaN() };
 
       std::from_chars(data[1].data(), data[1].data() + data[1].size(), x);
       std::from_chars(data[2].data(), data[2].data() + data[2].size(), y);
       std::from_chars(data[3].data(), data[3].data() + data[3].size(), vx);
       std::from_chars(data[4].data(), data[4].data() + data[4].size(), vy);
+      if (ucd_junction) {
+         std::from_chars(data[5].data(), data[5].data() + data[5].size(), heading);
+         const float expected_heading{ i % 2 == 0 ? 0.0f : 1.5f * 3.14159265358979323846f };
+         const float heading_error{ std::atan2(std::sin(heading - expected_heading), std::cos(heading - expected_heading)) };
+         if (!std::isfinite(heading_error) || std::abs(heading_error) > 0.7853981633974483f) {
+            Failable::getSingleton()->addFatalError(
+               "UCD_JUNCTION car " + std::to_string(i)
+               + " has a heading inconsistent with its fixed route (even IDs eastbound, odd IDs southbound).");
+            return;
+         }
+      }
 
       const Vec2D P{ x, y };
 
@@ -1895,11 +1976,16 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
       int best_from{ -1 };
       int best_to{ -1 };
       float best_long_pos{ x };   // Longitudinal position along the seclet [HE meters].
+      float best_straight_raw_long{ std::numeric_limits<float>::quiet_NaN() };
       float best_lat{ y };        // Lateral position relative to the road [HE meters].
       float best_lat_vel{ vy };   // Lateral velocity (for heading adjustment) [HE m/s].
+      float best_long_vel{ vx }; // Longitudinal velocity along the seclet [HE m/s].
+      const int route_section_first{ i % 2 == 0 ? 0 : 2 };
 
       // ---- Straight sections: invert to_global and measure distance to the on-road band. ----
       for (const auto& sec : sections) {
+         if (ucd_junction && sec.id != route_section_first && sec.id != route_section_first + 1) continue;
+
          const float angle_rad{ sec.angle_deg * 3.14159265358979323846f / 180.0f };
          const float ca{ std::cos(angle_rad) };
          const float sa{ std::sin(angle_rad) };
@@ -1920,13 +2006,17 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
             best_from = -1;
             best_to = -1;
             best_long_pos = lon_c;
+            best_straight_raw_long = lon;
             best_lat = lat;
             best_lat_vel = lat_vel;
+            best_long_vel = vx * ca + vy * sa;
          }
       }
 
       // ---- Connector arcs: nearest point on the reconstructed Bezier centerline. ----
       for (const auto& con : connectors) {
+         if (ucd_junction && con.first != route_section_first) continue;
+
          const SectionGeom* f{ nullptr };
          const SectionGeom* t{ nullptr };
          for (const auto& sec : sections) {
@@ -1940,6 +2030,10 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
          const Vec2D arc_origin_from{ to_global(0.0f,   lat_center, f->angle_deg, f->sx, f->sy) };
          const Vec2D arc_target     { to_global(0.0f,   lat_center, t->angle_deg, t->sx, t->sy) };
          const Vec2D arc_target_from{ to_global(t->end, lat_center, t->angle_deg, t->sx, t->sy) };
+         if (ucd_junction && arc_origin.distanceSquare(arc_target) < 1e-8f
+            && angle_difference(f->angle_deg, t->angle_deg) < 0.01f) {
+            continue; // Joined collinear sections have an instantaneous transition, not a looping arc.
+         }
          const auto nice = bezier::getNiceBetweenPoints(arc_origin, arc_origin_from, arc_target, arc_target_from);
          const float total_len{ bezier::arcLength(1.0f, arc_origin, nice[0], nice[2], arc_target) };
 
@@ -1961,10 +2055,14 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
          Vec2D tangent{ pt_b.x - pt_a.x, pt_b.y - pt_a.y };
          const float tlen{ std::sqrt(tangent.x * tangent.x + tangent.y * tangent.y) };
          Vec2D left_normal{ 0.0f, 0.0f };
-         if (tlen > 1e-6f) { left_normal = Vec2D{ -tangent.y / tlen, tangent.x / tlen }; }
+         if (tlen > 1e-6f) {
+            tangent = Vec2D{ tangent.x / tlen, tangent.y / tlen };
+            left_normal = Vec2D{ -tangent.y, tangent.x };
+         }
          const float lat_offset{ (x - best_pt.x) * left_normal.x + (y - best_pt.y) * left_normal.y };
          const float lat_here{ lat_center + lat_offset };
          const float lat_vel_here{ vx * left_normal.x + vy * left_normal.y };
+         const float long_vel_here{ vx * tangent.x + vy * tangent.y };
 
          const float perp_dist{ std::sqrt(best_arc_d2) };
          const float d{ (std::max)(0.0f, perp_dist - road_width / 2.0f) };
@@ -1976,14 +2074,50 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
             best_from = con.first;
             best_to = con.second;
             best_long_pos = best_rel * total_len; // Arc-relative position (model resets abs_pos on connectors).
+            best_straight_raw_long = std::numeric_limits<float>::quiet_NaN();
             best_lat = lat_here;
             best_lat_vel = lat_vel_here;
+            best_long_vel = long_vel_here;
          }
+      }
+
+      if (ucd_junction && !found_seclet) {
+         Failable::getSingleton()->addFatalError(
+            "Could not map UCD_JUNCTION car " + std::to_string(i)
+            + " to its configured straight route.");
+         return;
+      }
+
+      constexpr float JUNCTION_LONGITUDINAL_ENDPOINT_TOLERANCE{ 1.0f };
+      if (ucd_junction && best_on_section >= 0) {
+         const auto sec = std::find_if(sections.begin(), sections.end(),
+            [best_on_section](const SectionGeom& candidate) {
+               return candidate.id == best_on_section;
+            });
+         if (sec == sections.end()
+            || !std::isfinite(best_straight_raw_long)
+            || best_straight_raw_long < -JUNCTION_LONGITUDINAL_ENDPOINT_TOLERANCE
+            || best_straight_raw_long > sec->end + JUNCTION_LONGITUDINAL_ENDPOINT_TOLERANCE) {
+            Failable::getSingleton()->addFatalError(
+               "UCD_JUNCTION car " + std::to_string(i)
+               + " is beyond the finite longitudinal route endpoints; refusing to clamp it on-road.");
+            return;
+         }
+      }
+
+      const float lateral_min{ lat_center - road_width / 2.0f };
+      const float lateral_max{ lat_center + road_width / 2.0f };
+      if (ucd_junction && (best_lat < lateral_min || best_lat > lateral_max)) {
+         Failable::getSingleton()->addFatalError(
+            "UCD_JUNCTION car " + std::to_string(i)
+            + " is outside the configured lateral road bounds; refusing to clamp it to a lane.");
+         return;
       }
 
       const int abs_pos{ to_model_int(best_long_pos * dist_scale) };
       main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.abs_pos = " + std::to_string(abs_pos) + ";\n";
-      main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx * vel_scale)) + ";\n";
+      const float model_velocity{ ucd_junction ? best_long_vel : vx };
+      main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(model_velocity * vel_scale)) + ";\n";
 
       if (found_seclet) { // Place the car onto the resolved section/arc.
          main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.on_straight_section = " + std::to_string(best_on_section) + ";\n";
@@ -2000,7 +2134,8 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
       // Map the (section-local) lateral position to MC on_lane using technical lanes.
       // on_lane formula: p = (2*T - 1) - 2*T*(y_adj + W/2) / (A*W)
       // where T = num_technical_lanes, A = num_lanes, W = LANE_WIDTH.
-      const float heading_factor{ best_lat_vel * head_const };
+      // Junction occupancy must be based on measured lateral position, not heading compensation.
+      const float heading_factor{ ucd_junction ? 0.0f : best_lat_vel * head_const };
       const float y_adj = best_lat - heading_factor;
       const float continuous_on_lane = (2.0f * num_technical_lanes - 1.0f)
          - 2.0f * num_technical_lanes * (y_adj + LANE_WIDTH / 2.0f) / road_width;

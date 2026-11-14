@@ -25,6 +25,7 @@
 #include <utility>
 #include <limits>
 #include <tuple>
+#include <cmath>
 #include <iostream>
 #include <sstream>
 #include <type_traits>
@@ -1404,6 +1405,51 @@ private:
          const auto mc_workflow = prepareMCWorkflow(vfm_data_, vfm_parser_, body.empty());
          const std::string config_name{ parameters.at(0) };
          const std::map<std::string, std::string> paths{ retrievePaths(mc_workflow, body, config_name)};
+         const nlohmann::json config_template{
+            mc_workflow.getJSON(paths.at("path_json") + "/" + StaticHelper::getFileNameFromPath(body)) };
+         const bool ucd_junction{ config_template.contains("#TEMPLATE")
+            && config_template["#TEMPLATE"].contains("UCD_JUNCTION")
+            && config_template["#TEMPLATE"]["UCD_JUNCTION"].is_boolean()
+            && config_template["#TEMPLATE"]["UCD_JUNCTION"].get<bool>() };
+         const auto parse_fixed_section_values = [&config_template](const std::string& key) {
+            std::vector<float> values{};
+            if (!config_template.contains("#TEMPLATE") || !config_template["#TEMPLATE"].contains(key)) {
+               return values;
+            }
+            const auto& encoded{ config_template["#TEMPLATE"][key] };
+            if (encoded.is_array()) {
+               for (const auto& value : encoded) values.push_back(value.get<float>());
+            } else if (encoded.is_string()) {
+               const std::string text{ encoded.get<std::string>() };
+               std::size_t cursor{ 0 };
+               while ((cursor = text.find('(', cursor)) != std::string::npos) {
+                  const std::size_t end{ text.find(')', cursor + 1) };
+                  if (end == std::string::npos) break;
+                  values.push_back(std::stof(text.substr(cursor + 1, end - cursor - 1)));
+                  cursor = end + 1;
+               }
+            }
+            return values;
+         };
+         std::map<int, std::tuple<float, float, float, float>> configured_section_geometry{};
+         if (ucd_junction) {
+            const auto ids{ parse_fixed_section_values("FIXED_SECTION_IDs") };
+            const auto sources_x{ parse_fixed_section_values("FIXED_SECTION_SOURCE_Xs") };
+            const auto sources_y{ parse_fixed_section_values("FIXED_SECTION_SOURCE_Ys") };
+            const auto angles{ parse_fixed_section_values("FIXED_SECTION_ANGLEs") };
+            const auto lengths{ parse_fixed_section_values("FIXED_SECTION_LENGTHs") };
+            const std::size_t section_count{
+               (std::min)({ ids.size(), sources_x.size(), sources_y.size(), angles.size(), lengths.size() }) };
+            for (std::size_t i = 0; i < section_count; ++i) {
+               configured_section_geometry.emplace(
+                  static_cast<int>(ids[i]),
+                  std::make_tuple(angles[i], sources_x[i], sources_y[i], lengths[i]));
+            }
+            if (configured_section_geometry.size() != 4) {
+               addFatalError("UCD_JUNCTION trajectory extraction requires four fixed section geometries.");
+               return res;
+            }
+         }
          const auto traces = StaticHelper::extractMCTracesFromNusmvFile(paths.at("path_generated") + "/debug_trace_array.txt");
 
          if (traces.empty() || traces[0].empty()) {
@@ -1414,6 +1460,20 @@ private:
          const auto& trace = traces[0];
          const auto time_scaling_str = trace.getLastValueOfVariableAtStep("planner.time_scaling", 0);
          const auto dist_scale_str = trace.getLastValueOfVariableAtStep("planner.distance_scaling", 0);
+         float geometry_scale_factor{ 1.0f };
+         float distance_scale_factor{ 1.0f };
+         if (ucd_junction) {
+            distance_scale_factor = std::stof(dist_scale_str) / 1000.0f;
+            const std::string scaling_file{ paths.at("path_generated") + "/" + TIMESCALING_FILENAME };
+            if (std::filesystem::exists(scaling_file)) {
+               const ScaleDescription scaling{ StaticHelper::readFile(scaling_file) };
+               geometry_scale_factor = scaling.getGeometryScalingFactor();
+            }
+         }
+         if (ucd_junction && (geometry_scale_factor <= 0.0f || distance_scale_factor <= 0.0f)) {
+            addFatalError("Invalid geometry or distance scaling while extracting Morty trajectory coordinates.");
+            return res;
+         }
          trace.setOutputLevels(vfm::ErrorLevelEnum::invalid, vfm::ErrorLevelEnum::invalid); // Quiet, since we use the error case as indicator.
 
          // Maps a local (long_pos, lat_pos) position on a section to global coordinates, exactly
@@ -1435,9 +1495,16 @@ private:
          // neutral 0, making to_global reduce to the identity (long_pos, lat_pos) for the 0/0/0 case while
          // still reading the true geometry when a road network is present.
          std::map<int, std::tuple<float, float, float, float>> section_geometry{};
-         const auto read_section = [&trace, &section_geometry](const int sec_id) -> std::tuple<float, float, float, float> {
+         const auto read_section = [&trace, &section_geometry, &configured_section_geometry, ucd_junction,
+                                    geometry_scale_factor, distance_scale_factor](const int sec_id) -> std::tuple<float, float, float, float> {
             const auto cached{ section_geometry.find(sec_id) };
             if (cached != section_geometry.end()) return cached->second;
+            if (ucd_junction) {
+               const auto configured{ configured_section_geometry.find(sec_id) };
+               if (configured != configured_section_geometry.end()) {
+                  return section_geometry.emplace(sec_id, configured->second).first->second;
+               }
+            }
             const std::string id{ std::to_string(sec_id) };
 
             const auto read = [&trace](const std::string& var, const float dflt) -> float {
@@ -1447,9 +1514,9 @@ private:
             };
 
             const float angle{ read("env.section_" + id + ".angle", 0.0f) };
-            const float sx{ read("env.section_" + id + ".source.x", 0.0f) };
-            const float sy{ read("env.section_" + id + ".source.y", 0.0f) };
-            const float end{ read("env.section_" + id + "_end", 0.0f) };
+            const float sx{ read("env.section_" + id + ".source.x", 0.0f) / geometry_scale_factor };
+            const float sy{ read("env.section_" + id + ".source.y", 0.0f) / geometry_scale_factor };
+            const float end{ read("env.section_" + id + "_end", 0.0f) / distance_scale_factor };
             return section_geometry.emplace(sec_id, std::make_tuple(angle, sx, sy, end)).first->second;
          };
 
@@ -1517,11 +1584,24 @@ private:
                   const Vec2D arc_origin_from{ to_global(0.0f, lat_pos, lat_center, angle_from, fsx, fsy) }; // source of "from"
                   const Vec2D arc_target     { to_global(0.0f, lat_pos, lat_center, angle_to,   tsx, tsy) }; // source of "to"
                   const Vec2D arc_target_from{ to_global(tend, lat_pos, lat_center, angle_to,   tsx, tsy) }; // drain of "to"
-                  const auto nice = bezier::getNiceBetweenPoints(arc_origin, arc_origin_from, arc_target, arc_target_from);
-                  const float arc_length{ bezier::arcLength(1.0f, arc_origin, nice[0], nice[2], arc_target) };
-                  float rel{ arc_length > 0.0f ? long_pos / arc_length : 0.0f };
-                  rel = (std::max)(0.0f, (std::min)(1.0f, rel));
-                  point = bezier::pointAtRatio(rel, arc_origin, nice[0], nice[2], arc_target);
+                  const bool joined_straight_sections{
+                     ucd_junction
+                     && arc_origin.distanceSquare(arc_target) < 1e-8f
+                     && std::abs(std::remainder(angle_from - angle_to, 360.0f)) < 0.01f
+                  };
+                  if (joined_straight_sections) {
+                     const float angle_rad{ angle_from * 3.14159265358979323846f / 180.0f };
+                     point = {
+                        arc_origin.x + long_pos * std::cos(angle_rad),
+                        arc_origin.y + long_pos * std::sin(angle_rad)
+                     };
+                  } else {
+                     const auto nice = bezier::getNiceBetweenPoints(arc_origin, arc_origin_from, arc_target, arc_target_from);
+                     const float arc_length{ bezier::arcLength(1.0f, arc_origin, nice[0], nice[2], arc_target) };
+                     float rel{ arc_length > 0.0f ? long_pos / arc_length : 0.0f };
+                     rel = (std::max)(0.0f, (std::min)(1.0f, rel));
+                     point = bezier::pointAtRatio(rel, arc_origin, nice[0], nice[2], arc_target);
+                  }
                }
 
                res += std::to_string(point.x) + "," + std::to_string(point.y) + ";";

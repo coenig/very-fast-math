@@ -13,7 +13,7 @@ include_directories(${GTEST_INCLUDE_DIRS})
 
 #add_executable (TEST_EXECUTABLE google_test.cpp)
 
-add_executable(runTests our_sample_test.cpp)
+add_executable(runTests our_sample_test.cpp ucd_junction_input_test.cpp)
 
 
 #TEST_EXECUTABLE
