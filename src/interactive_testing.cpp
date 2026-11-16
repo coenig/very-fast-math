@@ -1742,6 +1742,9 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
    const std::string ucd_config_prios_str{ workflow.getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
    const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
    const nlohmann::json template_json{ workflow.getJSON("./morty/envmodel_config.tpl.json") };
+   const nlohmann::json template_root = workflow.getJSON("./morty/envmodel_config.tpl.json");
+   const bool task11{ template_root.contains("#TEMPLATE") && template_root["#TEMPLATE"].contains("UCD_EXP_NUM")
+      && template_root["#TEMPLATE"]["UCD_EXP_NUM"] == 11 };
    const bool round_inputs{ template_json.contains("#TEMPLATE") && template_json["#TEMPLATE"].contains("UCD_ROUND_INPUTS")
       && template_json["#TEMPLATE"]["UCD_ROUND_INPUTS"].is_boolean() && template_json["#TEMPLATE"]["UCD_ROUND_INPUTS"].get<bool>() };
    // Truncation biases positions toward zero, so forward cars lag their plan by one unit. Velocities stay
@@ -1866,7 +1869,6 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
       }
    }
 
-   const nlohmann::json template_root = workflow.getJSON("./morty/envmodel_config.tpl.json"); // template_json above is wrapped in an array (brace init).
    if (sections.empty() && template_root.contains("#TEMPLATE")) { // No trace yet (e.g., first cycle): use the fixed sections of the template.
       const auto& tpl{ template_root["#TEMPLATE"] };
       const auto numbers = [&tpl](const std::string& key) {
@@ -2004,6 +2006,8 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
 
       // ---- Connector arcs: nearest point on the reconstructed Bezier centerline. ----
       for (const auto& con : connectors) {
+         // TODO: Replace this task-11-specific straight-through assumption with route-aware mapping.
+         if (task11 && ((con.first == 0 && con.second == 3) || (con.first == 2 && con.second == 1))) continue;
          const SectionGeom* f{ nullptr };
          const SectionGeom* t{ nullptr };
          for (const auto& sec : sections) {
@@ -2044,8 +2048,16 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
          const float lat_vel_here{ vx * left_normal.x + vy * left_normal.y };
          const float long_vel_here{ vx * left_normal.y - vy * left_normal.x };
 
-         const float perp_dist{ std::sqrt(best_arc_d2) };
-         const float d{ (std::max)(0.0f, perp_dist - road_width / 2.0f) + misalignment(tangent.x, tangent.y) + unreachable_penalty(-1, con.first, con.second) };
+         // For task 11, do not extend the connector road band past its endpoints.
+         const float along_offset{ tlen > 1e-6f
+            ? ((x - best_pt.x) * tangent.x + (y - best_pt.y) * tangent.y) / tlen : 0.0f };
+         const float end_distance{ best_rel == 0.0f ? (std::max)(0.0f, -along_offset)
+            : best_rel == 1.0f ? (std::max)(0.0f, along_offset) : 0.0f };
+         const float side_distance{ (std::max)(0.0f, std::abs(lat_offset) - road_width / 2.0f) };
+         const float band_distance{ task11 ? std::sqrt(end_distance * end_distance + side_distance * side_distance)
+            : (std::max)(0.0f, std::sqrt(best_arc_d2) - road_width / 2.0f) };
+         const float d{ band_distance
+            + misalignment(tangent.x, tangent.y) + unreachable_penalty(-1, con.first, con.second) };
 
          if (d < best_dist) {
             best_dist = d;

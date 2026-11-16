@@ -70,6 +70,7 @@
 -- Parameters for ego and non-ego vehicles (vehicle length is below in LC section)
 @{EGOLESS}@*******.defaultValue[false]
 @{UCD}@*******.defaultValue[false]
+@{UCD_EXP_NUM}@*******.defaultValue[-1]
 @{UCD_TASK7_COMPACT}@*******.defaultValue[false]
 @{NONEGOS}@*******.defaultValue[5]
 @{LEFTLC}@*******.defaultValue[true]

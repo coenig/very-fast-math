@@ -120,6 +120,11 @@ For a single run starting at the template's seed:
 python3 -m morty.morty --live --num_runs 1
 ```
 
+For task 11, input mapping assumes the existing straight-through routes (0 to 1 and
+2 to 3); it does not support turning through the junction. If an observed vehicle
+is already above the connector speed limit, the model requires it to slow down
+while remaining on that connector; entering above the limit is still forbidden.
+
 Use `--num_runs 100` for a longer campaign. The count must be a nonnegative integer;
 zero requests no runs. `UCD_NUM_RUNS` is no longer read from the template.
 Missing template keys preserve historical defaults. CLI options for the other

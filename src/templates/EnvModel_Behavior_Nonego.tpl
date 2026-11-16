@@ -734,7 +734,21 @@ ASSIGN
 
     @{
        @{
-          @{INVAR (veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1) -> (veh___6[i]9___.v <= @{20}@.velocityWorldToEnvModelConst & veh___6[i]9___.lane_single);}@.if[@{[sec] != [sec2]}@.eval]
+          @{@{
+             @(
+          INVAR veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 -> veh___6[i]9___.lane_single;
+          -- An observed overspeed on a connector must decrease until it reaches the limit.
+          TRANS next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) = 1 ->
+             (next(veh___6[i]9___.v) <= @{20}@.velocityWorldToEnvModelConst
+              | (veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1
+                 & veh___6[i]9___.v > @{20}@.velocityWorldToEnvModelConst
+                 & next(veh___6[i]9___.v) < veh___6[i]9___.v));
+             )@
+             @(
+          INVAR (veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1) -> (veh___6[i]9___.v <= @{20}@.velocityWorldToEnvModelConst & veh___6[i]9___.lane_single);
+             )@
+          }@******.if[@{UCD && UCD_EXP_NUM == 11}@.eval]
+          }@.if[@{[sec] != [sec2]}@.eval]
           @{TRANS next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) = 1 -> veh___6[i]9___.lane_single;}@.if[@{[sec] != [sec2]}@.eval]
        }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
     }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]

@@ -343,6 +343,16 @@ TEST(SmvTemplateTests, CompactUcdFallsBackWithoutStationaryLaneHold) {
     EXPECT_NE(model.find("#define VFM_TASK7_PARKED_2 0"), std::string::npos);
 }
 
+TEST(SmvTemplateTests, Task11ConnectorOverspeedCanOnlyRecover) {
+    const auto model = expandCompactUcdTemplate("@{@SECTIONS=2; @UCD_EXP_NUM=11;}@***********.eval.nil");
+    const auto other = expandCompactUcdTemplate("@{@SECTIONS=2; @UCD_EXP_NUM=10;}@***********.eval.nil");
+    EXPECT_EQ(model.find("@{"), std::string::npos);
+    EXPECT_NE(model.find("next(veh___609___.v) < veh___609___.v"), std::string::npos);
+    EXPECT_NE(model.find("veh___609___.is_traversing_from_sec_0_to_sec_1 = 1\n                 & veh___609___.v > 40"), std::string::npos);
+    EXPECT_EQ(other.find("next(veh___609___.v) < veh___609___.v"), std::string::npos);
+    EXPECT_NE(other.find("(veh___609___.v <= 40 & veh___609___.lane_single)"), std::string::npos);
+}
+
 TEST(SmvTemplateTests, AllVehiclesHavePositionUpdates) {
     for (const bool compact : {false, true}) {
         SCOPED_TRACE(compact ? "compact" : "legacy");
@@ -829,6 +839,35 @@ TEST_F(MortyLiveTests, CompactInputConstantsTrackObservationsAndStationaryConstr
         "INVAR env.veh___629___.v = 0;", "INVAR env.veh___629___.v >= 0;"), "generated_config_primary/main.smv");
     vfm::test::prepareInputForMortyUCD("0,10,0,5,0;1,20,4,-5,0;2,43,4,0,0;", -0.5f, 2, 12, "AUTO");
     EXPECT_EQ(vfm::StaticHelper::readFile("generated_config_primary/main.smv").find("VFM_TASK7_PARKED_POS_2"), std::string::npos);
+}
+
+TEST_F(MortyLiveTests, Task11MapsApproachAndStraightConnectorWithoutTakingTurn) {
+    config["#TEMPLATE"]["UCD_EXP_NUM"] = 11;
+    writeConfig();
+    vfm::StaticHelper::writeTextToFile("MODULE main\n--EO-SPEC-STUFF\n", "generated_config_primary/main.smv");
+    vfm::StaticHelper::writeTextToFile("MODULE main\n--EO-SPEC-STUFF\n", "generated_config_fallback/main.smv");
+    const std::string geometry =
+        "Trace Description: test\nTrace Type: Counterexample\n -> State: 1.1 <-\n"
+        " env.section_0.angle = 0\n env.section_0.source.x = 0\n env.section_0.source.y = 0\n env.section_0_end = 400\n"
+        " env.section_1.angle = 0\n env.section_1.source.x = 118\n env.section_1.source.y = 0\n env.section_1_end = 400\n"
+        " env.section_2.angle = 90\n env.section_2.source.x = 109\n env.section_2.source.y = -109\n env.section_2_end = 400\n"
+        " env.section_3.angle = 90\n env.section_3.source.x = 109\n env.section_3.source.y = 9\n env.section_3_end = 400\n"
+        " env.outgoing_connection_0_of_section_0 = 1\n env.outgoing_connection_1_of_section_0 = 3\n"
+        " env.outgoing_connection_0_of_section_2 = 3\n env.outgoing_connection_1_of_section_2 = 1\n"
+        " env.veh___609___.on_straight_section = 2\n env.veh___609___.traversion_from = -1\n"
+        " env.veh___609___.traversion_to = -1\n -> State: 1.2 <-\n";
+    vfm::StaticHelper::writeTextToFile(geometry, "generated_config_primary/debug_trace_array.txt");
+
+    vfm::test::prepareInputForMortyUCD("0,110.30552,-9.759388,3.2085652,21.083334,1.4197702;", -0.5f, 2, 2, "AUTO");
+    auto main = vfm::StaticHelper::readFile("generated_config_primary/main.smv");
+    EXPECT_NE(main.find("INIT env.veh___609___.on_straight_section = 2;"), std::string::npos);
+    EXPECT_NE(main.find("INIT env.veh___609___.abs_pos = 388;"), std::string::npos);
+
+    vfm::test::prepareInputForMortyUCD("0,111,-4,0,10,1.5707963;", -0.5f, 2, 2, "AUTO");
+    main = vfm::StaticHelper::readFile("generated_config_primary/main.smv");
+    EXPECT_NE(main.find("INIT env.veh___609___.on_straight_section = -1;"), std::string::npos);
+    EXPECT_NE(main.find("INIT env.veh___609___.traversion_from = 2;"), std::string::npos);
+    EXPECT_NE(main.find("INIT env.veh___609___.traversion_to = 3;"), std::string::npos);
 }
 
 #if defined(__linux__)
