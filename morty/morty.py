@@ -3,6 +3,21 @@ from ctypes import create_string_buffer, sizeof
 import gymnasium
 import highway_env
 from gymnasium.wrappers import RecordVideo
+
+
+# gymnasium < 1.0 names these start_video_recorder/close_video_recorder.
+def _start_recording(env, video_name):
+    if hasattr(RecordVideo, 'start_recording'):
+        env.start_recording(video_name)
+    else:
+        env.start_video_recorder()
+
+
+def _stop_recording(env):
+    if hasattr(RecordVideo, 'stop_recording'):
+        env.stop_recording()
+    else:
+        env.close_video_recorder()
 import os
 import shutil
 import argparse
@@ -753,7 +768,7 @@ for run_id, seedo in scheduler:
         env = RecordVideo(env, video_folder=f"{generated_path_prefix}/videos", name_prefix=f"vid_{run_id}",
                     episode_trigger=lambda e: True)  # record all episodes
         env.unwrapped.set_record_video_wrapper(env)
-        env.start_recording(f"vid_{run_id}")
+        _start_recording(env, f"vid_{run_id}")
         try:
             import highway_env as _he
             _he._display_env = env
@@ -1356,7 +1371,7 @@ for run_id, seedo in scheduler:
             discard_run(run_id, generated_path_prefix, ucd_config_prios_str, mc_results_offsets,
                         all_cex_length_histories, all_selected_runtime_histories)
         if args.record_video:
-            env.stop_recording()
+            _stop_recording(env)
         env.close()
         continue  # seedo has already advanced; run_id stays so the next seed reuses it.
 
@@ -1366,7 +1381,7 @@ for run_id, seedo in scheduler:
             f.write("{" + min_max_curr(len(good_ones), run_id + 1, MAX_EXPs) + "} " + f"{run_id} (seed {seedo})" + " " + outcome + " [" + str(nocex_count) + " blind; " + blind_stats + "|]\n")
 
     if args.record_video:
-        env.stop_recording()
+        _stop_recording(env)
         suffix = ""
         if crashed_count > 0:
             suffix += "_crashed"
