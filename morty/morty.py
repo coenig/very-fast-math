@@ -20,6 +20,7 @@ from .morty_helper import (
     RunScheduler, MCConfigSelector, load_run_settings, snapshot_mc_results_offsets, run_reached_threshold, discard_run,
     randomize_until_collision_free, shortcut_bmc_bound,
     save_simulation_snapshot,
+    IDENTITY_FRAME, fixed_section_frames, frame_to_world, world_to_frame,
 )
 from .persistent_solver import PersistentSolverPool
 import platform
@@ -288,6 +289,7 @@ with open('morty/envmodel_config.json') as f:
     bmc_cnt = d[ucd_config_prios_str[0]]["BMC_CNT"]
     # distance_formula_pp = d[ucd_config_prios_str[0]]["UCD_FORMULA_PP_DISTANCE"]             # HERE we DO make a difference, see below!
     vel_scale = dist_scale / time_scale  # velocity = distance / time
+    section_frames = fixed_section_frames(d[ucd_config_prios_str[0]])
 
     if backward_driving_car_ids_str.endswith(')@'):
         backward_driving_car_ids_str = backward_driving_car_ids_str[:-2]
@@ -359,6 +361,9 @@ DIST_EXP_10_MC = int(DIST_EXP_10 * dist_scale)
 SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.is_on_sec_1 = 1 & env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_10_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""")
 # 10 Reach next section
 
+# 11: Junction (sections 0 -> 1 west to east, 2 -> 3 north to south): all cars have crossed. Even car IDs start west, odd ones north.
+SPECS.append("INVARSPEC !(" + " & ".join(f"env.veh___6{i}9___.is_on_sec_{1 + 2 * (i % 2)} = 1" for i in range(nonegos)) + ");")
+
 SUCC_CONDS.append(lambda: all(x < 1 for x in egos_v))
 SUCC_CONDS.append(lambda: all(abs(x - TARGET_VEL) < 1 for x in egos_v))
 SUCC_CONDS.append(lambda: maxDifferenceArray(egos_y[:-1]) < 4)
@@ -371,6 +376,7 @@ SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos
 SUCC_CONDS.append(lambda: False) # 8
 SUCC_CONDS.append(lambda: all(x > DIST_EXP_9 for x in egos_x)) # 9
 SUCC_CONDS.append(lambda: False) # 10
+SUCC_CONDS.append(lambda: False) # 11
 
 addons = [''] * len(SPECS) # Add to main.smv depending on the experiment.
 ADDONS_CORE_DENOTER = "UCD addons"
@@ -430,6 +436,9 @@ addons[10] += f"""
 """
 for i in range(0, nonegos):
     addons[10] += f"INVAR env.cnt > 3 -> !env.veh___6{i}9___.lane_b0;\n"
+
+for i in range(0, nonegos): # No turning in the junction (for now).
+    addons[11] += f"INVAR env.veh___6{i}9___.is_traversing_from_sec_0_to_sec_3 = 0 & env.veh___6{i}9___.is_traversing_from_sec_2_to_sec_1 = 0;\n"
 
 
 
@@ -658,6 +667,7 @@ for run_id, seedo in scheduler:
     egos_v =        [0] * (nonegos + 1) # Absuolute (!) long vel of cars in m/s. Multiply with egos_backward to get the signed velocity as seen by the MC.
     egos_headings = [0] * (nonegos + 1) # Angle rel. to long axis in rad.
     egos_backward = [1] * (nonegos + 1) # If the respective car is a forward (1) or backward (-1) driving car.
+    egos_frames = [IDENTITY_FRAME] * nonegos # Per-car control frame (long/lat along the car's start section).
     nocex_count = 0
     crashed_count = 0
     cex_length_history = []
@@ -679,6 +689,7 @@ for run_id, seedo in scheduler:
     # Compute valid y range based on technical lane positions.
     y_min_tech = -LANE_WIDTH_HE / 2.0 + LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
     y_max_tech = -LANE_WIDTH_HE / 2.0 + (2 * num_technical_lanes - 1) * LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
+    lat_center = LANE_WIDTH_HE * (num_actual_lanes - 1) / 2.0  # Rotation center of section frames (as in the C++ mapping).
 
     np.random.seed(seedo)
     rng = np.random.default_rng(seedo)
@@ -706,8 +717,13 @@ for run_id, seedo in scheduler:
             if cnt == 0:
                 vehicle.position[0] = 0
                 vehicle.position[1] = 0 # start at rightmost lane center (y=4m)
+        if exp_num == 11: # junction: even IDs start on section 0 (west), odd ones on section 2 (north)
+            egos_frames[cnt] = section_frames[0 if cnt % 2 == 0 else 2]
+            vehicle.position[0] = 15 + 35 * (cnt // 2)
 
-        # Remember the deterministic base position; the gaussian jitter and collision retries
+        vehicle.heading += egos_frames[cnt][0]
+
+        # Remember the deterministic base position (in the car's frame); the gaussian jitter and collision retries
         # below are applied relative to it so each redraw is independent of a rejected one.
         base_positions.append([float(vehicle.position[0]), float(vehicle.position[1])])
 
@@ -715,7 +731,8 @@ for run_id, seedo in scheduler:
 
     # Jitter the cars around their deterministic base positions until they no longer collide
     # (see randomize_until_collision_free for details); positions are mutated in place.
-    randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_tech)
+    randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_tech,
+                                   frames=egos_frames, lat_center=lat_center)
 
     viz_state.last_mc_ms = None
     viz_state.begin_mc_cycle()
@@ -790,10 +807,10 @@ for run_id, seedo in scheduler:
         mcinput = ""
         i = 0
         for el in obs: # Use only el[0] because it contains the abs values from the resp. car's perspective.
-            egos_x[i] = el[0][1]
-            egos_y[i] = el[0][2]
-            egos_v[i] = el[0][3] * egos_backward[i]
-            egos_headings[i] = el[0][5] - np.pi * (1 - egos_backward[i]) / 2
+            frame_angle = egos_frames[i][0]
+            egos_x[i], egos_y[i] = world_to_frame(egos_frames[i], el[0][1], el[0][2], lat_center)
+            egos_v[i] = (el[0][3] * np.cos(frame_angle) + el[0][4] * np.sin(frame_angle)) * egos_backward[i]
+            egos_headings[i] = el[0][5] - frame_angle - np.pi * (1 - egos_backward[i]) / 2
             for num, val in enumerate(el[0]): # Generate input for model checker.
                 if egos_backward[i] == -1 and num == 5:
                     mcinput += str(-val) + ","
@@ -1107,11 +1124,12 @@ for run_id, seedo in scheduler:
                     viz_state.pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
                 
                 if i <= 5: # second-next point (index 5) used as the pure-pursuit lookahead target for steering.
-                    coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
+                    frame_x, frame_y = world_to_frame(egos_frames[j], coord[0], coord[1], lat_center)
+                    coords_for_pp[j] = ((frame_x - egos_x[j]) * egos_backward[j], frame_y)
                     if not args.live:
                         print(f"Step {i}, Car {j}: abspos={abspos}, latpos={latpos}, coord={coord}")
                 if i == 2: # Immediate next distinct point (one MC step ahead).
-                    accel_target_dist[j] = (coord[0] - egos_x[j]) * egos_backward[j]
+                    accel_target_dist[j] = (frame_x - egos_x[j]) * egos_backward[j]
 
         # EO Find future positions.
 
@@ -1271,8 +1289,8 @@ for run_id, seedo in scheduler:
             if not args.live and i < len(env.unwrapped.controlled_vehicles):
                 vehicle = env.unwrapped.controlled_vehicles[i]
                 
-                pp_target_x = float(vehicle.position[0] + egos_backward[i] * pp_distance)
-                pp_target_y = pp_latshift
+                pp_target_x, pp_target_y = map(float, frame_to_world(
+                    egos_frames[i], egos_x[i] + egos_backward[i] * pp_distance, pp_latshift, lat_center))
                 viz_state.pp_targets[id(vehicle)] = [pp_target_x, pp_target_y]
 
             # Pure-pursuit curvature law: delta = atan(2 L sin(alpha) / L_d). A close target

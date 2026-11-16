@@ -11,6 +11,8 @@
 #include "vfmacro/script.h"
 
 #include <charconv>
+#include <cmath>
+#include <regex>
 #include <stdio.h>
 #include <string>
 #include <filesystem>
@@ -1787,6 +1789,7 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
    struct SectionGeom { int id; float angle_deg; float sx; float sy; float end; };
    std::vector<SectionGeom> sections{};
    std::vector<std::pair<int, int>> connectors{}; // (from_section_id, to_section_id)
+   std::map<int, std::tuple<int, int, int>> planned_seclets{}; // car -> (on_straight_section, traversion_from, traversion_to) at step 1 of the last plan
 
    {
       std::string resolved_trace_path{ (trace_path == "AUTO") ? std::string{} : trace_path };
@@ -1803,6 +1806,17 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
          if (!traces.empty() && !traces[0].empty()) {
             MCTrace trace{ traces[0] };
             trace.setOutputLevels(vfm::ErrorLevelEnum::invalid, vfm::ErrorLevelEnum::invalid); // Quiet; we use errors as "not present".
+
+            for (int c = 0; c < (int)cars.size(); ++c) {
+               const std::string prefix{ "env.veh___6" + std::to_string(c) + "9___." };
+               trace.resetAllErrors();
+               const auto sec_str = trace.getLastValueOfVariableAtStep(prefix + "on_straight_section", 1);
+               const auto from_str = trace.getLastValueOfVariableAtStep(prefix + "traversion_from", 1);
+               const auto to_str = trace.getLastValueOfVariableAtStep(prefix + "traversion_to", 1);
+               if (!trace.hasErrorOccurred()) {
+                  planned_seclets[c] = { (int)std::stof(sec_str), (int)std::stof(from_str), (int)std::stof(to_str) };
+               }
+            }
 
             const auto trace_directory{ std::filesystem::absolute(resolved_trace_path).parent_path() };
             const auto scaling_file{ trace_directory / TIMESCALING_FILENAME };
@@ -1852,6 +1866,45 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
       }
    }
 
+   const nlohmann::json template_root = workflow.getJSON("./morty/envmodel_config.tpl.json"); // template_json above is wrapped in an array (brace init).
+   if (sections.empty() && template_root.contains("#TEMPLATE")) { // No trace yet (e.g., first cycle): use the fixed sections of the template.
+      const auto& tpl{ template_root["#TEMPLATE"] };
+      const auto numbers = [&tpl](const std::string& key) {
+         std::vector<float> res{};
+         if (!tpl.contains(key) || !tpl[key].is_string()) return res;
+         static const std::regex number_regex{ R"(@\((-?[0-9.]+)\)@)" };
+         const std::string value{ tpl[key].get<std::string>() };
+         for (std::sregex_iterator it{ value.begin(), value.end(), number_regex }, end{}; it != end; ++it) {
+            res.push_back(std::stof((*it)[1].str()));
+         }
+         return res;
+      };
+      const auto ids{ numbers("FIXED_SECTION_IDs") };
+      const auto xs{ numbers("FIXED_SECTION_SOURCE_Xs") };
+      const auto ys{ numbers("FIXED_SECTION_SOURCE_Ys") };
+      const auto angles{ numbers("FIXED_SECTION_ANGLEs") };
+      const auto lengths{ numbers("FIXED_SECTION_LENGTHs") };
+      if (!ids.empty() && xs.size() == ids.size() && ys.size() == ids.size() && angles.size() == ids.size() && lengths.size() == ids.size()) {
+         for (size_t k = 0; k < ids.size(); ++k) {
+            sections.push_back({ (int)ids[k], angles[k], xs[k], ys[k], lengths[k] });
+         }
+         if (tpl.contains("FIXED_SECTION_CONNECTORS") && tpl["FIXED_SECTION_CONNECTORS"].is_string()) {
+            static const std::regex entry_regex{ R"(@\(@\((-?[0-9]+)\)@@\(((?:@\(-?[0-9]+\)@)*)\)@\)@)" };
+            static const std::regex successor_regex{ R"(@\((-?[0-9]+)\)@)" };
+            const std::string value{ tpl["FIXED_SECTION_CONNECTORS"].get<std::string>() };
+            for (std::sregex_iterator it{ value.begin(), value.end(), entry_regex }, end{}; it != end; ++it) {
+               const int from{ std::stoi((*it)[1].str()) };
+               const std::string successors{ (*it)[2].str() };
+               for (std::sregex_iterator s{ successors.begin(), successors.end(), successor_regex }; s != end; ++s) {
+                  const int to{ std::stoi((*s)[1].str()) };
+                  if (to >= 0) connectors.push_back({ from, to });
+               }
+            }
+         }
+         Failable::getSingleton()->addNote("Using the fixed section geometry of the template for the input mapping.");
+      }
+   }
+
    // Maps a section-local (long_pos, lat_pos) to global coordinates like the HE painter
    // (rotation about the section's lateral center). Identical to extractVehPosFromNusmvFile::to_global.
    const auto to_global = [lat_center](const float long_pos, const float lat_pos, const float angle_deg,
@@ -1883,6 +1936,16 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
       std::from_chars(data[3].data(), data[3].data() + data[3].size(), vx);
       std::from_chars(data[4].data(), data[4].data() + data[4].size(), vy);
 
+      // At junctions several seclets overlap; penalize those not aligned with the car's heading (sign-agnostic for backward cars).
+      float heading{ std::numeric_limits<float>::quiet_NaN() };
+      if (data.size() > 5) std::from_chars(data[5].data(), data[5].data() + data[5].size(), heading);
+      const auto misalignment = [heading, road_width](const float dir_x, const float dir_y) {
+         if (std::isnan(heading)) return 0.0f;
+         const float len{ std::sqrt(dir_x * dir_x + dir_y * dir_y) };
+         if (len < 1e-6f) return 0.0f;
+         return road_width * std::abs(std::cos(heading) * dir_y - std::sin(heading) * dir_x) / len;
+      };
+
       const Vec2D P{ x, y };
 
       // Resolve which "seclet" (straight section or connector arc) the car is closest to, and derive
@@ -1897,6 +1960,19 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
       float best_long_pos{ x };   // Longitudinal position along the seclet [HE meters].
       float best_lat{ y };        // Lateral position relative to the road [HE meters].
       float best_lat_vel{ vy };   // Lateral velocity (for heading adjustment) [HE m/s].
+      float best_long_vel{ vx };  // Velocity along the seclet [HE m/s].
+
+      // Overlapping seclets (e.g., in a junction) are ambiguous; only consider those reachable within one hop from where the last plan put the car.
+      const auto unreachable_penalty = [&planned_seclets, i](const int on_section, const int from, const int to) {
+         const auto planned{ planned_seclets.find(i) };
+         if (planned == planned_seclets.end()) return 0.0f;
+         const auto [p_sec, p_from, p_to] = planned->second;
+         const int current_section{ p_sec >= 0 ? p_sec : p_to };
+         const bool reachable{ (on_section == p_sec && from == p_from && to == p_to)
+            || (on_section >= 0 && on_section == current_section)
+            || (on_section < 0 && from == current_section) };
+         return reachable ? 0.0f : 1000.0f;
+      };
 
       // ---- Straight sections: invert to_global and measure distance to the on-road band. ----
       for (const auto& sec : sections) {
@@ -1911,7 +1987,7 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
 
          const float lon_c{ (std::max)(0.0f, (std::min)(sec.end, lon)) };
          const float lat_c{ (std::max)(lat_center - road_width / 2.0f, (std::min)(lat_center + road_width / 2.0f, lat)) };
-         const float d{ std::sqrt((lon - lon_c) * (lon - lon_c) + (lat - lat_c) * (lat - lat_c)) };
+         const float d{ std::sqrt((lon - lon_c) * (lon - lon_c) + (lat - lat_c) * (lat - lat_c)) + misalignment(ca, sa) + unreachable_penalty(sec.id, -1, -1) };
 
          if (d < best_dist) {
             best_dist = d;
@@ -1922,6 +1998,7 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
             best_long_pos = lon_c;
             best_lat = lat;
             best_lat_vel = lat_vel;
+            best_long_vel = vx * ca + vy * sa;
          }
       }
 
@@ -1965,9 +2042,10 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
          const float lat_offset{ (x - best_pt.x) * left_normal.x + (y - best_pt.y) * left_normal.y };
          const float lat_here{ lat_center + lat_offset };
          const float lat_vel_here{ vx * left_normal.x + vy * left_normal.y };
+         const float long_vel_here{ vx * left_normal.y - vy * left_normal.x };
 
          const float perp_dist{ std::sqrt(best_arc_d2) };
-         const float d{ (std::max)(0.0f, perp_dist - road_width / 2.0f) };
+         const float d{ (std::max)(0.0f, perp_dist - road_width / 2.0f) + misalignment(tangent.x, tangent.y) + unreachable_penalty(-1, con.first, con.second) };
 
          if (d < best_dist) {
             best_dist = d;
@@ -1978,12 +2056,13 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
             best_long_pos = best_rel * total_len; // Arc-relative position (model resets abs_pos on connectors).
             best_lat = lat_here;
             best_lat_vel = lat_vel_here;
+            best_long_vel = long_vel_here;
          }
       }
 
       const int abs_pos{ to_model_int(best_long_pos * dist_scale) };
       main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.abs_pos = " + std::to_string(abs_pos) + ";\n";
-      main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(vx * vel_scale)) + ";\n";
+      main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.v = " + std::to_string((int)(best_long_vel * vel_scale)) + ";\n";
 
       if (found_seclet) { // Place the car onto the resolved section/arc.
          main_file_additions += "INIT env.veh___6" + std::to_string(i) + "9___.on_straight_section = " + std::to_string(best_on_section) + ";\n";

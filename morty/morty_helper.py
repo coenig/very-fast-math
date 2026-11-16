@@ -165,37 +165,68 @@ def min_max_curr(successful_so_far, done_so_far, max_to_expect):
 def dpoint_following_angle(dpoint_y, ego_y, heading, ddist, bwd):
     return heading - math.atan((dpoint_y - ego_y) * bwd / ddist)
 
+# A car's control frame is the (long, lat) frame of a straight section, given as (angle_rad, source_x, source_y).
+# Same convention as to_global in the C++ input/output mapping; section 0 at 0/0/0 is the identity.
+IDENTITY_FRAME = (0.0, 0.0, 0.0)
+
+def fixed_section_frames(config):
+    def numbers(key):
+        return [float(v) for v in re.findall(r"@\((-?[0-9.]+)\)@", str(config.get(key, "")))]
+    ids, xs, ys, angles = (numbers(k) for k in ("FIXED_SECTION_IDs", "FIXED_SECTION_SOURCE_Xs",
+                                                 "FIXED_SECTION_SOURCE_Ys", "FIXED_SECTION_ANGLEs"))
+    return {int(i): (math.radians(a), x, y) for i, x, y, a in zip(ids, xs, ys, angles)}
+
+def frame_to_world(frame, long_pos, lat_pos, lat_center):
+    angle, sx, sy = frame
+    ca, sa = math.cos(angle), math.sin(angle)
+    return (sx + long_pos * ca - lat_pos * sa + lat_center * sa,
+            sy + long_pos * sa + lat_pos * ca + lat_center * (1.0 - ca))
+
+def world_to_frame(frame, x, y, lat_center):
+    angle, sx, sy = frame
+    ca, sa = math.cos(angle), math.sin(angle)
+    dx = x - sx - lat_center * sa
+    dy = y - sy - lat_center * (1.0 - ca)
+    return dx * ca + dy * sa, -dx * sa + dy * ca
+
 def randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_tech,
                                    pos_scale=10.0, lat_scale=10.0,
-                                   collision_margin=0.5, max_retries=1000):
+                                   collision_margin=0.5, max_retries=1000,
+                                   frames=None, lat_center=0.0):
     """Jitter all controlled vehicles around their deterministic base positions with a gaussian
     offset and re-draw the whole set until no two cars collide. The gaussian jitter can place two
     cars on top of each other, which highway-env would immediately flag as a crash; redrawing all
     cars together (rather than only the offending one) keeps the accepted positions statistically
-    independent of a rejected colliding draw. Cars stay axis-aligned (heading 0 or pi), so an AABB
-    overlap test on LENGTH/WIDTH is exact. Vehicle positions are mutated in place; if no
+    independent of a rejected colliding draw. Base positions are (long, lat) in each car's frame
+    (identity by default); cars are aligned with multiples of pi/2, so an AABB overlap test on
+    LENGTH/WIDTH is exact. Vehicle positions are mutated in place; if no
     collision-free layout is found within max_retries, warns and keeps the last draw."""
     vehs = env.unwrapped.controlled_vehicles
+    frames = frames or [IDENTITY_FRAME] * len(vehs)
+
+    def half_extents(v):
+        c, s = abs(math.cos(v.heading)), abs(math.sin(v.heading))
+        return (c * v.LENGTH + s * v.WIDTH) / 2.0, (s * v.LENGTH + c * v.WIDTH) / 2.0
 
     def collision_free():
         for a in range(len(vehs)):
             for b in range(a + 1, len(vehs)):
                 va, vb = vehs[a], vehs[b]
-                min_dx = (va.LENGTH + vb.LENGTH) / 2.0 + collision_margin
-                min_dy = (va.WIDTH + vb.WIDTH) / 2.0 + collision_margin
-                if abs(va.position[0] - vb.position[0]) < min_dx and \
-                   abs(va.position[1] - vb.position[1]) < min_dy:
+                (ax, ay), (bx, by) = half_extents(va), half_extents(vb)
+                if abs(va.position[0] - vb.position[0]) < ax + bx + collision_margin and \
+                   abs(va.position[1] - vb.position[1]) < ay + by + collision_margin:
                     return False
         return True
 
     for _attempt in range(max_retries):
         # shift cars a little with gauss distribution (scale is deviation in meters for 2/3).
         for i, vehicle in enumerate(vehs):
-            vehicle.position[0] = base_positions[i][0] + rng.normal(loc=0.0, scale=pos_scale)
-            vehicle.position[0] = max(0.0, vehicle.position[0]) # Clamp to non-negative longitudinal position
-            vehicle.position[1] = base_positions[i][1] + rng.normal(loc=0.0, scale=lat_scale)
+            long_pos = base_positions[i][0] + rng.normal(loc=0.0, scale=pos_scale)
+            long_pos = max(0.0, long_pos) # Clamp to non-negative longitudinal position
+            lat_pos = base_positions[i][1] + rng.normal(loc=0.0, scale=lat_scale)
             # Clamp lateral position to valid road boundaries.
-            vehicle.position[1] = max(min(vehicle.position[1], y_max_tech), y_min_tech)
+            lat_pos = max(min(lat_pos, y_max_tech), y_min_tech)
+            vehicle.position[0], vehicle.position[1] = frame_to_world(frames[i], long_pos, lat_pos, lat_center)
         if collision_free():
             return
     print(f"Warning: no collision-free start configuration found after {max_retries} "
