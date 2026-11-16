@@ -151,7 +151,6 @@ def evaluate_child(args):
         from .evaluate_smv_encodings import transform_model, transformation_key
     namespace = {'__name__': 'morty.selection_evaluation', '__package__': 'morty'}
     original_context = helper.morty_script_context
-    original_scheduler = helper.RunScheduler.__init__
     original_models = {}
     model_cache = {}
     stages = defaultdict(float)
@@ -178,12 +177,6 @@ def evaluate_child(args):
 
     helper.MCConfigSelector = lambda count, policy: EvaluationSelector(
         count, allowed if allowed is not None else range(count), evaluation_policy, observe_query)
-
-    def seed_scheduler(scheduler, *parameters, **keywords):
-        original_scheduler(scheduler, *parameters, **keywords)
-        scheduler.seed = template['UCD_EVALUATION_SEED'] - 1
-
-    helper.RunScheduler.__init__ = seed_scheduler
 
     class TimedLibrary:
         def __init__(self, library):
@@ -310,7 +303,7 @@ def evaluate_child(args):
     namespace.update(__begin_cycle=begin_cycle, __end_cycle=end_cycle)
     module = InstrumentCycles().visit(ast.parse((REPO / 'morty/morty.py').read_text()))
     ast.fix_missing_locations(module)
-    sys.argv = ['morty', '--press', '--live']
+    sys.argv = ['morty', '--press', '--live', '--num_runs', '1']
     os.chdir(folder)
     exec(compile(module, str(REPO / 'morty/morty.py'), 'exec'), namespace)
 
@@ -318,8 +311,9 @@ def evaluate_child(args):
 def run_trial(args, config, policy, seed):
     folder = OUTPUT / f'{args.tag}_{policy}_seed{seed}'
     template = dict(config.get('#TEMPLATE', {}))
+    template.pop('UCD_NUM_RUNS', None)
     template.update(UCD_MC_SELECTION='priority' if policy == 'priority' else 'adaptive',
-                    UCD_NUM_RUNS=1, UCD_STEPS_PER_RUN=args.steps,
+                    UCD_START_SEED=seed, UCD_STEPS_PER_RUN=args.steps,
                     UCD_MIN_ITERATIONS=0, UCD_ALLOW_BLIND_STEPS=0, UCD_ALLOW_CRASHED_STEPS=0,
                     UCD_EVALUATION_POLICY=policy, UCD_EVALUATION_SEED=seed,
                     UCD_EVALUATION_TIMEOUT_SECONDS=args.timeout,
