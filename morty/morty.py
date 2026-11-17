@@ -35,7 +35,8 @@ from .morty_helper import (
     RunScheduler, MCConfigSelector, load_run_settings, snapshot_mc_results_offsets, run_reached_threshold, discard_run,
     randomize_until_collision_free, shortcut_bmc_bound,
     save_simulation_snapshot,
-    IDENTITY_FRAME, fixed_section_frames, frame_to_world, world_to_frame,
+    IDENTITY_FRAME, fixed_section_frames, fixed_section_lengths, frame_to_world, world_to_frame,
+    recycle_junction_vehicles,
 )
 from .persistent_solver import PersistentSolverPool
 import platform
@@ -305,6 +306,8 @@ with open('morty/envmodel_config.json') as f:
     # distance_formula_pp = d[ucd_config_prios_str[0]]["UCD_FORMULA_PP_DISTANCE"]             # HERE we DO make a difference, see below!
     vel_scale = dist_scale / time_scale  # velocity = distance / time
     section_frames = fixed_section_frames(d[ucd_config_prios_str[0]])
+    if exp_num == 11:
+        section_lengths = fixed_section_lengths(d[ucd_config_prios_str[0]])
 
     if backward_driving_car_ids_str.endswith(')@'):
         backward_driving_car_ids_str = backward_driving_car_ids_str[:-2]
@@ -377,7 +380,7 @@ SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.is_on_sec_1 = 1
 # 10 Reach next section
 
 # 11: Junction (sections 0 -> 1 west to east, 2 -> 3 north to south): all cars have crossed. Even car IDs start west, odd ones north.
-SPECS.append("INVARSPEC !(" + " & ".join(f"env.veh___6{i}9___.is_on_sec_{1 + 2 * (i % 2)} = 1" for i in range(nonegos)) + ");")
+SPECS.append("INVARSPEC !(" + " & ".join(f"env.veh___6{i}9___.is_on_sec_{1 + 2 * (i % 2)} = 1 & env.veh___6{i}9___.abs_pos > 5" for i in range(nonegos)) + ");")
 
 SUCC_CONDS.append(lambda: all(x < 1 for x in egos_v))
 SUCC_CONDS.append(lambda: all(abs(x - TARGET_VEL) < 1 for x in egos_v))
@@ -652,7 +655,7 @@ for run_id, seedo in scheduler:
         "lanes_count": num_actual_lanes,
         "vehicles_count": 0,
         "screen_width": 1500,
-        "screen_height": 300,
+        "screen_height": 700,
         "scaling": 3,
         "real_time_rendering": False,
         "offscreen_rendering": args.force_snapshots and args.headless,
@@ -806,6 +809,7 @@ for run_id, seedo in scheduler:
 
     selected_config = None
     last_full_solution_prio = None
+    recycled_last_step = False
     config_selector = (MCConfigSelector(len(ucd_config_prios_str), policy=args.mc_selection,
                                         shortcut_probe_points=args.shortcut_probe_points)
                        if args.mc_selection != 'all' else None)
@@ -835,6 +839,8 @@ for run_id, seedo in scheduler:
             i = i + 1
 
         input_trace = generated_path_prefix + selected_config + '/debug_trace_array.txt' if config_selector is not None and selected_config is not None else 'AUTO'
+        if recycled_last_step:
+            input_trace = generated_path_prefix + '/.no-trace-after-recycling'
         MC_INPUT_SCRIPT = f"""@{{
             @{{./src/templates/}}@.stringToHeap[MY_PATH]
 
@@ -1326,6 +1332,22 @@ for run_id, seedo in scheduler:
         if args.force_head or args.force_snapshots:
             env.unwrapped.enable_auto_render = False
         obs, reward, done, truncated, info = env.step(action)
+        recycled_last_step = False
+        if exp_num == 11 and all(not vehicle.crashed for vehicle in env.unwrapped.road.vehicles):
+            recycled = recycle_junction_vehicles(
+                env.unwrapped.controlled_vehicles, section_frames, section_lengths, lat_center, dist_scale,
+                collision_vehicles=env.unwrapped.road.vehicles)
+            if recycled:
+                recycled_last_step = True
+                selected_config = None
+                last_full_solution_prio = None
+                print(f"Recycled junction vehicles: {recycled}")
+                obs = env.unwrapped.observation_type.observe()
+                for index in recycled:
+                    vehicle = env.unwrapped.controlled_vehicles[index]
+                    viz_state.trajectories.pop(id(vehicle), None)
+                if args.force_head:
+                    env.render()
         if args.force_snapshots:
             save_simulation_snapshot(env, snapshot_path, render=not args.force_head, viz_state=viz_state)
 

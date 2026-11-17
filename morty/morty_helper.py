@@ -169,12 +169,18 @@ def dpoint_following_angle(dpoint_y, ego_y, heading, ddist, bwd):
 # Same convention as to_global in the C++ input/output mapping; section 0 at 0/0/0 is the identity.
 IDENTITY_FRAME = (0.0, 0.0, 0.0)
 
+def fixed_section_values(config, key):
+    return [float(value) for value in re.findall(r"@\((-?[0-9.]+)\)@", str(config.get(key, "")))]
+
 def fixed_section_frames(config):
-    def numbers(key):
-        return [float(v) for v in re.findall(r"@\((-?[0-9.]+)\)@", str(config.get(key, "")))]
-    ids, xs, ys, angles = (numbers(k) for k in ("FIXED_SECTION_IDs", "FIXED_SECTION_SOURCE_Xs",
-                                                 "FIXED_SECTION_SOURCE_Ys", "FIXED_SECTION_ANGLEs"))
+    ids, xs, ys, angles = (fixed_section_values(config, key) for key in
+                           ("FIXED_SECTION_IDs", "FIXED_SECTION_SOURCE_Xs",
+                            "FIXED_SECTION_SOURCE_Ys", "FIXED_SECTION_ANGLEs"))
     return {int(i): (math.radians(a), x, y) for i, x, y, a in zip(ids, xs, ys, angles)}
+
+def fixed_section_lengths(config):
+    return {int(section): length for section, length in zip(
+        fixed_section_values(config, "FIXED_SECTION_IDs"), fixed_section_values(config, "FIXED_SECTION_LENGTHs"))}
 
 def frame_to_world(frame, long_pos, lat_pos, lat_center):
     angle, sx, sy = frame
@@ -188,6 +194,32 @@ def world_to_frame(frame, x, y, lat_center):
     dx = x - sx - lat_center * sa
     dy = y - sy - lat_center * (1.0 - ca)
     return dx * ca + dy * sa, -dx * sa + dy * ca
+
+def recycle_junction_vehicles(vehicles, section_frames, section_lengths, lat_center, dist_scale,
+                              threshold=10, collision_vehicles=None):
+    from highway_env import utils
+
+    recycled = []
+    collision_vehicles = vehicles if collision_vehicles is None else collision_vehicles
+    for index, vehicle in enumerate(vehicles):
+        source_id = 0 if index % 2 == 0 else 2
+        source = section_frames[source_id]
+        target = section_frames[1 if index % 2 == 0 else 3]
+        target_long, target_lat = world_to_frame(target, *vehicle.position, lat_center)
+        if target_long * dist_scale <= threshold:
+            continue
+        polygon = vehicle.polygon()
+        preferred = max(0.0, section_lengths[source_id] - 20.0)
+        for offset in range(math.ceil(preferred) + 1):
+            position = frame_to_world(source, max(0.0, preferred - offset), target_lat, lat_center)
+            candidate_polygon = polygon + (np.asarray(position) - vehicle.position)
+            if any(utils.are_polygons_intersecting(candidate_polygon, other.polygon(), np.zeros(2), np.zeros(2))[0]
+                     for other in collision_vehicles if other is not vehicle):
+                continue
+            vehicle.position[0], vehicle.position[1] = position
+            recycled.append(index)
+            break
+    return recycled
 
 def randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_tech,
                                    pos_scale=10.0, lat_scale=10.0,
