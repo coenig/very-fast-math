@@ -355,6 +355,23 @@ TEST(SmvTemplateTests, Task11ConnectorOverspeedCanOnlyRecover) {
     EXPECT_EQ(model.find("next(veh___609___.is_traversing_from_sec_0_to_sec_1) = 1 -> veh___609___.lane_single;"), std::string::npos);
 }
 
+TEST(SmvTemplateTests, PerpendicularCrossingUsesVehicleBoxExtents) {
+    const auto model = expandCompactUcdTemplate(R"(
+@{@SECTIONS=4; @NONEGOS=2; @MODEL_INTERSECTION_GEOMETRY=true; @UCD_TASK7_COMPACT=false;
+  @VEHICLE_LENGTH=5; @VEHICLE_WIDTH=200; @CROSSING_SAFETY_MARGIN=20;}@***********.eval.nil
+@{@(0)@@(1)@@(2)@@(3)@}@***********.stringToHeap[FIXED_SECTION_IDs].nil
+@{@(0)@@(110)@@(100)@@(100)@}@***********.stringToHeap[FIXED_SECTION_SOURCE_Xs].nil
+@{@(0)@@(0)@@(-100)@@(10)@}@***********.stringToHeap[FIXED_SECTION_SOURCE_Ys].nil
+@{@(0)@@(0)@@(90)@@(90)@}@***********.stringToHeap[FIXED_SECTION_ANGLEs].nil
+@{@(100)@@(100)@@(100)@@(100)@}@***********.stringToHeap[FIXED_SECTION_LENGTHs].nil
+@{@(@(0)@@(@(1)@)@)@@(@(1)@@(@(-1)@)@)@@(@(2)@@(@(3)@)@)@@(@(3)@@(@(-1)@)@)@}@***********.stringToHeap[FIXED_SECTION_CONNECTORS].nil
+)");
+    ASSERT_EQ(model.find("@{"), std::string::npos);
+    ASSERT_NE(model.find("station_on_straight_route_0_to_1"), std::string::npos);
+    EXPECT_NE(model.find("abs(veh___609___.station_on_straight_route_0_to_1 - -14) < 14"), std::string::npos);
+    EXPECT_NE(model.find("* (next(veh___619___.station_on_straight_route_2_to_3) - veh___619___.station_on_straight_route_2_to_3)"), std::string::npos);
+}
+
 TEST(SmvTemplateTests, AllVehiclesHavePositionUpdates) {
     for (const bool compact : {false, true}) {
         SCOPED_TRACE(compact ? "compact" : "legacy");
