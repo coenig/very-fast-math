@@ -99,6 +99,7 @@ The `very fast math -- Model Checking for ADAS` project is [open-source](https:/
 - IEEE Transactions on Intelligent Transportation Systems: [Exploiting Formal Verification for the Systematic Discovery of Corner Cases in a Behavior Planner for Automated Driving](https://ieeexplore.ieee.org/document/11523162)
 - TACAS 2026: [Driving by Disproof: A Practical Model Checking Approach to Fleet Coordination](https://link.springer.com/chapter/10.1007/978-3-032-22752-2_31)
 - Work in progress: Ultra-Cooperative Driving -- Safe Trajectories from Dis-Proof of their Non-Existence (to be submitted to: IEEE Transactions on Intelligent Transportation Systems)
+- Work in progress: Scalable Synthesis of Road Topologies and Vehicle Behaviors from Temporal Specifications (submitted to: 15th Conference on Formal Methods in Software Engineering)
 
 ## Authors
 Lukas Koenig,
