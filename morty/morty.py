@@ -1250,6 +1250,8 @@ for run_id, seedo in scheduler:
                 s = accel_target_dist[i]
                 v0 = egos_v[i]
                 a_phys = 2.0 * (s - v0 * mc_step_time) / (mc_step_time ** 2)
+                current_speed = max(0.0, float(env.unwrapped.controlled_vehicles[i].speed))
+                a_phys = max(a_phys, -current_speed / mc_step_time)
                 accel = float(np.clip(a_phys / ACCEL_RANGE, -1.0, 1.0))
             else:
                 accel = 0.0  # No MC trajectory point available (degenerate trace): coast.

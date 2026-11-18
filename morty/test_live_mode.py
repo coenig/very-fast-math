@@ -46,6 +46,13 @@ class LiveModeTests(unittest.TestCase):
         np.testing.assert_allclose(west.position, [80, 4], atol=1e-8)
         np.testing.assert_allclose(north.position, helper.frame_to_world(frames[2], 70, 0, 2), atol=1e-8)
 
+        west.position[:] = [112, 4]
+        west.heading = np.pi
+        west.speed = -3
+        self.assertEqual(helper.recycle_junction_vehicles([west], frames, lengths, 2, 4), [0])
+        self.assertEqual(west.heading, 0)
+        self.assertEqual(west.speed, 3)
+
     def test_junction_recycling_short_source_starts_at_zero(self):
         import numpy as np
         from highway_env.vehicle.kinematics import Vehicle
