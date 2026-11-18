@@ -26,7 +26,6 @@ import json
 import re
 from pathlib import Path
 import glob
-from types import SimpleNamespace
 from time import perf_counter
 from .morty_helper import (
     ensure_empty_file, min_max_curr, dpoint_following_angle,
@@ -670,9 +669,8 @@ for run_id, seedo in scheduler:
         "image": None,
         "converted": False,
     }
-    viz_state.camera_anchors.clear()
     if not args.live or args.force_head or args.force_snapshots:
-        install_world_surface_patches(bg_image_state, num_actual_lanes, fit_background=args.fit_roads, viz_state=viz_state)
+        install_world_surface_patches(bg_image_state, num_actual_lanes, fit_background=args.fit_roads)
 
     # Expose the env reference so the patched WorldSurface can access vehicle positions.
     try:
@@ -1338,9 +1336,6 @@ for run_id, seedo in scheduler:
         obs, reward, done, truncated, info = env.step(action)
         recycled_last_step = False
         if exp_num == 11 and all(not vehicle.crashed for vehicle in env.unwrapped.road.vehicles):
-            previous_vehicles = [SimpleNamespace(position=vehicle.position.copy(), heading=vehicle.heading,
-                                                 LENGTH=vehicle.LENGTH, WIDTH=vehicle.WIDTH)
-                                 for vehicle in env.unwrapped.controlled_vehicles]
             recycled = recycle_junction_vehicles(
                 env.unwrapped.controlled_vehicles, section_frames, section_lengths, lat_center, dist_scale,
                 collision_vehicles=env.unwrapped.road.vehicles)
@@ -1352,7 +1347,6 @@ for run_id, seedo in scheduler:
                 obs = env.unwrapped.observation_type.observe()
                 for index in recycled:
                     vehicle = env.unwrapped.controlled_vehicles[index]
-                    viz_state.camera_anchors[id(vehicle)] = previous_vehicles[index]
                     viz_state.trajectories.pop(id(vehicle), None)
                 if args.force_head:
                     env.render()

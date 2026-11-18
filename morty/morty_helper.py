@@ -643,7 +643,6 @@ class VizState:
     def __init__(self):
         self.trajectories = {}    # vehicle id -> list of [x, y, priority]
         self.pp_targets = {}      # vehicle id -> [x, y] pure-pursuit target
-        self.camera_anchors = {}
         self.selected_cnt = None  # currently active CEX priority (for coloring)
         self.pos_to_draw = []     # list of [coord, color] planned MC positions
         self.status = ""
@@ -725,7 +724,7 @@ class VizState:
             pygame.event.pump()
 
 
-def get_scene_bounding_box(env, car_ids, extra_vehicles=()):
+def get_scene_bounding_box(env, car_ids):
     """
     Finds the tightest axis-aligned (unrotated) bounding box that contains 
     every point of the specified cars in the highway-env scene.
@@ -758,7 +757,7 @@ def get_scene_bounding_box(env, car_ids, extra_vehicles=()):
         raise ValueError(
             f"No IDs found in scene. Specified: {car_ids}, Available: {vehicles}")
 
-    for vehicle in [*target_vehicles, *extra_vehicles]:
+    for vehicle in target_vehicles:
         # Correctly unpack position coordinates
         x, y = vehicle.position[0], vehicle.position[1]
         heading = vehicle.heading
@@ -1050,7 +1049,7 @@ def install_vehicle_graphics_patches(args, viz_state):
     VehicleGraphics.display = _patched_display
 
 
-def install_world_surface_patches(bg_image_state, num_lanes, fit_background=False, viz_state=None):
+def install_world_surface_patches(bg_image_state, num_lanes, fit_background=False):
     """Patch highway-env's WorldSurface/RoadGraphics for morty's camera + road.
 
     - WorldSurface.move_display_window_to: frame the camera on ALL vehicles
@@ -1074,7 +1073,6 @@ def install_world_surface_patches(bg_image_state, num_lanes, fit_background=Fals
     _he._morty_bg_state = bg_image_state
     _he._morty_bg_num_lanes = num_lanes
     _he._morty_bg_fit = fit_background
-    _he._morty_viz_state = viz_state
 
     _orig_move_display_window_to = WorldSurface.move_display_window_to
 
@@ -1113,9 +1111,7 @@ def install_world_surface_patches(bg_image_state, num_lanes, fit_background=Fals
                     "ymax": bbox_y + bbox_h,
                 }
             else:
-                current_viz_state = getattr(_he, '_morty_viz_state', None)
-                anchors = current_viz_state.camera_anchors.values() if current_viz_state is not None else ()
-                bbox = get_scene_bounding_box(env_ref, [i for i in range(1000)], anchors)
+                bbox = get_scene_bounding_box(env_ref, [i for i in range(1000)])
 
             # World-space margin (in meters) kept around the framed content on
             # every side, so nothing sits flush against the screen edge.

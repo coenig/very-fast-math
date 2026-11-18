@@ -113,7 +113,7 @@ class LiveModeTests(unittest.TestCase):
                      and ast.unparse(node.test).startswith('exp_num == 11 and all('))
         code = compile(ast.fix_missing_locations(ast.Module(body=[block], type_ignores=[])),
                        '<junction recycling>', 'exec')
-        vehicle = SimpleNamespace(crashed=False, position=[100, 0], heading=0, LENGTH=5, WIDTH=2)
+        vehicle = SimpleNamespace(crashed=False, position=[100, 0])
         unwrapped = SimpleNamespace(road=SimpleNamespace(vehicles=[vehicle]),
                                     controlled_vehicles=[vehicle],
                                     observation_type=SimpleNamespace(observe=Mock(return_value='observed')))
@@ -127,41 +127,11 @@ class LiveModeTests(unittest.TestCase):
         namespace = {'exp_num': 11, 'env': env, 'args': SimpleNamespace(force_head=True),
                      'recycle_junction_vehicles': recycle, 'section_frames': {}, 'section_lengths': {}, 'lat_center': 0,
                      'dist_scale': 4,
-                     'viz_state': helper.VizState(), 'SimpleNamespace': SimpleNamespace, 'print': Mock()}
+                     'viz_state': SimpleNamespace(trajectories={}), 'print': Mock()}
         exec(code, namespace)
         env.render.assert_called_once_with()
         self.assertEqual(namespace['obs'], 'observed')
         self.assertTrue(namespace['recycled_last_step'])
-        anchor = namespace['viz_state'].camera_anchors[id(vehicle)]
-        self.assertEqual(anchor.position, [100, 0])
-        self.assertEqual(unwrapped.road.vehicles, [vehicle])
-        bounds = helper.get_scene_bounding_box(env, [0], [anchor])
-        self.assertEqual(bounds['xmin'], -2.5)
-        self.assertEqual(bounds['xmax'], 102.5)
-
-    def test_junction_camera_keeps_departure_bounds_after_recycling(self):
-        import highway_env
-        import numpy as np
-        from highway_env.road.graphics import WorldSurface
-
-        car = SimpleNamespace(position=np.array([100.0, 0.0]), heading=0, LENGTH=5, WIDTH=2)
-        other = SimpleNamespace(position=np.array([0.0, 0.0]), heading=0, LENGTH=5, WIDTH=2)
-        env = SimpleNamespace(unwrapped=SimpleNamespace(road=SimpleNamespace(vehicles=[car, other])))
-        state = helper.VizState()
-        surface = SimpleNamespace(get_width=lambda: 800, get_height=lambda: 400)
-        with patch.object(WorldSurface, 'move_display_window_to'), patch.object(highway_env, '_display_env', None, create=True), \
-             patch.object(highway_env, '_morty_viz_state', None, create=True):
-            helper.install_world_surface_patches(None, 2, viz_state=state)
-            highway_env._display_env = env
-            WorldSurface.move_display_window_to(surface, np.array([0.0, 0.0]))
-            original_origin, original_scale = surface.origin.copy(), surface.scaling
-            state.camera_anchors[id(car)] = SimpleNamespace(position=car.position.copy(), heading=car.heading,
-                                                             LENGTH=car.LENGTH, WIDTH=car.WIDTH)
-            car.position[:] = [10, 0]
-            WorldSurface.move_display_window_to(surface, np.array([0.0, 0.0]))
-            np.testing.assert_allclose(surface.origin, original_origin)
-            self.assertEqual(surface.scaling, original_scale)
-            self.assertEqual(len(env.unwrapped.road.vehicles), 2)
 
     def test_smv_parked_specialization_requires_stationary_lane_hold(self):
         from .evaluate_smv_encodings import freeze_parked
@@ -945,9 +915,7 @@ class LiveModeTests(unittest.TestCase):
         step_index = next(index for index, node in enumerate(cycle.body)
                           if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
                           and ast.unparse(node.value.func) == 'env.step')
-        snapshot_index = next(index for index, node in enumerate(cycle.body[step_index + 1:], step_index + 1)
-                      if isinstance(node, ast.If) and ast.unparse(node.test) == 'args.force_snapshots')
-        step_code = compile(ast.Module(body=cycle.body[step_index - 1:snapshot_index + 1], type_ignores=[]),
+        step_code = compile(ast.Module(body=cycle.body[step_index - 1:step_index + 2], type_ignores=[]),
                             '<snapshot step>', 'exec')
         config = {
             'controlled_vehicles': 2, 'vehicles_count': 0, 'lanes_count': 2,
@@ -970,7 +938,6 @@ class LiveModeTests(unittest.TestCase):
                         'args': self.parse_driver_options('--live', '--force_snapshots',
                                                           *(['--force_head'] if force_head else [])),
                         'env': capture, 'action': ([0.1, 0.0], [-0.1, 0.0]),
-                        'exp_num': 0,
                         'save_simulation_snapshot': helper.save_simulation_snapshot,
                         'viz_state': helper.VizState(),
                     }
