@@ -213,9 +213,15 @@ def recycle_junction_vehicles(vehicles, section_frames, section_lengths, lat_cen
         for offset in range(math.ceil(preferred) + 1):
             position = frame_to_world(source, max(0.0, preferred - offset), target_lat, lat_center)
             candidate_polygon = polygon + (np.asarray(position) - vehicle.position)
-            if any(utils.are_polygons_intersecting(candidate_polygon, other.polygon(), np.zeros(2), np.zeros(2))[0]
-                     for other in collision_vehicles if other is not vehicle):
+            position = frame_to_world(source, max(0.0, section_lengths[source_id] - 20.0), target_lat, lat_center)
+            vehicle_length, vehicle_width = vehicle.LENGTH + 2, vehicle.WIDTH + 2
+            radius = math.hypot(max(vehicle.LENGTH, vehicle_length), max(vehicle.WIDTH, vehicle_width)) / 2
+            if any(math.hypot(position[0] - other.position[0], position[1] - other.position[1])
+                <= radius + math.hypot(max(other.LENGTH, vehicle_length), max(other.WIDTH, vehicle_width)) / 2
+                for other in vehicles if other is not vehicle):
                 continue
+
+
             vehicle.position[0], vehicle.position[1] = position
             recycled.append(index)
             break
@@ -636,6 +642,7 @@ class VizState:
     def __init__(self):
         self.trajectories = {}    # vehicle id -> list of [x, y, priority]
         self.pp_targets = {}      # vehicle id -> [x, y] pure-pursuit target
+        self.camera_anchors = {}
         self.selected_cnt = None  # currently active CEX priority (for coloring)
         self.pos_to_draw = []     # list of [coord, color] planned MC positions
         self.status = ""
@@ -717,7 +724,7 @@ class VizState:
             pygame.event.pump()
 
 
-def get_scene_bounding_box(env, car_ids):
+def get_scene_bounding_box(env, car_ids, extra_vehicles=()):
     """
     Finds the tightest axis-aligned (unrotated) bounding box that contains 
     every point of the specified cars in the highway-env scene.
@@ -750,7 +757,7 @@ def get_scene_bounding_box(env, car_ids):
         raise ValueError(
             f"No IDs found in scene. Specified: {car_ids}, Available: {vehicles}")
 
-    for vehicle in target_vehicles:
+    for vehicle in [*target_vehicles, *extra_vehicles]:
         # Correctly unpack position coordinates
         x, y = vehicle.position[0], vehicle.position[1]
         heading = vehicle.heading
@@ -1042,7 +1049,7 @@ def install_vehicle_graphics_patches(args, viz_state):
     VehicleGraphics.display = _patched_display
 
 
-def install_world_surface_patches(bg_image_state, num_lanes, fit_background=False):
+def install_world_surface_patches(bg_image_state, num_lanes, fit_background=False, viz_state=None):
     """Patch highway-env's WorldSurface/RoadGraphics for morty's camera + road.
 
     - WorldSurface.move_display_window_to: frame the camera on ALL vehicles
@@ -1066,6 +1073,7 @@ def install_world_surface_patches(bg_image_state, num_lanes, fit_background=Fals
     _he._morty_bg_state = bg_image_state
     _he._morty_bg_num_lanes = num_lanes
     _he._morty_bg_fit = fit_background
+    _he._morty_viz_state = viz_state
 
     _orig_move_display_window_to = WorldSurface.move_display_window_to
 
@@ -1104,7 +1112,9 @@ def install_world_surface_patches(bg_image_state, num_lanes, fit_background=Fals
                     "ymax": bbox_y + bbox_h,
                 }
             else:
-                bbox = get_scene_bounding_box(env_ref, [i for i in range(1000)])
+                current_viz_state = getattr(_he, '_morty_viz_state', None)
+                anchors = current_viz_state.camera_anchors.values() if current_viz_state is not None else ()
+                bbox = get_scene_bounding_box(env_ref, [i for i in range(1000)], anchors)
 
             # World-space margin (in meters) kept around the framed content on
             # every side, so nothing sits flush against the screen edge.
