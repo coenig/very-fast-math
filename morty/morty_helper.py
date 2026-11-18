@@ -215,11 +215,13 @@ def recycle_junction_vehicles(vehicles, section_frames, section_lengths, lat_cen
         for offset in range(math.ceil(preferred) + 1):
             position = frame_to_world(source, max(0.0, preferred - offset), target_lat, lat_center)
             candidate_polygon = polygon + (np.asarray(position) - vehicle.position)
-            if any(utils.are_polygons_intersecting(
-                    candidate_polygon, other.polygon(), np.zeros(2), np.zeros(2))[0]
-                   for other in collision_vehicles if other is not vehicle):
+            position = frame_to_world(source, max(0.0, section_lengths[source_id] - 20.0), target_lat, lat_center)
+            vehicle_length, vehicle_width = vehicle.LENGTH + 4, vehicle.WIDTH + 3
+            radius = math.hypot(max(vehicle.LENGTH, vehicle_length), max(vehicle.WIDTH, vehicle_width)) / 2
+            if any(math.hypot(position[0] - other.position[0], position[1] - other.position[1])
+                <= radius + math.hypot(max(other.LENGTH, vehicle_length), max(other.WIDTH, vehicle_width)) / 2
+                for other in vehicles if other is not vehicle):
                 continue
-
             vehicle.position[0], vehicle.position[1] = position
             vehicle.speed = abs(vehicle.speed)
             recycled.append(index)
