@@ -818,6 +818,24 @@ TEST_F(MortyLiveTests, KeepsTheSameDrivingPoints) {
     EXPECT_EQ(complete_positions.substr(0, live_positions.size()), live_positions);
 }
 
+TEST_F(MortyLiveTests, ConvertsConnectorGeometryToWorldCoordinates) {
+    const std::string connector_trace =
+        "Trace Description: test\nTrace Type: Counterexample\n"
+        " -> State: 1.1 <-\n"
+        " planner.time_scaling = 2000\n planner.distance_scaling = 4000\n"
+        " env.lane_width = 400\n env.num_lanes = 2\n env.num_technical_lanes = 4\n"
+        " env.section_0.angle = 0\n env.section_0.source.x = 0\n env.section_0.source.y = 0\n"
+        " env.section_0_end = 400\n"
+        " env.section_1.angle = 0\n env.section_1.source.x = 120\n env.section_1.source.y = 0\n"
+        " env.section_1_end = 400\n"
+        " env.veh___609___.abs_pos = 40\n env.veh___609___.v = 20\n"
+        " env.veh___609___.on_normalized_lane = 0\n env.veh___609___.on_straight_section = -1\n"
+        " env.veh___609___.traversion_from = 0\n env.veh___609___.traversion_to = 1\n";
+    vfm::StaticHelper::writeTextToFile(connector_trace, "generated_config_primary/debug_trace_array.txt");
+
+    EXPECT_EQ(positions(), "110.000000,5.000000;\n");
+}
+
 TEST_F(MortyLiveTests, CompactInputConstantsTrackObservationsAndStationaryConstraints) {
     const std::string main = "-- TASK7 INPUT CONSTANTS\n-- EO TASK7 INPUT CONSTANTS\n"
         "MODULE main\nINVAR env.veh___629___.v = 0;\n--EO-SPEC-STUFF\n";
