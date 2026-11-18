@@ -1,4 +1,4 @@
-# vfm -- Model Checking for ADAS
+# vfm -- Model Checking for ADAS @ Bosch
 Thank you for using
 ~~~
          ___           
