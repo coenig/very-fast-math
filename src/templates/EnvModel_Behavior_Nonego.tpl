@@ -749,7 +749,7 @@ ASSIGN
              )@
           }@******.if[@{UCD && UCD_EXP_NUM == 11}@.eval]
           }@.if[@{[sec] != [sec2]}@.eval]
-          @{TRANS next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) = 1 -> veh___6[i]9___.lane_single;}@.if[@{[sec] != [sec2]}@.eval]
+          @{TRANS next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) = 1 -> next(veh___6[i]9___.lane_single);}@.if[@{[sec] != [sec2]}@.eval]
        }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
     }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
 }@****.for[[i], 0, @{NONEGOS - 1}@.eval]

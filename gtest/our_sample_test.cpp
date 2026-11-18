@@ -351,6 +351,8 @@ TEST(SmvTemplateTests, Task11ConnectorOverspeedCanOnlyRecover) {
     EXPECT_NE(model.find("veh___609___.is_traversing_from_sec_0_to_sec_1 = 1\n                 & veh___609___.v > 40"), std::string::npos);
     EXPECT_EQ(other.find("next(veh___609___.v) < veh___609___.v"), std::string::npos);
     EXPECT_NE(other.find("(veh___609___.v <= 40 & veh___609___.lane_single)"), std::string::npos);
+    EXPECT_NE(model.find("next(veh___609___.is_traversing_from_sec_0_to_sec_1) = 1 -> next(veh___609___.lane_single);"), std::string::npos);
+    EXPECT_EQ(model.find("next(veh___609___.is_traversing_from_sec_0_to_sec_1) = 1 -> veh___609___.lane_single;"), std::string::npos);
 }
 
 TEST(SmvTemplateTests, AllVehiclesHavePositionUpdates) {
