@@ -1,6 +1,51 @@
 (Referring to the state at commit eae819e)
 
-Is the Nonego.tpl change necessary?
+
+- Shortcut feature does not work on Task 11
+
+
+
+- Align --live mode with regular mode:
+Yes. --live has grown from an overhead-reduction preset into a separate execution backend. Your original intent is a cleaner boundary: same planner, optional diagnostics and reporting.
+
+What Diverged
+Three independent concerns are currently bundled together:
+
+Concern	Current Difference
+Output	Live suppresses plots, archives, statistics, overlays, and diagnostic solves. This matches the original intent.
+Execution efficiency	Live retains the native library, caches planner translations/preprocessed models, removes launch delays, and uses different timeout handling. These improvements could benefit regular mode too.
+Planning policy	Selective checking and persistent solving are restricted to live mode. These need not depend on whether diagnostics are enabled.
+Some particularly concrete sources of unnecessary regular-mode overhead:
+
+mc_workflow.cpp:153 sleeps one second per candidate directory before checking whether to launch it.
+interactive_testing.cpp:978 makes planner-translation reuse live-only.
+interactive_testing.cpp:1027 runs an additional FALSE-specification solve in regular mode.
+morty_helper.py:522 retains the native library only for live execution.
+Your Configuration Example
+There are two separate restrictions in morty.py:96:
+
+Regular mode rejects priority and adaptive.
+Both modes reject persistent solving with all.
+The second restriction reflects current implementation plumbing: persistent queries are invoked only inside the selective-planning function. It is not an inherent incompatibility between persistent solvers and checking all configurations. Supporting that combination would require an explicit batch implementation.
+
+Also, the error message saying all achieves “equivalent behavior” is misleading. Selective policies change query ordering, early stopping, and shortcut scheduling; they are not merely faster implementations of the same experiment.
+
+Recommended Alignment
+I would make one shared planning pipeline, with three independent choices:
+
+Selection: all, priority, or adaptive, available in either mode.
+Solver lifecycle: fresh or persistent, subject to supported solver/model capabilities.
+Observability: normal experiment outputs versus the lightweight --live preset.
+Translation caching, removing artificial delays, and robust timeout/error handling should be shared infrastructure. Full traces, plots, archives, and the extra diagnostic solve should remain output-dependent.
+
+This needs more than deleting the parser checks: selective helpers currently hard-code live=True, regular statistics read runtime files that persistent queries do not populate, and replay assumes archived per-cycle results. Those contracts need aligning so skipped queries are not reported as stale measurements.
+
+Bottom line: your diagnosis is right. Share the efficient execution machinery; keep planning-policy changes explicit; let --live control overhead rather than feature availability.
+
+
+
+
+- Is the Nonego.tpl change necessary?
 Mostly yes. Neither new feature needs any template change: recycling is Python-only, and the bigger crossing is just geometry in the config, which the collision block reads generically.
 
 Collision block (EnvModel_Behavior_Nonego.tpl:364, about 100 lines): this is the crossing collision check itself and is needed. Your (L+W)/2 radius is exact for perpendicular boxes. Small leftovers:
@@ -18,7 +63,7 @@ If you want, I can delete the no-op line, merge the two radius variables, and/or
 
 
 
-The swept check was a collision check that looked at the whole 0.5 s step, not just its start and end points. I wrote it in step 2, and your commit f602c4a ("fix") deleted it: 26 lines, labelled -- Swept OBB check.
+- The swept check was a collision check that looked at the whole 0.5 s step, not just its start and end points. I wrote it in step 2, and your commit f602c4a ("fix") deleted it: 26 lines, labelled -- Swept OBB check.
 
 What the current check misses
 The remaining rule (EnvModel_Behavior_Nonego.tpl:407) is checked only at each step, i.e. every 0.5 s. At those moments, two cars on crossing lanes may not both be in their crossing zone. A car's zone is the stretch of its route within 
