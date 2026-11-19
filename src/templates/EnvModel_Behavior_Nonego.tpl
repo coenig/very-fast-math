@@ -405,32 +405,6 @@ DEFINE veh_[i]_on_[a]_to_[b]_and_veh_[j]_on_[c]_to_[e]_lanes_[kk]_overlapping :=
    & abs(veh___6[j]9___.station_on_straight_route_[c]_to_[e] - @{jx_s_[a]_[b]_[c]_[e]_[kk]}@.distanceWorldToEnvModelConst) < @{jx_s_r_[a]_[b]_[c]_[e]_[kk]}@.distanceWorldToEnvModelConst;
 
 INVAR cnt = 0 | !veh_[i]_on_[a]_to_[b]_and_veh_[j]_on_[c]_to_[e]_lanes_[kk]_overlapping;
-
--- Swept OBB check: reject a transition only when the two cars occupy the same crossing box
--- during an overlapping part of the step. Cross multiplication avoids division by velocity.
-TRANS (cnt = 0 & veh_[i]_on_[a]_to_[b]_and_veh_[j]_on_[c]_to_[e]_lanes_[kk]_overlapping) | !(
-   veh___6[i]9___.on_straight_route_[a]_to_[b] & next(veh___6[i]9___.on_straight_route_[a]_to_[b])
-   & (veh___6[i]9___.on_normalized_lane = @{jx_ki_[a]_[b]_[c]_[e]_[kk]}@.eval[0] | next(veh___6[i]9___.on_normalized_lane) = @{jx_ki_[a]_[b]_[c]_[e]_[kk]}@.eval[0])
-   & min(veh___6[i]9___.station_on_straight_route_[a]_to_[b], next(veh___6[i]9___.station_on_straight_route_[a]_to_[b])) < @{(jx_t_[a]_[b]_[c]_[e]_[kk] + jx_t_r_[a]_[b]_[c]_[e]_[kk])}@.distanceWorldToEnvModelConst
-   & max(veh___6[i]9___.station_on_straight_route_[a]_to_[b], next(veh___6[i]9___.station_on_straight_route_[a]_to_[b])) > @{(jx_t_[a]_[b]_[c]_[e]_[kk] - jx_t_r_[a]_[b]_[c]_[e]_[kk])}@.distanceWorldToEnvModelConst
-   & veh___6[j]9___.on_straight_route_[c]_to_[e] & next(veh___6[j]9___.on_straight_route_[c]_to_[e])
-   & (veh___6[j]9___.on_normalized_lane = @{jx_kj_[a]_[b]_[c]_[e]_[kk]}@.eval[0] | next(veh___6[j]9___.on_normalized_lane) = @{jx_kj_[a]_[b]_[c]_[e]_[kk]}@.eval[0])
-   & min(veh___6[j]9___.station_on_straight_route_[c]_to_[e], next(veh___6[j]9___.station_on_straight_route_[c]_to_[e])) < @{(jx_s_[a]_[b]_[c]_[e]_[kk] + jx_s_r_[a]_[b]_[c]_[e]_[kk])}@.distanceWorldToEnvModelConst
-   & max(veh___6[j]9___.station_on_straight_route_[c]_to_[e], next(veh___6[j]9___.station_on_straight_route_[c]_to_[e])) > @{(jx_s_[a]_[b]_[c]_[e]_[kk] - jx_s_r_[a]_[b]_[c]_[e]_[kk])}@.distanceWorldToEnvModelConst
-   & (
-      next(veh___6[i]9___.station_on_straight_route_[a]_to_[b]) <= veh___6[i]9___.station_on_straight_route_[a]_to_[b]
-      | next(veh___6[j]9___.station_on_straight_route_[c]_to_[e]) <= veh___6[j]9___.station_on_straight_route_[c]_to_[e]
-      | (
-         (@{(jx_t_[a]_[b]_[c]_[e]_[kk] - jx_t_r_[a]_[b]_[c]_[e]_[kk])}@.distanceWorldToEnvModelConst - veh___6[i]9___.station_on_straight_route_[a]_to_[b])
-            * (next(veh___6[j]9___.station_on_straight_route_[c]_to_[e]) - veh___6[j]9___.station_on_straight_route_[c]_to_[e])
-         < (@{(jx_s_[a]_[b]_[c]_[e]_[kk] + jx_s_r_[a]_[b]_[c]_[e]_[kk])}@.distanceWorldToEnvModelConst - veh___6[j]9___.station_on_straight_route_[c]_to_[e])
-            * (next(veh___6[i]9___.station_on_straight_route_[a]_to_[b]) - veh___6[i]9___.station_on_straight_route_[a]_to_[b])
-         & (@{(jx_s_[a]_[b]_[c]_[e]_[kk] - jx_s_r_[a]_[b]_[c]_[e]_[kk])}@.distanceWorldToEnvModelConst - veh___6[j]9___.station_on_straight_route_[c]_to_[e])
-            * (next(veh___6[i]9___.station_on_straight_route_[a]_to_[b]) - veh___6[i]9___.station_on_straight_route_[a]_to_[b])
-         < (@{(jx_t_[a]_[b]_[c]_[e]_[kk] + jx_t_r_[a]_[b]_[c]_[e]_[kk])}@.distanceWorldToEnvModelConst - veh___6[i]9___.station_on_straight_route_[a]_to_[b])
-            * (next(veh___6[j]9___.station_on_straight_route_[c]_to_[e]) - veh___6[j]9___.station_on_straight_route_[c]_to_[e])
-      )
-   ));
 }@.for[[j], 0, @{NONEGOS - 1}@.eval]
 }@.for[[i], 0, @{NONEGOS - 1}@.eval]
 }@*.if[@{

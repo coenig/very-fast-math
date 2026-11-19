@@ -357,7 +357,7 @@ TEST(SmvTemplateTests, Task11ConnectorOverspeedCanOnlyRecover) {
 
 TEST(SmvTemplateTests, PerpendicularCrossingUsesVehicleBoxExtents) {
     const auto model = expandCompactUcdTemplate(R"(
-@{@SECTIONS=4; @NONEGOS=2; @MODEL_INTERSECTION_GEOMETRY=true; @UCD_TASK7_COMPACT=false;
+@{@SECTIONS=4; @NONEGOS=2; @MODEL_INTERSECTION_GEOMETRY=true; @UCD_TASK7_COMPACT=false; @UCD_EXP_NUM=11;
   @VEHICLE_LENGTH=5; @VEHICLE_WIDTH=200; @CROSSING_SAFETY_MARGIN=20;}@***********.eval.nil
 @{@(0)@@(1)@@(2)@@(3)@}@***********.stringToHeap[FIXED_SECTION_IDs].nil
 @{@(0)@@(110)@@(100)@@(100)@}@***********.stringToHeap[FIXED_SECTION_SOURCE_Xs].nil
@@ -369,7 +369,7 @@ TEST(SmvTemplateTests, PerpendicularCrossingUsesVehicleBoxExtents) {
     ASSERT_EQ(model.find("@{"), std::string::npos);
     ASSERT_NE(model.find("station_on_straight_route_0_to_1"), std::string::npos);
     EXPECT_NE(model.find("abs(veh___609___.station_on_straight_route_0_to_1 - -14) < 14"), std::string::npos);
-    EXPECT_NE(model.find("* (next(veh___619___.station_on_straight_route_2_to_3) - veh___619___.station_on_straight_route_2_to_3)"), std::string::npos);
+    EXPECT_EQ(model.find("Swept OBB check"), std::string::npos);
 }
 
 TEST(SmvTemplateTests, AllVehiclesHavePositionUpdates) {
