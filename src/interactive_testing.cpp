@@ -1741,12 +1741,11 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
    const std::string OUTPUT_BASE_PATH{ workflow.getGeneratedDir("./morty/", "envmodel_config.tpl.json").string() };
    const std::string ucd_config_prios_str{ workflow.getValueForJSONKeyAsString("UCD_CONFIG_PRIOS", "./morty/", "envmodel_config.tpl.json", "#TEMPLATE") };
    const std::vector<std::string> ucd_config_prios_vec{ StaticHelper::split(ucd_config_prios_str, ";") };
-   const nlohmann::json template_json{ workflow.getJSON("./morty/envmodel_config.tpl.json") };
    const nlohmann::json template_root = workflow.getJSON("./morty/envmodel_config.tpl.json");
    const bool task11{ template_root.contains("#TEMPLATE") && template_root["#TEMPLATE"].contains("UCD_EXP_NUM")
       && template_root["#TEMPLATE"]["UCD_EXP_NUM"] == 11 };
-   const bool round_inputs{ template_json.contains("#TEMPLATE") && template_json["#TEMPLATE"].contains("UCD_ROUND_INPUTS")
-      && template_json["#TEMPLATE"]["UCD_ROUND_INPUTS"].is_boolean() && template_json["#TEMPLATE"]["UCD_ROUND_INPUTS"].get<bool>() };
+   const bool round_inputs{ template_root.contains("#TEMPLATE") && template_root["#TEMPLATE"].contains("UCD_ROUND_INPUTS")
+      && template_root["#TEMPLATE"]["UCD_ROUND_INPUTS"].is_boolean() && template_root["#TEMPLATE"]["UCD_ROUND_INPUTS"].get<bool>() };
    // Truncation biases positions toward zero, so forward cars lag their plan by one unit. Velocities stay
    // truncated: rounding turns residual speeds of parked cars into 1 and contradicts their INVAR v = 0.
    const auto to_model_int = [round_inputs](const float value) { return round_inputs ? static_cast<int>(std::lround(value)) : static_cast<int>(value); };

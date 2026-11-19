@@ -850,7 +850,12 @@ TEST_F(MortyLiveTests, ConvertsConnectorGeometryToWorldCoordinates) {
         " env.veh___609___.traversion_from = 0\n env.veh___609___.traversion_to = 1\n";
     vfm::StaticHelper::writeTextToFile(connector_trace, "generated_config_primary/debug_trace_array.txt");
 
-    EXPECT_EQ(positions(), "110.000000,5.000000;\n");
+    const auto rows = vfm::StaticHelper::split(positions(), "\n");
+    ASSERT_FALSE(rows.empty());
+    const auto coordinates = vfm::StaticHelper::split(vfm::StaticHelper::replaceAll(rows[0], ";", ""), ",");
+    ASSERT_EQ(coordinates.size(), 2);
+    EXPECT_NEAR(std::stof(coordinates[0]), 110.0f, 1e-3f);
+    EXPECT_NEAR(std::stof(coordinates[1]), 5.0f, 1e-3f);
 }
 
 TEST_F(MortyLiveTests, CompactInputConstantsTrackObservationsAndStationaryConstraints) {
@@ -878,6 +883,20 @@ TEST_F(MortyLiveTests, CompactInputConstantsTrackObservationsAndStationaryConstr
     EXPECT_EQ(vfm::StaticHelper::readFile("generated_config_primary/main.smv").find("VFM_TASK7_PARKED_POS_2"), std::string::npos);
 }
 
+TEST_F(MortyLiveTests, RoundsObservedPositionsOnlyWhenEnabled) {
+    vfm::StaticHelper::writeTextToFile("MODULE main\n--EO-SPEC-STUFF\n", "generated_config_primary/main.smv");
+    vfm::test::prepareInputForMortyUCD("0,10.2,0,3.3,0;", -0.5f, 2, 12, "AUTO");
+    auto main = vfm::StaticHelper::readFile("generated_config_primary/main.smv");
+    EXPECT_NE(main.find("INIT env.veh___609___.abs_pos = 40;"), std::string::npos);
+
+    config["#TEMPLATE"]["UCD_ROUND_INPUTS"] = true;
+    writeConfig();
+    vfm::test::prepareInputForMortyUCD("0,10.2,0,3.3,0;", -0.5f, 2, 12, "AUTO");
+    main = vfm::StaticHelper::readFile("generated_config_primary/main.smv");
+    EXPECT_NE(main.find("INIT env.veh___609___.abs_pos = 41;"), std::string::npos);
+    EXPECT_NE(main.find("INIT env.veh___609___.v = 6;"), std::string::npos);
+}
+
 TEST_F(MortyLiveTests, Task11MapsApproachAndStraightConnectorWithoutTakingTurn) {
     config["#TEMPLATE"]["UCD_EXP_NUM"] = 11;
     writeConfig();
@@ -894,6 +913,13 @@ TEST_F(MortyLiveTests, Task11MapsApproachAndStraightConnectorWithoutTakingTurn) 
         " env.veh___609___.on_straight_section = 2\n env.veh___609___.traversion_from = -1\n"
         " env.veh___609___.traversion_to = -1\n -> State: 1.2 <-\n";
     vfm::StaticHelper::writeTextToFile(geometry, "generated_config_primary/debug_trace_array.txt");
+    vfm::ScaleDescription scaling;
+    scaling.setTimeScalingFactor(2);
+    scaling.setDistanceScalingFactor(4);
+    for (const auto* section_end : { "section_0_end", "section_1_end", "section_2_end", "section_3_end" }) {
+        scaling.add(vfm::VariableScaleDescription{ std::string{ section_end } + ",distance" });
+    }
+    vfm::StaticHelper::writeTextToFile(scaling.serialize(), "generated_config_primary/scaling_info.txt");
 
     vfm::test::prepareInputForMortyUCD("0,110.30552,-9.759388,3.2085652,21.083334,1.4197702;", -0.5f, 2, 2, "AUTO");
     auto main = vfm::StaticHelper::readFile("generated_config_primary/main.smv");

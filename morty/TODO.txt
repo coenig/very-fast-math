@@ -1,0 +1,207 @@
+(Referring to the state at commit eae819e)
+
+Is the Nonego.tpl change necessary?
+Mostly yes. Neither new feature needs any template change: recycling is Python-only, and the bigger crossing is just geometry in the config, which the collision block reads generically.
+
+Collision block (EnvModel_Behavior_Nonego.tpl:364, about 100 lines): this is the crossing collision check itself and is needed. Your (L+W)/2 radius is exact for perpendicular boxes. Small leftovers:
+jx_s_r always equals jx_t_r, so one variable would do.
+The straight-connector test is written out three times.
+Each car is also checked against itself (36 of 144 constraints are always false).
+CROSSING_SAFETY_MARGIN is now only used for non-perpendicular crossings, so its description in EnvModel_Parameters.tpl is out of date.
+Connector rules (EnvModel_Behavior_Nonego.tpl:736): this is where your trials ended up.
+Overspeed rule: it only applies to task 11 (UCD_EXP_NUM == 11), which is a task-specific exception. All it adds is that a car already observed above 20 m/s on a connector is allowed if its speed keeps dropping. Removing the task-11 condition would make it a general rule; other tasks would only change when they see such an overspeed, a case their model currently can't solve.
+EnvModel_Behavior_Nonego.tpl:748 does nothing: TRANS next(traversing) -> next(lane_single) is already implied by the INVAR in both branches. Your earlier change from -> lane_single did change behaviour for all tasks: cars no longer need to be on a single lane in the step before entering a connector.
+There is also task-11-specific code in interactive_testing.cpp:2009: turn connectors are skipped by hard-coded section IDs, plus the task-11-only distance rule at interactive_testing.cpp:2051.
+
+If you want, I can delete the no-op line, merge the two radius variables, and/or put a swept check back to stop the crossing crashes.
+
+
+
+
+The swept check was a collision check that looked at the whole 0.5 s step, not just its start and end points. I wrote it in step 2, and your commit f602c4a ("fix") deleted it: 26 lines, labelled -- Swept OBB check.
+
+What the current check misses
+The remaining rule (EnvModel_Behavior_Nonego.tpl:407) is checked only at each step, i.e. every 0.5 s. At those moments, two cars on crossing lanes may not both be in their crossing zone. A car's zone is the stretch of its route within 
+𝑟
+r of the point where the two lanes cross. For perpendicular roads, 
+𝑟
+=
+(
+𝐿
++
+𝑊
+)
+/
+2
+r=(L+W)/2, which is 4.6 m in the least conservative config.
+
+At 20 m/s a car moves 10 m per step, which is more than the 9.2 m zone. So two cars can be in the zone together between two steps, and the model never sees it. This is likely what caused the crossing crash at step 15. Assuming the 4.6 m config was the one in use, both zones run from 6.4 m to 15.6 m:
+
+Car 2 position on its route	Car 3 position on its route
+Step 14	4.6 m (outside)	9.0 m (inside)
+Step 15	9.8 m (inside)	17.2 m (outside)
+At each step only one car is inside, so the rule is satisfied. In between, car 2 enters after about 35 % of the step and car 3 leaves after about 80 %. For roughly 0.2 s both are in the zone and they collide.
+
+What the swept check did
+For every step it assumed each car moves at constant speed along its route between the two positions. It worked out when during the step each car is inside its zone, and rejected the step if those two time windows overlap. With 
+𝑡
+t and 
+𝑠
+s for the two cars' positions on their routes, 
+𝑡
+0
+t 
+0
+​
+  and 
+𝑠
+0
+s 
+0
+​
+  for the crossing point, and 
+𝛥
+𝑡
+=
+𝑡
+𝑘
++
+1
+−
+𝑡
+𝑘
+Δt=t 
+k+1
+​
+ −t 
+k
+​
+ , 
+𝛥
+𝑠
+=
+𝑠
+𝑘
++
+1
+−
+𝑠
+𝑘
+Δs=s 
+k+1
+​
+ −s 
+k
+​
+ , the windows overlap when:
+
+𝑡
+0
+−
+𝑟
+−
+𝑡
+𝑘
+𝛥
+𝑡
+<
+𝑠
+0
++
+𝑟
+−
+𝑠
+𝑘
+𝛥
+𝑠
+and
+𝑠
+0
+−
+𝑟
+−
+𝑠
+𝑘
+𝛥
+𝑠
+<
+𝑡
+0
++
+𝑟
+−
+𝑡
+𝑘
+𝛥
+𝑡
+Δt
+t 
+0
+​
+ −r−t 
+k
+​
+ 
+​
+ < 
+Δs
+s 
+0
+​
+ +r−s 
+k
+​
+ 
+​
+ and 
+Δs
+s 
+0
+​
+ −r−s 
+k
+​
+ 
+​
+ < 
+Δt
+t 
+0
+​
+ +r−t 
+k
+​
+ 
+​
+ 
+The template wrote this with both sides multiplied out, so there is no division by speed. It also:
+
+rejected the step if one car stood still in its zone while the other passed through its own zone;
+skipped the first step if the cars were already overlapping when observed, so the model can't become unsolvable from the start.
+Cost
+Slower solving: it multiplies two variables, e.g. 
+(
+𝑡
+0
+−
+𝑟
+−
+𝑡
+𝑘
+)
+⋅
+𝛥
+𝑠
+(t 
+0
+​
+ −r−t 
+k
+​
+ )⋅Δs. That makes the arithmetic nonlinear, which can be much harder for nuXmv/MathSAT. You may have removed it for this reason.
+More constraints: it added 144 TRANS constraints, one per car pair and lane pair.
+Simplified motion: it assumes straight, constant-speed motion within each 0.5 s step.
+Options
+Restore it as it was. Your test PerpendicularCrossingUsesVehicleBoxExtents checks that "Swept OBB check" is absent, so it would need to be flipped.
+A cheaper linear version: make each zone longer by half the most a car can travel in one step, which is about 5 m at 20 m/s. Solving stays fast, but cars wait longer at the box.
+Cap the speed inside the box so a car can't jump past the zone in one step.

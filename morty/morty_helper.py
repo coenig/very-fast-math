@@ -197,8 +197,6 @@ def world_to_frame(frame, x, y, lat_center):
 
 def recycle_junction_vehicles(vehicles, section_frames, section_lengths, lat_center, dist_scale,
                               threshold=10, collision_vehicles=None):
-    from highway_env import utils
-
     recycled = []
     collision_vehicles = vehicles if collision_vehicles is None else collision_vehicles
     for index, vehicle in enumerate(vehicles):
@@ -208,26 +206,20 @@ def recycle_junction_vehicles(vehicles, section_frames, section_lengths, lat_cen
         target_long, target_lat = world_to_frame(target, *vehicle.position, lat_center)
         if target_long * dist_scale <= threshold:
             continue
-        old_heading = vehicle.heading
-        vehicle.heading = source[0]
-        polygon = vehicle.polygon()
         preferred = max(0.0, section_lengths[source_id] - 20.0)
+        vehicle_length, vehicle_width = vehicle.LENGTH + 4, vehicle.WIDTH + 3
+        radius = math.hypot(vehicle_length, vehicle_width) / 2
         for offset in range(math.ceil(preferred) + 1):
             position = frame_to_world(source, max(0.0, preferred - offset), target_lat, lat_center)
-            candidate_polygon = polygon + (np.asarray(position) - vehicle.position)
-            position = frame_to_world(source, max(0.0, section_lengths[source_id] - 20.0), target_lat, lat_center)
-            vehicle_length, vehicle_width = vehicle.LENGTH + 4, vehicle.WIDTH + 3
-            radius = math.hypot(max(vehicle.LENGTH, vehicle_length), max(vehicle.WIDTH, vehicle_width)) / 2
             if any(math.hypot(position[0] - other.position[0], position[1] - other.position[1])
-                <= radius + math.hypot(max(other.LENGTH, vehicle_length), max(other.WIDTH, vehicle_width)) / 2
-                for other in vehicles if other is not vehicle):
+                   <= radius + math.hypot(max(other.LENGTH, vehicle_length), max(other.WIDTH, vehicle_width)) / 2
+                   for other in collision_vehicles if other is not vehicle):
                 continue
             vehicle.position[0], vehicle.position[1] = position
+            vehicle.heading = source[0]
             vehicle.speed = abs(vehicle.speed)
             recycled.append(index)
             break
-        else:
-            vehicle.heading = old_heading
     return recycled
 
 def randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_tech,

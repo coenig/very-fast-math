@@ -24,7 +24,7 @@ class LiveModeTests(unittest.TestCase):
         car = Vehicle(None, [111.0, 0.0])
         blocker = Vehicle(None, [80.0, 0.0])
         self.assertEqual(helper.recycle_junction_vehicles([car, blocker], frames, lengths, 2, 4), [0])
-        np.testing.assert_allclose(car.position, [74, 0], atol=1e-8)
+        np.testing.assert_allclose(car.position, [69, 0], atol=1e-8)
         car.position[:] = [111, 0]
         blocker.position[:] = [30, 0]
         self.assertEqual(helper.recycle_junction_vehicles([car, blocker], frames, lengths, 2, 4), [0])
@@ -89,7 +89,7 @@ class LiveModeTests(unittest.TestCase):
                                      np.zeros(2), np.zeros(2))[0]
                      for other in vehicles[:7]))
 
-    def test_junction_recycling_uses_actual_rotated_vehicle_overlap(self):
+    def test_junction_recycling_keeps_safety_margin_to_other_vehicles(self):
         import numpy as np
         from highway_env.vehicle.kinematics import Vehicle
 
@@ -98,14 +98,7 @@ class LiveModeTests(unittest.TestCase):
         other = Vehicle(None, [80, 4])
         self.assertEqual(helper.recycle_junction_vehicles([car], frames, {0: 100}, 2, 4,
                                                           collision_vehicles=[car, other]), [0])
-        np.testing.assert_allclose(car.position, [80, 0], atol=1e-8)
-
-        car.position[:] = [112, 0]
-        other.position[:] = [80, 0]
-        other.heading = np.pi / 2
-        self.assertEqual(helper.recycle_junction_vehicles([car], frames, {0: 100}, 2, 4,
-                                                          collision_vehicles=[car, other]), [0])
-        np.testing.assert_allclose(car.position, [76, 0], atol=1e-8)
+        np.testing.assert_allclose(car.position, [70, 0], atol=1e-8)
 
     def test_junction_recycling_refreshes_live_window(self):
         module = ast.parse(Path(__file__).with_name('morty.py').read_text())
@@ -915,7 +908,10 @@ class LiveModeTests(unittest.TestCase):
         step_index = next(index for index, node in enumerate(cycle.body)
                           if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
                           and ast.unparse(node.value.func) == 'env.step')
-        step_code = compile(ast.Module(body=cycle.body[step_index - 1:step_index + 2], type_ignores=[]),
+        snapshot_index = next(index for index, node in enumerate(cycle.body)
+                              if index > step_index and isinstance(node, ast.If)
+                              and ast.unparse(node.test) == 'args.force_snapshots')
+        step_code = compile(ast.Module(body=cycle.body[step_index - 1:snapshot_index + 1], type_ignores=[]),
                             '<snapshot step>', 'exec')
         config = {
             'controlled_vehicles': 2, 'vehicles_count': 0, 'lanes_count': 2,
@@ -937,7 +933,7 @@ class LiveModeTests(unittest.TestCase):
                     namespace = {
                         'args': self.parse_driver_options('--live', '--force_snapshots',
                                                           *(['--force_head'] if force_head else [])),
-                        'env': capture, 'action': ([0.1, 0.0], [-0.1, 0.0]),
+                        'env': capture, 'action': ([0.1, 0.0], [-0.1, 0.0]), 'exp_num': 0,
                         'save_simulation_snapshot': helper.save_simulation_snapshot,
                         'viz_state': helper.VizState(),
                     }

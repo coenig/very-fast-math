@@ -422,7 +422,7 @@ INVAR cnt = 0 | !veh_[i]_on_[a]_to_[b]_and_veh_[j]_on_[c]_to_[e]_lanes_[kk]_over
       @jx_s_r_[a]_[b]_[c]_[e]_[kk] = (VEHICLE_LENGTH + jx_w) / 2;
    } else {
       @jx_t_r_[a]_[b]_[c]_[e]_[kk] = sqrt(VEHICLE_LENGTH * VEHICLE_LENGTH + jx_w * jx_w) / sqrt(jx_cr * jx_cr) + CROSSING_SAFETY_MARGIN;
-      @jx_s_r_[a]_[b]_[c]_[e]_[kk] = @jx_t_r_[a]_[b]_[c]_[e]_[kk];
+      @jx_s_r_[a]_[b]_[c]_[e]_[kk] = jx_t_r_[a]_[b]_[c]_[e]_[kk];
    }
    @jx_ki_[a]_[b]_[c]_[e]_[kk] = trunc([kk] / (2 * NUM_TECHNICAL_LANES - 1));
    @jx_kj_[a]_[b]_[c]_[e]_[kk] = [kk] - jx_ki_[a]_[b]_[c]_[e]_[kk] * (2 * NUM_TECHNICAL_LANES - 1);
