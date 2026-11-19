@@ -394,7 +394,7 @@ SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos
 SUCC_CONDS.append(lambda: False) # 8
 SUCC_CONDS.append(lambda: all(x > DIST_EXP_9 for x in egos_x)) # 9
 SUCC_CONDS.append(lambda: False) # 10
-SUCC_CONDS.append(lambda: False) # 11
+SUCC_CONDS.append(lambda: False) # 11 - no success condition for now as we use it as infinite scenario.
 
 addons = [''] * len(SPECS) # Add to main.smv depending on the experiment.
 ADDONS_CORE_DENOTER = "UCD addons"
@@ -455,6 +455,7 @@ addons[10] += f"""
 for i in range(0, nonegos):
     addons[10] += f"INVAR env.cnt > 3 -> !env.veh___6{i}9___.lane_b0;\n"
 
+# 11
 for i in range(0, nonegos): # No turning in the junction (for now).
     addons[11] += f"INVAR env.veh___6{i}9___.is_traversing_from_sec_0_to_sec_3 = 0 & env.veh___6{i}9___.is_traversing_from_sec_2_to_sec_1 = 0;\n"
 
