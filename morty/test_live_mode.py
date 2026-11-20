@@ -14,6 +14,118 @@ from . import morty_helper as helper
 
 
 class LiveModeTests(unittest.TestCase):
+    def test_junction_recycling_uses_model_scale_and_avoids_occupied_spawn(self):
+        import numpy as np
+        from highway_env.vehicle.kinematics import Vehicle
+
+        frames = {0: (0, 0, 0), 1: (0, 108, 0),
+                  2: (np.pi / 2, 104, -104), 3: (np.pi / 2, 104, 4)}
+        lengths = {0: 100, 2: 100}
+        car = Vehicle(None, [111.0, 0.0])
+        blocker = Vehicle(None, [80.0, 0.0])
+        self.assertEqual(helper.recycle_junction_vehicles([car, blocker], frames, lengths, 2, 4), [0])
+        np.testing.assert_allclose(car.position, [69, 0], atol=1e-8)
+        car.position[:] = [111, 0]
+        blocker.position[:] = [30, 0]
+        self.assertEqual(helper.recycle_junction_vehicles([car, blocker], frames, lengths, 2, 4), [0])
+        np.testing.assert_allclose(car.position, [80, 0], atol=1e-8)
+        car.position[:] = [110, 0]
+        self.assertEqual(helper.recycle_junction_vehicles([car, blocker], frames, lengths, 2, 4), [])
+
+    def test_junction_recycling_handles_both_routes(self):
+        import numpy as np
+        from highway_env.vehicle.kinematics import Vehicle
+
+        frames = {0: (0, 0, 0), 1: (0, 108, 0),
+                  2: (np.pi / 2, 104, -104), 3: (np.pi / 2, 104, 4)}
+        lengths = helper.fixed_section_lengths({"FIXED_SECTION_IDs": "@(0)@@(2)@",
+                             "FIXED_SECTION_LENGTHs": "@(100)@@(90)@"})
+        west = Vehicle(None, [112.0, 4.0])
+        north = Vehicle(None, helper.frame_to_world(frames[3], 3, 0, 2), heading=np.pi / 2)
+        self.assertEqual(helper.recycle_junction_vehicles([west, north], frames, lengths, 2, 4), [0, 1])
+        np.testing.assert_allclose(west.position, [80, 4], atol=1e-8)
+        np.testing.assert_allclose(north.position, helper.frame_to_world(frames[2], 70, 0, 2), atol=1e-8)
+
+        west.position[:] = [112, 4]
+        west.heading = np.pi
+        west.speed = -3
+        self.assertEqual(helper.recycle_junction_vehicles([west], frames, lengths, 2, 4), [0])
+        self.assertEqual(west.heading, 0)
+        self.assertEqual(west.speed, 3)
+
+    def test_junction_recycling_short_source_starts_at_zero(self):
+        import numpy as np
+        from highway_env.vehicle.kinematics import Vehicle
+
+        frames = {0: (0, 0, 0), 1: (0, 108, 0)}
+        car = Vehicle(None, [112.0, 0.0])
+        self.assertEqual(helper.recycle_junction_vehicles([car], frames, {0: 10}, 2, 4), [0])
+        np.testing.assert_allclose(car.position, [0, 0], atol=1e-8)
+
+        car.position[:] = [112, 0]
+        blocker = Vehicle(None, [0.0, 0.0])
+        frames[2] = (np.pi / 2, 104, -104)
+        frames[3] = (np.pi / 2, 104, 4)
+        self.assertEqual(helper.recycle_junction_vehicles([car, blocker], frames, {0: 10, 2: 10}, 2, 4), [])
+        np.testing.assert_allclose(car.position, [112, 0], atol=1e-8)
+
+    def test_junction_recycling_avoids_crowded_preferred_position(self):
+        import numpy as np
+        from highway_env import utils
+        from highway_env.vehicle.kinematics import Vehicle
+
+        frames = {0: (0, 0, 0), 1: (0, 118, 0),
+                  2: (np.pi / 2, 109, -109), 3: (np.pi / 2, 109, 9)}
+        states = [(0, 132, 4), (2, 172, 4), (0, 341, 6), (2, 244, 2),
+                  (1, 44, 6), (2, 391, 0), (1, 85, 0), (3, 127, 4)]
+        vehicles = [Vehicle(None, helper.frame_to_world(frames[section], pos / 4, lat, 4),
+                    heading=frames[section][0]) for section, pos, lat in states]
+        recycled = helper.recycle_junction_vehicles(vehicles, frames, {0: 100, 2: 100}, 4, 4)
+        self.assertIn(7, recycled)
+        long_pos, lat_pos = helper.world_to_frame(frames[2], *vehicles[7].position, 4)
+        self.assertEqual(long_pos, 80)
+        self.assertAlmostEqual(lat_pos, 4)
+        self.assertFalse(any(utils.are_polygons_intersecting(vehicles[7].polygon(), other.polygon(),
+                                     np.zeros(2), np.zeros(2))[0]
+                     for other in vehicles[:7]))
+
+    def test_junction_recycling_keeps_safety_margin_to_other_vehicles(self):
+        import numpy as np
+        from highway_env.vehicle.kinematics import Vehicle
+
+        frames = {0: (0, 0, 0), 1: (0, 108, 0)}
+        car = Vehicle(None, [112, 0])
+        other = Vehicle(None, [80, 4])
+        self.assertEqual(helper.recycle_junction_vehicles([car], frames, {0: 100}, 2, 4,
+                                                          collision_vehicles=[car, other]), [0])
+        np.testing.assert_allclose(car.position, [70, 0], atol=1e-8)
+
+    def test_junction_recycling_refreshes_live_window(self):
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        block = next(node for node in ast.walk(module) if isinstance(node, ast.If)
+                     and ast.unparse(node.test).startswith('exp_num == 11 and all('))
+        code = compile(ast.fix_missing_locations(ast.Module(body=[block], type_ignores=[])),
+                       '<junction recycling>', 'exec')
+        vehicle = SimpleNamespace(crashed=False, position=[100, 0])
+        unwrapped = SimpleNamespace(road=SimpleNamespace(vehicles=[vehicle]),
+                                    controlled_vehicles=[vehicle],
+                                    observation_type=SimpleNamespace(observe=Mock(return_value='observed')))
+        env = SimpleNamespace(unwrapped=unwrapped, render=Mock())
+
+        def recycle(*args, **kwargs):
+            vehicle.position[0] = 0
+            return [0]
+
+        env.render.side_effect = lambda: self.assertEqual(vehicle.position[0], 0)
+        namespace = {'exp_num': 11, 'env': env, 'args': SimpleNamespace(force_head=True),
+                     'recycle_junction_vehicles': recycle, 'section_frames': {}, 'section_lengths': {}, 'lat_center': 0,
+                     'dist_scale': 4,
+                     'viz_state': SimpleNamespace(trajectories={}), 'print': Mock()}
+        exec(code, namespace)
+        env.render.assert_called_once_with()
+        self.assertEqual(namespace['obs'], 'observed')
+        self.assertTrue(namespace['recycled_last_step'])
+
     def test_smv_parked_specialization_requires_stationary_lane_hold(self):
         from .evaluate_smv_encodings import freeze_parked
 
@@ -796,7 +908,10 @@ class LiveModeTests(unittest.TestCase):
         step_index = next(index for index, node in enumerate(cycle.body)
                           if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
                           and ast.unparse(node.value.func) == 'env.step')
-        step_code = compile(ast.Module(body=cycle.body[step_index - 1:step_index + 2], type_ignores=[]),
+        snapshot_index = next(index for index, node in enumerate(cycle.body)
+                              if index > step_index and isinstance(node, ast.If)
+                              and ast.unparse(node.test) == 'args.force_snapshots')
+        step_code = compile(ast.Module(body=cycle.body[step_index - 1:snapshot_index + 1], type_ignores=[]),
                             '<snapshot step>', 'exec')
         config = {
             'controlled_vehicles': 2, 'vehicles_count': 0, 'lanes_count': 2,
@@ -818,7 +933,7 @@ class LiveModeTests(unittest.TestCase):
                     namespace = {
                         'args': self.parse_driver_options('--live', '--force_snapshots',
                                                           *(['--force_head'] if force_head else [])),
-                        'env': capture, 'action': ([0.1, 0.0], [-0.1, 0.0]),
+                        'env': capture, 'action': ([0.1, 0.0], [-0.1, 0.0]), 'exp_num': 0,
                         'save_simulation_snapshot': helper.save_simulation_snapshot,
                         'viz_state': helper.VizState(),
                     }

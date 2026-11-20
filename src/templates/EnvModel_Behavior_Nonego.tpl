@@ -361,6 +361,108 @@ INVAR -- Non-Ego cars may not "jump" over each other.
 	
 }@.for[[j], 0, @{[i]}@.sub[1]]}@**.for[[i], 0, @{NONEGOS - 1}@.eval]
 
+-- Collision checks for cars on different straight connectors whose lanes cross (e.g., two roads crossing in a junction).
+-- Only fixed sections with fixed straight connectors (collinear, same angle) are considered; other connectors (turns) are ignored.
+-- The station of a car along a straight route a->b runs continuously over section a, the connector, and section b (0 = connector start).
+
+@{
+@{
+@{
+@{
+DEFINE
+   veh___6[i]9___.on_straight_route_[a]_to_[b] := veh___6[i]9___.is_on_sec_[a] = 1 | veh___6[i]9___.is_traversing_from_sec_[a]_to_sec_[b] = 1 | veh___6[i]9___.is_on_sec_[b] = 1;
+   veh___6[i]9___.station_on_straight_route_[a]_to_[b] := case
+      veh___6[i]9___.is_on_sec_[a] = 1 : veh___6[i]9___.abs_pos - section_[a]_end;
+      veh___6[i]9___.is_on_sec_[b] = 1 : veh___6[i]9___.abs_pos + arclength_from_sec_[a]_to_sec_[b]_on_lane_0;
+      TRUE : veh___6[i]9___.abs_pos;
+   esac;
+}@*.for[[i], 0, @{NONEGOS - 1}@.eval]
+}@**.if[@{
+   @jx_p = (@{fixed_section_angle_[a]}@.scriptVar[0]) / 180 * 3.14159265358979;
+   @jx_dx = (@{fixed_section_source_x_[b]}@.scriptVar[0]) - (@{fixed_section_source_x_[a]}@.scriptVar[0]) - (@{fixed_section_length_[a]}@.scriptVar[0]) * cos(jx_p);
+   @jx_dy = (@{fixed_section_source_y_[b]}@.scriptVar[0]) - (@{fixed_section_source_y_[a]}@.scriptVar[0]) - (@{fixed_section_length_[a]}@.scriptVar[0]) * sin(jx_p);
+   MODEL_INTERSECTION_GEOMETRY && @{is_section_[a]_fixed}@.scriptVar[0] && @{is_section_[b]_fixed}@.scriptVar[0]
+      && @{is_section_[b]_certain_successor_of_section_[a]}@.scriptVar[0]
+      && (@{fixed_section_angle_[a]}@.scriptVar[0]) == (@{fixed_section_angle_[b]}@.scriptVar[0])
+      && (cos(jx_p) * jx_dy - sin(jx_p) * jx_dx) ** 2 < 0.0001 && cos(jx_p) * jx_dx + sin(jx_p) * jx_dy > 0
+}@.eval]
+}@***.for[[b], 0, @{SECTIONS - 1}@.eval]
+}@****.for[[a], 0, @{SECTIONS - 1}@.eval]
+
+@{
+@{
+@{
+@{
+@{
+@{
+@{
+@{
+@{
+DEFINE veh_[i]_on_[a]_to_[b]_and_veh_[j]_on_[c]_to_[e]_lanes_[kk]_overlapping :=
+   veh___6[i]9___.on_straight_route_[a]_to_[b] & veh___6[j]9___.on_straight_route_[c]_to_[e]
+   & veh___6[i]9___.on_normalized_lane = @{jx_ki_[a]_[b]_[c]_[e]_[kk]}@.eval[0] & veh___6[j]9___.on_normalized_lane = @{jx_kj_[a]_[b]_[c]_[e]_[kk]}@.eval[0]
+   & abs(veh___6[i]9___.station_on_straight_route_[a]_to_[b] - @{jx_t_[a]_[b]_[c]_[e]_[kk]}@.distanceWorldToEnvModelConst) < @{jx_t_r_[a]_[b]_[c]_[e]_[kk]}@.distanceWorldToEnvModelConst
+   & abs(veh___6[j]9___.station_on_straight_route_[c]_to_[e] - @{jx_s_[a]_[b]_[c]_[e]_[kk]}@.distanceWorldToEnvModelConst) < @{jx_s_r_[a]_[b]_[c]_[e]_[kk]}@.distanceWorldToEnvModelConst;
+
+INVAR cnt = 0 | !veh_[i]_on_[a]_to_[b]_and_veh_[j]_on_[c]_to_[e]_lanes_[kk]_overlapping;
+}@.for[[j], 0, @{NONEGOS - 1}@.eval]
+}@.for[[i], 0, @{NONEGOS - 1}@.eval]
+}@*.if[@{
+   @jx_lab = sqrt(((@{fixed_section_source_x_[b]}@.scriptVar[0]) - (@{fixed_section_source_x_[a]}@.scriptVar[0]) - (@{fixed_section_length_[a]}@.scriptVar[0]) * cos((@{fixed_section_angle_[a]}@.scriptVar[0]) / 180 * 3.14159265358979)) ** 2
+      + ((@{fixed_section_source_y_[b]}@.scriptVar[0]) - (@{fixed_section_source_y_[a]}@.scriptVar[0]) - (@{fixed_section_length_[a]}@.scriptVar[0]) * sin((@{fixed_section_angle_[a]}@.scriptVar[0]) / 180 * 3.14159265358979)) ** 2);
+   @jx_lce = sqrt(((@{fixed_section_source_x_[e]}@.scriptVar[0]) - (@{fixed_section_source_x_[c]}@.scriptVar[0]) - (@{fixed_section_length_[c]}@.scriptVar[0]) * cos((@{fixed_section_angle_[c]}@.scriptVar[0]) / 180 * 3.14159265358979)) ** 2
+      + ((@{fixed_section_source_y_[e]}@.scriptVar[0]) - (@{fixed_section_source_y_[c]}@.scriptVar[0]) - (@{fixed_section_length_[c]}@.scriptVar[0]) * sin((@{fixed_section_angle_[c]}@.scriptVar[0]) / 180 * 3.14159265358979)) ** 2);
+   @jx_pa = (@{fixed_section_angle_[a]}@.scriptVar[0]) / 180 * 3.14159265358979;
+   @jx_pc = (@{fixed_section_angle_[c]}@.scriptVar[0]) / 180 * 3.14159265358979;
+   @jx_cr = cos(jx_pa) * sin(jx_pc) - sin(jx_pa) * cos(jx_pc);
+   @jx_w = VEHICLE_WIDTH / 100;
+   @jx_perpendicular = jx_cr * jx_cr > 0.999;
+   if (jx_perpendicular) {
+      @jx_t_r_[a]_[b]_[c]_[e]_[kk] = (VEHICLE_LENGTH + jx_w) / 2;
+      @jx_s_r_[a]_[b]_[c]_[e]_[kk] = (VEHICLE_LENGTH + jx_w) / 2;
+   } else {
+      @jx_t_r_[a]_[b]_[c]_[e]_[kk] = sqrt(VEHICLE_LENGTH * VEHICLE_LENGTH + jx_w * jx_w) / sqrt(jx_cr * jx_cr) + CROSSING_SAFETY_MARGIN;
+      @jx_s_r_[a]_[b]_[c]_[e]_[kk] = jx_t_r_[a]_[b]_[c]_[e]_[kk];
+   }
+   @jx_ki_[a]_[b]_[c]_[e]_[kk] = trunc([kk] / (2 * NUM_TECHNICAL_LANES - 1));
+   @jx_kj_[a]_[b]_[c]_[e]_[kk] = [kk] - jx_ki_[a]_[b]_[c]_[e]_[kk] * (2 * NUM_TECHNICAL_LANES - 1);
+   @jx_pax = (@{fixed_section_source_x_[a]}@.scriptVar[0]) + (@{fixed_section_length_[a]}@.scriptVar[0]) * cos(jx_pa);
+   @jx_pay = (@{fixed_section_source_y_[a]}@.scriptVar[0]) + (@{fixed_section_length_[a]}@.scriptVar[0]) * sin(jx_pa);
+   @jx_pcx = (@{fixed_section_source_x_[c]}@.scriptVar[0]) + (@{fixed_section_length_[c]}@.scriptVar[0]) * cos(jx_pc);
+   @jx_pcy = (@{fixed_section_source_y_[c]}@.scriptVar[0]) + (@{fixed_section_length_[c]}@.scriptVar[0]) * sin(jx_pc);
+   @jx_q = NUMLANES * LANE_WIDTH / 100 / (2 * NUM_TECHNICAL_LANES);
+   @jx_oa = jx_q * (NUM_TECHNICAL_LANES - 1 - jx_ki_[a]_[b]_[c]_[e]_[kk]);
+   @jx_oc = jx_q * (NUM_TECHNICAL_LANES - 1 - jx_kj_[a]_[b]_[c]_[e]_[kk]);
+   @jx_dx = jx_pcx - jx_oc * sin(jx_pc) - jx_pax + jx_oa * sin(jx_pa);
+   @jx_dy = jx_pcy + jx_oc * cos(jx_pc) - jx_pay - jx_oa * cos(jx_pa);
+   @jx_t_[a]_[b]_[c]_[e]_[kk] = (jx_dx * sin(jx_pc) - jx_dy * cos(jx_pc)) / jx_cr;
+   @jx_s_[a]_[b]_[c]_[e]_[kk] = (jx_dx * sin(jx_pa) - jx_dy * cos(jx_pa)) / jx_cr;
+   jx_t_[a]_[b]_[c]_[e]_[kk] > 0 - jx_t_r_[a]_[b]_[c]_[e]_[kk] && jx_t_[a]_[b]_[c]_[e]_[kk] < jx_lab + jx_t_r_[a]_[b]_[c]_[e]_[kk] && jx_s_[a]_[b]_[c]_[e]_[kk] > 0 - jx_s_r_[a]_[b]_[c]_[e]_[kk] && jx_s_[a]_[b]_[c]_[e]_[kk] < jx_lce + jx_s_r_[a]_[b]_[c]_[e]_[kk]
+}@.eval]
+}@**.for[[kk], 0, @{(2 * NUM_TECHNICAL_LANES - 1) ** 2 - 1}@.eval]
+}@***.if[@{
+   @jx_ok = [a] < [c] && MODEL_INTERSECTION_GEOMETRY;
+   @jx_p = (@{fixed_section_angle_[a]}@.scriptVar[0]) / 180 * 3.14159265358979;
+   @jx_dx = (@{fixed_section_source_x_[b]}@.scriptVar[0]) - (@{fixed_section_source_x_[a]}@.scriptVar[0]) - (@{fixed_section_length_[a]}@.scriptVar[0]) * cos(jx_p);
+   @jx_dy = (@{fixed_section_source_y_[b]}@.scriptVar[0]) - (@{fixed_section_source_y_[a]}@.scriptVar[0]) - (@{fixed_section_length_[a]}@.scriptVar[0]) * sin(jx_p);
+   @jx_ok = jx_ok && @{is_section_[a]_fixed}@.scriptVar[0] && @{is_section_[b]_fixed}@.scriptVar[0]
+      && @{is_section_[b]_certain_successor_of_section_[a]}@.scriptVar[0]
+      && (@{fixed_section_angle_[a]}@.scriptVar[0]) == (@{fixed_section_angle_[b]}@.scriptVar[0])
+      && (cos(jx_p) * jx_dy - sin(jx_p) * jx_dx) ** 2 < 0.0001 && cos(jx_p) * jx_dx + sin(jx_p) * jx_dy > 0;
+   @jx_p = (@{fixed_section_angle_[c]}@.scriptVar[0]) / 180 * 3.14159265358979;
+   @jx_dx = (@{fixed_section_source_x_[e]}@.scriptVar[0]) - (@{fixed_section_source_x_[c]}@.scriptVar[0]) - (@{fixed_section_length_[c]}@.scriptVar[0]) * cos(jx_p);
+   @jx_dy = (@{fixed_section_source_y_[e]}@.scriptVar[0]) - (@{fixed_section_source_y_[c]}@.scriptVar[0]) - (@{fixed_section_length_[c]}@.scriptVar[0]) * sin(jx_p);
+   @jx_ok = jx_ok && @{is_section_[c]_fixed}@.scriptVar[0] && @{is_section_[e]_fixed}@.scriptVar[0]
+      && @{is_section_[e]_certain_successor_of_section_[c]}@.scriptVar[0]
+      && (@{fixed_section_angle_[c]}@.scriptVar[0]) == (@{fixed_section_angle_[e]}@.scriptVar[0])
+      && (cos(jx_p) * jx_dy - sin(jx_p) * jx_dx) ** 2 < 0.0001 && cos(jx_p) * jx_dx + sin(jx_p) * jx_dy > 0;
+   jx_ok && sin(((@{fixed_section_angle_[c]}@.scriptVar[0]) - (@{fixed_section_angle_[a]}@.scriptVar[0])) / 180 * 3.14159265358979) ** 2 > 0.0001
+}@.eval]
+}@****.for[[e], 0, @{SECTIONS - 1}@.eval]
+}@*****.for[[c], 0, @{SECTIONS - 1}@.eval]
+}@******.for[[b], 0, @{SECTIONS - 1}@.eval]
+}@*******.for[[a], 0, @{SECTIONS - 1}@.eval]
+
 
 
 @{
@@ -628,8 +730,22 @@ ASSIGN
 
     @{
        @{
-          @{INVAR (veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1) -> (veh___6[i]9___.v <= @{20}@.velocityWorldToEnvModelConst & veh___6[i]9___.lane_single);}@.if[@{[sec] != [sec2]}@.eval]
-          @{TRANS next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) = 1 -> veh___6[i]9___.lane_single;}@.if[@{[sec] != [sec2]}@.eval]
+          @{@{
+             @(
+          INVAR veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1 -> veh___6[i]9___.lane_single;
+          -- An observed overspeed on a connector must decrease until it reaches the limit.
+          TRANS next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) = 1 ->
+             (next(veh___6[i]9___.v) <= @{20}@.velocityWorldToEnvModelConst
+              | (veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1
+                 & veh___6[i]9___.v > @{20}@.velocityWorldToEnvModelConst
+                 & next(veh___6[i]9___.v) < veh___6[i]9___.v));
+             )@
+             @(
+          INVAR (veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2] = 1) -> (veh___6[i]9___.v <= @{20}@.velocityWorldToEnvModelConst & veh___6[i]9___.lane_single);
+             )@
+          }@******.if[@{UCD && UCD_EXP_NUM == 11}@.eval]
+          }@.if[@{[sec] != [sec2]}@.eval]
+          @{TRANS next(veh___6[i]9___.is_traversing_from_sec_[sec]_to_sec_[sec2]) = 1 -> next(veh___6[i]9___.lane_single);}@.if[@{[sec] != [sec2]}@.eval]
        }@**.for[[sec], 0, @{SECTIONS - 1}@.eval]
     }@***.for[[sec2], 0, @{SECTIONS - 1}@.eval]
 }@****.for[[i], 0, @{NONEGOS - 1}@.eval]

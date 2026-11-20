@@ -343,6 +343,35 @@ TEST(SmvTemplateTests, CompactUcdFallsBackWithoutStationaryLaneHold) {
     EXPECT_NE(model.find("#define VFM_TASK7_PARKED_2 0"), std::string::npos);
 }
 
+TEST(SmvTemplateTests, Task11ConnectorOverspeedCanOnlyRecover) {
+    const auto model = expandCompactUcdTemplate("@{@SECTIONS=2; @UCD_EXP_NUM=11;}@***********.eval.nil");
+    const auto other = expandCompactUcdTemplate("@{@SECTIONS=2; @UCD_EXP_NUM=10;}@***********.eval.nil");
+    EXPECT_EQ(model.find("@{"), std::string::npos);
+    EXPECT_NE(model.find("next(veh___609___.v) < veh___609___.v"), std::string::npos);
+    EXPECT_NE(model.find("veh___609___.is_traversing_from_sec_0_to_sec_1 = 1\n                 & veh___609___.v > 40"), std::string::npos);
+    EXPECT_EQ(other.find("next(veh___609___.v) < veh___609___.v"), std::string::npos);
+    EXPECT_NE(other.find("(veh___609___.v <= 40 & veh___609___.lane_single)"), std::string::npos);
+    EXPECT_NE(model.find("next(veh___609___.is_traversing_from_sec_0_to_sec_1) = 1 -> next(veh___609___.lane_single);"), std::string::npos);
+    EXPECT_EQ(model.find("next(veh___609___.is_traversing_from_sec_0_to_sec_1) = 1 -> veh___609___.lane_single;"), std::string::npos);
+}
+
+TEST(SmvTemplateTests, PerpendicularCrossingUsesVehicleBoxExtents) {
+    const auto model = expandCompactUcdTemplate(R"(
+@{@SECTIONS=4; @NONEGOS=2; @MODEL_INTERSECTION_GEOMETRY=true; @UCD_TASK7_COMPACT=false; @UCD_EXP_NUM=11;
+  @VEHICLE_LENGTH=5; @VEHICLE_WIDTH=200; @CROSSING_SAFETY_MARGIN=20;}@***********.eval.nil
+@{@(0)@@(1)@@(2)@@(3)@}@***********.stringToHeap[FIXED_SECTION_IDs].nil
+@{@(0)@@(110)@@(100)@@(100)@}@***********.stringToHeap[FIXED_SECTION_SOURCE_Xs].nil
+@{@(0)@@(0)@@(-100)@@(10)@}@***********.stringToHeap[FIXED_SECTION_SOURCE_Ys].nil
+@{@(0)@@(0)@@(90)@@(90)@}@***********.stringToHeap[FIXED_SECTION_ANGLEs].nil
+@{@(100)@@(100)@@(100)@@(100)@}@***********.stringToHeap[FIXED_SECTION_LENGTHs].nil
+@{@(@(0)@@(@(1)@)@)@@(@(1)@@(@(-1)@)@)@@(@(2)@@(@(3)@)@)@@(@(3)@@(@(-1)@)@)@}@***********.stringToHeap[FIXED_SECTION_CONNECTORS].nil
+)");
+    ASSERT_EQ(model.find("@{"), std::string::npos);
+    ASSERT_NE(model.find("station_on_straight_route_0_to_1"), std::string::npos);
+    EXPECT_NE(model.find("abs(veh___609___.station_on_straight_route_0_to_1 - -14) < 14"), std::string::npos);
+    EXPECT_EQ(model.find("Swept OBB check"), std::string::npos);
+}
+
 TEST(SmvTemplateTests, AllVehiclesHavePositionUpdates) {
     for (const bool compact : {false, true}) {
         SCOPED_TRACE(compact ? "compact" : "legacy");
@@ -806,6 +835,29 @@ TEST_F(MortyLiveTests, KeepsTheSameDrivingPoints) {
     EXPECT_EQ(complete_positions.substr(0, live_positions.size()), live_positions);
 }
 
+TEST_F(MortyLiveTests, ConvertsConnectorGeometryToWorldCoordinates) {
+    const std::string connector_trace =
+        "Trace Description: test\nTrace Type: Counterexample\n"
+        " -> State: 1.1 <-\n"
+        " planner.time_scaling = 2000\n planner.distance_scaling = 4000\n"
+        " env.lane_width = 400\n env.num_lanes = 2\n env.num_technical_lanes = 4\n"
+        " env.section_0.angle = 0\n env.section_0.source.x = 0\n env.section_0.source.y = 0\n"
+        " env.section_0_end = 400\n"
+        " env.section_1.angle = 0\n env.section_1.source.x = 120\n env.section_1.source.y = 0\n"
+        " env.section_1_end = 400\n"
+        " env.veh___609___.abs_pos = 40\n env.veh___609___.v = 20\n"
+        " env.veh___609___.on_normalized_lane = 0\n env.veh___609___.on_straight_section = -1\n"
+        " env.veh___609___.traversion_from = 0\n env.veh___609___.traversion_to = 1\n";
+    vfm::StaticHelper::writeTextToFile(connector_trace, "generated_config_primary/debug_trace_array.txt");
+
+    const auto rows = vfm::StaticHelper::split(positions(), "\n");
+    ASSERT_FALSE(rows.empty());
+    const auto coordinates = vfm::StaticHelper::split(vfm::StaticHelper::replaceAll(rows[0], ";", ""), ",");
+    ASSERT_EQ(coordinates.size(), 2);
+    EXPECT_NEAR(std::stof(coordinates[0]), 110.0f, 1e-3f);
+    EXPECT_NEAR(std::stof(coordinates[1]), 5.0f, 1e-3f);
+}
+
 TEST_F(MortyLiveTests, CompactInputConstantsTrackObservationsAndStationaryConstraints) {
     const std::string main = "-- TASK7 INPUT CONSTANTS\n-- EO TASK7 INPUT CONSTANTS\n"
         "MODULE main\nINVAR env.veh___629___.v = 0;\n--EO-SPEC-STUFF\n";
@@ -829,6 +881,56 @@ TEST_F(MortyLiveTests, CompactInputConstantsTrackObservationsAndStationaryConstr
         "INVAR env.veh___629___.v = 0;", "INVAR env.veh___629___.v >= 0;"), "generated_config_primary/main.smv");
     vfm::test::prepareInputForMortyUCD("0,10,0,5,0;1,20,4,-5,0;2,43,4,0,0;", -0.5f, 2, 12, "AUTO");
     EXPECT_EQ(vfm::StaticHelper::readFile("generated_config_primary/main.smv").find("VFM_TASK7_PARKED_POS_2"), std::string::npos);
+}
+
+TEST_F(MortyLiveTests, RoundsObservedPositionsOnlyWhenEnabled) {
+    vfm::StaticHelper::writeTextToFile("MODULE main\n--EO-SPEC-STUFF\n", "generated_config_primary/main.smv");
+    vfm::test::prepareInputForMortyUCD("0,10.2,0,3.3,0;", -0.5f, 2, 12, "AUTO");
+    auto main = vfm::StaticHelper::readFile("generated_config_primary/main.smv");
+    EXPECT_NE(main.find("INIT env.veh___609___.abs_pos = 40;"), std::string::npos);
+
+    config["#TEMPLATE"]["UCD_ROUND_INPUTS"] = true;
+    writeConfig();
+    vfm::test::prepareInputForMortyUCD("0,10.2,0,3.3,0;", -0.5f, 2, 12, "AUTO");
+    main = vfm::StaticHelper::readFile("generated_config_primary/main.smv");
+    EXPECT_NE(main.find("INIT env.veh___609___.abs_pos = 41;"), std::string::npos);
+    EXPECT_NE(main.find("INIT env.veh___609___.v = 6;"), std::string::npos);
+}
+
+TEST_F(MortyLiveTests, Task11MapsApproachAndStraightConnectorWithoutTakingTurn) {
+    config["#TEMPLATE"]["UCD_EXP_NUM"] = 11;
+    writeConfig();
+    vfm::StaticHelper::writeTextToFile("MODULE main\n--EO-SPEC-STUFF\n", "generated_config_primary/main.smv");
+    vfm::StaticHelper::writeTextToFile("MODULE main\n--EO-SPEC-STUFF\n", "generated_config_fallback/main.smv");
+    const std::string geometry =
+        "Trace Description: test\nTrace Type: Counterexample\n -> State: 1.1 <-\n"
+        " env.section_0.angle = 0\n env.section_0.source.x = 0\n env.section_0.source.y = 0\n env.section_0_end = 400\n"
+        " env.section_1.angle = 0\n env.section_1.source.x = 118\n env.section_1.source.y = 0\n env.section_1_end = 400\n"
+        " env.section_2.angle = 90\n env.section_2.source.x = 109\n env.section_2.source.y = -109\n env.section_2_end = 400\n"
+        " env.section_3.angle = 90\n env.section_3.source.x = 109\n env.section_3.source.y = 9\n env.section_3_end = 400\n"
+        " env.outgoing_connection_0_of_section_0 = 1\n env.outgoing_connection_1_of_section_0 = 3\n"
+        " env.outgoing_connection_0_of_section_2 = 3\n env.outgoing_connection_1_of_section_2 = 1\n"
+        " env.veh___609___.on_straight_section = 2\n env.veh___609___.traversion_from = -1\n"
+        " env.veh___609___.traversion_to = -1\n -> State: 1.2 <-\n";
+    vfm::StaticHelper::writeTextToFile(geometry, "generated_config_primary/debug_trace_array.txt");
+    vfm::ScaleDescription scaling;
+    scaling.setTimeScalingFactor(2);
+    scaling.setDistanceScalingFactor(4);
+    for (const auto* section_end : { "section_0_end", "section_1_end", "section_2_end", "section_3_end" }) {
+        scaling.add(vfm::VariableScaleDescription{ std::string{ section_end } + ",distance" });
+    }
+    vfm::StaticHelper::writeTextToFile(scaling.serialize(), "generated_config_primary/scaling_info.txt");
+
+    vfm::test::prepareInputForMortyUCD("0,110.30552,-9.759388,3.2085652,21.083334,1.4197702;", -0.5f, 2, 2, "AUTO");
+    auto main = vfm::StaticHelper::readFile("generated_config_primary/main.smv");
+    EXPECT_NE(main.find("INIT env.veh___609___.on_straight_section = 2;"), std::string::npos);
+    EXPECT_NE(main.find("INIT env.veh___609___.abs_pos = 388;"), std::string::npos);
+
+    vfm::test::prepareInputForMortyUCD("0,111,-4,0,10,1.5707963;", -0.5f, 2, 2, "AUTO");
+    main = vfm::StaticHelper::readFile("generated_config_primary/main.smv");
+    EXPECT_NE(main.find("INIT env.veh___609___.on_straight_section = -1;"), std::string::npos);
+    EXPECT_NE(main.find("INIT env.veh___609___.traversion_from = 2;"), std::string::npos);
+    EXPECT_NE(main.find("INIT env.veh___609___.traversion_to = 3;"), std::string::npos);
 }
 
 #if defined(__linux__)

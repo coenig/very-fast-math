@@ -1435,7 +1435,7 @@ private:
          // neutral 0, making to_global reduce to the identity (long_pos, lat_pos) for the 0/0/0 case while
          // still reading the true geometry when a road network is present.
          std::map<int, std::tuple<float, float, float, float>> section_geometry{};
-         const auto read_section = [&trace, &section_geometry](const int sec_id) -> std::tuple<float, float, float, float> {
+         const auto read_section = [&trace, &section_geometry, &dist_scale_str](const int sec_id) -> std::tuple<float, float, float, float> {
             const auto cached{ section_geometry.find(sec_id) };
             if (cached != section_geometry.end()) return cached->second;
             const std::string id{ std::to_string(sec_id) };
@@ -1449,7 +1449,7 @@ private:
             const float angle{ read("env.section_" + id + ".angle", 0.0f) };
             const float sx{ read("env.section_" + id + ".source.x", 0.0f) };
             const float sy{ read("env.section_" + id + ".source.y", 0.0f) };
-            const float end{ read("env.section_" + id + "_end", 0.0f) };
+            const float end{ read("env.section_" + id + "_end", 0.0f) / std::stof(dist_scale_str) * 1000.0f };
             return section_geometry.emplace(sec_id, std::make_tuple(angle, sx, sy, end)).first->second;
          };
 

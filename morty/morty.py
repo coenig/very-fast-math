@@ -3,6 +3,21 @@ from ctypes import create_string_buffer, sizeof
 import gymnasium
 import highway_env
 from gymnasium.wrappers import RecordVideo
+
+
+# gymnasium < 1.0 names these start_video_recorder/close_video_recorder.
+def _start_recording(env, video_name):
+    if hasattr(RecordVideo, 'start_recording'):
+        env.start_recording(video_name)
+    else:
+        env.start_video_recorder()
+
+
+def _stop_recording(env):
+    if hasattr(RecordVideo, 'stop_recording'):
+        env.stop_recording()
+    else:
+        env.close_video_recorder()
 import os
 import shutil
 import argparse
@@ -20,6 +35,8 @@ from .morty_helper import (
     RunScheduler, MCConfigSelector, load_run_settings, snapshot_mc_results_offsets, run_reached_threshold, discard_run,
     randomize_until_collision_free, shortcut_bmc_bound,
     save_simulation_snapshot,
+    IDENTITY_FRAME, fixed_section_frames, fixed_section_lengths, frame_to_world, world_to_frame,
+    recycle_junction_vehicles,
 )
 from .persistent_solver import PersistentSolverPool
 import platform
@@ -288,6 +305,9 @@ with open('morty/envmodel_config.json') as f:
     bmc_cnt = d[ucd_config_prios_str[0]]["BMC_CNT"]
     # distance_formula_pp = d[ucd_config_prios_str[0]]["UCD_FORMULA_PP_DISTANCE"]             # HERE we DO make a difference, see below!
     vel_scale = dist_scale / time_scale  # velocity = distance / time
+    section_frames = fixed_section_frames(d[ucd_config_prios_str[0]])
+    if exp_num == 11:
+        section_lengths = fixed_section_lengths(d[ucd_config_prios_str[0]])
 
     if backward_driving_car_ids_str.endswith(')@'):
         backward_driving_car_ids_str = backward_driving_car_ids_str[:-2]
@@ -359,6 +379,9 @@ DIST_EXP_10_MC = int(DIST_EXP_10 * dist_scale)
 SPECS.append(f"""INVARSPEC !(@{{env.veh___6@{{[i]}}@.eval[0]9___.is_on_sec_1 = 1 & env.veh___6@{{[i]}}@.eval[0]9___.abs_pos > {DIST_EXP_10_MC}}}@*.for[[i], 0, {nonegos - 1}, 1, &]);""")
 # 10 Reach next section
 
+# 11: Junction (sections 0 -> 1 west to east, 2 -> 3 north to south): all cars have crossed. Even car IDs start west, odd ones north.
+SPECS.append("INVARSPEC !(" + " & ".join(f"env.veh___6{i}9___.is_on_sec_{1 + 2 * (i % 2)} = 1 & env.veh___6{i}9___.abs_pos > 5" for i in range(nonegos)) + ");")
+
 SUCC_CONDS.append(lambda: all(x < 1 for x in egos_v))
 SUCC_CONDS.append(lambda: all(abs(x - TARGET_VEL) < 1 for x in egos_v))
 SUCC_CONDS.append(lambda: maxDifferenceArray(egos_y[:-1]) < 4)
@@ -371,6 +394,7 @@ SUCC_CONDS.append(lambda: egos_x[0] >= egos_x[nonegos - 1] and egos_x[1] <= egos
 SUCC_CONDS.append(lambda: False) # 8
 SUCC_CONDS.append(lambda: all(x > DIST_EXP_9 for x in egos_x)) # 9
 SUCC_CONDS.append(lambda: False) # 10
+SUCC_CONDS.append(lambda: False) # 11 - no success condition for now as we use it as infinite scenario.
 
 addons = [''] * len(SPECS) # Add to main.smv depending on the experiment.
 ADDONS_CORE_DENOTER = "UCD addons"
@@ -430,6 +454,10 @@ addons[10] += f"""
 """
 for i in range(0, nonegos):
     addons[10] += f"INVAR env.cnt > 3 -> !env.veh___6{i}9___.lane_b0;\n"
+
+# 11
+for i in range(0, nonegos): # No turning in the junction (for now).
+    addons[11] += f"INVAR env.veh___6{i}9___.is_traversing_from_sec_0_to_sec_3 = 0 & env.veh___6{i}9___.is_traversing_from_sec_2_to_sec_1 = 0;\n"
 
 
 
@@ -628,7 +656,7 @@ for run_id, seedo in scheduler:
         "lanes_count": num_actual_lanes,
         "vehicles_count": 0,
         "screen_width": 1500,
-        "screen_height": 300,
+        "screen_height": 700,
         "scaling": 3,
         "real_time_rendering": False,
         "offscreen_rendering": args.force_snapshots and args.headless,
@@ -658,6 +686,7 @@ for run_id, seedo in scheduler:
     egos_v =        [0] * (nonegos + 1) # Absuolute (!) long vel of cars in m/s. Multiply with egos_backward to get the signed velocity as seen by the MC.
     egos_headings = [0] * (nonegos + 1) # Angle rel. to long axis in rad.
     egos_backward = [1] * (nonegos + 1) # If the respective car is a forward (1) or backward (-1) driving car.
+    egos_frames = [IDENTITY_FRAME] * nonegos # Per-car control frame (long/lat along the car's start section).
     nocex_count = 0
     crashed_count = 0
     cex_length_history = []
@@ -679,6 +708,7 @@ for run_id, seedo in scheduler:
     # Compute valid y range based on technical lane positions.
     y_min_tech = -LANE_WIDTH_HE / 2.0 + LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
     y_max_tech = -LANE_WIDTH_HE / 2.0 + (2 * num_technical_lanes - 1) * LANE_WIDTH_HE * num_actual_lanes / (2.0 * num_technical_lanes)
+    lat_center = LANE_WIDTH_HE * (num_actual_lanes - 1) / 2.0  # Rotation center of section frames (as in the C++ mapping).
 
     np.random.seed(seedo)
     rng = np.random.default_rng(seedo)
@@ -706,8 +736,13 @@ for run_id, seedo in scheduler:
             if cnt == 0:
                 vehicle.position[0] = 0
                 vehicle.position[1] = 0 # start at rightmost lane center (y=4m)
+        if exp_num == 11: # junction: even IDs start on section 0 (west), odd ones on section 2 (north)
+            egos_frames[cnt] = section_frames[0 if cnt % 2 == 0 else 2]
+            vehicle.position[0] = 15 + 35 * (cnt // 2)
 
-        # Remember the deterministic base position; the gaussian jitter and collision retries
+        vehicle.heading += egos_frames[cnt][0]
+
+        # Remember the deterministic base position (in the car's frame); the gaussian jitter and collision retries
         # below are applied relative to it so each redraw is independent of a rejected one.
         base_positions.append([float(vehicle.position[0]), float(vehicle.position[1])])
 
@@ -715,7 +750,8 @@ for run_id, seedo in scheduler:
 
     # Jitter the cars around their deterministic base positions until they no longer collide
     # (see randomize_until_collision_free for details); positions are mutated in place.
-    randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_tech)
+    randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_tech,
+                                   frames=egos_frames, lat_center=lat_center)
 
     viz_state.last_mc_ms = None
     viz_state.begin_mc_cycle()
@@ -736,7 +772,7 @@ for run_id, seedo in scheduler:
         env = RecordVideo(env, video_folder=f"{generated_path_prefix}/videos", name_prefix=f"vid_{run_id}",
                     episode_trigger=lambda e: True)  # record all episodes
         env.unwrapped.set_record_video_wrapper(env)
-        env.start_recording(f"vid_{run_id}")
+        _start_recording(env, f"vid_{run_id}")
         try:
             import highway_env as _he
             _he._display_env = env
@@ -774,6 +810,7 @@ for run_id, seedo in scheduler:
 
     selected_config = None
     last_full_solution_prio = None
+    recycled_last_step = False
     config_selector = (MCConfigSelector(len(ucd_config_prios_str), policy=args.mc_selection,
                                         shortcut_probe_points=args.shortcut_probe_points)
                        if args.mc_selection != 'all' else None)
@@ -790,10 +827,10 @@ for run_id, seedo in scheduler:
         mcinput = ""
         i = 0
         for el in obs: # Use only el[0] because it contains the abs values from the resp. car's perspective.
-            egos_x[i] = el[0][1]
-            egos_y[i] = el[0][2]
-            egos_v[i] = el[0][3] * egos_backward[i]
-            egos_headings[i] = el[0][5] - np.pi * (1 - egos_backward[i]) / 2
+            frame_angle = egos_frames[i][0]
+            egos_x[i], egos_y[i] = world_to_frame(egos_frames[i], el[0][1], el[0][2], lat_center)
+            egos_v[i] = (el[0][3] * np.cos(frame_angle) + el[0][4] * np.sin(frame_angle)) * egos_backward[i]
+            egos_headings[i] = el[0][5] - frame_angle - np.pi * (1 - egos_backward[i]) / 2
             for num, val in enumerate(el[0]): # Generate input for model checker.
                 if egos_backward[i] == -1 and num == 5:
                     mcinput += str(-val) + ","
@@ -803,6 +840,8 @@ for run_id, seedo in scheduler:
             i = i + 1
 
         input_trace = generated_path_prefix + selected_config + '/debug_trace_array.txt' if config_selector is not None and selected_config is not None else 'AUTO'
+        if recycled_last_step:
+            input_trace = generated_path_prefix + '/.no-trace-after-recycling'
         MC_INPUT_SCRIPT = f"""@{{
             @{{./src/templates/}}@.stringToHeap[MY_PATH]
 
@@ -1107,11 +1146,12 @@ for run_id, seedo in scheduler:
                     viz_state.pos_to_draw.append([coord, POS_COLOR[j % len(POS_COLOR)]])                
                 
                 if i <= 5: # second-next point (index 5) used as the pure-pursuit lookahead target for steering.
-                    coords_for_pp[j] = ((coord[0] - egos_x[j]) * egos_backward[j], coord[1])
+                    frame_x, frame_y = world_to_frame(egos_frames[j], coord[0], coord[1], lat_center)
+                    coords_for_pp[j] = ((frame_x - egos_x[j]) * egos_backward[j], frame_y)
                     if not args.live:
                         print(f"Step {i}, Car {j}: abspos={abspos}, latpos={latpos}, coord={coord}")
                 if i == 2: # Immediate next distinct point (one MC step ahead).
-                    accel_target_dist[j] = (coord[0] - egos_x[j]) * egos_backward[j]
+                    accel_target_dist[j] = (frame_x - egos_x[j]) * egos_backward[j]
 
         # EO Find future positions.
 
@@ -1209,6 +1249,8 @@ for run_id, seedo in scheduler:
                 s = accel_target_dist[i]
                 v0 = egos_v[i]
                 a_phys = 2.0 * (s - v0 * mc_step_time) / (mc_step_time ** 2)
+                current_speed = max(0.0, float(env.unwrapped.controlled_vehicles[i].speed))
+                a_phys = max(a_phys, -current_speed / mc_step_time)
                 accel = float(np.clip(a_phys / ACCEL_RANGE, -1.0, 1.0))
             else:
                 accel = 0.0  # No MC trajectory point available (degenerate trace): coast.
@@ -1271,8 +1313,8 @@ for run_id, seedo in scheduler:
             if not args.live and i < len(env.unwrapped.controlled_vehicles):
                 vehicle = env.unwrapped.controlled_vehicles[i]
                 
-                pp_target_x = float(vehicle.position[0] + egos_backward[i] * pp_distance)
-                pp_target_y = pp_latshift
+                pp_target_x, pp_target_y = map(float, frame_to_world(
+                    egos_frames[i], egos_x[i] + egos_backward[i] * pp_distance, pp_latshift, lat_center))
                 viz_state.pp_targets[id(vehicle)] = [pp_target_x, pp_target_y]
 
             # Pure-pursuit curvature law: delta = atan(2 L sin(alpha) / L_d). A close target
@@ -1293,6 +1335,22 @@ for run_id, seedo in scheduler:
         if args.force_head or args.force_snapshots:
             env.unwrapped.enable_auto_render = False
         obs, reward, done, truncated, info = env.step(action)
+        recycled_last_step = False
+        if exp_num == 11 and all(not vehicle.crashed for vehicle in env.unwrapped.road.vehicles):
+            recycled = recycle_junction_vehicles(
+                env.unwrapped.controlled_vehicles, section_frames, section_lengths, lat_center, dist_scale,
+                collision_vehicles=env.unwrapped.road.vehicles)
+            if recycled:
+                recycled_last_step = True
+                selected_config = None
+                last_full_solution_prio = None
+                print(f"Recycled junction vehicles: {recycled}")
+                obs = env.unwrapped.observation_type.observe()
+                for index in recycled:
+                    vehicle = env.unwrapped.controlled_vehicles[index]
+                    viz_state.trajectories.pop(id(vehicle), None)
+                if args.force_head:
+                    env.render()
         if args.force_snapshots:
             save_simulation_snapshot(env, snapshot_path, render=not args.force_head, viz_state=viz_state)
 
@@ -1338,7 +1396,7 @@ for run_id, seedo in scheduler:
             discard_run(run_id, generated_path_prefix, ucd_config_prios_str, mc_results_offsets,
                         all_cex_length_histories, all_selected_runtime_histories)
         if args.record_video:
-            env.stop_recording()
+            _stop_recording(env)
         env.close()
         continue  # seedo has already advanced; run_id stays so the next seed reuses it.
 
@@ -1348,7 +1406,7 @@ for run_id, seedo in scheduler:
             f.write("{" + min_max_curr(len(good_ones), run_id + 1, MAX_EXPs) + "} " + f"{run_id} (seed {seedo})" + " " + outcome + " [" + str(nocex_count) + " blind; " + blind_stats + "|]\n")
 
     if args.record_video:
-        env.stop_recording()
+        _stop_recording(env)
         suffix = ""
         if crashed_count > 0:
             suffix += "_crashed"
