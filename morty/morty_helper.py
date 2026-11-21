@@ -640,6 +640,8 @@ class VizState:
         self.selected_cnt = None  # currently active CEX priority (for coloring)
         self.pos_to_draw = []     # list of [coord, color] planned MC positions
         self.status = ""
+        self.run_id = None
+        self.seed = None
         self.mc_running = False
         self._status_font = None
         self._status_viewer = None
@@ -685,7 +687,7 @@ class VizState:
         self._draw_status(viewer)
 
     def _draw_status(self, viewer, refresh=True, surface=None):
-        if not self.status and self.last_mc_ms is None:
+        if not self.status and self.last_mc_ms is None and self.run_id is None:
             return
         import pygame
 
@@ -701,6 +703,8 @@ class VizState:
         background = (255, 221, 92) if self.mc_running else (229, 235, 239)
         pygame.draw.rect(surface, background, strip)
         text = self.status
+        if self.run_id is not None:
+            text = f"Run {self.run_id} | Seed {self.seed}" + (f" | {text}" if text else "")
         available_width = max(0, strip.width - 16)
         if self.last_mc_ms is not None:
             timing = self._status_font.render(f"Last cycle MC time: {self.last_mc_ms:.1f} ms", True, (25, 30, 35))

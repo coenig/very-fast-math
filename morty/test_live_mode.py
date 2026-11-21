@@ -325,6 +325,40 @@ class LiveModeTests(unittest.TestCase):
                 self.assertEqual(state.status, '')
                 self.assertFalse(state.mc_running)
 
+    def test_status_shows_run_and_seed_on_redraw_and_snapshot(self):
+        import pygame
+
+        pygame.font.init()
+        try:
+            state = helper.VizState()
+            viewer = SimpleNamespace(screen=pygame.Surface((800, 180)))
+            state._status_viewer = viewer
+            state._status_font = Mock(wraps=pygame.font.Font(None, 22))
+            state.run_id, state.seed = 0, 7
+            state.status = 'Cycle 1 | Preparing inputs'
+            state._draw_status(viewer, refresh=False)
+            state._status_font.render.assert_called_with(
+                'Run 0 | Seed 7 | Cycle 1 | Preparing inputs', True, (25, 30, 35))
+
+            state.run_id, state.seed = 0, 8
+            state.status = ''
+            state._draw_status(viewer, refresh=False, surface=pygame.Surface((800, 180)))
+            state._status_font.render.assert_called_with('Run 0 | Seed 8', True, (25, 30, 35))
+        finally:
+            pygame.font.quit()
+
+    def test_run_banner_context_updates_on_retry(self):
+        tree = ast.parse(Path('morty/morty.py').read_text())
+        run_loop = next(node for node in tree.body
+                        if isinstance(node, ast.For) and ast.unparse(node.target) == '(run_id, seedo)')
+        setup = compile(ast.Module(body=run_loop.body[:4], type_ignores=[]), '<run banner setup>', 'exec')
+        state = helper.VizState()
+        for seed in (7, 8):
+            state.status = 'Previous phase'
+            state.mc_running = True
+            exec(setup, {'viz_state': state, 'run_id': 0, 'seedo': seed})
+            self.assertEqual((state.run_id, state.seed, state.status, state.mc_running), (0, seed, '', False))
+
     def test_status_is_painted_immediately_and_survives_redrawing(self):
         import pygame
 

@@ -626,6 +626,10 @@ scheduler = RunScheduler(generated_path_prefix, MAX_EXPs, args.dryrun, persist=n
                          start_seed=args.start_seed)
 
 for run_id, seedo in scheduler:
+    viz_state.run_id = run_id
+    viz_state.seed = seedo
+    viz_state.status = ""
+    viz_state.mc_running = False
     # Snapshot the per-config MC results log lengths so an excluded run can be truncated away again.
     mc_results_offsets = {} if args.live else snapshot_mc_results_offsets(ucd_config_prios_str, generated_path_prefix)
 
