@@ -324,7 +324,7 @@ with open('morty/envmodel_config.json') as f:
 # only on MC side as backward-driving, forward-facing. This has to be modeled on the interface.
 
 
-
+# NOTE: Update the master_templates/note.txt whan something changes here.
 SPECS = []      # Predefined specs as checked in the experiments. (Collision-freedom is implicit.)
 SUCC_CONDS = [] # Conditions determining success of the specs.
 

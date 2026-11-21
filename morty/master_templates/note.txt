@@ -1,8 +1,16 @@
-These templates are (for now) intended to be pasted over "envmodel_config.tpl.json" in the father folder. 
+The starred templates are to be pasted over "envmodel_config.tpl.json" in the father folder to activate the resp. task.
 
-Task 4 (updated September 25)
-Task 7 (updated November 19)
-Task 10 (updated August 2)
-Task 11 (junction, updated November 19)
+  Task 0  (Brake to 0)
+  Task 1  (Accelerate to 50)
+  Task 2  (<1 lane width apart)
+  Task 3  (Dynamic choreography)
+* Task 4  (Reversed order of cars) Updated September 25, 2026
+  Task 5  (TRUE)
+  Task 6  (FALSE)
+* Task 7  (Narrow road)            Updated November 19, 2026
+  Task 8  (DUMMY)
+  Task 9  (DUMMY)
+* Task 10 (Reach next section)     Updated August 2, 2026
+* Task 11 (Junction)               Updated November 19, 2026
 
-TODO: Find a good way to encode different tasks as a whole directly within the "envmodel_config.tpl.json". (Such artifacts get outdated when development goes on.)
+TODO: Find a good way to encode different tasks as a whole directly within the "envmodel_config.tpl.json", since such artifacts get outdated when development goes on.
