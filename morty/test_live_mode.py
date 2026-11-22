@@ -14,6 +14,120 @@ from . import morty_helper as helper
 
 
 class LiveModeTests(unittest.TestCase):
+    def test_recorded_cycle_frame_uses_post_recycling_state(self):
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        function = next(node for node in module.body if isinstance(node, ast.FunctionDef)
+                        and node.name == '_update_recorded_cycle_frame')
+        namespace = {}
+        exec(compile(ast.Module(body=[function], type_ignores=[]), '<recorded cycle>', 'exec'), namespace)
+        update = namespace['_update_recorded_cycle_frame']
+        for legacy in [False, True]:
+            with self.subTest(legacy=legacy):
+                frames = ['intermediate', 'before recycling']
+                renderer = SimpleNamespace(render=Mock(return_value='after recycling'))
+                env = SimpleNamespace(recording=True, env=renderer,
+                                      recorded_frames=2 if legacy else frames,
+                                      video_recorder=SimpleNamespace(recorded_frames=frames))
+                update(env)
+                self.assertEqual(frames, ['intermediate', 'after recycling'])
+                renderer.render.assert_called_once()
+                env.recording = False
+                update(env)
+                renderer.render.assert_called_once()
+
+    def test_recorded_cycle_frame_updates_real_video_buffer(self):
+        import gymnasium
+        import imageio.v2 as imageio
+        import numpy as np
+        from gymnasium.wrappers import RecordVideo
+
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        functions = [node for node in module.body if isinstance(node, ast.FunctionDef)
+                     and node.name in ('_start_recording', '_stop_recording', '_update_recorded_cycle_frame')]
+        namespace = {'RecordVideo': RecordVideo}
+        exec(compile(ast.Module(body=functions, type_ignores=[]), '<recording>', 'exec'), namespace)
+
+        class FrameEnv(gymnasium.Env):
+            metadata = {'render_fps': 2}
+            render_mode = 'rgb_array'
+
+            def __init__(self):
+                self.value = 0
+
+            def render(self):
+                return np.full((16, 16, 3), self.value, dtype=np.uint8)
+
+        with TemporaryDirectory() as folder:
+            base = FrameEnv()
+            env = RecordVideo(base, video_folder=folder, episode_trigger=lambda episode: True)
+            try:
+                namespace['_start_recording'](env, 'cycle')
+                frames = env.recorded_frames if isinstance(env.recorded_frames, list) else env.video_recorder.recorded_frames
+                self.assertEqual(len(frames), 1)
+                base.value = 127
+                namespace['_update_recorded_cycle_frame'](env)
+                self.assertEqual(len(frames), 1)
+                np.testing.assert_array_equal(frames[0], np.full((16, 16, 3), 127, dtype=np.uint8))
+            finally:
+                namespace['_stop_recording'](env)
+                env.close()
+            video = next(Path(folder).glob('*.mp4'))
+            reader = imageio.get_reader(str(video))
+            try:
+                self.assertAlmostEqual(float(np.mean(reader.get_data(0))), 127, delta=3)
+            finally:
+                reader.close()
+
+    def test_video_recording_preserves_twenty_cycle_simulation(self):
+        import gymnasium
+        import highway_env
+        import numpy as np
+        from gymnasium.wrappers import RecordVideo
+
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        functions = [node for node in module.body if isinstance(node, ast.FunctionDef)
+                     and node.name in ('_start_recording', '_stop_recording', '_update_recorded_cycle_frame')]
+        namespace = {'RecordVideo': RecordVideo}
+        exec(compile(ast.Module(body=functions, type_ignores=[]), '<recording>', 'exec'), namespace)
+        config = {
+            'controlled_vehicles': 2, 'vehicles_count': 0, 'lanes_count': 2,
+            'simulation_frequency': 60, 'policy_frequency': 2,
+            'screen_width': 160, 'screen_height': 100, 'real_time_rendering': False,
+            'offscreen_rendering': True,
+            'action': {'type': 'MultiAgentAction', 'action_config': {'type': 'ContinuousAction'}},
+        }
+        with TemporaryDirectory() as folder, patch.dict('os.environ', {'SDL_VIDEODRIVER': 'dummy'}):
+            plain = gymnasium.make('highway-v0', render_mode=None, config=config)
+            visual = gymnasium.make('highway-v0', render_mode='rgb_array', config=config)
+            plain.reset(seed=12010)
+            visual.reset(seed=12010)
+            visual.render()
+            visual.unwrapped.viewer.enabled = True
+            recording = RecordVideo(visual, video_folder=folder, episode_trigger=lambda episode: True)
+            recording.unwrapped.set_record_video_wrapper(recording)
+            try:
+                namespace['_start_recording'](recording, 'cycle')
+                for cycle in range(20):
+                    action = ([0.05, 0.02], [-0.05, -0.02])
+                    plain.step(action)
+                    recording.step(action)
+                    if cycle in (0, 5, 10, 15):
+                        for env in (plain, recording):
+                            env.unwrapped.controlled_vehicles[0].position[0] += 5
+                    namespace['_update_recorded_cycle_frame'](recording)
+                    for expected, actual in zip(plain.unwrapped.controlled_vehicles,
+                                                recording.unwrapped.controlled_vehicles):
+                        np.testing.assert_array_equal(expected.position, actual.position)
+                        self.assertEqual(expected.speed, actual.speed)
+                        self.assertEqual(expected.heading, actual.heading)
+                frames = (recording.recorded_frames if isinstance(recording.recorded_frames, list)
+                          else recording.video_recorder.recorded_frames)
+                np.testing.assert_array_equal(frames[-1], visual.render())
+            finally:
+                namespace['_stop_recording'](recording)
+                recording.close()
+                plain.close()
+
     def test_junction_recycling_uses_model_scale_and_avoids_occupied_spawn(self):
         import numpy as np
         from highway_env.vehicle.kinematics import Vehicle

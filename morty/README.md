@@ -30,6 +30,14 @@ populate `morty_mc_results.txt`. Detailed archives from selective runs are not s
 `--dryrun`; shortcut decisions and skipped configurations cannot be reliably reconstructed from
 those archives.
 
+`adaptive` selection and cost-gated shortcuts use measured query times, so even the same seed
+can produce a different query order. With `priority` and `UCD_USE_SHORTCUT: false`, the query
+order does not depend on these timings.
+
+Videos include intermediate simulation frames. When the status strip is visible, the frame labeled
+`MC idle - cycle complete` is captured after junction vehicle recycling, at the same cycle boundary
+as the live PDF snapshot. Earlier frames labeled `Stepping simulation` show that cycle in progress.
+
 To watch the simulation while retaining the live planning path, explicitly opt into the viewer:
 
 ```bash

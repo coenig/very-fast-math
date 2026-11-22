@@ -18,6 +18,22 @@ def _stop_recording(env):
         env.stop_recording()
     else:
         env.close_video_recorder()
+
+
+def _update_recorded_cycle_frame(env):
+    if not getattr(env, 'recording', False):
+        return
+    frames = getattr(env, 'recorded_frames', None)
+    if not isinstance(frames, list):
+        frames = getattr(getattr(env, 'video_recorder', None), 'recorded_frames', None)
+    if not isinstance(frames, list) or not frames:
+        return
+    frame = env.env.render()
+    if isinstance(frame, list):
+        frame = frame[-1] if frame else None
+    if frame is not None:
+        frames[-1] = frame
+
 import os
 import shutil
 import argparse
@@ -1371,6 +1387,8 @@ for run_id, seedo in scheduler:
             env.render()
 
         show_sim_status(f"Cycle {global_counter + 1} | MC idle - cycle complete")
+        if args.record_video:
+            _update_recorded_cycle_frame(env)
 
         # Flush partial video every iteration.
         # if args.record_video and not args.dryrun and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:
