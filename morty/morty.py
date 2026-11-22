@@ -94,12 +94,14 @@ if args.force_head and args.headless:
     parser.error('--force_head cannot be combined with --headless')
 if args.force_snapshots and not args.live:
     parser.error('--force_snapshots requires --live')
-if args.mc_selection != 'all' and not args.live:
-    parser.error(f'UCD_MC_SELECTION={args.mc_selection} requires --live. Use "all" to achieve the equivalent behavior in regular mode.')
+if args.dryrun and args.mc_selection != 'all':
+    parser.error('--dryrun does not support replaying selective-planning archives')
 if args.mc_selection == 'all' and (args.shortcut_bmc_slack is not None or args.shortcut_probe_points
                                    or args.persistent_solver):
     parser.error('UCD_SHORTCUT_BMC_SLACK, UCD_SHORTCUT_PROBE_POINTS and UCD_PERSISTENT_SOLVER '
                  'require UCD_MC_SELECTION priority or adaptive')
+if (args.live or (args.mc_selection != 'all' and not args.dryrun)) and platform.system() == 'Linux' and shutil.which('timeout') is None:
+    parser.error('Live and selective planning require the coreutils timeout command on Linux')
 
 persistent_pool = None
 if args.persistent_solver:
@@ -110,8 +112,6 @@ if args.persistent_solver:
 if args.live:
     if args.dryrun or args.record_video or args.detailed_archive:
         parser.error('--live cannot be combined with --dryrun, --record_video, or --detailed_archive')
-    if platform.system() == 'Linux' and shutil.which('timeout') is None:
-        parser.error('--live requires the coreutils timeout command on Linux')
     args.headless = not args.force_head
     args.hide_trajectories = True
     args.hide_pure_pursuit = True
@@ -149,8 +149,8 @@ def show_sim_status(text, mc_running=False):
 
 def run_planning_script(script, result, description, config_name=None):
     if config_name is not None:
-        if not args.live or args.dryrun:
-            raise ValueError('Selective model checking requires a live run')
+        if args.dryrun:
+            raise ValueError('Selective model checking is unavailable during replay')
         if (config_name not in ucd_config_prios_str or script.count('.runMCJobs[16]') != 1
             or '.prepareInputForMortyUCD' in script):
             raise ValueError('Invalid selective model-checking request')
@@ -162,7 +162,7 @@ def run_planning_script(script, result, description, config_name=None):
     show_sim_status(f"{cycle} | {phase} ({description})", mc_running=not args.dryrun)
     try:
         with viz_state.measure_mc_query(enabled=not args.dryrun):
-            with morty_script_context(live=args.live) as morty_lib:
+            with morty_script_context(live=args.live or config_name is not None) as morty_lib:
                 output = morty_lib.expandScript(script.encode('utf-8'), result, sizeof(result))
     except BaseException:
         show_sim_status(f"{cycle} | Planning interrupted or failed")
@@ -817,9 +817,9 @@ for run_id, seedo in scheduler:
     recycled_last_step = False
     config_selector = (MCConfigSelector(len(ucd_config_prios_str), policy=args.mc_selection,
                                         shortcut_probe_points=args.shortcut_probe_points)
-                       if args.mc_selection != 'all' else None)
+                       if args.mc_selection != 'all' and not args.dryrun else None)
     # Live mode skips the Windows watchdog: its WMI process scan and 3 s sleep add ~4 s to every query.
-    watchdog_start = '' if args.live else '@{nuXmv}@.killAfter[300].Detach.setScriptVar[scriptID, force]'
+    watchdog_start = '' if args.live or config_selector is not None else '@{nuXmv}@.killAfter[300].Detach.setScriptVar[scriptID, force]'
     watchdog_stop = '' if not watchdog_start else '@{scriptID}@.scriptVar.StopScript'
     
     global_counter = -1  # Guards the validity check below if the inner loop never runs (e.g. steps_per_run == 0).
@@ -986,7 +986,9 @@ for run_id, seedo in scheduler:
         if not args.live:
             selected_cnt_history.append(selected_cnt)
             for config_name in ucd_config_prios_str:
-                mc_runtime_histories[config_name].append(_latest_nuxmv_runtime_seconds(config_name, generated_path_prefix))
+                runtime = (np.nan if config_selector is not None else
+                           _latest_nuxmv_runtime_seconds(config_name, generated_path_prefix))
+                mc_runtime_histories[config_name].append(runtime)
             selected_runtime_history.append(mc_runtime_histories[selected_config][-1] if selected_cnt is not None else np.nan)
 
         # Distribute the selected future points to all other configs.

@@ -10,8 +10,25 @@ With `UCD_MC_SELECTION: "all"` in the template, `--live` keeps the configured mo
 pure-pursuit formulas, and optional shortcut checks. It disables visualization, video, plots,
 archives, experiment statistics, diagnostic logging, and the extra `FALSE`-specification debug
 solve. Warnings and errors remain enabled. The active template instead uses the recommended
-`priority` selection described below, which requires `--live`. Set `UCD_MC_SELECTION` to
-`all` to use ordinary experiment or replay mode.
+`priority` selection described below, which is also available in ordinary experiment mode.
+
+To record a run with the same selective planner and persistent solver, keep the same template
+and starting seed and use, for example (`--force` deletes existing results, including snapshots):
+
+```bash
+python3 -m morty.morty --force -n 1 --fit_roads --record_video
+```
+
+Videos are written under `<generated_path>/videos`. Start from the same seed and configuration,
+including any earlier rejected attempts: persistent solver state and solver choices can depend on
+the query history. A matching seed alone is not a guarantee of an identical trace across solver
+versions, timeouts, or different prior queries. Selective queries use the live native planning
+backend in both modes; regular mode still produces visualization and diagnostic outputs. Its
+per-configuration nuXmv runtime plots have missing samples for selective queries, since the live
+backend and persistent solver do not write the regular runtime log. Selective queries also do not
+populate `morty_mc_results.txt`. Detailed archives from selective runs are not supported by
+`--dryrun`; shortcut decisions and skipped configurations cannot be reliably reconstructed from
+those archives.
 
 To watch the simulation while retaining the live planning path, explicitly opt into the viewer:
 
@@ -190,7 +207,7 @@ Add `--force_head` for the optional viewer. Selection options are:
 - `adaptive`: the same one-query orchestration with cost/success-ranked configuration lists.
   It can accept a lower-priority configuration without first trying every stricter one.
 
-Both selective policies require `--live`. They change which queries run and their order,
+Both selective policies are available in either mode. They change which queries run and their order,
 not individual solver algorithms, bounds, model parameters, or vehicle dynamics. `priority`
 preserves configuration order within each list, not the legacy shortcut-first cascade across
 all saved waypoints. Neither policy guarantees the largest feasible box across all targets.

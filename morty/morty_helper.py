@@ -577,12 +577,14 @@ def morty_script_context(live=False):
                 raise RuntimeError('--live requires rebuilding the native VFM library') from error
             morty_lib.expandScript.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t]
             morty_lib.expandScript.restype = ctypes.c_char_p
-            morty_lib.setMortyLiveMode(True)
             _live_morty_lib = morty_lib
+        _live_morty_lib.setMortyLiveMode(True)
         yield _live_morty_lib
         return
 
     with clean_library_context(dll_dir + '/' + dll_name) as morty_lib:
+        if _live_morty_lib is not None:
+            _live_morty_lib.setMortyLiveMode(False)
         morty_lib.expandScript.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t]
         morty_lib.expandScript.restype = ctypes.c_char_p
         

@@ -8,7 +8,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock, mock_open, patch
+from unittest.mock import Mock, call, mock_open, patch
 
 from . import morty_helper as helper
 
@@ -230,13 +230,17 @@ class LiveModeTests(unittest.TestCase):
                 self.assertFalse(args.force_snapshots)
                 self.assertEqual(args.mc_selection, 'all')
 
-    def test_adaptive_selection_is_live_only_and_opt_in(self):
+    def test_selective_planning_is_available_in_both_modes(self):
         for policy in ['adaptive', 'priority']:
-            template = {'UCD_MC_SELECTION': policy}
-            with self.subTest(policy=policy):
-                self.assertEqual(self.parse_driver_options('--live', template=template).mc_selection, policy)
-                with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
-                    self.parse_driver_options(template=template)
+            for options in [(), ('--live',), ('--record_video',)]:
+                template = {'UCD_MC_SELECTION': policy, 'UCD_PERSISTENT_SOLVER': True}
+                with self.subTest(policy=policy, options=options):
+                    args = self.parse_driver_options(*options, template=template)
+                    self.assertEqual(args.mc_selection, policy)
+                    self.assertTrue(args.persistent_solver)
+            with self.subTest(policy=policy, options='dryrun'), contextlib.redirect_stderr(io.StringIO()), \
+                 self.assertRaises(SystemExit):
+                self.parse_driver_options('--dryrun', template=template)
 
     def test_behavior_settings_cannot_be_overridden_by_cli(self):
         for option, value in [('--mc_selection', 'adaptive'), ('--start_seed', '7'),
@@ -558,21 +562,27 @@ class LiveModeTests(unittest.TestCase):
                 return b'fresh result'
 
             library = SimpleNamespace(expandScript=Mock(side_effect=native_call))
-            namespace = {'args': SimpleNamespace(live=True, dryrun=False), 'global_counter': 0,
+            context = Mock(side_effect=lambda **kwargs: contextlib.nullcontext(library))
+            namespace = {'args': SimpleNamespace(live=False, dryrun=False), 'global_counter': 0,
                          'show_sim_status': Mock(), 'sizeof': sizeof, 'Path': Path,
                          'viz_state': helper.VizState(),
-                         'morty_script_context': lambda **kwargs: contextlib.nullcontext(library),
+                         'morty_script_context': context,
                          'ucd_config_prios_str': configs, 'generated_path_prefix': prefix}
             exec(compile(ast.Module(body=[function], type_ignores=[]), '<selected query>', 'exec'), namespace)
             result = namespace['run_planning_script']('@{config.json}@.runMCJobs[16]',
                                                      create_string_buffer(100), 'full plan', '_fallback')
             self.assertEqual(result, b'fresh result')
             library.expandScript.assert_called_once()
+            context.assert_called_once_with(live=True)
             with self.assertRaisesRegex(ValueError, 'Invalid selective'):
                 namespace['run_planning_script']('@{config.json}@.runMCJobs[16]',
                                                  create_string_buffer(100), 'full plan', '_unknown')
             with self.assertRaisesRegex(ValueError, 'Invalid selective'):
                 namespace['run_planning_script']('@{}@.prepareInputForMortyUCD[0,2,12,AUTO]@{config.json}@.runMCJobs[16]',
+                                                 create_string_buffer(100), 'full plan', '_fallback')
+            namespace['args'].dryrun = True
+            with self.assertRaisesRegex(ValueError, 'unavailable during replay'):
+                namespace['run_planning_script']('@{config.json}@.runMCJobs[16]',
                                                  create_string_buffer(100), 'full plan', '_fallback')
 
     def test_adaptive_input_uses_previous_selected_geometry(self):
@@ -1104,7 +1114,20 @@ class LiveModeTests(unittest.TestCase):
                 with helper.morty_script_context(live=True) as second:
                     self.assertIs(first, second)
                 loader.assert_called_once()
-                first.setMortyLiveMode.assert_called_once_with(True)
+                self.assertEqual(first.setMortyLiveMode.call_args_list, [call(True), call(True)])
+
+    def test_native_mode_switches_between_selective_planning_and_diagnostics(self):
+        library = Mock()
+        with patch.object(helper.ctypes, 'CDLL', return_value=library), \
+             patch.object(helper, '_live_morty_lib', None), \
+             patch.object(helper, 'clean_library_context', return_value=contextlib.nullcontext(library)):
+            with helper.morty_script_context(live=True):
+                pass
+            with helper.morty_script_context(live=False):
+                pass
+            with helper.morty_script_context(live=True):
+                pass
+        self.assertEqual(library.setMortyLiveMode.call_args_list, [call(True), call(False), call(True)])
 
     def test_old_library_is_rejected(self):
         with patch.object(helper.ctypes, 'CDLL', return_value=SimpleNamespace()):
