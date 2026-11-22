@@ -52,7 +52,7 @@ from .morty_helper import (
     randomize_until_collision_free, shortcut_bmc_bound,
     save_simulation_snapshot,
     IDENTITY_FRAME, fixed_section_frames, fixed_section_lengths, frame_to_world, world_to_frame,
-    recycle_junction_vehicles,
+    recycle_junction_vehicles, reset_world_surface_camera,
 )
 from .persistent_solver import PersistentSolverPool
 import platform
@@ -772,6 +772,7 @@ for run_id, seedo in scheduler:
     # (see randomize_until_collision_free for details); positions are mutated in place.
     randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_tech,
                                    frames=egos_frames, lat_center=lat_center)
+    reset_world_surface_camera(env)
 
     viz_state.last_mc_ms = None
     viz_state.begin_mc_cycle()

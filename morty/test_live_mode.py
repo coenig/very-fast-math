@@ -240,6 +240,45 @@ class LiveModeTests(unittest.TestCase):
         self.assertEqual(namespace['obs'], 'observed')
         self.assertTrue(namespace['recycled_last_step'])
 
+    def test_camera_framing_hysteresis_delays_vehicle_appearances_and_disappearances(self):
+        framing = helper.CameraFramingState(
+            padding=10, transition_hold_frames=2, transition_alpha=0.15)
+        initial = framing.update({"xmin": 0, "ymin": 0, "xmax": 100, "ymax": 20})
+        self.assertEqual(initial, {"xmin": -10, "ymin": -10, "xmax": 110, "ymax": 30})
+
+        within_padding = framing.update(
+            {"xmin": -9, "ymin": -9, "xmax": 109, "ymax": 29})
+        self.assertEqual(within_padding, initial)
+
+        expanded = framing.update(
+            {"xmin": -11, "ymin": -11, "xmax": 111, "ymax": 31})
+        self.assertEqual(expanded, initial)
+        self.assertEqual(framing.update(
+            {"xmin": -11, "ymin": -11, "xmax": 111, "ymax": 31}), initial)
+        expanded = framing.update(
+            {"xmin": -11, "ymin": -11, "xmax": 111, "ymax": 31})
+        self.assertLess(expanded["xmin"], initial["xmin"])
+        self.assertGreater(expanded["xmin"], -21)
+        self.assertGreater(expanded["xmax"], initial["xmax"])
+        self.assertLess(expanded["xmax"], 121)
+        continued = framing.update(
+            {"xmin": -11, "ymin": -11, "xmax": 111, "ymax": 31})
+        self.assertLess(continued["xmin"], expanded["xmin"])
+        self.assertGreater(continued["xmax"], expanded["xmax"])
+
+        contracted = {"xmin": 20, "ymin": 2, "xmax": 80, "ymax": 18}
+        self.assertEqual(framing.update(contracted), continued)
+        self.assertEqual(framing.hold_current(), continued)
+        self.assertEqual(framing.update(contracted), continued)
+        self.assertEqual(framing.update(contracted), continued)
+        eased = framing.update(contracted)
+        self.assertLess(eased["xmin"], 10)
+        self.assertGreater(eased["xmin"], continued["xmin"])
+        self.assertGreater(eased["xmax"], 90)
+        self.assertLess(eased["xmax"], continued["xmax"])
+        self.assertTrue(eased["xmin"] <= contracted["xmin"] - 10)
+        self.assertTrue(eased["xmax"] >= contracted["xmax"] + 10)
+
     def test_smv_parked_specialization_requires_stationary_lane_hold(self):
         from .evaluate_smv_encodings import freeze_parked
 
