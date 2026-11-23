@@ -207,7 +207,7 @@ def recycle_junction_vehicles(vehicles, section_frames, section_lengths, lat_cen
         if target_long * dist_scale <= threshold:
             continue
         preferred = max(0.0, section_lengths[source_id] - 20.0)
-        vehicle_length, vehicle_width = vehicle.LENGTH + 4, vehicle.WIDTH + 3
+        vehicle_length, vehicle_width = vehicle.LENGTH + 5, vehicle.WIDTH + 5
         radius = math.hypot(vehicle_length, vehicle_width) / 2
         for offset in range(math.ceil(preferred) + 1):
             position = frame_to_world(source, max(0.0, preferred - offset), target_lat, lat_center)
