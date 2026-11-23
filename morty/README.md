@@ -10,20 +10,52 @@ With `UCD_MC_SELECTION: "all"` in the template, `--live` keeps the configured mo
 pure-pursuit formulas, and optional shortcut checks. It disables visualization, video, plots,
 archives, experiment statistics, diagnostic logging, and the extra `FALSE`-specification debug
 solve. Warnings and errors remain enabled. The active template instead uses the recommended
-`priority` selection described below, which requires `--live`. Set `UCD_MC_SELECTION` to
-`all` to use ordinary experiment or replay mode.
+`priority` selection described below, which is also available in ordinary experiment mode.
 
-To watch the simulation while retaining the live planning path, explicitly opt into the viewer:
+To record a run with the same selective planner and persistent solver, keep the same template
+and starting seed and use, for example (`--force` deletes existing results, including snapshots):
+
+```bash
+python3 -m morty.morty --force -n 1 --fit_roads --record_video
+```
+
+Videos are written under `<generated_path>/videos`. To reproduce a single run, set
+`UCD_START_SEED` to its seed (shown in the status strip and in `results.txt`) and use `-n 1`.
+Selective queries use the live native planning
+backend in both modes; regular mode still produces visualization and diagnostic outputs. Its
+per-configuration nuXmv runtime plots have missing samples for selective queries, since the live
+backend and persistent solver do not write the regular runtime log. Selective queries also do not
+populate `morty_mc_results.txt`. Detailed archives from selective runs are not supported by
+`--dryrun`; shortcut decisions and skipped configurations cannot be reliably reconstructed from
+those archives.
+
+Each run reseeds the simulator from its seed, starts fresh persistent-solver sessions, and
+removes the previous run's working traces and stored plans (`debug_trace_array.txt`,
+`future_point_*.txt`), so a seed's result does not depend on earlier runs or rejected attempts.
+Windows, snapshots, and video do not change planning inputs. Query order is timing-independent
+for `all`, and for `priority` with `UCD_USE_SHORTCUT: false` or a positive
+`UCD_SHORTCUT_PROBE_POINTS`. `adaptive` selection and the cost-gated legacy shortcut probe
+(`UCD_SHORTCUT_PROBE_POINTS: 0`) use measured query times, so the same seed can then produce
+different results. Identical results also require the same configuration, native and solver
+versions, and no solver timeouts.
+
+Videos include intermediate simulation frames. When the status strip is visible, the frame labeled
+`MC idle - cycle complete` is captured after junction vehicle recycling, at the same cycle boundary
+as the live PDF snapshot. Earlier frames labeled `Stepping simulation` show that cycle in progress.
+
+Regular mode shows the simulation window unless `--headless` is given; there, `--force_head` only
+makes this explicit and keeps the regular, recordable window. With `--live`, it opens the viewer
+as an exception to the headless default:
 
 ```bash
 python3 -m morty.morty --live --force_head
 ```
 
-`--force_head` requires `--live` and cannot be combined with `--headless`. Plain `--live`
-remains fully headless. The viewer shows the road, vehicles, and vehicle IDs, updating once per
-control cycle without a frame-rate delay. Physics stepping is unchanged. Trajectory overlays,
-debug plots, statistics, video, archives, and the extra debug solve remain disabled. The window
-has a status strip: yellow means `MC pipeline running` (full plan or numbered shortcut attempt),
+`--force_head` cannot be combined with `--headless`. Plain `--live` remains fully headless. The
+live viewer shows the road, vehicles, and vehicle IDs, updating once per control cycle without a
+frame-rate delay; regular windows also show intermediate simulation frames. Physics stepping is
+unchanged. In live mode, trajectory overlays, debug plots, statistics, video, archives, and the
+extra debug solve remain disabled. The window has a status strip: yellow means `MC pipeline running` (full plan or numbered shortcut attempt),
 while gray identifies input preparation, road rendering, result processing, and simulation steps.
 The MC label includes the native input/solver/output pipeline, not just nuXmv CPU time.
 The strip also shows `Last cycle MC: ... ms`: the summed wall time of all yellow MC
@@ -38,21 +70,25 @@ without visualization costs. A working graphical display is required (for exampl
 forwarding when running remotely).
 
 To save one PDF of the current simulation state per planning/control cycle, independently
-of the viewer, use:
+of the viewer, use `--force_snapshots` in either mode:
 
 ```bash
+python3 -m morty.morty --force_snapshots
+python3 -m morty.morty --headless --force_snapshots
 python3 -m morty.morty --live --force_snapshots
 python3 -m morty.morty --live --force_snapshots --force_head
 ```
 
-`--force_snapshots` requires `--live` and works with `--headless`. Files are saved under
+Files are saved under
 `<generated_path>/snapshots/run_<run_id>_seed_<seed>/cycle_000001.pdf`, numbered from one.
-Each PDF contains a single 1500-by-300-pixel simulation image, not vector artwork. Normal
+Each PDF contains a single 1500-by-700-pixel simulation image, not vector artwork. Normal
 cycles capture the state after stepping; cycles that terminate at the goal or because no
 plan is available capture the final unstepped state instead. Seed-specific folders preserve
-snapshots from runs excluded by the minimum-iteration threshold. No video, plots, statistics,
-or archives are enabled. Without `--force_head`, rendering is offscreen and opens no window;
-with it, the snapshot reuses the already rendered step. This adds one PDF write per cycle
+snapshots from runs excluded by the minimum-iteration threshold. Regular mode keeps its usual
+window, video, plots, statistics, and archive behavior; live mode continues to omit those outputs.
+Headless runs render offscreen and open no window; with `--live --force_head`, the snapshot
+reuses the already rendered step. Live and headless regular runs without video skip intermediate
+frames that nothing would show. This adds one PDF write per cycle
 and the same one-time road-background generation cost as the viewer. Both offscreen
 and visible snapshots include the same `Last cycle MC: ... ms` annotation for the
 captured cycle, including terminal cycles that do not step the simulation.
@@ -100,7 +136,8 @@ shortcut to waypoint `p` (which lies `p + 1` steps ahead) to `p + 1 + slack` BMC
 `BMC_CNT`, so a missed shortcut fails in ~one step instead of a full-depth search.
 `UCD_SHORTCUT_PROBE_POINTS` first probes the next waypoints of the current plan (best eligible
 and current plan configuration) before any full replanning. `UCD_PERSISTENT_SOLVER` keeps one
-interactive nuXmv process per configuration (model parsed and encoded once); the per-cycle
+interactive nuXmv process per configuration within a run (model parsed and encoded once); sessions
+are closed before the next seed. The per-cycle
 observations are passed as frozen-variable constraints inside the checked property, see
 [persistent_solver.py](persistent_solver.py). Unsupported model layouts fall back to the
 per-query process. `UCD_ROUND_INPUTS` rounds the observed longitudinal positions to model units
@@ -190,7 +227,7 @@ Add `--force_head` for the optional viewer. Selection options are:
 - `adaptive`: the same one-query orchestration with cost/success-ranked configuration lists.
   It can accept a lower-priority configuration without first trying every stricter one.
 
-Both selective policies require `--live`. They change which queries run and their order,
+Both selective policies are available in either mode. They change which queries run and their order,
 not individual solver algorithms, bounds, model parameters, or vehicle dynamics. `priority`
 preserves configuration order within each list, not the legacy shortcut-first cascade across
 all saved waypoints. Neither policy guarantees the largest feasible box across all targets.

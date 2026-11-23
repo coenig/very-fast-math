@@ -196,7 +196,14 @@ def world_to_frame(frame, x, y, lat_center):
     return dx * ca + dy * sa, -dx * sa + dy * ca
 
 def recycle_junction_vehicles(vehicles, section_frames, section_lengths, lat_center, dist_scale,
-                              threshold=10, collision_vehicles=None):
+                              threshold=10, collision_vehicles=None, brake_decel=3.0, reaction_time=1.0,
+                              lane_corridor=4.0, junction_margin=5.0):
+    """Teleport vehicles that crossed the junction back onto their source section.
+
+    Besides the static clearance, a spawn spot must leave a speed-dependent following gap (reaction
+    distance + braking-distance difference at `brake_decel`) to same-direction vehicles within
+    `lane_corridor` laterally, ahead and behind. The recycled speed is capped so the vehicle can
+    still stop `junction_margin` before the junction from the section start."""
     recycled = []
     collision_vehicles = vehicles if collision_vehicles is None else collision_vehicles
     for index, vehicle in enumerate(vehicles):
@@ -206,18 +213,46 @@ def recycle_junction_vehicles(vehicles, section_frames, section_lengths, lat_cen
         target_long, target_lat = world_to_frame(target, *vehicle.position, lat_center)
         if target_long * dist_scale <= threshold:
             continue
-        preferred = max(0.0, section_lengths[source_id] - 20.0)
-        vehicle_length, vehicle_width = vehicle.LENGTH + 4, vehicle.WIDTH + 3
+        section_length = section_lengths[source_id]
+        preferred = max(0.0, section_length - 20.0)
+        speed = min(abs(vehicle.speed), math.sqrt(2.0 * brake_decel * max(0.0, section_length - junction_margin)))
+        vehicle_length, vehicle_width = vehicle.LENGTH + 5, vehicle.WIDTH + 5
         radius = math.hypot(vehicle_length, vehicle_width) / 2
-        for offset in range(math.ceil(preferred) + 1):
-            position = frame_to_world(source, max(0.0, preferred - offset), target_lat, lat_center)
+        others = []
+        for other in collision_vehicles:
+            if other is vehicle:
+                continue
+            other_long, other_lat = world_to_frame(source, *other.position, lat_center)
+            other_speed = other.speed * math.cos(other.heading - source[0])
+            others.append((other, other_long, other_lat, other_speed,
+                           math.cos(other.heading - source[0]) > 0.5 and abs(other_lat - target_lat) < lane_corridor))
+
+        def following_gap_ok(long_pos):
+            for other, other_long, _, other_speed, same_lane in others:
+                if not same_lane:
+                    continue
+                gap = abs(other_long - long_pos) - (vehicle.LENGTH + other.LENGTH) / 2
+                rear_speed, front_speed = (speed, other_speed) if other_long >= long_pos else (other_speed, speed)
+                rear_speed, front_speed = max(rear_speed, 0.0), max(front_speed, 0.0)
+                needed = rear_speed * reaction_time + max(0.0, rear_speed ** 2 - front_speed ** 2) / (2.0 * brake_decel)
+                if gap < needed:
+                    return False
+            return True
+
+        latest_stop_pos = section_length - junction_margin - speed ** 2 / (2.0 * brake_decel)
+        start = max(0.0, min(preferred, latest_stop_pos))
+        for offset in range(math.ceil(start) + 1):
+            long_pos = max(0.0, start - offset)
+            position = frame_to_world(source, long_pos, target_lat, lat_center)
             if any(math.hypot(position[0] - other.position[0], position[1] - other.position[1])
                    <= radius + math.hypot(max(other.LENGTH, vehicle_length), max(other.WIDTH, vehicle_width)) / 2
                    for other in collision_vehicles if other is not vehicle):
                 continue
+            if not following_gap_ok(long_pos):
+                continue
             vehicle.position[0], vehicle.position[1] = position
             vehicle.heading = source[0]
-            vehicle.speed = abs(vehicle.speed)
+            vehicle.speed = speed
             recycled.append(index)
             break
     return recycled
@@ -432,6 +467,14 @@ def discard_run_files(run_id: int, generated_path_prefix: str, ucd_config_prios_
                 f.truncate(offset)
 
 
+def clear_previous_plans(generated_path_prefix: str, ucd_config_prios_str: List[str]) -> None:
+    """Remove the previous run's traces and stored plans, which the native planner would otherwise reuse."""
+    for config_name in ucd_config_prios_str:
+        package = Path(generated_path_prefix + config_name)
+        for path in [package / 'debug_trace_array.txt', *package.glob('future_point_*.txt')]:
+            path.unlink(missing_ok=True)
+
+
 class RunScheduler:
     """Decouples simulation seeds from run IDs.
 
@@ -577,12 +620,14 @@ def morty_script_context(live=False):
                 raise RuntimeError('--live requires rebuilding the native VFM library') from error
             morty_lib.expandScript.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t]
             morty_lib.expandScript.restype = ctypes.c_char_p
-            morty_lib.setMortyLiveMode(True)
             _live_morty_lib = morty_lib
+        _live_morty_lib.setMortyLiveMode(True)
         yield _live_morty_lib
         return
 
     with clean_library_context(dll_dir + '/' + dll_name) as morty_lib:
+        if _live_morty_lib is not None:
+            _live_morty_lib.setMortyLiveMode(False)
         morty_lib.expandScript.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t]
         morty_lib.expandScript.restype = ctypes.c_char_p
         
@@ -624,6 +669,115 @@ def morty_script_context(live=False):
 BG_PIXELS_PER_METER = 12.0
 BG_ZERO_PIXEL_X = 0.0
 BG_ZERO_PIXEL_Y = 961.0
+CAMERA_PADDING_M = 10.0
+CAMERA_TRANSITION_HOLD_FRAMES = 10
+CAMERA_TRANSITION_ALPHA = 0.03
+
+
+class CameraFramingState:
+    """Keep a padded camera frame stable while the scene changes.
+
+    Frame edges wait for a few stable frames and then ease toward their targets,
+    avoiding jumps when vehicles appear or disappear.
+    """
+
+    def __init__(self, padding=CAMERA_PADDING_M,
+                 transition_hold_frames=CAMERA_TRANSITION_HOLD_FRAMES,
+                 transition_alpha=CAMERA_TRANSITION_ALPHA):
+        if not math.isfinite(padding) or padding < 0:
+            raise ValueError("Camera padding must be a finite nonnegative number")
+        if type(transition_hold_frames) is not int or transition_hold_frames < 0:
+            raise ValueError("Camera transition hold must be a nonnegative integer")
+        if not math.isfinite(transition_alpha) or not 0 < transition_alpha <= 1:
+            raise ValueError("Camera transition alpha must be in (0, 1]")
+        self.padding = float(padding)
+        self.transition_hold_frames = transition_hold_frames
+        self.transition_alpha = float(transition_alpha)
+        self._frame = None
+        self._transition_frames = [0, 0, 0, 0]
+        self._transition_directions = [0, 0, 0, 0]
+
+    @property
+    def bounding_box(self):
+        if self._frame is None:
+            return None
+        return dict(zip(("xmin", "ymin", "xmax", "ymax"), self._frame))
+
+    def hold_current(self):
+        self._reset_transitions()
+        return self.bounding_box
+
+    def _reset_transitions(self, index=None):
+        if index is None:
+            self._transition_frames = [0, 0, 0, 0]
+            self._transition_directions = [0, 0, 0, 0]
+            return
+        self._transition_frames[index] = 0
+        self._transition_directions[index] = 0
+
+    def _ease_edge(self, index, target):
+        delta = target - self._frame[index]
+        if math.isclose(delta, 0.0, abs_tol=1e-9):
+            self._reset_transitions(index)
+            return
+
+        direction = 1 if delta > 0 else -1
+        if self._transition_directions[index] != direction:
+            self._reset_transitions(index)
+            self._transition_directions[index] = direction
+        self._transition_frames[index] += 1
+        if self._transition_frames[index] > self.transition_hold_frames:
+            self._frame[index] += self.transition_alpha * delta
+
+    def update(self, scene_bbox):
+        scene = np.array([scene_bbox["xmin"], scene_bbox["ymin"],
+                          scene_bbox["xmax"], scene_bbox["ymax"]], dtype=float)
+        if not np.all(np.isfinite(scene)):
+            raise ValueError("Scene bounding box must contain finite coordinates")
+        if scene[0] > scene[2] or scene[1] > scene[3]:
+            raise ValueError("Scene bounding box coordinates are reversed")
+
+        desired = scene + np.array([-self.padding, -self.padding,
+                                    self.padding, self.padding])
+        if self._frame is None:
+            self._frame = desired
+            return self.bounding_box
+
+        for index, lower_edge in ((0, True), (1, True), (2, False), (3, False)):
+            current = self._frame[index]
+            outside = scene[index] < current if lower_edge else scene[index] > current
+            shrinking = desired[index] > current if lower_edge else desired[index] < current
+            target_direction = 1 if desired[index] > current else -1 if desired[index] < current else 0
+            continuing = target_direction == self._transition_directions[index] != 0
+            if outside or shrinking or continuing:
+                self._ease_edge(index, desired[index])
+            else:
+                self._reset_transitions(index)
+
+        return self.bounding_box
+
+
+def set_world_surface_camera(surface, bounding_box):
+    """Apply a world-coordinate bounding box to a highway-env WorldSurface."""
+    target_width_m = max(1.0, bounding_box["xmax"] - bounding_box["xmin"])
+    target_height_m = max(1.0, bounding_box["ymax"] - bounding_box["ymin"])
+    scale_x = surface.get_width() / target_width_m
+    scale_y = surface.get_height() / target_height_m
+    surface.scaling = min(scale_x, scale_y)
+    surface.origin = np.array([
+        (bounding_box["xmin"] + bounding_box["xmax"]) / 2.0,
+        (bounding_box["ymin"] + bounding_box["ymax"]) / 2.0,
+    ]) - np.array([
+        surface.get_width() / (2.0 * surface.scaling),
+        surface.get_height() / (2.0 * surface.scaling),
+    ])
+
+
+def reset_world_surface_camera(env):
+    """Discard camera history so a manually initialized scene is framed anew."""
+    viewer = env.unwrapped.viewer
+    if viewer is not None:
+        viewer.sim_surface._morty_camera_framing = None
 
 
 class VizState:
@@ -640,6 +794,8 @@ class VizState:
         self.selected_cnt = None  # currently active CEX priority (for coloring)
         self.pos_to_draw = []     # list of [coord, color] planned MC positions
         self.status = ""
+        self.run_id = None
+        self.seed = None
         self.mc_running = False
         self._status_font = None
         self._status_viewer = None
@@ -685,7 +841,7 @@ class VizState:
         self._draw_status(viewer)
 
     def _draw_status(self, viewer, refresh=True, surface=None):
-        if not self.status and self.last_mc_ms is None:
+        if not self.status and self.last_mc_ms is None and self.run_id is None:
             return
         import pygame
 
@@ -701,6 +857,8 @@ class VizState:
         background = (255, 221, 92) if self.mc_running else (229, 235, 239)
         pygame.draw.rect(surface, background, strip)
         text = self.status
+        if self.run_id is not None:
+            text = f"Run {self.run_id} | Seed {self.seed}" + (f" | {text}" if text else "")
         available_width = max(0, strip.width - 16)
         if self.last_mc_ms is not None:
             timing = self._status_font.render(f"Last cycle MC time: {self.last_mc_ms:.1f} ms", True, (25, 30, 35))
@@ -1047,7 +1205,8 @@ def install_world_surface_patches(bg_image_state, num_lanes, fit_background=Fals
     """Patch highway-env's WorldSurface/RoadGraphics for morty's camera + road.
 
     - WorldSurface.move_display_window_to: frame the camera on ALL vehicles
-      (instead of a single ego) using the scene bounding box.
+      (instead of a single ego), retaining padded bounds briefly and easing
+      inward so disappearing vehicles do not make the camera jump.
     - RoadGraphics.display: after the native HE road (grey fill + lane markings),
       blit the generated "background" road on top of it, so the HE road sits
       UNDERNEATH the generated road while vehicles (drawn later) stay on top.
@@ -1068,71 +1227,60 @@ def install_world_surface_patches(bg_image_state, num_lanes, fit_background=Fals
     _he._morty_bg_num_lanes = num_lanes
     _he._morty_bg_fit = fit_background
 
-    _orig_move_display_window_to = WorldSurface.move_display_window_to
+    if not getattr(WorldSurface, "_morty_camera_patched", False):
+        _orig_move_display_window_to = WorldSurface.move_display_window_to
 
-    def _move_display_window_to_all(self, position):
-        try:
-            env_ref = getattr(_he, '_display_env', None)
-            if env_ref is None:
-                return _orig_move_display_window_to(self, position)
+        def _move_display_window_to_all(self, position):
+            try:
+                env_ref = getattr(_he, '_display_env', None)
+                if env_ref is None:
+                    return _orig_move_display_window_to(self, position)
 
-            vehicles = getattr(env_ref.unwrapped, 'road').vehicles
-            if not vehicles:
-                return _orig_move_display_window_to(self, position)
+                framing = getattr(self, "_morty_camera_framing", None)
+                vehicles = getattr(env_ref.unwrapped, 'road').vehicles
+                if not vehicles:
+                    if framing is None or framing.bounding_box is None:
+                        return _orig_move_display_window_to(self, position)
+                    set_world_surface_camera(self, framing.hold_current())
+                    return
 
-            bg_state = getattr(_he, '_morty_bg_state', None)
-            nlanes = getattr(_he, '_morty_bg_num_lanes', num_lanes)
-            fit = getattr(_he, '_morty_bg_fit', False)
+                bg_state = getattr(_he, '_morty_bg_state', None)
+                nlanes = getattr(_he, '_morty_bg_num_lanes', num_lanes)
+                fit = getattr(_he, '_morty_bg_fit', False)
 
-            if fit and bg_state is not None and bg_state["image"] is not None:
-                image = bg_state["image"]
-                road_x, road_y, road_w, road_h = get_road_world_rect(env_ref)
-                # Cache the (expensive) non-black content scan per image object.
-                if bg_state.get("content_bbox_for") != id(image):
-                    bg_state["content_bbox"] = get_background_content_pixel_bbox(image)
-                    bg_state["content_bbox_for"] = id(image)
-                bbox_x, bbox_y, bbox_w, bbox_h = get_background_content_world_rect(
-                    image,
-                    world_ref_x_m=0.0,
-                    world_ref_y_m=road_y + road_h / 2.0,
-                    num_lanes=nlanes,
-                    content_px_bbox=bg_state["content_bbox"],
-                )
-                bbox = {
-                    "xmin": bbox_x,
-                    "ymin": bbox_y,
-                    "xmax": bbox_x + bbox_w,
-                    "ymax": bbox_y + bbox_h,
-                }
-            else:
-                bbox = get_scene_bounding_box(env_ref, [i for i in range(1000)])
+                if fit and bg_state is not None and bg_state["image"] is not None:
+                    image = bg_state["image"]
+                    road_x, road_y, road_w, road_h = get_road_world_rect(env_ref)
+                    # Cache the (expensive) non-black content scan per image object.
+                    if bg_state.get("content_bbox_for") != id(image):
+                        bg_state["content_bbox"] = get_background_content_pixel_bbox(image)
+                        bg_state["content_bbox_for"] = id(image)
+                    bbox_x, bbox_y, bbox_w, bbox_h = get_background_content_world_rect(
+                        image,
+                        world_ref_x_m=0.0,
+                        world_ref_y_m=road_y + road_h / 2.0,
+                        num_lanes=nlanes,
+                        content_px_bbox=bg_state["content_bbox"],
+                    )
+                    bbox = {
+                        "xmin": bbox_x,
+                        "ymin": bbox_y,
+                        "xmax": bbox_x + bbox_w,
+                        "ymax": bbox_y + bbox_h,
+                    }
+                else:
+                    bbox = get_scene_bounding_box(env_ref, range(1000))
 
-            # World-space margin (in meters) kept around the framed content on
-            # every side, so nothing sits flush against the screen edge.
-            margin_m = 10
-            target_width_m = (bbox["xmax"] - bbox["xmin"]) + (margin_m * 2)
-            target_height_m = (bbox["ymax"] - bbox["ymin"]) + (margin_m * 2)
-            screen_width, screen_height = self.get_width(), self.get_height()
-            scale_x = screen_width / max(1.0, target_width_m)
-            scale_y = screen_height / max(1.0, target_height_m)
-            self.scaling = min(scale_x, scale_y)
+                if framing is None:
+                    framing = CameraFramingState()
+                    self._morty_camera_framing = framing
+                set_world_surface_camera(self, framing.update(bbox))
+            except Exception:
+                _orig_move_display_window_to(self, position)
+                raise
 
-            # Center the bounding box exactly in the middle of the screen,
-            # independent of `self.centering_position` (which highway-env may set
-            # to an off-center value and would otherwise shift content off-screen).
-            center = np.array([
-                (bbox["xmin"] + bbox["xmax"]) / 2.0,
-                (bbox["ymin"] + bbox["ymax"]) / 2.0,
-            ])
-            self.origin = center - np.array([
-                self.get_width() / (2.0 * self.scaling),
-                self.get_height() / (2.0 * self.scaling),
-            ])
-        except Exception as e:
-            _orig_move_display_window_to(self, position)
-            raise e
-
-    WorldSurface.move_display_window_to = _move_display_window_to_all
+        WorldSurface.move_display_window_to = _move_display_window_to_all
+        WorldSurface._morty_camera_patched = True
     # Provide a hook so the patched function can find the current env.
     _he._display_env = None
 

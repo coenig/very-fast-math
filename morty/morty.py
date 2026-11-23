@@ -18,6 +18,22 @@ def _stop_recording(env):
         env.stop_recording()
     else:
         env.close_video_recorder()
+
+
+def _update_recorded_cycle_frame(env):
+    if not getattr(env, 'recording', False):
+        return
+    frames = getattr(env, 'recorded_frames', None)
+    if not isinstance(frames, list):
+        frames = getattr(getattr(env, 'video_recorder', None), 'recorded_frames', None)
+    if not isinstance(frames, list) or not frames:
+        return
+    frame = env.env.render()
+    if isinstance(frame, list):
+        frame = frame[-1] if frame else None
+    if frame is not None:
+        frames[-1] = frame
+
 import os
 import shutil
 import argparse
@@ -33,10 +49,10 @@ from .morty_helper import (
     _hash_file, _snapshot_configs, _save_configs_to_archive, archive, morty_script_context,
     VizState, install_vehicle_graphics_patches, install_world_surface_patches,
     RunScheduler, MCConfigSelector, load_run_settings, snapshot_mc_results_offsets, run_reached_threshold, discard_run,
-    randomize_until_collision_free, shortcut_bmc_bound,
+    clear_previous_plans, randomize_until_collision_free, shortcut_bmc_bound,
     save_simulation_snapshot,
     IDENTITY_FRAME, fixed_section_frames, fixed_section_lengths, frame_to_world, world_to_frame,
-    recycle_junction_vehicles,
+    recycle_junction_vehicles, reset_world_surface_camera,
 )
 from .persistent_solver import PersistentSolverPool
 import platform
@@ -71,9 +87,10 @@ parser.add_argument('--headless', action='store_true',
 parser.add_argument('--live', action='store_true',
                     help='Driving-only mode: no visualization, debug artifacts, or experiment statistics.')
 parser.add_argument('--force_head', action='store_true',
-                    help='Show the simulation window with --live, keeping debugging and statistics disabled.')
+                    help='Show the simulation window, also with --live (debugging and statistics stay disabled). '
+                         'Regular mode shows it unless --headless.')
 parser.add_argument('--force_snapshots', action='store_true',
-                    help='Save one simulation-state PDF per cycle with --live, with or without a window.')
+                    help='Save one simulation-state PDF per cycle, with or without a window.')
 parser.add_argument('--num_runs', '-n', type=int, default=100,
                     help='Number of runs to retain. Default: 100')
 args = parser.parse_args()
@@ -88,18 +105,16 @@ try:
 except (OSError, ValueError, KeyError, TypeError) as error:
     parser.error(f'Invalid morty/envmodel_config.tpl.json: {error}')
 
-if args.force_head and not args.live:
-    parser.error('--force_head requires --live')
 if args.force_head and args.headless:
     parser.error('--force_head cannot be combined with --headless')
-if args.force_snapshots and not args.live:
-    parser.error('--force_snapshots requires --live')
-if args.mc_selection != 'all' and not args.live:
-    parser.error(f'UCD_MC_SELECTION={args.mc_selection} requires --live. Use "all" to achieve the equivalent behavior in regular mode.')
+if args.dryrun and args.mc_selection != 'all':
+    parser.error('--dryrun does not support replaying selective-planning archives')
 if args.mc_selection == 'all' and (args.shortcut_bmc_slack is not None or args.shortcut_probe_points
                                    or args.persistent_solver):
     parser.error('UCD_SHORTCUT_BMC_SLACK, UCD_SHORTCUT_PROBE_POINTS and UCD_PERSISTENT_SOLVER '
                  'require UCD_MC_SELECTION priority or adaptive')
+if (args.live or (args.mc_selection != 'all' and not args.dryrun)) and platform.system() == 'Linux' and shutil.which('timeout') is None:
+    parser.error('Live and selective planning require the coreutils timeout command on Linux')
 
 persistent_pool = None
 if args.persistent_solver:
@@ -110,12 +125,12 @@ if args.persistent_solver:
 if args.live:
     if args.dryrun or args.record_video or args.detailed_archive:
         parser.error('--live cannot be combined with --dryrun, --record_video, or --detailed_archive')
-    if platform.system() == 'Linux' and shutil.which('timeout') is None:
-        parser.error('--live requires the coreutils timeout command on Linux')
     args.headless = not args.force_head
     args.hide_trajectories = True
     args.hide_pure_pursuit = True
     args.hide_planned_positions = True
+else:
+    args.force_head = False  # Regular mode already has a recordable window unless --headless.
 
 if not args.live:
     import matplotlib
@@ -149,8 +164,8 @@ def show_sim_status(text, mc_running=False):
 
 def run_planning_script(script, result, description, config_name=None):
     if config_name is not None:
-        if not args.live or args.dryrun:
-            raise ValueError('Selective model checking requires a live run')
+        if args.dryrun:
+            raise ValueError('Selective model checking is unavailable during replay')
         if (config_name not in ucd_config_prios_str or script.count('.runMCJobs[16]') != 1
             or '.prepareInputForMortyUCD' in script):
             raise ValueError('Invalid selective model-checking request')
@@ -162,7 +177,7 @@ def run_planning_script(script, result, description, config_name=None):
     show_sim_status(f"{cycle} | {phase} ({description})", mc_running=not args.dryrun)
     try:
         with viz_state.measure_mc_query(enabled=not args.dryrun):
-            with morty_script_context(live=args.live) as morty_lib:
+            with morty_script_context(live=args.live or config_name is not None) as morty_lib:
                 output = morty_lib.expandScript(script.encode('utf-8'), result, sizeof(result))
     except BaseException:
         show_sim_status(f"{cycle} | Planning interrupted or failed")
@@ -308,6 +323,8 @@ with open('morty/envmodel_config.json') as f:
     section_frames = fixed_section_frames(d[ucd_config_prios_str[0]])
     if exp_num == 11:
         section_lengths = fixed_section_lengths(d[ucd_config_prios_str[0]])
+        # MC braking capability in m/s^2 (MC accel is in MC velocity units per MC step).
+        recycle_brake_decel = -d[ucd_config_prios_str[0]]["MINACCELNONEGO"] / vel_scale * time_scale
 
     if backward_driving_car_ids_str.endswith(')@'):
         backward_driving_car_ids_str = backward_driving_car_ids_str[:-2]
@@ -324,7 +341,7 @@ with open('morty/envmodel_config.json') as f:
 # only on MC side as backward-driving, forward-facing. This has to be modeled on the interface.
 
 
-
+# NOTE: Update the master_templates/note.txt whan something changes here.
 SPECS = []      # Predefined specs as checked in the experiments. (Collision-freedom is implicit.)
 SUCC_CONDS = [] # Conditions determining success of the specs.
 
@@ -626,6 +643,13 @@ scheduler = RunScheduler(generated_path_prefix, MAX_EXPs, args.dryrun, persist=n
                          start_seed=args.start_seed)
 
 for run_id, seedo in scheduler:
+    viz_state.run_id = run_id
+    viz_state.seed = seedo
+    viz_state.status = ""
+    viz_state.mc_running = False
+    if persistent_pool is not None:
+        persistent_pool.close()
+    clear_previous_plans(generated_path_prefix, ucd_config_prios_str)
     # Snapshot the per-config MC results log lengths so an excluded run can be truncated away again.
     mc_results_offsets = {} if args.live else snapshot_mc_results_offsets(ucd_config_prios_str, generated_path_prefix)
 
@@ -659,7 +683,7 @@ for run_id, seedo in scheduler:
         "screen_height": 700,
         "scaling": 3,
         "real_time_rendering": False,
-        "offscreen_rendering": args.force_snapshots and args.headless,
+        "offscreen_rendering": args.headless,
         "show_trajectories": False
     })
 
@@ -752,6 +776,7 @@ for run_id, seedo in scheduler:
     # (see randomize_until_collision_free for details); positions are mutated in place.
     randomize_until_collision_free(env, base_positions, rng, y_min_tech, y_max_tech,
                                    frames=egos_frames, lat_center=lat_center)
+    reset_world_surface_camera(env)
 
     viz_state.last_mc_ms = None
     viz_state.begin_mc_cycle()
@@ -813,9 +838,9 @@ for run_id, seedo in scheduler:
     recycled_last_step = False
     config_selector = (MCConfigSelector(len(ucd_config_prios_str), policy=args.mc_selection,
                                         shortcut_probe_points=args.shortcut_probe_points)
-                       if args.mc_selection != 'all' else None)
+                       if args.mc_selection != 'all' and not args.dryrun else None)
     # Live mode skips the Windows watchdog: its WMI process scan and 3 s sleep add ~4 s to every query.
-    watchdog_start = '' if args.live else '@{nuXmv}@.killAfter[300].Detach.setScriptVar[scriptID, force]'
+    watchdog_start = '' if args.live or config_selector is not None else '@{nuXmv}@.killAfter[300].Detach.setScriptVar[scriptID, force]'
     watchdog_stop = '' if not watchdog_start else '@{scriptID}@.scriptVar.StopScript'
     
     global_counter = -1  # Guards the validity check below if the inner loop never runs (e.g. steps_per_run == 0).
@@ -982,7 +1007,9 @@ for run_id, seedo in scheduler:
         if not args.live:
             selected_cnt_history.append(selected_cnt)
             for config_name in ucd_config_prios_str:
-                mc_runtime_histories[config_name].append(_latest_nuxmv_runtime_seconds(config_name, generated_path_prefix))
+                runtime = (np.nan if config_selector is not None else
+                           _latest_nuxmv_runtime_seconds(config_name, generated_path_prefix))
+                mc_runtime_histories[config_name].append(runtime)
             selected_runtime_history.append(mc_runtime_histories[selected_config][-1] if selected_cnt is not None else np.nan)
 
         # Distribute the selected future points to all other configs.
@@ -1332,14 +1359,15 @@ for run_id, seedo in scheduler:
 
         # === APPLY MC INSTRUCTIONS ===
         show_sim_status(f"Cycle {global_counter + 1} | Stepping simulation")
-        if args.force_head or args.force_snapshots:
+        # Intermediate frames are only shown by a regular window or recorded video.
+        if args.live or (args.headless and not args.record_video):
             env.unwrapped.enable_auto_render = False
         obs, reward, done, truncated, info = env.step(action)
         recycled_last_step = False
         if exp_num == 11 and all(not vehicle.crashed for vehicle in env.unwrapped.road.vehicles):
             recycled = recycle_junction_vehicles(
                 env.unwrapped.controlled_vehicles, section_frames, section_lengths, lat_center, dist_scale,
-                collision_vehicles=env.unwrapped.road.vehicles)
+                collision_vehicles=env.unwrapped.road.vehicles, brake_decel=recycle_brake_decel)
             if recycled:
                 recycled_last_step = True
                 selected_config = None
@@ -1365,6 +1393,8 @@ for run_id, seedo in scheduler:
             env.render()
 
         show_sim_status(f"Cycle {global_counter + 1} | MC idle - cycle complete")
+        if args.record_video:
+            _update_recorded_cycle_frame(env)
 
         # Flush partial video every iteration.
         # if args.record_video and not args.dryrun and hasattr(env, 'recorded_frames') and len(env.recorded_frames) > 0:

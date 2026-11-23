@@ -8,12 +8,126 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 import unittest
-from unittest.mock import Mock, mock_open, patch
+from unittest.mock import Mock, call, mock_open, patch
 
 from . import morty_helper as helper
 
 
 class LiveModeTests(unittest.TestCase):
+    def test_recorded_cycle_frame_uses_post_recycling_state(self):
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        function = next(node for node in module.body if isinstance(node, ast.FunctionDef)
+                        and node.name == '_update_recorded_cycle_frame')
+        namespace = {}
+        exec(compile(ast.Module(body=[function], type_ignores=[]), '<recorded cycle>', 'exec'), namespace)
+        update = namespace['_update_recorded_cycle_frame']
+        for legacy in [False, True]:
+            with self.subTest(legacy=legacy):
+                frames = ['intermediate', 'before recycling']
+                renderer = SimpleNamespace(render=Mock(return_value='after recycling'))
+                env = SimpleNamespace(recording=True, env=renderer,
+                                      recorded_frames=2 if legacy else frames,
+                                      video_recorder=SimpleNamespace(recorded_frames=frames))
+                update(env)
+                self.assertEqual(frames, ['intermediate', 'after recycling'])
+                renderer.render.assert_called_once()
+                env.recording = False
+                update(env)
+                renderer.render.assert_called_once()
+
+    def test_recorded_cycle_frame_updates_real_video_buffer(self):
+        import gymnasium
+        import imageio.v2 as imageio
+        import numpy as np
+        from gymnasium.wrappers import RecordVideo
+
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        functions = [node for node in module.body if isinstance(node, ast.FunctionDef)
+                     and node.name in ('_start_recording', '_stop_recording', '_update_recorded_cycle_frame')]
+        namespace = {'RecordVideo': RecordVideo}
+        exec(compile(ast.Module(body=functions, type_ignores=[]), '<recording>', 'exec'), namespace)
+
+        class FrameEnv(gymnasium.Env):
+            metadata = {'render_fps': 2}
+            render_mode = 'rgb_array'
+
+            def __init__(self):
+                self.value = 0
+
+            def render(self):
+                return np.full((16, 16, 3), self.value, dtype=np.uint8)
+
+        with TemporaryDirectory() as folder:
+            base = FrameEnv()
+            env = RecordVideo(base, video_folder=folder, episode_trigger=lambda episode: True)
+            try:
+                namespace['_start_recording'](env, 'cycle')
+                frames = env.recorded_frames if isinstance(env.recorded_frames, list) else env.video_recorder.recorded_frames
+                self.assertEqual(len(frames), 1)
+                base.value = 127
+                namespace['_update_recorded_cycle_frame'](env)
+                self.assertEqual(len(frames), 1)
+                np.testing.assert_array_equal(frames[0], np.full((16, 16, 3), 127, dtype=np.uint8))
+            finally:
+                namespace['_stop_recording'](env)
+                env.close()
+            video = next(Path(folder).glob('*.mp4'))
+            reader = imageio.get_reader(str(video))
+            try:
+                self.assertAlmostEqual(float(np.mean(reader.get_data(0))), 127, delta=3)
+            finally:
+                reader.close()
+
+    def test_video_recording_preserves_twenty_cycle_simulation(self):
+        import gymnasium
+        import highway_env
+        import numpy as np
+        from gymnasium.wrappers import RecordVideo
+
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        functions = [node for node in module.body if isinstance(node, ast.FunctionDef)
+                     and node.name in ('_start_recording', '_stop_recording', '_update_recorded_cycle_frame')]
+        namespace = {'RecordVideo': RecordVideo}
+        exec(compile(ast.Module(body=functions, type_ignores=[]), '<recording>', 'exec'), namespace)
+        config = {
+            'controlled_vehicles': 2, 'vehicles_count': 0, 'lanes_count': 2,
+            'simulation_frequency': 60, 'policy_frequency': 2,
+            'screen_width': 160, 'screen_height': 100, 'real_time_rendering': False,
+            'offscreen_rendering': True,
+            'action': {'type': 'MultiAgentAction', 'action_config': {'type': 'ContinuousAction'}},
+        }
+        with TemporaryDirectory() as folder, patch.dict('os.environ', {'SDL_VIDEODRIVER': 'dummy'}):
+            plain = gymnasium.make('highway-v0', render_mode=None, config=config)
+            visual = gymnasium.make('highway-v0', render_mode='rgb_array', config=config)
+            plain.reset(seed=12010)
+            visual.reset(seed=12010)
+            visual.render()
+            visual.unwrapped.viewer.enabled = True
+            recording = RecordVideo(visual, video_folder=folder, episode_trigger=lambda episode: True)
+            recording.unwrapped.set_record_video_wrapper(recording)
+            try:
+                namespace['_start_recording'](recording, 'cycle')
+                for cycle in range(20):
+                    action = ([0.05, 0.02], [-0.05, -0.02])
+                    plain.step(action)
+                    recording.step(action)
+                    if cycle in (0, 5, 10, 15):
+                        for env in (plain, recording):
+                            env.unwrapped.controlled_vehicles[0].position[0] += 5
+                    namespace['_update_recorded_cycle_frame'](recording)
+                    for expected, actual in zip(plain.unwrapped.controlled_vehicles,
+                                                recording.unwrapped.controlled_vehicles):
+                        np.testing.assert_array_equal(expected.position, actual.position)
+                        self.assertEqual(expected.speed, actual.speed)
+                        self.assertEqual(expected.heading, actual.heading)
+                frames = (recording.recorded_frames if isinstance(recording.recorded_frames, list)
+                          else recording.video_recorder.recorded_frames)
+                np.testing.assert_array_equal(frames[-1], visual.render())
+            finally:
+                namespace['_stop_recording'](recording)
+                recording.close()
+                plain.close()
+
     def test_junction_recycling_uses_model_scale_and_avoids_occupied_spawn(self):
         import numpy as np
         from highway_env.vehicle.kinematics import Vehicle
@@ -100,6 +214,41 @@ class LiveModeTests(unittest.TestCase):
                                                           collision_vehicles=[car, other]), [0])
         np.testing.assert_allclose(car.position, [70, 0], atol=1e-8)
 
+    def test_junction_recycling_leaves_braking_gap_to_slower_car_ahead(self):
+        import numpy as np
+        from highway_env.vehicle.kinematics import Vehicle
+
+        frames = {0: (0, 0, 0), 1: (0, 108, 0)}
+        car = Vehicle(None, [112, 0], speed=15)
+        slow = Vehicle(None, [60, 1], speed=0)
+        self.assertEqual(helper.recycle_junction_vehicles([car], frames, {0: 100}, 2, 4,
+                                                          collision_vehicles=[car, slow]), [0])
+        # 15 m/s * 1 s reaction + 15^2 / (2 * 3) braking + half lengths of both cars.
+        self.assertLessEqual(car.position[0], 60 - 15 - 37.5 - car.LENGTH)
+        self.assertEqual(car.speed, 15)
+
+    def test_junction_recycling_keeps_gap_to_faster_follower_and_crossing_traffic(self):
+        import numpy as np
+        from highway_env.vehicle.kinematics import Vehicle
+
+        frames = {0: (0, 0, 0), 1: (0, 108, 0)}
+        car = Vehicle(None, [112, 0], speed=10)
+        fast = Vehicle(None, [0, 0], speed=20)
+        crossing = Vehicle(None, [60, 0], heading=np.pi / 2, speed=20)
+        self.assertEqual(helper.recycle_junction_vehicles([car], frames, {0: 100}, 2, 4,
+                                                          collision_vehicles=[car, fast, crossing]), [0])
+        self.assertGreaterEqual(car.position[0] - car.LENGTH, 20 + (400 - 100) / 6)
+        self.assertLessEqual(car.position[0] + 100 / 6, 95)
+
+    def test_junction_recycling_caps_speed_to_stop_before_junction(self):
+        from highway_env.vehicle.kinematics import Vehicle
+
+        frames = {0: (0, 0, 0), 1: (0, 108, 0)}
+        car = Vehicle(None, [112, 0], speed=40)
+        self.assertEqual(helper.recycle_junction_vehicles([car], frames, {0: 100}, 2, 4), [0])
+        self.assertAlmostEqual(car.speed, (2 * 3 * 95) ** 0.5)
+        self.assertAlmostEqual(car.position[0], 0)
+
     def test_junction_recycling_refreshes_live_window(self):
         module = ast.parse(Path(__file__).with_name('morty.py').read_text())
         block = next(node for node in ast.walk(module) if isinstance(node, ast.If)
@@ -119,12 +268,51 @@ class LiveModeTests(unittest.TestCase):
         env.render.side_effect = lambda: self.assertEqual(vehicle.position[0], 0)
         namespace = {'exp_num': 11, 'env': env, 'args': SimpleNamespace(force_head=True),
                      'recycle_junction_vehicles': recycle, 'section_frames': {}, 'section_lengths': {}, 'lat_center': 0,
-                     'dist_scale': 4,
+                     'dist_scale': 4, 'recycle_brake_decel': 3.0,
                      'viz_state': SimpleNamespace(trajectories={}), 'print': Mock()}
         exec(code, namespace)
         env.render.assert_called_once_with()
         self.assertEqual(namespace['obs'], 'observed')
         self.assertTrue(namespace['recycled_last_step'])
+
+    def test_camera_framing_hysteresis_delays_vehicle_appearances_and_disappearances(self):
+        framing = helper.CameraFramingState(
+            padding=10, transition_hold_frames=2, transition_alpha=0.15)
+        initial = framing.update({"xmin": 0, "ymin": 0, "xmax": 100, "ymax": 20})
+        self.assertEqual(initial, {"xmin": -10, "ymin": -10, "xmax": 110, "ymax": 30})
+
+        within_padding = framing.update(
+            {"xmin": -9, "ymin": -9, "xmax": 109, "ymax": 29})
+        self.assertEqual(within_padding, initial)
+
+        expanded = framing.update(
+            {"xmin": -11, "ymin": -11, "xmax": 111, "ymax": 31})
+        self.assertEqual(expanded, initial)
+        self.assertEqual(framing.update(
+            {"xmin": -11, "ymin": -11, "xmax": 111, "ymax": 31}), initial)
+        expanded = framing.update(
+            {"xmin": -11, "ymin": -11, "xmax": 111, "ymax": 31})
+        self.assertLess(expanded["xmin"], initial["xmin"])
+        self.assertGreater(expanded["xmin"], -21)
+        self.assertGreater(expanded["xmax"], initial["xmax"])
+        self.assertLess(expanded["xmax"], 121)
+        continued = framing.update(
+            {"xmin": -11, "ymin": -11, "xmax": 111, "ymax": 31})
+        self.assertLess(continued["xmin"], expanded["xmin"])
+        self.assertGreater(continued["xmax"], expanded["xmax"])
+
+        contracted = {"xmin": 20, "ymin": 2, "xmax": 80, "ymax": 18}
+        self.assertEqual(framing.update(contracted), continued)
+        self.assertEqual(framing.hold_current(), continued)
+        self.assertEqual(framing.update(contracted), continued)
+        self.assertEqual(framing.update(contracted), continued)
+        eased = framing.update(contracted)
+        self.assertLess(eased["xmin"], 10)
+        self.assertGreater(eased["xmin"], continued["xmin"])
+        self.assertGreater(eased["xmax"], 90)
+        self.assertLess(eased["xmax"], continued["xmax"])
+        self.assertTrue(eased["xmin"] <= contracted["xmin"] - 10)
+        self.assertTrue(eased["xmax"] >= contracted["xmax"] + 10)
 
     def test_smv_parked_specialization_requires_stationary_lane_hold(self):
         from .evaluate_smv_encodings import freeze_parked
@@ -230,13 +418,17 @@ class LiveModeTests(unittest.TestCase):
                 self.assertFalse(args.force_snapshots)
                 self.assertEqual(args.mc_selection, 'all')
 
-    def test_adaptive_selection_is_live_only_and_opt_in(self):
+    def test_selective_planning_is_available_in_both_modes(self):
         for policy in ['adaptive', 'priority']:
-            template = {'UCD_MC_SELECTION': policy}
-            with self.subTest(policy=policy):
-                self.assertEqual(self.parse_driver_options('--live', template=template).mc_selection, policy)
-                with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
-                    self.parse_driver_options(template=template)
+            for options in [(), ('--live',), ('--record_video',)]:
+                template = {'UCD_MC_SELECTION': policy, 'UCD_PERSISTENT_SOLVER': True}
+                with self.subTest(policy=policy, options=options):
+                    args = self.parse_driver_options(*options, template=template)
+                    self.assertEqual(args.mc_selection, policy)
+                    self.assertTrue(args.persistent_solver)
+            with self.subTest(policy=policy, options='dryrun'), contextlib.redirect_stderr(io.StringIO()), \
+                 self.assertRaises(SystemExit):
+                self.parse_driver_options('--dryrun', template=template)
 
     def test_behavior_settings_cannot_be_overridden_by_cli(self):
         for option, value in [('--mc_selection', 'adaptive'), ('--start_seed', '7'),
@@ -324,6 +516,41 @@ class LiveModeTests(unittest.TestCase):
                 state.set_status(env, 'MC pipeline running', mc_running=True)
                 self.assertEqual(state.status, '')
                 self.assertFalse(state.mc_running)
+
+    def test_status_shows_run_and_seed_on_redraw_and_snapshot(self):
+        import pygame
+
+        pygame.font.init()
+        try:
+            state = helper.VizState()
+            viewer = SimpleNamespace(screen=pygame.Surface((800, 180)))
+            state._status_viewer = viewer
+            state._status_font = Mock(wraps=pygame.font.Font(None, 22))
+            state.run_id, state.seed = 0, 7
+            state.status = 'Cycle 1 | Preparing inputs'
+            state._draw_status(viewer, refresh=False)
+            state._status_font.render.assert_called_with(
+                'Run 0 | Seed 7 | Cycle 1 | Preparing inputs', True, (25, 30, 35))
+
+            state.run_id, state.seed = 0, 8
+            state.status = ''
+            state._draw_status(viewer, refresh=False, surface=pygame.Surface((800, 180)))
+            state._status_font.render.assert_called_with('Run 0 | Seed 8', True, (25, 30, 35))
+        finally:
+            pygame.font.quit()
+
+    def test_run_banner_context_updates_on_retry(self):
+        tree = ast.parse(Path('morty/morty.py').read_text())
+        run_loop = next(node for node in tree.body
+                        if isinstance(node, ast.For) and ast.unparse(node.target) == '(run_id, seedo)')
+        setup = compile(ast.Module(body=run_loop.body[:4], type_ignores=[]), '<run banner setup>', 'exec')
+        state = helper.VizState()
+        for seed in (7, 8):
+            state.status = 'Previous phase'
+            state.mc_running = True
+            exec(setup, {'viz_state': state, 'run_id': 0, 'seedo': seed,
+                        'persistent_pool': None})
+            self.assertEqual((state.run_id, state.seed, state.status, state.mc_running), (0, seed, '', False))
 
     def test_status_is_painted_immediately_and_survives_redrawing(self):
         import pygame
@@ -524,21 +751,27 @@ class LiveModeTests(unittest.TestCase):
                 return b'fresh result'
 
             library = SimpleNamespace(expandScript=Mock(side_effect=native_call))
-            namespace = {'args': SimpleNamespace(live=True, dryrun=False), 'global_counter': 0,
+            context = Mock(side_effect=lambda **kwargs: contextlib.nullcontext(library))
+            namespace = {'args': SimpleNamespace(live=False, dryrun=False), 'global_counter': 0,
                          'show_sim_status': Mock(), 'sizeof': sizeof, 'Path': Path,
                          'viz_state': helper.VizState(),
-                         'morty_script_context': lambda **kwargs: contextlib.nullcontext(library),
+                         'morty_script_context': context,
                          'ucd_config_prios_str': configs, 'generated_path_prefix': prefix}
             exec(compile(ast.Module(body=[function], type_ignores=[]), '<selected query>', 'exec'), namespace)
             result = namespace['run_planning_script']('@{config.json}@.runMCJobs[16]',
                                                      create_string_buffer(100), 'full plan', '_fallback')
             self.assertEqual(result, b'fresh result')
             library.expandScript.assert_called_once()
+            context.assert_called_once_with(live=True)
             with self.assertRaisesRegex(ValueError, 'Invalid selective'):
                 namespace['run_planning_script']('@{config.json}@.runMCJobs[16]',
                                                  create_string_buffer(100), 'full plan', '_unknown')
             with self.assertRaisesRegex(ValueError, 'Invalid selective'):
                 namespace['run_planning_script']('@{}@.prepareInputForMortyUCD[0,2,12,AUTO]@{config.json}@.runMCJobs[16]',
+                                                 create_string_buffer(100), 'full plan', '_fallback')
+            namespace['args'].dryrun = True
+            with self.assertRaisesRegex(ValueError, 'unavailable during replay'):
+                namespace['run_planning_script']('@{config.json}@.runMCJobs[16]',
                                                  create_string_buffer(100), 'full plan', '_fallback')
 
     def test_adaptive_input_uses_previous_selected_geometry(self):
@@ -665,7 +898,9 @@ class LiveModeTests(unittest.TestCase):
                 'TRANS next(x) >= x - LIMIT & next(x) <= x + LIMIT;\nTRANS next(flag) = (x > 3);\n')
             pool = ps.PersistentSolverPool('external')
             (package / 'script.cmd').write_text('go_msat\nmsat_check_invar_bmc -i -a falsification -k 6\nquit\n')
-            environment = dict(os.environ, CPP=pool.cpp[0]) if os.name == 'nt' else None
+            environment = dict(pool.env or os.environ)
+            if os.name == 'nt':
+                environment['CPP'] = pool.cpp[0]
             try:
                 for start, flag in [(-2, '!'), (4, ''), (-30, ''), (-30, '!'), (3, '')]:
                     (package / 'main.smv').write_text(
@@ -817,7 +1052,12 @@ class LiveModeTests(unittest.TestCase):
                                      (('--live', '--force_snapshots'), 'rgb_array'),
                                      (('--live', '--force_snapshots', '--headless'), 'rgb_array'),
                                      (('--live', '--force_snapshots', '--force_head'), 'human'),
-                                     ((), 'rgb_array'), (('--headless',), 'rgb_array')]:
+                                     ((), 'rgb_array'), (('--headless',), 'rgb_array'),
+                                     (('--force_head',), 'rgb_array'),
+                                     (('--force_head', '--record_video'), 'rgb_array'),
+                                     (('--force_snapshots',), 'rgb_array'),
+                                     (('--headless', '--force_snapshots'), 'rgb_array'),
+                                     (('--force_head', '--force_snapshots'), 'rgb_array')]:
             with self.subTest(options=options):
                 namespace = {
                     'args': self.parse_driver_options(*options),
@@ -831,8 +1071,7 @@ class LiveModeTests(unittest.TestCase):
                 kwargs = namespace['gymnasium'].make.call_args.kwargs
                 self.assertEqual(kwargs['render_mode'], render_mode)
                 self.assertFalse(kwargs['config']['real_time_rendering'])
-                self.assertEqual(kwargs['config']['offscreen_rendering'],
-                                 namespace['args'].force_snapshots and namespace['args'].headless)
+                self.assertEqual(kwargs['config']['offscreen_rendering'], namespace['args'].headless)
                 self.assertEqual(namespace['bg_image_state'] is not None, render_mode is not None)
                 for installer in ['install_vehicle_graphics_patches', 'install_world_surface_patches']:
                     self.assertEqual(namespace[installer].call_count, int(render_mode is not None))
@@ -897,7 +1136,7 @@ class LiveModeTests(unittest.TestCase):
                 visible.close()
                 plain.close()
 
-    def test_live_snapshots_write_one_nonblank_pdf_per_step_without_changing_physics(self):
+    def test_snapshots_write_one_nonblank_pdf_per_step_without_changing_physics(self):
         import gymnasium
         import highway_env
         import numpy as np
@@ -919,66 +1158,69 @@ class LiveModeTests(unittest.TestCase):
             'screen_width': 400, 'screen_height': 160, 'real_time_rendering': False,
             'action': {'type': 'MultiAgentAction', 'action_config': {'type': 'ContinuousAction'}},
         }
-        for force_head in [False, True]:
-            with self.subTest(force_head=force_head), TemporaryDirectory() as folder, \
+        for live in [False, True]:
+            for force_head in [False, True] if live else [False]:
+                with self.subTest(live=live, force_head=force_head), TemporaryDirectory() as folder, \
                  patch.dict('os.environ', {'SDL_VIDEODRIVER': 'dummy'}):
-                plain = gymnasium.make('highway-v0', render_mode=None, config=config)
-                capture = gymnasium.make('highway-v0', render_mode='human' if force_head else 'rgb_array',
-                                         config={**config, 'offscreen_rendering': not force_head})
-                try:
-                    plain.reset(seed=0)
-                    capture.reset(seed=0)
-                    if force_head:
-                        capture.unwrapped.viewer.enabled = True
-                    namespace = {
-                        'args': self.parse_driver_options('--live', '--force_snapshots',
-                                                          *(['--force_head'] if force_head else [])),
-                        'env': capture, 'action': ([0.1, 0.0], [-0.1, 0.0]), 'exp_num': 0,
-                        'save_simulation_snapshot': helper.save_simulation_snapshot,
-                        'viz_state': helper.VizState(),
-                    }
-                    namespace['viz_state'].last_mc_ms = 123.4
-                    for step in range(3):
-                        snapshot_path = Path(folder) / 'snapshots' / f'cycle_{step + 1:06d}.pdf'
-                        namespace['snapshot_path'] = snapshot_path
-                        viewer = capture.unwrapped.viewer
-                        drawing = (patch.object(viewer, 'display', wraps=viewer.display)
-                                   if viewer is not None else contextlib.nullcontext())
-                        with drawing as draw:
-                            exec(step_code, namespace)
-                            if draw is not None:
-                                draw.assert_called_once()
-                        plain.step(namespace['action'])
-                        pdf = snapshot_path.read_bytes()
-                        self.assertTrue(pdf.startswith(b'%PDF-'))
-                        self.assertIn(b'/Count 1', pdf)
-                        self.assertIn(b'/Width 400', pdf)
-                        self.assertIn(b'/Height 160', pdf)
-                        image = capture.unwrapped.viewer.get_image()
-                        self.assertGreater(np.ptp(image), 0)
-                        np.testing.assert_array_equal(image[0, 0], [229, 235, 239])
-                        import pygame
+                    plain = gymnasium.make('highway-v0', render_mode=None, config=config)
+                    capture = gymnasium.make('highway-v0', render_mode='human' if force_head else 'rgb_array',
+                                             config={**config, 'offscreen_rendering': not force_head})
+                    try:
+                        plain.reset(seed=0)
+                        capture.reset(seed=0)
+                        if force_head:
+                            capture.unwrapped.viewer.enabled = True
+                        options = (['--live'] if live else ['--headless']) + ['--force_snapshots']
+                        if force_head:
+                            options.append('--force_head')
+                        namespace = {
+                            'args': self.parse_driver_options(*options),
+                            'env': capture, 'action': ([0.1, 0.0], [-0.1, 0.0]), 'exp_num': 0,
+                            'save_simulation_snapshot': helper.save_simulation_snapshot,
+                            'viz_state': helper.VizState(),
+                        }
+                        namespace['viz_state'].last_mc_ms = 123.4
+                        for step in range(3):
+                            snapshot_path = Path(folder) / 'snapshots' / f'cycle_{step + 1:06d}.pdf'
+                            namespace['snapshot_path'] = snapshot_path
+                            viewer = capture.unwrapped.viewer
+                            drawing = (patch.object(viewer, 'display', wraps=viewer.display)
+                                       if viewer is not None else contextlib.nullcontext())
+                            with drawing as draw:
+                                exec(step_code, namespace)
+                                if draw is not None:
+                                    draw.assert_called_once()
+                            plain.step(namespace['action'])
+                            pdf = snapshot_path.read_bytes()
+                            self.assertTrue(pdf.startswith(b'%PDF-'))
+                            self.assertIn(b'/Count 1', pdf)
+                            self.assertIn(b'/Width 400', pdf)
+                            self.assertIn(b'/Height 160', pdf)
+                            image = capture.unwrapped.viewer.get_image()
+                            self.assertGreater(np.ptp(image), 0)
+                            np.testing.assert_array_equal(image[0, 0], [229, 235, 239])
+                            import pygame
 
-                        state = namespace['viz_state']
-                        timing = state._status_font.render('Last cycle MC time: 123.4 ms', True, (25, 30, 35))
-                        expected = pygame.Surface(timing.get_size())
-                        expected.fill((229, 235, 239))
-                        expected.blit(timing, (0, 0))
-                        left = image.shape[1] - timing.get_width() - 8
-                        top = (30 - timing.get_height()) // 2
-                        np.testing.assert_array_equal(
-                            image[top:top + timing.get_height(), left:left + timing.get_width()],
-                            np.moveaxis(pygame.surfarray.array3d(expected), 0, 1))
-                        for shown, hidden in zip(capture.unwrapped.controlled_vehicles,
-                                                 plain.unwrapped.controlled_vehicles):
-                            np.testing.assert_array_equal(shown.position, hidden.position)
-                            self.assertEqual(shown.speed, hidden.speed)
-                            self.assertEqual(shown.heading, hidden.heading)
-                    self.assertEqual(len(list(Path(folder).rglob('*.pdf'))), 3)
-                    self.assertEqual(capture.unwrapped.viewer.offscreen, not force_head)
-                finally:
-                    capture.close()
-                    plain.close()
+                            state = namespace['viz_state']
+                            timing = state._status_font.render('Last cycle MC time: 123.4 ms', True, (25, 30, 35))
+                            expected = pygame.Surface(timing.get_size())
+                            expected.fill((229, 235, 239))
+                            expected.blit(timing, (0, 0))
+                            left = image.shape[1] - timing.get_width() - 8
+                            top = (30 - timing.get_height()) // 2
+                            np.testing.assert_array_equal(
+                                image[top:top + timing.get_height(), left:left + timing.get_width()],
+                                np.moveaxis(pygame.surfarray.array3d(expected), 0, 1))
+                            for shown, hidden in zip(capture.unwrapped.controlled_vehicles,
+                                                     plain.unwrapped.controlled_vehicles):
+                                np.testing.assert_array_equal(shown.position, hidden.position)
+                                self.assertEqual(shown.speed, hidden.speed)
+                                self.assertEqual(shown.heading, hidden.heading)
+                        self.assertEqual(len(list(Path(folder).rglob('*.pdf'))), 3)
+                        self.assertEqual(capture.unwrapped.viewer.offscreen, not force_head)
+                    finally:
+                        capture.close()
+                        plain.close()
 
     def test_terminal_live_cycles_save_a_snapshot_without_stepping(self):
         module = ast.parse(Path(__file__).with_name('morty.py').read_text())
@@ -1019,12 +1261,59 @@ class LiveModeTests(unittest.TestCase):
                         snapshot.assert_not_called()
 
     def test_force_head_rejects_conflicting_modes(self):
-        for options in [('--force_head',), ('--live', '--force_head', '--headless'),
-                        ('--force_snapshots',)]:
+        for options in [('--force_head', '--headless'), ('--live', '--force_head', '--headless')]:
             with self.subTest(options=options), contextlib.redirect_stderr(io.StringIO()):
                 with self.assertRaises(SystemExit) as failure:
                     self.parse_driver_options(*options)
                 self.assertEqual(failure.exception.code, 2)
+
+    def test_live_visual_features_are_available_in_regular_mode(self):
+        for options in [('--force_head',), ('--force_head', '--record_video'), ('--force_snapshots',),
+                        ('--headless', '--force_snapshots'), ('--force_snapshots', '--record_video'),
+                        ('--force_head', '--force_snapshots')]:
+            with self.subTest(options=options):
+                args = self.parse_driver_options(*options)
+                self.assertFalse(args.live)
+                self.assertFalse(args.force_head)
+                self.assertEqual(args.headless, '--headless' in options)
+                self.assertEqual(args.force_snapshots, '--force_snapshots' in options)
+
+    def test_intermediate_frames_are_kept_for_regular_windows_and_videos(self):
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        cycle = next(node for node in ast.walk(module) if isinstance(node, ast.For)
+                     and isinstance(node.target, ast.Name) and node.target.id == 'global_counter')
+        step_index = next(index for index, node in enumerate(cycle.body)
+                          if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
+                          and ast.unparse(node.value.func) == 'env.step')
+        code = compile(ast.Module(body=[cycle.body[step_index - 1]], type_ignores=[]), '<auto render>', 'exec')
+        for options, kept in [(('--live',), False), (('--live', '--force_head'), False),
+                              (('--live', '--force_snapshots'), False), (('--headless', '--force_snapshots'), False),
+                              ((), True), (('--force_head',), True), (('--force_snapshots',), True),
+                              (('--headless', '--record_video'), True),
+                              (('--headless', '--force_snapshots', '--record_video'), True)]:
+            with self.subTest(options=options):
+                env = SimpleNamespace(unwrapped=SimpleNamespace(enable_auto_render=True))
+                exec(code, {'args': self.parse_driver_options(*options), 'env': env})
+                self.assertEqual(env.unwrapped.enable_auto_render, kept)
+
+    def test_runs_start_without_previous_traces_or_plans(self):
+        with TemporaryDirectory() as folder:
+            prefix = str(Path(folder) / 'generated')
+            package = Path(prefix + '_primary')
+            package.mkdir()
+            kept = ['main.smv', 'script.cmd', 'scaling_info.txt', 'debug_trace_array_FALSE.txt']
+            for name in kept + ['debug_trace_array.txt', 'future_point_0.txt', 'future_point_12.txt']:
+                (package / name).write_text(name)
+            helper.clear_previous_plans(prefix, ['_primary', '_missing'])
+            self.assertEqual(sorted(path.name for path in package.iterdir()), sorted(kept))
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        run_loop = next(node for node in module.body
+                        if isinstance(node, ast.For) and ast.unparse(node.target) == '(run_id, seedo)')
+        statements = [ast.unparse(node) for node in run_loop.body]
+        cleanup = statements.index('clear_previous_plans(generated_path_prefix, ucd_config_prios_str)')
+        cycle = next(index for index, node in enumerate(run_loop.body)
+                     if isinstance(node, ast.For) and ast.unparse(node.target) == 'global_counter')
+        self.assertLess(cleanup, cycle)
 
     def test_both_live_modes_reject_debug_recording_and_replay(self):
         for viewer_options in [(), ('--force_head',), ('--force_snapshots',),
@@ -1070,7 +1359,20 @@ class LiveModeTests(unittest.TestCase):
                 with helper.morty_script_context(live=True) as second:
                     self.assertIs(first, second)
                 loader.assert_called_once()
-                first.setMortyLiveMode.assert_called_once_with(True)
+                self.assertEqual(first.setMortyLiveMode.call_args_list, [call(True), call(True)])
+
+    def test_native_mode_switches_between_selective_planning_and_diagnostics(self):
+        library = Mock()
+        with patch.object(helper.ctypes, 'CDLL', return_value=library), \
+             patch.object(helper, '_live_morty_lib', None), \
+             patch.object(helper, 'clean_library_context', return_value=contextlib.nullcontext(library)):
+            with helper.morty_script_context(live=True):
+                pass
+            with helper.morty_script_context(live=False):
+                pass
+            with helper.morty_script_context(live=True):
+                pass
+        self.assertEqual(library.setMortyLiveMode.call_args_list, [call(True), call(False), call(True)])
 
     def test_old_library_is_rejected(self):
         with patch.object(helper.ctypes, 'CDLL', return_value=SimpleNamespace()):
