@@ -323,6 +323,8 @@ with open('morty/envmodel_config.json') as f:
     section_frames = fixed_section_frames(d[ucd_config_prios_str[0]])
     if exp_num == 11:
         section_lengths = fixed_section_lengths(d[ucd_config_prios_str[0]])
+        # MC braking capability in m/s^2 (MC accel is in MC velocity units per MC step).
+        recycle_brake_decel = -d[ucd_config_prios_str[0]]["MINACCELNONEGO"] / vel_scale * time_scale
 
     if backward_driving_car_ids_str.endswith(')@'):
         backward_driving_car_ids_str = backward_driving_car_ids_str[:-2]
@@ -1365,7 +1367,7 @@ for run_id, seedo in scheduler:
         if exp_num == 11 and all(not vehicle.crashed for vehicle in env.unwrapped.road.vehicles):
             recycled = recycle_junction_vehicles(
                 env.unwrapped.controlled_vehicles, section_frames, section_lengths, lat_center, dist_scale,
-                collision_vehicles=env.unwrapped.road.vehicles)
+                collision_vehicles=env.unwrapped.road.vehicles, brake_decel=recycle_brake_decel)
             if recycled:
                 recycled_last_step = True
                 selected_config = None

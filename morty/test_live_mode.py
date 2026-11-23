@@ -214,6 +214,41 @@ class LiveModeTests(unittest.TestCase):
                                                           collision_vehicles=[car, other]), [0])
         np.testing.assert_allclose(car.position, [70, 0], atol=1e-8)
 
+    def test_junction_recycling_leaves_braking_gap_to_slower_car_ahead(self):
+        import numpy as np
+        from highway_env.vehicle.kinematics import Vehicle
+
+        frames = {0: (0, 0, 0), 1: (0, 108, 0)}
+        car = Vehicle(None, [112, 0], speed=15)
+        slow = Vehicle(None, [60, 1], speed=0)
+        self.assertEqual(helper.recycle_junction_vehicles([car], frames, {0: 100}, 2, 4,
+                                                          collision_vehicles=[car, slow]), [0])
+        # 15 m/s * 1 s reaction + 15^2 / (2 * 3) braking + half lengths of both cars.
+        self.assertLessEqual(car.position[0], 60 - 15 - 37.5 - car.LENGTH)
+        self.assertEqual(car.speed, 15)
+
+    def test_junction_recycling_keeps_gap_to_faster_follower_and_crossing_traffic(self):
+        import numpy as np
+        from highway_env.vehicle.kinematics import Vehicle
+
+        frames = {0: (0, 0, 0), 1: (0, 108, 0)}
+        car = Vehicle(None, [112, 0], speed=10)
+        fast = Vehicle(None, [0, 0], speed=20)
+        crossing = Vehicle(None, [60, 0], heading=np.pi / 2, speed=20)
+        self.assertEqual(helper.recycle_junction_vehicles([car], frames, {0: 100}, 2, 4,
+                                                          collision_vehicles=[car, fast, crossing]), [0])
+        self.assertGreaterEqual(car.position[0] - car.LENGTH, 20 + (400 - 100) / 6)
+        self.assertLessEqual(car.position[0] + 100 / 6, 95)
+
+    def test_junction_recycling_caps_speed_to_stop_before_junction(self):
+        from highway_env.vehicle.kinematics import Vehicle
+
+        frames = {0: (0, 0, 0), 1: (0, 108, 0)}
+        car = Vehicle(None, [112, 0], speed=40)
+        self.assertEqual(helper.recycle_junction_vehicles([car], frames, {0: 100}, 2, 4), [0])
+        self.assertAlmostEqual(car.speed, (2 * 3 * 95) ** 0.5)
+        self.assertAlmostEqual(car.position[0], 0)
+
     def test_junction_recycling_refreshes_live_window(self):
         module = ast.parse(Path(__file__).with_name('morty.py').read_text())
         block = next(node for node in ast.walk(module) if isinstance(node, ast.If)
@@ -233,7 +268,7 @@ class LiveModeTests(unittest.TestCase):
         env.render.side_effect = lambda: self.assertEqual(vehicle.position[0], 0)
         namespace = {'exp_num': 11, 'env': env, 'args': SimpleNamespace(force_head=True),
                      'recycle_junction_vehicles': recycle, 'section_frames': {}, 'section_lengths': {}, 'lat_center': 0,
-                     'dist_scale': 4,
+                     'dist_scale': 4, 'recycle_brake_decel': 3.0,
                      'viz_state': SimpleNamespace(trajectories={}), 'print': Mock()}
         exec(code, namespace)
         env.render.assert_called_once_with()

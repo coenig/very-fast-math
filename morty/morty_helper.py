@@ -196,7 +196,14 @@ def world_to_frame(frame, x, y, lat_center):
     return dx * ca + dy * sa, -dx * sa + dy * ca
 
 def recycle_junction_vehicles(vehicles, section_frames, section_lengths, lat_center, dist_scale,
-                              threshold=10, collision_vehicles=None):
+                              threshold=10, collision_vehicles=None, brake_decel=3.0, reaction_time=1.0,
+                              lane_corridor=4.0, junction_margin=5.0):
+    """Teleport vehicles that crossed the junction back onto their source section.
+
+    Besides the static clearance, a spawn spot must leave a speed-dependent following gap (reaction
+    distance + braking-distance difference at `brake_decel`) to same-direction vehicles within
+    `lane_corridor` laterally, ahead and behind. The recycled speed is capped so the vehicle can
+    still stop `junction_margin` before the junction from the section start."""
     recycled = []
     collision_vehicles = vehicles if collision_vehicles is None else collision_vehicles
     for index, vehicle in enumerate(vehicles):
@@ -206,18 +213,46 @@ def recycle_junction_vehicles(vehicles, section_frames, section_lengths, lat_cen
         target_long, target_lat = world_to_frame(target, *vehicle.position, lat_center)
         if target_long * dist_scale <= threshold:
             continue
-        preferred = max(0.0, section_lengths[source_id] - 20.0)
+        section_length = section_lengths[source_id]
+        preferred = max(0.0, section_length - 20.0)
+        speed = min(abs(vehicle.speed), math.sqrt(2.0 * brake_decel * max(0.0, section_length - junction_margin)))
         vehicle_length, vehicle_width = vehicle.LENGTH + 5, vehicle.WIDTH + 5
         radius = math.hypot(vehicle_length, vehicle_width) / 2
-        for offset in range(math.ceil(preferred) + 1):
-            position = frame_to_world(source, max(0.0, preferred - offset), target_lat, lat_center)
+        others = []
+        for other in collision_vehicles:
+            if other is vehicle:
+                continue
+            other_long, other_lat = world_to_frame(source, *other.position, lat_center)
+            other_speed = other.speed * math.cos(other.heading - source[0])
+            others.append((other, other_long, other_lat, other_speed,
+                           math.cos(other.heading - source[0]) > 0.5 and abs(other_lat - target_lat) < lane_corridor))
+
+        def following_gap_ok(long_pos):
+            for other, other_long, _, other_speed, same_lane in others:
+                if not same_lane:
+                    continue
+                gap = abs(other_long - long_pos) - (vehicle.LENGTH + other.LENGTH) / 2
+                rear_speed, front_speed = (speed, other_speed) if other_long >= long_pos else (other_speed, speed)
+                rear_speed, front_speed = max(rear_speed, 0.0), max(front_speed, 0.0)
+                needed = rear_speed * reaction_time + max(0.0, rear_speed ** 2 - front_speed ** 2) / (2.0 * brake_decel)
+                if gap < needed:
+                    return False
+            return True
+
+        latest_stop_pos = section_length - junction_margin - speed ** 2 / (2.0 * brake_decel)
+        start = max(0.0, min(preferred, latest_stop_pos))
+        for offset in range(math.ceil(start) + 1):
+            long_pos = max(0.0, start - offset)
+            position = frame_to_world(source, long_pos, target_lat, lat_center)
             if any(math.hypot(position[0] - other.position[0], position[1] - other.position[1])
                    <= radius + math.hypot(max(other.LENGTH, vehicle_length), max(other.WIDTH, vehicle_width)) / 2
                    for other in collision_vehicles if other is not vehicle):
                 continue
+            if not following_gap_ok(long_pos):
+                continue
             vehicle.position[0], vehicle.position[1] = position
             vehicle.heading = source[0]
-            vehicle.speed = abs(vehicle.speed)
+            vehicle.speed = speed
             recycled.append(index)
             break
     return recycled
