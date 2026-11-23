@@ -49,7 +49,7 @@ from .morty_helper import (
     _hash_file, _snapshot_configs, _save_configs_to_archive, archive, morty_script_context,
     VizState, install_vehicle_graphics_patches, install_world_surface_patches,
     RunScheduler, MCConfigSelector, load_run_settings, snapshot_mc_results_offsets, run_reached_threshold, discard_run,
-    randomize_until_collision_free, shortcut_bmc_bound,
+    clear_previous_plans, randomize_until_collision_free, shortcut_bmc_bound,
     save_simulation_snapshot,
     IDENTITY_FRAME, fixed_section_frames, fixed_section_lengths, frame_to_world, world_to_frame,
     recycle_junction_vehicles, reset_world_surface_camera,
@@ -87,9 +87,10 @@ parser.add_argument('--headless', action='store_true',
 parser.add_argument('--live', action='store_true',
                     help='Driving-only mode: no visualization, debug artifacts, or experiment statistics.')
 parser.add_argument('--force_head', action='store_true',
-                    help='Show the simulation window with --live, keeping debugging and statistics disabled.')
+                    help='Show the simulation window, also with --live (debugging and statistics stay disabled). '
+                         'Regular mode shows it unless --headless.')
 parser.add_argument('--force_snapshots', action='store_true',
-                    help='Save one simulation-state PDF per cycle with --live, with or without a window.')
+                    help='Save one simulation-state PDF per cycle, with or without a window.')
 parser.add_argument('--num_runs', '-n', type=int, default=100,
                     help='Number of runs to retain. Default: 100')
 args = parser.parse_args()
@@ -104,12 +105,8 @@ try:
 except (OSError, ValueError, KeyError, TypeError) as error:
     parser.error(f'Invalid morty/envmodel_config.tpl.json: {error}')
 
-if args.force_head and not args.live:
-    parser.error('--force_head requires --live')
 if args.force_head and args.headless:
     parser.error('--force_head cannot be combined with --headless')
-if args.force_snapshots and not args.live:
-    parser.error('--force_snapshots requires --live')
 if args.dryrun and args.mc_selection != 'all':
     parser.error('--dryrun does not support replaying selective-planning archives')
 if args.mc_selection == 'all' and (args.shortcut_bmc_slack is not None or args.shortcut_probe_points
@@ -132,6 +129,8 @@ if args.live:
     args.hide_trajectories = True
     args.hide_pure_pursuit = True
     args.hide_planned_positions = True
+else:
+    args.force_head = False  # Regular mode already has a recordable window unless --headless.
 
 if not args.live:
     import matplotlib
@@ -646,6 +645,9 @@ for run_id, seedo in scheduler:
     viz_state.seed = seedo
     viz_state.status = ""
     viz_state.mc_running = False
+    if persistent_pool is not None:
+        persistent_pool.close()
+    clear_previous_plans(generated_path_prefix, ucd_config_prios_str)
     # Snapshot the per-config MC results log lengths so an excluded run can be truncated away again.
     mc_results_offsets = {} if args.live else snapshot_mc_results_offsets(ucd_config_prios_str, generated_path_prefix)
 
@@ -679,7 +681,7 @@ for run_id, seedo in scheduler:
         "screen_height": 700,
         "scaling": 3,
         "real_time_rendering": False,
-        "offscreen_rendering": args.force_snapshots and args.headless,
+        "offscreen_rendering": args.headless,
         "show_trajectories": False
     })
 
@@ -1355,7 +1357,8 @@ for run_id, seedo in scheduler:
 
         # === APPLY MC INSTRUCTIONS ===
         show_sim_status(f"Cycle {global_counter + 1} | Stepping simulation")
-        if args.force_head or args.force_snapshots:
+        # Intermediate frames are only shown by a regular window or recorded video.
+        if args.live or (args.headless and not args.record_video):
             env.unwrapped.enable_auto_render = False
         obs, reward, done, truncated, info = env.step(action)
         recycled_last_step = False

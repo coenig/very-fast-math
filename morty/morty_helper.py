@@ -432,6 +432,14 @@ def discard_run_files(run_id: int, generated_path_prefix: str, ucd_config_prios_
                 f.truncate(offset)
 
 
+def clear_previous_plans(generated_path_prefix: str, ucd_config_prios_str: List[str]) -> None:
+    """Remove the previous run's traces and stored plans, which the native planner would otherwise reuse."""
+    for config_name in ucd_config_prios_str:
+        package = Path(generated_path_prefix + config_name)
+        for path in [package / 'debug_trace_array.txt', *package.glob('future_point_*.txt')]:
+            path.unlink(missing_ok=True)
+
+
 class RunScheduler:
     """Decouples simulation seeds from run IDs.
 

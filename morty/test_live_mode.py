@@ -513,7 +513,8 @@ class LiveModeTests(unittest.TestCase):
         for seed in (7, 8):
             state.status = 'Previous phase'
             state.mc_running = True
-            exec(setup, {'viz_state': state, 'run_id': 0, 'seedo': seed})
+            exec(setup, {'viz_state': state, 'run_id': 0, 'seedo': seed,
+                        'persistent_pool': None})
             self.assertEqual((state.run_id, state.seed, state.status, state.mc_running), (0, seed, '', False))
 
     def test_status_is_painted_immediately_and_survives_redrawing(self):
@@ -862,7 +863,9 @@ class LiveModeTests(unittest.TestCase):
                 'TRANS next(x) >= x - LIMIT & next(x) <= x + LIMIT;\nTRANS next(flag) = (x > 3);\n')
             pool = ps.PersistentSolverPool('external')
             (package / 'script.cmd').write_text('go_msat\nmsat_check_invar_bmc -i -a falsification -k 6\nquit\n')
-            environment = dict(os.environ, CPP=pool.cpp[0]) if os.name == 'nt' else None
+            environment = dict(pool.env or os.environ)
+            if os.name == 'nt':
+                environment['CPP'] = pool.cpp[0]
             try:
                 for start, flag in [(-2, '!'), (4, ''), (-30, ''), (-30, '!'), (3, '')]:
                     (package / 'main.smv').write_text(
@@ -1014,7 +1017,12 @@ class LiveModeTests(unittest.TestCase):
                                      (('--live', '--force_snapshots'), 'rgb_array'),
                                      (('--live', '--force_snapshots', '--headless'), 'rgb_array'),
                                      (('--live', '--force_snapshots', '--force_head'), 'human'),
-                                     ((), 'rgb_array'), (('--headless',), 'rgb_array')]:
+                                     ((), 'rgb_array'), (('--headless',), 'rgb_array'),
+                                     (('--force_head',), 'rgb_array'),
+                                     (('--force_head', '--record_video'), 'rgb_array'),
+                                     (('--force_snapshots',), 'rgb_array'),
+                                     (('--headless', '--force_snapshots'), 'rgb_array'),
+                                     (('--force_head', '--force_snapshots'), 'rgb_array')]:
             with self.subTest(options=options):
                 namespace = {
                     'args': self.parse_driver_options(*options),
@@ -1028,8 +1036,7 @@ class LiveModeTests(unittest.TestCase):
                 kwargs = namespace['gymnasium'].make.call_args.kwargs
                 self.assertEqual(kwargs['render_mode'], render_mode)
                 self.assertFalse(kwargs['config']['real_time_rendering'])
-                self.assertEqual(kwargs['config']['offscreen_rendering'],
-                                 namespace['args'].force_snapshots and namespace['args'].headless)
+                self.assertEqual(kwargs['config']['offscreen_rendering'], namespace['args'].headless)
                 self.assertEqual(namespace['bg_image_state'] is not None, render_mode is not None)
                 for installer in ['install_vehicle_graphics_patches', 'install_world_surface_patches']:
                     self.assertEqual(namespace[installer].call_count, int(render_mode is not None))
@@ -1094,7 +1101,7 @@ class LiveModeTests(unittest.TestCase):
                 visible.close()
                 plain.close()
 
-    def test_live_snapshots_write_one_nonblank_pdf_per_step_without_changing_physics(self):
+    def test_snapshots_write_one_nonblank_pdf_per_step_without_changing_physics(self):
         import gymnasium
         import highway_env
         import numpy as np
@@ -1116,66 +1123,69 @@ class LiveModeTests(unittest.TestCase):
             'screen_width': 400, 'screen_height': 160, 'real_time_rendering': False,
             'action': {'type': 'MultiAgentAction', 'action_config': {'type': 'ContinuousAction'}},
         }
-        for force_head in [False, True]:
-            with self.subTest(force_head=force_head), TemporaryDirectory() as folder, \
+        for live in [False, True]:
+            for force_head in [False, True] if live else [False]:
+                with self.subTest(live=live, force_head=force_head), TemporaryDirectory() as folder, \
                  patch.dict('os.environ', {'SDL_VIDEODRIVER': 'dummy'}):
-                plain = gymnasium.make('highway-v0', render_mode=None, config=config)
-                capture = gymnasium.make('highway-v0', render_mode='human' if force_head else 'rgb_array',
-                                         config={**config, 'offscreen_rendering': not force_head})
-                try:
-                    plain.reset(seed=0)
-                    capture.reset(seed=0)
-                    if force_head:
-                        capture.unwrapped.viewer.enabled = True
-                    namespace = {
-                        'args': self.parse_driver_options('--live', '--force_snapshots',
-                                                          *(['--force_head'] if force_head else [])),
-                        'env': capture, 'action': ([0.1, 0.0], [-0.1, 0.0]), 'exp_num': 0,
-                        'save_simulation_snapshot': helper.save_simulation_snapshot,
-                        'viz_state': helper.VizState(),
-                    }
-                    namespace['viz_state'].last_mc_ms = 123.4
-                    for step in range(3):
-                        snapshot_path = Path(folder) / 'snapshots' / f'cycle_{step + 1:06d}.pdf'
-                        namespace['snapshot_path'] = snapshot_path
-                        viewer = capture.unwrapped.viewer
-                        drawing = (patch.object(viewer, 'display', wraps=viewer.display)
-                                   if viewer is not None else contextlib.nullcontext())
-                        with drawing as draw:
-                            exec(step_code, namespace)
-                            if draw is not None:
-                                draw.assert_called_once()
-                        plain.step(namespace['action'])
-                        pdf = snapshot_path.read_bytes()
-                        self.assertTrue(pdf.startswith(b'%PDF-'))
-                        self.assertIn(b'/Count 1', pdf)
-                        self.assertIn(b'/Width 400', pdf)
-                        self.assertIn(b'/Height 160', pdf)
-                        image = capture.unwrapped.viewer.get_image()
-                        self.assertGreater(np.ptp(image), 0)
-                        np.testing.assert_array_equal(image[0, 0], [229, 235, 239])
-                        import pygame
+                    plain = gymnasium.make('highway-v0', render_mode=None, config=config)
+                    capture = gymnasium.make('highway-v0', render_mode='human' if force_head else 'rgb_array',
+                                             config={**config, 'offscreen_rendering': not force_head})
+                    try:
+                        plain.reset(seed=0)
+                        capture.reset(seed=0)
+                        if force_head:
+                            capture.unwrapped.viewer.enabled = True
+                        options = (['--live'] if live else ['--headless']) + ['--force_snapshots']
+                        if force_head:
+                            options.append('--force_head')
+                        namespace = {
+                            'args': self.parse_driver_options(*options),
+                            'env': capture, 'action': ([0.1, 0.0], [-0.1, 0.0]), 'exp_num': 0,
+                            'save_simulation_snapshot': helper.save_simulation_snapshot,
+                            'viz_state': helper.VizState(),
+                        }
+                        namespace['viz_state'].last_mc_ms = 123.4
+                        for step in range(3):
+                            snapshot_path = Path(folder) / 'snapshots' / f'cycle_{step + 1:06d}.pdf'
+                            namespace['snapshot_path'] = snapshot_path
+                            viewer = capture.unwrapped.viewer
+                            drawing = (patch.object(viewer, 'display', wraps=viewer.display)
+                                       if viewer is not None else contextlib.nullcontext())
+                            with drawing as draw:
+                                exec(step_code, namespace)
+                                if draw is not None:
+                                    draw.assert_called_once()
+                            plain.step(namespace['action'])
+                            pdf = snapshot_path.read_bytes()
+                            self.assertTrue(pdf.startswith(b'%PDF-'))
+                            self.assertIn(b'/Count 1', pdf)
+                            self.assertIn(b'/Width 400', pdf)
+                            self.assertIn(b'/Height 160', pdf)
+                            image = capture.unwrapped.viewer.get_image()
+                            self.assertGreater(np.ptp(image), 0)
+                            np.testing.assert_array_equal(image[0, 0], [229, 235, 239])
+                            import pygame
 
-                        state = namespace['viz_state']
-                        timing = state._status_font.render('Last cycle MC time: 123.4 ms', True, (25, 30, 35))
-                        expected = pygame.Surface(timing.get_size())
-                        expected.fill((229, 235, 239))
-                        expected.blit(timing, (0, 0))
-                        left = image.shape[1] - timing.get_width() - 8
-                        top = (30 - timing.get_height()) // 2
-                        np.testing.assert_array_equal(
-                            image[top:top + timing.get_height(), left:left + timing.get_width()],
-                            np.moveaxis(pygame.surfarray.array3d(expected), 0, 1))
-                        for shown, hidden in zip(capture.unwrapped.controlled_vehicles,
-                                                 plain.unwrapped.controlled_vehicles):
-                            np.testing.assert_array_equal(shown.position, hidden.position)
-                            self.assertEqual(shown.speed, hidden.speed)
-                            self.assertEqual(shown.heading, hidden.heading)
-                    self.assertEqual(len(list(Path(folder).rglob('*.pdf'))), 3)
-                    self.assertEqual(capture.unwrapped.viewer.offscreen, not force_head)
-                finally:
-                    capture.close()
-                    plain.close()
+                            state = namespace['viz_state']
+                            timing = state._status_font.render('Last cycle MC time: 123.4 ms', True, (25, 30, 35))
+                            expected = pygame.Surface(timing.get_size())
+                            expected.fill((229, 235, 239))
+                            expected.blit(timing, (0, 0))
+                            left = image.shape[1] - timing.get_width() - 8
+                            top = (30 - timing.get_height()) // 2
+                            np.testing.assert_array_equal(
+                                image[top:top + timing.get_height(), left:left + timing.get_width()],
+                                np.moveaxis(pygame.surfarray.array3d(expected), 0, 1))
+                            for shown, hidden in zip(capture.unwrapped.controlled_vehicles,
+                                                     plain.unwrapped.controlled_vehicles):
+                                np.testing.assert_array_equal(shown.position, hidden.position)
+                                self.assertEqual(shown.speed, hidden.speed)
+                                self.assertEqual(shown.heading, hidden.heading)
+                        self.assertEqual(len(list(Path(folder).rglob('*.pdf'))), 3)
+                        self.assertEqual(capture.unwrapped.viewer.offscreen, not force_head)
+                    finally:
+                        capture.close()
+                        plain.close()
 
     def test_terminal_live_cycles_save_a_snapshot_without_stepping(self):
         module = ast.parse(Path(__file__).with_name('morty.py').read_text())
@@ -1216,12 +1226,59 @@ class LiveModeTests(unittest.TestCase):
                         snapshot.assert_not_called()
 
     def test_force_head_rejects_conflicting_modes(self):
-        for options in [('--force_head',), ('--live', '--force_head', '--headless'),
-                        ('--force_snapshots',)]:
+        for options in [('--force_head', '--headless'), ('--live', '--force_head', '--headless')]:
             with self.subTest(options=options), contextlib.redirect_stderr(io.StringIO()):
                 with self.assertRaises(SystemExit) as failure:
                     self.parse_driver_options(*options)
                 self.assertEqual(failure.exception.code, 2)
+
+    def test_live_visual_features_are_available_in_regular_mode(self):
+        for options in [('--force_head',), ('--force_head', '--record_video'), ('--force_snapshots',),
+                        ('--headless', '--force_snapshots'), ('--force_snapshots', '--record_video'),
+                        ('--force_head', '--force_snapshots')]:
+            with self.subTest(options=options):
+                args = self.parse_driver_options(*options)
+                self.assertFalse(args.live)
+                self.assertFalse(args.force_head)
+                self.assertEqual(args.headless, '--headless' in options)
+                self.assertEqual(args.force_snapshots, '--force_snapshots' in options)
+
+    def test_intermediate_frames_are_kept_for_regular_windows_and_videos(self):
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        cycle = next(node for node in ast.walk(module) if isinstance(node, ast.For)
+                     and isinstance(node.target, ast.Name) and node.target.id == 'global_counter')
+        step_index = next(index for index, node in enumerate(cycle.body)
+                          if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call)
+                          and ast.unparse(node.value.func) == 'env.step')
+        code = compile(ast.Module(body=[cycle.body[step_index - 1]], type_ignores=[]), '<auto render>', 'exec')
+        for options, kept in [(('--live',), False), (('--live', '--force_head'), False),
+                              (('--live', '--force_snapshots'), False), (('--headless', '--force_snapshots'), False),
+                              ((), True), (('--force_head',), True), (('--force_snapshots',), True),
+                              (('--headless', '--record_video'), True),
+                              (('--headless', '--force_snapshots', '--record_video'), True)]:
+            with self.subTest(options=options):
+                env = SimpleNamespace(unwrapped=SimpleNamespace(enable_auto_render=True))
+                exec(code, {'args': self.parse_driver_options(*options), 'env': env})
+                self.assertEqual(env.unwrapped.enable_auto_render, kept)
+
+    def test_runs_start_without_previous_traces_or_plans(self):
+        with TemporaryDirectory() as folder:
+            prefix = str(Path(folder) / 'generated')
+            package = Path(prefix + '_primary')
+            package.mkdir()
+            kept = ['main.smv', 'script.cmd', 'scaling_info.txt', 'debug_trace_array_FALSE.txt']
+            for name in kept + ['debug_trace_array.txt', 'future_point_0.txt', 'future_point_12.txt']:
+                (package / name).write_text(name)
+            helper.clear_previous_plans(prefix, ['_primary', '_missing'])
+            self.assertEqual(sorted(path.name for path in package.iterdir()), sorted(kept))
+        module = ast.parse(Path(__file__).with_name('morty.py').read_text())
+        run_loop = next(node for node in module.body
+                        if isinstance(node, ast.For) and ast.unparse(node.target) == '(run_id, seedo)')
+        statements = [ast.unparse(node) for node in run_loop.body]
+        cleanup = statements.index('clear_previous_plans(generated_path_prefix, ucd_config_prios_str)')
+        cycle = next(index for index, node in enumerate(run_loop.body)
+                     if isinstance(node, ast.For) and ast.unparse(node.target) == 'global_counter')
+        self.assertLess(cleanup, cycle)
 
     def test_both_live_modes_reject_debug_recording_and_replay(self):
         for viewer_options in [(), ('--force_head',), ('--force_snapshots',),
