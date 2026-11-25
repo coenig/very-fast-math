@@ -475,7 +475,7 @@ for i in range(0, nonegos):
 # 11
 for i in range(0, nonegos): # No turning in the junction (for now).
     addons[11] += f"INVAR env.veh___6{i}9___.is_traversing_from_sec_0_to_sec_3 = 0 & env.veh___6{i}9___.is_traversing_from_sec_2_to_sec_1 = 0;\n"
-    addons[11] += f"INVAR env.veh___6{i}9___.v > 4;\n"
+    addons[11] += f"INVAR env.veh___6{i}9___.v > @{{minspeed * 4}}@.eval[0];\n"
 
 
 
