@@ -825,8 +825,15 @@ class VizState:
             return
         self._status_font = None
         original_display = viewer.display
+        window_size = viewer.screen.get_size()
 
         def display_with_status():
+            import pygame
+
+            # Undo user resizes (some WMs ignore SDL's fixed-size hint); video frames must keep one size.
+            surface = pygame.display.get_surface()
+            if surface is not None and surface.get_size() != window_size:
+                viewer.screen = pygame.display.set_mode(window_size)
             original_display()
             self._draw_status(viewer)
 
