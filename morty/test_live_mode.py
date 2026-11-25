@@ -14,6 +14,53 @@ from . import morty_helper as helper
 
 
 class LiveModeTests(unittest.TestCase):
+    @unittest.skipUnless(Path('lib/libvfm.so').exists() and os.name != 'nt', 'native library not available')
+    def test_addons_expand_per_configuration_during_input_preparation(self):
+        import ctypes
+
+        library = ctypes.CDLL(str(Path('lib/libvfm.so').resolve()))
+        library.expandScript.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_size_t]
+        library.expandScript.restype = ctypes.c_char_p
+        library.setMortyLiveMode.argtypes = [ctypes.c_bool]
+        library.setMortyLiveMode(True)
+        previous_directory = os.getcwd()
+        try:
+            with TemporaryDirectory() as folder:
+                os.chdir(folder)
+                Path('morty').mkdir()
+                template = {'_GENERATED_PATH': './exp', '_ENVMODEL_PATH': './templates',
+                            'UCD_CONFIG_PRIOS': '_config_a;_config_b', 'UCD_EXP_NUM': 4}
+                Path('morty/envmodel_config.tpl.json').write_text(json.dumps({'#TEMPLATE': template}))
+                Path('morty/envmodel_config.json').write_text(json.dumps({
+                    '_config_a': {'EXAMPLE_VALUE': 0, 'UCD_JUNCTION_MIN_SPEED': 0},
+                    '_config_b': {'EXAMPLE_VALUE': 3, 'UCD_JUNCTION_MIN_SPEED': 4},
+                }))
+                for name in ['a', 'b']:
+                    package = Path('exp_config_' + name)
+                    package.mkdir()
+                    (package / 'scaling_info.txt').write_text(
+                        '-- TIMESCALING((((1))))GNILACSEMIT\n'
+                        '-- DISTANCESCALING((((1))))GNILACSECNATSID\n'
+                        '-- GEOMETRYSCALING((((1))))GNILACSYRTEMOEG\n')
+                    (package / 'main.smv').write_text(
+                        '--SPEC-STUFF\n--ADDONS\n'
+                        'INVAR x > @{UCD_JUNCTION_MIN_SPEED}@.eval[0];\n'
+                        'INVAR y = @{EXAMPLE_VALUE * 2}@.eval[0];\n'
+                        '--EO-ADDONS\nINVARSPEC TRUE;\n--EO-SPEC-STUFF\n')
+                buffer = ctypes.create_string_buffer(1000)
+                script = b'@{0,1,1,1,0,0;}@.prepareInputForMortyUCD[0,2,2,AUTO]'
+                for _ in range(2):
+                    library.expandScript(script, buffer, ctypes.sizeof(buffer))
+                    for name, speed, example in [('a', 0, 0), ('b', 4, 6)]:
+                        main = Path('exp_config_' + name, 'main.smv').read_text()
+                        self.assertIn(f'INVAR x > {speed};', main)
+                        self.assertIn(f'INVAR y = {example};', main)
+                        self.assertNotIn('@{', main)
+                        self.assertEqual(main.count('-- INIT CONSTRAINTS'), 1)
+        finally:
+            os.chdir(previous_directory)
+            library.setMortyLiveMode(False)
+
     def test_recorded_cycle_frame_uses_post_recycling_state(self):
         module = ast.parse(Path(__file__).with_name('morty.py').read_text())
         function = next(node for node in module.body if isinstance(node, ast.FunctionDef)

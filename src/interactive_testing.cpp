@@ -2126,9 +2126,28 @@ void vfm::test::prepareInputForMortyUCD(const std::string& input_str, const floa
 
    const std::string INIT_CONSTRAINTS_BEGIN{ "-- INIT CONSTRAINTS" };
    const std::string INIT_CONSTRAINTS_END{ "-- EO INIT CONSTRAINTS" };
+   const std::string ADDONS_BEGIN{ "--ADDONS" };
+   const std::string ADDONS_END{ "--EO-ADDONS" };
+   std::optional<mc::McWorkflow> addon_workflow{};
 
    for (const auto& config_name : ucd_config_prios_vec) {
       std::string main_smv{ StaticHelper::readFile(OUTPUT_BASE_PATH + config_name + "/main.smv") };
+      // Python inserts addons after model generation; expand them here using this configuration's values.
+      const auto addons_begin{ main_smv.find(ADDONS_BEGIN) };
+      const auto addons_end{ main_smv.find(ADDONS_END, addons_begin) };
+      if (addons_begin != std::string::npos && addons_end != std::string::npos) {
+         const auto addons_offset{ addons_begin + ADDONS_BEGIN.size() };
+         const std::string addons{ main_smv.substr(addons_offset, addons_end - addons_offset) };
+         if (addons.find(macro::INSCR_BEG_TAG) != std::string::npos) {
+            if (!addon_workflow) addon_workflow.emplace();
+            else addon_workflow->resetParserAndData();
+            if (!addon_workflow->putJSONIntoDataPack("./morty/", "envmodel_config.tpl.json")
+               || !addon_workflow->putJSONIntoDataPack("./morty/", "envmodel_config.tpl.json", config_name)) return;
+            addon_workflow->data_->addStringToDataPack(workflow.getEnvmodelDir("./morty/", "envmodel_config.tpl.json").string(), macro::MY_PATH_VARNAME);
+            const std::string expanded{ macro::Script::processScript(addons, macro::Script::DataPreparation::both, false, addon_workflow->data_, addon_workflow->parser_) };
+            main_smv.replace(addons_offset, addons_end - addons_offset, expanded);
+         }
+      }
       const std::string compact_begin{ "-- TASK7 INPUT CONSTANTS" };
       const std::string compact_end{ "-- EO TASK7 INPUT CONSTANTS" };
       const auto compact_offset{ main_smv.find(compact_begin) };
