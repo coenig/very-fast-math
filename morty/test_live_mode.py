@@ -296,6 +296,44 @@ class LiveModeTests(unittest.TestCase):
         self.assertAlmostEqual(car.speed, (2 * 3 * 95) ** 0.5)
         self.assertAlmostEqual(car.position[0], 0)
 
+    def test_junction_recycling_randomizes_speed_with_safety_limit(self):
+        from highway_env.vehicle.kinematics import Vehicle
+
+        frames = {0: (0, 0, 0), 1: (0, 108, 0)}
+        car = Vehicle(None, [112, 0], speed=2)
+        rng = Mock()
+        rng.uniform.return_value = 20
+        self.assertEqual(helper.recycle_junction_vehicles([car], frames, {0: 100}, 2, 4,
+                         speed_range=(10, 70), rng=rng), [0])
+        rng.uniform.assert_called_once_with(10, 70)
+        self.assertEqual(car.speed, 20)
+
+        car.position[:] = [112, 0]
+        rng.uniform.return_value = 70
+        self.assertEqual(helper.recycle_junction_vehicles([car], frames, {0: 100}, 2, 4,
+                         speed_range=(10, 70), rng=rng), [0])
+        self.assertAlmostEqual(car.speed, (2 * 3 * 95) ** 0.5)
+
+        car.position[:] = [112, 0]
+        rng.reset_mock()
+        self.assertEqual(helper.recycle_junction_vehicles([car], frames, {0: 10}, 2, 4,
+                         speed_range=(10, 70), rng=rng), [])
+        rng.uniform.assert_not_called()
+        self.assertAlmostEqual(car.speed, (2 * 3 * 95) ** 0.5)
+
+    def test_junction_recycling_uses_randomized_speed_for_following_gap(self):
+        from highway_env.vehicle.kinematics import Vehicle
+
+        frames = {0: (0, 0, 0), 1: (0, 108, 0)}
+        car = Vehicle(None, [112, 0], speed=2)
+        slow = Vehicle(None, [60, 1], speed=0)
+        rng = Mock()
+        rng.uniform.return_value = 15
+        self.assertEqual(helper.recycle_junction_vehicles([car], frames, {0: 100}, 2, 4,
+                         collision_vehicles=[car, slow], speed_range=(10, 70), rng=rng), [0])
+        self.assertEqual(car.speed, 15)
+        self.assertLessEqual(car.position[0], 60 - 15 - 37.5 - car.LENGTH)
+
     def test_junction_recycling_refreshes_live_window(self):
         module = ast.parse(Path(__file__).with_name('morty.py').read_text())
         block = next(node for node in ast.walk(module) if isinstance(node, ast.If)
@@ -313,11 +351,16 @@ class LiveModeTests(unittest.TestCase):
             return [0]
 
         env.render.side_effect = lambda: self.assertEqual(vehicle.position[0], 0)
+        recycle_mock = Mock(side_effect=recycle)
+        rng = Mock()
         namespace = {'exp_num': 11, 'env': env, 'args': SimpleNamespace(force_head=True),
-                     'recycle_junction_vehicles': recycle, 'section_frames': {}, 'section_lengths': {}, 'lat_center': 0,
-                     'dist_scale': 4, 'recycle_brake_decel': 3.0,
+                     'recycle_junction_vehicles': recycle_mock, 'section_frames': {}, 'section_lengths': {}, 'lat_center': 0,
+                     'dist_scale': 4, 'recycle_brake_decel': 3.0, 'min_start_speed': 10, 'max_speed': 70,
+                     'np': SimpleNamespace(random=rng),
                      'viz_state': SimpleNamespace(trajectories={}), 'print': Mock()}
         exec(code, namespace)
+        self.assertEqual(recycle_mock.call_args.kwargs['speed_range'], (10, 70))
+        self.assertIs(recycle_mock.call_args.kwargs['rng'], rng)
         env.render.assert_called_once_with()
         self.assertEqual(namespace['obs'], 'observed')
         self.assertTrue(namespace['recycled_last_step'])

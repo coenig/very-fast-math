@@ -1368,7 +1368,8 @@ for run_id, seedo in scheduler:
         if exp_num == 11 and all(not vehicle.crashed for vehicle in env.unwrapped.road.vehicles):
             recycled = recycle_junction_vehicles(
                 env.unwrapped.controlled_vehicles, section_frames, section_lengths, lat_center, dist_scale,
-                collision_vehicles=env.unwrapped.road.vehicles, brake_decel=recycle_brake_decel)
+                collision_vehicles=env.unwrapped.road.vehicles, brake_decel=recycle_brake_decel,
+                speed_range=(min_start_speed, max_speed), rng=np.random)
             if recycled:
                 recycled_last_step = True
                 selected_config = None

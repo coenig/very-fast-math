@@ -197,7 +197,7 @@ def world_to_frame(frame, x, y, lat_center):
 
 def recycle_junction_vehicles(vehicles, section_frames, section_lengths, lat_center, dist_scale,
                               threshold=10, collision_vehicles=None, brake_decel=3.0, reaction_time=1.0,
-                              lane_corridor=4.0, junction_margin=5.0):
+                              lane_corridor=4.0, junction_margin=5.0, speed_range=None, rng=None):
     """Teleport vehicles that crossed the junction back onto their source section.
 
     Besides the static clearance, a spawn spot must leave a speed-dependent following gap (reaction
@@ -215,7 +215,10 @@ def recycle_junction_vehicles(vehicles, section_frames, section_lengths, lat_cen
             continue
         section_length = section_lengths[source_id]
         preferred = max(0.0, section_length - 20.0)
-        speed = min(abs(vehicle.speed), math.sqrt(2.0 * brake_decel * max(0.0, section_length - junction_margin)))
+        safe_speed = math.sqrt(2.0 * brake_decel * max(0.0, section_length - junction_margin))
+        if speed_range is not None and safe_speed < speed_range[0]:
+            continue
+        speed = min(rng.uniform(*speed_range) if speed_range is not None else abs(vehicle.speed), safe_speed)
         vehicle_length, vehicle_width = vehicle.LENGTH + 5, vehicle.WIDTH + 5
         radius = math.hypot(vehicle_length, vehicle_width) / 2
         others = []
