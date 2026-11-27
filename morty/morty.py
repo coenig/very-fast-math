@@ -680,7 +680,7 @@ for run_id, seedo in scheduler:
         "controlled_vehicles": nonegos,
         "lanes_count": num_actual_lanes,
         "vehicles_count": 0,
-        "screen_width": 1500,
+        "screen_width": 700,
         "screen_height": 700,
         "scaling": 3,
         "real_time_rendering": False,
@@ -798,6 +798,7 @@ for run_id, seedo in scheduler:
         env = RecordVideo(env, video_folder=f"{generated_path_prefix}/videos", name_prefix=f"vid_{run_id}",
                     episode_trigger=lambda e: True)  # record all episodes
         env.unwrapped.set_record_video_wrapper(env)
+        # env.unwrapped.update_metadata(video_real_time_ratio=1)
         _start_recording(env, f"vid_{run_id}")
         try:
             import highway_env as _he
