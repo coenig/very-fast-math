@@ -94,7 +94,7 @@
       "SCENGEN_MODE": false,
       "SCENGEN_UNIVERSAL_PROPERTIES": "0-0",
       "SECTIONS": "#{sections}#",
-      "MAXSPEEDNONEGO": 70,
+      "MAXSPEEDNONEGO": 40,
       "MINSTARTSPEEDNONEGO_UCD": 10,
       "MAXSTARTSPEEDNONEGO_UCD": 15,
       "UCD_JUNCTION_MIN_SPEED": "#{ minspeed * 4 }#",
